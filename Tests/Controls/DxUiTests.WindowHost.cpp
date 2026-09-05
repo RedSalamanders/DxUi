@@ -2997,6 +2997,27 @@ void TestNoninteractiveWindowActivationBlockerRejectsFocusStealing()
 
 } // namespace
 
+void TestWindowHostWorksWithoutOptionalSdkDebugLayer()
+{
+    wil::com_ptr_nothrow<ID3D11Device> device;
+    wil::com_ptr_nothrow<ID3D11DeviceContext> context;
+    const HRESULT debugResult = D3D11CreateDevice(nullptr,
+                                                  D3D_DRIVER_TYPE_WARP,
+                                                  nullptr,
+                                                  D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG,
+                                                  nullptr,
+                                                  0,
+                                                  D3D11_SDK_VERSION,
+                                                  device.put(),
+                                                  nullptr,
+                                                  context.put());
+    std::cout << "D3D11 WARP optional debug-layer probe: 0x" << std::hex << static_cast<unsigned long>(debugResult) << std::dec << '\n';
+    Require(SUCCEEDED(debugResult) || debugResult == DXGI_ERROR_SDK_COMPONENT_MISSING,
+            "WARP probe either creates debug graphics or reports the optional SDK component missing");
+    DxUi::WindowHost host;
+    Require(host.GetTextFormat(DxUi::FontRole::Body) != nullptr, "native graphics and text initialize with or without the optional D3D SDK debug layer");
+}
+
 void RunWindowHostTests()
 {
     auto runTest = [](const char* name, void (*fn)())
@@ -3006,6 +3027,7 @@ void RunWindowHostTests()
         std::cerr << "  [DONE] " << name << '\n' << std::flush;
     };
 
+    runTest("TestWindowHostWorksWithoutOptionalSdkDebugLayer", TestWindowHostWorksWithoutOptionalSdkDebugLayer);
     runTest("TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies", TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);
     runTest("TestWindowHostKeyboardInputMarksFocusVisible", TestWindowHostKeyboardInputMarksFocusVisible);
     runTest("TestWindowHostPointerInputClearsKeyboardFocusVisible", TestWindowHostPointerInputClearsKeyboardFocusVisible);

@@ -110,6 +110,15 @@ namespace DxUi
         }
     }
 
+    // SDK layers are optional on deployment machines and native ARM64 CI. Preserve all other flags and
+    // hardware/WARP policy; retry exactly once only for the documented missing-debug-component error.
+    if (hr == DXGI_ERROR_SDK_COMPONENT_MISSING && (creationFlags & D3D11_CREATE_DEVICE_DEBUG))
+    {
+        Debug::Warning(L"DxUi::ControlHost: D3D11 SDK debug layer unavailable; retrying without the optional layer.");
+        return CreateD3D11DeviceWithWarpFallback(
+            creationFlags & ~D3D11_CREATE_DEVICE_DEBUG, featureLevels, forceWarp, device, featureLevel, context, driverType);
+    }
+
     if (FAILED(hr) || ! createdDevice || ! createdContext)
     {
         return FAILED(hr) ? hr : E_FAIL;

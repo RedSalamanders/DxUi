@@ -11,6 +11,11 @@ It uses the same retained control implementation as embedded mode, with a separa
 Device loss, resize, zero-size suspension, DPI, focus and teardown have explicit contracts and regression tests.
 Its message/timer/animation resources stop or quiesce when hidden and are destroyed by their owning runtime.
 
-The imported WindowHost is a reference, not a standalone supported binary. It currently depends on RedSalamander
-helpers, messages and animation dispatch. D1 removes those dependencies and migrates the existing window-host
-tests before advertising support. RedSalamander's application migration remains a later independent plan.
+Native ControlHost/WindowHost is supported inside the same DxUi.lib; its messages, animation dispatcher and
+resource helpers are library-owned. RedSalamander's application migration remains a later independent plan.
+
+Debug builds request the optional D3D11 SDK layer. If device creation returns DXGI_ERROR_SDK_COMPONENT_MISSING,
+retry once with only D3D11_CREATE_DEVICE_DEBUG removed, retaining BGRA support and hardware/WARP policy. Other
+errors keep their normal failure behavior. This handles the [documented optional debug-layer failure](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-d3d11createdevice)
+without preventing ordinary control rendering and text layout. Native tests report the raw WARP debug-layer probe
+and require the host to initialize with or without that SDK component.
