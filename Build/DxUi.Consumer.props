@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <DxUiRoot Condition="'$(DxUiRoot)'==''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\'))</DxUiRoot>
+    <DxUiResolvedRoot>$([MSBuild]::EnsureTrailingSlash('$(DxUiRoot)'))</DxUiResolvedRoot>
+    <DxUiConsumerLockFile Condition="'$(DxUiConsumerLockFile)'==''">$(MSBuildProjectDirectory)\Dependencies\DxUi.lock.json</DxUiConsumerLockFile>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile><AdditionalIncludeDirectories>$(DxUiResolvedRoot)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
+  </ItemDefinitionGroup>
+</Project>

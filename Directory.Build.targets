@@ -1,0 +1,6 @@
+<Project>
+  <Target Name="ValidateDxUiBuildConfiguration" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(Platform)'!='x64' and '$(Platform)'!='ARM64'" Text="DxUi supports x64 and ARM64." />
+    <Error Condition="'$(Configuration)'!='Debug' and '$(Configuration)'!='Release'" Text="DxUi supports Debug and Release." />
+  </Target>
+</Project>

@@ -1,0 +1,12 @@
+<Project>
+  <Target Name="ValidateDxUiConsumerPin" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(DxUiConsumerLockFile)')" Text="Missing exact DxUi consumer lock: $(DxUiConsumerLockFile)" />
+    <Error Condition="'$(DxUiConsumerOutputRoot)'==''" Text="Set DxUiConsumerOutputRoot to a consumer-owned isolated fingerprint directory." />
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(DxUiResolvedRoot)Tools\validate_consumer.ps1&quot; -DxUiRoot &quot;$(DxUiRoot)&quot; -LockFile &quot;$(DxUiConsumerLockFile)&quot;" />
+  </Target>
+  <ItemGroup>
+    <ProjectReference Include="$(DxUiResolvedRoot)src\Foundation\DxUi.Foundation.vcxproj">
+      <AdditionalProperties>DxUiOutputRoot=$(DxUiConsumerOutputRoot)</AdditionalProperties>
+    </ProjectReference>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,345 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/RedSalamanders/RedSalamander",
+  "commit": "5f83dc4b0b7c5d66de4f96895da43298532dd046",
+  "sourceWasClean": true,
+  "importedAt": "2026-09-05",
+  "files": [
+    {
+      "source": "Common/DxUI/DxUi.Accessibility.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.Accessibility.cpp",
+      "sha256": "fdc9c066cba2b25e00b064545dcc9a34f1c84ea5aacfa5dd3e6f24e40c6d3720",
+      "bytes": 320709
+    },
+    {
+      "source": "Common/DxUI/DxUi.AccessibilityTextUnits.h",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.AccessibilityTextUnits.h",
+      "sha256": "c85860ad541cc8941043b68b7ed7af80461a13221a2e9500054625ee2caf7707",
+      "bytes": 993
+    },
+    {
+      "source": "Common/DxUI/DxUi.ComboBox.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.ComboBox.cpp",
+      "sha256": "b8a9a6b769c64b91fa02edddb2689529122ba1aba8d5235bb645f9a2d004cbf0",
+      "bytes": 108845
+    },
+    {
+      "source": "Common/DxUI/DxUi.Controls.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.Controls.cpp",
+      "sha256": "cd3d606fc711abb87418a7b81f5eb4cf7b516662916dd1974128e1bcf74ab948",
+      "bytes": 296541
+    },
+    {
+      "source": "Common/DxUI/DxUi.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.cpp",
+      "sha256": "dce641627b1575bee3ec6a0351e3fc05bbb37a3977c5df440ed8b6a448981bf6",
+      "bytes": 29178
+    },
+    {
+      "source": "Common/DxUI/DxUi.FocusRestore.h",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.FocusRestore.h",
+      "sha256": "4a673b20b3345d5da19b3cc5c9217e5508311006b650d7d86f7f75df54f1f5d1",
+      "bytes": 1339
+    },
+    {
+      "source": "Common/DxUI/DxUi.FrameRuntime.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.FrameRuntime.cpp",
+      "sha256": "dcd573fb81a9c13925bd02091c592dd7347b578ff4f91f49199e82c363d7f67b",
+      "bytes": 5167
+    },
+    {
+      "source": "Common/DxUI/DxUi.FrameRuntime.h",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.FrameRuntime.h",
+      "sha256": "b24059e34641b6d3c46b9c28c1e0e448657f3afd2987dff0c93ab567e3a4affb",
+      "bytes": 1682
+    },
+    {
+      "source": "Common/DxUI/DxUi.Grid.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.Grid.cpp",
+      "sha256": "807cc2c0e992c048860663a29626319ee62143ecb3afe21d2fc486249f606a90",
+      "bytes": 164648
+    },
+    {
+      "source": "Common/DxUI/DxUi.h",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.h",
+      "sha256": "7c7f64a074b99195cf18c3dec2e5e2aa6feeab621ed477ab74144689a426415c",
+      "bytes": 191369
+    },
+    {
+      "source": "Common/DxUI/DxUi.Internal.h",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.Internal.h",
+      "sha256": "25a0e92348ee407bc9dad45c26c9a751be84cb799dc7b1cbf041fd4cddb2376e",
+      "bytes": 25278
+    },
+    {
+      "source": "Common/DxUI/DxUi.Menu.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.Menu.cpp",
+      "sha256": "f198b843b6b26a81d12cbb57665a74ab4cacf8c51ceafb0bb63f488e47135ce5",
+      "bytes": 262072
+    },
+    {
+      "source": "Common/DxUI/DxUi.NativeTextInput.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.NativeTextInput.cpp",
+      "sha256": "541f2fe7396bb7acbada264ccfb3900510ceb62088067a1af4262024505810ff",
+      "bytes": 58947
+    },
+    {
+      "source": "Common/DxUI/DxUi.PointerInput.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.PointerInput.cpp",
+      "sha256": "1945cb4c87e27b2bba58420af6e03dcab631de211de077026559f16b52f7a266",
+      "bytes": 3050
+    },
+    {
+      "source": "Common/DxUI/DxUi.PointerInput.h",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.PointerInput.h",
+      "sha256": "d355a31824df8d81da54de451d89b144a2756b2918d2d4996e92eee09874ae4e",
+      "bytes": 1108
+    },
+    {
+      "source": "Common/DxUI/DxUi.Scrollbar.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.Scrollbar.cpp",
+      "sha256": "e5f57eeddf767cc052867cf387c6a0ae81259587dee9f01027ad1947dd886bfe",
+      "bytes": 11722
+    },
+    {
+      "source": "Common/DxUI/DxUi.SingleLineTextEditing.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.SingleLineTextEditing.cpp",
+      "sha256": "b6fa647674f69903cf63902a5317023965d17d1dcfa669f18e3b8915eff7f8d5",
+      "bytes": 43980
+    },
+    {
+      "source": "Common/DxUI/DxUi.TextInput.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.TextInput.cpp",
+      "sha256": "2f8cf9b3ec32364c1539bf78a9a2aada4cd9c589181a3ebb2103951f3f7f7a83",
+      "bytes": 131306
+    },
+    {
+      "source": "Common/DxUI/DxUi.TextStoreACP.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.TextStoreACP.cpp",
+      "sha256": "53ce7a1cb15409fd037b5e2840174d7ff2f5b8d094dcec83553727123b4e9e3f",
+      "bytes": 39028
+    },
+    {
+      "source": "Common/DxUI/DxUi.Theme.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.Theme.cpp",
+      "sha256": "7e22459200f9bdb77783ccad5fcd146d2ba96ef6a4aeaaecca87c1a95dc7dd8a",
+      "bytes": 49020
+    },
+    {
+      "source": "Common/DxUI/DxUi.Tree.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.Tree.cpp",
+      "sha256": "3c711f156e11bec0360dc2419de4e751f4c644bc268105b565e239078e0042a9",
+      "bytes": 61903
+    },
+    {
+      "source": "Common/DxUI/DxUi.Typeahead.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.Typeahead.cpp",
+      "sha256": "7498fb7636b169b69cfab787a258b97f27720ff1689faefbcb6feee69d991ce4",
+      "bytes": 534
+    },
+    {
+      "source": "Common/DxUI/DxUi.Typography.h",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.Typography.h",
+      "sha256": "efbf5b3fe497e31673739ffa8b30e7875f43141b5d061acc8a87d0069998faa6",
+      "bytes": 19977
+    },
+    {
+      "source": "Common/DxUI/DxUi.vcxproj",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.vcxproj",
+      "sha256": "03477da8c5382339994f0827116e94b489e17b4fbea04b0c5487dbcecb58cc26",
+      "bytes": 11702
+    },
+    {
+      "source": "Common/DxUI/DxUi.vcxproj.user",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.vcxproj.user",
+      "sha256": "c06a75b13f855a94d46616796e024c52b499f8f92cf00ccb571ddbc6ff574676",
+      "bytes": 168
+    },
+    {
+      "source": "Common/DxUI/DxUi.Win32Hooks.h",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.Win32Hooks.h",
+      "sha256": "71c9b7a6720b3643241a8bd81e6daa0c314fbfac0bbdcb2464cdaa2204ae9158",
+      "bytes": 887
+    },
+    {
+      "source": "Common/DxUI/DxUi.WindowHost.cpp",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.WindowHost.cpp",
+      "sha256": "2c5284bee5864b680ea519607246324f44c0018b77b5273287acfbf3abfe1ad6",
+      "bytes": 158236
+    },
+    {
+      "source": "Common/DxUI/DxUiNativeMenuInterop.h",
+      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUiNativeMenuInterop.h",
+      "sha256": "76c87565a3841e8a1f7df9816ffb6088d6b148c20796ef8fa34e12e9175f84bb",
+      "bytes": 29515
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/advanced_controls_dark.png",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/Baselines/advanced_controls_dark.png",
+      "sha256": "e6eeae20742ae6c81149a76d7a32e3ef43a4f9332f99720804e3e5d308436fb5",
+      "bytes": 13350
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/core_controls_dark.png",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/Baselines/core_controls_dark.png",
+      "sha256": "ba7674cd0159e5be9573ceef2b7f3d55b3f9702829472bfbc9a37c4e029198b7",
+      "bytes": 7074
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/core_controls_high_contrast.png",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/Baselines/core_controls_high_contrast.png",
+      "sha256": "b62c2894232dce2f2fce11955ce401291d7ae3d90a8d259ffd2bf0475b768552",
+      "bytes": 6953
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/core_controls_light.png",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/Baselines/core_controls_light.png",
+      "sha256": "dda706af0fdfcd681566d28f4bc8486702ac63d231a3a070aa0148159a1574f0",
+      "bytes": 6861
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/menu_popup_acrylic_light.png",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/Baselines/menu_popup_acrylic_light.png",
+      "sha256": "a8c5b6a8477b88d071fcb79228dbbbbd05499c13d634e84fa1c88a17ae8cc798",
+      "bytes": 6804
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/page_transition_dark.png",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/Baselines/page_transition_dark.png",
+      "sha256": "96209429b9ed6d7daa3fb6686448985f3fdd47da87c6cf56ab06389c3dc0b9ae",
+      "bytes": 2700
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/popup_and_bars_acrylic_light.png",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/Baselines/popup_and_bars_acrylic_light.png",
+      "sha256": "a8bb3fd7f2c6f2467832b53be0ae7a0f7e9714f519337632eb5e599ffd064470",
+      "bytes": 6553
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/popup_and_bars_dark.png",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/Baselines/popup_and_bars_dark.png",
+      "sha256": "8c4b68d2cb47bc5c364e73e2ae06e1de9d32e951b128cfe6edaa82ec476c973f",
+      "bytes": 4809
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTestHelpers.h",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTestHelpers.h",
+      "sha256": "57d90c796aecef7f6737224753f63b08ff295d93921368910f32445884228cfd",
+      "bytes": 69848
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Accessibility.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.Accessibility.cpp",
+      "sha256": "108248272d46459573f52df60de02c7019a7b46becd88aa77c71c0d656b4895b",
+      "bytes": 385756
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Animation.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.Animation.cpp",
+      "sha256": "7ebc53144aa62b853c509dfc8afa318d3c2c624868f063c789226e5b29410c54",
+      "bytes": 60367
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.ComboBox.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.ComboBox.cpp",
+      "sha256": "529eed7a881254adb87b9c2c70a653873f7ed2a91af24ee9e800875eed4e1c35",
+      "bytes": 65043
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Controls.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.Controls.cpp",
+      "sha256": "4d7d1224a59ca17abc362e3302438fc980c7af452f320cc44657c5931a885311",
+      "bytes": 93324
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.cpp",
+      "sha256": "347ddacb0660f6c393dd1e8d2cf215def430d41e4af4b7ea4561c8b853c70ce0",
+      "bytes": 9860
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Gallery.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.Gallery.cpp",
+      "sha256": "5aef760c09ba00d5b60f19bd81ad85cd2082741b615a134767c4981face3c4f6",
+      "bytes": 86340
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Grid.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.Grid.cpp",
+      "sha256": "e4c20dd90854ba245ee6cb5aac26370572d40cbd845a194532da7b478cc91327",
+      "bytes": 95860
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Menu.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.Menu.cpp",
+      "sha256": "f5a9de66c12456446b459b79cc4b148e987e41691cefd759edb1114b8275ba2c",
+      "bytes": 286055
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.MultilineText.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.MultilineText.cpp",
+      "sha256": "d08cad734d94431ca65c0d67e8812e69521d83b6a2a080e1c7f43c56808ce26b",
+      "bytes": 217014
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.NativeTextInput.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.NativeTextInput.cpp",
+      "sha256": "20c16184c047d63b42e589673e674867ffd7e438728d471adebeb60f50884e6e",
+      "bytes": 346923
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.NewControls.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.NewControls.cpp",
+      "sha256": "0f869d55331b9a06e622751eb19919a646f9e1d75b5e2095f4a3264168ecb01e",
+      "bytes": 85635
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.ReadOnly.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.ReadOnly.cpp",
+      "sha256": "54c1a2a5fe41c6c288125edafcd4d0087df262d1d37201654e231dc42c327308",
+      "bytes": 96684
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Rendering.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.Rendering.cpp",
+      "sha256": "e204d9531ebe89e392caa2ab9d1390df029f42e8ad1453926f61d25d039df8b8",
+      "bytes": 85601
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.TextField.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.TextField.cpp",
+      "sha256": "d5ecf0feb54fc0ec51b1acff5a13b331c00867036b7ac09ca65a93e8931ecda9",
+      "bytes": 118234
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Theme.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.Theme.cpp",
+      "sha256": "d2448b67221285e3bbb35ce3a84b861099a3a9cb150509f577e05d0807ed52ee",
+      "bytes": 213299
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Tooltip.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.Tooltip.cpp",
+      "sha256": "841b3be3c3303be8cf3069df7ee0b8e4044c9c7ab6dd620dd4707d89bfbeab38",
+      "bytes": 20313
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Tree.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.Tree.cpp",
+      "sha256": "95ee7b4f5a4c1f42c5c1e02968666518e8f9b23445e1a622ba080769bc31e2f5",
+      "bytes": 66784
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.vcxproj",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.vcxproj",
+      "sha256": "dad06855f449338cd074dfe28d92ac416bc4541857215ff2361422fe3c23bcff",
+      "bytes": 8588
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.WindowHost.cpp",
+      "importedPath": "upstream/RedSalamander/Tests/DxUiTests/DxUiTests.WindowHost.cpp",
+      "sha256": "58b2c05740da2d3307a10fe8682d76f579724e7f764fe9ece65943d37438c783",
+      "bytes": 198374
+    }
+  ]
+}

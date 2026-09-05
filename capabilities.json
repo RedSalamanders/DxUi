@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "apiRevision": 1,
+  "supported": [
+    "frame-clock",
+    "frame-stage-scope",
+    "reduced-motion",
+    "injected-frame-diagnostics"
+  ],
+  "pending": [
+    "retained-controls",
+    "embedded-d3d11",
+    "win32-services",
+    "win32-host",
+    "redxe-adapter",
+    "av-control",
+    "redsalamander-migration"
+  ]
+}
