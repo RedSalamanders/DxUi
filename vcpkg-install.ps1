@@ -48,7 +48,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $toolRoot '.git') -PathType Containe
     }
 
     Write-Host "Cloning pinned vcpkg tooling into $toolRoot" -ForegroundColor Cyan
-    & git.exe clone --filter=blob:none $repository $toolRoot
+    # Set only this managed checkout: relocated consumers may exceed traditional Win32 path limits.
+    & git.exe clone -c core.longpaths=true --filter=blob:none $repository $toolRoot
     if ($LASTEXITCODE -ne 0) {
         throw "git clone failed with exit code $LASTEXITCODE."
     }
