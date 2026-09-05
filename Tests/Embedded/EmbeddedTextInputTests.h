@@ -33,7 +33,16 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
         Check(view.ReadTextInput(snapshot) == S_OK && snapshot.revision != 0, "read current text session");
         return snapshot.state;
     };
-    auto state        = read();
+    auto state                  = read();
+    const uint64_t firstFocusId = snapshot.focusId;
+    Check(firstFocusId != 0, "focused text exposes a nonzero focus-session identity");
+    view.MarkDirty();
+    read();
+    Check(snapshot.focusId == firstFocusId, "ordinary invalidation preserves text focus identity");
+    view.Controls().SetFocusControl(nullptr);
+    view.Controls().SetFocusControl(field);
+    read();
+    Check(snapshot.focusId != firstFocusId, "focus leaving and returning between snapshots changes text focus identity");
     HRESULT otherRead = S_OK, otherWrite = S_OK;
     std::thread other([&]
     {
@@ -45,6 +54,29 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
     other.join();
     Check(otherRead == RPC_E_WRONG_THREAD && otherWrite == RPC_E_WRONG_THREAD && view.Controls().GetFocusControl() == field,
           "foreign-thread services cannot read, edit or cancel UI state");
+    Hr(view.Prepare(480, 240), "prepare focused geometry");
+    state = read();
+    D2D1_RECT_F range{};
+    bool clipped = true;
+    size_t hit   = 99;
+    Check(view.GetTextInputRangeBounds(snapshot.revision, 0, 4, range, clipped) == S_OK && range.right > range.left && ! clipped,
+          "revisioned range geometry uses visible text layout");
+    Check(view.HitTestTextInput(snapshot.revision, {range.left, range.top + 1}, hit) == S_OK && hit <= 1, "revisioned point lookup addresses current text");
+    Check(view.GetTextInputRangeBounds(snapshot.revision, 0, 99, range, clipped) == E_INVALIDARG && range.left == 0 && clipped,
+          "invalid range clears geometry outputs");
+    const auto geometryRevision = snapshot.revision;
+    view.MarkDirty();
+    read();
+    Check(! snapshot.caretBoundsDip && ! snapshot.viewportBoundsDip, "dirty text retains edit state but does not publish stale geometry");
+    Check(view.GetTextInputRangeBounds(snapshot.revision, 0, 4, range, clipped) == S_FALSE && clipped, "dirty geometry requests wait for preparation");
+    Hr(view.Prepare(480, 240, 144), "prepare text geometry at 144 DPI");
+    state = read();
+    Check(view.GetTextInputRangeBounds(geometryRevision, 0, 4, range, clipped) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH),
+          "old revision cannot query a newly prepared layout");
+    Check(view.GetTextInputRangeBounds(snapshot.revision, 0, 4, range, clipped) == S_OK && range.left >= 8 && range.right < 320,
+          "144-DPI geometry remains in DIPs for one application-side conversion");
+    Hr(view.Prepare(480, 240), "restore fixture DPI");
+    state = read();
     Check(state.text == L"Original" && snapshot.caretBoundsDip && snapshot.viewportBoundsDip, "text and DIP geometry exported");
     const auto initialRevision = snapshot.revision;
     const auto preview         = [&](std::wstring text)

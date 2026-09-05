@@ -574,6 +574,8 @@ void ControlHost::ActivateNativeTextInputSession(Control* control) noexcept
     const bool controlChanged = _nativeTextInputControl != control;
     if (controlChanged)
     {
+        if (++_nativeTextInputFocusId == 0)
+            ++_nativeTextInputFocusId;
         ClearNativeTextInputCompositionState();
     }
     _nativeTextInputControl         = control;

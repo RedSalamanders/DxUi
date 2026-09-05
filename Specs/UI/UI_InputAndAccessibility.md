@@ -70,3 +70,63 @@ The store revalidates control lifetime, focus and text before applying selection
 exceptions return failure across the COM boundary; they never unwind through it. A failed continuation preserves
 the callback's newer state and balances the sink edit transaction. Editable ComboBox callbacks receive an owned
 text snapshot so their argument and callable survive destruction of the control.
+
+### Application-side text services
+
+TextInputServices in the same DxUi.lib attaches to an application-owned HWND on its COM STA. It creates no
+renderer, swap chain, worker or timer. SetClient lazily creates a TSF document and associates focus; clear the
+client on focus loss/view removal and detach before destroying the HWND. One client represents one immutable
+focusId. The embedded snapshot exposes that identity separately from its frequently changing revision;
+leaving and returning to a field changes focus identity even when no intermediate snapshot was read.
+
+The application implements TextInputClient in its own module. Its Read/Apply/Cancel and physical-screen geometry
+operations adapt application-defined transport; neither the HWND nor a DxUi C++ object crosses a plugin ABI.
+Read returns no state after its focus identity is replaced. Apply validates the original revision; Cancel verifies
+the focus identity and cancels preview only. Geometry is transformed once by the application using the actual
+displayed viewport. Retained TSF objects become disconnected before their client or control lifetime ends.
+
+The COM text store shares native control adaptation with the application client adapter. Application edits are
+staged for one TSF lock because initial insertion may precede composition-start notification. Preview changes
+displayed text without committing; completion commits once, including unchanged preview text. Failed/stale/focus-
+replaced transactions do not retry against a new revision. An owned callback argument survives disconnection.
+Application-side TSF edits are not echoed back through sink change notifications; separately observed external
+changes are notified. Native-host notification behavior remains covered by its existing compatibility tests.
+
+Forward PreTranslate before TranslateMessage/DispatchMessage and HandleMessage from the application window
+procedure. Nested synchronous locks fail; asynchronous requests coalesce into one pending lock with the strongest
+requested access. A generation-tagged posted message grants it after the active lock, without recursion or a timer.
+Clear/detach invalidates queued messages. NotifyChanged publishes external edits outside an active TSF lock.
+Escape clears a composition before ordinary editor handling; the application refreshes its focused client afterward.
+
+The shared clipboard backend opens the clipboard once, without retry sleeps. Reads honor the allocation extent,
+require a terminator, reject malformed UTF-16 and cap text at 65,536 units. Copy requires a selection; masked copy/cut
+and read-only cut/paste fail before clipboard access. A failed copy cannot delete selected text. Paste normalizes
+line endings and commits once against the captured revision. Embedded controls have no clipboard HWND: commands
+go through the application service. Automated control suites inject a private clipboard, including their setup/read
+helpers, and never use a desktop clipboard as a test data channel.
+
+This implements a TSF/clipboard service, not the complete RedXe adoption. The generic consumer connection, full
+display-attribute/IME acceptance, UI Automation attachment and real touch/IME/screen-reader checks remain open.
+Reference: Microsoft [text stores](https://learn.microsoft.com/en-us/windows/win32/tsf/text-stores) and
+[composition ordering](https://learn.microsoft.com/en-us/windows/win32/tsf/compositions).
+
+### Prepared text geometry and public consumer
+
+EmbeddedHost exposes revision-checked HitTestTextInput and GetTextInputRangeBounds in view-local DIPs.
+Dirty/unprepared geometry returns S_FALSE with cleared outputs; state remains editable when its tree is coherent.
+ReadTextInput omits optional bounds until preparation completes. A successful fully clipped range has empty bounds
+and clipped=true. The app performs the one DIP-to-physical-screen conversion. Geometry for staged TSF text returns
+TS_E_NOLAYOUT, and the app calls TextInputServices::NotifyLayoutChanged after preparation. Notifications retain
+the store through callbacks that release the application's last reference. Clear/disconnect prevents stale focus
+sessions from receiving edits, cancellation, or geometry.
+
+The shared text store supports the documented InsertTextAtSelection flags: NOQUERY permits absent ACP outputs,
+QUERYONLY makes no edit and obeys the same capacity limit, and their combination is invalid. These rules follow
+the [Windows insertion contract](https://learn.microsoft.com/en-us/windows/win32/api/textstor/nf-textstor-itextstoreacp-inserttextatselection).
+Prepared-layout notification follows the [Windows layout contract](https://learn.microsoft.com/en-us/windows/win32/api/textstor/nf-textstor-itextstoreacpsink-onlayoutchange).
+
+Samples/EmbeddedControls --text-input consumes only public headers and the one archive. It demonstrates a
+profile-name text field, application-owned TSF attachment, physical geometry, private-clipboard output checks,
+focus cancellation and Unicode rendering alongside the supplied-device toggle and slider. Live mode uses
+per-monitor DPI and resizes the caller-owned target/swap chain outside composition. Real IME/touch/UIA acceptance
+remains a separate gate; no UIA bridge is claimed by this text-service sample.

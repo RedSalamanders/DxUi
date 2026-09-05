@@ -3944,6 +3944,7 @@ private:
     bool _debugForceNullSolidBrushes   = false;
     TextInputBackend _textInputBackend = TextInputBackend::Native;
     Control* _nativeTextInputControl   = nullptr;
+    uint64_t _nativeTextInputFocusId   = 0;
     std::weak_ptr<int> _nativeTextInputControlLifetime;
     NativeTextInputState _nativeTextInputStateCache;
     bool _nativeTextInputStateCacheValid = false;

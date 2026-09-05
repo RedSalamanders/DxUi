@@ -15,7 +15,8 @@
     "native-text-input",
     "native-accessibility",
     "control-gallery",
-    "embedded-text-state"
+    "embedded-text-state",
+    "application-text-services"
   ],
   "pending": [
     "redxe-adapter",

@@ -581,9 +581,13 @@ HRESULT EmbeddedHost::ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcep
             snapshot = {};
             return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
         }
-        snapshot.caretBoundsDip    = control->GetTextInputCaretRect(_host, snapshot.state.caretIndex);
-        snapshot.viewportBoundsDip = control->GetTextInputViewportRect();
-        snapshot.revision          = _textInputRevision + _state->revision;
+        if (! _state->dirty)
+        {
+            snapshot.caretBoundsDip    = control->GetTextInputCaretRect(_host, snapshot.state.caretIndex);
+            snapshot.viewportBoundsDip = control->GetTextInputViewportRect();
+        }
+        snapshot.revision = _textInputRevision + _state->revision;
+        snapshot.focusId  = _host._nativeTextInputFocusId;
         return S_OK;
     }
     catch (const std::bad_alloc&)
@@ -688,6 +692,105 @@ HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputSta
         _host.ClearNativeTextInputCompositionState();
         _state->coherent = false;
         MarkDirty();
+        return E_FAIL;
+    }
+}
+HRESULT EmbeddedHost::HitTestTextInput(uint64_t revision, D2D1_POINT_2F point, size_t& index) noexcept
+{
+    index = 0;
+    if (! std::isfinite(point.x) || ! std::isfinite(point.y))
+        return E_INVALIDARG;
+    EmbeddedTextInputSnapshot snapshot;
+    const HRESULT read = ReadTextInput(snapshot);
+    if (read != S_OK)
+        return read;
+    if (! revision || revision != snapshot.revision)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    if (! InputIsCoherent(false))
+        return S_FALSE;
+    const auto hit = _host.GetFocusControl()->TryHitTestTextInputPoint(_host, point);
+    if (! hit || *hit > snapshot.state.text.size())
+        return S_FALSE;
+    index = *hit;
+    return S_OK;
+}
+HRESULT EmbeddedHost::GetTextInputRangeBounds(uint64_t revision, size_t start, size_t end, D2D1_RECT_F& bounds, bool& clipped) noexcept
+{
+    bounds  = {};
+    clipped = true;
+    EmbeddedTextInputSnapshot snapshot;
+    const HRESULT read = ReadTextInput(snapshot);
+    if (read != S_OK)
+        return read;
+    if (! revision || revision != snapshot.revision)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    if (start > end || end > snapshot.state.text.size())
+        return E_INVALIDARG;
+    if (! InputIsCoherent(false) || ! snapshot.viewportBoundsDip)
+        return S_FALSE;
+    const auto viewport   = *snapshot.viewportBoundsDip;
+    bool found            = false;
+    clipped               = false;
+    const auto accumulate = [&](const D2D1_RECT_F& rect) noexcept
+    {
+        const D2D1_RECT_F visible{(std::max)(rect.left, viewport.left),
+                                  (std::max)(rect.top, viewport.top),
+                                  (std::min)(rect.right, viewport.right),
+                                  (std::min)(rect.bottom, viewport.bottom)};
+        clipped = clipped || visible.left != rect.left || visible.top != rect.top || visible.right != rect.right || visible.bottom != rect.bottom;
+        if (visible.left >= visible.right || visible.top >= visible.bottom)
+            return;
+        if (! found)
+        {
+            bounds = visible;
+            found  = true;
+        }
+        else
+        {
+            bounds.left   = (std::min)(bounds.left, visible.left);
+            bounds.top    = (std::min)(bounds.top, visible.top);
+            bounds.right  = (std::max)(bounds.right, visible.right);
+            bounds.bottom = (std::max)(bounds.bottom, visible.bottom);
+        }
+    };
+    try
+    {
+        auto* control = _host.GetFocusControl();
+        if (start == end)
+        {
+            const auto caret = control->TryGetTextInputCaretRect(_host, start);
+            if (! caret)
+            {
+                clipped = true;
+                return S_FALSE;
+            }
+            accumulate(*caret);
+        }
+        else
+        {
+            const auto rects = control->TryGetTextInputRangeRects(_host, start, end);
+            if (! rects)
+            {
+                clipped = true;
+                return S_FALSE;
+            }
+            for (const auto& rect : *rects)
+                accumulate(rect);
+        }
+        if (! found)
+            clipped = true;
+        return S_OK;
+    }
+    catch (const std::bad_alloc&)
+    {
+        bounds  = {};
+        clipped = true;
+        return E_OUTOFMEMORY;
+    }
+    catch (const std::exception&)
+    {
+        bounds  = {};
+        clipped = true;
         return E_FAIL;
     }
 }

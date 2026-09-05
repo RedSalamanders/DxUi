@@ -1,4 +1,7 @@
+#include "../../src/Controls/DxUi.Internal.h"
+#include "../../src/Controls/TextStoreTarget.h"
 #include "DxUiTestHelpers.h"
+#include <thread>
 
 #include <array>
 #include <atomic>
@@ -121,6 +124,8 @@ public:
 private:
     std::atomic<ULONG> _referenceCount{1u};
 };
+
+#include "TextInputServicesTests.h"
 
 void SendNativeKey(HWND hwnd, UINT virtualKey)
 {
@@ -6327,6 +6332,14 @@ void TestNativeTextInputBackendKeyToPaintMetricScenario()
 
 void RunNativeTextInputTests()
 {
+    TestApplicationTextStoreInsertionAndLayout();
+    TestApplicationTextStoreTransactions();
+    TestApplicationTextStoreDeferredLocks();
+    TestApplicationCompositionCancelAfterFocusReplacement();
+    TestApplicationTextStoreFailuresAndGeometry();
+    TestApplicationTextServiceLifecycle();
+    TestApplicationClipboardCommands();
+    TestBoundedClipboardDecode();
     TestWindowHostDefaultsToNativeTextInputBackend();
     TestNativeTextInputBackendFocusesHostWithoutBridgeChild();
     TestNativeTextInputBackendActivatesTsfDocumentOnFocus();

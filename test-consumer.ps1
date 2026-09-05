@@ -22,7 +22,7 @@ Write-Lock
 # Prevent ancestor repository properties from contaminating this external consumer.
 '<Project />' | Set-Content (Join-Path $consumer 'Directory.Build.props')
 '<Project />' | Set-Content (Join-Path $consumer 'Directory.Build.targets')
-foreach($name in @('EmbeddedScene.h','GraphicsFixture.h','Main.cpp')) {
+foreach($name in @('EmbeddedScene.h','EmbeddedTextClient.h','GraphicsFixture.h','Main.cpp')) {
     $sampleDirectory=Join-Path $consumer 'Samples/EmbeddedControls'
     New-Item -ItemType Directory -Path $sampleDirectory -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $checkout "Samples/EmbeddedControls/$name") -Destination (Join-Path $sampleDirectory $name)
@@ -60,6 +60,8 @@ if ($LASTEXITCODE -ne 0) { throw 'The external public consumer failed to build.'
 if ($LASTEXITCODE -ne 0) { throw 'The relocated public consumer failed to render.' }
 & (Join-Path $consumer 'bin/ExternalConsumer.exe') --complex-ui --output (Join-Path $consumer 'complex-consumer.png')
 if ($LASTEXITCODE -ne 0) { throw 'The relocated independent complex sample failed to render.' }
+& (Join-Path $consumer 'bin/ExternalConsumer.exe') --text-input --output (Join-Path $consumer 'text-consumer.png')
+if ($LASTEXITCODE -ne 0) { throw 'The relocated text-service consumer failed.' }
 if (-not (Test-Path (Join-Path $output "x64/$Configuration/DxUi.lib")) -or (Test-Path (Join-Path $checkout ".build/x64/$Configuration/DxUi.lib"))) { throw 'Consumer outputs are not isolated.' }
 $validator=Join-Path $checkout 'Tools/validate_consumer.ps1'
 function Require-Rejection([string] $scenario) {

@@ -44,3 +44,25 @@ are retained in [the native-store archive](../../../Measurements/TextInput/Nativ
 The menu loop now has a candidate fix prioritizing its own pending paints after input, with unchanged flood-test
 deadlines and bounded failure routing logs. Validate this separately before adoption. Full application-side OS
 services, clipboard, UIA, generic consumer integration and real acceptance remain unchecked.
+
+
+Continuation validation at bcc65a10b2abd7f117ecc544788f904ab54087f2: native CI 33985347314 passed all
+four runtime configurations and format CI 33985347310 passed. x64 Debug Menu recorded zero capability skips.
+The prior fad2522 run retained its failed hover evidence; do not erase that intermittent failure history.
+
+Subsequent uncommitted implementation separates native control adaptation from the shared COM text store,
+adds application-side TSF/clipboard services, opaque focus identity, coalesced deferred locks and focus-guarded
+cancellation. Targeted NativeTextInput tests pass; embedded input currently passes 1,574 checks with zero C++
+allocations in 1,000 warm composites. The full matrix, exact-commit CI, matched performance and consumer connection
+must be refreshed for this implementation before adoption. The native-store measurement gate remains open.
+These changes alter input/services, not initial control pixels, layouts or themes; existing reviewed gallery assets
+remain applicable. Review a live composition in the consumer in addition to the unchanged initial gallery.
+
+The application-side component now includes shared TSF/clipboard services, focus identity, coalesced deferred
+locks, bounded clipboard access, prepared/revisioned geometry and a public-only standalone client. The optional
+profile-name sample rendered successfully with a private-clipboard Unicode paste and hidden TSF attachment;
+the generated initial image was visually reviewed. Targeted Embedded passes 1,588 checks with zero C++ allocations
+in 1,000 warm composites. Full x64 Debug and Release suites have passed after the final notification-lifetime fix,
+with nine Menu capability skips each; ARM64 builds, exact-commit CI, external consumer and matched timing are being
+refreshed. Keep the native-store performance gate open until the new declared comparison finishes. No real IME,
+screen-reader, camera or audio-policy acceptance has been established.

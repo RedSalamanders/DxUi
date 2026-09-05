@@ -70,3 +70,20 @@ services, settings or checkout. EmbeddedTests covers the sample's slider/progres
 Measurements include the scene, benchmark and graphics-helper hashes. Changed fixture identities cannot establish
 before/after library regressions. Consumer adoption evidence is owned by its repository; standalone library receipts
 live under Measurements and are linked from docs. The external-consumer check renders both sample modes.
+
+
+Application text-service tests exercise the production COM store with a bounded fake application adapter:
+initial insertion before composition start, changed composition ranges, one final commit, cancellation, callback
+disconnection, replacement focus, stale revisions, backward/read-only selection, negative screen coordinates,
+clipping, text capacity, nested synchronous rejection and deferred asynchronous lock coalescing. A test-owned
+window verifies real TSF document attachment and teardown on an explicit STA. Clipboard tests use private memory,
+cover failed-copy cut, stale paste, policy, malformed UTF-16, terminators and exact capacity. The control runner and
+its clipboard setup/read helpers share that private backend; system clipboard acceptance is a separate manual check.
+
+The public text-service sample is also copied into the relocated exact-pin consumer fixture and executed with
+--text-input --output. It checks Unicode paste using an injected private clipboard, a real TSF document attachment
+on a hidden application-owned window, and revision-checked geometry; it then saves text-consumer.png. This extends
+public compilation/link/render proof without changing the user's clipboard or claiming real IME interaction.
+Embedded tests cover missing/dirty/stale geometry, 144-DPI DIP output and cancellation before device-loss draft
+capture. Native text tests cover insertion flags, capacity prediction, staged NOLAYOUT, prepared notification,
+and sink callbacks releasing the final caller reference. The initial optional sample capture is visually reviewed.

@@ -6,11 +6,12 @@
 struct EmbeddedScene
 {
     DxUi::EmbeddedHost view;
-    DxUi::Toggle* toggle = nullptr;
-    DxUi::Slider* slider = nullptr;
-    bool enabled         = true;
-    double intensity     = 65;
-    HRESULT Initialize(ID3D11Device* device, DxUi::EmbeddedCallbacks callbacks = {})
+    DxUi::Toggle* toggle  = nullptr;
+    DxUi::Slider* slider  = nullptr;
+    DxUi::TextField* text = nullptr;
+    bool enabled          = true;
+    double intensity      = 65;
+    HRESULT Initialize(ID3D11Device* device, DxUi::EmbeddedCallbacks callbacks = {}, bool textInput = false)
     {
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         RETURN_IF_FAILED(DxUi::GraphicsDevice::Create(device, graphics));
@@ -31,6 +32,14 @@ struct EmbeddedScene
         slider->SetValue(intensity);
         slider->SetBounds(D2D1::RectF(24, 160, 440, 208));
         slider->SetOnChange([this](DxUi::SliderChange change) { intensity = change.value; });
+        if (textInput)
+        {
+            auto* label = root->AddChild<DxUi::Label>(L"Profile name");
+            label->SetBounds(D2D1::RectF(24, 224, 440, 250));
+            text = root->AddChild<DxUi::TextField>();
+            text->SetText(L"Desk profile");
+            text->SetBounds(D2D1::RectF(24, 260, 440, 308));
+        }
         view.Controls().SetRoot(std::move(root));
         return S_OK;
     }

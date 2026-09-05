@@ -49,6 +49,8 @@ struct PointerEvent
 struct EmbeddedTextInputSnapshot
 {
     uint64_t revision = 0;
+    // Stable during edits to one focus session; changes even if focus leaves and returns between reads.
+    uint64_t focusId = 0;
     NativeTextInputState state;
     std::optional<D2D1_RECT_F> caretBoundsDip;
     std::optional<D2D1_RECT_F> viewportBoundsDip;
@@ -112,6 +114,9 @@ public:
     // to the pre-composition text. Cancel restores that text without notification and ignores the supplied state.
     // Text is bounded to 65,536 UTF-16 units and clauses to 256. Ranges must fit; control policy is never imported.
     HRESULT ApplyTextInput(uint64_t revision, const NativeTextInputState& state, EmbeddedTextInputAction action) noexcept;
+    // Revision-checked geometry in view-local DIPs. S_FALSE means hidden/unprepared layout; outputs clear.
+    HRESULT HitTestTextInput(uint64_t revision, D2D1_POINT_2F point, size_t& index) noexcept;
+    HRESULT GetTextInputRangeBounds(uint64_t revision, size_t start, size_t end, D2D1_RECT_F& bounds, bool& clipped) noexcept;
     // Cancel composition and release logical text focus on OS focus loss; no HWND/OS service is owned here.
     void CancelTextInput() noexcept;
     [[nodiscard]] EmbeddedStatistics GetStatistics() const noexcept;

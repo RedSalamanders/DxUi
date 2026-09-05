@@ -1,4 +1,5 @@
 #include "DxUi.Internal.h"
+#include "TextClipboard.h"
 
 #include <algorithm>
 #include <chrono>
@@ -846,36 +847,6 @@ void ReleaseSharedWindowHostAttachment(ControlHost* host, DWORD ownerThreadId) n
     return root && candidate && (root == candidate || IsChild(root, candidate) != FALSE);
 }
 
-[[nodiscard]] bool OpenClipboardWithRetries(HWND ownerWindow) noexcept
-{
-    if (! ownerWindow)
-    {
-        return false;
-    }
-
-    constexpr int kClipboardOpenRetryCount = 20;
-    constexpr DWORD kClipboardRetryDelayMs = 10;
-
-    for (int attempt = 0; attempt < kClipboardOpenRetryCount; ++attempt)
-    {
-        if (OpenClipboard(ownerWindow) != 0)
-        {
-            return true;
-        }
-
-        if ((attempt + 1) < kClipboardOpenRetryCount)
-        {
-            if (GetOpenClipboardWindow() == nullptr)
-            {
-                static_cast<void>(CloseClipboard());
-            }
-            Sleep(kClipboardRetryDelayMs);
-        }
-    }
-
-    return false;
-}
-
 #if DXUI_ENABLE_DIAGNOSTICS
 [[nodiscard]] std::mutex& GetClipboardFallbackMutex() noexcept
 {
@@ -893,114 +864,23 @@ void ReleaseSharedWindowHostAttachment(ControlHost* host, DWORD ownerThreadId) n
 [[nodiscard]] bool SetClipboardUnicodeText(HWND ownerWindow, std::wstring_view text) noexcept
 {
     if (! ownerWindow)
-    {
         return false;
-    }
-
-    if (text.size() >= (std::numeric_limits<size_t>::max() / sizeof(wchar_t)))
-    {
-        return false;
-    }
-
-    const SIZE_T bytes = (text.size() + 1u) * sizeof(wchar_t);
-    wil::unique_hglobal memory(GlobalAlloc(GMEM_MOVEABLE, bytes));
-    if (! memory)
-    {
-        return false;
-    }
-
-    auto* out = static_cast<wchar_t*>(GlobalLock(memory.get()));
-    if (! out)
-    {
-        return false;
-    }
-
-    if (! text.empty())
-    {
-        std::memcpy(out, text.data(), text.size() * sizeof(wchar_t));
-    }
-    out[text.size()] = L'\0';
-    GlobalUnlock(memory.get());
-
+    const HRESULT hr = ActiveTextClipboard().Write(ownerWindow, text);
 #if DXUI_ENABLE_DIAGNOSTICS
-    const auto setFallbackText = [&]() noexcept
-    {
+    if (hr == S_OK)
         static_cast<void>(DebugSetClipboardFallbackText(text));
-        return true;
-    };
 #endif
-
-    if (! OpenClipboardWithRetries(ownerWindow))
-    {
-#if DXUI_ENABLE_DIAGNOSTICS
-        return setFallbackText();
-#else
-        return false;
-#endif
-    }
-    const auto closeClipboard = wil::scope_exit([&] { CloseClipboard(); });
-
-    if (EmptyClipboard() == 0)
-    {
-#if DXUI_ENABLE_DIAGNOSTICS
-        return setFallbackText();
-#else
-        return false;
-#endif
-    }
-    if (SetClipboardData(CF_UNICODETEXT, memory.get()) == nullptr)
-    {
-#if DXUI_ENABLE_DIAGNOSTICS
-        return setFallbackText();
-#else
-        return false;
-#endif
-    }
-
-    static_cast<void>(memory.release());
-#if DXUI_ENABLE_DIAGNOSTICS
-    static_cast<void>(DebugSetClipboardFallbackText(text));
-#endif
-    return true;
+    return hr == S_OK;
 }
 
 [[nodiscard]] std::optional<std::wstring> TryReadClipboardUnicodeText(HWND ownerWindow) noexcept
 {
-    if (! OpenClipboardWithRetries(ownerWindow))
-    {
-#if DXUI_ENABLE_DIAGNOSTICS
-        return DebugReadClipboardFallbackText();
-#else
+    if (! ownerWindow)
         return std::nullopt;
-#endif
-    }
-    const auto closeClipboard = wil::scope_exit([&] { CloseClipboard(); });
-
-    HANDLE handle = GetClipboardData(CF_UNICODETEXT);
-    if (! handle)
-    {
-#if DXUI_ENABLE_DIAGNOSTICS
-        return DebugReadClipboardFallbackText();
-#else
+    std::wstring text;
+    if (ActiveTextClipboard().Read(ownerWindow, text) != S_OK)
         return std::nullopt;
-#endif
-    }
-
-    const auto* text = static_cast<const wchar_t*>(GlobalLock(handle));
-    if (! text)
-    {
-#if DXUI_ENABLE_DIAGNOSTICS
-        return DebugReadClipboardFallbackText();
-#else
-        return std::nullopt;
-#endif
-    }
-    const auto unlock = wil::scope_exit([&] { GlobalUnlock(handle); });
-    std::wstring clipboardText(text);
-#if DXUI_ENABLE_DIAGNOSTICS
-    static_cast<void>(DebugSetClipboardFallbackText(clipboardText));
-#endif
-    return clipboardText;
+    return text;
 }
 
 void CollectFocusableControls(Control* control, std::vector<Control*>& out)
