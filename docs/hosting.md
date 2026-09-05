@@ -106,3 +106,21 @@ HitTestTextInput and GetTextInputRangeBounds validate the current revision and r
 they return view-local DIPs. The application converts exactly once into physical screen pixels. Call
 NotifyLayoutChanged after changed layout has been prepared, including after a TS_E_NOLAYOUT response.
 This is separate from NotifyChanged, because an IME-originated edit must not echo its own text notification.
+
+
+## Embedded accessibility
+
+The public EmbeddedAccessibility.h adapter connects an existing prepared control tree to an application's UIA
+fragment root. Use the same one archive. Implement EmbeddedAccessibilitySite in the caller's module, forwarding
+Navigate, FragmentRoot and RequestFocus to the application's accessible window tree. ActionCompleted posts
+coalesced application work; it must not synchronously reenter controls. A plugin uses its own COM/POD adapter.
+
+AttachAccessibility takes a process-unique nonzero attachment ID and a physical-screen placement. The viewport
+size matches Prepare's pixel size; GetAccessibilityProvider returns an owned COM reference. Publish changed
+preparation/placement/focus with UpdateAccessibility; unchanged updates allocate nothing. Hide/detach/device loss
+disconnect surviving providers. Keep provider code mapped while external COM references may survive.
+
+Tests/Embedded/EmbeddedAccessibilityTests.h is an executable example using only public control/hosting interfaces:
+toggle, slider and Unicode field patterns; negative-origin 144-DPI geometry; COM cross-apartment marshaling; parent
+and focus callbacks; distinct identities after replacement; and cleanup. It is a synthetic component example,
+not a screen-reader acceptance claim or completed RedXe adapter.

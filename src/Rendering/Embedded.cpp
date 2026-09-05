@@ -130,6 +130,7 @@ void EmbeddedHost::Detach() noexcept
 {
     if (! _state)
         return;
+    DisconnectAccessibility();
     CancelPointer();
     CancelTextInput();
     _host._embeddedInvalidate = nullptr;
@@ -144,6 +145,7 @@ HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) no
 {
     if (! _state || ! graphics || graphics->_state->thread != GetCurrentThreadId())
         return E_INVALIDARG;
+    DisconnectAccessibility();
     CancelPointer();
     CancelTextInput();
     auto& s    = *_state;
@@ -193,6 +195,7 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
     _state->visible = visible;
     if (! visible)
     {
+        DisconnectAccessibility();
         CancelPointer();
         CancelTextInput();
         _state->animationSuspended        = _host._embeddedAnimationRequested;
@@ -246,6 +249,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     s.zeroSized = ! width || ! height;
     if (! s.visible || s.zeroSized)
     {
+        DisconnectAccessibility();
         CancelPointer();
         CancelTextInput();
         s.coherent = false;

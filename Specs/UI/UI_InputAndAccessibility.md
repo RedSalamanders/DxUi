@@ -130,3 +130,45 @@ profile-name text field, application-owned TSF attachment, physical geometry, pr
 focus cancellation and Unicode rendering alongside the supplied-device toggle and slider. Live mode uses
 per-monitor DPI and resizes the caller-owned target/swap chain outside composition. Real IME/touch/UIA acceptance
 remains a separate gate; no UIA bridge is claimed by this text-service sample.
+
+
+### Shared embedded UI Automation providers
+
+EmbeddedHost exposes lazy AttachAccessibility, UpdateAccessibility, GetAccessibilityProvider and
+DisconnectAccessibility methods. The low-level bridge reuses the native provider/pattern implementation. The
+application supplies a module-local EmbeddedAccessibilitySite for parent/sibling navigation, fragment-root identity,
+OS-focus requests and posted/coalesced completion work. A consumer plugin adapts its own COM site to this C++
+interface; no application HWND or C++ library ownership crosses its ABI. This component alone does not attach
+RedXe's window or establish its release gate.
+
+Attach after coherent preparation on the application's COM STA, with a nonzero process-unique attachment runtime ID.
+The application provides the displayed physical-screen viewport; its dimensions must match prepared pixels. DIP
+bounds convert once and clip to that viewport, including negative monitor origins. The same root provider identity
+is reused during attachment. Child runtime IDs also distinguish the retained control's lifetime, so replacement at
+the same tree path cannot reuse a surviving old provider. Providers advertise UseComThreading; standard UIA COM
+proxies marshal actions to the owning STA. Raw foreign-thread actions fail instead of touching controls. See the
+Windows [provider threading contract](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationcore/ne-uiautomationcore-provideroptions).
+
+Call UpdateAccessibility after changed preparation, placement or OS focus. Unchanged updates reuse the snapshot
+without allocation. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no
+snapshot allocation or UIA wake-up cost. Prepared snapshots expose confirmed Toggle, RangeValue, text/value and
+focus state. Changed active snapshots raise applicable property, text, focus and structure events only while UIA
+clients listen. Hidden controls leave navigation; background modal views must be disconnected by the application.
+ActionCompleted allows the application to post one coalesced refresh/focus/navigation operation, without reentering
+the tree inside an accessibility callback.
+
+Hide, zero-size suspension, device replacement and detach disconnect the target before destroying controls. Old
+provider actions return UIA_E_ELEMENTNOTAVAILABLE after disconnect/root replacement, and a reattachment has a new
+identity. A surviving reference never accesses a replaced control by path. The application is responsible for
+keeping the module containing provider code mapped until surviving references can no longer call it; releasing the
+control tree is not permission to unload code still referenced by COM.
+
+Slider::RequestValue is the user-action counterpart to silent model SetValue. It validates range, enabled state and
+the absence of an active drag, then reports one Commit through the same callback used by keyboard input. UIA uses
+this operation, so accessible volume edits reach the consumer model. UIA text setters validate bounded UTF-16 and
+revalidate lifetime after callbacks; a callback that destroys its field cannot be followed by stale synchronization.
+
+The component's synthetic tests exercise all three AV control kinds, physical geometry at 144 DPI, real COM
+marshaling, text edits, same-path replacement, hidden/detached references and zero allocation in 1,000 clean updates.
+End-to-end application tree/event routing, real screen-reader/IME/touch acceptance, full matrix and resource gates
+remain required before RedXe adoption is complete.

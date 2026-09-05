@@ -1,5 +1,6 @@
 #pragma once
 #include "DxUi.h"
+#include "EmbeddedAccessibility.h"
 
 namespace DxUi
 {
@@ -119,6 +120,14 @@ public:
     HRESULT GetTextInputRangeBounds(uint64_t revision, size_t start, size_t end, D2D1_RECT_F& bounds, bool& clipped) noexcept;
     // Cancel composition and release logical text focus on OS focus loss; no HWND/OS service is owned here.
     void CancelTextInput() noexcept;
+    // Lazy UIA attachment on the caller's COM STA, after preparation. runtimeId is nonzero and process-unique
+    // for this attachment. Uses the existing control patterns; no HWND, worker, timer or graphics work is created.
+    HRESULT AttachAccessibility(std::shared_ptr<EmbeddedAccessibilitySite> site, uint64_t runtimeId, const EmbeddedAccessibilityPlacement& placement) noexcept;
+    HRESULT UpdateAccessibility(const EmbeddedAccessibilityPlacement& placement) noexcept;
+    HRESULT GetAccessibilityProvider(IRawElementProviderFragmentRoot** result) noexcept;
+    // Required before unloading a provider's module. Detach, hide and device replacement call this automatically.
+    // The application keeps that module mapped while any external provider references can survive.
+    void DisconnectAccessibility() noexcept;
     [[nodiscard]] EmbeddedStatistics GetStatistics() const noexcept;
 
 private:

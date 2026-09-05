@@ -2059,6 +2059,8 @@ public:
     void SetMaximum(double maximum) noexcept;
     [[nodiscard]] double GetMaximum() const noexcept;
     void SetValue(double value) noexcept;
+    // One committed user edit; rejects disabled controls, active pointer gestures and non-finite/out-of-range values.
+    bool RequestValue(ControlHost& host, double value) noexcept;
     [[nodiscard]] double GetValue() const noexcept;
     void SetStep(double step) noexcept;
     [[nodiscard]] double GetStep() const noexcept;
@@ -3794,6 +3796,8 @@ public:
 private:
     friend class EmbeddedHost;
     friend class Control;
+    friend struct EmbeddedAccessibilityAccess;
+    void* _embeddedAccessibilityTarget          = nullptr;
     uint64_t _interactionRevision               = 0;
     bool _embedded                              = false;
     bool _embeddedAnimationRequested            = false;
