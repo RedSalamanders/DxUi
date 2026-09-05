@@ -829,7 +829,6 @@ void TestButtonHighContrastFocusRingStaysVisibleWithoutKeyboardFocus()
 
     const ButtonVisualStyle standardPointerFocused = ResolveButtonVisualStyle(theme, true, false, false, true, false, false);
     const ButtonVisualStyle primaryPointerFocused  = ResolveButtonVisualStyle(theme, true, false, false, true, false, true);
-    const D2D1_COLOR_F expectedPrimaryIdleFill     = BlendForTest(theme.buttonFill, theme.selectionFill, theme.dark ? (110.0f / 255.0f) : (90.0f / 255.0f));
 
     Require(standardPointerFocused.showBorder, "high-contrast standard button keeps border visible without keyboard-focus gating");
     Require(standardPointerFocused.showFocus, "high-contrast standard button keeps focus ring visible without keyboard-focus gating");
@@ -841,9 +840,41 @@ void TestButtonHighContrastFocusRingStaysVisibleWithoutKeyboardFocus()
     Require(primaryPointerFocused.showBorder, "high-contrast primary button keeps border visible without keyboard-focus gating");
     Require(primaryPointerFocused.showFocus, "high-contrast primary button keeps focus ring visible without keyboard-focus gating");
     RequireColorNear(primaryPointerFocused.border, theme.border, "high-contrast primary button focused border falls back to the palette border");
-    RequireColorNear(primaryPointerFocused.focus,
-                     BlendForTest(expectedPrimaryIdleFill, theme.focusStroke, theme.dark ? 0.44f : 0.34f),
-                     "high-contrast primary button focus ring keeps palette primary-fill chrome");
+    RequireColorNear(primaryPointerFocused.focus, theme.focusStroke, "high-contrast primary focus uses the undiluted focus color");
+}
+
+void TestPrimaryButtonContrastPreservesSystemColorPairs()
+{
+    using namespace DxUi;
+    for (bool dark : {false, true})
+    {
+        auto theme          = MakeDefaultThemePalette(dark);
+        theme.highContrast  = true;
+        theme.buttonFill    = dark ? D2D1::ColorF(0, 0, 0) : D2D1::ColorF(1, 1, 1);
+        theme.selectionFill = dark ? D2D1::ColorF(1, 1, 0) : D2D1::ColorF(0, 0, 0.5f);
+        theme.selectionText = dark ? D2D1::ColorF(0, 0, 0) : D2D1::ColorF(1, 1, 1);
+        theme.focusStroke   = dark ? D2D1::ColorF(1, 1, 1) : D2D1::ColorF(0, 0, 0);
+        for (unsigned state = 0; state < 32; ++state)
+        {
+            const bool enabled = (state & 1) != 0, hovered = (state & 2) != 0, pressed = (state & 4) != 0;
+            const bool focused = (state & 8) != 0, keyboard = (state & 16) != 0;
+            const auto style = ResolveButtonVisualStyle(theme, enabled, hovered, pressed, focused, keyboard, true, 0.5f, 0.25f);
+            RequireColorNear(style.fill,
+                             enabled ? theme.selectionFill : theme.buttonFill,
+                             "contrast primary fill preserves the system pair in every enabled/disabled interaction state");
+            RequireColorNear(style.text,
+                             enabled ? theme.selectionText : theme.disabledText,
+                             "contrast primary text preserves selection or disabled color without heuristic replacement");
+            Require(style.showBorder, "contrast primary border remains visible at rest and while disabled");
+            Require(style.showFocus == (enabled && focused), "contrast focus is visible for pointer and keyboard, never disabled");
+            RequireColorNear(style.focus, theme.focusStroke, "contrast focus does not fade with animation strength");
+        }
+        // An accidentally translucent caller palette must not reveal a background that breaks the pair.
+        theme.selectionFill.a = 0.3f;
+        theme.selectionText.a = 0.4f;
+        const auto style      = ResolveButtonVisualStyle(theme, true, false, false, false, false, true);
+        Require(style.fill.a == 1.0f && style.text.a == 1.0f, "contrast primary colors are opaque");
+    }
 }
 
 void TestButtonHighContrastDisabledBorderStaysVisible()
@@ -2499,6 +2530,7 @@ void RunThemeTests()
     TestPrimaryButtonVisualStyleUsesAccentChrome();
     TestPrimaryButtonVisualStyleFallsBackToReadableText();
     TestButtonHighContrastFocusRingStaysVisibleWithoutKeyboardFocus();
+    TestPrimaryButtonContrastPreservesSystemColorPairs();
     TestButtonHighContrastDisabledBorderStaysVisible();
     TestButtonVisualStyleInterpolatesHoverAndFocusStrength();
     TestPrimaryButtonVisualStyleUsesViewerDerivedSelectionTextChrome();

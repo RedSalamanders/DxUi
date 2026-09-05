@@ -294,6 +294,25 @@ ButtonVisualStyle ResolveButtonVisualStyle(const ThemePalette& theme,
     const float focusAmount    = showFocusChrome ? ClampUnit(focusStrength) : 0.0f;
     style.focus                = BlendColor(theme.buttonFill, theme.focusStroke, theme.dark ? 0.52f : 0.38f);
 
+    if (primary && theme.highContrast)
+    {
+        // System selection colors are an accessible pair. Decorative blending destroys that pairing,
+        // especially white text on a light contrast theme; focus/hover strength must not dilute it.
+        style.fill   = enabled ? theme.selectionFill : theme.buttonFill;
+        style.text   = enabled ? theme.selectionText : theme.disabledText;
+        style.border = theme.border;
+        style.focus  = theme.focusStroke;
+        style.fill.a = style.text.a = style.border.a = style.focus.a = 1.0f;
+        style.showBorder                                             = true;
+        style.showFocus                                              = enabled && showFocusChrome;
+        if (enabled && pressed)
+        {
+            style.textOffsetXDip = 1.0f;
+            style.textOffsetYDip = 1.0f;
+        }
+        return style;
+    }
+
     if (primary)
     {
         const D2D1_COLOR_F idleFill    = BlendColor(theme.buttonFill, theme.selectionFill, theme.dark ? (110.0f / 255.0f) : (90.0f / 255.0f));

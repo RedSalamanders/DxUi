@@ -86,3 +86,10 @@ invalid values leave the setting unchanged. `GetMinimumPopupItemHeight` returns 
 effective theme height. The field bounds are independent and should also meet the consumer's touch minimum.
 The popup shows fewer complete rows when space is limited and can open above the field; it does not shrink rows.
 Hosts must provide space on at least one side for a full row and the popup padding, or open the selector in a larger view.
+
+In high contrast, primary Buttons use the exact opaque selection color pair for idle, hover, pressed and focused
+states. Disabled Buttons retain a border with the disabled text color; focus is visible for pointer and keyboard.
+Embedded surfaces are transparent by default: consumers needing an opaque application background must paint it
+from their theme in their root panel before painting the child controls.
+
+[Primary-button contrast validation](measurements/primary-high-contrast-2026-09-05/README.md) records the native suites, gallery and matched performance evidence.
