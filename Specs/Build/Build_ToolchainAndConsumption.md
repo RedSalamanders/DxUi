@@ -14,8 +14,8 @@ text and accessibility paths require actual verification. Preserve existing ASan
 additional tests, not replacements for the four required builds.
 
 Each consumer adds a machine-readable `Dependencies/DxUi.lock.json` with source repository identity, exact commit,
-required API revision, enabled targets and dependency/toolchain fingerprint. The actual remote and first commit are
-filled in during bootstrap; this RFC invents neither. No floating `main`, branch name, `latest`, or silently accepted
+required API revision, enabled targets and dependency/toolchain fingerprint. The repository is
+`https://github.com/RedSalamanders/DxUI.git`, with default branch `main`; consumers pin a tested full commit. No floating `main`, branch name, `latest`, or silently accepted
 dirty sibling checkout is a release dependency.
 
 `DxUiRoot` defaults to a sibling checkout and supports an explicit absolute override. A consumer restore entrypoint

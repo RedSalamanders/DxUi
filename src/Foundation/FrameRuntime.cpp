@@ -11,8 +11,8 @@ namespace
 constexpr uint64_t kMicrosecondsPerSecond = 1'000'000u;
 
 thread_local FrameStage g_currentDebugFrameStage = FrameStage::Idle;
-thread_local FrameMetricSink g_metricSink = nullptr;
-thread_local void *g_metricContext = nullptr;
+thread_local FrameMetricSink g_metricSink        = nullptr;
+thread_local void* g_metricContext               = nullptr;
 
 [[nodiscard]] uint64_t ScaleQuotientFloor(uint64_t numerator, uint64_t multiplier, uint64_t denominator) noexcept
 {
@@ -21,10 +21,10 @@ thread_local void *g_metricContext = nullptr;
         return 0u;
     }
 
-    uint64_t quotient = 0u;
+    uint64_t quotient         = 0u;
     uint64_t partialNumerator = 0u;
-    uint64_t addQuotient = numerator / denominator;
-    uint64_t addNumerator = numerator % denominator;
+    uint64_t addQuotient      = numerator / denominator;
+    uint64_t addNumerator     = numerator % denominator;
 
     while (multiplier != 0u)
     {
@@ -61,7 +61,7 @@ thread_local void *g_metricContext = nullptr;
         }
 
         const bool numeratorCarry = addNumerator >= denominator - addNumerator;
-        addNumerator = numeratorCarry ? addNumerator - (denominator - addNumerator) : addNumerator + addNumerator;
+        addNumerator              = numeratorCarry ? addNumerator - (denominator - addNumerator) : addNumerator + addNumerator;
         if (addQuotient > (std::numeric_limits<uint64_t>::max() - (numeratorCarry ? 1u : 0u)) / 2u)
         {
             return std::numeric_limits<uint64_t>::max();
@@ -103,7 +103,7 @@ uint64_t FrameClock::ElapsedUs(FrameTimestamp start, FrameTimestamp end) const n
         return 0;
     }
 
-    const uint64_t deltaQpc = static_cast<uint64_t>(end.qpc) - static_cast<uint64_t>(start.qpc);
+    const uint64_t deltaQpc  = static_cast<uint64_t>(end.qpc) - static_cast<uint64_t>(start.qpc);
     const uint64_t frequency = static_cast<uint64_t>(_frequency);
 
     const uint64_t wholeSeconds = deltaQpc / frequency;
@@ -112,7 +112,7 @@ uint64_t FrameClock::ElapsedUs(FrameTimestamp start, FrameTimestamp end) const n
         return std::numeric_limits<uint64_t>::max();
     }
 
-    const uint64_t wholeUs = wholeSeconds * kMicrosecondsPerSecond;
+    const uint64_t wholeUs     = wholeSeconds * kMicrosecondsPerSecond;
     const uint64_t remainderUs = ScaleQuotientFloor(deltaQpc % frequency, kMicrosecondsPerSecond, frequency);
     if (remainderUs > std::numeric_limits<uint64_t>::max() - wholeUs)
     {
@@ -122,7 +122,7 @@ uint64_t FrameClock::ElapsedUs(FrameTimestamp start, FrameTimestamp end) const n
     return wholeUs + remainderUs;
 }
 
-uint64_t FrameClock::SmoothDeltaUs(uint64_t rawDeltaUs, const FrameBudget &budget) noexcept
+uint64_t FrameClock::SmoothDeltaUs(uint64_t rawDeltaUs, const FrameBudget& budget) noexcept
 {
     uint64_t smoothedDeltaUs = rawDeltaUs;
     if (budget.hitchClampUs != 0u && smoothedDeltaUs > budget.hitchClampUs)
@@ -134,22 +134,24 @@ uint64_t FrameClock::SmoothDeltaUs(uint64_t rawDeltaUs, const FrameBudget &budge
     return smoothedDeltaUs;
 }
 
-FrameStageScope::FrameStageScope(FrameStage &currentStage, FrameStage nextStage) noexcept
-    : _currentStage(currentStage), _previousStage(currentStage), _previousDebugStage(g_currentDebugFrameStage)
+FrameStageScope::FrameStageScope(FrameStage& currentStage, FrameStage nextStage) noexcept
+    : _currentStage(currentStage),
+      _previousStage(currentStage),
+      _previousDebugStage(g_currentDebugFrameStage)
 {
-    _currentStage = nextStage;
+    _currentStage            = nextStage;
     g_currentDebugFrameStage = nextStage;
 }
 
 FrameStageScope::~FrameStageScope() noexcept
 {
-    _currentStage = _previousStage;
+    _currentStage            = _previousStage;
     g_currentDebugFrameStage = _previousDebugStage;
 }
 
 bool MotionPolicy::ShouldAnimate() const noexcept
 {
-    return !reducedMotion;
+    return ! reducedMotion;
 }
 
 float MotionPolicy::ResolveProgress(float animatedProgress, float targetProgress) const noexcept
@@ -157,9 +159,9 @@ float MotionPolicy::ResolveProgress(float animatedProgress, float targetProgress
     return reducedMotion ? targetProgress : animatedProgress;
 }
 
-void SetFrameMetricSink(FrameMetricSink sink, void *context) noexcept
+void SetFrameMetricSink(FrameMetricSink sink, void* context) noexcept
 {
-    g_metricSink = sink;
+    g_metricSink    = sink;
     g_metricContext = sink ? context : nullptr;
 }
 

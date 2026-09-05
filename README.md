@@ -14,10 +14,25 @@ The repository is bootstrapped with agent guidance, focused skills, normative de
 validators, CI and an independently built `DxUi.Foundation.lib`. That first extracted target contains the existing
 frame clock, frame-stage and reduced-motion behavior with application-independent diagnostics.
 
-The original control and test source is preserved under `upstream/RedSalamander` with commit and SHA-256 provenance.
-It is a frozen extraction reference and is **not** a supported standalone control library yet. Full control
-decoupling, embedded D3D11 hosting, RedXe input/text/UIA bridges and AV integration remain in the active plan.
-Neither application has been ported by this bootstrap. Do not advertise browser mockup behavior as native support.
+**This repository is the canonical home of DxUI.** Shared control fixes and evolution happen here.
+
+```text
+include/DxUi/       Supported public headers
+src/Foundation/    Built frame-runtime library
+src/Controls/      Owned control, text, accessibility and window-host source
+Tests/Foundation/ Executable Foundation tests
+Tests/Controls/   Owned control tests and visual baselines
+Build/            Consumer integration
+Specs/            Contracts and adoption plans
+provenance/       Historical origin and remaining dependency inventory
+```
+
+The controls and their tests are editable project source. They still require application-dependency removal before
+joining supported standalone targets; the exact remaining includes are tracked in
+[pending dependencies](provenance/pending-dependencies.json). Foundation is the currently built target.
+Embedded D3D11 hosting, RedXe input/text/UIA bridges and AV integration remain in the active plan.
+RedSalamander remains a later consumer. Original attribution and hashes are historical records in
+[source origin](provenance/source-origin.json), not a second source checkout or a restriction on edits.
 
 ## Build and validate
 

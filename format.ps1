@@ -1,4 +1,4 @@
-<# .SYNOPSIS Formats active C++ files, or checks them with -Check. Frozen imports are excluded. #>
+<# .SYNOPSIS Formats all owned C++ source and tests, or checks them with -Check. #>
 [CmdletBinding()] param([switch] $Check)
 $ErrorActionPreference = 'Stop'
 $formatter = Get-Command clang-format.exe -ErrorAction SilentlyContinue
@@ -9,7 +9,7 @@ if (-not $formatter) {
     if (-not (Test-Path -LiteralPath $candidate)) { throw 'clang-format not found; install Visual Studio C++ Clang tools.' }
     $formatterPath = $candidate
 } else { $formatterPath = $formatter.Source }
-$files = @('src','include','Tests/Foundation') | ForEach-Object {
+$files = @('src','include','Tests') | ForEach-Object {
     Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot $_) -Recurse -File | Where-Object Extension -In '.cpp','.h'
 }
 foreach ($file in $files) {

@@ -13,6 +13,8 @@ The user approved the independent private DxUi project. Library contracts are in
 - [x] Extract the first independent Foundation static target from the existing frame runtime.
 - [x] Build/test Foundation on all four native configurations, locally for x64 and in GitHub for ARM64; publish on main.
 - [x] Complete hosted bootstrap validation after the import-manifest correction.
+- [x] Make DxUI the canonical source home; move controls/tests, remove duplicate runtime and application projects.
+- [x] Validate owned-source layout, pending dependency inventory, formatting and local Foundation regressions.
 - [ ] D1: decouple retained controls and tests; remove concrete WindowHost and application-helper dependencies.
 - [ ] D1: deliver Controls, Win32Services and Win32Host static targets plus a standalone WindowHost sample.
 - [ ] D2: implement embedded host, coherent preparation/composition, dirty surfaces and resource pool.
@@ -22,12 +24,15 @@ The user approved the independent private DxUi project. Library contracts are in
 - [ ] D4: AV adopts shared controls and responsive layouts; its audio/camera backend gates remain in RedXe's AV plan.
 - [ ] Close library/bootstrap scope only after native validation and normative closeout. Move this plan to Done.
 
-## Import transition
+## Ownership and dependency transition
 
-Use the exact source inventory and dependency findings in [provenance](../../../provenance/source-import.json).
-The original reference remains unchanged. Extract reviewed slices into active source and record each in
-[the ledger](../../../provenance/migration-ledger.md). Do not claim that the Foundation build exercises imported controls.
-RedSalamander remains on its in-tree implementation during this plan.
+DxUI is the canonical owner of `src/Controls` and `Tests/Controls`; shared fixes happen in place here.
+Historical attribution is recorded in [source origin](../../../provenance/source-origin.json), with original bytes
+recoverable from Git history. The duplicate source tree and obsolete application projects have been removed.
+The frame runtime is consolidated into Foundation and controls use the neutral DxUi namespace.
+Remove [pending dependencies](../../../provenance/pending-dependencies.json) as standalone targets are enabled;
+record progress in [the ledger](../../../provenance/migration-ledger.md).
+Foundation tests do not exercise pending controls. RedSalamander remains on its old implementation during this plan.
 
 ## Validation evidence
 
@@ -42,3 +47,9 @@ import inventory. That developer-local file was never committed; it is removed f
 now explicitly rejected by the validator. [Corrective run 33958577659](https://github.com/RedSalamanders/DxUI/actions/runs/33958577659)
 passed all five jobs at commit `316e39cbdfc20eea619020b5d4e31e4f395b34e5`: Linux validation and all four native test configurations.
 Renderer/input and AV gates remain open; Foundation tests do not cover those capabilities.
+
+Ownership correction validation on 2026-09-05: all owned C++ source/tests pass formatting, all nine skills and
+30 Markdown documents validate, and 13 tooling regressions pass. Historical origin records cover 56 files with
+54 current ownership paths and two retired project files; 21 source files have explicit pending include records.
+Local x64 Debug/Release Foundation tests and ARM64 Debug/Release builds passed after the move. Controls remain
+pending runtime validation; the layout change does not close their D1/D2 acceptance gates.

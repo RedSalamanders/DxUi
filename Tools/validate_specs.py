@@ -20,7 +20,7 @@ def main():
         path = ROOT / name
         if not path.is_file() or not path.read_text(encoding='utf-8').strip():
             failures.append(f'Missing or empty {name}')
-    files = [p for p in ROOT.rglob('*.md') if not any(x in p.relative_to(ROOT).parts for x in ('.build', '.git', 'upstream'))]
+    files = [p for p in ROOT.rglob('*.md') if not any(x in p.relative_to(ROOT).parts for x in ('.build', '.git'))]
     for path in files:
         content = path.read_text(encoding='utf-8')
         for target in re.findall(r'\]\(([^)]+)\)', content):

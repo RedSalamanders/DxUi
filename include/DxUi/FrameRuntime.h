@@ -26,7 +26,7 @@ enum class FrameMode : uint8_t
 struct FrameBudget
 {
     uint64_t refreshPeriodUs = 16667;
-    uint64_t hitchClampUs = 50000;
+    uint64_t hitchClampUs    = 50000;
 };
 
 struct FrameTimestamp
@@ -36,28 +36,28 @@ struct FrameTimestamp
 
 class FrameClock final
 {
-  public:
+public:
     FrameClock() noexcept;
     [[nodiscard]] FrameTimestamp Now() const noexcept;
     [[nodiscard]] uint64_t ElapsedUs(FrameTimestamp start, FrameTimestamp end) const noexcept;
-    [[nodiscard]] uint64_t SmoothDeltaUs(uint64_t rawDeltaUs, const FrameBudget &budget) noexcept;
+    [[nodiscard]] uint64_t SmoothDeltaUs(uint64_t rawDeltaUs, const FrameBudget& budget) noexcept;
 
-  private:
-    int64_t _frequency = 1;
+private:
+    int64_t _frequency            = 1;
     uint64_t _lastSmoothedDeltaUs = 16667;
 };
 
 class FrameStageScope final
 {
-  public:
-    FrameStageScope(FrameStage &currentStage, FrameStage nextStage) noexcept;
+public:
+    FrameStageScope(FrameStage& currentStage, FrameStage nextStage) noexcept;
     ~FrameStageScope() noexcept;
-    FrameStageScope(const FrameStageScope &) = delete;
-    FrameStageScope &operator=(const FrameStageScope &) = delete;
+    FrameStageScope(const FrameStageScope&)            = delete;
+    FrameStageScope& operator=(const FrameStageScope&) = delete;
 
-  private:
-    FrameStage &_currentStage;
-    FrameStage _previousStage = FrameStage::Idle;
+private:
+    FrameStage& _currentStage;
+    FrameStage _previousStage      = FrameStage::Idle;
     FrameStage _previousDebugStage = FrameStage::Idle;
 };
 
@@ -69,8 +69,8 @@ struct MotionPolicy
 };
 
 // Set on the owning UI thread; the sink is borrowed until reset. It must be noexcept and non-reentrant.
-using FrameMetricSink = void (*)(void *context, std::wstring_view metric, uint64_t value) noexcept;
-void SetFrameMetricSink(FrameMetricSink sink, void *context) noexcept;
+using FrameMetricSink = void (*)(void* context, std::wstring_view metric, uint64_t value) noexcept;
+void SetFrameMetricSink(FrameMetricSink sink, void* context) noexcept;
 [[nodiscard]] bool IsDxUiRenderStageActiveForDebug() noexcept;
 void EmitDxUiRenderMutationBlockedForDebug() noexcept;
 void EmitFrameMetric(std::wstring_view metric, uint64_t valueUs) noexcept;

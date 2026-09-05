@@ -9,8 +9,12 @@ The repository is private and its default branch is `main`. Use focused feature 
 
 - Public headers live under `include/DxUi`; active implementation lives under `src`. Application-specific
   settings, AV devices, viewer interfaces, messages and themes stay in consumer adapters.
-- `upstream/RedSalamander` is immutable import evidence, not a source folder to compile or edit. Extract a reviewed
-  slice into active source, preserve attribution, update the extraction ledger and migrate its generic tests.
+- This repository is the canonical home of DxUI. Controls and host implementation live in `src/Controls`, their
+  tests and baselines in `Tests/Controls`, and supported public headers in `include/DxUi`. Edit shared code here.
+  Historical origin belongs in `provenance/source-origin.json` and Git history, never a second source tree.
+- Source ownership and build readiness are separate: pending dependencies are enumerated per file in
+  `provenance/pending-dependencies.json`. Remove them as controls are decoupled; do not freeze the source or
+  silently compile unresolved application dependencies into supported targets.
 - Consumers link pinned static targets. They must not enumerate this repository's `.cpp` files or pass DxUi C++
   ownership through a plugin ABI. No consumer project is changed implicitly by a library edit.
 - Embedded hosting borrows the application's device/context and uses its scheduling. It owns no swap chain,

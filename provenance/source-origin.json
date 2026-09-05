@@ -1,0 +1,402 @@
+{
+  "schemaVersion": 2,
+  "repository": "https://github.com/RedSalamanders/RedSalamander",
+  "commit": "5f83dc4b0b7c5d66de4f96895da43298532dd046",
+  "sourceWasClean": true,
+  "importedAt": "2026-09-05",
+  "files": [
+    {
+      "source": "Common/DxUI/DxUi.Accessibility.cpp",
+      "originalSha256": "fdc9c066cba2b25e00b064545dcc9a34f1c84ea5aacfa5dd3e6f24e40c6d3720",
+      "originalBytes": 320709,
+      "currentPath": "src/Controls/DxUi.Accessibility.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.AccessibilityTextUnits.h",
+      "originalSha256": "c85860ad541cc8941043b68b7ed7af80461a13221a2e9500054625ee2caf7707",
+      "originalBytes": 993,
+      "currentPath": "src/Controls/DxUi.AccessibilityTextUnits.h",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.ComboBox.cpp",
+      "originalSha256": "b8a9a6b769c64b91fa02edddb2689529122ba1aba8d5235bb645f9a2d004cbf0",
+      "originalBytes": 108845,
+      "currentPath": "src/Controls/DxUi.ComboBox.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.Controls.cpp",
+      "originalSha256": "cd3d606fc711abb87418a7b81f5eb4cf7b516662916dd1974128e1bcf74ab948",
+      "originalBytes": 296541,
+      "currentPath": "src/Controls/DxUi.Controls.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.cpp",
+      "originalSha256": "dce641627b1575bee3ec6a0351e3fc05bbb37a3977c5df440ed8b6a448981bf6",
+      "originalBytes": 29178,
+      "currentPath": "src/Controls/DxUi.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.FocusRestore.h",
+      "originalSha256": "4a673b20b3345d5da19b3cc5c9217e5508311006b650d7d86f7f75df54f1f5d1",
+      "originalBytes": 1339,
+      "currentPath": "src/Controls/DxUi.FocusRestore.h",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.FrameRuntime.cpp",
+      "originalSha256": "dcd573fb81a9c13925bd02091c592dd7347b578ff4f91f49199e82c363d7f67b",
+      "originalBytes": 5167,
+      "currentPath": "src/Foundation/FrameRuntime.cpp",
+      "disposition": "consolidated"
+    },
+    {
+      "source": "Common/DxUI/DxUi.FrameRuntime.h",
+      "originalSha256": "b24059e34641b6d3c46b9c28c1e0e448657f3afd2987dff0c93ab567e3a4affb",
+      "originalBytes": 1682,
+      "currentPath": "include/DxUi/FrameRuntime.h",
+      "disposition": "consolidated"
+    },
+    {
+      "source": "Common/DxUI/DxUi.Grid.cpp",
+      "originalSha256": "807cc2c0e992c048860663a29626319ee62143ecb3afe21d2fc486249f606a90",
+      "originalBytes": 164648,
+      "currentPath": "src/Controls/DxUi.Grid.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.h",
+      "originalSha256": "7c7f64a074b99195cf18c3dec2e5e2aa6feeab621ed477ab74144689a426415c",
+      "originalBytes": 191369,
+      "currentPath": "src/Controls/DxUi.h",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.Internal.h",
+      "originalSha256": "25a0e92348ee407bc9dad45c26c9a751be84cb799dc7b1cbf041fd4cddb2376e",
+      "originalBytes": 25278,
+      "currentPath": "src/Controls/DxUi.Internal.h",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.Menu.cpp",
+      "originalSha256": "f198b843b6b26a81d12cbb57665a74ab4cacf8c51ceafb0bb63f488e47135ce5",
+      "originalBytes": 262072,
+      "currentPath": "src/Controls/DxUi.Menu.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.NativeTextInput.cpp",
+      "originalSha256": "541f2fe7396bb7acbada264ccfb3900510ceb62088067a1af4262024505810ff",
+      "originalBytes": 58947,
+      "currentPath": "src/Controls/DxUi.NativeTextInput.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.PointerInput.cpp",
+      "originalSha256": "1945cb4c87e27b2bba58420af6e03dcab631de211de077026559f16b52f7a266",
+      "originalBytes": 3050,
+      "currentPath": "src/Controls/DxUi.PointerInput.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.PointerInput.h",
+      "originalSha256": "d355a31824df8d81da54de451d89b144a2756b2918d2d4996e92eee09874ae4e",
+      "originalBytes": 1108,
+      "currentPath": "src/Controls/DxUi.PointerInput.h",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.Scrollbar.cpp",
+      "originalSha256": "e5f57eeddf767cc052867cf387c6a0ae81259587dee9f01027ad1947dd886bfe",
+      "originalBytes": 11722,
+      "currentPath": "src/Controls/DxUi.Scrollbar.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.SingleLineTextEditing.cpp",
+      "originalSha256": "b6fa647674f69903cf63902a5317023965d17d1dcfa669f18e3b8915eff7f8d5",
+      "originalBytes": 43980,
+      "currentPath": "src/Controls/DxUi.SingleLineTextEditing.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.TextInput.cpp",
+      "originalSha256": "2f8cf9b3ec32364c1539bf78a9a2aada4cd9c589181a3ebb2103951f3f7f7a83",
+      "originalBytes": 131306,
+      "currentPath": "src/Controls/DxUi.TextInput.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.TextStoreACP.cpp",
+      "originalSha256": "53ce7a1cb15409fd037b5e2840174d7ff2f5b8d094dcec83553727123b4e9e3f",
+      "originalBytes": 39028,
+      "currentPath": "src/Controls/DxUi.TextStoreACP.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.Theme.cpp",
+      "originalSha256": "7e22459200f9bdb77783ccad5fcd146d2ba96ef6a4aeaaecca87c1a95dc7dd8a",
+      "originalBytes": 49020,
+      "currentPath": "src/Controls/DxUi.Theme.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.Tree.cpp",
+      "originalSha256": "3c711f156e11bec0360dc2419de4e751f4c644bc268105b565e239078e0042a9",
+      "originalBytes": 61903,
+      "currentPath": "src/Controls/DxUi.Tree.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.Typeahead.cpp",
+      "originalSha256": "7498fb7636b169b69cfab787a258b97f27720ff1689faefbcb6feee69d991ce4",
+      "originalBytes": 534,
+      "currentPath": "src/Controls/DxUi.Typeahead.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.Typography.h",
+      "originalSha256": "efbf5b3fe497e31673739ffa8b30e7875f43141b5d061acc8a87d0069998faa6",
+      "originalBytes": 19977,
+      "currentPath": "src/Controls/DxUi.Typography.h",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.vcxproj",
+      "originalSha256": "03477da8c5382339994f0827116e94b489e17b4fbea04b0c5487dbcecb58cc26",
+      "originalBytes": 11702,
+      "disposition": "retired",
+      "reason": "Application-bound project replaced by DxUI-owned solution and target projects."
+    },
+    {
+      "source": "Common/DxUI/DxUi.Win32Hooks.h",
+      "originalSha256": "71c9b7a6720b3643241a8bd81e6daa0c314fbfac0bbdcb2464cdaa2204ae9158",
+      "originalBytes": 887,
+      "currentPath": "src/Controls/DxUi.Win32Hooks.h",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUi.WindowHost.cpp",
+      "originalSha256": "2c5284bee5864b680ea519607246324f44c0018b77b5273287acfbf3abfe1ad6",
+      "originalBytes": 158236,
+      "currentPath": "src/Controls/DxUi.WindowHost.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Common/DxUI/DxUiNativeMenuInterop.h",
+      "originalSha256": "76c87565a3841e8a1f7df9816ffb6088d6b148c20796ef8fa34e12e9175f84bb",
+      "originalBytes": 29515,
+      "currentPath": "src/Controls/DxUiNativeMenuInterop.h",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/advanced_controls_dark.png",
+      "originalSha256": "e6eeae20742ae6c81149a76d7a32e3ef43a4f9332f99720804e3e5d308436fb5",
+      "originalBytes": 13350,
+      "currentPath": "Tests/Controls/Baselines/advanced_controls_dark.png",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/core_controls_dark.png",
+      "originalSha256": "ba7674cd0159e5be9573ceef2b7f3d55b3f9702829472bfbc9a37c4e029198b7",
+      "originalBytes": 7074,
+      "currentPath": "Tests/Controls/Baselines/core_controls_dark.png",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/core_controls_high_contrast.png",
+      "originalSha256": "b62c2894232dce2f2fce11955ce401291d7ae3d90a8d259ffd2bf0475b768552",
+      "originalBytes": 6953,
+      "currentPath": "Tests/Controls/Baselines/core_controls_high_contrast.png",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/core_controls_light.png",
+      "originalSha256": "dda706af0fdfcd681566d28f4bc8486702ac63d231a3a070aa0148159a1574f0",
+      "originalBytes": 6861,
+      "currentPath": "Tests/Controls/Baselines/core_controls_light.png",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/menu_popup_acrylic_light.png",
+      "originalSha256": "a8c5b6a8477b88d071fcb79228dbbbbd05499c13d634e84fa1c88a17ae8cc798",
+      "originalBytes": 6804,
+      "currentPath": "Tests/Controls/Baselines/menu_popup_acrylic_light.png",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/page_transition_dark.png",
+      "originalSha256": "96209429b9ed6d7daa3fb6686448985f3fdd47da87c6cf56ab06389c3dc0b9ae",
+      "originalBytes": 2700,
+      "currentPath": "Tests/Controls/Baselines/page_transition_dark.png",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/popup_and_bars_acrylic_light.png",
+      "originalSha256": "a8bb3fd7f2c6f2467832b53be0ae7a0f7e9714f519337632eb5e599ffd064470",
+      "originalBytes": 6553,
+      "currentPath": "Tests/Controls/Baselines/popup_and_bars_acrylic_light.png",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/Baselines/popup_and_bars_dark.png",
+      "originalSha256": "8c4b68d2cb47bc5c364e73e2ae06e1de9d32e951b128cfe6edaa82ec476c973f",
+      "originalBytes": 4809,
+      "currentPath": "Tests/Controls/Baselines/popup_and_bars_dark.png",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTestHelpers.h",
+      "originalSha256": "57d90c796aecef7f6737224753f63b08ff295d93921368910f32445884228cfd",
+      "originalBytes": 69848,
+      "currentPath": "Tests/Controls/DxUiTestHelpers.h",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Accessibility.cpp",
+      "originalSha256": "108248272d46459573f52df60de02c7019a7b46becd88aa77c71c0d656b4895b",
+      "originalBytes": 385756,
+      "currentPath": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Animation.cpp",
+      "originalSha256": "7ebc53144aa62b853c509dfc8afa318d3c2c624868f063c789226e5b29410c54",
+      "originalBytes": 60367,
+      "currentPath": "Tests/Controls/DxUiTests.Animation.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.ComboBox.cpp",
+      "originalSha256": "529eed7a881254adb87b9c2c70a653873f7ed2a91af24ee9e800875eed4e1c35",
+      "originalBytes": 65043,
+      "currentPath": "Tests/Controls/DxUiTests.ComboBox.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Controls.cpp",
+      "originalSha256": "4d7d1224a59ca17abc362e3302438fc980c7af452f320cc44657c5931a885311",
+      "originalBytes": 93324,
+      "currentPath": "Tests/Controls/DxUiTests.Controls.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.cpp",
+      "originalSha256": "347ddacb0660f6c393dd1e8d2cf215def430d41e4af4b7ea4561c8b853c70ce0",
+      "originalBytes": 9860,
+      "currentPath": "Tests/Controls/DxUiTests.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Gallery.cpp",
+      "originalSha256": "5aef760c09ba00d5b60f19bd81ad85cd2082741b615a134767c4981face3c4f6",
+      "originalBytes": 86340,
+      "currentPath": "Tests/Controls/DxUiTests.Gallery.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Grid.cpp",
+      "originalSha256": "e4c20dd90854ba245ee6cb5aac26370572d40cbd845a194532da7b478cc91327",
+      "originalBytes": 95860,
+      "currentPath": "Tests/Controls/DxUiTests.Grid.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Menu.cpp",
+      "originalSha256": "f5a9de66c12456446b459b79cc4b148e987e41691cefd759edb1114b8275ba2c",
+      "originalBytes": 286055,
+      "currentPath": "Tests/Controls/DxUiTests.Menu.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.MultilineText.cpp",
+      "originalSha256": "d08cad734d94431ca65c0d67e8812e69521d83b6a2a080e1c7f43c56808ce26b",
+      "originalBytes": 217014,
+      "currentPath": "Tests/Controls/DxUiTests.MultilineText.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.NativeTextInput.cpp",
+      "originalSha256": "20c16184c047d63b42e589673e674867ffd7e438728d471adebeb60f50884e6e",
+      "originalBytes": 346923,
+      "currentPath": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.NewControls.cpp",
+      "originalSha256": "0f869d55331b9a06e622751eb19919a646f9e1d75b5e2095f4a3264168ecb01e",
+      "originalBytes": 85635,
+      "currentPath": "Tests/Controls/DxUiTests.NewControls.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.ReadOnly.cpp",
+      "originalSha256": "54c1a2a5fe41c6c288125edafcd4d0087df262d1d37201654e231dc42c327308",
+      "originalBytes": 96684,
+      "currentPath": "Tests/Controls/DxUiTests.ReadOnly.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Rendering.cpp",
+      "originalSha256": "e204d9531ebe89e392caa2ab9d1390df029f42e8ad1453926f61d25d039df8b8",
+      "originalBytes": 85601,
+      "currentPath": "Tests/Controls/DxUiTests.Rendering.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.TextField.cpp",
+      "originalSha256": "d5ecf0feb54fc0ec51b1acff5a13b331c00867036b7ac09ca65a93e8931ecda9",
+      "originalBytes": 118234,
+      "currentPath": "Tests/Controls/DxUiTests.TextField.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Theme.cpp",
+      "originalSha256": "d2448b67221285e3bbb35ce3a84b861099a3a9cb150509f577e05d0807ed52ee",
+      "originalBytes": 213299,
+      "currentPath": "Tests/Controls/DxUiTests.Theme.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Tooltip.cpp",
+      "originalSha256": "841b3be3c3303be8cf3069df7ee0b8e4044c9c7ab6dd620dd4707d89bfbeab38",
+      "originalBytes": 20313,
+      "currentPath": "Tests/Controls/DxUiTests.Tooltip.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.Tree.cpp",
+      "originalSha256": "95ee7b4f5a4c1f42c5c1e02968666518e8f9b23445e1a622ba080769bc31e2f5",
+      "originalBytes": 66784,
+      "currentPath": "Tests/Controls/DxUiTests.Tree.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.vcxproj",
+      "originalSha256": "dad06855f449338cd074dfe28d92ac416bc4541857215ff2361422fe3c23bcff",
+      "originalBytes": 8588,
+      "disposition": "retired",
+      "reason": "Application-bound project replaced by DxUI-owned solution and target projects."
+    },
+    {
+      "source": "Tests/DxUiTests/DxUiTests.WindowHost.cpp",
+      "originalSha256": "58b2c05740da2d3307a10fe8682d76f579724e7f764fe9ece65943d37438c783",
+      "originalBytes": 198374,
+      "currentPath": "Tests/Controls/DxUiTests.WindowHost.cpp",
+      "disposition": "owned"
+    },
+    {
+      "source": ".clang-format",
+      "currentPath": ".clang-format",
+      "disposition": "owned",
+      "originalSha256": "768439d2a9832aee4d04ebc0fd4c8f5e16cc5e2bc5a7c0705913e1e8646e2b20",
+      "originalBytes": 3697
+    }
+  ],
+  "policy": "Historical source identity only. DxUI owns and edits current source; original hashes do not constrain current bytes."
+}

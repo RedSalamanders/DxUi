@@ -11,4 +11,4 @@ Keep presentation and OS message ownership in the window adapter. Share controls
 
 Validate changed guidance with `validate-skills.ps1` and `validate-specs.ps1`. For source/build work run the affected
 `test.ps1` configurations and the additional validation named by the contract. Supported capabilities are recorded
-in `capabilities.json`; a reference import is not a supported implementation.
+in `capabilities.json`; owned source awaiting dependency removal is not yet supported at runtime.

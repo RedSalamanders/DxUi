@@ -12,8 +12,11 @@ architecture, configuration, time and executable path under `.build/reports`. Fa
 The foundation suite covers timing edge cases, nested stage restoration, reduced motion and injected diagnostics.
 
 `validate-skills.ps1` checks all repository skills with repository-owned code and pinned PyYAML; `validate-specs.ps1`
-checks local links, normative documents and plan indexes; `validate-dependencies.ps1` verifies import hashes and
-forbids active includes reaching into a consumer or the frozen snapshot. They need no personal Codex installation.
+checks local links, normative documents and plan indexes; `validate-dependencies.ps1` verifies historical origin
+metadata, current ownership paths and the exact pending dependency inventory. Original hashes describe the original
+commit only: editing owned source must not fail a hash check. New unresolved includes, missing owned files,
+developer-local files and pending source added to supported projects are rejected. Supported source may not reach
+into a consumer. Validators need no personal Codex installation.
 
 The required native matrix is x64/ARM64 and Debug/Release. Cross-compilation is not a runtime pass. CI uses explicit
 VS 2026 images with separate native ARM64 execution. Record image/compiler identity in build logs. No fixture changes

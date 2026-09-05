@@ -7,9 +7,9 @@
 namespace
 {
 int failures = 0;
-void Check(bool condition, const char *message)
+void Check(bool condition, const char* message)
 {
-    if (!condition)
+    if (! condition)
     {
         std::fprintf(stderr, "FAIL: %s\n", message);
         ++failures;
@@ -18,11 +18,11 @@ void Check(bool condition, const char *message)
 struct Metrics
 {
     unsigned calls = 0;
-    uint64_t last = 0;
+    uint64_t last  = 0;
 };
-void Record(void *context, std::wstring_view, uint64_t value) noexcept
+void Record(void* context, std::wstring_view, uint64_t value) noexcept
 {
-    auto &metrics = *static_cast<Metrics *>(context);
+    auto& metrics = *static_cast<Metrics*>(context);
     ++metrics.calls;
     metrics.last = value;
 }
@@ -45,21 +45,21 @@ int main()
 #if defined(_DEBUG)
         Check(DxUi::IsDxUiRenderStageActiveForDebug(), "render guard observes render");
 #else
-        Check(!DxUi::IsDxUiRenderStageActiveForDebug(), "release omits debug guard");
+        Check(! DxUi::IsDxUiRenderStageActiveForDebug(), "release omits debug guard");
 #endif
         {
             DxUi::FrameStageScope inner(stage, DxUi::FrameStage::Layout);
             Check(stage == DxUi::FrameStage::Layout, "nested stage");
-            Check(!DxUi::IsDxUiRenderStageActiveForDebug(), "nested guard");
+            Check(! DxUi::IsDxUiRenderStageActiveForDebug(), "nested guard");
         }
         Check(stage == DxUi::FrameStage::Render, "nested restore");
     }
     Check(stage == DxUi::FrameStage::Idle, "outer restore");
-    Check(!DxUi::IsDxUiRenderStageActiveForDebug(), "guard restored");
+    Check(! DxUi::IsDxUiRenderStageActiveForDebug(), "guard restored");
     DxUi::MotionPolicy motion;
     Check(motion.ShouldAnimate() && motion.ResolveProgress(0.25f, 1.0f) == 0.25f, "normal motion");
     motion.reducedMotion = true;
-    Check(!motion.ShouldAnimate() && motion.ResolveProgress(0.25f, 1.0f) == 1.0f, "reduced motion");
+    Check(! motion.ShouldAnimate() && motion.ResolveProgress(0.25f, 1.0f) == 1.0f, "reduced motion");
     Metrics metrics;
     DxUi::SetFrameMetricSink(&Record, &metrics);
     DxUi::EmitFrameMetric(L"fixture", 42);

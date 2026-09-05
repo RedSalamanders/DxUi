@@ -6,6 +6,21 @@ Last reviewed: 2026-09-05
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
 
+## Canonical source ownership
+
+This repository is the root and home of DxUI. Shared implementation and tests evolve here; RedXe and RedSalamander
+are consumers. Source is organized under `src`, tests under `Tests`, supported API under `include/DxUi`.
+The owned control/host source currently lives in `src/Controls`, with tests/baselines in `Tests/Controls`.
+These files are editable even while standalone dependency removal is pending. Build support remains explicit in
+`capabilities.json`; a directory move or namespace change does not establish tested runtime support.
+
+Historical source commit, original hashes and current ownership mappings live in `provenance/source-origin.json`.
+Git history retains earlier bytes. No duplicate original source tree is retained or periodically synchronized.
+`provenance/pending-dependencies.json` enumerates unresolved application includes until they are removed.
+The frame runtime has one implementation under Foundation; obsolete application-bound project files are retired.
+
+## Target boundaries
+
 | Target | Responsibility | V1 consumer |
 | --- | --- | --- |
 | `DxUi.Controls.lib` | Shared retained controls, layout, state, theme/text, prepared D2D drawing and host abstraction. | AV Control and the library's two samples. |

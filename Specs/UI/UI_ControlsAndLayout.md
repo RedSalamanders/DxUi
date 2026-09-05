@@ -15,5 +15,6 @@ Do not reduce a touch target below the consumer's minimum to hide an overflow. L
 or overlap. Optional content is removed before required controls. Geometry is recomputed on relevant changes only.
 Consumers own density tiers and responsive policy; DxUi contains no AV profile or XENEON dimension rules.
 
-The bootstrap only supports frame timing/stage and motion policy. The complete original control inventory is
-preserved in `upstream/RedSalamander/Common/DxUI`; control extraction and behavior tests remain D1/D2 work.
+The bootstrap only supports frame timing/stage and motion policy. DxUI owns the controls in `src/Controls` and
+their tests in `Tests/Controls`. Application-dependency removal and standalone control tests remain D1/D2 work.
+Source is edited in place here; historical origin records do not freeze it.
