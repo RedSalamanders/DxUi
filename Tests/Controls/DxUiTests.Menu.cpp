@@ -1233,9 +1233,10 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
     activeTrace                            = trace.get();
     Diagnostics::sink                      = [](std::wstring_view, std::wstring_view message) noexcept
     {
-        if (! activeTrace ||
-            (message.find(L"menu.pointer") == std::wstring_view::npos && message.find(L"menu.loop-dispatch-popup") == std::wstring_view::npos &&
-             message.find(L"menu.popup-message") == std::wstring_view::npos))
+        // Preserve input evidence; repeated state probes/paint/teardown must not evict the failure's pointer route.
+        if (! activeTrace || message.find(L"menu.") == std::wstring_view::npos ||
+            (message.find(L"menu.pointer") == std::wstring_view::npos && message.find(L"WM_MOUSE") == std::wstring_view::npos &&
+             message.find(L"menu.loop-start") == std::wstring_view::npos && message.find(L"menu.show-begin") == std::wstring_view::npos))
             return;
         auto& row           = activeTrace->rows[activeTrace->count++ % activeTrace->rows.size()];
         const size_t length = (std::min)(message.size(), row.size() - 1);
@@ -1405,9 +1406,10 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
 
     if (! driverFailure.empty())
     {
+        std::fprintf(stderr, "MENU TRACE COUNT: %zu\n", trace->count);
         const size_t first = trace->count > trace->rows.size() ? trace->count - trace->rows.size() : 0;
         for (size_t i = first; i < trace->count; ++i)
-            std::fwprintf(stderr, L"MENU TRACE: %ls\n", trace->rows[i % trace->rows.size()].data());
+            std::fprintf(stderr, "MENU TRACE: %ls\n", trace->rows[i % trace->rows.size()].data());
     }
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(result == std::optional<int>{4202}, "owner-window message flood cannot delay popup pointer hover or invocation");
