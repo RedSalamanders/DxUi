@@ -58,7 +58,9 @@ Compile with Unicode, stdcpplatest, v145 and the matching /MDd or /MD runtime. T
 only public DxUi headers and ordinary Windows/WIL headers; it never reaches src. Diagnostic hook availability is
 fixed in Configuration.h and must not be overridden by consumers.
 
-`build.ps1` rejects only running executables in the selected output directory and never terminates them.
+`build.ps1` presents a DxUi banner and color-classifies streamed MSBuild diagnostics in interactive terminals while
+preserving plain redirected output and a complete file log. It rejects only running executables in the selected
+output directory and never terminates them.
 `test.ps1` runs all three test executables, splitting inherited control suites into independent runs with exit-code,
 SHA256, native architecture and capability-skip receipts. `gallery.ps1` generates five themed control sheets, a
 supplied-device example image and an HTML index. `DxUi.EmbeddedControls.exe` opens the live toggle/slider example;
