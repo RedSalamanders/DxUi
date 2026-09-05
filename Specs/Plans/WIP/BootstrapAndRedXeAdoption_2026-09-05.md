@@ -11,7 +11,8 @@ The user approved the independent private DxUi project. Library contracts are in
 - [x] Create private `RedSalamanders/DxUI` and sibling checkout.
 - [x] Bootstrap AGENTS, nine skills, normative contracts, validators, build/test scripts, source provenance and CI.
 - [x] Extract the first independent Foundation static target from the existing frame runtime.
-- [ ] Validate and publish bootstrap on all four native configurations; record local versus CI evidence.
+- [x] Build/test Foundation on all four native configurations, locally for x64 and in GitHub for ARM64; publish on main.
+- [ ] Complete hosted bootstrap validation after the import-manifest correction.
 - [ ] D1: decouple retained controls and tests; remove concrete WindowHost and application-helper dependencies.
 - [ ] D1: deliver Controls, Win32Services and Win32Host static targets plus a standalone WindowHost sample.
 - [ ] D2: implement embedded host, coherent preparation/composition, dirty surfaces and resource pool.
@@ -31,6 +32,12 @@ RedSalamander remains on its in-tree implementation during this plan.
 ## Validation evidence
 
 Local verification on 2026-09-05: all four Foundation builds passed; x64 Debug/Release tests passed.
-Nine skill checks, specification/dependency validators, six tooling regression cases and formatting checks passed.
-Native ARM64 execution and GitHub workflow results are recorded separately after publication. Renderer/input and AV
-gates remain open; Foundation tests do not cover those capabilities.
+Nine skill checks, specification/dependency validators and formatting checks passed locally. A consumer fixture
+built and executed through the pinned props/targets from a path with spaces, using isolated dependency outputs;
+an incorrect revision was rejected. Tooling regression cases cover import corruption and developer-local exclusions.
+
+[GitHub run 33958428386](https://github.com/RedSalamanders/DxUI/actions/runs/33958428386) passed all four native
+Foundation test jobs, including ARM64 Debug/Release. Its Linux validation identified an ignored `.user` file in the
+import inventory. That developer-local file was never committed; it is removed from the snapshot and manifest and
+now explicitly rejected by the validator. The corrective run must pass before hosted bootstrap validation is complete.
+Renderer/input and AV gates remain open; Foundation tests do not cover those capabilities.

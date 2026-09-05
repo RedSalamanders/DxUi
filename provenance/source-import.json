@@ -150,12 +150,6 @@
       "bytes": 11702
     },
     {
-      "source": "Common/DxUI/DxUi.vcxproj.user",
-      "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.vcxproj.user",
-      "sha256": "c06a75b13f855a94d46616796e024c52b499f8f92cf00ccb571ddbc6ff574676",
-      "bytes": 168
-    },
-    {
       "source": "Common/DxUI/DxUi.Win32Hooks.h",
       "importedPath": "upstream/RedSalamander/Common/DxUI/DxUi.Win32Hooks.h",
       "sha256": "71c9b7a6720b3643241a8bd81e6daa0c314fbfac0bbdcb2464cdaa2204ae9158",

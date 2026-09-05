@@ -65,6 +65,17 @@ class ValidatorTests(unittest.TestCase):
         self.put('upstream/RedSalamander/extra.cpp', 'extra\n')
         self.assertEqual(self.run_tool('validate_dependencies'), 1)
 
+    def test_developer_settings_cannot_be_imported(self):
+        self.dependency_fixture()
+        self.put('upstream/RedSalamander/project.user', 'settings\n')
+        manifest = json.loads((self.root / 'provenance/source-import.json').read_text(encoding='utf-8'))
+        manifest['files'].append({
+            'importedPath': 'upstream/RedSalamander/project.user',
+            'sha256': hashlib.sha256(b'settings\n').hexdigest(),
+        })
+        self.put('provenance/source-import.json', json.dumps(manifest))
+        self.assertEqual(self.run_tool('validate_dependencies'), 1)
+
     def test_application_dependency_is_rejected(self):
         self.dependency_fixture()
         self.put('src/one.cpp', '#include "RedSalamander/Helpers.h"\n')

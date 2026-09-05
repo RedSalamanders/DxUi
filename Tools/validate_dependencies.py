@@ -20,6 +20,9 @@ def main():
     seen = set()
     for entry in provenance['files']:
         relative = entry['importedPath']
+        if Path(relative).suffix.lower() in ('.user', '.suo'):
+            failures.append(f'Developer-local settings must not be imported: {relative}')
+            continue
         path = (ROOT / relative).resolve()
         if not path.is_relative_to(ROOT / 'upstream') or relative in seen:
             failures.append(f'Invalid or duplicate import path: {relative}')
