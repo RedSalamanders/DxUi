@@ -663,7 +663,7 @@ struct MultilineViewportMetrics
 [[nodiscard]] size_t ComputeMultilineMaxFirstVisibleLine(const MultilineViewportMetrics& viewportMetrics) noexcept
 {
     // Preserve imported/view-driven top-line state up to the last content line.
-    // The DxUI surface can legitimately show trailing blank space below the last line.
+    // The DxUi surface can legitimately show trailing blank space below the last line.
     return viewportMetrics.totalLineCount > 0u ? viewportMetrics.totalLineCount - 1u : 0u;
 }
 

@@ -9,7 +9,7 @@
 - Add a public toggle/slider consumer, relocated exact-pin consumption tests, five-theme all-control gallery,
   supplied-device WARP regressions and all 853 reusable inherited runtime cases. Record the 88 exclusions.
 
-- Make this repository the canonical home of DxUI: editable src/Controls and Tests/Controls, neutral namespace,
+- Make this repository the canonical home of DxUi: editable src/Controls and Tests/Controls, neutral namespace,
   one frame runtime, historical provenance metadata and explicit pending dependencies; remove the duplicate tree.
 
 - Bootstrap independent private repository, guidance, skills, design contracts, validators and build/CI entrypoints.

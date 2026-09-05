@@ -26,7 +26,7 @@ mark delivery complete or merge to main until the remaining validation is resolv
 
 ### Repository and implemented work
 
-- Canonical checkout: `Z:/src/DxUI`; private GitHub `RedSalamanders/DxUI`; default branch `main`.
+- Canonical checkout: `Z:/src/DxUi`; private GitHub `RedSalamanders/DxUi`; default branch `main`.
 - Work branch: `codex/single-library-controls`. Latest implementation commit before this handoff:
   `26ac85f766192ef85441a578744ad91386480546`, already pushed. Main remains at
   `f28f55d0b4648bdec131f506c017dabc797131af`; do not force-push or reset either checkout.
@@ -54,7 +54,7 @@ mark delivery complete or merge to main until the remaining validation is resolv
 - Local complete suites passed before the last menu fixture changes. The latest menu readiness change separately
   passed Menu in Debug and Release with zero skips. Formatting, nine skills, specs/dependencies, test-port validation
   and 18 Python tooling regressions have passed; rerun relevant checks after any new change.
-- Latest full CI: [run 33965482623](https://github.com/RedSalamanders/DxUI/actions/runs/33965482623),
+- Latest full CI: [run 33965482623](https://github.com/RedSalamanders/DxUi/actions/runs/33965482623),
   exact implementation commit `26ac85f766192ef85441a578744ad91386480546`.
 - At pause: Linux validation succeeded; x64 Debug FAILED; x64 Release and both ARM64 jobs were still running.
   The failure cause is not yet retrieved. GitHub refused the completed-job log while the overall run remained active.
@@ -90,7 +90,7 @@ mark delivery complete or merge to main until the remaining validation is resolv
 
 ### Resume and closeout sequence
 
-1. Read AGENTS.md, relevant local skills and this plan; inspect Git status in both repos. DxUI writes/build/git require
+1. Read AGENTS.md, relevant local skills and this plan; inspect Git status in both repos. DxUi writes/build/git require
    an escalated shell from a RedXe-rooted task (outside its original writable root); the user already authorized them.
    Use `py -3 -X utf8` in that shell. Do not rerun earlier one-shot mutation scripts under RedXe/.build.
 2. Fetch the latest run's results and failed logs. Resolve actual failures, run affected local tests and the required
@@ -110,13 +110,13 @@ mark delivery complete or merge to main until the remaining validation is resolv
 6. Validate format/specs/skills/dependencies/test-port and tooling after final changes. Commit closeout, fetch origin
    main, fast-forward main to the tested branch without force, and push only after required evidence exists.
    The helper's "published on main" statement is only true after this step succeeds.
-7. Verify private/default main, clean DxUI source and matching local/remote main. Leave unrelated RedXe work intact.
+7. Verify private/default main, clean DxUi source and matching local/remote main. Leave unrelated RedXe work intact.
 
-Useful commands from Z:/src/DxUI:
+Useful commands from Z:/src/DxUi:
 
 ```powershell
-gh run view 33965482623 --repo RedSalamanders/DxUI --json databaseId,headSha,url,jobs,status,conclusion
-gh run view 33965482623 --repo RedSalamanders/DxUI --log-failed
+gh run view 33965482623 --repo RedSalamanders/DxUi --json databaseId,headSha,url,jobs,status,conclusion
+gh run view 33965482623 --repo RedSalamanders/DxUi --log-failed
 ./test.ps1 -Configuration Debug -Platform x64 -Suites Menu
 ./test.ps1 -Configuration Release -Platform x64 -Suites Menu
 ./gallery.ps1 -SkipBuild

@@ -2,7 +2,7 @@
 param([Parameter(Mandatory)][string] $DxUiRoot, [Parameter(Mandatory)][string] $LockFile)
 $ErrorActionPreference = 'Stop'
 $pin = Get-Content -LiteralPath $LockFile -Raw | ConvertFrom-Json
-if ($pin.commit -notmatch '^[0-9a-f]{40}$' -or $pin.repository -ne 'https://github.com/RedSalamanders/DxUI') {
+if ($pin.commit -notmatch '^[0-9a-f]{40}$' -or $pin.repository -ne 'https://github.com/RedSalamanders/DxUi') {
     throw 'DxUi lock must name the canonical repository and an exact 40-character commit.'
 }
 $head = & git -C $DxUiRoot rev-parse HEAD

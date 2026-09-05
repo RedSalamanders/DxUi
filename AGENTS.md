@@ -9,7 +9,7 @@ The repository is private and its default branch is `main`. Use focused feature 
 
 - Public headers live under `include/DxUi`; active implementation lives under `src`. Application-specific
   settings, AV devices, viewer interfaces, messages and themes stay in consumer adapters.
-- This repository is the canonical home of DxUI. Controls and host implementation live in `src/Controls`, their
+- This repository is the canonical home of DxUi. Controls and host implementation live in `src/Controls`, their
   tests and baselines in `Tests/Controls`, and supported public headers in `include/DxUi`. Edit shared code here.
   Historical origin belongs in `Specs/Done/SourceImport/source-origin.json` and Git history, never a second source tree.
 - The archived `Specs/Done/SourceImport/pending-dependencies.json` is the empty final extraction inventory.
@@ -22,6 +22,9 @@ The repository is private and its default branch is `main`. Use focused feature 
 - New controls require a catalog/factory entry, meaningful interaction tests and a populated gallery tile.
 - Every code change reviews docs/gallery under Specs/Core/Core_Documentation.md; update affected usage docs and
   regenerate visual changes with gallery.ps1 -PublishDocs. docs/README.md remains linked from README.
+- Samples and benchmarks use library-owned synthetic models and run without consumer repositories or services.
+  Keep application adoption measurements in the application repository. Retain reviewed DxUi-only receipts under
+  Measurements with scenario/source explanations; docs link to them.
 
 ## Engineering
 

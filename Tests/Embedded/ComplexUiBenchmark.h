@@ -1,4 +1,5 @@
 #pragma once
+#include "../../Samples/ComplexUi/ComplexUiScene.h"
 #include <algorithm>
 #include <array>
 #include <fstream>
@@ -9,50 +10,6 @@
 // Fixture-only work: one reusable staging pixel blocks for completed GPU work. Never used in library rendering.
 namespace ComplexUiBenchmark
 {
-struct Model final : DxUi::IDxGridModel, DxUi::IDxTreeModel
-{
-    std::array<std::wstring, 1000> names;
-    Model()
-    {
-        for (size_t i = 0; i < names.size(); ++i)
-            names[i] = L"Dashboard item " + std::to_wstring(i);
-    }
-    size_t GetRowCount() const noexcept override
-    {
-        return names.size();
-    }
-    size_t GetColumnCount() const noexcept override
-    {
-        return 4;
-    }
-    DxUi::GridColumnDesc GetColumn(size_t column) const override
-    {
-        return {std::to_wstring(column), L"Column " + std::to_wstring(column), 170};
-    }
-    void GetCellData(size_t row, size_t, DxUi::GridCellData& cell) const override
-    {
-        cell.text = names[row];
-    }
-    std::optional<size_t> FindRowByStableId(uint64_t id) const noexcept override
-    {
-        return id < names.size() ? std::optional<size_t>(static_cast<size_t>(id)) : std::nullopt;
-    }
-    uint64_t GetStableRowId(size_t row) const noexcept override
-    {
-        return row;
-    }
-    size_t GetVisibleItemCount() const noexcept override
-    {
-        return names.size();
-    }
-    void GetVisibleItem(size_t row, DxUi::TreeItemData& item) const override
-    {
-        item.id    = row;
-        item.text  = names[row];
-        item.depth = static_cast<uint32_t>(row % 3);
-    }
-};
-
 inline PROCESS_MEMORY_COUNTERS_EX Memory()
 {
     PROCESS_MEMORY_COUNTERS_EX memory{};
@@ -67,39 +24,9 @@ inline void Run(const wchar_t* outputPath)
     gpu.width  = 1280;
     gpu.height = 720;
     Hr(gpu.Create(), "benchmark WARP device");
-    Model model;
-    DxUi::EmbeddedHost view;
-    std::shared_ptr<DxUi::GraphicsDevice> pool;
-    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "benchmark shared pool");
-    Hr(view.Attach(pool), "benchmark view");
-    auto theme          = DxUi::MakeDefaultThemePalette(true);
-    theme.reducedMotion = true;
-    view.Controls().SetTheme(theme);
-    auto root = std::make_unique<DxUi::Panel>();
-    std::array<DxUi::Slider*, 16> sliders{};
-    std::array<DxUi::ProgressBar*, 16> progress{};
-    for (size_t i = 0; i < sliders.size(); ++i)
-    {
-        auto* card    = root->AddChild<DxUi::CardPanel>();
-        const float x = 8 + static_cast<float>(i % 4) * 316;
-        const float y = 8 + static_cast<float>(i / 4) * 86;
-        card->SetBounds(D2D1::RectF(x, y, x + 304, y + 78));
-        card->AddChild<DxUi::Label>(L"Channel " + std::to_wstring(i))->SetBounds(D2D1::RectF(x + 8, y + 2, x + 155, y + 26));
-        auto* toggle = card->AddChild<DxUi::Toggle>(L"Enabled");
-        toggle->SetBounds(D2D1::RectF(x + 166, y + 2, x + 296, y + 30));
-        toggle->SetChecked(i % 2 == 0);
-        sliders[i] = card->AddChild<DxUi::Slider>();
-        sliders[i]->SetBounds(D2D1::RectF(x + 8, y + 30, x + 296, y + 58));
-        progress[i] = card->AddChild<DxUi::ProgressBar>();
-        progress[i]->SetBounds(D2D1::RectF(x + 8, y + 62, x + 296, y + 74));
-    }
-    auto* tree = root->AddChild<DxUi::Tree>();
-    tree->SetBounds(D2D1::RectF(8, 360, 380, 712));
-    tree->SetModel(&model);
-    auto* grid = root->AddChild<DxUi::Grid>();
-    grid->SetBounds(D2D1::RectF(392, 360, 1272, 712));
-    grid->SetModel(&model);
-    view.Controls().SetRoot(std::move(root));
+    ComplexUiScene scene;
+    Hr(scene.Initialize(gpu.device.get()), "benchmark independent scene");
+    auto& view = scene.view;
 
     D3D11_TEXTURE2D_DESC readDesc{};
     readDesc.Width = readDesc.Height = readDesc.MipLevels = readDesc.ArraySize = readDesc.SampleDesc.Count = 1;
@@ -116,17 +43,7 @@ inline void Run(const wchar_t* outputPath)
         Hr(gpu.context->Map(completion.get(), 0, D3D11_MAP_READ, 0, &mapped), "benchmark GPU completion");
         gpu.context->Unmap(completion.get(), 0);
     };
-    const auto update = [&](size_t frame)
-    {
-        for (size_t i = 0; i < sliders.size(); ++i)
-        {
-            const double value = static_cast<double>((frame + i) % 100);
-            sliders[i]->SetValue(value);
-            progress[i]->SetValue(value);
-        }
-        grid->EnsureRowVisible((frame * 7) % model.names.size());
-        view.MarkDirty();
-    };
+    const auto update = [&](size_t frame) { scene.Update(frame); };
     for (size_t frame = 0; frame < 20; ++frame)
     {
         update(frame);
@@ -140,7 +57,7 @@ inline void Run(const wchar_t* outputPath)
     std::ofstream output{std::filesystem::path(outputPath)};
     Check(bool(output), "benchmark output file");
     output << std::setprecision(10) << "{\"compiler\":" << _MSC_FULL_VER
-           << ",\"fixture\":\"complex-ui-v1\",\"renderer\":\"WARP\",\"width\":1280,\"height\":720,\"dpi\":96,"
+           << ",\"fixture\":\"dxui-complex-ui-v2\",\"renderer\":\"WARP\",\"width\":1280,\"height\":720,\"dpi\":96,"
            << "\"controls\":83,\"modelRows\":1000,\"framesPerRound\":40,\"roundCount\":5,\"scenarios\":[";
     using Clock        = std::chrono::steady_clock;
     const auto elapsed = [](Clock::time_point start) { return std::chrono::duration<double, std::milli>(Clock::now() - start).count(); };

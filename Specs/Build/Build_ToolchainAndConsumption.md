@@ -15,7 +15,7 @@ additional tests, not replacements for the four required builds.
 
 Each consumer adds a machine-readable `Dependencies/DxUi.lock.json` with source repository identity, exact commit,
 required API revision, enabled targets and dependency/toolchain fingerprint. The repository is
-`https://github.com/RedSalamanders/DxUI.git`, with default branch `main`; consumers pin a tested full commit. No floating `main`, branch name, `latest`, or silently accepted
+`https://github.com/RedSalamanders/DxUi.git`, with default branch `main`; consumers pin a tested full commit. No floating `main`, branch name, `latest`, or silently accepted
 dirty sibling checkout is a release dependency.
 
 `DxUiRoot` defaults to a sibling checkout and supports an explicit absolute override. A consumer restore entrypoint
@@ -62,7 +62,11 @@ fixed in Configuration.h and must not be overridden by consumers.
 `test.ps1` runs all three test executables, splitting inherited control suites into independent runs with exit-code,
 SHA256, native architecture and capability-skip receipts. `gallery.ps1` generates five themed control sheets, a
 supplied-device example image and an HTML index. `DxUi.EmbeddedControls.exe` opens the live toggle/slider example;
-`--output image.png` renders it headlessly through an application-created WARP device.
+`--output image.png` renders it headlessly through a sample-created WARP device. `--complex-ui` selects the independent
+83-control/1,000-row scene shared with the benchmark. External-consumer validation copies both sample directories
+and renders both modes; neither sample requires an application checkout or application services.
+`test-consumer.ps1 -FixtureRoot <short-directory>` places its unique relocated fixture under a caller-selected base
+when a deeply nested checkout would exceed Windows/vcpkg path limits. It does not replace or clean existing fixtures.
 
 `docs/README.md` documents consumption and all controls; root README links it and the published gallery.
 `gallery.ps1 -PublishDocs` publishes reviewed sheets and a generation receipt under `docs/gallery`, leaving runtime

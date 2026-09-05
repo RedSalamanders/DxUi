@@ -43,3 +43,18 @@ class DocumentationTests(unittest.TestCase):
         result = load_tool('validate_specs').markdown_prose(text)
         self.assertNotIn('checked', result)
         self.assertIn('[Docs]', result)
+
+    def test_raw_measurements_cannot_return_to_docs(self):
+        self.put('docs/measurements/application/run.json', '{}')
+        self.assertTrue(load_tool('validate_specs').validate_measurements(self.root))
+
+    def test_measurements_require_library_ownership_and_explanation(self):
+        receipt = {'workloadOwner': 'DxUi', 'fixture': 'dxui-complex-ui-v2', 'benchmarkInputs': {'scene.h': 'a' * 64}}
+        self.put('Measurements/example/run.json', json.dumps(receipt))
+        tool = load_tool('validate_specs')
+        self.assertTrue(tool.validate_measurements(self.root))
+        self.put('Measurements/example/README.md', 'Independent synthetic scene; offscreen only.')
+        self.assertEqual(tool.validate_measurements(self.root), [])
+        receipt['workloadOwner'] = 'Application'
+        self.put('Measurements/example/run.json', json.dumps(receipt))
+        self.assertTrue(tool.validate_measurements(self.root))

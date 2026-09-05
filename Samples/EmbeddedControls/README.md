@@ -1,10 +1,13 @@
-# Supplied-device consumer
+# Supplied-device playground
 
-`EmbeddedScene.h` creates Toggle and Slider through public headers. `Main.cpp` owns the WARP D3D11 device, window,
-swap chain, render target and event-blocked message loop. The library owns only its prepared surface and shared
-graphics resources. The example uses reduced motion and a fixed 480x240 client canvas for clarity; responsive AV
-layout and host DPI policy belong to the consumer integration. Run the executable to interact, or pass
-`--output image.png` for a headless rendering proof. `GraphicsFixture.h` contains fixture-only readback/PNG output.
+`EmbeddedScene.h` creates a generic effect toggle and intensity slider through public headers. Its model is local
+sample state; it never changes audio, camera or application settings. `Main.cpp` owns the WARP D3D11 device, window,
+swap chain, render target and event-blocked message loop. The library owns its prepared surface and shared resources.
+
+Run the executable to interact, or pass `--output image.png` for a headless rendering. Add `--complex-ui` for the
+[independent 83-control scene](../ComplexUi/README.md) used by the library benchmark. Both modes use fixed 96-DPI
+canvases (480x240 or 1280x720); adaptive layout and full host bridges are outside this minimal sample.
+`GraphicsFixture.h` contains fixture-only readback/PNG output. No consumer checkout or plugin is required.
 
 This project references one DxUi project. External release consumers use the exact-pin props/targets documented in
-[the consumption contract](../../Specs/Build/Build_ToolchainAndConsumption.md).
+[the consumption contract](../../Specs/Build/Build_ToolchainAndConsumption.md). See [commands](../../docs/samples.md).

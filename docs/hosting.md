@@ -17,7 +17,7 @@ device; the application owns immediate-context scheduling and presentation.
    preparation succeeds; handle the failure instead of repeatedly retrying in a tight loop.
 4. Bind the application's render target, then call `view.Composite(context, viewport)`. It binds its required
    pipeline state and draws the prepared texture. It changes D3D state: rebind your state for subsequent drawing.
-5. Present through the application. DxUI embedded mode owns no HWND, swap chain, timer, worker or presentation loop.
+5. Present through the application. DxUi embedded mode owns no HWND, swap chain, timer, worker or presentation loop.
 
 Clean `Composite` does no allocation, layout, shaping or readback. DPI must be 48..768; the per-view surface limit
 is 64 MiB, with a 128 MiB replacement ceiling. Check summed memory before creating many views. If two simultaneous
@@ -57,6 +57,6 @@ Create a new shared pool for the replacement application device, then call `Repl
 This retains the logical tree/model and cancels capture. Prepare successfully before resuming input and composition.
 Release all references to the old generation. Check every HRESULT at these boundaries.
 
-Use WIL for owned COM/Windows resources and `unique_ptr` for the control tree. Do not pass DxUI objects or STL
+Use WIL for owned COM/Windows resources and `unique_ptr` for the control tree. Do not pass DxUi objects or STL
 ownership through a plugin ABI: source, archive, toolchain and runtime must match within the consuming module.
 The [sample host](../Samples/EmbeddedControls/Main.cpp) demonstrates application-owned device/window lifetime.

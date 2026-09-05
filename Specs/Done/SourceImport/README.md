@@ -1,6 +1,6 @@
 # RedSalamander source import archive
 
-Archived from the root `provenance` folder on 2026-09-05. DxUI is now the canonical library, so its origin does not
+Archived from the root `provenance` folder on 2026-09-05. DxUi is now the canonical library, so its origin does not
 need a top-level working directory. This archive keeps attribution and test coverage auditable without retaining
 a second implementation. Current behavior belongs in the domain specs; current code lives in `src` and `include`.
 

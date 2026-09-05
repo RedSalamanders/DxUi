@@ -1,6 +1,6 @@
 # Performance and testing
 
-DxUI must remain fast and use little memory. The normative
+DxUi must remain fast and use little memory. The normative
 [performance contract](../Specs/Core/Core_PerformanceAndResources.md) requires before/after evidence and developer
 advice for a confirmed regression. A green functional suite alone does not establish performance acceptance.
 
@@ -30,7 +30,8 @@ Receipts record completed offscreen WARP FPS, p50/p95 total frame milliseconds, 
 times, C++ allocation counts, exact surface payload and replacement peak, process private bytes and working set
 with sampled peaks and private-byte growth. Source commit/content fingerprint, executable/fixture hashes, compiler,
 machine, CPU, OS, WARP binary version, active power policy, native architecture and configuration make the comparison
-auditable. `-SkipBuild` is recorded; the caller is responsible for matching existing binaries to the recorded sources.
+auditable. The fixture fingerprint covers the benchmark, shared sample scene and graphics helper; receipts declare
+`workloadOwner: DxUi`. Changes to those inputs invalidate earlier fixture comparisons. `-SkipBuild` is recorded; the caller is responsible for matching existing binaries to the recorded sources.
 
 FPS includes target clear and a blocking readback of one pixel into a reusable staging texture, ensuring submitted
 work has completed. It excludes PNG encoding, statistics serialization and process-memory sampling. This readback
@@ -51,18 +52,13 @@ Record GPU/driver, power policy, resolution, controls/data size, texture/cache t
 CPU time, allocations and bytes, handles, threads, wake-ups and long-run retained memory. Hidden/idle work must stay
 zero. WARP numbers cannot stand in for native graphics hardware, physical input or screen-reader checks.
 
-## Example measurement
+## Dedicated library evidence
 
-For reference, the 2026-09-05 local x64 Release run on Ryzen 9 9950X3D, Windows 10.0.26200, Balanced power and
-WARP 10.0.26100.9278 produced these five-round medians. They illustrate the receipt, not a portable guarantee:
-
-| Scenario | Completed offscreen FPS | Frame p95 | Process private memory | Cached surface |
-| --- | ---: | ---: | ---: | ---: |
-| Clean | 2,402 | 0.462 ms | 25.60 MiB | 3.52 MiB |
-| Dirty | 494 | 2.407 ms | 27.52 MiB | 3.52 MiB |
-
-Composition made zero C++ heap allocations. A repeat run on the unchanged library was within comparison noise
-bands. Native presentation, hardware-GPU, input-latency and long-run memory acceptance remain separate evidence.
+[Retained independent measurements](../Measurements/README.md) include raw rounds and comparison receipts with a
+scenario explanation. They measure the library's synthetic workload; AV adoption receipts live in RedXe.
+The `dxui-complex-ui-v2` scene is a new fixture, so its baseline/repeat pair demonstrates the measurement procedure
+on unchanged library code, not an implementation speedup. Never compare it to `complex-ui-v1` as if the workload
+were identical. Presentation, hardware-GPU, input latency and long-duration acceptance require additional evidence.
 
 ## ARM64 evidence
 
