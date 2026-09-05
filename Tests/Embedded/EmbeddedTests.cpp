@@ -1,3 +1,6 @@
+// Compile the public accessibility header first: consumers must not supply its COM prerequisites.
+#include <DxUi/EmbeddedAccessibility.h>
+
 #include "../../Samples/EmbeddedControls/EmbeddedScene.h"
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
 #include "../../src/Support/PostedPayload.h"

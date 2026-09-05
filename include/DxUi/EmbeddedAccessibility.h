@@ -1,5 +1,6 @@
 #pragma once
 #include <Windows.h>
+#include <unknwn.h>
 
 #include <UIAutomationCore.h>
 #include <memory>
