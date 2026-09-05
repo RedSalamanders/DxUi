@@ -1,3 +1,4 @@
+#include "../../src/Controls/TextClipboard.h"
 #include "../../src/Support/AnimationDispatcher.h"
 #include "DxUiTestHelpers.h"
 
@@ -28,6 +29,42 @@ void RunButtonContrastAuditGenerator(const std::filesystem::path& outputPath);
 
 int wmain(int argc, wchar_t** argv)
 {
+    class TestClipboard final : public DxUi::TextClipboard
+    {
+        std::optional<std::wstring> _text;
+
+    public:
+        HRESULT Read(HWND, std::wstring& text) noexcept override
+        {
+            text.clear();
+            if (! _text)
+                return S_FALSE;
+            try
+            {
+                text = *_text;
+                return S_OK;
+            }
+            catch (const std::bad_alloc&)
+            {
+                return E_OUTOFMEMORY;
+            }
+        }
+        HRESULT Write(HWND, std::wstring_view text) noexcept override
+        {
+            try
+            {
+                _text = std::wstring(text);
+                return S_OK;
+            }
+            catch (const std::bad_alloc&)
+            {
+                return E_OUTOFMEMORY;
+            }
+        }
+    } clipboard;
+    DxUi::testTextClipboard     = &clipboard;
+    const auto restoreClipboard = wil::scope_exit([]() noexcept { DxUi::testTextClipboard = nullptr; });
+
     std::optional<std::wstring> suiteFilter;
     std::optional<std::filesystem::path> perfJsonlPath;
     std::optional<std::filesystem::path> galleryOutputPath;

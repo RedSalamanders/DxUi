@@ -1,3 +1,6 @@
+// Compile the public accessibility header first: consumers must not supply its COM prerequisites.
+#include <DxUi/EmbeddedAccessibility.h>
+
 #include "../../Samples/EmbeddedControls/EmbeddedScene.h"
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
 #include "../../src/Support/PostedPayload.h"
@@ -85,6 +88,7 @@ static void Hr(HRESULT hr, const char* text)
     Check(SUCCEEDED(hr), text);
 }
 #include "ComplexUiBenchmark.h"
+#include "EmbeddedAccessibilityTests.h"
 #include "EmbeddedTextInputTests.h"
 
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
@@ -104,6 +108,7 @@ __declspec(noinline) static int RunFunctionalTests()
     GraphicsFixture gpu;
     Hr(gpu.Create(), "supplied WARP device");
     TestEmbeddedTextInput(gpu);
+    TestEmbeddedAccessibility(gpu);
     EmbeddedScene scene;
     size_t requests = 0;
     Hr(scene.Initialize(gpu.device.get(), {&requests, [](void* p) noexcept { ++*static_cast<size_t*>(p); }}), "public scene");

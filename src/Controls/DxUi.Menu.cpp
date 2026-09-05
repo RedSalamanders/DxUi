@@ -1432,6 +1432,13 @@ struct MenuController
     {
         return true;
     }
+    // Input invalidates the popup, but ordinary WM_PAINT is lower priority than posted owner traffic.
+    // Drain only our pending popup paints before that traffic so visible feedback cannot starve.
+    for (const auto& popup : controller.popups)
+    {
+        if (popup->hwnd && PeekMessageW(&msg, popup->hwnd, WM_PAINT, WM_PAINT, PM_REMOVE) != FALSE)
+            return true;
+    }
 #if DXUI_ENABLE_DIAGNOSTICS
     // Test-only state probes must observe already-prioritized input without
     // waiting behind unrelated owner traffic in the modal thread queue.

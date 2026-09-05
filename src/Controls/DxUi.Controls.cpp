@@ -4097,6 +4097,14 @@ void Slider::SetValue(double value) noexcept
     SetValueInternal(nullptr, value, false);
 }
 
+bool Slider::RequestValue(ControlHost& host, double value) noexcept
+{
+    if (! IsEnabled() || _dragging || ! std::isfinite(value) || value < _minimum || value > _maximum)
+        return false;
+    SetValueInternal(&host, value, true);
+    return true;
+}
+
 double Slider::GetValue() const noexcept
 {
     return _value;

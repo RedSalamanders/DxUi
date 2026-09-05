@@ -64,3 +64,111 @@ without lifetime/focus revalidation. All APIs are UI-thread operations outside c
 
 This API does not establish an OS text store, IME HWND association, clipboard service or UIA root. Those remain
 application-side adoption gates. Native and embedded controls share the existing text model and rendering.
+
+Native text-store notification callbacks may destroy or replace their control, change focus, or replace text.
+The store revalidates control lifetime, focus and text before applying selection or notifying TSF. Callback
+exceptions return failure across the COM boundary; they never unwind through it. A failed continuation preserves
+the callback's newer state and balances the sink edit transaction. Editable ComboBox callbacks receive an owned
+text snapshot so their argument and callable survive destruction of the control.
+
+### Application-side text services
+
+TextInputServices in the same DxUi.lib attaches to an application-owned HWND on its COM STA. It creates no
+renderer, swap chain, worker or timer. SetClient lazily creates a TSF document and associates focus; clear the
+client on focus loss/view removal and detach before destroying the HWND. One client represents one immutable
+focusId. The embedded snapshot exposes that identity separately from its frequently changing revision;
+leaving and returning to a field changes focus identity even when no intermediate snapshot was read.
+
+The application implements TextInputClient in its own module. Its Read/Apply/Cancel and physical-screen geometry
+operations adapt application-defined transport; neither the HWND nor a DxUi C++ object crosses a plugin ABI.
+Read returns no state after its focus identity is replaced. Apply validates the original revision; Cancel verifies
+the focus identity and cancels preview only. Geometry is transformed once by the application using the actual
+displayed viewport. Retained TSF objects become disconnected before their client or control lifetime ends.
+
+The COM text store shares native control adaptation with the application client adapter. Application edits are
+staged for one TSF lock because initial insertion may precede composition-start notification. Preview changes
+displayed text without committing; completion commits once, including unchanged preview text. Failed/stale/focus-
+replaced transactions do not retry against a new revision. An owned callback argument survives disconnection.
+Application-side TSF edits are not echoed back through sink change notifications; separately observed external
+changes are notified. Native-host notification behavior remains covered by its existing compatibility tests.
+
+Forward PreTranslate before TranslateMessage/DispatchMessage and HandleMessage from the application window
+procedure. Nested synchronous locks fail; asynchronous requests coalesce into one pending lock with the strongest
+requested access. A generation-tagged posted message grants it after the active lock, without recursion or a timer.
+Clear/detach invalidates queued messages. NotifyChanged publishes external edits outside an active TSF lock.
+Escape clears a composition before ordinary editor handling; the application refreshes its focused client afterward.
+
+The shared clipboard backend opens the clipboard once, without retry sleeps. Reads honor the allocation extent,
+require a terminator, reject malformed UTF-16 and cap text at 65,536 units. Copy requires a selection; masked copy/cut
+and read-only cut/paste fail before clipboard access. A failed copy cannot delete selected text. Paste normalizes
+line endings and commits once against the captured revision. Embedded controls have no clipboard HWND: commands
+go through the application service. Automated control suites inject a private clipboard, including their setup/read
+helpers, and never use a desktop clipboard as a test data channel.
+
+This implements a TSF/clipboard service, not the complete RedXe adoption. The generic consumer connection, full
+display-attribute/IME acceptance, UI Automation attachment and real touch/IME/screen-reader checks remain open.
+Reference: Microsoft [text stores](https://learn.microsoft.com/en-us/windows/win32/tsf/text-stores) and
+[composition ordering](https://learn.microsoft.com/en-us/windows/win32/tsf/compositions).
+
+### Prepared text geometry and public consumer
+
+EmbeddedHost exposes revision-checked HitTestTextInput and GetTextInputRangeBounds in view-local DIPs.
+Dirty/unprepared geometry returns S_FALSE with cleared outputs; state remains editable when its tree is coherent.
+ReadTextInput omits optional bounds until preparation completes. A successful fully clipped range has empty bounds
+and clipped=true. The app performs the one DIP-to-physical-screen conversion. Geometry for staged TSF text returns
+TS_E_NOLAYOUT, and the app calls TextInputServices::NotifyLayoutChanged after preparation. Notifications retain
+the store through callbacks that release the application's last reference. Clear/disconnect prevents stale focus
+sessions from receiving edits, cancellation, or geometry.
+
+The shared text store supports the documented InsertTextAtSelection flags: NOQUERY permits absent ACP outputs,
+QUERYONLY makes no edit and obeys the same capacity limit, and their combination is invalid. These rules follow
+the [Windows insertion contract](https://learn.microsoft.com/en-us/windows/win32/api/textstor/nf-textstor-itextstoreacp-inserttextatselection).
+Prepared-layout notification follows the [Windows layout contract](https://learn.microsoft.com/en-us/windows/win32/api/textstor/nf-textstor-itextstoreacpsink-onlayoutchange).
+
+Samples/EmbeddedControls --text-input consumes only public headers and the one archive. It demonstrates a
+profile-name text field, application-owned TSF attachment, physical geometry, private-clipboard output checks,
+focus cancellation and Unicode rendering alongside the supplied-device toggle and slider. Live mode uses
+per-monitor DPI and resizes the caller-owned target/swap chain outside composition. Real IME/touch/UIA acceptance
+remains a separate gate; no UIA bridge is claimed by this text-service sample.
+
+
+### Shared embedded UI Automation providers
+
+EmbeddedHost exposes lazy AttachAccessibility, UpdateAccessibility, GetAccessibilityProvider and
+DisconnectAccessibility methods. The low-level bridge reuses the native provider/pattern implementation. The
+application supplies a module-local EmbeddedAccessibilitySite for parent/sibling navigation, fragment-root identity,
+OS-focus requests and posted/coalesced completion work. A consumer plugin adapts its own COM site to this C++
+interface; no application HWND or C++ library ownership crosses its ABI. This component alone does not attach
+RedXe's window or establish its release gate.
+
+Attach after coherent preparation on the application's COM STA, with a nonzero process-unique attachment runtime ID.
+The application provides the displayed physical-screen viewport; its dimensions must match prepared pixels. DIP
+bounds convert once and clip to that viewport, including negative monitor origins. The same root provider identity
+is reused during attachment. Child runtime IDs also distinguish the retained control's lifetime, so replacement at
+the same tree path cannot reuse a surviving old provider. Providers advertise UseComThreading; standard UIA COM
+proxies marshal actions to the owning STA. Raw foreign-thread actions fail instead of touching controls. See the
+Windows [provider threading contract](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationcore/ne-uiautomationcore-provideroptions).
+
+Call UpdateAccessibility after changed preparation, placement or OS focus. Unchanged updates reuse the snapshot
+without allocation. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no
+snapshot allocation or UIA wake-up cost. Prepared snapshots expose confirmed Toggle, RangeValue, text/value and
+focus state. Changed active snapshots raise applicable property, text, focus and structure events only while UIA
+clients listen. Hidden controls leave navigation; background modal views must be disconnected by the application.
+ActionCompleted allows the application to post one coalesced refresh/focus/navigation operation, without reentering
+the tree inside an accessibility callback.
+
+Hide, zero-size suspension, device replacement and detach disconnect the target before destroying controls. Old
+provider actions return UIA_E_ELEMENTNOTAVAILABLE after disconnect/root replacement, and a reattachment has a new
+identity. A surviving reference never accesses a replaced control by path. The application is responsible for
+keeping the module containing provider code mapped until surviving references can no longer call it; releasing the
+control tree is not permission to unload code still referenced by COM.
+
+Slider::RequestValue is the user-action counterpart to silent model SetValue. It validates range, enabled state and
+the absence of an active drag, then reports one Commit through the same callback used by keyboard input. UIA uses
+this operation, so accessible volume edits reach the consumer model. UIA text setters validate bounded UTF-16 and
+revalidate lifetime after callbacks; a callback that destroys its field cannot be followed by stale synchronization.
+
+The component's synthetic tests exercise all three AV control kinds, physical geometry at 144 DPI, real COM
+marshaling, text edits, same-path replacement, hidden/detached references and zero allocation in 1,000 clean updates.
+End-to-end application tree/event routing, real screen-reader/IME/touch acceptance, full matrix and resource gates
+remain required before RedXe adoption is complete.

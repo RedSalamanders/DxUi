@@ -676,9 +676,12 @@ void ComboBox::SetText(std::wstring text)
 void ComboBox::SetTextAndNotify(std::wstring text)
 {
     SetText(std::move(text));
-    if (_onTextChanged)
+    // The callback may destroy this control; both the callable and its argument must survive that callback.
+    const auto callback = _onTextChanged;
+    if (callback)
     {
-        _onTextChanged(_text);
+        const std::wstring snapshot = _text;
+        callback(snapshot);
     }
 }
 

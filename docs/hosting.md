@@ -78,5 +78,49 @@ an imported snapshot; selection is still available. Validate text/range/clauses 
 UTF-16-unit text ceiling and 256 clause boundaries. A callback may destroy the edited control; no access follows
 without lifetime/focus revalidation. All APIs are UI-thread operations outside composition/rendering.
 
-This API does not establish an OS text store, IME HWND association, clipboard service or UIA root. Those remain
-application-side adoption gates. Native and embedded controls share the existing text model and rendering.
+The state API itself owns no OS services. For the application-side TSF and clipboard adapter, include
+DxUi/TextInputServices.h. Create TextInputServices on the application COM STA, Attach the existing HWND,
+and supply a TextInputClient for the current embedded snapshot's focusId. Each client is specific to one
+focus session; reject Read/Apply/Cancel after that identity changes. Forward PreTranslate before Windows
+message translation and HandleMessage from the window procedure; refresh client selection after input, call
+NotifyChanged after external edits, and clear/detach before removing the view or HWND. Screen geometry is
+application-owned and must reflect the actual viewport transform. One service uses the existing message loop
+and no additional rendering resources.
+
+Clipboard(Copy/Cut/Paste) provides bounded Unicode editing and optionally accepts an application clipboard.
+Normal keyboard shortcuts route through PreTranslate. The automated control tests use an in-memory clipboard.
+The [normative contract](../Specs/UI/UI_InputAndAccessibility.md) defines composition ordering, cancellation,
+deferred locks and lifetime. RedXe transport adoption, UIA attachment and real IME/assistive-technology acceptance
+are still pending; library service tests do not establish them.
+
+The public [EmbeddedTextClient example](../Samples/EmbeddedControls/EmbeddedTextClient.h) binds an
+EmbeddedHost to the application's TextInputServices using an immutable focusId. Run the independent
+EmbeddedControls executable with --text-input to edit a profile name alongside the toggle and slider.
+The application supplies the device, HWND, presentation, physical screen origin and DPI conversion.
+The sample forwards deferred messages and TSF keys, cancels on focus/DPI loss, and detaches before destruction.
+With --text-input --output image.png it uses a hidden application window and private clipboard to check
+public consumption and render a Unicode result. That automated path does not simulate an actual IME.
+
+Text snapshots remain editable while ordinary drawing is dirty, but omit unavailable caret/viewport geometry.
+HitTestTextInput and GetTextInputRangeBounds validate the current revision and require prepared layout;
+they return view-local DIPs. The application converts exactly once into physical screen pixels. Call
+NotifyLayoutChanged after changed layout has been prepared, including after a TS_E_NOLAYOUT response.
+This is separate from NotifyChanged, because an IME-originated edit must not echo its own text notification.
+
+
+## Embedded accessibility
+
+The public EmbeddedAccessibility.h adapter connects an existing prepared control tree to an application's UIA
+fragment root. Use the same one archive. Implement EmbeddedAccessibilitySite in the caller's module, forwarding
+Navigate, FragmentRoot and RequestFocus to the application's accessible window tree. ActionCompleted posts
+coalesced application work; it must not synchronously reenter controls. A plugin uses its own COM/POD adapter.
+
+AttachAccessibility takes a process-unique nonzero attachment ID and a physical-screen placement. The viewport
+size matches Prepare's pixel size; GetAccessibilityProvider returns an owned COM reference. Publish changed
+preparation/placement/focus with UpdateAccessibility; unchanged updates allocate nothing. Hide/detach/device loss
+disconnect surviving providers. Keep provider code mapped while external COM references may survive.
+
+Tests/Embedded/EmbeddedAccessibilityTests.h is an executable example using only public control/hosting interfaces:
+toggle, slider and Unicode field patterns; negative-origin 144-DPI geometry; COM cross-apartment marshaling; parent
+and focus callbacks; distinct identities after replacement; and cleanup. It is a synthetic component example,
+not a screen-reader acceptance claim or completed RedXe adapter.

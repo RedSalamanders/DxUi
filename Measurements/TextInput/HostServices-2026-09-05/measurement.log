@@ -1,0 +1,114 @@
+Complex UI clean round 1: 1964.99 completed offscreen FPS; p95 0.5557 ms; private 26853376 bytes
+Complex UI clean round 2: 1964.78 completed offscreen FPS; p95 0.5353 ms; private 26783744 bytes
+Complex UI clean round 3: 1935.27 completed offscreen FPS; p95 0.5848 ms; private 26767360 bytes
+Complex UI clean round 4: 1961.3 completed offscreen FPS; p95 0.5225 ms; private 26718208 bytes
+Complex UI clean round 5: 1937.66 completed offscreen FPS; p95 0.5554 ms; private 26685440 bytes
+Complex UI dirty round 1: 464.552 completed offscreen FPS; p95 2.4961 ms; private 27123712 bytes
+Complex UI dirty round 2: 472.747 completed offscreen FPS; p95 2.2766 ms; private 27648000 bytes
+Complex UI dirty round 3: 476.099 completed offscreen FPS; p95 2.3061 ms; private 27672576 bytes
+Complex UI dirty round 4: 454.653 completed offscreen FPS; p95 2.5819 ms; private 28323840 bytes
+Complex UI dirty round 5: 467.333 completed offscreen FPS; p95 2.4524 ms; private 28061696 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\text-services-baseline\.build\reports\HostTextServices-20260905-01-Debug-A1.json
+Complex UI clean round 1: 1899.06 completed offscreen FPS; p95 0.6751 ms; private 26918912 bytes
+Complex UI clean round 2: 2019.8 completed offscreen FPS; p95 0.5202 ms; private 26816512 bytes
+Complex UI clean round 3: 1938.96 completed offscreen FPS; p95 0.5378 ms; private 26804224 bytes
+Complex UI clean round 4: 1938.34 completed offscreen FPS; p95 0.5867 ms; private 26730496 bytes
+Complex UI clean round 5: 1937.21 completed offscreen FPS; p95 0.5455 ms; private 26914816 bytes
+Complex UI dirty round 1: 453.237 completed offscreen FPS; p95 2.4725 ms; private 28053504 bytes
+Complex UI dirty round 2: 462.806 completed offscreen FPS; p95 2.4548 ms; private 28119040 bytes
+Complex UI dirty round 3: 460.497 completed offscreen FPS; p95 2.4397 ms; private 28127232 bytes
+Complex UI dirty round 4: 455.703 completed offscreen FPS; p95 2.4394 ms; private 28135424 bytes
+Complex UI dirty round 5: 454.381 completed offscreen FPS; p95 2.4825 ms; private 28143616 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\av-high-contrast\.build\reports\HostTextServices-20260905-01-Debug-B1.json
+Complex UI clean round 1: 1832.34 completed offscreen FPS; p95 0.6324 ms; private 27553792 bytes
+Complex UI clean round 2: 1809.25 completed offscreen FPS; p95 0.678 ms; private 27467776 bytes
+Complex UI clean round 3: 1905.65 completed offscreen FPS; p95 0.5644 ms; private 27451392 bytes
+Complex UI clean round 4: 1883.3 completed offscreen FPS; p95 0.5807 ms; private 27410432 bytes
+Complex UI clean round 5: 1850.21 completed offscreen FPS; p95 0.5734 ms; private 27381760 bytes
+Complex UI dirty round 1: 430.379 completed offscreen FPS; p95 2.9016 ms; private 27951104 bytes
+Complex UI dirty round 2: 440.129 completed offscreen FPS; p95 2.5044 ms; private 28180480 bytes
+Complex UI dirty round 3: 441.086 completed offscreen FPS; p95 2.6383 ms; private 28184576 bytes
+Complex UI dirty round 4: 463.235 completed offscreen FPS; p95 2.372 ms; private 28200960 bytes
+Complex UI dirty round 5: 462.491 completed offscreen FPS; p95 2.3889 ms; private 28135424 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\av-high-contrast\.build\reports\HostTextServices-20260905-01-Debug-B2.json
+Complex UI clean round 1: 1864.91 completed offscreen FPS; p95 0.6664 ms; private 27054080 bytes
+Complex UI clean round 2: 1915.77 completed offscreen FPS; p95 0.6061 ms; private 26943488 bytes
+Complex UI clean round 3: 1974.62 completed offscreen FPS; p95 0.5648 ms; private 26931200 bytes
+Complex UI clean round 4: 1966.86 completed offscreen FPS; p95 0.5338 ms; private 26882048 bytes
+Complex UI clean round 5: 1877.67 completed offscreen FPS; p95 0.6445 ms; private 26853376 bytes
+Complex UI dirty round 1: 446.798 completed offscreen FPS; p95 2.4715 ms; private 27701248 bytes
+Complex UI dirty round 2: 424.641 completed offscreen FPS; p95 2.5995 ms; private 27926528 bytes
+Complex UI dirty round 3: 447.179 completed offscreen FPS; p95 2.3667 ms; private 28217344 bytes
+Complex UI dirty round 4: 433.455 completed offscreen FPS; p95 2.8477 ms; private 28270592 bytes
+Complex UI dirty round 5: 446.259 completed offscreen FPS; p95 2.5098 ms; private 28209152 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\text-services-baseline\.build\reports\HostTextServices-20260905-01-Debug-A2.json
+Performance comparison: advice-required
+REGRESSION dirty/composeCpuP95Ms: 0.006 -> 0.008
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION clean/frameP50Ms: 0.505 -> 0.533
+REGRESSION clean/prepareP95Ms: 0.001 -> 0.001
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Complex UI clean round 1: 1873.57 completed offscreen FPS; p95 0.5796 ms; private 24125440 bytes
+Complex UI clean round 2: 1930.58 completed offscreen FPS; p95 0.5493 ms; private 24023040 bytes
+Complex UI clean round 3: 1878.71 completed offscreen FPS; p95 0.5617 ms; private 24027136 bytes
+Complex UI clean round 4: 1853.31 completed offscreen FPS; p95 0.6019 ms; private 23994368 bytes
+Complex UI clean round 5: 1957.69 completed offscreen FPS; p95 0.5687 ms; private 23961600 bytes
+Complex UI dirty round 1: 573.302 completed offscreen FPS; p95 1.9085 ms; private 24965120 bytes
+Complex UI dirty round 2: 588.108 completed offscreen FPS; p95 1.8365 ms; private 26030080 bytes
+Complex UI dirty round 3: 582.578 completed offscreen FPS; p95 1.9024 ms; private 26021888 bytes
+Complex UI dirty round 4: 540.174 completed offscreen FPS; p95 3.3143 ms; private 26038272 bytes
+Complex UI dirty round 5: 583.717 completed offscreen FPS; p95 1.8 ms; private 25661440 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\text-services-baseline\.build\reports\HostTextServices-20260905-01-Release-A1.json
+Complex UI clean round 1: 1939.87 completed offscreen FPS; p95 0.6248 ms; private 25174016 bytes
+Complex UI clean round 2: 1900.73 completed offscreen FPS; p95 0.5903 ms; private 25022464 bytes
+Complex UI clean round 3: 1937.64 completed offscreen FPS; p95 0.5506 ms; private 24989696 bytes
+Complex UI clean round 4: 1674.24 completed offscreen FPS; p95 1.1196 ms; private 24956928 bytes
+Complex UI clean round 5: 1969.43 completed offscreen FPS; p95 0.5189 ms; private 24924160 bytes
+Complex UI dirty round 1: 568.751 completed offscreen FPS; p95 1.9094 ms; private 25522176 bytes
+Complex UI dirty round 2: 577.854 completed offscreen FPS; p95 1.9266 ms; private 25784320 bytes
+Complex UI dirty round 3: 581.419 completed offscreen FPS; p95 1.8344 ms; private 25858048 bytes
+Complex UI dirty round 4: 587.972 completed offscreen FPS; p95 1.7912 ms; private 25845760 bytes
+Complex UI dirty round 5: 582.31 completed offscreen FPS; p95 1.8424 ms; private 25513984 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\av-high-contrast\.build\reports\HostTextServices-20260905-01-Release-B1.json
+Complex UI clean round 1: 1920.07 completed offscreen FPS; p95 0.5985 ms; private 25219072 bytes
+Complex UI clean round 2: 1864.21 completed offscreen FPS; p95 0.6111 ms; private 25055232 bytes
+Complex UI clean round 3: 2002.77 completed offscreen FPS; p95 0.5352 ms; private 25018368 bytes
+Complex UI clean round 4: 1930.25 completed offscreen FPS; p95 0.5691 ms; private 24985600 bytes
+Complex UI clean round 5: 1950.22 completed offscreen FPS; p95 0.5535 ms; private 24956928 bytes
+Complex UI dirty round 1: 572.127 completed offscreen FPS; p95 2.0304 ms; private 25911296 bytes
+Complex UI dirty round 2: 574.938 completed offscreen FPS; p95 1.8393 ms; private 26013696 bytes
+Complex UI dirty round 3: 581.683 completed offscreen FPS; p95 1.86 ms; private 25997312 bytes
+Complex UI dirty round 4: 580.942 completed offscreen FPS; p95 1.7968 ms; private 26038272 bytes
+Complex UI dirty round 5: 558.44 completed offscreen FPS; p95 2.236 ms; private 25972736 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\av-high-contrast\.build\reports\HostTextServices-20260905-01-Release-B2.json
+Complex UI clean round 1: 1979.96 completed offscreen FPS; p95 0.5506 ms; private 25677824 bytes
+Complex UI clean round 2: 1969.33 completed offscreen FPS; p95 0.54 ms; private 25583616 bytes
+Complex UI clean round 3: 1824.37 completed offscreen FPS; p95 0.6717 ms; private 25550848 bytes
+Complex UI clean round 4: 1751.28 completed offscreen FPS; p95 0.7173 ms; private 25518080 bytes
+Complex UI clean round 5: 1770.25 completed offscreen FPS; p95 0.6887 ms; private 25485312 bytes
+Complex UI dirty round 1: 542.478 completed offscreen FPS; p95 2.298 ms; private 25665536 bytes
+Complex UI dirty round 2: 572.444 completed offscreen FPS; p95 1.9056 ms; private 26144768 bytes
+Complex UI dirty round 3: 571.502 completed offscreen FPS; p95 1.9731 ms; private 26218496 bytes
+Complex UI dirty round 4: 584.11 completed offscreen FPS; p95 1.8583 ms; private 26214400 bytes
+Complex UI dirty round 5: 579.631 completed offscreen FPS; p95 1.8593 ms; private 26017792 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\text-services-baseline\.build\reports\HostTextServices-20260905-01-Release-A2.json
+Performance comparison: advice-required
+REGRESSION clean/composeCpuP95Ms: 0.009 -> 0.009
+REGRESSION clean/privateBytes: 24023040.000 -> 24989696.000
+REGRESSION clean/privatePeakBytes: 24051712.000 -> 25022464.000
+REGRESSION clean/workingSetBytes: 40378368.000 -> 41299968.000
+REGRESSION clean/workingSetPeakBytes: 40398848.000 -> 41320448.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Performance comparison: advice-required
+REGRESSION dirty/composeCpuP95Ms: 0.006 -> 0.006
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Declared matched comparison failures: 4

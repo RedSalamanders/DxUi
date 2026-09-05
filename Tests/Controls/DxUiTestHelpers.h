@@ -1,3 +1,4 @@
+#include "../../src/Controls/TextClipboard.h"
 #pragma once
 
 #include "../../src/Controls/DxUi.Internal.h"
@@ -528,133 +529,18 @@ inline wil::unique_hwnd CreateClipboardOwnerWindowForTest()
 
 inline bool SetClipboardUnicodeTextForTest(HWND ownerWindow, std::wstring_view text)
 {
-    const auto openClipboardWithRetries = [ownerWindow]() noexcept
-    {
-        if (! ownerWindow)
-        {
-            return false;
-        }
-
-        for (int attempt = 0; attempt < 20; ++attempt)
-        {
-            if (OpenClipboard(ownerWindow) != 0)
-            {
-                return true;
-            }
-            if (GetOpenClipboardWindow() == nullptr)
-            {
-                static_cast<void>(CloseClipboard());
-            }
-            Sleep(10);
-        }
-        return false;
-    };
-
-    if (! openClipboardWithRetries())
-    {
-        return DxUi::DebugSetClipboardFallbackText(text);
-    }
-    auto closeClipboard = wil::scope_exit([&] { CloseClipboard(); });
-
-    if (EmptyClipboard() == 0)
-    {
-        return DxUi::DebugSetClipboardFallbackText(text);
-    }
-
-    const size_t bytes = (text.size() + 1u) * sizeof(wchar_t);
-    wil::unique_hglobal memory(GlobalAlloc(GMEM_MOVEABLE, bytes));
-    if (! memory)
-    {
-        return DxUi::DebugSetClipboardFallbackText(text);
-    }
-
-    HGLOBAL memoryHandle = memory.get();
-    void* lockedMemory   = GlobalLock(memoryHandle);
-    if (! lockedMemory)
-    {
-        return DxUi::DebugSetClipboardFallbackText(text);
-    }
-    auto* out = static_cast<wchar_t*>(lockedMemory);
-    std::copy(text.begin(), text.end(), out);
-    out[text.size()] = L'\0';
-
-    if (GlobalUnlock(memoryHandle) == FALSE)
-    {
-        const DWORD unlockError = GetLastError();
-        if (unlockError != NO_ERROR)
-        {
-            return DxUi::DebugSetClipboardFallbackText(text);
-        }
-    }
-    if (SetClipboardData(CF_UNICODETEXT, memoryHandle) == nullptr)
-    {
-        return DxUi::DebugSetClipboardFallbackText(text);
-    }
-
-    memory.release();
-    closeClipboard.release();
-    static_cast<void>(CloseClipboard());
-
-    for (int attempt = 0; attempt < 20; ++attempt)
-    {
-        const std::optional<std::wstring> clipboardText = ReadClipboardUnicodeTextForTest(ownerWindow);
-        if (clipboardText && clipboardText.value() == text)
-        {
-            static_cast<void>(DxUi::DebugSetClipboardFallbackText(text));
-            return true;
-        }
-
-        Sleep(10);
-    }
-
-    return DxUi::DebugSetClipboardFallbackText(text);
+    const HRESULT hr = DxUi::ActiveTextClipboard().Write(ownerWindow, text);
+    if (hr == S_OK)
+        static_cast<void>(DxUi::DebugSetClipboardFallbackText(text));
+    return hr == S_OK;
 }
-
 inline std::optional<std::wstring> ReadClipboardUnicodeTextForTest(HWND ownerWindow)
 {
-    const auto openClipboardWithRetries = [ownerWindow]() noexcept
-    {
-        if (! ownerWindow)
-        {
-            return false;
-        }
-
-        for (int attempt = 0; attempt < 20; ++attempt)
-        {
-            if (OpenClipboard(ownerWindow) != 0)
-            {
-                return true;
-            }
-            if (GetOpenClipboardWindow() == nullptr)
-            {
-                static_cast<void>(CloseClipboard());
-            }
-            Sleep(10);
-        }
-        return false;
-    };
-
-    if (! openClipboardWithRetries())
-    {
-        return DxUi::DebugReadClipboardFallbackText();
-    }
-    const auto closeClipboard = wil::scope_exit([&] { CloseClipboard(); });
-
-    HANDLE handle = GetClipboardData(CF_UNICODETEXT);
-    if (! handle)
-    {
-        return DxUi::DebugReadClipboardFallbackText();
-    }
-
-    LPCWSTR text = static_cast<LPCWSTR>(GlobalLock(handle));
-    if (! text)
-    {
-        return DxUi::DebugReadClipboardFallbackText();
-    }
-    const auto unlockMemory = wil::scope_exit([&] { GlobalUnlock(handle); });
-    std::wstring clipboardText(text);
-    static_cast<void>(DxUi::DebugSetClipboardFallbackText(clipboardText));
-    return clipboardText;
+    std::wstring text;
+    if (DxUi::ActiveTextClipboard().Read(ownerWindow, text) != S_OK)
+        return std::nullopt;
+    static_cast<void>(DxUi::DebugSetClipboardFallbackText(text));
+    return text;
 }
 
 inline D2D1_COLOR_F BlendForTest(const D2D1_COLOR_F& a, const D2D1_COLOR_F& b, float t) noexcept
