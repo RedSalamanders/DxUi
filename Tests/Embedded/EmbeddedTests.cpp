@@ -84,10 +84,17 @@ static void Hr(HRESULT hr, const char* text)
         std::cerr << "HRESULT: " << std::hex << hr << std::dec << '\n';
     Check(SUCCEEDED(hr), text);
 }
-int main()
+#include "ComplexUiBenchmark.h"
+
+int wmain(int argc, wchar_t** argv)
 {
     Hr(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED), "COM apartment");
-    const auto com                = wil::scope_exit([] { CoUninitialize(); });
+    const auto com = wil::scope_exit([] { CoUninitialize(); });
+    if (argc == 3 && std::wstring_view(argv[1]) == L"--benchmark")
+    {
+        ComplexUiBenchmark::Run(argv[2]);
+        return 0;
+    }
     static size_t diagnosticCalls = 0;
     DxUi::Diagnostics::sink       = [](std::wstring_view, std::wstring_view message) noexcept
     {

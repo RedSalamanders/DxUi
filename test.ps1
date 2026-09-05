@@ -4,6 +4,7 @@ param(
     [ValidateSet('Debug','Release')][string] $Configuration = 'Debug',
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
     [switch] $SkipBuild,
+    [string] $PerformanceBaseline = '',
     [string[]] $Suites = @('Foundation','Embedded','Grid','Theme','Control','Menu','NewControls','TextField','NativeTextInput','MultilineText','ReadOnly','ComboBox','Tree','Tooltip','Rendering','Animation','Accessibility','WindowHost')
 )
 Set-StrictMode -Version Latest
@@ -14,6 +15,10 @@ if (-not $SkipBuild) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $C
 $reports = Join-Path $PSScriptRoot '.build/reports'
 $logs = Join-Path $PSScriptRoot '.build/logs'
 New-Item -ItemType Directory -Path $reports,$logs -Force | Out-Null
+$performanceReport = Join-Path $reports "Performance-$Platform-$Configuration.json"
+& (Join-Path $PSScriptRoot 'performance.ps1') -Configuration $Configuration -Platform $Platform -SkipBuild -OutputPath $performanceReport -Baseline $PerformanceBaseline
+$performance = Get-Content -Raw -LiteralPath $performanceReport | ConvertFrom-Json
+$performanceComparison = Get-Content -Raw -LiteralPath ($performanceReport + '.comparison.json') | ConvertFrom-Json
 $failures = @()
 Push-Location $PSScriptRoot
 try {
@@ -31,8 +36,10 @@ try {
             suite=$suite; configuration=$Configuration; platform=$Platform; nativeArchitecture=$nativeArchitecture
             completedUtc=[DateTime]::UtcNow.ToString('o'); executable=$executable
             sha256=(Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash; exitCode=$testExit; skips=$skips
+            performanceReport=$performanceReport; performanceScenarios=$performance.scenarios
+            performanceComparison=$performanceComparison.status; performanceExecutableSha256=$performance.executableSha256
         }
-        $receipt | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $reports "$suite-$Platform-$Configuration.json") -Encoding utf8
+        $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $reports "$suite-$Platform-$Configuration.json") -Encoding utf8
         if ($testExit -ne 0) { $failures += $suite; Get-Content -LiteralPath $log -Tail 12 }
         else { Write-Host "PASS $suite ($($skips.Count) capability skips recorded)" }
     }

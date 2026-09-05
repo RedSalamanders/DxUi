@@ -29,7 +29,7 @@ def main():
     tool = json.loads((ROOT / 'vcpkg-tool.json').read_text(encoding='utf-8'))
     if manifest['builtin-baseline'] != tool['commit'] or not re.fullmatch('[0-9a-f]{40}', tool['commit']):
         failures.append('vcpkg baseline/tool revision mismatch')
-    provenance = json.loads((ROOT / 'provenance/source-origin.json').read_text(encoding='utf-8'))
+    provenance = json.loads((ROOT / 'Specs/Done/SourceImport/source-origin.json').read_text(encoding='utf-8'))
     if provenance.get('schemaVersion') != 2 or not re.fullmatch('[0-9a-f]{40}', provenance['commit']):
         failures.append('Source origin needs schema 2 and an exact historical commit')
     origins = set()
@@ -55,7 +55,7 @@ def main():
     if (ROOT / 'upstream').exists():
         failures.append('DxUI owns its source; remove the duplicate upstream tree')
 
-    debt = json.loads((ROOT / 'provenance/pending-dependencies.json').read_text(encoding='utf-8'))
+    debt = json.loads((ROOT / 'Specs/Done/SourceImport/pending-dependencies.json').read_text(encoding='utf-8'))
     allowed = {}
     if debt.get('schemaVersion') != 1:
         failures.append('Pending dependency inventory needs schema 1')

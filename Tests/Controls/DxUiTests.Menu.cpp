@@ -1258,6 +1258,29 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
             return;
         }
 
+        // Visibility precedes SetCapture in the modal-loop setup. Start the flood only after the input owner
+        // is established, and use the popup's DPI context for all physical/client coordinate conversions.
+        const auto previousDpi = SetThreadDpiAwarenessContext(GetWindowDpiAwarenessContext(popupHwnd));
+        const auto restoreDpi  = wil::scope_exit([&]() noexcept
+        {
+            if (previousDpi)
+                SetThreadDpiAwarenessContext(previousDpi);
+        });
+        GUITHREADINFO gui{sizeof(GUITHREADINFO)};
+        const DWORD uiThread       = GetWindowThreadProcessId(popupHwnd, nullptr);
+        const auto captureDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
+        while (std::chrono::steady_clock::now() < captureDeadline)
+        {
+            if (GetGUIThreadInfo(uiThread, &gui) && gui.hwndCapture == popupHwnd)
+                break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        if (gui.hwndCapture != popupHwnd)
+        {
+            driverFailure = "owner-message-flood popup establishes modal input capture before traffic starts";
+            return;
+        }
+
         ContextMenuPopupDebugState popupState{};
         D2D1_RECT_F refineRectDip{};
         if (! WaitForContextMenuPopupState(popupHwnd,
@@ -1317,7 +1340,20 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
         } while (std::chrono::steady_clock::now() < hoverDeadline);
         if (! hoverObserved)
         {
-            driverFailure = "owner-window message flood does not starve popup hover highlight";
+            ContextMenuPopupDebugState finalState{};
+            const bool stateRead = DebugGetContextMenuPopupState(popupHwnd, finalState);
+            GetGUIThreadInfo(uiThread, &gui);
+            driverFailure = std::format("owner-window message flood does not starve popup hover highlight: state={} visible={} capture={} dpi={} hover={} "
+                                        "fill={} renders={} point=({}, {})",
+                                        stateRead,
+                                        IsWindowVisible(popupHwnd) != FALSE,
+                                        gui.hwndCapture == popupHwnd,
+                                        finalState.dpi,
+                                        finalState.hoveredIndex.has_value() ? static_cast<int>(finalState.hoveredIndex.value()) : -1,
+                                        paintState.usesHighlightFill,
+                                        finalState.renderCount,
+                                        refineCenter.x,
+                                        refineCenter.y);
             return;
         }
 

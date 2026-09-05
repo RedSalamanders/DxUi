@@ -4,7 +4,8 @@ param(
     [ValidateSet('Debug','Release')][string] $Configuration='Debug',
     [ValidateSet('x64','ARM64')][string] $Platform='x64',
     [string] $OutputDirectory='',
-    [switch] $SkipBuild
+    [switch] $SkipBuild,
+    [switch] $PublishDocs
 )
 $ErrorActionPreference='Stop'
 if (-not $SkipBuild) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform }
@@ -22,4 +23,21 @@ try {
     $body=($images | ForEach-Object { $name=[System.Net.WebUtility]::HtmlEncode($_.Name); "<section><h2>$name</h2><a href='$name'><img src='$name' alt='$name'></a></section>" }) -join "`n"
     "<!doctype html><html lang='en'><meta charset='utf-8'><title>DxUI control gallery</title><style>body{font:16px Segoe UI,sans-serif;background:#11151c;color:#edf2fa;margin:24px}img{max-width:100%;height:auto}section{margin:32px 0}a{color:inherit}</style><h1>DxUI control gallery</h1><p>All 26 public controls and interaction variants. Click an image for full resolution.</p>$body</html>" | Set-Content -LiteralPath (Join-Path $output 'index.html') -Encoding utf8
     Write-Host "Gallery: $(Join-Path $output 'index.html')"
+    if ($PublishDocs) {
+        $destination = Join-Path $PSScriptRoot 'docs/gallery'
+        New-Item -ItemType Directory -Path $destination -Force | Out-Null
+        foreach ($file in @($images.FullName) + @((Join-Path $output 'index.html'))) {
+            Copy-Item -LiteralPath $file -Destination $destination -Force
+        }
+        $sections = ($images | ForEach-Object { "## $($_.BaseName)`n`n![$($_.BaseName) control gallery]($($_.Name))" }) -join "`n`n"
+        "# Generated control gallery`n`n[Usage documentation](../README.md) | [Control guide](../controls.md) | [HTML gallery](index.html)`n`nGenerated from compiled DxUI controls using gallery.ps1 -PublishDocs. The five theme sheets cover all 26 public controls and populated interaction variants; the sixth image is the supplied-device example. Click a sheet to inspect it at full resolution. Rendering may vary with Windows fonts/DPI. These are documentation snapshots, not replacements for the original test baselines.`n`n$sections" | Set-Content -LiteralPath (Join-Path $destination 'README.md') -Encoding utf8
+        $receipt = [ordered]@{
+            command='gallery.ps1 -PublishDocs'; sourceCommit=(& git rev-parse HEAD).Trim()
+            sourceDirty=[bool](& git status --porcelain)
+            configuration=$Configuration; platform=$Platform; nativeArchitecture=[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+            controlCount=26; images=@($images | ForEach-Object { @{ file=$_.Name; sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash } })
+        }
+        $receipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $destination 'generation.json') -Encoding utf8
+        Write-Host "Published documentation gallery: $destination"
+    }
 } finally { Pop-Location }

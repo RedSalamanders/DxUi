@@ -95,7 +95,7 @@ struct GalleryTheme
     {
         DWORD popupProcessId = 0u;
         static_cast<void>(GetWindowThreadProcessId(popupHwnd, &popupProcessId));
-        if (popupProcessId != currentProcessId || GetWindow(popupHwnd, GW_OWNER) != ownerHwnd)
+        if (popupProcessId != currentProcessId || GetWindow(popupHwnd, GW_OWNER) != ownerHwnd || ! IsWindowVisible(popupHwnd))
         {
             continue;
         }
@@ -176,6 +176,19 @@ template <typename TPredicate>
     return false;
 }
 
+[[nodiscard]] bool HasPaintedPopupContent(const WindowHostBitmapCapture& capture) noexcept
+{
+    // A shown popup can still expose a newly allocated transparent surface before its first completed paint.
+    // Menu content is opaque; require a meaningful painted area instead of accepting only allocated dimensions.
+    size_t opaquePixels = 0;
+    const size_t pixels = static_cast<size_t>(capture.widthPx) * capture.heightPx;
+    if (pixels == 0 || capture.bgraPixels.size() != pixels * 4u)
+        return false;
+    for (size_t i = 3; i < capture.bgraPixels.size(); i += 4)
+        if (capture.bgraPixels[i] >= 128u)
+            ++opaquePixels;
+    return opaquePixels >= pixels / 4u;
+}
 [[nodiscard]] bool WaitForContextMenuPopupBitmapCapture(HWND popupHwnd,
                                                         WindowHostBitmapCapture& outCapture,
                                                         std::chrono::milliseconds timeout = std::chrono::milliseconds(1200))
@@ -183,7 +196,10 @@ template <typename TPredicate>
     const auto deadline = std::chrono::steady_clock::now() + timeout;
     do
     {
-        if (DebugCaptureContextMenuPopupBitmap(popupHwnd, outCapture) && outCapture.widthPx > 0u && outCapture.heightPx > 0u && ! outCapture.bgraPixels.empty())
+        // The hidden measurement HWND already has a bitmap. Inspect only the shown, sized popup.
+        // Capture dimensions are physical pixels; the driver thread's client rectangle can be DPI-virtualized.
+        if (IsWindowVisible(popupHwnd) && DebugCaptureContextMenuPopupBitmap(popupHwnd, outCapture) && outCapture.widthPx > 1u && outCapture.heightPx > 1u &&
+            HasPaintedPopupContent(outCapture))
         {
             return true;
         }
@@ -363,6 +379,8 @@ void CopyCaptureInto(WindowHostBitmapCapture& destination, const WindowHostBitma
     combo->SetSelectedIndex(1u);
     combo->SetVariant(variant);
     combo->SetMaxVisibleItems(4u);
+    if (variant == ComboBoxVariant::Modern)
+        combo->SetMinimumPopupItemHeight(48.0f);
     combo->SetEditable(editable);
     if (editable)
     {
@@ -987,7 +1005,7 @@ void AddComboItems(ComboBox& combo)
         combo->SetBounds(CenterIn(tile.content, 280.0f, 32.0f));
     }
     AddComboOpenTile(scene, flow, L"ComboBox / Window open", std::move(menuCaptures.comboWindowOpen));
-    AddComboOpenTile(scene, flow, L"ComboBox / Modern open", std::move(menuCaptures.comboModernOpen));
+    AddComboOpenTile(scene, flow, L"ComboBox / Modern open, 48-DIP rows", std::move(menuCaptures.comboModernOpen));
     AddComboOpenTile(scene, flow, L"ComboBox / Edit open", std::move(menuCaptures.comboEditOpen));
     {
         const Tile tile = flow.Next(*scene.root, L"StatusStrip / Sections", 2u);

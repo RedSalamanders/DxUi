@@ -16,10 +16,12 @@ not permission to ignore a conflicting contract. Reconcile disagreements in the 
 | [Theme and typography](UI/UI_ThemeAndTypography.md) | UI |
 | [Window hosting](Rendering/Rendering_Win32Host.md) | Rendering |
 | [Validation and evidence](Testing/Testing_Validation.md) | Testing |
+| [Documentation and gallery](Core/Core_Documentation.md) | Core |
 
 Every direct WIP plan is indexed once. Before completion, persist enduring discoveries in the owning domain,
 complete implementation and validation, then move the plan to Done and remove its active row. A separate HOLD
 consumer migration does not prevent completing an independently scoped bootstrap plan.
 
 Run the three root validation scripts for documentation/dependency changes and the appropriate tests for code.
-Generated reports live under `.build`, never in Specs. See [the active index](Plans/WIP/README.md).
+Generated measurement reports live under `.build`, never in Specs. Reviewed gallery snapshots live in `docs/gallery`.
+Historical import records are explained under [Done](Done/README.md). See [the active index](Plans/WIP/README.md).

@@ -2584,6 +2584,10 @@ public:
     // Override the default kComboBoxMaxVisibleItems cap for this instance.
     // Pass 0 to restore the default.
     void SetMaxVisibleItems(size_t maxItems) noexcept;
+    // Per-instance row minimum in DIPs, including paint, hit testing and scrolling. Zero restores the theme default.
+    // Finite values in [0, 4096] are accepted; invalid values leave the current setting unchanged.
+    void SetMinimumPopupItemHeight(float heightDip) noexcept;
+    [[nodiscard]] float GetMinimumPopupItemHeight() const noexcept;
     void SetEditable(bool editable) noexcept;
     [[nodiscard]] bool IsEditable() const noexcept;
     void SetAutoOpenOnTextInput(bool autoOpen) noexcept;
@@ -2745,6 +2749,7 @@ private:
     bool _autoOpenOnTextInput                      = false;
     bool _open                                     = false;
     size_t _maxVisibleItemsOverride                = 0u;
+    float _minimumPopupItemHeightDip               = 0.0f;
     static constexpr size_t kMaxEditHistoryEntries = 64u;
 };
 

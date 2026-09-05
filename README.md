@@ -2,6 +2,10 @@
 
 Shared Windows DirectX controls, owned here and consumed through **one static library: DxUi.lib**.
 
+Read the [documentation](docs/README.md), [control guide](docs/controls.md), and
+[generated gallery](docs/gallery/README.md). [Performance and testing](docs/performance.md) explains measured
+complex-UI FPS, memory budgets, before/after comparisons and the distinction between ARM64 builds and native tests.
+
 ## Build, test and generate every control
 
 Requires Visual Studio 2026/v145, Windows SDK 10.0.26100, x64 or ARM64, and Git for pinned WIL/vcpkg restore.
@@ -42,9 +46,10 @@ No DxUi DLL or copied/enumerated library sources are required.
 ## Validation and remaining application work
 
 Foundation, inherited control suites and supplied-device WARP tests all link the same library. The
-[test-port inventory](provenance/test-port.json) records every inherited case and exclusions. Native x64/ARM64
+[test-port inventory](Specs/Done/SourceImport/test-port.json) records every inherited case and exclusions. Native x64/ARM64
 Debug/Release CI produces per-suite receipts; cross-compilation is not reported as native execution. Eight original
-visual baselines remain unchanged. Generated images and logs stay in `.build`.
+visual baselines remain unchanged. Runtime logs and measurements stay in `.build`; `gallery.ps1 -PublishDocs`
+publishes reviewed gallery images to `docs/gallery`.
 
 RedXe preparation/input/text/UIA bridges and the AV backend remain application integration work; the library does
 not change either application's runtime. Human touch/IME/screen-reader checks remain adoption gates.
@@ -52,5 +57,5 @@ not change either application's runtime. Human touch/IME/screen-reader checks re
 
 Start with [AGENTS.md](AGENTS.md), [spec authority](Specs/README.md), and [active plans](Specs/Plans/WIP/README.md).
 Python 3.11+ plus `Tools/requirements-validation.txt` runs the skill/spec/dependency validators and tooling tests.
-Historical source attribution is in [provenance](provenance/source-origin.json); this repository is the root and home
+Historical source attribution is in [the import archive](Specs/Done/SourceImport/README.md); this repository is the root and home
 of DxUI, with no upstream source tree and no dependency on either application checkout.

@@ -64,5 +64,15 @@ SHA256, native architecture and capability-skip receipts. `gallery.ps1` generate
 supplied-device example image and an HTML index. `DxUi.EmbeddedControls.exe` opens the live toggle/slider example;
 `--output image.png` renders it headlessly through an application-created WARP device.
 
+`docs/README.md` documents consumption and all controls; root README links it and the published gallery.
+`gallery.ps1 -PublishDocs` publishes reviewed sheets and a generation receipt under `docs/gallery`, leaving runtime
+logs in `.build`. Docs/gallery maintenance follows [Core_Documentation](../Core/Core_Documentation.md).
+The formatting workflow uses `format.ps1` and the repository `.clang-format` on pushes and PRs, returning a patch
+when changes are needed. Manual `apply_changes` mode commits formatting to the selected branch with ordinary push
+semantics; it never force-pushes, runs on pull_request_target, or grants fork PRs a write token. Branch protection
+still applies. Token-created commits require an explicit validation run or subsequent user push for fresh CI.
+Native CI installs Python for performance receipt validation. Each test invocation includes complex-UI FPS/memory,
+and implementation acceptance requires matched before/after evidence under the performance contract.
+
 RedXe still needs its first release pin and preparation/input/text/UIA bridge. RedSalamander's application migration
 remains on hold. Neither application's runtime changes merely because this library builds.

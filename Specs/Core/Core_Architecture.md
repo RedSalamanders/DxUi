@@ -14,9 +14,10 @@ The owned control/host source currently lives in `src/Controls`, with tests/base
 The controls and native tests compile independently of either application. Build support and pending consumer bridges
 remain explicit in `capabilities.json`.
 
-Historical source commit, original hashes and current ownership mappings live in `provenance/source-origin.json`.
+Historical source commit, original hashes and current ownership mappings live in `Specs/Done/SourceImport/source-origin.json`.
 Git history retains earlier bytes. No duplicate original source tree is retained or periodically synchronized.
-`provenance/pending-dependencies.json` enumerates unresolved application includes until they are removed.
+`Specs/Done/SourceImport/pending-dependencies.json` preserves the empty final inventory; validators reject new
+application dependencies. The [archive explanation](../Done/SourceImport/README.md) describes why these records remain.
 The frame runtime has one implementation under Foundation; obsolete application-bound project files are retired.
 
 ## Single library and hosting modes

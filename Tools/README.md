@@ -13,10 +13,15 @@ the pinned dependency in requirements-validation.txt. `DXUI_PYTHON` may select a
 | validate_test_port.py | Every inherited test has a retained entrypoint or an explicit exclusion reason |
 | tests/test_test_port.py | Count, origin, missing case and incomplete-disposition regressions |
 | tests/test_validation.py | Owned-source evolution, path/dependency boundary and metadata regression cases |
+| compare_performance.py | Matched complex-UI measurements, noise bands, resource budgets and regression advice |
+| tests/test_performance.py | Regression, missing evidence, native-fixture mismatch and hard-budget failures |
+| tests/test_docs.py | Catalog usage coverage, gallery integrity and fenced-code link parsing |
 
 `test-consumer.ps1` restores and builds a relocated exact-pin public consumer in an isolated output directory,
 renders the supplied-device example, and rejects five invalid-pin/dirty-source cases. `gallery.ps1` generates the
 five-theme control catalog, supplied-device image and HTML index from compiled native code.
+Add `-PublishDocs` to publish reviewed gallery snapshots to docs. `performance.ps1` captures completed offscreen
+complex-UI FPS/memory and optionally compares a baseline; `test.ps1` includes that report even for filtered suites.
 
 Build/test receipts and scratch belong under `.build`. No tool uploads test data or changes audio/camera state.
 Do not introduce a personal Codex path or silently install dependencies as part of validation.

@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
-    data = json.loads((ROOT / 'provenance/test-port.json').read_text(encoding='utf-8'))
+    data = json.loads((ROOT / 'Specs/Done/SourceImport/test-port.json').read_text(encoding='utf-8'))
     errors, seen = [], set()
     cases = data['tests']
     if data.get('schemaVersion') != 1 or data.get('originCaseCount') != len(cases):

@@ -11,16 +11,17 @@ The repository is private and its default branch is `main`. Use focused feature 
   settings, AV devices, viewer interfaces, messages and themes stay in consumer adapters.
 - This repository is the canonical home of DxUI. Controls and host implementation live in `src/Controls`, their
   tests and baselines in `Tests/Controls`, and supported public headers in `include/DxUi`. Edit shared code here.
-  Historical origin belongs in `provenance/source-origin.json` and Git history, never a second source tree.
-- Source ownership and build readiness are separate: pending dependencies are enumerated per file in
-  `provenance/pending-dependencies.json`. Remove them as controls are decoupled; do not freeze the source or
-  silently compile unresolved application dependencies into supported targets.
+  Historical origin belongs in `Specs/Done/SourceImport/source-origin.json` and Git history, never a second source tree.
+- The archived `Specs/Done/SourceImport/pending-dependencies.json` is the empty final extraction inventory.
+  Do not freeze editable source or reintroduce unresolved application dependencies into supported targets.
 - Consumers link the single pinned DxUi.lib target. They must not enumerate this repository's `.cpp` files or pass DxUi C++
   ownership through a plugin ABI. No consumer project is changed implicitly by a library edit.
 - Embedded hosting borrows the application's device/context and uses its scheduling. It owns no swap chain,
   renderer HWND, worker or periodic timer. Preparation and composition are separate contracts.
 - Validate the control and embedded suites for UI changes; Foundation alone cannot establish their correctness.
 - New controls require a catalog/factory entry, meaningful interaction tests and a populated gallery tile.
+- Every code change reviews docs/gallery under Specs/Core/Core_Documentation.md; update affected usage docs and
+  regenerate visual changes with gallery.ps1 -PublishDocs. docs/README.md remains linked from README.
 
 ## Engineering
 
@@ -31,6 +32,9 @@ The repository is private and its default branch is `main`. Use focused feature 
   callback boundaries; catch named exceptions only when needed, with a documented fallback.
 - Hot-path resources and queues are bounded and reused. Composition does no heap work, layout, rasterization,
   I/O or blocking waits. Idle/hidden work blocks on events; never busy poll. Measure resource regressions.
+- Measure a retained baseline before implementation and compare the candidate on the same fixture. Every test.ps1
+  run reports complex-UI FPS/memory. Unpaired results do not establish non-regression. Confirmed degradation requires
+  developer advice with measured optimization, scope-reduction or deferral options; never silently rebaseline.
 - Preserve Unicode, focus, cancellation, IME and accessibility behavior; visual similarity alone is insufficient.
 - Search existing source/spec helpers before adding a parallel utility. Keep public capability status truthful.
 

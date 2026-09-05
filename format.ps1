@@ -14,6 +14,11 @@ $files = @('src','include','Tests','Samples') | ForEach-Object {
 }
 foreach ($file in $files) {
     if ($Check) { & $formatterPath --dry-run --Werror $file.FullName }
-    else { & $formatterPath -i $file.FullName }
+    else {
+        # Preserve timestamps of already formatted files so a no-op formatting pass does not rebuild the library.
+        & $formatterPath --dry-run --Werror $file.FullName 2>$null
+        if ($LASTEXITCODE -eq 0) { continue }
+        & $formatterPath -i $file.FullName
+    }
     if ($LASTEXITCODE -ne 0) { throw "Formatting failed: $($file.FullName)" }
 }

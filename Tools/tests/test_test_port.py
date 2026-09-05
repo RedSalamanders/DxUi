@@ -15,7 +15,7 @@ class TestPortTests(unittest.TestCase):
         self.save()
 
     def save(self):
-        self.put('provenance/test-port.json', json.dumps(self.manifest))
+        self.put('Specs/Done/SourceImport/test-port.json', json.dumps(self.manifest))
 
     def test_retained_case_is_accounted(self):
         self.fixture()

@@ -27,11 +27,11 @@ The user approved the independent private DxUi project. Library contracts are in
 ## Ownership and dependency transition
 
 DxUI is the canonical owner of `src/Controls` and `Tests/Controls`; shared fixes happen in place here.
-Historical attribution is recorded in [source origin](../../../provenance/source-origin.json), with original bytes
+Historical attribution is recorded in [source origin](../../Done/SourceImport/source-origin.json), with original bytes
 recoverable from Git history. The duplicate source tree and obsolete application projects have been removed.
 The frame runtime is consolidated into Foundation and controls use the neutral DxUi namespace.
-Remove [pending dependencies](../../../provenance/pending-dependencies.json) as standalone targets are enabled;
-record progress in [the ledger](../../../provenance/migration-ledger.md).
+Remove [pending dependencies](../../Done/SourceImport/pending-dependencies.json) as standalone targets are enabled;
+record progress in [the ledger](../../Done/SourceImport/migration-ledger.md).
 Foundation tests do not exercise pending controls. RedSalamander remains on its old implementation during this plan.
 
 ## Validation evidence
@@ -55,3 +55,13 @@ Local x64 Debug/Release Foundation tests and ARM64 Debug/Release builds passed a
 pending runtime validation; the layout change does not close their D1/D2 acceptance gates.
 
 Current library delivery is tracked by [SingleLibraryPublicControls](SingleLibraryPublicControls_2026-09-05.md); the earlier Foundation-only statements above are historical evidence.
+
+### AV touch selector follow-up
+
+- [x] Retain the pre-change Release complex-UI receipt at `.build/reports/AVTouch-before-Release.json`.
+- [x] Add a shared per-instance ComboBox popup row minimum, keeping default behavior unchanged.
+- [x] Add density, hit-boundary, scroll, keyboard, open-update, invalid-input and flipped-popup cases; update usage/gallery.
+- [x] Run paired performance, all x64 suites, both ARM64 builds, validators and regenerate/review documentation gallery.
+- [ ] Resolve the existing native Menu flood CI failure without weakening its budget; publish a validated RedXe pin.
+
+Evidence and retained noisy samples: [AV touch validation](../../../docs/measurements/av-touch-2026-09-05/README.md). Native Menu CI and the release pin remain open.

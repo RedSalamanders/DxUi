@@ -9,6 +9,11 @@ targets are acceptance contracts, not claims of current support.
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
 `test.ps1` builds the selected configuration, runs Foundation, Embedded and all inherited control suites and records a JSON receipt with
 architecture, configuration, time and executable path under `.build/reports`. Failures propagate as nonzero exits.
+Every invocation also runs the populated complex-UI benchmark through `performance.ps1` and includes FPS/memory
+scenarios and the performance receipt path in each suite receipt. `-PerformanceBaseline` requires a matched
+comparison and fails for a suspected regression or invalid evidence; no baseline is explicitly `unpaired`.
+Use the [performance contract](../Core/Core_PerformanceAndResources.md) for before/after acceptance and regression advice.
+The short WARP benchmark reports completed offscreen throughput, not display refresh or hardware acceptance.
 The foundation suite covers timing edge cases, nested stage restoration, reduced motion and injected diagnostics.
 
 `validate-skills.ps1` checks all repository skills with repository-owned code and pinned PyYAML; `validate-specs.ps1`
@@ -29,7 +34,7 @@ Performance receipts name source/configuration/hardware and include all preparat
 
 ### Inherited coverage and new evidence
 
-`provenance/test-port.json` accounts for all 941 inherited named test cases: 853 reusable runtime cases retained and
+`Specs/Done/SourceImport/test-port.json` accounts for all 941 inherited named test cases: 853 reusable runtime cases retained and
 88 excluded with individual reasons. Exclusions are application/test-infrastructure utilities not used by DxUI or
 source-text assertions; original cases remain available at the recorded source commit. No failed runtime case may
 be reclassified merely to obtain a green build. The posted-payload stress case now fills the library's 128-entry

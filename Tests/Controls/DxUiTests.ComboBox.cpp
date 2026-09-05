@@ -1,6 +1,7 @@
 #include "DxUiTestHelpers.h"
 
 #include <fstream>
+#include <limits>
 
 namespace
 {
@@ -873,6 +874,65 @@ void TestComboBoxSetMaxVisibleItemsAllowsLargerPopup()
     Require(combo.GetSelectedIndex().has_value() && combo.GetSelectedIndex().value() == 8u, "SetMaxVisibleItems(9) makes the 9th item directly clickable");
 }
 
+void TestComboBoxTouchRowsKeepGeometryAndSelectionCoherent()
+{
+    using namespace DxUi;
+    for (const Density density : {Density::Standard, Density::Compact})
+    {
+        WindowHost host;
+        bool handled = false;
+        static_cast<void>(host.HandleMessage(nullptr, WM_SIZE, 0, MAKELPARAM(200, 240), handled));
+        ThemePalette theme = MakeDefaultThemePalette(false);
+        theme.density      = density;
+        host.SetTheme(theme);
+        auto root   = std::make_unique<Panel>();
+        auto* combo = root->AddChild<ComboBox>();
+        combo->SetBounds(D2D1::RectF(4, 4, 196, 52));
+        std::vector<ComboBox::Item> items;
+        for (size_t i = 0; i < 12; ++i)
+            items.push_back({std::to_wstring(i), std::format(L"Item {}", i)});
+        combo->SetItems(std::move(items));
+        host.SetRoot(std::move(root));
+        combo->SetMinimumPopupItemHeight(48);
+        Require(combo->OnMouseDown(host, D2D1::Point2F(160, 28), false, 0), "touch combo opens");
+        const auto first  = combo->DebugGetPopupItemRect(0, &host);
+        const auto second = combo->DebugGetPopupItemRect(1, &host);
+        Require(first.bottom - first.top == 48 && second.top == first.bottom, "touch popup has contiguous 48-DIP rows in both densities");
+        Require(combo->DebugGetPopupBounds().bottom <= 240, "touch rows stay within the available viewport");
+        Require(combo->OnMouseMove(host, D2D1::Point2F(first.left + 10, first.bottom - 1), 0), "touch row bottom participates in hover");
+        Require(combo->DebugGetHoveredPopupIndex() == 0, "paint and hover agree at the bottom of a touch row");
+        Require(combo->OnMouseDown(host, D2D1::Point2F(first.left + 10, first.bottom - 1), false, 0), "touch row bottom selects");
+        Require(combo->GetSelectedIndex() == 0, "touch hit test does not select a later row using the old default height");
+        Require(combo->OnMouseDown(host, D2D1::Point2F(160, 28), false, 0), "touch combo reopens");
+        Require(combo->OnMouseWheel(host, D2D1::Point2F(first.left + 10, first.top + 10), -static_cast<float>(WHEEL_DELTA), 0), "touch popup scrolls by row");
+        const auto scrolled = combo->DebugGetPopupItemRect(1, &host);
+        Require(scrolled.top == first.top && scrolled.bottom - scrolled.top == 48, "scrolled row retains touch geometry");
+        Require(combo->OnMouseDown(host, D2D1::Point2F(scrolled.left + 10, scrolled.bottom - 1), false, 0), "scrolled touch row selects");
+        Require(combo->GetSelectedIndex() == 1, "scroll selection maps to the visible touch row");
+        Require(combo->OnMouseDown(host, D2D1::Point2F(160, 28), false, 0), "touch popup opens for keyboard");
+        Require(combo->OnKeyDown(host, VK_END, 0), "keyboard reaches last touch row");
+        const auto last = combo->DebugGetPopupItemRect(11, &host);
+        Require(last.bottom - last.top == 48 && last.bottom <= 240, "keyboard scroll keeps last touch row fully visible");
+        combo->SetMinimumPopupItemHeight(64);
+        const auto enlarged = combo->DebugGetPopupItemRect(11, &host);
+        Require(enlarged.bottom - enlarged.top == 64 && enlarged.bottom <= 240, "changing an open popup preserves selected row visibility");
+        combo->SetMinimumPopupItemHeight(-1);
+        combo->SetMinimumPopupItemHeight(std::numeric_limits<float>::infinity());
+        combo->SetMinimumPopupItemHeight(std::numeric_limits<float>::quiet_NaN());
+        combo->SetMinimumPopupItemHeight(4097);
+        Require(combo->GetMinimumPopupItemHeight() == 64, "invalid touch minima do not poison layout");
+        combo->SetMinimumPopupItemHeight(0);
+        const auto normal = combo->DebugGetPopupItemRect(11, &host);
+        Require(normal.bottom - normal.top < 48, "zero restores the existing theme density");
+        combo->OnKeyDown(host, VK_ESCAPE, 0);
+        combo->SetBounds(D2D1::RectF(4, 180, 196, 228));
+        combo->SetMinimumPopupItemHeight(48);
+        Require(combo->OnMouseDown(host, D2D1::Point2F(160, 204), false, 0), "bottom touch combo opens");
+        const auto above = combo->DebugGetPopupItemRect(11, &host);
+        Require(above.bottom <= 180 && above.top >= 0 && above.bottom - above.top == 48, "touch popup flips above and retains selected row");
+    }
+}
+
 void TestComboBoxCompactEditableTextRectPreservesInsetAndWidth()
 {
     using namespace DxUi;
@@ -1078,6 +1138,7 @@ void RunComboBoxTests()
     runTest("TestComboBoxTypeaheadSelectsMatchingItem", TestComboBoxTypeaheadSelectsMatchingItem);
     runTest("TestComboBoxEightItemsAllFitInDefaultPopup", TestComboBoxEightItemsAllFitInDefaultPopup);
     runTest("TestComboBoxSetMaxVisibleItemsAllowsLargerPopup", TestComboBoxSetMaxVisibleItemsAllowsLargerPopup);
+    runTest("TestComboBoxTouchRowsKeepGeometryAndSelectionCoherent", TestComboBoxTouchRowsKeepGeometryAndSelectionCoherent);
     runTest("TestComboBoxCompactEditableTextRectPreservesInsetAndWidth", TestComboBoxCompactEditableTextRectPreservesInsetAndWidth);
     runTest("TestNativeEditableComboBoxEmojiUsesColorFontRendering", TestNativeEditableComboBoxEmojiUsesColorFontRendering);
     runTest("TestComboBoxCompactPopupItemTextRectPreservesInsetAndWidth", TestComboBoxCompactPopupItemTextRectPreservesInsetAndWidth);

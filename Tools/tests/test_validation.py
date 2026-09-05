@@ -45,19 +45,19 @@ class ValidatorTests(unittest.TestCase):
         self.put('vcpkg.json', json.dumps({'builtin-baseline': revision}))
         self.put('vcpkg-tool.json', json.dumps({'commit': revision}))
         self.put('src/Controls/Control.cpp', 'original\n')
-        self.put('provenance/source-origin.json', json.dumps({'schemaVersion': 2, 'commit': revision, 'files': [{
+        self.put('Specs/Done/SourceImport/source-origin.json', json.dumps({'schemaVersion': 2, 'commit': revision, 'files': [{
             'source': 'Common/DxUI/Control.cpp',
             'currentPath': 'src/Controls/Control.cpp',
             'disposition': 'owned',
             'originalSha256': hashlib.sha256(b'original\n').hexdigest(),
             'originalBytes': 9,
         }]}))
-        self.put('provenance/pending-dependencies.json', json.dumps({'schemaVersion': 1, 'files': []}))
+        self.put('Specs/Done/SourceImport/pending-dependencies.json', json.dumps({'schemaVersion': 1, 'files': []}))
 
     def change_origin(self, **changes):
-        manifest = json.loads((self.root / 'provenance/source-origin.json').read_text())
+        manifest = json.loads((self.root / 'Specs/Done/SourceImport/source-origin.json').read_text())
         manifest['files'][0].update(changes)
-        self.put('provenance/source-origin.json', json.dumps(manifest))
+        self.put('Specs/Done/SourceImport/source-origin.json', json.dumps(manifest))
 
     def test_owned_source_can_evolve_without_rewriting_historical_hash(self):
         self.dependency_fixture()
@@ -94,7 +94,7 @@ class ValidatorTests(unittest.TestCase):
         self.dependency_fixture()
         self.put('src/Controls/Control.cpp', '#include "Helpers.h"\n')
         self.assertEqual(self.run_tool('validate_dependencies'), 1)
-        self.put('provenance/pending-dependencies.json', json.dumps({'schemaVersion': 1, 'files': [{
+        self.put('Specs/Done/SourceImport/pending-dependencies.json', json.dumps({'schemaVersion': 1, 'files': [{
             'path': 'src/Controls/Control.cpp', 'includes': ['Helpers.h'],
         }]}))
         self.assertEqual(self.run_tool('validate_dependencies'), 1)
@@ -104,7 +104,7 @@ class ValidatorTests(unittest.TestCase):
     def test_supported_source_cannot_waive_application_dependency(self):
         self.dependency_fixture()
         self.put('src/Foundation/one.cpp', '#include "Helpers.h"\n')
-        self.put('provenance/pending-dependencies.json', json.dumps({'schemaVersion': 1, 'files': [{
+        self.put('Specs/Done/SourceImport/pending-dependencies.json', json.dumps({'schemaVersion': 1, 'files': [{
             'path': 'src/Foundation/one.cpp', 'includes': ['Helpers.h'],
         }]}))
         self.assertEqual(self.run_tool('validate_dependencies'), 1)

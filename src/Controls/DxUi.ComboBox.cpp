@@ -506,6 +506,28 @@ void ComboBox::SetMaxVisibleItems(size_t maxItems) noexcept
     ResetPopupLayout();
 }
 
+void ComboBox::SetMinimumPopupItemHeight(float heightDip) noexcept
+{
+    if (! std::isfinite(heightDip) || heightDip < 0.0f || heightDip > 4096.0f || heightDip == _minimumPopupItemHeightDip)
+    {
+        return;
+    }
+    _minimumPopupItemHeightDip = heightDip;
+    ResetPopupLayout();
+    if (_open)
+    {
+        _hoveredPopupIndex.reset();
+        _dragPopupScrollbar = false;
+        EnsurePopupSelectionVisible(GetHost());
+    }
+    RequestInvalidate();
+}
+
+float ComboBox::GetMinimumPopupItemHeight() const noexcept
+{
+    return _minimumPopupItemHeightDip;
+}
+
 void ComboBox::SetEditable(bool editable) noexcept
 {
     if (editable)
@@ -817,7 +839,7 @@ void ComboBox::PaintOverlay(ControlHost& host) const
     const std::optional<size_t> highlightedPopupIndex = GetHighlightedPopupIndex();
     const bool drawScrollbar                          = HasPopupScrollbar();
     const D2D1_RECT_F popupScrollbar                  = drawScrollbar ? GetPopupScrollbarRect() : D2D1::RectF();
-    const float itemHeightDip                         = ResolveComboBoxItemHeightDip(theme);
+    const float itemHeightDip                         = std::max(_minimumPopupItemHeightDip, ResolveComboBoxItemHeightDip(theme));
     const float contentRight  = drawScrollbar ? std::max(popup.left + kComboBoxPopupPaddingDip, popupScrollbar.left - kComboBoxPopupPaddingDip)
                                               : (popup.right - kComboBoxPopupPaddingDip);
     float y                   = popup.top + kComboBoxPopupPaddingDip;
@@ -940,7 +962,7 @@ bool ComboBox::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBut
             }
             else
             {
-                const float itemHeightDip   = ResolveComboBoxItemHeightDip(host.GetTheme());
+                const float itemHeightDip   = std::max(_minimumPopupItemHeightDip, ResolveComboBoxItemHeightDip(host.GetTheme()));
                 const float viewportDip     = itemHeightDip * static_cast<float>(GetPopupVisibleItemCount());
                 const float totalContentDip = itemHeightDip * static_cast<float>(GetPopupItemCount());
                 const float pageStepDip = ComputeScrollbarPageStepDip(GetPopupScrollbarRect(), ScrollbarOrientation::Vertical, viewportDip, totalContentDip);
@@ -2381,7 +2403,7 @@ void ComboBox::UpdatePopupLayout(const ControlHost* host) const noexcept
     const ControlHost* resolvedHost = host ? host : GetHost();
     const ThemePalette popupTheme   = resolvedHost ? resolvedHost->GetTheme() : MakeDefaultThemePalette(false);
     const float gapDip              = popupTheme.density == Density::Compact ? 3.0f : 4.0f;
-    const float itemHeightDip       = ResolveComboBoxItemHeightDip(popupTheme);
+    const float itemHeightDip       = std::max(_minimumPopupItemHeightDip, ResolveComboBoxItemHeightDip(popupTheme));
     const float defaultHeightDip    = ComputeComboPopupHeightDip(desiredVisibleRows, itemHeightDip);
     _popupBounds                    = D2D1::RectF(bounds.left, bounds.bottom + gapDip, bounds.right, bounds.bottom + gapDip + defaultHeightDip);
 
@@ -2802,7 +2824,7 @@ std::optional<size_t> ComboBox::HitTestPopupItem(D2D1_POINT_2F point) const noex
         return std::nullopt;
     }
     const ControlHost* host     = GetHost();
-    const float itemHeightDip   = host ? ResolveComboBoxItemHeightDip(host->GetTheme()) : kMenuItemHeightDip;
+    const float itemHeightDip   = std::max(_minimumPopupItemHeightDip, host ? ResolveComboBoxItemHeightDip(host->GetTheme()) : kMenuItemHeightDip);
     const size_t visibleIndex   = static_cast<size_t>(offset / itemHeightDip);
     const size_t popupListIndex = _popupScrollIndex + visibleIndex;
     return popupListIndex < std::min(GetPopupItemCount(), _popupScrollIndex + GetPopupVisibleItemCount()) ? GetPopupItemIndexAt(popupListIndex) : std::nullopt;
@@ -2888,11 +2910,12 @@ D2D1_RECT_F ComboBox::GetPopupItemRect(size_t popupListIndex, const ControlHost*
     const bool drawScrollbar         = HasPopupScrollbar();
     const D2D1_RECT_F popupScrollbar = drawScrollbar ? GetPopupScrollbarRect() : D2D1::RectF();
     const ControlHost* resolvedHost  = host ? host : GetHost();
-    const float itemHeightDip        = resolvedHost ? ResolveComboBoxItemHeightDip(resolvedHost->GetTheme()) : kMenuItemHeightDip;
-    const float contentRight         = drawScrollbar ? std::max(popup.left + kComboBoxPopupPaddingDip, popupScrollbar.left - kComboBoxPopupPaddingDip)
-                                                     : (popup.right - kComboBoxPopupPaddingDip);
-    const float rowTop               = popup.top + kComboBoxPopupPaddingDip + (static_cast<float>(popupListIndex - _popupScrollIndex) * itemHeightDip);
-    const D2D1_RECT_F itemRect       = D2D1::RectF(popup.left + kComboBoxPopupPaddingDip, rowTop, contentRight, rowTop + itemHeightDip);
+    const float itemHeightDip =
+        std::max(_minimumPopupItemHeightDip, resolvedHost ? ResolveComboBoxItemHeightDip(resolvedHost->GetTheme()) : kMenuItemHeightDip);
+    const float contentRight   = drawScrollbar ? std::max(popup.left + kComboBoxPopupPaddingDip, popupScrollbar.left - kComboBoxPopupPaddingDip)
+                                               : (popup.right - kComboBoxPopupPaddingDip);
+    const float rowTop         = popup.top + kComboBoxPopupPaddingDip + (static_cast<float>(popupListIndex - _popupScrollIndex) * itemHeightDip);
+    const D2D1_RECT_F itemRect = D2D1::RectF(popup.left + kComboBoxPopupPaddingDip, rowTop, contentRight, rowTop + itemHeightDip);
     return resolvedHost ? SnapRectToPixel(*resolvedHost, itemRect) : itemRect;
 }
 
@@ -2940,7 +2963,7 @@ D2D1_RECT_F ComboBox::GetPopupBounds() const noexcept
     }
 
     const ControlHost* host   = GetHost();
-    const float itemHeightDip = host ? ResolveComboBoxItemHeightDip(host->GetTheme()) : kMenuItemHeightDip;
+    const float itemHeightDip = std::max(_minimumPopupItemHeightDip, host ? ResolveComboBoxItemHeightDip(host->GetTheme()) : kMenuItemHeightDip);
     const float height        = ComputeComboPopupHeightDip(GetPopupVisibleItemCount(), itemHeightDip);
     return D2D1::RectF(GetBounds().left, GetBounds().bottom + 2.0f, GetBounds().right, GetBounds().bottom + 2.0f + height);
 }
