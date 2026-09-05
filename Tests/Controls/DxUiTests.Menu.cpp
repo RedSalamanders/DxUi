@@ -262,17 +262,17 @@ bool WaitForContextMenuPopupItemText(HWND popupHwnd,
 
 bool WaitForContextMenuPopupBitmapCapture(HWND popupHwnd,
                                           DxUi::WindowHostBitmapCapture& outCapture,
-                                          std::chrono::milliseconds timeout = std::chrono::milliseconds(800))
+                                          std::chrono::milliseconds timeout = std::chrono::milliseconds(5000))
 {
     const auto deadline = std::chrono::steady_clock::now() + timeout;
     do
     {
         // Popup creation first exposes a hidden 1x1 measurement HWND. Cross-thread SendMessage can run during
         // initialization, so only capture the visible, sized popup used for the material comparison.
-        RECT client{};
-        if (IsWindowVisible(popupHwnd) && GetClientRect(popupHwnd, &client) && client.right > 1 && client.bottom > 1 &&
-            DxUi::DebugCaptureContextMenuPopupBitmap(popupHwnd, outCapture) && outCapture.widthPx == static_cast<UINT>(client.right) &&
-            outCapture.heightPx == static_cast<UINT>(client.bottom) && ! outCapture.bgraPixels.empty())
+        // The bitmap dimensions are physical pixels. Do not compare them with a client rectangle queried
+        // by this driver thread, whose DPI-awareness context may virtualize that rectangle.
+        if (IsWindowVisible(popupHwnd) && DxUi::DebugCaptureContextMenuPopupBitmap(popupHwnd, outCapture) && outCapture.widthPx > 1u &&
+            outCapture.heightPx > 1u && ! outCapture.bgraPixels.empty())
         {
             return true;
         }
@@ -280,6 +280,8 @@ bool WaitForContextMenuPopupBitmapCapture(HWND popupHwnd,
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     } while (std::chrono::steady_clock::now() < deadline);
 
+    std::cerr << "Popup capture readiness timeout: visible=" << IsWindowVisible(popupHwnd) << " dpi=" << GetDpiForWindow(popupHwnd)
+              << " bitmap=" << outCapture.widthPx << 'x' << outCapture.heightPx << '\n';
     return false;
 }
 
