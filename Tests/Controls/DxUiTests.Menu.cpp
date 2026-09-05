@@ -1202,6 +1202,73 @@ void TestSplitButtonContextMenuSentMouseMessagesHoverAndInvokeImmediately()
     Require(result == std::optional<int>{4202}, "sent split-button-style menu item click invokes immediately without a later activation poke");
 }
 
+// This posted-input fixture owns only one popup's synthetic pointer stream. Windows may generate
+// WM_MOUSEMOVE at the unchanged real cursor after capture/paint; those events must not replace the
+// test point. Do not move the cursor, synthesize extra moves, force paint, or affect production routing.
+constexpr WPARAM kMenuFixtureMoveMarker = WPARAM{1} << 29;
+struct MenuFixtureMouseTraffic final
+{
+    std::atomic<HWND> popup{nullptr};
+    std::atomic<bool> armed{false};
+    std::atomic<bool> markedDequeued{false};
+    std::atomic<uint32_t> filtered{0};
+};
+thread_local MenuFixtureMouseTraffic* menuFixtureMouseTraffic = nullptr;
+void FilterMenuFixtureMouseTraffic(MenuFixtureMouseTraffic& fixture, WPARAM removal, MSG& message) noexcept
+{
+    const HWND popup = fixture.popup.load();
+    if (removal != PM_REMOVE || ! fixture.armed.load() || ! popup || message.hwnd != popup || message.message != WM_MOUSEMOVE)
+        return;
+    if ((message.wParam & kMenuFixtureMoveMarker) != 0)
+    {
+        message.wParam &= ~kMenuFixtureMoveMarker;
+        fixture.markedDequeued.store(true);
+    }
+    else
+    {
+        message.message = WM_NULL;
+        message.wParam  = 0;
+        message.lParam  = 0;
+        ++fixture.filtered;
+    }
+}
+LRESULT CALLBACK MenuFixtureGetMessageHook(int code, WPARAM removal, LPARAM data) noexcept
+{
+    if (code == HC_ACTION && data && menuFixtureMouseTraffic)
+        FilterMenuFixtureMouseTraffic(*menuFixtureMouseTraffic, removal, *reinterpret_cast<MSG*>(data));
+    return CallNextHookEx(nullptr, code, removal, data);
+}
+void CheckMenuFixtureMouseIsolation(HWND ownedWindow)
+{
+    MenuFixtureMouseTraffic fixture;
+    fixture.popup.store(ownedWindow);
+    MSG message{};
+    message.hwnd    = ownedWindow;
+    message.message = WM_MOUSEMOVE;
+    message.wParam  = kMenuFixtureMoveMarker | MK_LBUTTON;
+    message.lParam  = MAKELPARAM(17, 29);
+    FilterMenuFixtureMouseTraffic(fixture, PM_REMOVE, message);
+    Require(! fixture.markedDequeued && message.wParam == (kMenuFixtureMoveMarker | MK_LBUTTON), "disarmed menu fixture preserves input");
+    fixture.armed.store(true);
+    FilterMenuFixtureMouseTraffic(fixture, PM_NOREMOVE, message);
+    Require(! fixture.markedDequeued && message.message == WM_MOUSEMOVE, "menu fixture never edits peeked input");
+    MSG ambient    = message;
+    ambient.wParam = 0;
+    FilterMenuFixtureMouseTraffic(fixture, PM_REMOVE, ambient);
+    Require(ambient.message == WM_NULL && fixture.filtered == 1 && ! fixture.markedDequeued,
+            "without the marked move, ambient input cannot satisfy the starvation assertion");
+    FilterMenuFixtureMouseTraffic(fixture, PM_REMOVE, message);
+    Require(fixture.markedDequeued && message.message == WM_MOUSEMOVE && message.wParam == MK_LBUTTON && message.lParam == MAKELPARAM(17, 29),
+            "menu fixture preserves posted move identity, coordinates and ordinary key state");
+    message.message = WM_PAINT;
+    FilterMenuFixtureMouseTraffic(fixture, PM_REMOVE, message);
+    Require(message.message == WM_PAINT, "menu fixture never synthesizes or suppresses painting");
+    message.message = WM_MOUSEMOVE;
+    message.hwnd    = nullptr;
+    FilterMenuFixtureMouseTraffic(fixture, PM_REMOVE, message);
+    Require(message.message == WM_MOUSEMOVE, "menu fixture leaves other windows' traffic alone");
+}
+
 constexpr UINT kMenuOwnerMessageFloodTestMessage    = WM_APP + 0x53Du;
 constexpr UINT_PTR kMenuOwnerMessageFloodSubclassId = 0x53Du;
 
@@ -1250,12 +1317,20 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
     });
 
     AttachedHostWindow ownerWindow;
+    CheckMenuFixtureMouseIsolation(ownerWindow.Hwnd());
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 140, 140, 460, 280, SWP_NOZORDER);
     if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
     {
         SkipDxUiTest("DxUi menu popup requires an interactive desktop for owner-message-flood routing");
         return;
     }
+
+    MenuFixtureMouseTraffic fixture;
+    auto* previousFixture     = menuFixtureMouseTraffic;
+    menuFixtureMouseTraffic   = &fixture;
+    const auto restoreFixture = wil::scope_exit([&]() noexcept { menuFixtureMouseTraffic = previousFixture; });
+    wil::unique_hhook hook(SetWindowsHookExW(WH_GETMESSAGE, MenuFixtureGetMessageHook, nullptr, GetCurrentThreadId()));
+    Require(bool(hook), "menu fixture installs only a current-thread message hook");
 
     Require(SetWindowSubclass(ownerWindow.Hwnd(), MenuOwnerMessageFloodTestSubclassProc, kMenuOwnerMessageFloodSubclassId, 0) != FALSE,
             "owner-message-flood validation subclasses the owner window");
@@ -1281,6 +1356,7 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
     std::thread driver([&]
     {
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+        const auto disarm       = wil::scope_exit([&]() noexcept { fixture.armed.store(false); });
 
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Find Now");
         if (! popupHwnd)
@@ -1335,6 +1411,14 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
             driverFailure = "owner-message-flood split-button Refine row converts to screen coordinates";
             return;
         }
+        fixture.popup.store(popupHwnd);
+        fixture.armed.store(true);
+        if (! DebugGetContextMenuPopupState(popupHwnd, popupState))
+        {
+            driverFailure = "owner-message-flood reads pre-injection render count";
+            return;
+        }
+        const auto priorRenders  = popupState.renderCount;
         static constexpr int kFloodMessageCount = 2000;
         for (int i = 0; i < kFloodMessageCount; ++i)
         {
@@ -1345,19 +1429,27 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
             }
         }
 
-        if (! PostCapturedMouseMessageForMenuSuite(popupHwnd, WM_MOUSEMOVE, 0, refineCenter))
+        const auto hoverDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
+        if (! PostCapturedMouseMessageForMenuSuite(popupHwnd, WM_MOUSEMOVE, kMenuFixtureMoveMarker, refineCenter))
         {
             driverFailure = "owner-message-flood posts popup mouse move";
             return;
         }
 
+        // Reproduce the CI interference even when the desktop generates no stationary-cursor move.
+        const POINT offRow{refineCenter.x, refineCenter.y + 800};
+        if (! PostCapturedMouseMessageForMenuSuite(popupHwnd, WM_MOUSEMOVE, 0, offRow))
+        {
+            driverFailure = "owner-message-flood posts deterministic unmarked interference";
+            return;
+        }
         ContextMenuPopupItemPaintDebugState paintState{};
-        const auto hoverDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
-        bool hoverObserved       = false;
-        const auto observeHover  = [&]() noexcept
+        bool hoverObserved      = false;
+        const auto observeHover = [&]() noexcept
         {
             ContextMenuPopupDebugState hoverState{};
-            return DebugGetContextMenuPopupState(popupHwnd, hoverState) && hoverState.hoveredIndex == std::optional<size_t>{1u} &&
+            return fixture.markedDequeued.load() && fixture.filtered.load() > 0 && DebugGetContextMenuPopupState(popupHwnd, hoverState) &&
+                   hoverState.renderCount > priorRenders && hoverState.hoveredIndex == std::optional<size_t>{1u} &&
                    DebugGetContextMenuPopupItemPaint(popupHwnd, 1u, paintState) && paintState.usesHighlightFill;
         };
         do
