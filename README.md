@@ -1,4 +1,4 @@
-# DxUI
+# DxUi
 
 Shared Windows DirectX controls, owned here and consumed through **one static library: DxUi.lib**.
 
