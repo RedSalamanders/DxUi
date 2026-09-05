@@ -238,7 +238,7 @@ int main()
         a.MarkDirty();
         Hr(a.Prepare(480, 240), "catalog prepares every concrete control");
         gpu.Bind();
-        Hr(a.Composite(gpu.context.get(), gpu.Viewport()), "catalog composes every concrete control");
+        Check(a.Composite(gpu.context.get(), gpu.Viewport()) == S_OK, "catalog draws every concrete control without suppression");
     }
     Check(DxUi::GetControlCatalog().size() == 26, "catalog contains all 26 controls");
     b.Controls().SetRoot(std::make_unique<DxUi::Toggle>(L"Second view"));
