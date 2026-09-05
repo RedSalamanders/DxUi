@@ -19,3 +19,8 @@ retry once with only D3D11_CREATE_DEVICE_DEBUG removed, retaining BGRA support a
 errors keep their normal failure behavior. This handles the [documented optional debug-layer failure](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-d3d11createdevice)
 without preventing ordinary control rendering and text layout. Native tests report the raw WARP debug-layer probe
 and require the host to initialize with or without that SDK component.
+
+The native menu modal loop processes pointer/keyboard input and pending paints for its own popup windows before
+ordinary posted owner-window traffic. Input feedback cannot depend on the entire owner queue becoming empty.
+An idle menu still blocks on messages; this policy adds no timer, polling or synchronous repaint during dispatch.
+The existing owner-message-flood test retains its hover/invocation deadline and verifies visible feedback.

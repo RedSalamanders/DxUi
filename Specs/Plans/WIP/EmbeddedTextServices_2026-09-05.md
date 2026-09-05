@@ -3,7 +3,7 @@
 Status: ACTIVE
 Owners: `Specs/UI/UI_InputAndAccessibility.md`, `Specs/Rendering/Rendering_EmbeddedD3D11.md`
 
-Work on `codex/av-input-services` in the isolated AV worktree. Preserve the concurrent independent-sample
+Continue on `codex/av-text-bridge` in the isolated AV worktree; PR #3 owns the preceding `codex/av-input-services` component. Preserve the concurrent independent-sample
 checkout. The retained original baseline used complex-ui-v1; the integrated component now has matched complex-ui-v2 evidence.
 Retained pre-change compiled-source receipts are the contrast candidate Debug and affinity-controlled Release
 reports retained at commit 1947a5b and in RedXe docs/measurements/primary-high-contrast-2026-09-05; do not replace those originals.
@@ -32,3 +32,15 @@ Undo/redo, stale revisions, wrong-thread calls, callback-driven root destruction
 attachment/device/focus cancellation are covered. All six regenerated gallery sheets were inspected for affected
 text/primary-control/sample behavior. Native ARM64 CI and exact-pin external consumer checks follow the component
 commit; Windows text/accessibility transport and real consumer acceptance remain open.
+
+The input component's relocated Release consumer passed at ad88833, including both rendered examples and five
+invalid-pin rejections. Local validators/format and 34 tooling tests passed. Native CI passed x64 Debug and both
+ARM64 configurations, while x64 Release failed the existing menu owner-message-flood hover assertion.
+
+A subsequent native text-store fix protects callback-driven destruction, changed focus/text, thrown exceptions and
+ComboBox callback argument lifetime. All 18 local x64 suites passed in each configuration (nine Menu capability
+skips each); ARM64 cross-builds passed. Its performance gate is still open; all raw comparisons, including failures,
+are retained in [the native-store archive](../../../Measurements/TextInput/NativeStore-2026-09-05/README.md).
+The menu loop now has a candidate fix prioritizing its own pending paints after input, with unchanged flood-test
+deadlines and bounded failure routing logs. Validate this separately before adoption. Full application-side OS
+services, clipboard, UIA, generic consumer integration and real acceptance remain unchecked.

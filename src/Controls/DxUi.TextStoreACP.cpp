@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <exception>
 #include <limits>
 
 #include <msctf.h>
@@ -948,42 +949,55 @@ private:
             return false;
         }
 
-        if (auto* textField = dynamic_cast<TextField*>(control))
+        Control* const previousFocus = _host->GetFocusControl();
+        try
         {
-            if (notifyChange)
+            if (auto* textField = dynamic_cast<TextField*>(control))
             {
-                textField->SetTextAndNotify(state.text);
-            }
-            else
-            {
-                textField->SetText(state.text);
+                if (notifyChange)
+                {
+                    textField->SetTextAndNotify(state.text);
+                }
+                else
+                {
+                    textField->SetText(state.text);
+                }
+
+                // Notifying user code may replace the tree, focus or text. Never apply stale selection afterward.
+                if (GetLiveControl() != control || _host->GetFocusControl() != previousFocus || textField->GetText() != state.text)
+                    return false;
+                const size_t selectionStart = state.selectionAnchorIndex.value_or(state.caretIndex);
+                textField->SetSelectionRange(selectionStart, state.caretIndex);
+                _host->SyncTextInput(control);
+                _host->Invalidate();
+                return true;
             }
 
-            const size_t selectionStart = state.selectionAnchorIndex.value_or(state.caretIndex);
-            textField->SetSelectionRange(selectionStart, state.caretIndex);
-            _host->SyncTextInput(control);
-            _host->Invalidate();
-            return true;
+            if (auto* comboBox = dynamic_cast<ComboBox*>(control); comboBox && comboBox->IsEditable())
+            {
+                if (notifyChange)
+                {
+                    comboBox->SetTextAndNotify(state.text);
+                }
+                else
+                {
+                    comboBox->SetText(state.text);
+                }
+
+                if (GetLiveControl() != control || _host->GetFocusControl() != previousFocus || comboBox->GetText() != state.text)
+                    return false;
+                const size_t selectionStart = state.selectionAnchorIndex.value_or(state.caretIndex);
+                comboBox->SetEditableSelectionRange(selectionStart, state.caretIndex);
+                _host->SyncTextInput(control);
+                _host->Invalidate();
+                return true;
+            }
         }
-
-        if (auto* comboBox = dynamic_cast<ComboBox*>(control); comboBox && comboBox->IsEditable())
+        catch (const std::exception&)
         {
-            if (notifyChange)
-            {
-                comboBox->SetTextAndNotify(state.text);
-            }
-            else
-            {
-                comboBox->SetText(state.text);
-            }
-
-            const size_t selectionStart = state.selectionAnchorIndex.value_or(state.caretIndex);
-            comboBox->SetEditableSelectionRange(selectionStart, state.caretIndex);
-            _host->SyncTextInput(control);
-            _host->Invalidate();
-            return true;
+            // Contain allocation/user callback failures at the COM boundary. SetText already invalidated its view.
+            return false;
         }
-
         return false;
     }
 

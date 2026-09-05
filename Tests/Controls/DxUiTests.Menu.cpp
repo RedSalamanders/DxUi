@@ -2,6 +2,8 @@
 #include "../../src/Controls/DxUiNativeMenuInterop.h"
 #include "../../src/Support/AnimationDispatcher.h"
 #include "DxUiTestHelpers.h"
+#include <DxUi/Diagnostics.h>
+#include <cstdio>
 
 #include <array>
 #include <atomic>
@@ -1218,6 +1220,34 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
 {
     using namespace DxUi;
 
+    // Retain bounded routing evidence for remote failures without changing input, timeout or paint assertions.
+    struct Trace final
+    {
+        std::array<std::array<wchar_t, 2048>, 32> rows{};
+        size_t count = 0;
+    };
+    static thread_local Trace* activeTrace = nullptr;
+    auto trace                             = std::make_unique<Trace>();
+    const auto previousSink                = Diagnostics::sink;
+    Trace* const previousTrace             = activeTrace;
+    activeTrace                            = trace.get();
+    Diagnostics::sink                      = [](std::wstring_view, std::wstring_view message) noexcept
+    {
+        if (! activeTrace ||
+            (message.find(L"menu.pointer") == std::wstring_view::npos && message.find(L"menu.loop-dispatch-popup") == std::wstring_view::npos &&
+             message.find(L"menu.popup-message") == std::wstring_view::npos))
+            return;
+        auto& row           = activeTrace->rows[activeTrace->count++ % activeTrace->rows.size()];
+        const size_t length = (std::min)(message.size(), row.size() - 1);
+        std::copy_n(message.data(), length, row.data());
+        row[length] = 0;
+    };
+    const auto restoreTrace = wil::scope_exit([&]() noexcept
+    {
+        Diagnostics::sink = previousSink;
+        activeTrace       = previousTrace;
+    });
+
     AttachedHostWindow ownerWindow;
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 140, 140, 460, 280, SWP_NOZORDER);
     if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
@@ -1373,6 +1403,12 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), menuAnchor, items, ownerWindow.Host().GetTheme());
     driver.join();
 
+    if (! driverFailure.empty())
+    {
+        const size_t first = trace->count > trace->rows.size() ? trace->count - trace->rows.size() : 0;
+        for (size_t i = first; i < trace->count; ++i)
+            std::fwprintf(stderr, L"MENU TRACE: %ls\n", trace->rows[i % trace->rows.size()].data());
+    }
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(result == std::optional<int>{4202}, "owner-window message flood cannot delay popup pointer hover or invocation");
 }

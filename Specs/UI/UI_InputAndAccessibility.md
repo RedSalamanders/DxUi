@@ -64,3 +64,9 @@ without lifetime/focus revalidation. All APIs are UI-thread operations outside c
 
 This API does not establish an OS text store, IME HWND association, clipboard service or UIA root. Those remain
 application-side adoption gates. Native and embedded controls share the existing text model and rendering.
+
+Native text-store notification callbacks may destroy or replace their control, change focus, or replace text.
+The store revalidates control lifetime, focus and text before applying selection or notifying TSF. Callback
+exceptions return failure across the COM boundary; they never unwind through it. A failed continuation preserves
+the callback's newer state and balances the sink edit transaction. Editable ComboBox callbacks receive an owned
+text snapshot so their argument and callable survive destruction of the control.

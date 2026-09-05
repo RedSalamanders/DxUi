@@ -5,6 +5,7 @@
 #include <fstream>
 #include <functional>
 #include <iterator>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 
@@ -5805,6 +5806,97 @@ void TestNativeTextInputTextStoreSetTextReplacesRangeAndNotifiesSink()
     RequireSucceeded(store->UnadviseSink(&sink), "native text store SetText test unadvises the sink");
 }
 
+void TestNativeTextInputTextStoreCallbackInvalidation()
+{
+    using namespace DxUi;
+    for (const bool editableCombo : {false, true})
+    {
+        // Destroy, change focus, replace text and throw after the text store has entered the callback.
+        for (unsigned scenario = 0; scenario != 4; ++scenario)
+        {
+            AttachedHostWindow window;
+            window.Host().SetTextInputBackend(TextInputBackend::Native);
+            auto root        = std::make_unique<Panel>();
+            TextField* field = nullptr;
+            ComboBox* combo  = nullptr;
+            Control* control = nullptr;
+            if (editableCombo)
+            {
+                combo = root->AddChild<ComboBox>();
+                combo->SetEditable(true);
+                combo->SetText(L"before");
+                control = combo;
+            }
+            else
+                control = field = root->AddChild<TextField>(L"before");
+            control->SetBounds(D2D1::RectF(0, 0, 260, 48));
+            window.Host().SetRoot(std::move(root));
+            window.Host().SetFocusControl(control);
+            window.Host().SyncTextInput(control);
+            wil::com_ptr_nothrow<ITextStoreACP> store;
+            store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
+            Require(store != nullptr, "callback invalidation fixture creates text store");
+            unsigned calls        = 0;
+            bool snapshotSurvived = false;
+            const auto changed    = [&](std::wstring_view text)
+            {
+                ++calls;
+                if (scenario == 0)
+                    window.Host().SetRoot(std::make_unique<Panel>());
+                else if (scenario == 1)
+                    window.Host().SetFocusControl(nullptr);
+                else if (scenario == 2)
+                {
+                    if (combo)
+                    {
+                        combo->SetText(L"external");
+                        combo->SetEditableSelectionRange(1, 3);
+                    }
+                    else
+                    {
+                        field->SetText(L"external");
+                        field->SetSelectionRange(1, 3);
+                    }
+                }
+                else
+                    throw std::runtime_error("synthetic text callback failure");
+                snapshotSurvived = text == L"after";
+            };
+            if (combo)
+                combo->SetOnTextChanged(changed);
+            else
+                field->SetOnTextChanged(changed);
+            NativeTextStoreTestSink sink;
+            RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
+                             "callback invalidation advises sink");
+            sink.onLockGranted = [&](DWORD) noexcept
+            {
+                TS_TEXTCHANGE change{};
+                return store->SetText(0, 0, 6, L"after", 5, &change);
+            };
+            HRESULT session = S_OK;
+            RequireSucceeded(store->RequestLock(TS_LF_READWRITE, &session), "invalidated callback lock returns normally");
+            Require(FAILED(session) && calls == 1, "invalidated callback rejects stale continuation without repeat notification");
+            Require(scenario == 3 || snapshotSurvived, "callback retains text argument even when control is destroyed or changed");
+            Require(sink.textChangeCount == 0 && sink.selectionChangeCount == 0 && sink.layoutChangeCount == 0,
+                    "failed continuation emits no stale TSF success notifications");
+            Require(sink.editTransactionStartCount == 1 && sink.editTransactionEndCount == 1 && sink.editTransactionDepth == 0,
+                    "callback failure still balances text-store edit transaction");
+            if (scenario == 0)
+                Require(window.Host().GetRoot()->GetLogicalChildCount() == 0, "callback replacement tree survives");
+            else if (scenario == 1)
+                Require(window.Host().GetFocusControl() == nullptr, "callback focus loss is preserved");
+            else if (scenario == 2)
+            {
+                Require((combo ? combo->GetText() : field->GetText()) == L"external", "newer callback text survives");
+                const auto selection = combo ? combo->GetEditableSelectionRange() : field->GetSelectionRange();
+                Require(selection == std::optional(std::pair<size_t, size_t>{1, 3}), "newer callback selection survives");
+            }
+            RequireSucceeded(store->UnadviseSink(&sink), "callback invalidation releases sink");
+        }
+    }
+}
+
 void TestNativeTextInputTextStoreExternalRetainedChangesNotifySink()
 {
     using namespace DxUi;
@@ -6273,6 +6365,7 @@ void RunNativeTextInputTests()
     TestNativeTextInputTextStoreInsertAtSelectionMutatesRetainedTextAndNotifiesSink();
     TestNativeTextInputTextStoreEmojiRangeUsesLogicalUtf16Acp();
     TestNativeTextInputTextStoreSetTextReplacesRangeAndNotifiesSink();
+    TestNativeTextInputTextStoreCallbackInvalidation();
     TestNativeTextInputTextStoreExternalRetainedChangesNotifySink();
     TestNativeTextInputTextStoreExternalChangeNotificationHandlesSinkRequestedLock();
     TestNativeTextInputTextStoreRepeatedEmojiExternalChangesStayBounded();
