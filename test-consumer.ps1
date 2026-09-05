@@ -6,11 +6,11 @@ $ErrorActionPreference='Stop'
 $revision=(& git -C $PSScriptRoot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Cannot read the DxUi revision.' }
 if (& git -C $PSScriptRoot status --porcelain --untracked-files=normal) { throw 'Commit the library changes before validating a release consumer pin.' }
-if (-not $FixtureRoot) { $FixtureRoot=Join-Path $PSScriptRoot '.build/consumer fixtures' }
-$root=Join-Path ([IO.Path]::GetFullPath($FixtureRoot)) ([guid]::NewGuid().ToString('N'))
+if (-not $FixtureRoot) { $FixtureRoot=Join-Path $PSScriptRoot '.build/consumers' }
+$root=Join-Path ([IO.Path]::GetFullPath($FixtureRoot)) ([guid]::NewGuid().ToString('N').Substring(0,12))
 $checkout=Join-Path $root 'relocated DxUi'
-$consumer=Join-Path $root 'external consumer'
-$output=(Join-Path $consumer 'dependencies')+[IO.Path]::DirectorySeparatorChar
+$consumer=Join-Path $root 'app space'
+$output=(Join-Path $consumer 'deps')+[IO.Path]::DirectorySeparatorChar
 New-Item -ItemType Directory -Path $consumer -Force | Out-Null
 & git clone --local --no-hardlinks $PSScriptRoot $checkout
 if ($LASTEXITCODE -ne 0) { throw 'Cannot create the isolated consumer source fixture.' }
