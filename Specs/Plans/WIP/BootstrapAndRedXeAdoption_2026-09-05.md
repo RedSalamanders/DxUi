@@ -12,7 +12,7 @@ The user approved the independent private DxUi project. Library contracts are in
 - [x] Bootstrap AGENTS, nine skills, normative contracts, validators, build/test scripts, source provenance and CI.
 - [x] Extract the first independent Foundation static target from the existing frame runtime.
 - [x] Build/test Foundation on all four native configurations, locally for x64 and in GitHub for ARM64; publish on main.
-- [ ] Complete hosted bootstrap validation after the import-manifest correction.
+- [x] Complete hosted bootstrap validation after the import-manifest correction.
 - [ ] D1: decouple retained controls and tests; remove concrete WindowHost and application-helper dependencies.
 - [ ] D1: deliver Controls, Win32Services and Win32Host static targets plus a standalone WindowHost sample.
 - [ ] D2: implement embedded host, coherent preparation/composition, dirty surfaces and resource pool.
@@ -39,5 +39,6 @@ an incorrect revision was rejected. Tooling regression cases cover import corrup
 [GitHub run 33958428386](https://github.com/RedSalamanders/DxUI/actions/runs/33958428386) passed all four native
 Foundation test jobs, including ARM64 Debug/Release. Its Linux validation identified an ignored `.user` file in the
 import inventory. That developer-local file was never committed; it is removed from the snapshot and manifest and
-now explicitly rejected by the validator. The corrective run must pass before hosted bootstrap validation is complete.
+now explicitly rejected by the validator. [Corrective run 33958577659](https://github.com/RedSalamanders/DxUI/actions/runs/33958577659)
+passed all five jobs at commit `316e39cbdfc20eea619020b5d4e31e4f395b34e5`: Linux validation and all four native test configurations.
 Renderer/input and AV gates remain open; Foundation tests do not cover those capabilities.
