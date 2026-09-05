@@ -4,45 +4,27 @@
     {
       "scenario": "clean",
       "metric": "fps",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 1851.731832,
       "after": 1863.021355,
       "changePercent": 0.6096737553950682,
-========
-      "before": 2264.800471,
-      "after": 2266.147719,
-      "changePercent": 0.05948638819406327,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 5.0,
       "regressed": false
     },
     {
       "scenario": "clean",
       "metric": "frameP50Ms",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 0.5135,
       "after": 0.5269,
       "changePercent": 2.6095423563778253,
-========
-      "before": 0.4313,
-      "after": 0.4252,
-      "changePercent": -1.4143287734755372,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 5.0,
       "regressed": false
     },
     {
       "scenario": "clean",
       "metric": "frameP95Ms",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 0.6451,
       "after": 0.5895,
       "changePercent": -8.618818787784832,
-========
-      "before": 0.5256,
-      "after": 0.5377,
-      "changePercent": 2.302130898021315,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 5.0,
       "regressed": false
     },
@@ -58,75 +40,45 @@
     {
       "scenario": "clean",
       "metric": "composeCpuP95Ms",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 0.0096,
       "after": 0.0096,
       "changePercent": 0.0,
-========
-      "before": 0.0125,
-      "after": 0.013,
-      "changePercent": 3.9999999999999813,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 5.0,
       "regressed": false
     },
     {
       "scenario": "clean",
       "metric": "privateBytes",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 23879680,
       "after": 24051712,
       "changePercent": 0.7204116638078961,
-========
-      "before": 26750976,
-      "after": 26484736,
-      "changePercent": -0.9952534068289665,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 2.0,
       "regressed": false
     },
     {
       "scenario": "clean",
       "metric": "privatePeakBytes",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 23932928,
       "after": 24096768,
       "changePercent": 0.6845798391237334,
-========
-      "before": 26886144,
-      "after": 26779648,
-      "changePercent": -0.39609993906154495,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 2.0,
       "regressed": false
     },
     {
       "scenario": "clean",
       "metric": "workingSetBytes",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 40218624,
       "after": 40386560,
       "changePercent": 0.4175577961095911,
-========
-      "before": 42770432,
-      "after": 42590208,
-      "changePercent": -0.4213752154759609,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 2.0,
       "regressed": false
     },
     {
       "scenario": "clean",
       "metric": "workingSetPeakBytes",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 40243200,
       "after": 40431616,
       "changePercent": 0.468193384223925,
-========
-      "before": 42782720,
-      "after": 42618880,
-      "changePercent": -0.3829583532790837,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 2.0,
       "regressed": false
     },
@@ -169,135 +121,81 @@
     {
       "scenario": "dirty",
       "metric": "fps",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 547.998504,
       "after": 577.4072107,
       "changePercent": 5.366566967854336,
-========
-      "before": 501.8493147,
-      "after": 496.2151192,
-      "changePercent": -1.1226866979718864,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 5.0,
       "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "frameP50Ms",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 1.762,
       "after": 1.7097,
       "changePercent": -2.9682179341657178,
-========
-      "before": 1.9173,
-      "after": 1.9716,
-      "changePercent": 2.832107651384752,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 5.0,
       "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "frameP95Ms",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 2.1936,
       "after": 1.8948,
       "changePercent": -13.621444201312904,
-========
-      "before": 2.2968,
-      "after": 2.2937,
-      "changePercent": -0.13497039359109397,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 5.0,
       "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "prepareP95Ms",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 1.2798,
       "after": 1.1866,
       "changePercent": -7.282387873105167,
-========
-      "before": 1.7132,
-      "after": 1.5789,
-      "changePercent": -7.839131449918291,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 5.0,
       "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "composeCpuP95Ms",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 0.0067,
       "after": 0.0064,
       "changePercent": -4.477611940298509,
-========
-      "before": 0.0108,
-      "after": 0.0098,
-      "changePercent": -9.259259259259267,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 5.0,
       "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "privateBytes",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 25939968,
       "after": 26140672,
       "changePercent": 0.7737249328912066,
-========
-      "before": 28635136,
-      "after": 28065792,
-      "changePercent": -1.9882706336718625,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 2.0,
       "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "privatePeakBytes",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 26030080,
       "after": 26226688,
       "changePercent": 0.7553107789142421,
-========
-      "before": 28635136,
-      "after": 28114944,
-      "changePercent": -1.8166213703332823,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 2.0,
       "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "workingSetBytes",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 42078208,
       "after": 42283008,
       "changePercent": 0.4867127421395834,
-========
-      "before": 44756992,
-      "after": 43339776,
-      "changePercent": -3.1664683810744054,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 2.0,
       "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "workingSetPeakBytes",
-<<<<<<<< HEAD:Measurements/TextInput/2026-09-05/TextInput-v2-baseline-repeat2-Release.json.comparison.json
       "before": 42143744,
       "after": 42332160,
       "changePercent": 0.44707940518999845,
-========
-      "before": 44756992,
-      "after": 43339776,
-      "changePercent": -3.1664683810744054,
->>>>>>>> origin/main:Measurements/ComplexUi/2026-09-05/repeat.json.comparison.json
       "noisePercent": 2.0,
       "regressed": false
     },
