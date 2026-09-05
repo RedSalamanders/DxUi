@@ -1,84 +1,84 @@
 {
-  "status": "advice-required",
+  "status": "within-noise-budget",
   "changes": [
     {
       "scenario": "clean",
       "metric": "fps",
-      "before": 2455.554464,
-      "after": 49.00481031,
-      "changePercent": -98.00432810477463,
+      "before": 2264.800471,
+      "after": 2266.147719,
+      "changePercent": 0.05948638819406327,
       "noisePercent": 5.0,
-      "regressed": true
+      "regressed": false
     },
     {
       "scenario": "clean",
       "metric": "frameP50Ms",
-      "before": 0.3907,
-      "after": 19.4081,
-      "changePercent": 4867.519836191452,
+      "before": 0.4313,
+      "after": 0.4252,
+      "changePercent": -1.4143287734755372,
       "noisePercent": 5.0,
-      "regressed": true
+      "regressed": false
     },
     {
       "scenario": "clean",
       "metric": "frameP95Ms",
-      "before": 0.4712,
-      "after": 39.7523,
-      "changePercent": 8336.396434634975,
+      "before": 0.5256,
+      "after": 0.5377,
+      "changePercent": 2.302130898021315,
       "noisePercent": 5.0,
-      "regressed": true
+      "regressed": false
     },
     {
       "scenario": "clean",
       "metric": "prepareP95Ms",
       "before": 0.0003,
-      "after": 0.0022,
-      "changePercent": 633.3333333333335,
+      "after": 0.0003,
+      "changePercent": 0.0,
       "noisePercent": 5.0,
-      "regressed": true
+      "regressed": false
     },
     {
       "scenario": "clean",
       "metric": "composeCpuP95Ms",
-      "before": 0.0116,
-      "after": 0.0423,
-      "changePercent": 264.6551724137931,
+      "before": 0.0125,
+      "after": 0.013,
+      "changePercent": 3.9999999999999813,
       "noisePercent": 5.0,
-      "regressed": true
+      "regressed": false
     },
     {
       "scenario": "clean",
       "metric": "privateBytes",
-      "before": 27230208,
-      "after": 23613440,
-      "changePercent": -13.28219013237064,
+      "before": 26750976,
+      "after": 26484736,
+      "changePercent": -0.9952534068289665,
       "noisePercent": 2.0,
       "regressed": false
     },
     {
       "scenario": "clean",
       "metric": "privatePeakBytes",
-      "before": 27279360,
-      "after": 23703552,
-      "changePercent": -13.108108108108107,
+      "before": 26886144,
+      "after": 26779648,
+      "changePercent": -0.39609993906154495,
       "noisePercent": 2.0,
       "regressed": false
     },
     {
       "scenario": "clean",
       "metric": "workingSetBytes",
-      "before": 43089920,
-      "after": 40017920,
-      "changePercent": -7.129277566539926,
+      "before": 42770432,
+      "after": 42590208,
+      "changePercent": -0.4213752154759609,
       "noisePercent": 2.0,
       "regressed": false
     },
     {
       "scenario": "clean",
       "metric": "workingSetPeakBytes",
-      "before": 43094016,
-      "after": 40062976,
-      "changePercent": -7.033551943731586,
+      "before": 42782720,
+      "after": 42618880,
+      "changePercent": -0.3829583532790837,
       "noisePercent": 2.0,
       "regressed": false
     },
@@ -121,81 +121,81 @@
     {
       "scenario": "dirty",
       "metric": "fps",
-      "before": 506.5849714,
-      "after": 90.23686726,
-      "changePercent": -82.18721984376657,
+      "before": 501.8493147,
+      "after": 496.2151192,
+      "changePercent": -1.1226866979718864,
       "noisePercent": 5.0,
-      "regressed": true
+      "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "frameP50Ms",
-      "before": 1.951,
-      "after": 9.6753,
-      "changePercent": 395.91491542798565,
+      "before": 1.9173,
+      "after": 1.9716,
+      "changePercent": 2.832107651384752,
       "noisePercent": 5.0,
-      "regressed": true
+      "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "frameP95Ms",
-      "before": 2.2102,
-      "after": 19.4271,
-      "changePercent": 778.9747534159804,
+      "before": 2.2968,
+      "after": 2.2937,
+      "changePercent": -0.13497039359109397,
       "noisePercent": 5.0,
-      "regressed": true
+      "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "prepareP95Ms",
-      "before": 1.684,
-      "after": 7.7316,
-      "changePercent": 359.1211401425179,
+      "before": 1.7132,
+      "after": 1.5789,
+      "changePercent": -7.839131449918291,
       "noisePercent": 5.0,
-      "regressed": true
+      "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "composeCpuP95Ms",
-      "before": 0.0089,
-      "after": 0.0207,
-      "changePercent": 132.58426966292137,
+      "before": 0.0108,
+      "after": 0.0098,
+      "changePercent": -9.259259259259267,
       "noisePercent": 5.0,
-      "regressed": true
+      "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "privateBytes",
-      "before": 29126656,
-      "after": 20709376,
-      "changePercent": -28.89888904514133,
+      "before": 28635136,
+      "after": 28065792,
+      "changePercent": -1.9882706336718625,
       "noisePercent": 2.0,
       "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "privatePeakBytes",
-      "before": 29368320,
-      "after": 20709376,
-      "changePercent": -29.483960948396092,
+      "before": 28635136,
+      "after": 28114944,
+      "changePercent": -1.8166213703332823,
       "noisePercent": 2.0,
       "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "workingSetBytes",
-      "before": 45006848,
-      "after": 37072896,
-      "changePercent": -17.628321805606117,
+      "before": 44756992,
+      "after": 43339776,
+      "changePercent": -3.1664683810744054,
       "noisePercent": 2.0,
       "regressed": false
     },
     {
       "scenario": "dirty",
       "metric": "workingSetPeakBytes",
-      "before": 45142016,
-      "after": 37072896,
-      "changePercent": -17.874965974049537,
+      "before": 44756992,
+      "after": 43339776,
+      "changePercent": -3.1664683810744054,
       "noisePercent": 2.0,
       "regressed": false
     },
@@ -220,8 +220,8 @@
     {
       "scenario": "dirty",
       "metric": "cppAllocations",
-      "before": 2200,
-      "after": 2200,
+      "before": 2160,
+      "after": 2160,
       "changePercent": 0.0,
       "noisePercent": 0,
       "regressed": false

@@ -21,7 +21,7 @@ Debug/Release or x64/ARM64 comparisons cannot establish non-regression. If a new
 harness against both implementations. A missing baseline is explicitly unpaired and cannot close an implementation
 performance gate. Documentation/tool-only changes that leave compiled library inputs unchanged record that fact.
 
-DxUI MUST NOT accept a confirmed performance or memory regression silently. Compare FPS, frame/input percentiles,
+DxUi MUST NOT accept a confirmed performance or memory regression silently. Compare FPS, frame/input percentiles,
 preparation and composition costs, allocations/bytes, surface/cache residency and peaks, private bytes/working set,
 resource counts, idle activity and long-run retention. Keep all samples and investigate repeatable degradation,
 including trends smaller than automated noise bands. `performance.ps1` compares five-round medians, with 5% timing/FPS
@@ -61,30 +61,25 @@ with no embedded timer/worker/polling loop. Share immutable resources per device
 caches, textures, replacement peaks and concurrent instances. Checked arithmetic/capacity failures must fail cleanly,
 release ownership and retain coherent visual/input state. Destroy device-generation resources together on recovery.
 
-## Consumer-specific surface admission
+## Independent measurement ownership
 
-The implemented offscreen approach has a real memory and dirty-paint cost. Consumer adoption remains subject to
-measurement and does not imply approval of a resource regression. Record
-both preparation and final composition; a single composite draw does not make the entire UI a one-draw renderer.
+DxUi owns its samples, synthetic data, benchmark workloads and baseline receipts. They MUST build and run using
+this repository, the Windows SDK and pinned library dependencies alone. No consumer checkout, plugin, settings,
+AV endpoint or application service is required. Inspiration from application layouts is allowed; executable fixtures
+and their acceptance criteria remain library-owned. The runnable complex sample and timed benchmark use the same
+`Samples/ComplexUi/ComplexUiScene.h` scene. Every fixture change requires a new identity and matched fixture hashes.
 
-| Resource / scenario | Acceptance rule |
-| --- | --- |
-| Static visible, hidden, minimized, occluded, display-off | No embedded-owned periodic timer, worker, polling, preparation, repaint or present. Host visibility rules control all work. |
-| Clean composition | Zero application heap allocations, text shaping, target creation, D2D repaint or texture upload; at most one composite draw per layout viewport and one bounded geometry upload only when its transform changes. |
-| Dirty updates | Coalesce to the latest bounded snapshot; measure CPU time, D2D/GPU submissions, allocations and bytes separately. No allocation growth over repeated changes. |
-| Texture count | At most two resident layout surfaces per AV instance; identical layouts share. Replacement may temporarily retain one old/new pair per changed surface until publication, then releases the old one. |
-| Surface memory | Compute from actual physical extents and format. One 1280×720 BGRA surface is 3,686,400 bytes (3.52 MiB); two are 7.03 MiB before driver overhead. At 2× raster dimensions, two are 28.13 MiB. Include replacement peaks rather than hiding them. |
-| Provisional safety caps | 64 MiB resident surface payload and 128 MiB replacement peak per instance; 256 KiB composite dynamic buffers per instance. These are ceilings, not preallocations or normal targets. Checked arithmetic, device dimension limits and host admission must reject excess explicitly. |
-| Shared resources | One device-generation pool in the AV module; initial shared cache target 8 MiB, with D2D/DWrite/driver retained overhead reported separately. Cache residency and multi-instance totals must be measured. |
-| Responsive input | Pending visual acknowledgement within AV's 100 ms target; measure p50/p95 preparation/frame latency during drag and text entry on a named hardware fixture and WARP. Report results, not invented timings. |
-| Multiple widgets / recovery | Test the host-supported instance bound, staged pages, repeated raise/dismiss, DPI and device loss; no proportional growth in devices, workers or immutable caches. |
+Application-specific adoption reports, configurations, endpoint workloads and budgets belong in that application's
+repository. Do not store them in DxUi docs or use them as a substitute for independent library evidence. Conversely,
+DxUi offscreen throughput does not establish the complete application's presentation, input or service latency.
+Reviewed independent raw receipts may be retained under `Measurements/`, with a README explaining the scenario,
+source identity, all noisy runs and limits. Intermediate runs remain under `.build`; docs link to the retained evidence.
 
-At native resolution, record the total active-page plus overlay texture footprint as well as per-instance numbers.
-Test 96/144/192 DPI and all AV sizes, including portrait; do not mistake logical pixels for texture pixels. Allocation
-counters distinguish library-controlled work from OS/driver internals, which remain measured even when not directly
-bounded by the application allocator. If the prototype misses acceptable resource or latency targets, optimize the
-dirty/caching path or revise the rendering adapter with measured justification; keep the shared control model and
-do not silently fork controls into AV.
+Measure the full sum of simultaneous views at 96/144/192 DPI, including shared-pool and replacement costs. One
+1280x720 BGRA surface is 3,686,400 bytes (3.52 MiB), excluding driver overhead; physical extents determine residency.
+Applications must admit their aggregate view cost using their own instance bounds. Allocation counters distinguish
+library-controlled work from OS/driver internals; both remain measured. A single composite draw does not make dirty
+preparation free. Never impose one application's module topology, two-view layout or endpoint latency on all consumers.
 
 ### Single-library implementation budgets
 

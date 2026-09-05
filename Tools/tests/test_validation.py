@@ -46,7 +46,7 @@ class ValidatorTests(unittest.TestCase):
         self.put('vcpkg-tool.json', json.dumps({'commit': revision}))
         self.put('src/Controls/Control.cpp', 'original\n')
         self.put('Specs/Done/SourceImport/source-origin.json', json.dumps({'schemaVersion': 2, 'commit': revision, 'files': [{
-            'source': 'Common/DxUI/Control.cpp',
+            'source': 'Common/DxUi/Control.cpp',
             'currentPath': 'src/Controls/Control.cpp',
             'disposition': 'owned',
             'originalSha256': hashlib.sha256(b'original\n').hexdigest(),

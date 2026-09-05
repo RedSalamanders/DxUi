@@ -8,12 +8,12 @@ The user approved the independent private DxUi project. Library contracts are in
 
 ## Execution
 
-- [x] Create private `RedSalamanders/DxUI` and sibling checkout.
+- [x] Create private `RedSalamanders/DxUi` and sibling checkout.
 - [x] Bootstrap AGENTS, nine skills, normative contracts, validators, build/test scripts, source provenance and CI.
 - [x] Extract the first independent Foundation static target from the existing frame runtime.
 - [x] Build/test Foundation on all four native configurations, locally for x64 and in GitHub for ARM64; publish on main.
 - [x] Complete hosted bootstrap validation after the import-manifest correction.
-- [x] Make DxUI the canonical source home; move controls/tests, remove duplicate runtime and application projects.
+- [x] Make DxUi the canonical source home; move controls/tests, remove duplicate runtime and application projects.
 - [x] Validate owned-source layout, pending dependency inventory, formatting and local Foundation regressions.
 - [x] D1: decouple retained controls and tests; public ControlHost replaces application-specific host naming.
 - [x] D1: user superseded split targets with one DxUi.lib containing controls and both hosting modes; native gallery fixture retained.
@@ -26,7 +26,7 @@ The user approved the independent private DxUi project. Library contracts are in
 
 ## Ownership and dependency transition
 
-DxUI is the canonical owner of `src/Controls` and `Tests/Controls`; shared fixes happen in place here.
+DxUi is the canonical owner of `src/Controls` and `Tests/Controls`; shared fixes happen in place here.
 Historical attribution is recorded in [source origin](../../Done/SourceImport/source-origin.json), with original bytes
 recoverable from Git history. The duplicate source tree and obsolete application projects have been removed.
 The frame runtime is consolidated into Foundation and controls use the neutral DxUi namespace.
@@ -41,10 +41,10 @@ Nine skill checks, specification/dependency validators and formatting checks pas
 built and executed through the pinned props/targets from a path with spaces, using isolated dependency outputs;
 an incorrect revision was rejected. Tooling regression cases cover import corruption and developer-local exclusions.
 
-[GitHub run 33958428386](https://github.com/RedSalamanders/DxUI/actions/runs/33958428386) passed all four native
+[GitHub run 33958428386](https://github.com/RedSalamanders/DxUi/actions/runs/33958428386) passed all four native
 Foundation test jobs, including ARM64 Debug/Release. Its Linux validation identified an ignored `.user` file in the
 import inventory. That developer-local file was never committed; it is removed from the snapshot and manifest and
-now explicitly rejected by the validator. [Corrective run 33958577659](https://github.com/RedSalamanders/DxUI/actions/runs/33958577659)
+now explicitly rejected by the validator. [Corrective run 33958577659](https://github.com/RedSalamanders/DxUi/actions/runs/33958577659)
 passed all five jobs at commit `316e39cbdfc20eea619020b5d4e31e4f395b34e5`: Linux validation and all four native test configurations.
 Renderer/input and AV gates remain open; Foundation tests do not cover those capabilities.
 
@@ -64,4 +64,4 @@ Current library delivery is tracked by [SingleLibraryPublicControls](SingleLibra
 - [x] Run paired performance, all x64 suites, both ARM64 builds, validators and regenerate/review documentation gallery.
 - [ ] Resolve the existing native Menu flood CI failure without weakening its budget; publish a validated RedXe pin.
 
-Evidence and retained noisy samples: [AV touch validation](../../../docs/measurements/av-touch-2026-09-05/README.md). Native Menu CI and the release pin remain open.
+AV adoption evidence and retained noisy samples now belong to the RedXe repository at `docs/measurements/av-touch-2026-09-05/README.md`. They are not DxUi library acceptance evidence. See [independent library measurements](../../../Measurements/README.md).

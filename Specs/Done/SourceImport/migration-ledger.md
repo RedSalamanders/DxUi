@@ -1,6 +1,6 @@
 # Source ownership and consumer migration
 
-DxUI owns the library source and tests. Historical source baseline: RedSalamander
+DxUi owns the library source and tests. Historical source baseline: RedSalamander
 `5f83dc4b0b7c5d66de4f96895da43298532dd046`; see [source origin](source-origin.json).
 
 | Slice | Canonical location | State / intentional changes |

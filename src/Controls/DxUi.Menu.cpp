@@ -32,7 +32,7 @@
 #define DXUI_MENU_TRACE(...) static_cast<void>(0)
 #endif
 
-// Native menu diagnostics use the same borrowed sink as the rest of DxUI; no file or environment configuration.
+// Native menu diagnostics use the same borrowed sink as the rest of DxUi; no file or environment configuration.
 #define DXUI_MENU_SINK_DIAGNOSTICS 1
 #define DXUI_MENU_DIAGNOSTICS_TRACE(...) WriteMenuDiagnosticsTrace(__VA_ARGS__)
 
@@ -3303,7 +3303,7 @@ void OpenSubmenu(MenuController& controller, MenuPopup& parent, size_t itemIndex
         }
 
         Debug::Perf::Emit(
-            L"DxUI::PopupShow", L"submenu", Debug::Perf::ElapsedUs(startedAt), static_cast<uint64_t>(item.children.size()), static_cast<uint64_t>(itemIndex));
+            L"DxUi::PopupShow", L"submenu", Debug::Perf::ElapsedUs(startedAt), static_cast<uint64_t>(item.children.size()), static_cast<uint64_t>(itemIndex));
     }
 }
 
@@ -3726,7 +3726,7 @@ void FinalizeAsyncMenuController(MenuController& controller) noexcept
                         reinterpret_cast<uintptr_t>(previousCapture),
                         reinterpret_cast<uintptr_t>(GetCapture()));
     }
-    Debug::Perf::Emit(L"DxUI::PopupShow", popupDetail, Debug::Perf::ElapsedUs(startedAt), static_cast<uint64_t>(controller.rootItems.size()), 0u);
+    Debug::Perf::Emit(L"DxUi::PopupShow", popupDetail, Debug::Perf::ElapsedUs(startedAt), static_cast<uint64_t>(controller.rootItems.size()), 0u);
     return true;
 }
 
@@ -5210,7 +5210,7 @@ std::optional<int> ContextMenu::Show(
             L"menu.show-create-failed", L"owner={:#x} point=({}, {}) items={}", TraceHwndValue(ownerHwnd), screenPoint.x, screenPoint.y, items.size());
         return std::nullopt;
     }
-    Debug::Perf::Emit(L"DxUI::PopupShow", L"root", Debug::Perf::ElapsedUs(startedAt), static_cast<uint64_t>(controller.rootItems.size()), 0u);
+    Debug::Perf::Emit(L"DxUi::PopupShow", L"root", Debug::Perf::ElapsedUs(startedAt), static_cast<uint64_t>(controller.rootItems.size()), 0u);
 
     // Run the modal loop
     RunMenuModalLoop(controller);
@@ -5298,7 +5298,7 @@ bool ContextMenu::ShowAsync(HWND ownerHwnd,
             L"menu.show-async-create-failed", L"owner={:#x} point=({}, {}) items={}", TraceHwndValue(ownerHwnd), screenPoint.x, screenPoint.y, items.size());
         return false;
     }
-    Debug::Perf::Emit(L"DxUI::PopupShow", L"root_async", Debug::Perf::ElapsedUs(startedAt), static_cast<uint64_t>(controller->rootItems.size()), 0u);
+    Debug::Perf::Emit(L"DxUi::PopupShow", L"root_async", Debug::Perf::ElapsedUs(startedAt), static_cast<uint64_t>(controller->rootItems.size()), 0u);
 
     MenuController& controllerRef = *controller;
     ActiveAsyncMenuControllers().push_back(std::move(controller));

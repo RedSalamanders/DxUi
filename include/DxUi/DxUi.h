@@ -368,7 +368,7 @@ public:
                                         const ContextMenuSessionCallbacks& sessionCallbacks = {});
 };
 
-// Native menu diagnostics share the optional borrowed Diagnostics::sink. No trace file is opened by DxUI.
+// Native menu diagnostics share the optional borrowed Diagnostics::sink. No trace file is opened by DxUi.
 [[nodiscard]] bool IsContextMenuDiagnosticsEnabled() noexcept;
 void TraceContextMenuDiagnostics(std::wstring_view eventName, std::wstring_view details = {}) noexcept;
 

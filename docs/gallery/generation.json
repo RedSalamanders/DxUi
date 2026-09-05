@@ -8,8 +8,8 @@
   "controlCount": 26,
   "images": [
     {
-      "sha256": "CFF656687859EFE37952F97B370370918BF0A1C172E24F3376E23B46A3A1C1CE",
-      "file": "embedded-controls.png"
+      "file": "embedded-controls.png",
+      "sha256": "434257A1995A64DDB75A3B6E51DED6F685A119B1629F2E29FAE907EEF83E07E5"
     },
     {
       "sha256": "2E7FEE05B5E4BF2F27D63CE587BFBA319B6446BC3CE4C6735DBD15E2F3A07635",
@@ -24,8 +24,8 @@
       "file": "theme-controls-light.png"
     },
     {
-      "sha256": "B8166BA8EDB44E2CDC5DAA6E62E1056AFED2E69A037164B477C72765BE387492",
-      "file": "theme-controls-rainbow-dark.png"
+      "file": "theme-controls-rainbow-dark.png",
+      "sha256": "DBC0A69F8FC79F770FA53B3618CD39A3462970D1C9AA3E9C8F455936C4965AF1"
     },
     {
       "sha256": "372999B0F887C72EAD01602DAECC181F6B570BE301BB8186ECA46BC9AFE35317",

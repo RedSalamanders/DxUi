@@ -73,7 +73,7 @@ Grid and Tree borrow model/delegate pointers; retain these until the controls ar
 Grid models provide row/column counts, column descriptors, cell data and stable-row lookup. Tree models provide
 the visible item sequence with IDs, depth and expansion state. Supply actual populated data, stable identity and
 notifications; a factory-created empty control does not demonstrate interaction.
-See [the benchmark model](../Tests/Embedded/ComplexUiBenchmark.h),
+See [the benchmark model](../Samples/ComplexUi/ComplexUiScene.h),
 [grid tests](../Tests/Controls/DxUiTests.Grid.cpp), [tree tests](../Tests/Controls/DxUiTests.Tree.cpp), and
 [gallery construction](../Tests/Controls/DxUiTests.Gallery.cpp) for concrete configurations and variants.
 
