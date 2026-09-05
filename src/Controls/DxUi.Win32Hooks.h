@@ -1,26 +1,38 @@
 #pragma once
-
-#include "Win32CallbackHelpers.h"
-
+#include <windows.h>
 namespace DxUi
 {
-[[nodiscard]] inline WNDPROC GetStoredWndProc(HWND hwnd, const wchar_t* propName) noexcept
+inline WNDPROC GetStoredWndProc(HWND hwnd, const wchar_t* name) noexcept
 {
-    return RedSalamander::Win32Callback::GetStoredWndProc(hwnd, propName);
+    return reinterpret_cast<WNDPROC>(GetPropW(hwnd, name));
 }
-
-[[nodiscard]] inline bool InstallWndProcHook(HWND hwnd, const wchar_t* propName, WNDPROC hookWndProc) noexcept
+inline bool InstallWndProcHook(HWND hwnd, const wchar_t* name, WNDPROC hook) noexcept
 {
-    return RedSalamander::Win32Callback::InstallWndProcHook(hwnd, propName, hookWndProc);
+    if (! hwnd || ! name || ! hook || GetPropW(hwnd, name))
+        return false;
+    auto previous = reinterpret_cast<WNDPROC>(GetWindowLongPtrW(hwnd, GWLP_WNDPROC));
+    if (! previous || ! SetPropW(hwnd, name, reinterpret_cast<HANDLE>(previous)))
+        return false;
+    SetLastError(0);
+    auto result = SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(hook));
+    if (! result && GetLastError())
+    {
+        RemovePropW(hwnd, name);
+        return false;
+    }
+    return true;
 }
-
-inline void RestoreWndProcHook(HWND hwnd, const wchar_t* propName) noexcept
+inline void RestoreWndProcHook(HWND hwnd, const wchar_t* name) noexcept
 {
-    RedSalamander::Win32Callback::RestoreWndProcHook(hwnd, propName);
+    if (auto proc = GetStoredWndProc(hwnd, name))
+    {
+        SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(proc));
+        RemovePropW(hwnd, name);
+    }
 }
-
-[[nodiscard]] inline LRESULT CallStoredWndProc(HWND hwnd, const wchar_t* propName, UINT msg, WPARAM wp, LPARAM lp) noexcept
+inline LRESULT CallStoredWndProc(HWND hwnd, const wchar_t* name, UINT msg, WPARAM wp, LPARAM lp) noexcept
 {
-    return RedSalamander::Win32Callback::CallStoredWndProc(hwnd, propName, msg, wp, lp);
+    auto proc = GetStoredWndProc(hwnd, name);
+    return proc ? CallWindowProcW(proc, hwnd, msg, wp, lp) : DefWindowProcW(hwnd, msg, wp, lp);
 }
 } // namespace DxUi

@@ -1,7 +1,7 @@
+#include "../Support/Diagnostics.h"
+#include "../Support/WindowMessages.h"
 #include "DxUi.AccessibilityTextUnits.h"
 #include "DxUi.Internal.h"
-#include "Helpers.h"
-#include "WindowMessages.h"
 
 #include <algorithm>
 #include <array>
@@ -29,7 +29,7 @@ namespace DxUi
 {
 namespace
 {
-constexpr PCWSTR kWindowHostPropName                                = L"RedSalamander.DxUi.WindowHost";
+constexpr PCWSTR kWindowHostPropName                                = L"DxUi.ControlHost";
 constexpr uint32_t kAccessibilityMaxDepth                           = 16u;
 constexpr DWORD kAccessibilityUiActionDispatchTimeoutMs             = 5000u;
 constexpr LONG kAccessibilityRuntimeIdTreeItem                      = 1'001;
@@ -135,7 +135,7 @@ struct AccessibilityUiActionPayload
     std::shared_ptr<AccessibilityUiActionDispatch> dispatch;
 };
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 std::atomic<HANDLE> g_accessibilityUiActionHandlerEnteredEvent{nullptr};
 std::atomic<HANDLE> g_accessibilityUiActionHandlerReleaseEvent{nullptr};
 std::atomic<HANDLE> g_accessibilityUiActionHandlerTakenEnteredEvent{nullptr};
@@ -419,10 +419,10 @@ struct AccessibilitySnapshot
 [[nodiscard]] std::wstring_view GetControlAccessibleName(const Control* root, const Control* control) noexcept;
 [[nodiscard]] std::wstring_view GetControlAccessibleValue(const Control* control) noexcept;
 [[nodiscard]] std::wstring GetControlAccessibleTextRangeText(const Control* control);
-[[nodiscard]] TextRangeSpan GetControlAccessibleSelectionRange(const WindowHost* host, const Control* control, size_t textLength) noexcept;
+[[nodiscard]] TextRangeSpan GetControlAccessibleSelectionRange(const ControlHost* host, const Control* control, size_t textLength) noexcept;
 [[nodiscard]] TextRangeSpan GetTextRangeSpanFromState(size_t caretIndex, std::optional<size_t> selectionAnchorIndex, size_t textLength) noexcept;
 [[nodiscard]] D2D1_RECT_F ResolveTextPatternViewportRect(const Control* control) noexcept;
-[[nodiscard]] std::optional<std::vector<D2D1_RECT_F>> TryResolveTextRangeCaretRects(const WindowHost& host,
+[[nodiscard]] std::optional<std::vector<D2D1_RECT_F>> TryResolveTextRangeCaretRects(const ControlHost& host,
                                                                                     const Control& control,
                                                                                     std::wstring_view text,
                                                                                     const TextRangeSpan& range);
@@ -441,11 +441,11 @@ struct AccessibilitySnapshot
 [[nodiscard]] bool GridCellSupportsRangeValuePattern(const GridCellData& cellData) noexcept;
 [[nodiscard]] double GetGridCellRangeValue(const GridCellData& cellData) noexcept;
 [[nodiscard]] bool FindAccessibilityPathForTarget(const Control* current, const ControlPath& basePath, const Control* target, ControlPath& outPath) noexcept;
-void AppendAccessibilitySnapshotPointHits(WindowHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot);
+void AppendAccessibilitySnapshotPointHits(ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot);
 void AppendAccessibilitySnapshotPointHits(
-    WindowHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot, const AccessibilityPointHitBuildContext& context);
+    ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot, const AccessibilityPointHitBuildContext& context);
 void AppendAccessibilitySnapshotNavigation(
-    WindowHost& host, const Control* root, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot);
+    ControlHost& host, const Control* root, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot);
 [[nodiscard]] const AccessibilityPointHitSnapshot* FindSnapshotPointHit(const AccessibilitySnapshot& snapshot, D2D1_POINT_2F pointDip) noexcept;
 [[nodiscard]] std::optional<D2D1_RECT_F> FindSnapshotFragmentBounds(const AccessibilitySnapshot& snapshot,
                                                                     AccessibilityFragmentKind kind,
@@ -463,7 +463,7 @@ void AppendAccessibilitySnapshotNavigation(
 
 struct WindowHostAccessibilityTarget final
 {
-    explicit WindowHostAccessibilityTarget(HWND hwnd, WindowHost* host) noexcept : hwnd(hwnd), host(host)
+    explicit WindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept : hwnd(hwnd), host(host)
     {
     }
 
@@ -487,14 +487,14 @@ struct WindowHostAccessibilityTarget final
         return remaining;
     }
 
-    [[nodiscard]] WindowHost* ResolveHost() const noexcept
+    [[nodiscard]] ControlHost* ResolveHost() const noexcept
     {
         if (! hwnd || IsWindow(hwnd) == FALSE)
         {
             return nullptr;
         }
 
-        WindowHost* const resolvedHost = host.load(std::memory_order_acquire);
+        ControlHost* const resolvedHost = host.load(std::memory_order_acquire);
         if (! resolvedHost)
         {
             return nullptr;
@@ -511,7 +511,7 @@ struct WindowHostAccessibilityTarget final
 
     std::atomic<ULONG> _referenceCount{1u};
     HWND hwnd = nullptr;
-    std::atomic<WindowHost*> host{nullptr};
+    std::atomic<ControlHost*> host{nullptr};
     std::atomic<std::shared_ptr<const AccessibilitySnapshot>> snapshot;
     wil::com_ptr_nothrow<IRawElementProviderSimple> rootProvider;
 };
@@ -542,7 +542,7 @@ void PublishEmptyAccessibilitySnapshot(WindowHostAccessibilityTarget& target) no
     PublishAccessibilitySnapshot(target, MakeEmptyAccessibilitySnapshot(target.hwnd));
 }
 
-void PublishWindowHostAccessibilitySnapshot(WindowHostAccessibilityTarget& target, WindowHost& host)
+void PublishWindowHostAccessibilitySnapshot(WindowHostAccessibilityTarget& target, ControlHost& host)
 {
     auto snapshot              = std::make_shared<AccessibilitySnapshot>();
     snapshot->hwnd             = target.hwnd;
@@ -1007,14 +1007,14 @@ void AppendGridAccessibilityPointHits(const Grid& grid,
     }
 }
 
-void AppendAccessibilitySnapshotPointHits(WindowHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot)
+void AppendAccessibilitySnapshotPointHits(ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot)
 {
     AppendAccessibilitySnapshotPointHits(host, current, basePath, snapshot, AccessibilityPointHitBuildContext{});
     AppendAccessibilityPointHit(snapshot, AccessibilityFragmentKind::Root, ControlPath{}, host.GetClientBoundsDip());
 }
 
 void AppendAccessibilitySnapshotPointHits(
-    WindowHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot, const AccessibilityPointHitBuildContext& context)
+    ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot, const AccessibilityPointHitBuildContext& context)
 {
     if (! current || ! current->IsVisible())
     {
@@ -1134,7 +1134,7 @@ std::optional<D2D1_RECT_F> FindSnapshotFragmentBounds(const AccessibilitySnapsho
 }
 
 void AppendAccessibilitySnapshotNavigation(
-    WindowHost& host, const Control* root, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot)
+    ControlHost& host, const Control* root, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot)
 {
     if (! current || ! current->IsVisible())
     {
@@ -2165,7 +2165,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
     return rect;
 }
 
-[[nodiscard]] std::optional<D2D1_RECT_F> TryResolveSimpleTextRangeCaretRect(const WindowHost& host,
+[[nodiscard]] std::optional<D2D1_RECT_F> TryResolveSimpleTextRangeCaretRect(const ControlHost& host,
                                                                             const Control& control,
                                                                             std::wstring_view text,
                                                                             const TextRangeSpan& range) noexcept
@@ -2194,7 +2194,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
     return ClipRectToBounds(rect, viewport);
 }
 
-[[nodiscard]] std::optional<std::vector<D2D1_RECT_F>> TryResolveTextRangeCaretRects(const WindowHost& host,
+[[nodiscard]] std::optional<std::vector<D2D1_RECT_F>> TryResolveTextRangeCaretRects(const ControlHost& host,
                                                                                     const Control& control,
                                                                                     std::wstring_view text,
                                                                                     const TextRangeSpan& range)
@@ -2654,7 +2654,7 @@ struct TextRangeSpanMoveResult
     return TextRangeSpanMoveResult{GetTextRangeLineSpanAtPosition(text, cursor), moved};
 }
 
-[[nodiscard]] std::optional<std::vector<TextRangeSpan>> TryResolveTextRangeVisualLineSpans(const WindowHost& host,
+[[nodiscard]] std::optional<std::vector<TextRangeSpan>> TryResolveTextRangeVisualLineSpans(const ControlHost& host,
                                                                                            const Control& control,
                                                                                            std::wstring_view text) noexcept
 {
@@ -2755,7 +2755,7 @@ struct TextRangeSpanMoveResult
     return spans.size() - 1u;
 }
 
-[[nodiscard]] std::optional<TextRangeSpan> TryGetEnclosingTextRangeVisualLineSpan(const WindowHost& host,
+[[nodiscard]] std::optional<TextRangeSpan> TryGetEnclosingTextRangeVisualLineSpan(const ControlHost& host,
                                                                                   const Control& control,
                                                                                   std::wstring_view text,
                                                                                   size_t position) noexcept
@@ -2770,7 +2770,7 @@ struct TextRangeSpanMoveResult
 }
 
 [[nodiscard]] std::optional<TextRangeSpanMoveResult> TryMoveTextRangeSpanByVisualLine(
-    const WindowHost& host, const Control& control, std::wstring_view text, const TextRangeSpan& range, int count) noexcept
+    const ControlHost& host, const Control& control, std::wstring_view text, const TextRangeSpan& range, int count) noexcept
 {
     const TextRangeSpan clampedRange = ClampTextRangeSpan(range.start, range.end, text.size());
     if (count == 0)
@@ -2815,7 +2815,7 @@ struct TextRangeSpanMoveResult
 }
 
 [[nodiscard]] std::optional<TextRangeUnitMoveResult> TryMoveTextRangePositionByVisualLine(
-    const WindowHost& host, const Control& control, std::wstring_view text, size_t position, int count) noexcept
+    const ControlHost& host, const Control& control, std::wstring_view text, size_t position, int count) noexcept
 {
     const size_t clampedPosition = (std::min)(position, text.size());
     if (count == 0)
@@ -2844,7 +2844,7 @@ struct TextRangeSpanMoveResult
     return ClampTextRangeSpan(selectionAnchorIndex.value(), clampedCaret, textLength);
 }
 
-[[nodiscard]] TextRangeSpan GetControlAccessibleSelectionRange(const WindowHost* host, const Control* control, size_t textLength) noexcept
+[[nodiscard]] TextRangeSpan GetControlAccessibleSelectionRange(const ControlHost* host, const Control* control, size_t textLength) noexcept
 {
     if (host && control)
     {
@@ -3486,7 +3486,7 @@ private:
     HRESULT DispatchEndpointLineMovementToWindowThread(
         size_t start, size_t end, TextPatternRangeEndpoint endpoint, int count, size_t& outStart, size_t& outEnd, int& outMoved) noexcept;
     HRESULT DispatchBoundingRectanglesToWindowThread(size_t start, size_t end, std::vector<D2D1_RECT_F>& outBoundsDip, float& outDipToPixelScale) noexcept;
-    [[nodiscard]] WindowHost* ResolveHost() const noexcept;
+    [[nodiscard]] ControlHost* ResolveHost() const noexcept;
     [[nodiscard]] const Control* ResolveControl() const noexcept;
     [[nodiscard]] Control* ResolveMutableControl() const noexcept;
     [[nodiscard]] std::wstring ResolveText() const;
@@ -3662,7 +3662,7 @@ public:
     HRESULT ExecuteUiThreadAction(AccessibilityUiActionRequest& request) noexcept;
 
 private:
-    [[nodiscard]] WindowHost* ResolveHost() const noexcept;
+    [[nodiscard]] ControlHost* ResolveHost() const noexcept;
     [[nodiscard]] const Control* ResolveRootControl() const noexcept;
     [[nodiscard]] bool ResolveControlPath(ControlPath& outPath) const noexcept;
     [[nodiscard]] const Control* ResolveControl() const noexcept;
@@ -3911,7 +3911,7 @@ HRESULT AccessibilityTextRangeProvider::ExpandToEnclosingUnit(TextUnit unit) noe
     else
     {
         const TextRangeSpan range    = ClampCurrentRange(text.size());
-        WindowHost* const host       = ResolveHost();
+        ControlHost* const host      = ResolveHost();
         const Control* const control = ResolveControl();
         expandedRange =
             (host && control)
@@ -4027,7 +4027,7 @@ HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRec
     }
 
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-    WindowHost* const host       = ResolveHost();
+    ControlHost* const host      = ResolveHost();
     const Control* const control = ResolveControl();
     if (! host || ! control)
     {
@@ -4169,7 +4169,7 @@ HRESULT AccessibilityTextRangeProvider::Move(TextUnit unit, int count, int* outM
     const TextRangeSpan range = ClampCurrentRange(text.size());
     if (unit == TextUnit_Line)
     {
-        WindowHost* const host       = ResolveHost();
+        ControlHost* const host      = ResolveHost();
         const Control* const control = ResolveControl();
         const TextRangeSpanMoveResult moveResult =
             (host && control) ? TryMoveTextRangeSpanByVisualLine(*host, *control, text, range, count).value_or(MoveTextRangeSpanByLine(text, range, count))
@@ -4288,7 +4288,7 @@ HRESULT AccessibilityTextRangeProvider::MoveEndpointByUnit(TextPatternRangeEndpo
     TextRangeUnitMoveResult moveResult{};
     if (unit == TextUnit_Line)
     {
-        WindowHost* const host       = ResolveHost();
+        ControlHost* const host      = ResolveHost();
         const Control* const control = ResolveControl();
         moveResult                   = (host && control) ? TryMoveTextRangePositionByVisualLine(*host, *control, text, endpointPosition, count)
                                                                .value_or(MoveTextRangePositionByLine(text, endpointPosition, count))
@@ -4341,8 +4341,8 @@ HRESULT AccessibilityTextRangeProvider::ExecuteSelectOnWindowThread() noexcept
     const auto startedAt = std::chrono::steady_clock::now();
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
 
-    WindowHost* host = ResolveHost();
-    Control* control = ResolveMutableControl();
+    ControlHost* host = ResolveHost();
+    Control* control  = ResolveMutableControl();
     if (! host || ! control || ! SupportsTextPattern(control))
     {
         return UIA_E_ELEMENTNOTAVAILABLE;
@@ -4374,7 +4374,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteExpandToVisualLineOnWindowThread(
 {
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
 
-    WindowHost* const host       = ResolveHost();
+    ControlHost* const host      = ResolveHost();
     const Control* const control = ResolveControl();
     const std::wstring text      = control ? (_textOverride ? _textOverride.value() : GetControlAccessibleTextRangeText(control)) : ResolveText();
     const TextRangeSpan range    = ClampTextRangeSpan(start, end, text.size());
@@ -4393,7 +4393,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteMoveByVisualLineOnWindowThread(
 {
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
 
-    WindowHost* const host       = ResolveHost();
+    ControlHost* const host      = ResolveHost();
     const Control* const control = ResolveControl();
     const std::wstring text      = control ? (_textOverride ? _textOverride.value() : GetControlAccessibleTextRangeText(control)) : ResolveText();
     const TextRangeSpan range    = ClampTextRangeSpan(start, end, text.size());
@@ -4412,7 +4412,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteMoveEndpointByVisualLineOnWindowT
 {
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
 
-    WindowHost* const host        = ResolveHost();
+    ControlHost* const host       = ResolveHost();
     const Control* const control  = ResolveControl();
     const std::wstring text       = control ? (_textOverride ? _textOverride.value() : GetControlAccessibleTextRangeText(control)) : ResolveText();
     const TextRangeSpan range     = ClampTextRangeSpan(start, end, text.size());
@@ -4447,7 +4447,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteResolveBoundsOnWindowThread(size_
     outBoundsDip.clear();
     outDipToPixelScale = 1.0f;
 
-    WindowHost* const host       = ResolveHost();
+    ControlHost* const host      = ResolveHost();
     const Control* const control = ResolveControl();
     if (! host || ! control)
     {
@@ -4540,7 +4540,7 @@ HRESULT DispatchAccessibilityUiActionToWindowThread(HWND hwnd, AccessibilityUiAc
         return lastError != 0u ? HRESULT_FROM_WIN32(lastError) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     if (const HANDLE postedEvent = g_accessibilityUiActionPostedEvent.load(std::memory_order_acquire); postedEvent)
     {
         static_cast<void>(::SetEvent(postedEvent));
@@ -4655,14 +4655,14 @@ HRESULT AccessibilityTextRangeProvider::DispatchBoundingRectanglesToWindowThread
     return hr;
 }
 
-WindowHost* AccessibilityTextRangeProvider::ResolveHost() const noexcept
+ControlHost* AccessibilityTextRangeProvider::ResolveHost() const noexcept
 {
     return (_target && _target->hwnd == _hwnd) ? _target->ResolveHost() : nullptr;
 }
 
 const Control* AccessibilityTextRangeProvider::ResolveControl() const noexcept
 {
-    WindowHost* host = ResolveHost();
+    ControlHost* host = ResolveHost();
     if (! host || ! IsControlPathVisible(host->GetRoot(), _path))
     {
         return nullptr;
@@ -4673,7 +4673,7 @@ const Control* AccessibilityTextRangeProvider::ResolveControl() const noexcept
 
 Control* AccessibilityTextRangeProvider::ResolveMutableControl() const noexcept
 {
-    WindowHost* host = ResolveHost();
+    ControlHost* host = ResolveHost();
     if (! host || ! IsControlPathVisible(host->GetRoot(), _path))
     {
         return nullptr;
@@ -5718,7 +5718,7 @@ HRESULT AccessibilityProvider::ExecuteResolveTextRangeFromPointOnWindowThread(Ui
     outCaretIndex = 0u;
     outTextLength = 0u;
 
-    WindowHost* host       = ResolveHost();
+    ControlHost* host      = ResolveHost();
     const Control* control = ResolveControl();
     if (! host || ! control || ! SupportsTextPattern(control))
     {
@@ -6667,14 +6667,14 @@ HRESULT AccessibilityProvider::GetColumnHeaderItems(SAFEARRAY** outColumnHeaderI
     return SetProviderArray(outColumnHeaderItems, std::span<IRawElementProviderSimple* const>(&provider, 1u));
 }
 
-WindowHost* AccessibilityProvider::ResolveHost() const noexcept
+ControlHost* AccessibilityProvider::ResolveHost() const noexcept
 {
     return _target ? _target->ResolveHost() : nullptr;
 }
 
 const Control* AccessibilityProvider::ResolveRootControl() const noexcept
 {
-    WindowHost* host = ResolveHost();
+    ControlHost* host = ResolveHost();
     return host ? host->GetRoot() : nullptr;
 }
 
@@ -6702,7 +6702,7 @@ const Control* AccessibilityProvider::ResolveControl() const noexcept
         return nullptr;
     }
 
-    WindowHost* host = ResolveHost();
+    ControlHost* host = ResolveHost();
     return host ? ResolveControlAtPath(host->GetRoot(), path) : nullptr;
 }
 
@@ -6714,7 +6714,7 @@ Control* AccessibilityProvider::ResolveMutableControl() const noexcept
         return nullptr;
     }
 
-    WindowHost* host = ResolveHost();
+    ControlHost* host = ResolveHost();
     return host ? ResolveControlAtPath(host->GetRoot(), path) : nullptr;
 }
 
@@ -6730,7 +6730,7 @@ const Tree* AccessibilityProvider::ResolveTreeControl() const noexcept
         return nullptr;
     }
 
-    WindowHost* host = ResolveHost();
+    ControlHost* host = ResolveHost();
     return host ? dynamic_cast<const Tree*>(ResolveControlAtPath(host->GetRoot(), path)) : nullptr;
 }
 
@@ -6746,7 +6746,7 @@ Tree* AccessibilityProvider::ResolveMutableTreeControl() const noexcept
         return nullptr;
     }
 
-    WindowHost* host = ResolveHost();
+    ControlHost* host = ResolveHost();
     return host ? dynamic_cast<Tree*>(ResolveControlAtPath(host->GetRoot(), path)) : nullptr;
 }
 
@@ -6762,7 +6762,7 @@ const Grid* AccessibilityProvider::ResolveGridControl() const noexcept
         return nullptr;
     }
 
-    WindowHost* host = ResolveHost();
+    ControlHost* host = ResolveHost();
     return host ? dynamic_cast<const Grid*>(ResolveControlAtPath(host->GetRoot(), path)) : nullptr;
 }
 
@@ -6778,7 +6778,7 @@ Grid* AccessibilityProvider::ResolveMutableGridControl() const noexcept
         return nullptr;
     }
 
-    WindowHost* host = ResolveHost();
+    ControlHost* host = ResolveHost();
     return host ? dynamic_cast<Grid*>(ResolveControlAtPath(host->GetRoot(), path)) : nullptr;
 }
 
@@ -6898,7 +6898,7 @@ HRESULT AccessibilityProvider::ExecuteUiThreadAction(AccessibilityUiActionReques
 HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
 {
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-    WindowHost* host = ResolveHost();
+    ControlHost* host = ResolveHost();
     if (! host)
     {
         return S_OK;
@@ -6993,7 +6993,7 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
 
 HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread() noexcept
 {
-    WindowHost* host           = nullptr;
+    ControlHost* host          = nullptr;
     TextField* revealTextField = nullptr;
     Button* button             = nullptr;
     Control* accessibleControl = nullptr;
@@ -7048,7 +7048,7 @@ HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread() noexcept
 HRESULT AccessibilityProvider::ExecuteToggleOnWindowThread() noexcept
 {
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-    WindowHost* host = ResolveHost();
+    ControlHost* host = ResolveHost();
     if (! host)
     {
         return UIA_E_NOTSUPPORTED;
@@ -7088,8 +7088,8 @@ HRESULT AccessibilityProvider::ExecuteToggleOnWindowThread() noexcept
 HRESULT AccessibilityProvider::ExecuteSetStringValueOnWindowThread(LPCWSTR value) noexcept
 {
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-    WindowHost* host = ResolveHost();
-    Control* control = ResolveMutableControl();
+    ControlHost* host = ResolveHost();
+    Control* control  = ResolveMutableControl();
     if (! host || ! control || ! SupportsValuePattern(control) || IsValueReadOnly(control))
     {
         return UIA_E_NOTSUPPORTED;
@@ -7118,8 +7118,8 @@ HRESULT AccessibilityProvider::ExecuteSetStringValueOnWindowThread(LPCWSTR value
 HRESULT AccessibilityProvider::ExecuteSetRangeValueOnWindowThread(double value) noexcept
 {
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-    WindowHost* host = ResolveHost();
-    Control* control = ResolveMutableControl();
+    ControlHost* host = ResolveHost();
+    Control* control  = ResolveMutableControl();
     if (! host || ! control || ! SupportsRangeValuePattern(control) || IsValueReadOnly(control))
     {
         return UIA_E_NOTSUPPORTED;
@@ -7138,7 +7138,7 @@ HRESULT AccessibilityProvider::ExecuteSetRangeValueOnWindowThread(double value) 
 HRESULT AccessibilityProvider::ExecuteSelectOnWindowThread() noexcept
 {
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-    WindowHost* host = ResolveHost();
+    ControlHost* host = ResolveHost();
     if (! host)
     {
         return UIA_E_NOTSUPPORTED;
@@ -7185,9 +7185,9 @@ HRESULT AccessibilityProvider::ExecuteAddToSelectionOnWindowThread() noexcept
         return ExecuteSelectOnWindowThread();
     }
 
-    WindowHost* host = ResolveHost();
-    size_t rowIndex  = 0u;
-    Grid* grid       = ResolveMutableGridControl();
+    ControlHost* host = ResolveHost();
+    size_t rowIndex   = 0u;
+    Grid* grid        = ResolveMutableGridControl();
     if (! host || ! grid || _kind != AccessibilityFragmentKind::GridRow || ! ResolveGridRowIndex(rowIndex) || ! grid->RequestSelectRow(rowIndex, MK_CONTROL))
     {
         return UIA_E_NOTSUPPORTED;
@@ -7202,7 +7202,7 @@ HRESULT AccessibilityProvider::ExecuteAddToSelectionOnWindowThread() noexcept
 HRESULT AccessibilityProvider::ExecuteRemoveFromSelectionOnWindowThread() noexcept
 {
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-    WindowHost* host = ResolveHost();
+    ControlHost* host = ResolveHost();
     if (! host)
     {
         return UIA_E_NOTSUPPORTED;
@@ -7247,8 +7247,8 @@ HRESULT AccessibilityProvider::ExecuteRemoveFromSelectionOnWindowThread() noexce
 HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded) noexcept
 {
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-    WindowHost* host = ResolveHost();
-    Tree* tree       = ResolveMutableTreeControl();
+    ControlHost* host = ResolveHost();
+    Tree* tree        = ResolveMutableTreeControl();
     if (! host || ! tree)
     {
         return UIA_E_ELEMENTNOTAVAILABLE;
@@ -7491,7 +7491,7 @@ bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, 
         return false;
     }
 
-    WindowHost* const host = target->ResolveHost();
+    ControlHost* const host = target->ResolveHost();
     ControlPath controlPath{};
     if (! host || ! FindAccessibilityPathForTarget(host->GetRoot(), ControlPath{}, control, controlPath))
     {
@@ -7550,7 +7550,7 @@ bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, 
     }
 }
 
-void RegisterWindowHostAccessibilityTarget(HWND hwnd, WindowHost* host) noexcept
+void RegisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept
 {
     if (hwnd && host)
     {
@@ -7578,7 +7578,7 @@ void RegisterWindowHostAccessibilityTarget(HWND hwnd, WindowHost* host) noexcept
     }
 }
 
-void UnregisterWindowHostAccessibilityTarget(HWND hwnd, WindowHost* host) noexcept
+void UnregisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept
 {
     if (! hwnd)
     {
@@ -7594,7 +7594,7 @@ void UnregisterWindowHostAccessibilityTarget(HWND hwnd, WindowHost* host) noexce
             return;
         }
 
-        const WindowHost* current = target->host.load(std::memory_order_acquire);
+        const ControlHost* current = target->host.load(std::memory_order_acquire);
         if (host && current != host)
         {
             return;
@@ -7628,7 +7628,7 @@ void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept
     }
 }
 
-void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, WindowHost* host) noexcept
+void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept
 {
     if (! hwnd || ! host)
     {
@@ -7645,7 +7645,7 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, WindowHost* host) noexcep
     PublishWindowHostAccessibilitySnapshot(*target, *host);
 }
 
-void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, WindowHost* host) noexcept
+void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept
 {
     if (! hwnd)
     {
@@ -7659,7 +7659,7 @@ void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, WindowHost* host) no
         return;
     }
 
-    const WindowHost* current = target->host.load(std::memory_order_acquire);
+    const ControlHost* current = target->host.load(std::memory_order_acquire);
     if (host && current != host)
     {
         return;
@@ -7731,7 +7731,7 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
 
     std::shared_ptr<AccessibilityUiActionDispatch> dispatch = payload->dispatch;
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     MaybeStallAccessibilityUiActionHandlerForTest();
 #endif
 
@@ -7741,7 +7741,7 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
         return true;
     }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     MaybeStallTakenAccessibilityUiActionHandlerForTest();
     g_accessibilityUiActionExecutionCount.fetch_add(1u, std::memory_order_relaxed);
 #endif
@@ -7862,7 +7862,7 @@ bool RaiseWindowHostAccessibilityNotification(HWND hwnd, std::wstring_view notif
         simpleProvider.get(), NotificationKind_ActionCompleted, NotificationProcessing_MostRecent, notificationText.get(), activityText.get()));
 }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 
 void DebugSetAccessibilityUiActionHandlerStallForTest(HANDLE enteredEvent, HANDLE releaseEvent) noexcept
 {

@@ -8,7 +8,7 @@
 
 #include <d2d1effects.h>
 
-#include "Helpers.h"
+#include "../Support/Diagnostics.h"
 
 namespace DxUi
 {
@@ -99,7 +99,7 @@ bool CaptureTransientSurfaceBackdrop(const RECT& surfaceScreenRect, TransientSur
 
 namespace
 {
-[[nodiscard]] ID2D1Bitmap1* EnsureTransientSurfaceBackdropBitmap(WindowHost& host, TransientSurfaceBackdrop& backdrop) noexcept
+[[nodiscard]] ID2D1Bitmap1* EnsureTransientSurfaceBackdropBitmap(ControlHost& host, TransientSurfaceBackdrop& backdrop) noexcept
 {
     if (! backdrop.HasCapture())
     {
@@ -141,7 +141,7 @@ namespace
     return backdrop.cachedBitmap.get();
 }
 
-void PaintTransientSurfaceBackdrop(WindowHost& host, const D2D1_RECT_F& surfaceRect, float cornerRadiusDip, TransientSurfaceBackdrop* backdrop) noexcept
+void PaintTransientSurfaceBackdrop(ControlHost& host, const D2D1_RECT_F& surfaceRect, float cornerRadiusDip, TransientSurfaceBackdrop* backdrop) noexcept
 {
     const ThemePalette& theme = host.GetTheme();
     const float opacity       = ResolveOverlayBackdropOpacity(theme);
@@ -193,7 +193,7 @@ void PaintTransientSurfaceBackdrop(WindowHost& host, const D2D1_RECT_F& surfaceR
 }
 } // namespace
 
-void PaintTransientSurface(WindowHost& host, const D2D1_RECT_F& surfaceRect, const TransientSurfaceOptions& options) noexcept
+void PaintTransientSurface(ControlHost& host, const D2D1_RECT_F& surfaceRect, const TransientSurfaceOptions& options) noexcept
 {
     ID2D1DeviceContext* const dc = host.GetDeviceContext();
     if (! dc)
@@ -346,6 +346,8 @@ void Control::SetBounds(const D2D1_RECT_F& bounds) noexcept
             return;
         }
 
+        if (_host && _host->_embedded)
+            ++_host->_interactionRevision;
         _bounds = bounds;
         OnBoundsChanged();
         RequestInvalidate();
@@ -367,19 +369,19 @@ std::optional<D2D1_RECT_F> Control::TryGetTextInputViewportRect() const noexcept
     return GetTextInputViewportRect();
 }
 
-std::optional<D2D1_RECT_F> Control::TryGetTextInputCaretRect(const WindowHost& host, size_t controlTextIndex) const noexcept
+std::optional<D2D1_RECT_F> Control::TryGetTextInputCaretRect(const ControlHost& host, size_t controlTextIndex) const noexcept
 {
     return GetTextInputCaretRect(host, controlTextIndex);
 }
 
-std::optional<std::vector<D2D1_RECT_F>> Control::TryGetTextInputRangeRects(const WindowHost& host,
+std::optional<std::vector<D2D1_RECT_F>> Control::TryGetTextInputRangeRects(const ControlHost& host,
                                                                            size_t controlTextStartIndex,
                                                                            size_t controlTextEndIndex) const
 {
     return GetTextInputRangeRects(host, controlTextStartIndex, controlTextEndIndex);
 }
 
-std::optional<size_t> Control::TryHitTestTextInputPoint(const WindowHost& host, D2D1_POINT_2F point) const noexcept
+std::optional<size_t> Control::TryHitTestTextInputPoint(const ControlHost& host, D2D1_POINT_2F point) const noexcept
 {
     return HitTestTextInputPoint(host, point);
 }
@@ -388,9 +390,11 @@ void Control::SetVisible(bool visible) noexcept
 {
     if (_visible != visible)
     {
+        if (_host && _host->_embedded)
+            ++_host->_interactionRevision;
         _visible = visible;
         RequestInvalidate();
-        if (WindowHost* const host = GetHost())
+        if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
@@ -406,10 +410,12 @@ void Control::SetEnabled(bool enabled) noexcept
 {
     if (_enabled != enabled)
     {
+        if (_host && _host->_embedded)
+            ++_host->_interactionRevision;
         _enabled = enabled;
         OnEnabledChanged(enabled);
         RequestInvalidate();
-        if (WindowHost* const host = GetHost())
+        if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
@@ -426,7 +432,7 @@ void Control::SetFocusable(bool focusable) noexcept
     if (_focusable != focusable)
     {
         _focusable = focusable;
-        if (WindowHost* const host = GetHost())
+        if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
@@ -458,16 +464,16 @@ std::wstring_view Control::GetTooltipText() const noexcept
     return _tooltipText;
 }
 
-void Control::PaintOverlay(WindowHost& /*host*/) const
+void Control::PaintOverlay(ControlHost& /*host*/) const
 {
 }
 
-bool Control::Tick(WindowHost& /*host*/, uint64_t /*nowTickMs*/)
+bool Control::Tick(ControlHost& /*host*/, uint64_t /*nowTickMs*/)
 {
     return false;
 }
 
-bool Control::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
+bool Control::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
     if (! _tooltipText.empty() && PointInRect(GetHitBounds(), point))
     {
@@ -476,48 +482,48 @@ bool Control::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modifier
     return false;
 }
 
-bool Control::OnMouseLeave(WindowHost& host)
+bool Control::OnMouseLeave(ControlHost& host)
 {
     static_cast<void>(host.ClearTooltip());
     return false;
 }
 
-bool Control::OnMouseDown(WindowHost& /*host*/, D2D1_POINT_2F /*point*/, bool /*rightButton*/, UINT /*modifiers*/)
+bool Control::OnMouseDown(ControlHost& /*host*/, D2D1_POINT_2F /*point*/, bool /*rightButton*/, UINT /*modifiers*/)
 {
     return false;
 }
 
-bool Control::OnMouseDoubleClick(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+bool Control::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     return OnMouseDown(host, point, rightButton, modifiers);
 }
 
-bool Control::OnMouseUp(WindowHost& /*host*/, D2D1_POINT_2F /*point*/, bool /*rightButton*/, UINT /*modifiers*/)
+bool Control::OnMouseUp(ControlHost& /*host*/, D2D1_POINT_2F /*point*/, bool /*rightButton*/, UINT /*modifiers*/)
 {
     return false;
 }
 
-bool Control::OnMouseWheel(WindowHost& /*host*/, D2D1_POINT_2F /*point*/, float /*wheelDelta*/, UINT /*modifiers*/)
+bool Control::OnMouseWheel(ControlHost& /*host*/, D2D1_POINT_2F /*point*/, float /*wheelDelta*/, UINT /*modifiers*/)
 {
     return false;
 }
 
-bool Control::OnKeyDown(WindowHost& /*host*/, UINT /*virtualKey*/, UINT /*modifiers*/)
+bool Control::OnKeyDown(ControlHost& /*host*/, UINT /*virtualKey*/, UINT /*modifiers*/)
 {
     return false;
 }
 
-bool Control::OnKeyUp(WindowHost& /*host*/, UINT /*virtualKey*/, UINT /*modifiers*/)
+bool Control::OnKeyUp(ControlHost& /*host*/, UINT /*virtualKey*/, UINT /*modifiers*/)
 {
     return false;
 }
 
-bool Control::OnChar(WindowHost& /*host*/, wchar_t /*ch*/, UINT /*modifiers*/)
+bool Control::OnChar(ControlHost& /*host*/, wchar_t /*ch*/, UINT /*modifiers*/)
 {
     return false;
 }
 
-bool Control::OnContextMenu(WindowHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
+bool Control::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
     if (! IsEnabled() || ! IsVisible() || ! _onContextMenu)
     {
@@ -528,17 +534,17 @@ bool Control::OnContextMenu(WindowHost& host, bool keyboardInvocation, D2D1_POIN
     return true;
 }
 
-bool Control::OnCopy(WindowHost& /*host*/)
+bool Control::OnCopy(ControlHost& /*host*/)
 {
     return false;
 }
 
-bool Control::OnSelectAll(WindowHost& /*host*/)
+bool Control::OnSelectAll(ControlHost& /*host*/)
 {
     return false;
 }
 
-bool Control::OnMnemonic(WindowHost& host)
+bool Control::OnMnemonic(ControlHost& host)
 {
     if (! IsEnabled() || ! IsVisible())
     {
@@ -573,7 +579,7 @@ const Control* Control::GetLogicalChild(size_t /*index*/) const noexcept
     return nullptr;
 }
 
-WindowHost* Control::GetHost() const noexcept
+ControlHost* Control::GetHost() const noexcept
 {
     return _host;
 }
@@ -701,7 +707,7 @@ void Control::SetAccessibleName(std::wstring name)
     {
         _accessibleName = std::move(name);
         RequestInvalidate();
-        if (WindowHost* const host = GetHost())
+        if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
@@ -719,7 +725,7 @@ void Control::SetAccessibleHelpText(std::wstring helpText)
     {
         _accessibleHelpText = std::move(helpText);
         RequestInvalidate();
-        if (WindowHost* const host = GetHost())
+        if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
@@ -736,7 +742,7 @@ void Control::SetAccessibleAutomationId(std::wstring automationId)
     if (_accessibleAutomationId != automationId)
     {
         _accessibleAutomationId = std::move(automationId);
-        if (WindowHost* const host = GetHost())
+        if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
@@ -754,7 +760,7 @@ void Control::SetAccessibilityRole(AccessibilityRole role) noexcept
     {
         _accessibilityRole = role;
         RequestInvalidate();
-        if (WindowHost* const host = GetHost())
+        if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
@@ -766,10 +772,10 @@ AccessibilityRole Control::GetAccessibilityRole() const noexcept
     return _accessibilityRole;
 }
 
-void Control::SetAccessibleInvoke(std::function<void(WindowHost&)> onInvoke)
+void Control::SetAccessibleInvoke(std::function<void(ControlHost&)> onInvoke)
 {
     _onAccessibleInvoke = std::move(onInvoke);
-    if (WindowHost* const host = GetHost())
+    if (ControlHost* const host = GetHost())
     {
         RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
     }
@@ -780,7 +786,7 @@ bool Control::SupportsAccessibleInvoke() const noexcept
     return static_cast<bool>(_onAccessibleInvoke);
 }
 
-bool Control::InvokeAccessible(WindowHost& host)
+bool Control::InvokeAccessible(ControlHost& host)
 {
     if (! _onAccessibleInvoke || ! IsVisible() || ! IsEnabled())
     {
@@ -816,7 +822,7 @@ const Control* Control::HitTestOverlay(D2D1_POINT_2F /*point*/) const
     return nullptr;
 }
 
-bool Control::DismissOverlayOnPointerDown(WindowHost& host, D2D1_POINT_2F point)
+bool Control::DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F point)
 {
     if (! IsVisible() || ! IsEnabled())
     {
@@ -835,7 +841,7 @@ bool Control::DismissOverlayOnPointerDown(WindowHost& host, D2D1_POINT_2F point)
     return false;
 }
 
-POINT Control::ResolveContextMenuAnchor(WindowHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip) const noexcept
+POINT Control::ResolveContextMenuAnchor(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip) const noexcept
 {
     if (! keyboardInvocation)
     {
@@ -848,12 +854,12 @@ POINT Control::ResolveContextMenuAnchor(WindowHost& host, bool keyboardInvocatio
     return host.DipPointToScreenPoint(D2D1::Point2F(anchorX, anchorY));
 }
 
-WindowHostCursorKind Control::ResolveCursorKind(WindowHost& /*host*/, D2D1_POINT_2F /*pointDip*/) const noexcept
+WindowHostCursorKind Control::ResolveCursorKind(ControlHost& /*host*/, D2D1_POINT_2F /*pointDip*/) const noexcept
 {
     return WindowHostCursorKind::Default;
 }
 
-void Control::Invalidate(WindowHost& host) const
+void Control::Invalidate(ControlHost& host) const
 {
     host.Invalidate();
 }
@@ -866,8 +872,21 @@ void Control::RequestInvalidate() const noexcept
     }
 }
 
-void Control::PropagateHost(WindowHost* host) noexcept
+void Control::PropagateHost(ControlHost* host) noexcept
 {
+    if (_host != host)
+    {
+        if (_host && _host->_embedded)
+        {
+            ++_host->_interactionRevision;
+            _host->Invalidate();
+        }
+        if (host && host->_embedded)
+        {
+            ++host->_interactionRevision;
+            host->Invalidate();
+        }
+    }
     _host = host;
 }
 
@@ -908,21 +927,21 @@ void Control::OnEnabledChanged(bool /*enabled*/) noexcept
 {
 }
 
-void Control::OnHostDpiChanged(WindowHost& /*host*/) noexcept
+void Control::OnHostDpiChanged(ControlHost& /*host*/) noexcept
 {
 }
 
-void Control::OnFocusChanged(WindowHost& /*host*/, bool focused)
+void Control::OnFocusChanged(ControlHost& /*host*/, bool focused)
 {
     _hasFocus = focused;
 }
 
-void Control::OnHoverChanged(WindowHost& /*host*/, bool hovered)
+void Control::OnHoverChanged(ControlHost& /*host*/, bool hovered)
 {
     _hovered = hovered;
 }
 
-void Control::OnCaptureLost(WindowHost& /*host*/)
+void Control::OnCaptureLost(ControlHost& /*host*/)
 {
 }
 
@@ -936,19 +955,19 @@ std::optional<D2D1_RECT_F> Control::GetTextInputViewportRect() const noexcept
     return std::nullopt;
 }
 
-std::optional<D2D1_RECT_F> Control::GetTextInputCaretRect(const WindowHost& /*host*/, size_t /*controlTextIndex*/) const noexcept
+std::optional<D2D1_RECT_F> Control::GetTextInputCaretRect(const ControlHost& /*host*/, size_t /*controlTextIndex*/) const noexcept
 {
     return std::nullopt;
 }
 
-std::optional<std::vector<D2D1_RECT_F>> Control::GetTextInputRangeRects(const WindowHost& /*host*/,
+std::optional<std::vector<D2D1_RECT_F>> Control::GetTextInputRangeRects(const ControlHost& /*host*/,
                                                                         size_t /*controlTextStartIndex*/,
                                                                         size_t /*controlTextEndIndex*/) const
 {
     return std::nullopt;
 }
 
-std::optional<size_t> Control::HitTestTextInputPoint(const WindowHost& /*host*/, D2D1_POINT_2F /*point*/) const noexcept
+std::optional<size_t> Control::HitTestTextInputPoint(const ControlHost& /*host*/, D2D1_POINT_2F /*point*/) const noexcept
 {
     return std::nullopt;
 }
@@ -958,7 +977,7 @@ bool Control::ExportTextInputState(TextInputState& /*outState*/) const
     return false;
 }
 
-bool Control::ImportTextInputState(WindowHost& /*host*/, const TextInputState& /*state*/, bool /*notifyChange*/)
+bool Control::ImportTextInputState(ControlHost& /*host*/, const TextInputState& /*state*/, bool /*notifyChange*/)
 {
     return false;
 }

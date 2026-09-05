@@ -1,6 +1,4 @@
 #include "DxUiTestHelpers.h"
-#include "DxUiThemePalette.h"
-#include "SettingsStore.h"
 
 #include <algorithm>
 #include <array>
@@ -50,185 +48,42 @@ void ResizeClientArea(HWND hwnd, UINT widthPx, UINT heightPx);
     return (toByte(color.a) << 24u) | (toByte(color.r) << 16u) | (toByte(color.g) << 8u) | toByte(color.b);
 }
 
-[[nodiscard]] D2D1_COLOR_F BlendColorForGallery(const D2D1_COLOR_F& a, const D2D1_COLOR_F& b, float t) noexcept
-{
-    const float clamped = ClampUnit(t);
-    return D2D1::ColorF(a.r + ((b.r - a.r) * clamped), a.g + ((b.g - a.g) * clamped), a.b + ((b.b - a.b) * clamped), a.a + ((b.a - a.a) * clamped));
-}
-
-[[nodiscard]] uint32_t ResolveColor(const Common::Settings::ThemeDefinition& theme, std::wstring_view key, uint32_t fallback)
-{
-    auto context = Common::Settings::MakeSystemThemeResolutionContext(theme.baseThemeId == L"builtin/dark");
-    Common::Settings::ResolvedThemeColors resolved;
-    if (FAILED(Common::Settings::ResolveThemeDefinition(theme, context, resolved)))
-    {
-        return fallback;
-    }
-    const auto it = resolved.colors.find(std::wstring(key));
-    return it == resolved.colors.end() ? fallback : it->second;
-}
-
-[[nodiscard]] bool IsDarkArgb(uint32_t argb) noexcept
-{
-    const D2D1_COLOR_F color = ColorFromArgbForGallery(argb);
-    const float luminance    = (color.r * 0.2126f) + (color.g * 0.7152f) + (color.b * 0.0722f);
-    return luminance < 0.48f;
-}
-
-[[nodiscard]] ThemePalette MakeViewerBackedPalette(uint32_t backgroundArgb,
-                                                   uint32_t textArgb,
-                                                   uint32_t selectionArgb,
-                                                   uint32_t selectionTextArgb,
-                                                   uint32_t accentArgb,
-                                                   bool dark,
-                                                   bool highContrast,
-                                                   bool rainbowMode)
-{
-    ViewerTheme viewerTheme{.sizeBytes = sizeof(ViewerTheme)};
-    viewerTheme.dpi                           = USER_DEFAULT_SCREEN_DPI;
-    viewerTheme.backgroundArgb                = backgroundArgb;
-    viewerTheme.textArgb                      = textArgb;
-    viewerTheme.selectionBackgroundArgb       = selectionArgb;
-    viewerTheme.selectionTextArgb             = selectionTextArgb;
-    viewerTheme.accentArgb                    = accentArgb;
-    viewerTheme.alertErrorBackgroundArgb      = dark ? 0xFF5C1F25u : 0xFFFFE5E8u;
-    viewerTheme.alertErrorTextArgb            = dark ? 0xFFFFD8DCu : 0xFF8A1F2Du;
-    viewerTheme.alertWarningBackgroundArgb    = dark ? 0xFF5A430Eu : 0xFFFFF4CEu;
-    viewerTheme.alertWarningTextArgb          = dark ? 0xFFFFE3A1u : 0xFF6A4B00u;
-    viewerTheme.alertInfoBackgroundArgb       = dark ? 0xFF18324Au : 0xFFE8F3FFu;
-    viewerTheme.alertInfoTextArgb             = dark ? 0xFFD6E8FFu : 0xFF005A9Eu;
-    viewerTheme.darkMode                      = dark ? TRUE : FALSE;
-    viewerTheme.highContrast                  = highContrast ? TRUE : FALSE;
-    viewerTheme.rainbowMode                   = rainbowMode ? TRUE : FALSE;
-    viewerTheme.darkBase                      = dark ? TRUE : FALSE;
-    viewerTheme.diffAddedBackgroundArgb       = dark ? 0x3830C060u : 0x2430A040u;
-    viewerTheme.diffRemovedBackgroundArgb     = dark ? 0x38D85050u : 0x24C03030u;
-    viewerTheme.diffContextBackgroundArgb     = 0x180078D4u;
-    viewerTheme.diffHeaderBackgroundArgb      = 0x240078D4u;
-    viewerTheme.diffBannerBackgroundArgb      = 0x300078D4u;
-    viewerTheme.diffPlaceholderBackgroundArgb = 0x240078D4u;
-    viewerTheme.diffDividerArgb               = dark ? 0xCC555555u : 0xCCB0B0B0u;
-    return MakeThemePaletteFromViewerTheme(viewerTheme);
-}
-
-void ApplyCustomThemePaletteOverrides(ThemePalette& palette, const Common::Settings::ThemeDefinition& theme)
-{
-    const uint32_t accentArgb     = ResolveColor(theme, L"app.accent", PackArgbForGallery(palette.accent));
-    const uint32_t menuBackground = ResolveColor(theme, L"menu.background", PackArgbForGallery(palette.headerBackground));
-    const uint32_t menuBorder     = ResolveColor(theme, L"menu.border", PackArgbForGallery(palette.border));
-    const uint32_t disabledText   = ResolveColor(theme, L"menu.disabledText", PackArgbForGallery(palette.disabledText));
-    const uint32_t focusBorder    = ResolveColor(theme, L"folderView.focusBorder", PackArgbForGallery(palette.focusStroke));
-    const uint32_t scrollbarTrack = ResolveColor(theme, L"fileOps.scrollbarTrack", PackArgbForGallery(palette.scrollbarTrack));
-    const uint32_t scrollbarThumb = ResolveColor(theme, L"fileOps.scrollbarThumb", PackArgbForGallery(palette.scrollbarThumb));
-
-    palette.accent      = ColorFromArgbForGallery(accentArgb);
-    palette.accentHover = BlendColorForGallery(palette.accent, D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f), palette.dark ? 0.22f : 0.14f);
-    palette.accentPressed =
-        BlendColorForGallery(palette.accent, palette.dark ? D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f) : D2D1::ColorF(0.0f, 0.0f, 0.0f, 1.0f), 0.18f);
-    palette.headerBackground  = ColorFromArgbForGallery(menuBackground);
-    palette.overlayBackground = BlendColorForGallery(palette.headerBackground, palette.surfaceBackground, palette.dark ? 0.22f : 0.36f);
-    palette.buttonFill        = palette.headerBackground;
-    palette.buttonHotFill     = BlendColorForGallery(palette.buttonFill, palette.accent, palette.dark ? 0.14f : 0.08f);
-    palette.buttonPressedFill = BlendColorForGallery(palette.buttonFill, palette.accent, palette.dark ? 0.24f : 0.16f);
-    palette.border            = ColorFromArgbForGallery(menuBorder);
-    palette.gridLine          = palette.border;
-    palette.overlayBorder     = palette.border;
-    palette.buttonBorder      = palette.border;
-    palette.inputBorder       = palette.border;
-    palette.disabledText      = ColorFromArgbForGallery(disabledText);
-    palette.focusStroke       = ColorFromArgbForGallery(focusBorder);
-    palette.scrollbarTrack    = ColorFromArgbForGallery(scrollbarTrack);
-    palette.scrollbarThumb    = ColorFromArgbForGallery(scrollbarThumb);
-    palette.scrollbarThumbHot = BlendColorForGallery(palette.scrollbarThumb, palette.text, palette.dark ? 0.28f : 0.18f);
-
-    palette.errorFill   = ColorFromArgbForGallery(ResolveColor(theme, L"folderView.errorBackground", PackArgbForGallery(palette.errorFill)));
-    palette.errorText   = ColorFromArgbForGallery(ResolveColor(theme, L"folderView.errorText", PackArgbForGallery(palette.errorText)));
-    palette.warningFill = ColorFromArgbForGallery(ResolveColor(theme, L"folderView.warningBackground", PackArgbForGallery(palette.warningFill)));
-    palette.warningText = ColorFromArgbForGallery(ResolveColor(theme, L"folderView.warningText", PackArgbForGallery(palette.warningText)));
-    palette.infoFill    = ColorFromArgbForGallery(ResolveColor(theme, L"folderView.infoBackground", PackArgbForGallery(palette.infoFill)));
-    palette.infoText    = ColorFromArgbForGallery(ResolveColor(theme, L"folderView.infoText", PackArgbForGallery(palette.infoText)));
-}
-
-[[nodiscard]] ThemePalette MakeCustomThemePalette(const Common::Settings::ThemeDefinition& theme)
-{
-    const bool darkBase     = theme.baseThemeId == L"builtin/dark";
-    const ThemePalette base = MakeDefaultThemePalette(darkBase);
-    const uint32_t bgArgb   = ResolveColor(theme, L"window.background", PackArgbForGallery(base.windowBackground));
-    const bool dark         = darkBase || IsDarkArgb(bgArgb);
-    const uint32_t textArgb = ResolveColor(theme, L"menu.text", PackArgbForGallery(base.text));
-    const uint32_t selectBg = ResolveColor(theme, L"menu.selectionBg", PackArgbForGallery(base.selectionFill));
-    const uint32_t selectFg = ResolveColor(theme, L"menu.selectionText", PackArgbForGallery(base.selectionText));
-    const uint32_t accent   = ResolveColor(theme, L"app.accent", PackArgbForGallery(base.accent));
-
-    const bool rainbowBase = theme.baseThemeId == L"builtin/rainbow";
-    ThemePalette palette   = MakeViewerBackedPalette(bgArgb, textArgb, selectBg, selectFg, accent, dark, false, rainbowBase);
-    ApplyCustomThemePaletteOverrides(palette, theme);
-    palette.reducedMotion = true;
-    return palette;
-}
-
 struct GalleryTheme
 {
     std::wstring name;
     std::wstring slug;
     ThemePalette palette;
 };
-
-[[nodiscard]] ThemePalette MakeBuiltInGalleryPalette(ThemeMode mode, std::wstring_view seed)
-{
-    ThemePalette palette  = MakeAppThemeDxPalette(ResolveAppTheme(mode, seed));
-    palette.reducedMotion = true;
-    return palette;
-}
-
-[[nodiscard]] ThemePalette MakeRainbowGalleryPalette(bool dark, std::wstring_view seed)
-{
-    const uint32_t hash       = StableHash32(seed);
-    const float hue           = static_cast<float>(hash % 360u);
-    const D2D1::ColorF accent = ColorFromHSV(hue, 0.85f, dark ? 0.80f : 0.90f, 1.0f);
-
-    AppTheme appTheme                                              = ResolveAppTheme(dark ? ThemeMode::Dark : ThemeMode::Light, seed, accent);
-    appTheme.requestedMode                                         = ThemeMode::Rainbow;
-    appTheme.folderView.rainbowMode                                = true;
-    appTheme.folderView.darkBase                                   = dark;
-    appTheme.folderView.itemBackgroundSelectedUsesInheritedRainbow = true;
-    appTheme.navigationView.rainbowMode                            = true;
-    appTheme.navigationView.darkBase                               = dark;
-    appTheme.menu.rainbowMode                                      = true;
-    appTheme.menu.darkBase                                         = dark;
-
-    ThemePalette palette  = MakeAppThemeDxPalette(appTheme);
-    palette.reducedMotion = true;
-    return palette;
-}
-
 [[nodiscard]] std::vector<GalleryTheme> BuildGalleryThemes()
 {
     std::vector<GalleryTheme> themes;
-
-    themes.push_back(GalleryTheme{.name = L"Light", .slug = L"light", .palette = MakeBuiltInGalleryPalette(ThemeMode::Light, L"dxui-gallery-light")});
-    themes.push_back(GalleryTheme{.name = L"Dark", .slug = L"dark", .palette = MakeBuiltInGalleryPalette(ThemeMode::Dark, L"dxui-gallery-dark")});
-    themes.push_back(GalleryTheme{.name = L"Rainbow (Light)", .slug = L"rainbow-light", .palette = MakeRainbowGalleryPalette(false, L"dxui-gallery-rainbow")});
-    themes.push_back(GalleryTheme{.name = L"Rainbow (Dark)", .slug = L"rainbow-dark", .palette = MakeRainbowGalleryPalette(true, L"dxui-gallery-rainbow")});
-    themes.push_back(GalleryTheme{
-        .name = L"High Contrast", .slug = L"high-contrast", .palette = MakeBuiltInGalleryPalette(ThemeMode::HighContrast, L"dxui-gallery-high-contrast")});
-
-    std::vector<Common::Settings::ThemeDefinition> customThemes;
-    const std::filesystem::path themeDirectory = FindRepoRootForDxUiTests() / L"Specs" / L"Themes";
-    Require(SUCCEEDED(Common::Settings::LoadThemeDefinitionsFromDirectory(themeDirectory, customThemes)), "gallery custom theme definitions load");
-    std::ranges::sort(customThemes, [](const auto& lhs, const auto& rhs) { return lhs.name < rhs.name; });
-
-    for (const auto& theme : customThemes)
+    for (int i = 0; i < 5; ++i)
     {
-        std::wstring slug                       = theme.id;
-        constexpr std::wstring_view kUserPrefix = L"user/";
-        if (slug.starts_with(kUserPrefix))
+        const bool dark       = i == 1 || i == 3 || i == 4;
+        auto palette          = MakeDefaultThemePalette(dark);
+        palette.reducedMotion = true;
+        if (i == 2 || i == 3)
         {
-            slug.erase(0u, kUserPrefix.size());
+            palette.rainbowMode = true;
         }
-        themes.push_back(GalleryTheme{.name = theme.name, .slug = std::move(slug), .palette = MakeCustomThemePalette(theme)});
+        if (i == 4)
+        {
+            ThemeColors colors{};
+            colors.backgroundArgb          = 0xFF000000;
+            colors.textArgb                = 0xFFFFFFFF;
+            colors.selectionBackgroundArgb = 0xFF003B80;
+            colors.selectionTextArgb       = 0xFFFFFFFF;
+            colors.accentArgb              = 0xFFFFFF00;
+            colors.darkMode                = TRUE;
+            colors.darkBase                = TRUE;
+            colors.highContrast            = TRUE;
+            palette                        = MakeThemePalette(colors);
+            palette.reducedMotion          = true;
+        }
+        const wchar_t* names[] = {L"Light", L"Dark", L"Rainbow light", L"Rainbow dark", L"High contrast"};
+        const wchar_t* slugs[] = {L"light", L"dark", L"rainbow-light", L"rainbow-dark", L"high-contrast"};
+        themes.push_back({names[i], slugs[i], palette});
     }
-
     return themes;
 }
 
@@ -700,10 +555,10 @@ public:
     GalleryTreeModel()
     {
         _items = {
-            TreeItemData{.id = 1u, .text = L"Controls", .iconText = L"\xE8A5", .hasChildren = true, .expanded = true},
-            TreeItemData{.id = 2u, .parentId = 1u, .text = L"Buttons", .iconText = L"\xE7C9", .badgeText = L"6", .depth = 1u},
-            TreeItemData{.id = 3u, .parentId = 1u, .text = L"Inputs", .iconText = L"\xE8D4", .badgeText = L"3", .depth = 1u, .badgeTone = AdornmentTone::Info},
-            TreeItemData{.id = 4u, .text = L"Themes", .iconText = L"\xE790", .badgeText = L"On", .badgeTone = AdornmentTone::Warning},
+            TreeItemData{.id = 1u, .text = L"Controls", .iconText = L"C", .hasChildren = true, .expanded = true},
+            TreeItemData{.id = 2u, .parentId = 1u, .text = L"Buttons", .iconText = L"B", .badgeText = L"6", .depth = 1u},
+            TreeItemData{.id = 3u, .parentId = 1u, .text = L"Inputs", .iconText = L"I", .badgeText = L"3", .depth = 1u, .badgeTone = AdornmentTone::Info},
+            TreeItemData{.id = 4u, .text = L"Themes", .iconText = L"T", .badgeText = L"On", .badgeTone = AdornmentTone::Warning},
         };
     }
 
@@ -1014,15 +869,15 @@ void AddComboItems(ComboBox& combo)
         group->SetHeader(L"Update cadence");
         group->SetBounds(tile.content);
         auto* daily = group->AddItem(L"Daily");
-        daily->SetBounds(D2D1::RectF(tile.content.left + 8.0f, tile.content.top + 24.0f, tile.content.left + 150.0f, tile.content.top + 56.0f));
+        daily->SetBounds(D2D1::RectF(tile.content.left + 8.0f, tile.content.top + 24.0f, tile.content.left + 95.0f, tile.content.top + 56.0f));
         auto* weekly = group->AddItem(L"Weekly");
-        weekly->SetBounds(D2D1::RectF(tile.content.left + 150.0f, tile.content.top + 24.0f, tile.content.right - 8.0f, tile.content.top + 56.0f));
+        weekly->SetBounds(D2D1::RectF(tile.content.left + 96.0f, tile.content.top + 24.0f, tile.content.right - 8.0f, tile.content.top + 56.0f));
         group->SetSelectedIndex(1);
     }
     {
         const Tile tile = flow.Next(*scene.root, L"ProgressBar / Determinate");
         auto* progress  = scene.root->AddChild<ProgressBar>();
-        progress->SetValue(0.62);
+        progress->SetValue(62.0);
         progress->SetBounds(CenterIn(tile.content, 260.0f, 20.0f));
     }
     {
@@ -1049,10 +904,12 @@ void AddComboItems(ComboBox& combo)
         const Tile tile = flow.Next(*scene.root, L"Toolbar / Icon buttons");
         auto* toolbar   = scene.root->AddChild<Toolbar>();
         toolbar->SetBounds(CenterIn(tile.content, 220.0f, 40.0f));
-        toolbar->AddButton(L"Refresh", L"\xE72C");
-        toolbar->AddButton(L"Copy", L"\xE8C8");
-        toolbar->AddSeparator();
-        toolbar->AddToggleButton(L"Pin", L"\xE718")->SetChecked(true);
+        const auto bar = toolbar->GetBounds();
+        toolbar->AddButton(L"Refresh", L"\xE72C")->SetBounds(D2D1::RectF(bar.left + 8, bar.top + 4, bar.left + 44, bar.bottom - 4));
+        toolbar->AddButton(L"Copy", L"\xE8C8")->SetBounds(D2D1::RectF(bar.left + 48, bar.top + 4, bar.left + 84, bar.bottom - 4));
+        auto* pin = toolbar->AddToggleButton(L"Pin", L"\xE718");
+        pin->SetChecked(true);
+        pin->SetBounds(D2D1::RectF(bar.left + 104, bar.top + 4, bar.left + 148, bar.bottom - 4));
     }
     {
         const Tile tile = flow.Next(*scene.root, L"MenuBar / Standard");
@@ -1214,9 +1071,44 @@ void AddComboItems(ComboBox& combo)
         const Tile tile = flow.Next(*scene.root, L"TooltipLayer / Tooltip");
         auto* target    = scene.root->AddChild<Button>(L"Hover target");
         target->SetBounds(CenterIn(tile.content, 150.0f, 32.0f));
-        scene.tooltipOrigin = D2D1::Point2F(tile.content.left + 210.0f, tile.content.top + 16.0f);
+        scene.tooltipOrigin = D2D1::Point2F(tile.content.left + 16.0f, tile.content.top + 4.0f);
     }
 
+    {
+        const Tile tile = flow.Next(*scene.root, L"TagPicker / Selected tags");
+        auto* tags      = scene.root->AddChild<TagPicker>();
+        tags->SetOptions(L"All", {L"Audio", L"Video", L"Devices"});
+        tags->SetSelectedValues({L"Audio", L"Video"});
+        tags->SetBounds(tile.content);
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"ThroughputGraph / History");
+        auto* graph     = scene.root->AddChild<ThroughputGraph>();
+        graph->SetBounds(tile.content);
+        const std::array<ThroughputGraphSample, 8> samples{{{12}, {24}, {18}, {43}, {28}, {62}, {51}, {74}}};
+        graph->SetSamples(samples);
+        graph->SetLimit(100);
+        graph->SetCurrentValueMarker(74, L"74 MB/s");
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"StackPanel / Layout");
+        auto* stack     = scene.root->AddChild<StackPanel>();
+        stack->SetBounds(tile.content);
+        stack->SetGap(4);
+        for (int i = 0; i < 2; ++i)
+        {
+            auto* label = stack->AddChild<Label>(std::format(L"Stacked item {}", i + 1));
+            stack->SetChildExtent(label, 26);
+        }
+        stack->ApplyLayout();
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"Panel / Container");
+        auto* panel     = scene.root->AddChild<Panel>();
+        panel->SetBounds(tile.content);
+        auto* label = panel->AddChild<Label>(L"Absolute child layout");
+        label->SetBounds(tile.content);
+    }
     if (flow.rowHeight > 0.0f)
     {
         flow.NewRow();

@@ -28,3 +28,13 @@ counters distinguish library-controlled work from OS/driver internals, which rem
 bounded by the application allocator. If the prototype misses acceptable resource or latency targets, optimize the
 dirty/caching path or revise the rendering adapter with measured justification; keep the shared control model and
 do not silently fork controls into AV.
+
+### Single-library implementation budgets
+
+EmbeddedHost has one cached surface (64 MiB maximum, 128 MiB transactional replacement peak) and shares immutable
+composition state, D2D device and DWrite factory through GraphicsDevice. A consumer using tile/raised views admits
+their summed surface cost. Composite is a single triangle with shader constants derived from SV_VertexID and needs
+no per-view vertex/index/dynamic constant buffer. Hidden state performs no timer subscription; native WindowHost
+alone uses the event-driven animation dispatcher. Diagnostics are borrowed and optional; composition does not emit
+them. The private window-message payload registry is bounded to 128 windows and 128 queued payloads; saturation
+fails immediately and releases transferred ownership. Teardown invalidates queued tokens and drains outside its lock.

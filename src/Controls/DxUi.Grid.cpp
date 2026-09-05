@@ -2,8 +2,8 @@
 #define NOMINMAX
 #endif
 
+#include "../Support/Diagnostics.h"
 #include "DxUi.Internal.h"
-#include "Helpers.h"
 
 #include <algorithm>
 #include <chrono>
@@ -296,7 +296,7 @@ struct GridResolvedCellVisuals final
     return visuals;
 }
 
-[[nodiscard]] bool IsGridCellVisibleTextClipped(const WindowHost& host,
+[[nodiscard]] bool IsGridCellVisibleTextClipped(const ControlHost& host,
                                                 const GridCellData& cellData,
                                                 const GridCellLayoutMetrics& layout,
                                                 uint32_t lineClamp) noexcept
@@ -566,7 +566,7 @@ constexpr uint64_t kSortGlyphTransitionDurationMs = 140u;
     return D2D1::ColorF(color.r, color.g, color.b, std::clamp(opacity, 0.0f, 1.0f) * color.a);
 }
 
-void DrawSortGlyph(WindowHost& host, const D2D1_RECT_F& rect, SortDirection direction, const D2D1_COLOR_F& color)
+void DrawSortGlyph(ControlHost& host, const D2D1_RECT_F& rect, SortDirection direction, const D2D1_COLOR_F& color)
 {
     if (direction == SortDirection::None)
     {
@@ -577,7 +577,7 @@ void DrawSortGlyph(WindowHost& host, const D2D1_RECT_F& rect, SortDirection dire
     DrawChevronGlyph(host, glyphRect, direction == SortDirection::Ascending ? ChevronDirection::Up : ChevronDirection::Down, color);
 }
 
-void DrawGroupDisclosureGlyph(WindowHost& host, const D2D1_RECT_F& rect, bool collapsed, const D2D1_COLOR_F& color)
+void DrawGroupDisclosureGlyph(ControlHost& host, const D2D1_RECT_F& rect, bool collapsed, const D2D1_COLOR_F& color)
 {
     const D2D1_RECT_F glyphRect = D2D1::RectF(rect.left + 4.0f, rect.top, rect.left + 24.0f, rect.bottom);
     DrawDisclosureChevron(host, glyphRect, collapsed ? 0.0f : 1.0f, color);
@@ -828,7 +828,7 @@ void Grid::SetVisualMode(GridVisualMode mode) noexcept
     }
 
     _visualMode = mode;
-    if (WindowHost* host = GetHost())
+    if (ControlHost* host = GetHost())
     {
         Invalidate(*host);
     }
@@ -1169,7 +1169,7 @@ const GridSelectionModel& Grid::GetSelectionModel() const noexcept
 
 void Grid::RefreshAccessibilitySnapshot() const noexcept
 {
-    if (WindowHost* const host = GetHost())
+    if (ControlHost* const host = GetHost())
     {
         RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
     }
@@ -1241,7 +1241,7 @@ GridVisibleWorkMetrics Grid::GetVisibleWorkMetrics() const
     return metrics;
 }
 
-GridCellLayoutMetrics Grid::GetCellLayoutMetrics(const WindowHost& host, size_t rowIndex, size_t columnIndex) const
+GridCellLayoutMetrics Grid::GetCellLayoutMetrics(const ControlHost& host, size_t rowIndex, size_t columnIndex) const
 {
     GridCellLayoutMetrics metrics{};
     if (! _model || rowIndex >= _model->GetRowCount() || columnIndex >= _model->GetColumnCount())
@@ -1646,7 +1646,7 @@ std::optional<size_t> Grid::GetPrimarySelectedRow() const noexcept
     return _model->FindRowByStableId(selection.back());
 }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 bool Grid::DebugHitTestPoint(PointDip pointDip, GridDebugHitInfo& out) const noexcept
 {
     out = {};
@@ -1846,7 +1846,7 @@ bool Grid::RequestRemoveRowSelection(size_t rowIndex)
     return true;
 }
 
-bool Grid::RequestToggleCheckboxCell(WindowHost& host, size_t rowIndex, size_t columnIndex)
+bool Grid::RequestToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnIndex)
 {
     if (! _model || rowIndex >= _model->GetRowCount() || ! FindVisibleRowOrdinal(rowIndex))
     {
@@ -1856,7 +1856,7 @@ bool Grid::RequestToggleCheckboxCell(WindowHost& host, size_t rowIndex, size_t c
     return ToggleCheckboxCell(host, rowIndex, columnIndex);
 }
 
-void Grid::Paint(WindowHost& host) const
+void Grid::Paint(ControlHost& host) const
 {
     _lastPaintHadAnimatedVisibleCells = false;
     _animatedVisibleCellStateValid    = true;
@@ -1866,7 +1866,7 @@ void Grid::Paint(WindowHost& host) const
         return;
     }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     ++_debugPaintCount;
 #endif
 
@@ -2289,7 +2289,7 @@ void Grid::Paint(WindowHost& host) const
     }
 }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 uint64_t Grid::DebugGetPaintCount() const noexcept
 {
     return _debugPaintCount;
@@ -2303,7 +2303,7 @@ void Grid::DebugSetScrollOffsets(float verticalScrollDip, float horizontalScroll
 }
 #endif
 
-bool Grid::Tick(WindowHost& host, uint64_t nowTickMs)
+bool Grid::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     if (host.GetTheme().reducedMotion)
     {
@@ -2467,7 +2467,7 @@ bool Grid::UpdateScrollbarHotState(const HitInfo& hit) noexcept
     return _verticalScrollbarHotPart != previousVerticalHotPart || _horizontalScrollbarHotPart != previousHorizontalHotPart;
 }
 
-void Grid::SyncScrollbarAnimation(WindowHost& host) noexcept
+void Grid::SyncScrollbarAnimation(ControlHost& host) noexcept
 {
     UpdateScrollbarAnimation(host,
                              _verticalScrollbarAnimation,
@@ -2481,7 +2481,7 @@ void Grid::SyncScrollbarAnimation(WindowHost& host) noexcept
                              _dragHorizontalThumb);
 }
 
-GridCellLayoutMetrics Grid::ComputeCellLayoutMetrics(const WindowHost& host,
+GridCellLayoutMetrics Grid::ComputeCellLayoutMetrics(const ControlHost& host,
                                                      const D2D1_RECT_F& cellRect,
                                                      const GridColumnDesc& columnDesc,
                                                      const GridCellData& cellData) const noexcept
@@ -2576,7 +2576,7 @@ GridCellLayoutMetrics Grid::ComputeCellLayoutMetrics(const WindowHost& host,
     return metrics;
 }
 
-bool Grid::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
+bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
     if (_resizeColumn)
     {
@@ -2717,7 +2717,7 @@ bool Grid::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modifiers*/
     return hit.zone != HitZone::None;
 }
 
-bool Grid::OnMouseLeave(WindowHost& host)
+bool Grid::OnMouseLeave(ControlHost& host)
 {
     const bool hadHoverOrHotState = _hoveredRow.has_value() || _hoveredColumn.has_value() || _verticalScrollbarHotPart != ScrollbarHotPart::None ||
                                     _horizontalScrollbarHotPart != ScrollbarHotPart::None;
@@ -2733,7 +2733,7 @@ bool Grid::OnMouseLeave(WindowHost& host)
     return true;
 }
 
-bool Grid::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     if (! _model)
     {
@@ -2896,7 +2896,7 @@ bool Grid::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton, 
     return false;
 }
 
-void Grid::OnCaptureLost(WindowHost& host)
+void Grid::OnCaptureLost(ControlHost& host)
 {
     const bool hadDrag =
         _resizeColumn.has_value() || _dragVerticalThumb || _dragHorizontalThumb || _dragReorderColumn.has_value() || _pressedHeaderColumn.has_value();
@@ -2915,7 +2915,7 @@ void Grid::OnCaptureLost(WindowHost& host)
     }
 }
 
-bool Grid::OnMouseDoubleClick(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     if (! _model || rightButton)
     {
@@ -2975,7 +2975,7 @@ bool Grid::OnMouseDoubleClick(WindowHost& host, D2D1_POINT_2F point, bool rightB
     return true;
 }
 
-bool Grid::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool Grid::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     const bool hadThumbDrag = _dragVerticalThumb || _dragHorizontalThumb;
     const bool hadDrag      = _resizeColumn.has_value() || _dragVerticalThumb || _dragHorizontalThumb || _dragReorderColumn.has_value();
@@ -3064,7 +3064,7 @@ bool Grid::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UI
     return hadDrag;
 }
 
-bool Grid::OnMouseWheel(WindowHost& host, D2D1_POINT_2F /*point*/, float wheelDelta, UINT /*modifiers*/)
+bool Grid::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float wheelDelta, UINT /*modifiers*/)
 {
     if (GetVerticalScrollableExtent() <= 0.0f)
     {
@@ -3083,7 +3083,7 @@ bool Grid::OnMouseWheel(WindowHost& host, D2D1_POINT_2F /*point*/, float wheelDe
     return true;
 }
 
-bool Grid::OnKeyDown(WindowHost& host, UINT virtualKey, UINT modifiers)
+bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     if (! _model || _model->GetRowCount() == 0u)
     {
@@ -3302,7 +3302,7 @@ bool Grid::OnKeyDown(WindowHost& host, UINT virtualKey, UINT modifiers)
     return true;
 }
 
-bool Grid::OnContextMenu(WindowHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
+bool Grid::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
     if (! _model || ! _delegate || _model->GetRowCount() == 0u)
     {
@@ -3353,12 +3353,12 @@ bool Grid::OnContextMenu(WindowHost& host, bool keyboardInvocation, D2D1_POINT_2
     return true;
 }
 
-bool Grid::OnCopy(WindowHost& host)
+bool Grid::OnCopy(ControlHost& host)
 {
     return host.CopyTextToClipboard(BuildSelectionTsv());
 }
 
-bool Grid::OnSelectAll(WindowHost& host)
+bool Grid::OnSelectAll(ControlHost& host)
 {
     if (! _model || _selectionMode == GridSelectionMode::Single)
     {
@@ -3382,7 +3382,7 @@ bool Grid::OnSelectAll(WindowHost& host)
     return true;
 }
 
-WindowHostCursorKind Grid::ResolveCursorKind(WindowHost& /*host*/, D2D1_POINT_2F pointDip) const noexcept
+WindowHostCursorKind Grid::ResolveCursorKind(ControlHost& /*host*/, D2D1_POINT_2F pointDip) const noexcept
 {
     if (_resizeColumn.has_value())
     {
@@ -3516,7 +3516,7 @@ void Grid::ClampScrollOffsets(const bool normalizeVertical) noexcept
 }
 
 // Column width caching: _columnWidths is mutable and modified in const methods (EnsureColumnWidths).
-// This is safe because DxUi follows a single-threaded rendering model — all WindowHost operations
+// This is safe because DxUi follows a single-threaded rendering model — all ControlHost operations
 // occur on the same UI thread. The mutable qualifier allows lazy initialization during const Paint() calls.
 void Grid::EnsureColumnWidths() const
 {
@@ -4316,7 +4316,7 @@ std::optional<size_t> Grid::ResolveCheckboxToggleColumn(size_t rowIndex) const
     return std::nullopt;
 }
 
-bool Grid::ToggleCheckboxCell(WindowHost& host, size_t rowIndex, size_t columnIndex)
+bool Grid::ToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnIndex)
 {
     if (! _model || rowIndex >= _model->GetRowCount() || columnIndex >= _model->GetColumnCount())
     {

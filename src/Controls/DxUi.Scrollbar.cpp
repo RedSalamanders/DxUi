@@ -59,7 +59,7 @@ constexpr uint64_t kScrollbarInteractionAnimationDurationMs = 140u;
     return targets;
 }
 
-void UpdateScrollbarAnimation(WindowHost& host, ScrollbarAnimationState& animation, bool trackHovered, bool thumbHovered, bool thumbDragging) noexcept
+void UpdateScrollbarAnimation(ControlHost& host, ScrollbarAnimationState& animation, bool trackHovered, bool thumbHovered, bool thumbDragging) noexcept
 {
     constexpr float epsilon                 = 0.0001f;
     const ScrollbarAnimationTargets targets = ResolveScrollbarAnimationTargets(trackHovered, thumbHovered, thumbDragging);
@@ -91,7 +91,7 @@ void UpdateScrollbarAnimation(WindowHost& host, ScrollbarAnimationState& animati
     host.RequestAnimation();
 }
 
-[[nodiscard]] bool AdvanceScrollbarAnimation(const WindowHost& host, ScrollbarAnimationState& animation, uint64_t nowTickMs) noexcept
+[[nodiscard]] bool AdvanceScrollbarAnimation(const ControlHost& host, ScrollbarAnimationState& animation, uint64_t nowTickMs) noexcept
 {
     constexpr float epsilon = 0.0001f;
     if (host.GetTheme().reducedMotion || ! animation.active)
@@ -251,7 +251,7 @@ void UpdateScrollbarAnimation(WindowHost& host, ScrollbarAnimationState& animati
     return ComputeScrollbarThumbSlotRect(trackRect, orientation, viewportDip, totalContentDip, scrollOffsetDip, scrollExtentDip);
 }
 
-void PaintScrollbar(WindowHost& host, const D2D1_RECT_F& trackRect, const D2D1_RECT_F& thumbRect, const ResolvedScrollbarVisuals& visuals) noexcept
+void PaintScrollbar(ControlHost& host, const D2D1_RECT_F& trackRect, const D2D1_RECT_F& thumbRect, const ResolvedScrollbarVisuals& visuals) noexcept
 {
     auto* dc = host.GetDeviceContext();
     if (! dc)

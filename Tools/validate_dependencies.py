@@ -6,14 +6,14 @@ import sys
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
-PENDING_ROOTS = ('src/Controls', 'Tests/Controls')
+PENDING_ROOTS = ()
 
 
 def owned_path(relative):
     parsed = PurePosixPath(relative)
     if not relative or '\\' in relative or parsed.is_absolute() or '..' in parsed.parts:
         return None
-    if (relative != '.clang-format' and parsed.parts[0] not in ('src', 'include', 'Tests')) or parsed.suffix.lower() in ('.user', '.suo'):
+    if (relative != '.clang-format' and parsed.parts[0] not in ('src', 'include', 'Tests', 'Samples')) or parsed.suffix.lower() in ('.user', '.suo'):
         return None
     resolved = (ROOT / relative).resolve()
     return resolved if resolved.is_relative_to(ROOT.resolve()) else None
@@ -69,7 +69,7 @@ def main():
             failures.append(f'Pending dependencies must be sorted and unique: {relative}')
         allowed[relative] = set(includes)
     observed = {}
-    for folder in ('src', 'include', 'Tests'):
+    for folder in ('src', 'include', 'Tests', 'Samples'):
         for path in (ROOT / folder).rglob('*'):
             if path.suffix.lower() in ('.user', '.suo'):
                 failures.append(f'Developer-local settings in owned source: {path.relative_to(ROOT)}')
@@ -90,7 +90,7 @@ def main():
                         failures.append(f'Include escapes this repository: {relative}: {name}')
                     elif not pending_path(path.resolve()) and pending_path(resolved):
                         failures.append(f'Supported source includes pending controls: {relative}: {name}')
-                if not pending_path(path.resolve()) and any(x in name.lower() for x in ('upstream', 'redsalamander', 'redxe', 'helpers.h', 'pluginterfaces/viewer')):
+                if not pending_path(path.resolve()) and (name == 'Helpers.h' or any(x in name.lower() for x in ('upstream', 'redsalamander', 'redxe', 'pluginterfaces/viewer'))):
                     failures.append(f'Application include in supported source: {relative}: {name}')
             if missing:
                 observed[relative] = missing
@@ -98,15 +98,21 @@ def main():
         for path in sorted(set(observed) | set(allowed)):
             if observed.get(path, set()) != allowed.get(path, set()):
                 failures.append(f'Unresolved include inventory mismatch: {path}: actual={sorted(observed.get(path, set()))}; recorded={sorted(allowed.get(path, set()))}')
-    # Pending code must not silently join the supported build before its dependencies and tests are ready.
-    for folder in ('src', 'Tests'):
+    # Compilable controls are normal source. Reject missing/escaping build inputs and split static libraries.
+    libraries = []
+    for folder in ('src', 'Tests', 'Samples'):
         for project in (ROOT / folder).rglob('*.vcxproj'):
-            for item in ET.parse(project).iter():
+            tree = ET.parse(project)
+            if any(item.tag.rsplit('}', 1)[-1] == 'ConfigurationType' and item.text == 'StaticLibrary' for item in tree.iter()):
+                libraries.append(project)
+            for item in tree.iter():
                 if item.tag.rsplit('}', 1)[-1] != 'ClCompile' or 'Include' not in item.attrib:
                     continue
                 path = (project.parent / item.attrib['Include'].replace('\\', '/')).resolve()
-                if pending_path(path):
-                    failures.append(f'Pending controls in supported project: {project.relative_to(ROOT)}')
+                if not path.is_relative_to(ROOT.resolve()) or not path.is_file():
+                    failures.append(f'Invalid build source: {project.relative_to(ROOT)}: {item.attrib["Include"]}')
+    if len(libraries) > 1:
+        failures.append('DxUI ships one static library; split targets are not supported')
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         return 1

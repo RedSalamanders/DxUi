@@ -804,7 +804,7 @@ void TestTreeFocusVisualsRespectKeyboardFocusVisibilityAndHighContrast()
     Require(state.focusArgb == PackColorForTest(highContrastTheme.focusStroke),
             "tree high-contrast focused row keeps the palette focus stroke for the focus ring");
 
-    ViewerTheme viewerTheme{.sizeBytes = sizeof(ViewerTheme)};
+    ThemeColors viewerTheme{.sizeBytes = sizeof(ThemeColors)};
     viewerTheme.backgroundArgb             = 0xFF11161Cu;
     viewerTheme.textArgb                   = 0xFFE7EDF8u;
     viewerTheme.selectionBackgroundArgb    = 0xFF4B7ECEu;
@@ -821,7 +821,7 @@ void TestTreeFocusVisualsRespectKeyboardFocusVisibilityAndHighContrast()
     viewerTheme.rainbowMode                = FALSE;
     viewerTheme.darkBase                   = TRUE;
 
-    const ThemePalette viewerPalette = MakeThemePaletteFromViewerTheme(viewerTheme);
+    const ThemePalette viewerPalette = MakeThemePalette(viewerTheme);
     Require(tree.DebugGetRowVisualState(viewerPalette, 0u, false, state), "tree focus visual test resolves the viewer-derived unselected row state");
     Require(! state.selected, "tree viewer-derived unselected row stays unselected");
     Require(state.iconArgb == PackColorForTest(ResolveListIconColor(viewerPalette, viewerPalette.text, false)),
@@ -1119,137 +1119,6 @@ void TestTreeHoveredClippedTextShowsFullTextTooltip()
     Require(host.GetTooltipText() == clippedText, "tree repeated clipped-text hover keeps the full item tooltip");
 }
 
-void TestTreeCachesBadgeWidthAndHoveredTooltipOverflow()
-{
-    const std::filesystem::path repoRoot   = FindRepoRootForDxUiTests();
-    const std::filesystem::path sourcePath = repoRoot / L"src" / L"Controls" / L"DxUi.Tree.cpp";
-    const std::filesystem::path headerPath = repoRoot / L"src" / L"Controls" / L"DxUi.h";
-
-    std::ifstream sourceInput(sourcePath);
-    Require(sourceInput.good(), "Tree source is readable for badge/tooltip cache guard");
-    const std::string source((std::istreambuf_iterator<char>(sourceInput)), std::istreambuf_iterator<char>());
-
-    std::ifstream headerInput(headerPath);
-    Require(headerInput.good(), "DxUi header is readable for badge/tooltip cache guard");
-    const std::string header((std::istreambuf_iterator<char>(headerInput)), std::istreambuf_iterator<char>());
-
-    const auto requireBlock = [](const std::string& text, const char* beginMarker, const char* endMarker, const char* description)
-    {
-        const size_t begin = text.find(beginMarker);
-        const size_t end   = text.find(endMarker, begin == std::string::npos ? 0u : begin + 1u);
-        Require(begin != std::string::npos && end != std::string::npos && begin < end, description);
-        return text.substr(begin, end - begin);
-    };
-
-    const std::string treeClassBlock = requireBlock(header, "class Tree final", "class Grid final", "Tree class block is found");
-    Require(treeClassBlock.find("struct TreeBadgeWidthCacheEntry") != std::string::npos, "Tree declares a badge-width cache entry");
-    Require(treeClassBlock.find("std::vector<TreeBadgeWidthCacheEntry> _badgeWidthCache") != std::string::npos, "Tree owns a bounded badge-width cache");
-    Require(treeClassBlock.find("struct TreeTooltipOverflowCache") != std::string::npos, "Tree declares a hovered tooltip overflow cache");
-    Require(treeClassBlock.find("TreeTooltipOverflowCache _tooltipOverflowCache") != std::string::npos, "Tree owns a hovered tooltip overflow cache");
-    Require(treeClassBlock.find("MeasureCachedBadgeTextWidthDip(") != std::string::npos, "Tree declares a badge-width cache accessor");
-    Require(treeClassBlock.find("ResolveCachedTreeTooltipText(") != std::string::npos, "Tree declares a cached tooltip resolver");
-    Require(treeClassBlock.find("InvalidateTreeTextMeasurementCaches()") != std::string::npos, "Tree declares text-measurement cache invalidation");
-
-    const std::string indexedLayoutBlock = requireBlock(source,
-                                                        "TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const WindowHost& host, size_t visibleIndex",
-                                                        "TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const WindowHost& host, float rowTopDip",
-                                                        "Tree indexed layout block is found");
-    Require(indexedLayoutBlock.find("MeasureCachedBadgeTextWidthDip(host, item.badgeText)") != std::string::npos,
-            "Tree indexed layout reuses cached badge widths");
-    Require(indexedLayoutBlock.find("MeasureSingleLineTextWidthDip(&host, item.badgeText") == std::string::npos,
-            "Tree indexed layout no longer measures badge text directly");
-
-    const std::string rowTopLayoutBlock = requireBlock(source,
-                                                       "TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const WindowHost& host, float rowTopDip",
-                                                       "Tree::HitInfo Tree::HitTestPoint",
-                                                       "Tree row-top layout block is found");
-    Require(rowTopLayoutBlock.find("MeasureCachedBadgeTextWidthDip(host, item.badgeText)") != std::string::npos,
-            "Tree row-top layout reuses cached badge widths");
-    Require(rowTopLayoutBlock.find("MeasureSingleLineTextWidthDip(&host, item.badgeText") == std::string::npos,
-            "Tree row-top layout no longer measures badge text directly");
-
-    const std::string mouseMoveBlock = requireBlock(source, "bool Tree::OnMouseMove", "bool Tree::OnMouseLeave", "Tree mouse-move block is found");
-    Require(mouseMoveBlock.find("ResolveCachedTreeTooltipText(host, _hoveredVisibleIndex.value(), item, layout)") != std::string::npos,
-            "Tree mouse move reuses cached tooltip overflow resolution for the hovered item");
-    Require(mouseMoveBlock.find("ResolveTreeTooltipText(host, item, layout)") == std::string::npos,
-            "Tree mouse move no longer recomputes tooltip overflow directly");
-
-    const std::string badgeCacheBlock = requireBlock(
-        source, "float Tree::MeasureCachedBadgeTextWidthDip", "std::wstring Tree::ResolveCachedTreeTooltipText", "Tree badge cache block is found");
-    Require(badgeCacheBlock.find("dxui.tree.badge_width_cache_miss_count") != std::string::npos, "Tree badge-width cache misses emit a gated perf counter");
-
-    const std::string tooltipCacheBlock = requireBlock(
-        source, "std::wstring Tree::ResolveCachedTreeTooltipText", "TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics", "Tree tooltip cache block is found");
-    Require(tooltipCacheBlock.find("dxui.tree.tooltip_overflow_cache_miss_count") != std::string::npos,
-            "Tree tooltip overflow cache misses emit a gated perf counter");
-
-    const std::string invalidateBlock =
-        requireBlock(source, "void Tree::InvalidateTreeTextMeasurementCaches", "void Tree::SetModel", "Tree cache invalidation block is found");
-    Require(invalidateBlock.find("_badgeWidthCache.clear()") != std::string::npos, "Tree text-measurement cache invalidation clears badge widths");
-    Require(invalidateBlock.find("_tooltipOverflowCache.valid = false") != std::string::npos,
-            "Tree text-measurement cache invalidation clears tooltip overflow state");
-}
-
-void TestTreeExpansionAnimationMovesCapturedItems()
-{
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.Tree.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "Tree source is readable for expansion animation hot-path guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    const size_t requestExpandedState = source.find("bool Tree::RequestExpandedState");
-    const size_t nextFunction         = source.find("TreeItemLayoutMetrics Tree::GetItemLayoutMetrics", requestExpandedState);
-    Require(requestExpandedState != std::string::npos && nextFunction != std::string::npos && requestExpandedState < nextFunction,
-            "Tree RequestExpandedState source block is found");
-
-    const std::string requestBlock = source.substr(requestExpandedState, nextFunction - requestExpandedState);
-    Require(requestBlock.find("std::vector<TreeItemData> beforeItems = CaptureVisibleItems();") != std::string::npos,
-            "tree expansion captures before-items in a movable buffer");
-    Require(requestBlock.find("const std::vector<TreeItemData> beforeItems") == std::string::npos, "tree expansion before-items buffer is not const");
-    Require(requestBlock.find("BeginTreeExpansionAnimation(item.id, expanded, std::move(beforeItems), CaptureVisibleItems(), GetTickCount64());") !=
-                std::string::npos,
-            "tree expansion animation moves the captured before-items buffer");
-    Require(requestBlock.find("std::vector<TreeItemData>(beforeItems)") == std::string::npos,
-            "tree expansion animation does not deep-copy the captured before-items buffer");
-}
-
-void TestTreeRemovesUnusedExpanderAnimationProbe()
-{
-    const std::filesystem::path repoRoot   = FindRepoRootForDxUiTests();
-    const std::filesystem::path sourcePath = repoRoot / L"src" / L"Controls" / L"DxUi.Tree.cpp";
-    const std::filesystem::path headerPath = repoRoot / L"src" / L"Controls" / L"DxUi.h";
-
-    std::ifstream sourceInput(sourcePath);
-    Require(sourceInput.good(), "Tree source is readable for unused expander-animation guard");
-    const std::string source((std::istreambuf_iterator<char>(sourceInput)), std::istreambuf_iterator<char>());
-
-    std::ifstream headerInput(headerPath);
-    Require(headerInput.good(), "DxUi header is readable for unused expander-animation guard");
-    const std::string header((std::istreambuf_iterator<char>(headerInput)), std::istreambuf_iterator<char>());
-
-    Require(source.find("bool Tree::HasActiveExpanderAnimation") == std::string::npos,
-            "Tree implementation does not keep the unused HasActiveExpanderAnimation probe");
-    Require(header.find("HasActiveExpanderAnimation(") == std::string::npos, "Tree interface does not expose the unused HasActiveExpanderAnimation probe");
-}
-
-void TestTreeRemovesUnusedTypeaheadNormalizationProbe()
-{
-    const std::filesystem::path repoRoot       = FindRepoRootForDxUiTests();
-    const std::filesystem::path sourcePath     = repoRoot / L"src" / L"Controls" / L"DxUi.Typeahead.cpp";
-    const std::filesystem::path internalHeader = repoRoot / L"src" / L"Controls" / L"DxUi.Internal.h";
-
-    std::ifstream sourceInput(sourcePath);
-    Require(sourceInput.good(), "Typeahead source is readable for unused normalization guard");
-    const std::string source((std::istreambuf_iterator<char>(sourceInput)), std::istreambuf_iterator<char>());
-
-    std::ifstream headerInput(internalHeader);
-    Require(headerInput.good(), "DxUi internal header is readable for unused normalization guard");
-    const std::string header((std::istreambuf_iterator<char>(headerInput)), std::istreambuf_iterator<char>());
-
-    Require(source.find("NormalizeTypeaheadChar") == std::string::npos, "typeahead source does not keep the unused normalization helper");
-    Require(header.find("NormalizeTypeaheadChar") == std::string::npos, "typeahead internal header does not declare the unused normalization helper");
-}
-
 } // namespace
 
 void RunTreeTests()
@@ -1282,8 +1151,4 @@ void RunTreeTests()
     TestTreeRowMetricsClampToSegoeVariableBodyLineHeight();
     TestTreeCompactDensityShrinksRowMetrics();
     TestTreeHoveredClippedTextShowsFullTextTooltip();
-    TestTreeCachesBadgeWidthAndHoveredTooltipOverflow();
-    TestTreeExpansionAnimationMovesCapturedItems();
-    TestTreeRemovesUnusedExpanderAnimationProbe();
-    TestTreeRemovesUnusedTypeaheadNormalizationProbe();
 }

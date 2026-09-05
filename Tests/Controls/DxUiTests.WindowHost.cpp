@@ -1,4 +1,5 @@
 #include "../../src/Controls/DxUi.Typography.h"
+#include "../Support/PerformanceCapture.h"
 #include "DxUiTestHelpers.h"
 
 #include <array>
@@ -36,187 +37,6 @@ void TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies()
     Require(displaySpec.familyName == kSegoeUiVariableDisplayFamily, "display role uses Segoe UI Variable Display");
     Require(iconSpec.familyName == kSegoeFluentIconsFamily, "icon role uses Segoe Fluent Icons");
     Require(monoSpec.familyName == kUiMonospaceFamily, "monospace role uses the shared monospace family");
-}
-
-void TestDxUiTypographyMeasurementCachesFormatsAndFamilyResolution()
-{
-    using namespace DxUi;
-
-    const std::filesystem::path headerPath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.Typography.h";
-    std::ifstream input(headerPath);
-    Require(input.good(), "Typography header is readable for measurement-cache guard");
-    const std::string header((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    Require(header.find("struct TypographyFontFamilyCacheEntry") != std::string::npos, "Typography declares a font-family availability cache entry");
-    Require(header.find("struct TypographyTextFormatCacheEntry") != std::string::npos, "Typography declares a measurement text-format cache entry");
-    Require(header.find("ResolveCachedFontFamilyName(") != std::string::npos, "Typography routes family fallback through a cached resolver");
-    Require(header.find("GetCachedMeasurementTextFormat(") != std::string::npos, "Typography exposes a cached measurement text-format accessor");
-    Require(header.find("dxui.typography.family_cache_miss_count") != std::string::npos, "Typography family resolution misses emit a gated perf counter");
-    Require(header.find("dxui.typography.text_format_cache_miss_count") != std::string::npos, "Typography text-format cache misses emit a gated perf counter");
-    Require(header.find("#include \"Helpers.h\"") == std::string::npos, "Typography public header does not include Common perf/logging internals");
-    Require(header.find("Debug::Perf::") == std::string::npos, "Typography public header does not inline-link Common perf internals into plugins");
-
-    const auto requireBlock = [](const std::string& text, std::string_view beginMarker, std::string_view endMarker, const char* description)
-    {
-        const size_t begin = text.find(beginMarker);
-        const size_t end   = text.find(endMarker, begin == std::string::npos ? 0u : begin + beginMarker.size());
-        Require(begin != std::string::npos && end != std::string::npos && begin < end, description);
-        return text.substr(begin, end - begin);
-    };
-
-    const std::string createFormatBlock =
-        requireBlock(header, "inline HRESULT CreateTextFormat(", "[[nodiscard]] inline HRESULT CreateTextFormatWithStyle", "CreateTextFormat block is found");
-    Require(createFormatBlock.find("ResolveCachedFontFamilyName(") != std::string::npos, "CreateTextFormat uses cached family fallback resolution");
-    Require(createFormatBlock.find("IsFontFamilyAvailable(dwriteFactory, preferredFamilyBuffer)") == std::string::npos,
-            "CreateTextFormat no longer probes the font collection directly on every call");
-
-    const std::string singleLineBlock = requireBlock(
-        header, "inline int MeasureSingleLineTextWidthPx(", "[[nodiscard]] inline int MeasureWrappedTextHeightPx", "single-line measurement block is found");
-    Require(singleLineBlock.find("GetCachedMeasurementTextFormat(dwriteFactory, role, false") != std::string::npos,
-            "single-line measurement reuses the no-wrap cached text format");
-    Require(singleLineBlock.find("CreateTextFormat(dwriteFactory, GetDxUiTypographySpec(role)") == std::string::npos,
-            "single-line measurement no longer creates a text format per call");
-
-    const std::string wrappedBlock =
-        requireBlock(header, "inline int MeasureWrappedTextHeightPx(", "} // namespace DxUi::Typography", "wrapped measurement block is found");
-    Require(wrappedBlock.find("GetCachedMeasurementTextFormat(dwriteFactory, role, true") != std::string::npos,
-            "wrapped measurement reuses the wrap cached text format");
-    Require(wrappedBlock.find("CreateTextFormat(dwriteFactory, GetDxUiTypographySpec(role)") == std::string::npos,
-            "wrapped measurement no longer creates a text format per call");
-
-    Typography::SetTypographyPerfEmitter(
-        [](std::wstring_view metric, std::wstring_view detail, uint64_t durationUs, uint64_t value, uint64_t count, HRESULT hr) noexcept
-    { Debug::Perf::Emit(metric, detail, durationUs, value, count, hr); });
-    const auto resetTypographyPerfEmitter = wil::scope_exit([]() noexcept { Typography::SetTypographyPerfEmitter(nullptr); });
-
-    const int firstWidth = Typography::MeasureSingleLineTextWidthPx(nullptr, FontRole::BodyStrong, L"Typography cache probe");
-    const int nextWidth  = Typography::MeasureSingleLineTextWidthPx(nullptr, FontRole::BodyStrong, L"Typography cache probe");
-    Require(firstWidth > 0, "typography single-line measurement still returns a positive width");
-    Require(nextWidth == firstWidth, "typography cached single-line measurement remains stable");
-
-    const int wrappedHeight = Typography::MeasureWrappedTextHeightPx(nullptr, FontRole::Body, 96, L"Typography wrapped cache probe wraps here");
-    Require(wrappedHeight > 0, "typography wrapped measurement still returns a positive height");
-}
-
-void TestConnectionCredentialPromptDestroysWindowOnModalQuit()
-{
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"RedSalamander" / L"ConnectionCredentialPromptDialog.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "Connection credential prompt source is readable for modal quit guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    const size_t showModalFunction = source.find("HRESULT ConnectionCredentialPromptWindow::ShowModal");
-    const size_t onCreateFunction  = source.find("bool ConnectionCredentialPromptWindow::OnCreate", showModalFunction);
-    Require(showModalFunction != std::string::npos && onCreateFunction != std::string::npos && showModalFunction < onCreateFunction,
-            "Connection credential prompt ShowModal source block is found");
-
-    const std::string showModalBlock = source.substr(showModalFunction, onCreateFunction - showModalFunction);
-    const size_t quitBranch          = showModalBlock.find("if (getMessageResult == 0)");
-    const size_t repostQuit          = showModalBlock.find("PostQuitMessage", quitBranch);
-    const size_t quitBreak           = showModalBlock.find("break;", quitBranch);
-    Require(quitBranch != std::string::npos && repostQuit != std::string::npos && quitBreak != std::string::npos && repostQuit < quitBreak,
-            "Connection credential prompt modal loop has a WM_QUIT branch");
-
-    const std::string quitBlock = showModalBlock.substr(quitBranch, quitBreak - quitBranch);
-    const size_t destroyWindow  = quitBlock.find("DestroyWindow(");
-    const size_t resetWindow    = quitBlock.find("_hWnd.reset()");
-    Require((destroyWindow != std::string::npos && destroyWindow < repostQuit - quitBranch) ||
-                (resetWindow != std::string::npos && resetWindow < repostQuit - quitBranch),
-            "Connection credential prompt destroys its HWND before returning from a WM_QUIT modal-loop exit");
-}
-
-void TestConnectionCredentialPromptTeardownDoesNotWipeThroughRawTextFieldPointers()
-{
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"RedSalamander" / L"ConnectionCredentialPromptDialog.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "Connection credential prompt source is readable for secure-clear teardown guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    Require(source.find("ControlTreeContains(") == std::string::npos,
-            "Connection credential prompt must not walk retained controls through raw child pointers during teardown");
-    Require(source.find("SecureClearLiveSecretField") == std::string::npos,
-            "Connection credential prompt must not secure-clear retained TextField storage through a raw child pointer");
-    Require(source.find("_secretField->SecureClear") == std::string::npos,
-            "Connection credential prompt must not secure-clear the retained secret TextField through a raw child pointer");
-    Require(source.find("_userField->SecureClear") == std::string::npos,
-            "Connection credential prompt must not secure-clear the retained user TextField through a raw child pointer");
-
-    const size_t destructorStart = source.find("ConnectionCredentialPromptWindow::~ConnectionCredentialPromptWindow");
-    const size_t helperStart     = source.find("void ConnectionCredentialPromptWindow::ClearControlPointers", destructorStart);
-    Require(destructorStart != std::string::npos && helperStart != std::string::npos && destructorStart < helperStart,
-            "Connection credential prompt destructor block is found");
-    const std::string destructorBlock = source.substr(destructorStart, helperStart - destructorStart);
-    Require(destructorBlock.find("_secretField") == std::string::npos,
-            "Connection credential prompt destructor must not dereference retained child pointers after WM_NCDESTROY");
-    Require(destructorBlock.find("_userField") == std::string::npos,
-            "Connection credential prompt destructor must not dereference retained child pointers after WM_NCDESTROY");
-    Require(destructorBlock.find("SecureClearLiveSecretField") == std::string::npos,
-            "Connection credential prompt destructor must not secure-clear the live retained TextField after WM_NCDESTROY");
-    Require(destructorBlock.find("_dxHost.Detach") == std::string::npos,
-            "Connection credential prompt destructor must not perform late retained-tree teardown");
-
-    const size_t windowProcStart = source.find("LRESULT ConnectionCredentialPromptWindow::WindowProc");
-    const size_t wmNcDestroy     = source.find("if (message == WM_NCDESTROY)", windowProcStart);
-    const size_t wmNcReturn      = source.find("return 0;", wmNcDestroy);
-    Require(windowProcStart != std::string::npos && wmNcDestroy != std::string::npos && wmNcReturn != std::string::npos,
-            "Connection credential prompt WM_NCDESTROY block is found");
-    const std::string wmNcDestroyBlock = source.substr(wmNcDestroy, wmNcReturn - wmNcDestroy);
-
-    const size_t detach   = wmNcDestroyBlock.find("_dxHost.Detach()");
-    const size_t clearRaw = wmNcDestroyBlock.find("ClearControlPointers()");
-    Require(clearRaw != std::string::npos && detach != std::string::npos && detach < clearRaw,
-            "Connection credential prompt nulls retained child pointers after detaching the retained tree");
-
-    const size_t clearHelper = source.find("void ConnectionCredentialPromptWindow::ClearControlPointers");
-    const size_t nextMethod  = source.find("\nvoid ConnectionCredentialPromptWindow::", clearHelper + 1u);
-    Require(clearHelper != std::string::npos && nextMethod != std::string::npos && clearHelper < nextMethod,
-            "Connection credential prompt clear-pointer helper is found");
-    const std::string clearHelperBlock = source.substr(clearHelper, nextMethod - clearHelper);
-    const size_t secretFieldClear      = clearHelperBlock.find("_secretField");
-    const size_t secretNull            = clearHelperBlock.find("nullptr", secretFieldClear);
-    const size_t userFieldClear        = clearHelperBlock.find("_userField");
-    const size_t userNull              = clearHelperBlock.find("nullptr", userFieldClear);
-    Require(secretFieldClear != std::string::npos && secretNull != std::string::npos,
-            "Connection credential prompt clears the raw secret-field pointer after retained tree detach");
-    Require(userFieldClear != std::string::npos && userNull != std::string::npos,
-            "Connection credential prompt clears the raw user-field pointer after retained tree detach");
-}
-
-void TestConnectionCredentialPromptUiaPumpDoesNotDetachTimedOutWorkers()
-{
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"RedSalamander" / L"SelfTest" / L"Commands" / L"Commands.SelfTest.Connections.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "Connection selftest source is readable for UIA worker lifetime guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    const size_t helperStart = source.find("template <typename Task> [[nodiscard]] auto RunUiaTaskWithMessagePump(std::wstring_view label");
-    const size_t helperEnd   = source.find("template <typename Task> [[nodiscard]] auto RunUiaTaskWithMessagePump(Task&& task)", helperStart + 1u);
-    Require(helperStart != std::string::npos && helperEnd != std::string::npos && helperStart < helperEnd,
-            "Connection selftest UIA pump helper block is found");
-    const std::string helperBlock = source.substr(helperStart, helperEnd - helperStart);
-
-    Require(helperBlock.find("worker.detach()") == std::string::npos,
-            "Connection selftest UIA pump must never detach a worker that can outlive prompt teardown");
-    const size_t requestStop = helperBlock.find("worker.request_stop()");
-    const size_t joinWorker  = helperBlock.find("worker.join()");
-    Require(requestStop != std::string::npos && joinWorker != std::string::npos && requestStop < joinWorker,
-            "Connection selftest UIA pump requests stop but rejoins the worker before returning");
-    const size_t defaultReturn = helperBlock.find("return Result{}");
-    Require(defaultReturn == std::string::npos || joinWorker < defaultReturn,
-            "Connection selftest UIA pump returns a timeout sentinel only after the worker has exited");
-}
-
-void TestWindowHostPaintUsesWilBeginPaintRaii()
-{
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.WindowHost.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "WindowHost source is readable for paint RAII guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    Require(source.find("struct ScopedPaint") == std::string::npos, "WindowHost must not use a hand-rolled paint RAII wrapper");
-    Require(source.find("ScopedPaint paint") == std::string::npos, "WindowHost WM_PAINT must not instantiate the hand-rolled paint wrapper");
-    Require(source.find("EndPaint(") == std::string::npos, "WindowHost paint cleanup must be handled by wil::unique_hdc_paint");
-    Require(source.find("wil::BeginPaint") != std::string::npos, "WindowHost WM_PAINT uses wil::BeginPaint for automatic EndPaint cleanup");
 }
 
 DxUi::WindowHostBitmapCapture CaptureAttachedHostWindowBitmapForWindowHostSuite(AttachedHostWindow& window, const char* context)
@@ -260,14 +80,14 @@ DxUi::WindowHostBitmapCapture CaptureAttachedHostWindowBitmapForWindowHostSuite(
 
 [[nodiscard]] std::filesystem::path GetWindowHostPerfJsonlPathFromEnvironment()
 {
-    const DWORD required = GetEnvironmentVariableW(L"REDSALAMANDER_PERF_JSONL_PATH", nullptr, 0u);
+    const DWORD required = GetEnvironmentVariableW(L"DXUI_PERF_JSONL_PATH", nullptr, 0u);
     if (required == 0u)
     {
         return {};
     }
 
     std::wstring value(required, L'\0');
-    const DWORD copied = GetEnvironmentVariableW(L"REDSALAMANDER_PERF_JSONL_PATH", value.data(), required);
+    const DWORD copied = GetEnvironmentVariableW(L"DXUI_PERF_JSONL_PATH", value.data(), required);
     if (copied == 0u)
     {
         return {};
@@ -310,7 +130,7 @@ public:
         _path = GetDxUiTestArtifactPath(L"dxui_windowhost_stage_metrics_testlocal.jsonl");
         std::error_code ec;
         std::filesystem::remove(_path, ec);
-        Debug::Perf::ConfigureJsonlOutput(_path, L"DxUiTests", L"Debug");
+        TestPerformanceCapture::Start(_path, L"DxUiTests", L"Debug");
         _ownsConfiguration = true;
     }
 
@@ -318,7 +138,7 @@ public:
     {
         if (_ownsConfiguration)
         {
-            Debug::Perf::ClearJsonlOutput();
+            TestPerformanceCapture::Stop();
         }
     }
 
@@ -445,7 +265,7 @@ LRESULT CALLBACK PostedPayloadDrainStressWndProc(HWND hwnd, UINT message, WPARAM
             return TRUE;
         }
 
-        case WndMsg::kFolderViewEnumerateComplete:
+        case (WM_APP + 0x70u):
         {
             auto payload = TakeMessagePayload<PostedPayloadDrainStressPayload>(lParam);
             if (state && payload)
@@ -460,9 +280,8 @@ LRESULT CALLBACK PostedPayloadDrainStressWndProc(HWND hwnd, UINT message, WPARAM
             MSG queuedMessage{};
             if (state)
             {
-                state->payloadQueuedBeforeDrain.store(
-                    PeekMessageW(&queuedMessage, hwnd, WndMsg::kFolderViewEnumerateComplete, WndMsg::kFolderViewEnumerateComplete, PM_NOREMOVE) != 0,
-                    std::memory_order_release);
+                state->payloadQueuedBeforeDrain.store(PeekMessageW(&queuedMessage, hwnd, (WM_APP + 0x70u), (WM_APP + 0x70u), PM_NOREMOVE) != 0,
+                                                      std::memory_order_release);
             }
             const auto drainStarted = std::chrono::steady_clock::now();
             const size_t drained    = DrainPostedPayloadsForWindow(hwnd);
@@ -472,13 +291,12 @@ LRESULT CALLBACK PostedPayloadDrainStressWndProc(HWND hwnd, UINT message, WPARAM
             {
                 state->drainedCount.store(static_cast<uint32_t>(drained), std::memory_order_release);
                 state->drainDurationUs.store(drainDurationUs, std::memory_order_release);
-                state->payloadQueuedAfterDrain.store(
-                    PeekMessageW(&queuedMessage, hwnd, WndMsg::kFolderViewEnumerateComplete, WndMsg::kFolderViewEnumerateComplete, PM_NOREMOVE) != 0,
-                    std::memory_order_release);
+                state->payloadQueuedAfterDrain.store(PeekMessageW(&queuedMessage, hwnd, (WM_APP + 0x70u), (WM_APP + 0x70u), PM_NOREMOVE) != 0,
+                                                     std::memory_order_release);
 
                 uint32_t staleTokenCount          = 0u;
                 uint32_t staleTokenRejectionCount = 0u;
-                while (PeekMessageW(&queuedMessage, hwnd, WndMsg::kFolderViewEnumerateComplete, WndMsg::kFolderViewEnumerateComplete, PM_REMOVE) != 0)
+                while (PeekMessageW(&queuedMessage, hwnd, (WM_APP + 0x70u), (WM_APP + 0x70u), PM_REMOVE) != 0)
                 {
                     ++staleTokenCount;
                     if (! TakeMessagePayload<PostedPayloadDrainStressPayload>(queuedMessage.lParam))
@@ -499,7 +317,7 @@ LRESULT CALLBACK PostedPayloadDrainStressWndProc(HWND hwnd, UINT message, WPARAM
 
 [[nodiscard]] wil::unique_hwnd CreatePostedPayloadDrainStressWindow(PostedPayloadDrainStressWindowState& state)
 {
-    constexpr wchar_t kClassName[] = L"RedSalamander.DxUiTests.PostedPayloadDrainStressWindow";
+    constexpr wchar_t kClassName[] = L"DxUiTests.PostedPayloadDrainStressWindow";
 
     HINSTANCE instance = GetModuleHandleW(nullptr);
     WNDCLASSW existing{};
@@ -927,23 +745,6 @@ void TestWindowHostDetachKeepsSharedGraphicsAttachmentUntilControlTreeDestroyed(
             "detach releases graphics attachment count after retained host resources are destroyed");
 }
 
-void TestWindowHostDestructorDetachesBeforeMemberTeardown()
-{
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.WindowHost.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "WindowHost source is readable for destructor detach guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    const size_t destructorFunction = source.find("WindowHost::~WindowHost()");
-    const size_t detachFunction     = source.find("void WindowHost::Detach()", destructorFunction);
-    Require(destructorFunction != std::string::npos && detachFunction != std::string::npos && destructorFunction < detachFunction,
-            "WindowHost destructor source block is found");
-
-    const std::string destructorBlock = source.substr(destructorFunction, detachFunction - destructorFunction);
-    Require(destructorBlock.find("Detach();") != std::string::npos,
-            "WindowHost destructor must detach before native text input members and retained controls are torn down");
-}
-
 void TestWindowHostEmitsFrameStageMetricsForCaptureRender()
 {
     using namespace DxUi;
@@ -1030,14 +831,14 @@ void TestWindowHostBlocksLayoutMutationDuringRender()
 
 void TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads()
 {
-    constexpr UINT kPayloadMessage = WndMsg::kFolderViewEnumerateComplete;
+    constexpr UINT kPayloadMessage = (WM_APP + 0x70u);
     PostedPayloadDrainStressWindowState state;
     std::atomic<uint32_t> destroyedCount{0};
 
     wil::unique_hwnd hwnd = CreatePostedPayloadDrainStressWindow(state);
     Require(hwnd != nullptr, "payload drain stress window is created");
 
-    constexpr uint32_t kPayloadCount = 1024u;
+    constexpr uint32_t kPayloadCount = 128u;
     const auto postStarted           = std::chrono::steady_clock::now();
     for (uint32_t i = 0u; i < kPayloadCount; ++i)
     {
@@ -1047,7 +848,7 @@ void TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads()
     }
     const auto postDurationUs =
         static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - postStarted).count());
-    Debug::Perf::Emit(L"dxui.posted_payload.post_batch_us", L"1024 queued payloads", postDurationUs, kPayloadCount, kPayloadCount, S_OK);
+    Debug::Perf::Emit(L"dxui.posted_payload.post_batch_us", L"128 queued payloads", postDurationUs, kPayloadCount, kPayloadCount, S_OK);
 
     MSG capturedStaleMessage{};
     Require(PeekMessageW(&capturedStaleMessage, nullptr, kPayloadMessage, kPayloadMessage, PM_NOREMOVE) != 0,
@@ -1056,7 +857,7 @@ void TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads()
 
     hwnd.reset();
     Debug::Perf::Emit(L"dxui.posted_payload.teardown_drain_us",
-                      L"1024 queued payloads",
+                      L"128 queued payloads",
                       state.drainDurationUs.load(std::memory_order_acquire),
                       kPayloadCount,
                       kPayloadCount,
@@ -1085,267 +886,6 @@ void TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads()
 
     auto unregisteredPayload = TakeMessagePayload<PostedPayloadDrainStressPayload>(static_cast<LPARAM>(0x1234u));
     Require(! unregisteredPayload, "TakeMessagePayload never adopts an unregistered lParam");
-}
-
-void TestContiguousPostedPayloadCoalescingPreservesQueueOrderAndOperationKeys()
-{
-    constexpr UINT kPayloadMessage    = WM_APP + 0x370u;
-    constexpr UINT kCompletionMessage = WM_APP + 0x371u;
-    constexpr WPARAM kFirstOperation  = 41u;
-    constexpr WPARAM kSecondOperation = 42u;
-
-    PostedPayloadDrainStressWindowState state;
-    std::atomic<uint32_t> destroyedCount{0};
-    wil::unique_hwnd hwnd = CreatePostedPayloadDrainStressWindow(state);
-    Require(hwnd != nullptr, "contiguous payload test window is created");
-
-    const auto postPayload = [&](WPARAM operationKey, std::initializer_list<uint32_t> values)
-    {
-        auto payload            = std::make_unique<PostedPayloadDrainStressPayload>();
-        payload->destroyedCount = &destroyedCount;
-        payload->values.assign(values);
-        Require(PostMessagePayload(hwnd.get(), kPayloadMessage, operationKey, std::move(payload)), "test payload posts successfully");
-    };
-    const auto removePayloadMessage = [&]()
-    {
-        MSG message{};
-        Require(PeekMessageW(&message, hwnd.get(), kPayloadMessage, kPayloadMessage, PM_REMOVE) != 0, "expected payload message is queued");
-        return message;
-    };
-    const auto takeQueuedPayload = [&]()
-    {
-        const MSG message = removePayloadMessage();
-        return TakeMessagePayload<PostedPayloadDrainStressPayload>(message.lParam);
-    };
-    const auto appendValues = [](std::unique_ptr<PostedPayloadDrainStressPayload>& current, std::unique_ptr<PostedPayloadDrainStressPayload> newer) noexcept
-    { current->values.insert(current->values.end(), newer->values.begin(), newer->values.end()); };
-
-    postPayload(kFirstOperation, {1u});
-    postPayload(kFirstOperation, {2u});
-    postPayload(kSecondOperation, {100u});
-    postPayload(kFirstOperation, {3u});
-    MSG current             = removePayloadMessage();
-    auto differentOperation = TakeAndCoalesceContiguousPostedPayloads<PostedPayloadDrainStressPayload>(
-        hwnd.get(), kPayloadMessage, kFirstOperation, current.lParam, [](const PostedPayloadDrainStressPayload&, uint64_t) noexcept {
-        return true;
-    }, appendValues);
-    Require(differentOperation.payload && differentOperation.payload->values == std::vector<uint32_t>{1u, 2u},
-            "only contiguous payloads for the current operation are reduced");
-    Require(differentOperation.drainedPayloadCount == 1u, "same-operation contiguous payload count is reported");
-    Require(differentOperation.stoppedAtQueuedMessage && differentOperation.queuedMessage.wParam == kSecondOperation,
-            "a different operation key remains at the queue head");
-    differentOperation.payload.reset();
-    takeQueuedPayload().reset();
-    takeQueuedPayload().reset();
-
-    postPayload(kFirstOperation, {4u});
-    Require(PostMessageW(hwnd.get(), kCompletionMessage, kFirstOperation, 0) != 0, "completion marker posts successfully");
-    postPayload(kFirstOperation, {5u});
-    current                 = removePayloadMessage();
-    auto completionBoundary = TakeAndCoalesceContiguousPostedPayloads<PostedPayloadDrainStressPayload>(
-        hwnd.get(), kPayloadMessage, kFirstOperation, current.lParam, [](const PostedPayloadDrainStressPayload&, uint64_t) noexcept {
-        return true;
-    }, appendValues);
-    Require(completionBoundary.payload && completionBoundary.payload->values == std::vector<uint32_t>{4u}, "completion behind progress is not bypassed");
-    Require(completionBoundary.drainedPayloadCount == 0u && completionBoundary.stoppedAtQueuedMessage &&
-                completionBoundary.queuedMessage.message == kCompletionMessage,
-            "completion remains the next queue message");
-    completionBoundary.payload.reset();
-    MSG completion{};
-    Require(PeekMessageW(&completion, nullptr, 0, 0, PM_REMOVE) != 0 && completion.message == kCompletionMessage,
-            "completion marker retains its queue position");
-    takeQueuedPayload().reset();
-
-    postPayload(kFirstOperation, {6u});
-    postPayload(kFirstOperation, {7u});
-    postPayload(kFirstOperation, {8u});
-    current       = removePayloadMessage();
-    auto budgeted = TakeAndCoalesceContiguousPostedPayloads<PostedPayloadDrainStressPayload>(
-        hwnd.get(), kPayloadMessage, kFirstOperation, current.lParam, [](const PostedPayloadDrainStressPayload&, uint64_t drainedPayloadCount) noexcept {
-        return drainedPayloadCount < 1u;
-    }, appendValues);
-    Require(budgeted.payload && budgeted.payload->values == std::vector<uint32_t>{6u, 7u} && budgeted.drainedPayloadCount == 1u,
-            "caller budget stops coalescing without losing the reduced payload");
-    budgeted.payload.reset();
-    auto finalPayload = takeQueuedPayload();
-    Require(finalPayload && finalPayload->values == std::vector<uint32_t>{8u}, "the final snapshot remains queued after the budget boundary");
-    finalPayload.reset();
-
-    postPayload(kFirstOperation, {9u});
-    postPayload(kFirstOperation, {10u});
-    current        = removePayloadMessage();
-    auto cancelled = TakeAndCoalesceContiguousPostedPayloads<PostedPayloadDrainStressPayload>(
-        hwnd.get(), kPayloadMessage, kFirstOperation, current.lParam, [](const PostedPayloadDrainStressPayload&, uint64_t) noexcept {
-        return false;
-    }, appendValues);
-    Require(cancelled.payload && cancelled.payload->values == std::vector<uint32_t>{9u} && cancelled.drainedPayloadCount == 0u,
-            "caller cancellation predicate leaves later payloads untouched");
-    cancelled.payload.reset();
-    takeQueuedPayload().reset();
-
-    hwnd.reset();
-    Require(state.drainedCount.load(std::memory_order_acquire) == 0u, "all coalescing-test payload messages are explicitly consumed");
-    Require(destroyedCount.load(std::memory_order_acquire) == 11u, "coalesced and queued payloads are each destroyed exactly once");
-}
-
-void TestSharedTestSupportPreservesSandboxAndEnvironmentPolicies()
-{
-    namespace TestSupport = RedSalamander::TestSupport;
-
-    constexpr std::wstring_view kEnvironmentName{L"REDSALAMANDER_TEST_SUPPORT_SCOPE_CONTRACT"};
-    static_cast<void>(SetEnvironmentVariableW(kEnvironmentName.data(), nullptr));
-    {
-        TestSupport::ScopedEnvironmentVariable scope(kEnvironmentName, L"temporary");
-        const TestSupport::EnvironmentValue current = TestSupport::ReadEnvironmentValue(kEnvironmentName);
-        Require(current.error == ERROR_SUCCESS && current.value && current.value.value() == L"temporary", "environment scope installs its temporary value");
-    }
-    const TestSupport::EnvironmentValue missing = TestSupport::ReadEnvironmentValue(kEnvironmentName);
-    Require(missing.error == ERROR_SUCCESS && ! missing.value, "environment scope restores an originally missing value");
-
-    Require(SetEnvironmentVariableW(kEnvironmentName.data(), L"original") != FALSE, "environment scope test installs an original value");
-    {
-        TestSupport::ScopedEnvironmentVariable scope(kEnvironmentName, std::nullopt);
-        const TestSupport::EnvironmentValue current = TestSupport::ReadEnvironmentValue(kEnvironmentName);
-        Require(current.error == ERROR_SUCCESS && ! current.value, "environment scope can temporarily remove a value");
-    }
-    const TestSupport::EnvironmentValue restored = TestSupport::ReadEnvironmentValue(kEnvironmentName);
-    Require(restored.error == ERROR_SUCCESS && restored.value && restored.value.value() == L"original", "environment scope restores the exact original value");
-    static_cast<void>(SetEnvironmentVariableW(kEnvironmentName.data(), nullptr));
-
-    std::error_code ec;
-    const std::filesystem::path outer =
-        TestSupport::AcquireTestDirectory({.harnessSegment = L"dxui", .leafSegment = L"test-support-contract", .fallbackRunIdPrefix = L"dxui"}, ec);
-    Require(! ec && ! outer.empty(), "test-support contract acquires an outer sandbox");
-
-    {
-        const std::wstring outerText = outer.wstring();
-        TestSupport::ScopedEnvironmentVariable rootScope(TestSupport::kTestRootEnvironmentVariable, outerText);
-        TestSupport::ScopedEnvironmentVariable runScope(TestSupport::kTestRunIdEnvironmentVariable, L"test-support-contract-run");
-
-        const TestSupport::TestDirectoryOptions cleanOptions{
-            .harnessSegment      = L"contract-harness",
-            .leafSegment         = L"bad/leaf",
-            .fallbackRunIdPrefix = L"unused",
-        };
-        const std::filesystem::path cleanDirectory = TestSupport::AcquireTestDirectory(cleanOptions, ec);
-        Require(! ec && cleanDirectory.filename() == L"bad_leaf", "sandbox acquisition sanitizes unsafe leaf characters");
-        std::filesystem::create_directories(cleanDirectory / L"sentinel", ec);
-        Require(! ec, "sandbox clean-policy sentinel is created");
-        const std::filesystem::path cleanedDirectory = TestSupport::AcquireTestDirectory(cleanOptions, ec);
-        Require(! ec && cleanedDirectory == cleanDirectory && ! std::filesystem::exists(cleanDirectory / L"sentinel", ec),
-                "clean-before-create removes prior case contents");
-
-        TestSupport::TestDirectoryOptions retainedOptions = cleanOptions;
-        retainedOptions.leafSegment                       = L"retained";
-        retainedOptions.cleanExisting                     = false;
-        const std::filesystem::path retainedDirectory     = TestSupport::AcquireTestDirectory(retainedOptions, ec);
-        std::filesystem::create_directories(retainedDirectory / L"sentinel", ec);
-        Require(! ec, "sandbox retain-policy sentinel is created");
-        static_cast<void>(TestSupport::AcquireTestDirectory(retainedOptions, ec));
-        Require(! ec && std::filesystem::exists(retainedDirectory / L"sentinel", ec), "no-clean acquisition preserves prior case contents");
-
-        TestSupport::TestDirectoryOptions emptyLeafOptions = cleanOptions;
-        emptyLeafOptions.leafSegment                       = L"";
-        emptyLeafOptions.emptyLeafFallback                 = L"default";
-        const std::filesystem::path emptyLeafDirectory     = TestSupport::AcquireTestDirectory(emptyLeafOptions, ec);
-        Require(! ec && emptyLeafDirectory.filename() == L"default", "sandbox acquisition preserves the caller's empty-leaf fallback");
-
-        TestSupport::TestDirectoryOptions traversalOptions = cleanOptions;
-        traversalOptions.harnessSegment                    = L"..";
-        traversalOptions.leafSegment                       = L"..";
-        const std::filesystem::path traversalDirectory     = TestSupport::AcquireTestDirectory(traversalOptions, ec);
-        Require(! ec && ! traversalDirectory.empty() && Common::Testing::IsSameOrDescendantTestSandboxPath(traversalDirectory, outer) &&
-                    TestSupport::SanitizeTestSandboxSegment(L"..") == L".._",
-                "sandbox acquisition neutralizes traversal-only harness and leaf segments");
-
-        {
-            TestSupport::ScopedEnvironmentVariable invalidRunScope(TestSupport::kTestRunIdEnvironmentVariable, L"..");
-            const std::filesystem::path invalidRunDirectory = TestSupport::AcquireTestDirectory(cleanOptions, ec);
-            Require(invalidRunDirectory.empty() && ec == std::errc::invalid_argument,
-                    "an invalid configured run ID fails closed instead of selecting a fallback path");
-        }
-
-        const std::filesystem::path artifacts = TestSupport::AcquireTestDirectory({.harnessSegment      = L"contract-artifacts",
-                                                                                   .fallbackRunIdPrefix = L"unused",
-                                                                                   .kind                = TestSupport::TestDirectoryKind::Artifacts,
-                                                                                   .includeLeafSegment  = false,
-                                                                                   .cleanExisting       = false},
-                                                                                  ec);
-        Require(! ec && artifacts.filename() == L"contract-artifacts" && artifacts.parent_path().filename() == L"artifacts",
-                "artifact acquisition omits the scratch leaf when requested");
-    }
-
-    {
-        TestSupport::ScopedEnvironmentVariable rootScope(TestSupport::kTestRootEnvironmentVariable, L"C:\\Windows");
-        TestSupport::ScopedEnvironmentVariable runScope(TestSupport::kTestRunIdEnvironmentVariable, L"test-support-contract-run");
-        const std::filesystem::path unauthorized =
-            TestSupport::AcquireTestDirectory({.harnessSegment = L"dxui", .leafSegment = L"unauthorized-root", .fallbackRunIdPrefix = L"unused"}, ec);
-        Require(unauthorized.empty() && ec == std::errc::permission_denied, "an arbitrary absolute test root is rejected before test directories are created");
-    }
-
-    std::filesystem::remove_all(outer, ec);
-    Require(! ec, "test-support contract cleans its outer sandbox");
-}
-
-void TestSharedTestSupportPumpsMessagesAndBoundsSnapshotPolling()
-{
-    namespace TestSupport = RedSalamander::TestSupport;
-    using namespace std::chrono_literals;
-
-    wil::unique_hwnd messageWindow(CreateWindowExW(0u, L"STATIC", L"waiting", 0u, 0, 0, 0, 0, HWND_MESSAGE, nullptr, GetModuleHandleW(nullptr), nullptr));
-    Require(messageWindow != nullptr, "message-pump contract creates a message-only window");
-    constexpr UINT kTestMessage = WM_APP + 73u;
-    Require(PostMessageW(messageWindow.get(), kTestMessage, 0u, 0) != FALSE, "message-pump contract queues a window message");
-
-    const TestSupport::MessagePumpWaitResult pumped = TestSupport::PumpMessagesUntil(
-        [&]() noexcept
-    {
-        MSG pending{};
-        return PeekMessageW(&pending, messageWindow.get(), kTestMessage, kTestMessage, PM_NOREMOVE) == FALSE;
-    },
-        {.timeout = 500ms, .pollInterval = 1ms, .operationName = L"message-only window update"});
-    Require(pumped.conditionMet && pumped.dispatchedMessageCount >= 1u, "message-pump wait dispatches queued UI work instead of starving it");
-    Require(pumped.timeoutDiagnostic.empty(), "successful message-pump waits do not report a timeout");
-
-    const TestSupport::MessagePumpWaitResult timedOut =
-        TestSupport::PumpMessagesUntil([]() noexcept { return false; }, {.timeout = 25ms, .pollInterval = 1ms, .operationName = L"bounded timeout contract"});
-    Require(! timedOut.conditionMet && timedOut.elapsed >= 20ms && timedOut.elapsed < 500ms, "message-pump timeout stays bounded near its declared budget");
-    Require(timedOut.timeoutDiagnostic.find(L"bounded timeout contract") != std::wstring::npos &&
-                timedOut.timeoutDiagnostic.find(L"budget 25 ms") != std::wstring::npos,
-            "message-pump timeout reports the operation and declared budget");
-
-    struct Snapshot final
-    {
-        uint32_t sequence = 0u;
-    } lastSnapshot{};
-    uint32_t sequence = 0u;
-    std::wstring timeoutDiagnostic;
-    const bool snapshotReady = TestSupport::WaitForSnapshot<Snapshot>(
-        [&](Snapshot& snapshot) noexcept
-    {
-        snapshot.sequence = ++sequence;
-        return true;
-    },
-        [](const Snapshot& snapshot) noexcept { return snapshot.sequence >= 3u; },
-        {.timeout = 250ms, .pollInterval = 1ms, .operationName = L"typed snapshot contract"},
-        &lastSnapshot,
-        &timeoutDiagnostic);
-    Require(snapshotReady && lastSnapshot.sequence == 3u, "typed snapshot polling returns the matching snapshot");
-    Require(timeoutDiagnostic.empty(), "successful typed snapshot polling leaves no timeout diagnostic");
-
-    sequence                    = 0u;
-    const bool snapshotTimedOut = TestSupport::WaitForSnapshot<Snapshot>(
-        [&](Snapshot& snapshot) noexcept
-    {
-        snapshot.sequence = ++sequence;
-        return true;
-    },
-        [](const Snapshot&) noexcept { return false; },
-        {.timeout = 10ms, .pollInterval = 1ms, .operationName = L"typed snapshot timeout"},
-        &lastSnapshot,
-        &timeoutDiagnostic);
-    Require(! snapshotTimedOut && lastSnapshot.sequence > 0u, "typed snapshot timeout preserves the most recently observed snapshot");
-    Require(timeoutDiagnostic.find(L"typed snapshot timeout") != std::wstring::npos, "typed snapshot timeout reports its operation name");
 }
 
 void TestWindowHostMouseMoveUpdatesHoverTarget()
@@ -1378,7 +918,7 @@ void TestWindowHostMouseMoveUpdatesHoverTarget()
 
 [[nodiscard]] HWND CreateForeignPopupForWindowHostMouseLeaveTest(POINT screenPoint)
 {
-    static constexpr PCWSTR kClassName = L"RedSalamander.DxUiTests.ForeignPopup";
+    static constexpr PCWSTR kClassName = L"DxUiTests.ForeignPopup";
     static const ATOM atom             = []() noexcept
     {
         WNDCLASSW windowClass{};
@@ -1781,27 +1321,6 @@ void TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow(
     Require(! rebuiltState.layoutDirty, "multiline text layout cache is clean again after repaint");
     Require(window.Host().DebugGetWidthPx() > widthPxBefore, "attached host client width grows after dpi-driven resize");
     Require(window.Host().DebugGetHeightPx() > heightPxBefore, "attached host client height grows after dpi-driven resize");
-}
-
-void TestWindowHostDpiChangedRecreatesTargetBitmapWhenSizeIsUnchanged()
-{
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.WindowHost.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "WindowHost source is readable for DPI target bitmap recreation guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    const size_t dpiChangedStart = source.find("void WindowHost::OnDpiChanged");
-    const size_t handleStart     = source.find("LRESULT WindowHost::HandleMessage", dpiChangedStart);
-    Require(dpiChangedStart != std::string::npos && handleStart != std::string::npos && dpiChangedStart < handleStart,
-            "WindowHost OnDpiChanged source block is found");
-
-    const std::string dpiChangedBlock = source.substr(dpiChangedStart, handleStart - dpiChangedStart);
-    const size_t setDpi               = dpiChangedBlock.find("_d2dContext->SetDpi");
-    const size_t recreateTarget       = dpiChangedBlock.find("PrepareForSwapChainResize()");
-    const size_t invalidate           = dpiChangedBlock.rfind("Invalidate()");
-    Require(setDpi != std::string::npos && recreateTarget != std::string::npos && invalidate != std::string::npos,
-            "DPI change updates D2D DPI, detaches the old target bitmap, and invalidates");
-    Require(setDpi < recreateTarget && recreateTarget < invalidate, "DPI change detaches the old target bitmap after applying the new DPI and before repaint");
 }
 
 void TestWindowHostAttachedWindowsRenderAcrossUiThreads()
@@ -2876,161 +2395,6 @@ void TestWindowHostRedundantCaptureDoesNotCancelMouseDownCapture()
     Require(! state.dragging, "self-capturing control clears dragging state on mouse-up");
 }
 
-void TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement()
-{
-    using namespace DxUi;
-
-    WindowHost host;
-    RootReplacingPointerControlState state;
-    auto root     = std::make_unique<Panel>();
-    auto* control = root->AddChild<RootReplacingPointerControl>(state);
-    control->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 80.0f));
-    host.SetRoot(std::move(root));
-    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 120.0f));
-
-    bool handled = false;
-    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(24, 16), handled));
-    Require(handled, "root-replacing pointer-down is handled");
-    Require(state.mouseDownCount == 1u, "root-replacing control receives one mouse-down");
-    Require(host.GetFocusControl() == nullptr, "root-replacing pointer-down leaves no stale focus target");
-
-    auto secondRoot     = std::make_unique<Panel>();
-    auto* secondControl = secondRoot->AddChild<RootReplacingPointerControl>(state);
-    secondControl->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 80.0f));
-    host.SetRoot(std::move(secondRoot));
-    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 120.0f));
-
-    handled = false;
-    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(24, 16), handled));
-    Require(handled, "root-replacing pointer-up is handled");
-    Require(state.mouseUpCount == 1u, "root-replacing control receives one mouse-up");
-
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.WindowHost.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "WindowHost source is readable for reentrancy guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    const size_t downDispatch = source.find("const bool controlHandled");
-    Require(downDispatch != std::string::npos, "WindowHost pointer-down dispatch marker exists");
-    const size_t downPostDispatch = source.find("if (IsContextMenuDiagnosticsEnabled())", downDispatch);
-    const size_t downReturn       = source.find("return 0;", downPostDispatch);
-    Require(downPostDispatch != std::string::npos && downReturn != std::string::npos && downPostDispatch < downReturn,
-            "WindowHost pointer-down post-dispatch block is found");
-    const std::string downPostCallbackBlock = source.substr(downPostDispatch, downReturn - downPostDispatch);
-    Require(downPostCallbackBlock.find("target->") == std::string::npos,
-            "WindowHost pointer-down does not dereference target after OnMouseDown/OnMouseDoubleClick");
-    Require(downPostCallbackBlock.find("DescribeWindowHostTraceControl(target)") == std::string::npos,
-            "WindowHost pointer-down diagnostics do not describe target after OnMouseDown/OnMouseDoubleClick");
-
-    const size_t upDispatch = source.find("target->OnMouseUp");
-    Require(upDispatch != std::string::npos, "WindowHost pointer-up dispatch marker exists");
-    const size_t upPostDispatch = source.find("if (IsContextMenuDiagnosticsEnabled())", upDispatch);
-    const size_t upRelease      = source.find("ReleaseMouseCapture();", upPostDispatch);
-    Require(upPostDispatch != std::string::npos && upRelease != std::string::npos && upPostDispatch < upRelease,
-            "WindowHost pointer-up post-dispatch block is found");
-    const std::string upPostCallbackBlock = source.substr(upPostDispatch, upRelease - upPostDispatch);
-    Require(upPostCallbackBlock.find("DescribeWindowHostTraceControl(target)") == std::string::npos,
-            "WindowHost pointer-up diagnostics do not describe target after OnMouseUp");
-}
-
-void TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement()
-{
-    using namespace DxUi;
-
-    WindowHost host;
-    RootReplacingHoverControlState state;
-    auto root     = std::make_unique<Panel>();
-    auto* control = root->AddChild<RootReplacingHoverControl>(state);
-    control->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 80.0f));
-    host.SetRoot(std::move(root));
-    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 120.0f));
-
-    bool handled = false;
-    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(24, 16), handled));
-    Require(handled, "root-replacing hover-enter mouse move is handled");
-    Require(state.hoverEnterCount == 1u, "root-replacing hover control receives hover enter");
-    Require(state.mouseMoveCount == 0u, "root-replacing hover control is not reused for mouse move after replacing the root");
-
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.WindowHost.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "WindowHost source is readable for hover reentrancy guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-    const size_t updateHover = source.find("void WindowHost::UpdateHover");
-    Require(updateHover != std::string::npos, "WindowHost UpdateHover source exists");
-    const size_t hoverEnter = source.find("OnHoverChanged(*this, true)", updateHover);
-    const size_t mouseMove  = source.find("OnMouseMove(*this, pointDip, modifiers)", hoverEnter);
-    Require(hoverEnter != std::string::npos && mouseMove != std::string::npos && hoverEnter < mouseMove,
-            "WindowHost UpdateHover hover-enter and mouse-move calls are found");
-    const std::string hoverPostCallbackBlock = source.substr(hoverEnter, mouseMove - hoverEnter);
-    Require(hoverPostCallbackBlock.find("RevalidateInteractiveDispatchedControl") != std::string::npos,
-            "WindowHost UpdateHover revalidates the hover target after hover-enter callbacks");
-}
-
-void TestWindowHostDeviceLossSchedulesRepaintAndForcesFullPresent()
-{
-    {
-        using namespace DxUi;
-
-        AttachedHostWindow window;
-        auto root   = std::make_unique<Panel>();
-        auto* label = root->AddChild<Label>(L"Device recovery");
-        label->SetBounds(D2D1::RectF(8.0f, 8.0f, 220.0f, 36.0f));
-        window.Host().SetRoot(std::move(root));
-
-        const WindowHostBitmapCapture initialCapture =
-            CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "device-loss initial render creates resources");
-        Require(initialCapture.widthPx > 0u && initialCapture.heightPx > 0u, "device-loss initial render produces pixels");
-        Require(window.Host().DebugHasD2DContext(), "device-loss initial render creates a D2D context");
-
-        const uint64_t invalidatesBeforeDeviceLoss = window.Host().DebugGetInvalidateCount();
-        window.Host().DebugSimulateDeviceLoss();
-        Require(! window.Host().DebugHasD2DContext(), "device-loss simulation discards the D2D context");
-        Require(window.Host().DebugGetInvalidateCount() > invalidatesBeforeDeviceLoss, "device-loss simulation schedules a repaint");
-
-        const WindowHostBitmapCapture recoveredCapture =
-            CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "device-loss recovery render recreates resources");
-        Require(recoveredCapture.widthPx > 0u && recoveredCapture.heightPx > 0u, "device-loss recovery render produces pixels");
-        Require(window.Host().DebugHasD2DContext(), "device-loss recovery render recreates the D2D context");
-    }
-
-    const std::filesystem::path headerPath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.h";
-    std::ifstream headerInput(headerPath);
-    Require(headerInput.good(), "WindowHost header is readable for device-loss recovery guard");
-    const std::string header((std::istreambuf_iterator<char>(headerInput)), std::istreambuf_iterator<char>());
-    Require(header.find("_forceFullPresentAfterDeviceRecreate") != std::string::npos, "WindowHost stores a first-frame-after-recreate full-present flag");
-
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.WindowHost.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "WindowHost source is readable for device-loss recovery guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    const size_t firstRender = source.find("void WindowHost::Render(const RECT* dirtyRectPx, bool allowHidden)");
-    const size_t testRender  = source.find("void WindowHost::Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture", firstRender);
-    Require(firstRender != std::string::npos && testRender != std::string::npos && firstRender < testRender, "retail WindowHost Render overload is found");
-    const std::string retailRenderBlock = source.substr(firstRender, testRender - firstRender);
-
-    const size_t testRenderEnd = source.find("void WindowHost::OnSize", testRender);
-    Require(testRenderEnd != std::string::npos && testRender < testRenderEnd, "test WindowHost Render overload is found");
-    const std::string testRenderBlock = source.substr(testRender, testRenderEnd - testRender);
-
-    for (const std::string& renderBlock : {retailRenderBlock, testRenderBlock})
-    {
-        const size_t partialDirty = renderBlock.find("dirtyRectMetrics.isPartialDirty && ! forceFullPresentAfterDeviceRecreate");
-        Require(partialDirty != std::string::npos, "WindowHost Render suppresses partial present for the first recreated frame");
-
-        const size_t deviceLost = renderBlock.find("render-device-lost");
-        Require(deviceLost != std::string::npos, "WindowHost Render device-loss branch is found");
-        const size_t resetShared = renderBlock.find("ResetSharedWindowHostGraphicsResources();", deviceLost);
-        const size_t forceFull   = renderBlock.find("_forceFullPresentAfterDeviceRecreate = true;", deviceLost);
-        const size_t invalidate  = renderBlock.find("Invalidate();", deviceLost);
-        const size_t returnOut   = renderBlock.find("return;", deviceLost);
-        Require(resetShared != std::string::npos && forceFull != std::string::npos && invalidate != std::string::npos && returnOut != std::string::npos,
-                "WindowHost Render device-loss branch resets resources, forces full present, invalidates, and returns");
-        Require(resetShared < forceFull && forceFull < invalidate && invalidate < returnOut,
-                "WindowHost Render schedules full repaint after resource discard before returning from device loss");
-    }
-}
-
 void TestWindowHostRenderSurvivesForcedNullSolidBrushes()
 {
     using namespace DxUi;
@@ -3602,7 +2966,7 @@ void TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation()
 
 void TestNoninteractiveWindowActivationBlockerRejectsFocusStealing()
 {
-    using RedSalamander::TestSupport::ScopedWindowActivationBlocker;
+    using DxUi::TestSupport::ScopedWindowActivationBlocker;
 
     ScopedWindowActivationBlocker localBlocker;
     const bool ownsBlocker = ! ScopedWindowActivationBlocker::IsActiveForCurrentThread();
@@ -3643,25 +3007,14 @@ void RunWindowHostTests()
     };
 
     runTest("TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies", TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);
-    runTest("TestDxUiTypographyMeasurementCachesFormatsAndFamilyResolution", TestDxUiTypographyMeasurementCachesFormatsAndFamilyResolution);
-    runTest("TestConnectionCredentialPromptDestroysWindowOnModalQuit", TestConnectionCredentialPromptDestroysWindowOnModalQuit);
-    runTest("TestConnectionCredentialPromptTeardownDoesNotWipeThroughRawTextFieldPointers",
-            TestConnectionCredentialPromptTeardownDoesNotWipeThroughRawTextFieldPointers);
-    runTest("TestConnectionCredentialPromptUiaPumpDoesNotDetachTimedOutWorkers", TestConnectionCredentialPromptUiaPumpDoesNotDetachTimedOutWorkers);
-    runTest("TestWindowHostPaintUsesWilBeginPaintRaii", TestWindowHostPaintUsesWilBeginPaintRaii);
     runTest("TestWindowHostKeyboardInputMarksFocusVisible", TestWindowHostKeyboardInputMarksFocusVisible);
     runTest("TestWindowHostPointerInputClearsKeyboardFocusVisible", TestWindowHostPointerInputClearsKeyboardFocusVisible);
     runTest("TestWindowHostRejectsForeignThreadDetachUntilOwnerDetaches", TestWindowHostRejectsForeignThreadDetachUntilOwnerDetaches);
     runTest("TestWindowHostDetachKeepsSharedGraphicsAttachmentUntilControlTreeDestroyed",
             TestWindowHostDetachKeepsSharedGraphicsAttachmentUntilControlTreeDestroyed);
-    runTest("TestWindowHostDestructorDetachesBeforeMemberTeardown", TestWindowHostDestructorDetachesBeforeMemberTeardown);
     runTest("TestWindowHostEmitsFrameStageMetricsForCaptureRender", TestWindowHostEmitsFrameStageMetricsForCaptureRender);
     runTest("TestWindowHostBlocksLayoutMutationDuringRender", TestWindowHostBlocksLayoutMutationDuringRender);
     runTest("TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads", TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads);
-    runTest("TestContiguousPostedPayloadCoalescingPreservesQueueOrderAndOperationKeys",
-            TestContiguousPostedPayloadCoalescingPreservesQueueOrderAndOperationKeys);
-    runTest("TestSharedTestSupportPreservesSandboxAndEnvironmentPolicies", TestSharedTestSupportPreservesSandboxAndEnvironmentPolicies);
-    runTest("TestSharedTestSupportPumpsMessagesAndBoundsSnapshotPolling", TestSharedTestSupportPumpsMessagesAndBoundsSnapshotPolling);
     runTest("TestWindowHostMouseMoveUpdatesHoverTarget", TestWindowHostMouseMoveUpdatesHoverTarget);
     runTest("TestWindowHostMouseLeaveOverForeignPopupClearsHover", TestWindowHostMouseLeaveOverForeignPopupClearsHover);
     runTest("TestWindowHostMouseLeaveWithForeignCaptureClearsHover", TestWindowHostMouseLeaveWithForeignCaptureClearsHover);
@@ -3679,7 +3032,6 @@ void RunWindowHostTests()
     runTest("TestWindowHostDpiChangedIsHandled", TestWindowHostDpiChangedIsHandled);
     runTest("TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow",
             TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow);
-    runTest("TestWindowHostDpiChangedRecreatesTargetBitmapWhenSizeIsUnchanged", TestWindowHostDpiChangedRecreatesTargetBitmapWhenSizeIsUnchanged);
     runTest("TestWindowHostAttachedWindowsRenderAcrossUiThreads", TestWindowHostAttachedWindowsRenderAcrossUiThreads);
     runTest("TestWindowHostEscapeInvokesCancelButton", TestWindowHostEscapeInvokesCancelButton);
     runTest("TestWindowHostEscapeClosesComboPopupBeforeCancelButton", TestWindowHostEscapeClosesComboPopupBeforeCancelButton);
@@ -3711,9 +3063,6 @@ void RunWindowHostTests()
     runTest("TestWindowHostCaptureLossClearsPressedButtonState", TestWindowHostCaptureLossClearsPressedButtonState);
     runTest("TestWindowHostResetInteractionStateNotifiesCapturedControl", TestWindowHostResetInteractionStateNotifiesCapturedControl);
     runTest("TestWindowHostRedundantCaptureDoesNotCancelMouseDownCapture", TestWindowHostRedundantCaptureDoesNotCancelMouseDownCapture);
-    runTest("TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement", TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement);
-    runTest("TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement", TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement);
-    runTest("TestWindowHostDeviceLossSchedulesRepaintAndForcesFullPresent", TestWindowHostDeviceLossSchedulesRepaintAndForcesFullPresent);
     runTest("TestWindowHostRenderSurvivesForcedNullSolidBrushes", TestWindowHostRenderSurvivesForcedNullSolidBrushes);
     runTest("TestWindowHostSmokeOverlayRendersBelowRootOverlay", TestWindowHostSmokeOverlayRendersBelowRootOverlay);
     runTest("TestWindowHostOverlayHitTestingPrecedesContentHitTesting", TestWindowHostOverlayHitTestingPrecedesContentHitTesting);

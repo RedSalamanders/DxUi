@@ -1318,82 +1318,6 @@ void TestTabControlCloseButtonRemovesTabsAndInvokesCallback()
     Require(tabControl->GetTabCount() == 2u, "tab control removes the closed tab");
 }
 
-void TestTabControlCloseCallbacksCanReplaceRootSafely()
-{
-    using namespace DxUi;
-
-    {
-        WindowHost host;
-        auto root        = std::make_unique<Panel>();
-        auto* tabControl = root->AddChild<TabControl>();
-        tabControl->SetBounds(D2D1::RectF(0.0f, 0.0f, 360.0f, 200.0f));
-        tabControl->AddTab<Label>(L"Home", L"Page 0");
-        tabControl->AddTab<Label>(L"View", L"Page 1");
-        tabControl->SetTabClosable(1u, true);
-        tabControl->SetSelectedIndex(1u);
-
-        size_t closeRequestCount = 0u;
-        tabControl->SetOnTabCloseRequested([&](size_t index)
-        {
-            Require(index == 1u, "tab close request callback receives the requested tab index");
-            ++closeRequestCount;
-            host.SetRoot(std::make_unique<Panel>());
-            return true;
-        });
-
-        host.SetRoot(std::move(root));
-        const D2D1_POINT_2F closePoint = RectCenter(tabControl->DebugGetCloseButtonRect(1u));
-        Require(tabControl->OnMouseDown(host, closePoint, false, 0), "tab control handles close-request replacement press");
-        Require(tabControl->OnMouseUp(host, closePoint, false, 0), "tab control handles close-request replacement release");
-        Require(closeRequestCount == 1u, "tab close request callback runs once before replacing the root");
-    }
-
-    {
-        WindowHost host;
-        auto root        = std::make_unique<Panel>();
-        auto* tabControl = root->AddChild<TabControl>();
-        tabControl->SetBounds(D2D1::RectF(0.0f, 0.0f, 360.0f, 200.0f));
-        tabControl->AddTab<Label>(L"Home", L"Page 0");
-        tabControl->AddTab<Label>(L"View", L"Page 1");
-        tabControl->SetTabClosable(1u, true);
-        tabControl->SetSelectedIndex(1u);
-
-        size_t closeCount = 0u;
-        tabControl->SetOnTabClosed([&](size_t index)
-        {
-            Require(index == 1u, "tab closed callback receives the closed tab index");
-            ++closeCount;
-            host.SetRoot(std::make_unique<Panel>());
-        });
-
-        host.SetRoot(std::move(root));
-        const D2D1_POINT_2F closePoint = RectCenter(tabControl->DebugGetCloseButtonRect(1u));
-        Require(tabControl->OnMouseDown(host, closePoint, false, 0), "tab control handles close replacement press");
-        Require(tabControl->OnMouseUp(host, closePoint, false, 0), "tab control handles close replacement release");
-        Require(closeCount == 1u, "tab closed callback runs once before replacing the root");
-    }
-
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.Controls.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "Controls source is readable for tab close reentrancy guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-    const size_t closeTab = source.find("void TabControl::CloseTab");
-    Require(closeTab != std::string::npos, "TabControl::CloseTab source exists");
-    const size_t closeRequestedCall = source.find("onTabCloseRequested(index)", closeTab);
-    const size_t removeTabCall      = source.find("RemoveTab(index)", closeRequestedCall);
-    const size_t closedCall         = source.find("onTabClosed(index)", removeTabCall);
-    const size_t invalidateCall     = source.find("Invalidate(host)", closedCall);
-    Require(closeRequestedCall != std::string::npos && removeTabCall != std::string::npos && closedCall != std::string::npos &&
-                invalidateCall != std::string::npos,
-            "TabControl::CloseTab callback and invalidate calls are found");
-    const std::string requestedPostCallbackBlock = source.substr(closeRequestedCall, removeTabCall - closeRequestedCall);
-    const std::string closedPostCallbackBlock    = source.substr(closedCall, invalidateCall - closedCall);
-    Require(requestedPostCallbackBlock.find("closeLifetime.expired()") != std::string::npos,
-            "TabControl::CloseTab checks its lifetime after close-request callbacks");
-    Require(closedPostCallbackBlock.find("closeLifetime.expired()") != std::string::npos,
-            "TabControl::CloseTab checks its lifetime after close-completed callbacks");
-}
-
 void TestTabControlOverflowButtonsAndWheelScroll()
 {
     using namespace DxUi;
@@ -1849,7 +1773,6 @@ void RunNewControlTests()
     TestTabControlSelectionShowsOnlyTheActivePage();
     TestTabControlHiddenTabsKeepStableIndicesAndLeaveTheHeader();
     TestTabControlCloseButtonRemovesTabsAndInvokesCallback();
-    TestTabControlCloseCallbacksCanReplaceRootSafely();
     TestTabControlOverflowButtonsAndWheelScroll();
     TestTabControlHeaderDividerExposesPaintableGeometry();
     TestTabControlKeyboardNavigationHonorsRightToLeft();

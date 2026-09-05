@@ -49,84 +49,6 @@ void TestVisibleSpan()
     Require(span.offsetDip == 0.0f, "visible span offset");
 }
 
-void TestGridPaintReusesCollectedGroupsForContentAndVisibleRows()
-{
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.Grid.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "Grid source is readable for paint hot-path guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    const size_t paintFunction = source.find("void Grid::Paint");
-    const size_t tickFunction  = source.find("bool Grid::Tick", paintFunction);
-    Require(paintFunction != std::string::npos && tickFunction != std::string::npos && paintFunction < tickFunction, "Grid::Paint source block is found");
-
-    const std::string paintBlock = source.substr(paintFunction, tickFunction - paintFunction);
-    const size_t collectGroups   = paintBlock.find("CollectOrderedGroups(_model)");
-    const size_t contentRect     = paintBlock.find("GetContentRect(_cachedGroups)", collectGroups);
-    const size_t visibleRows     = paintBlock.find("BuildVisibleBodyItems(_cachedGroups, bodyRect)", contentRect);
-    Require(collectGroups != std::string::npos, "Grid::Paint collects ordered groups once for the frame");
-    Require(contentRect != std::string::npos && collectGroups < contentRect, "Grid::Paint computes content rect from the collected frame groups");
-    Require(visibleRows != std::string::npos && contentRect < visibleRows, "Grid::Paint builds visible rows from the same groups and body rect");
-}
-
-void TestGridTickUsesPaintDiscoveredAnimatedCellState()
-{
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.Grid.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "Grid source is readable for animation tick hot-path guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    const size_t tickFunction = source.find("bool Grid::Tick");
-    const size_t nextFunction = source.find("bool Grid::HasAnimatedVisibleCells", tickFunction);
-    Require(tickFunction != std::string::npos && nextFunction != std::string::npos && tickFunction < nextFunction, "Grid::Tick source block is found");
-
-    const std::string tickBlock = source.substr(tickFunction, nextFunction - tickFunction);
-    Require(tickBlock.find("_lastPaintHadAnimatedVisibleCells") != std::string::npos, "Grid::Tick reuses the animated-cell state discovered during Paint");
-    Require(tickBlock.find("_animatedVisibleCellStateValid ? _lastPaintHadAnimatedVisibleCells : HasAnimatedVisibleCells()") != std::string::npos,
-            "Grid::Tick scans visible cells only when the paint-discovered animated-cell state is invalid");
-    Require(tickBlock.find("GetCellData(") == std::string::npos, "Grid::Tick does not call the model for cell data every animation tick");
-}
-
-void TestGridPaintReusesCellDataScratchStorage()
-{
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.Grid.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "Grid source is readable for cell-data scratch-storage guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    const size_t paintFunction = source.find("void Grid::Paint");
-    const size_t tickFunction  = source.find("bool Grid::Tick", paintFunction);
-    Require(paintFunction != std::string::npos && tickFunction != std::string::npos && paintFunction < tickFunction, "Grid::Paint source block is found");
-
-    const std::string paintBlock = source.substr(paintFunction, tickFunction - paintFunction);
-    const size_t scratch         = paintBlock.find("GridCellData cellData;");
-    const size_t reset           = paintBlock.find("ResetGridCellData(cellData);", scratch);
-    const size_t modelRead       = paintBlock.find("_model->GetCellData(rowIndex, columnIndex, cellData);", reset);
-    Require(scratch != std::string::npos, "Grid::Paint keeps one reusable GridCellData scratch object");
-    Require(paintBlock.find("GridCellData cellData{};") == std::string::npos, "Grid::Paint does not construct GridCellData per visible cell");
-    Require(reset != std::string::npos && reset < modelRead, "Grid::Paint resets scratch cell data before each model read");
-}
-
-void TestGridPaintEmitsCellDataReadMetric()
-{
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.Grid.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "Grid source is readable for paint cell-data metric guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    const size_t paintFunction = source.find("void Grid::Paint");
-    const size_t tickFunction  = source.find("bool Grid::Tick", paintFunction);
-    Require(paintFunction != std::string::npos && tickFunction != std::string::npos && paintFunction < tickFunction, "Grid::Paint source block is found");
-
-    const std::string paintBlock = source.substr(paintFunction, tickFunction - paintFunction);
-    const size_t counter         = paintBlock.find("visibleCellDataReadCount");
-    const size_t increment       = paintBlock.find("++visibleCellDataReadCount", counter);
-    const size_t metric          = paintBlock.find("dxui.grid.paint_cell_data_reads");
-    Require(counter != std::string::npos, "Grid::Paint tracks visible cell-data model callback count");
-    Require(increment != std::string::npos, "Grid::Paint increments the cell-data model callback count after visible cell reads");
-    Require(metric != std::string::npos, "Grid::Paint emits a cell-data read perf metric for archived runs");
-}
-
 void TestSelectionModel()
 {
     using DxUi::GridSelectionModel;
@@ -1881,10 +1803,6 @@ void RunGridTests()
 {
     TestSortCycle();
     TestVisibleSpan();
-    TestGridPaintReusesCollectedGroupsForContentAndVisibleRows();
-    TestGridTickUsesPaintDiscoveredAnimatedCellState();
-    TestGridPaintReusesCellDataScratchStorage();
-    TestGridPaintEmitsCellDataReadMetric();
     TestSelectionModel();
     TestGridVisibleWorkMetricsStayBoundedForLargeDatasets();
     TestGroupedGridVisibleWorkMetricsIncludeHeaders();

@@ -42,11 +42,7 @@ int main()
     {
         DxUi::FrameStageScope outer(stage, DxUi::FrameStage::Render);
         Check(stage == DxUi::FrameStage::Render, "scope enters render");
-#if defined(_DEBUG)
-        Check(DxUi::IsDxUiRenderStageActiveForDebug(), "render guard observes render");
-#else
-        Check(! DxUi::IsDxUiRenderStageActiveForDebug(), "release omits debug guard");
-#endif
+        Check(DxUi::IsDxUiRenderStageActiveForDebug(), "API revision 2 preserves render guards in every configuration");
         {
             DxUi::FrameStageScope inner(stage, DxUi::FrameStage::Layout);
             Check(stage == DxUi::FrameStage::Layout, "nested stage");

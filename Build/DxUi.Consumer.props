@@ -4,7 +4,11 @@
     <DxUiResolvedRoot>$([MSBuild]::EnsureTrailingSlash('$(DxUiRoot)'))</DxUiResolvedRoot>
     <DxUiConsumerLockFile Condition="'$(DxUiConsumerLockFile)'==''">$(MSBuildProjectDirectory)\Dependencies\DxUi.lock.json</DxUiConsumerLockFile>
   </PropertyGroup>
+  <PropertyGroup>
+    <DxUiConsumerTriplet Condition="'$(Platform)'=='x64'">x64-windows</DxUiConsumerTriplet>
+    <DxUiConsumerTriplet Condition="'$(Platform)'=='ARM64'">arm64-windows</DxUiConsumerTriplet>
+  </PropertyGroup>
   <ItemDefinitionGroup>
-    <ClCompile><AdditionalIncludeDirectories>$(DxUiResolvedRoot)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
+    <ClCompile><AdditionalIncludeDirectories>$(DxUiResolvedRoot)include;$(DxUiConsumerOutputRoot)vcpkg_installed\$(Platform)\$(DxUiConsumerTriplet)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
   </ItemDefinitionGroup>
 </Project>

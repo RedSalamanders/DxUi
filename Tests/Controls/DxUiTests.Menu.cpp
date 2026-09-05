@@ -1,10 +1,7 @@
 #include "../../src/Controls/DxUi.PointerInput.h"
 #include "../../src/Controls/DxUiNativeMenuInterop.h"
+#include "../../src/Support/AnimationDispatcher.h"
 #include "DxUiTestHelpers.h"
-#include "FolderViewEmptyStateLayout.h"
-#include "FolderViewIncrementalSearch.h"
-#include "PaneVisualState.h"
-#include "Ui/AnimationDispatcher.h"
 
 #include <array>
 #include <atomic>
@@ -44,115 +41,6 @@ namespace
     }
 
     return result;
-}
-
-void TestFolderViewIncrementalSearchKeepsContainsHighlightButUsesPrefixFocus()
-{
-    using namespace FolderViewIncrementalSearch;
-
-    constexpr std::array<std::wstring_view, 4> names{{
-        L"notes-a.txt",
-        L"zeta.txt",
-        L"ABC.txt",
-        L"beta-a.txt",
-    }};
-
-    const auto displayNameAt = [&](size_t index) noexcept -> std::wstring_view { return index < names.size() ? names[index] : std::wstring_view{}; };
-
-    const std::optional<UINT32> containsOffset = FindContainsOffsetNoCase(names[0], L"a");
-    Require(containsOffset.has_value() && containsOffset.value() > 0u, "contains match remains available for incremental-search highlighting");
-    Require(! StartsWithNoCase(names[0], L"a"), "a non-prefix contains match is not treated as a focus target");
-    Require(StartsWithNoCase(names[2], L"a"), "prefix matching is case-insensitive");
-
-    const std::optional<size_t> prefixIndex = FindNextPrefixMatchIndex(names.size(), 0u, true, displayNameAt, L"a");
-    Require(prefixIndex.has_value() && prefixIndex.value() == 2u, "focus navigation prefers the next item whose name starts with the query");
-}
-
-void TestFolderViewInactiveVisualStateDimsNormalTextAndIcons()
-{
-    using namespace Common::PaneVisualState;
-
-    const auto same = [](float left, float right) noexcept { return std::fabs(left - right) <= 0.0001f; };
-
-    Require(same(ResolveNormalTextAlpha(1.0f, true, false), 1.0f), "focused pane keeps normal text fully opaque");
-    Require(same(ResolveNormalTextAlpha(1.0f, false, false), kUnfocusedPaneTextOpacity), "unfocused pane dims normal text");
-    Require(same(ResolveNormalTextAlpha(1.0f, false, true), 1.0f), "selected text uses inactive-selection colors instead of normal text dimming");
-    Require(same(ResolveNormalIconOpacity(1.0f, true), 1.0f), "focused pane keeps normal icons fully opaque");
-    Require(same(ResolveNormalIconOpacity(1.0f, false), kUnfocusedPaneIconOpacity), "unfocused pane dims normal icons");
-    Require(same(ResolveNormalIconOpacity(0.5f, false), 0.5f * kUnfocusedPaneIconOpacity), "hidden icons keep their hidden dim and get pane dimming");
-    Require(same(ResolvePlaceholderIconOpacity(false), 0.4f * kUnfocusedPaneIconOpacity), "placeholder icons also dim in an unfocused pane");
-    Require(same(ResolveFocusBorderAlpha(1.0f, false), kFocusBorderOpacityUnfocused), "unfocused current item keeps a dim focus border");
-    Require(same(ResolveInactiveContentOverlayAlpha(true, false), 0.0f), "focused pane does not apply an inactive-content overlay");
-    Require(same(ResolveInactiveContentOverlayAlpha(false, false), 1.0f - kUnfocusedPaneTextOpacity),
-            "unfocused pane overlay matches the standard text dimming opacity");
-    Require(same(ResolveInactiveContentOverlayAlpha(false, true), 0.0f), "High Contrast suppresses the inactive-content overlay");
-}
-
-void TestFolderViewEmptyPlaceholderMetricsUseCurrentEmptyLayout()
-{
-    using namespace FolderViewEmptyStateLayout;
-
-    constexpr PlaceholderItemMetricsInput brief{
-        .clientWidthDip          = 640.0f,
-        .clientHeightDip         = 360.0f,
-        .iconSizeDip             = 16.0f,
-        .estimatedCharWidthDip   = 8.0f,
-        .estimatedLabelHeightDip = 18.0f,
-        .detailsLineHeightDip    = 12.0f,
-        .metadataLineHeightDip   = 10.0f,
-        .titleLength             = 12u,
-        .includeDetailsLine      = false,
-        .includeMetadataLine     = false,
-    };
-    const auto expectedTileHeight = [](const PlaceholderItemMetricsInput& input) noexcept
-    {
-        constexpr float kLabelVerticalPaddingDip = 4.0f;
-        constexpr float kDetailsGapDip           = 2.0f;
-
-        float textBlockHeightDip = input.estimatedLabelHeightDip;
-        if (input.includeDetailsLine)
-        {
-            textBlockHeightDip += kDetailsGapDip + input.detailsLineHeightDip;
-        }
-        if (input.includeMetadataLine)
-        {
-            textBlockHeightDip += kDetailsGapDip + input.metadataLineHeightDip;
-        }
-
-        return (std::max)(input.iconSizeDip, textBlockHeightDip) + (kLabelVerticalPaddingDip * 2.0f);
-    };
-
-    const PlaceholderItemMetrics briefMetrics = ResolvePlaceholderItemMetrics(brief);
-    Require(briefMetrics.tileWidthDip == brief.clientWidthDip, "empty-folder placeholder uses the current client width as a full-view focus item");
-    Require(briefMetrics.tileHeightDip == expectedTileHeight(brief), "empty-folder placeholder uses the current display-mode row height");
-
-    PlaceholderItemMetricsInput narrow         = brief;
-    narrow.clientWidthDip                      = 80.0f;
-    const PlaceholderItemMetrics narrowMetrics = ResolvePlaceholderItemMetrics(narrow);
-    Require(narrowMetrics.tileWidthDip == 80.0f, "empty-folder placeholder width follows the current client width");
-
-    PlaceholderItemMetricsInput zeroWidth         = brief;
-    zeroWidth.clientWidthDip                      = 0.0f;
-    const PlaceholderItemMetrics zeroWidthMetrics = ResolvePlaceholderItemMetrics(zeroWidth);
-    Require(zeroWidthMetrics.tileWidthDip == 0.0f && zeroWidthMetrics.tileHeightDip == 0.0f && zeroWidthMetrics.labelHeightDip == 0.0f,
-            "empty-folder placeholder metrics clear when the current client width is zero");
-
-    PlaceholderItemMetricsInput zeroHeight         = brief;
-    zeroHeight.clientHeightDip                     = 0.0f;
-    const PlaceholderItemMetrics zeroHeightMetrics = ResolvePlaceholderItemMetrics(zeroHeight);
-    Require(zeroHeightMetrics.tileWidthDip == 0.0f && zeroHeightMetrics.tileHeightDip == 0.0f && zeroHeightMetrics.labelHeightDip == 0.0f,
-            "empty-folder placeholder metrics clear when the current client height is zero");
-
-    PlaceholderItemMetricsInput detailed         = brief;
-    detailed.includeDetailsLine                  = true;
-    const PlaceholderItemMetrics detailedMetrics = ResolvePlaceholderItemMetrics(detailed);
-    Require(detailedMetrics.tileHeightDip == expectedTileHeight(detailed), "empty-folder placeholder height follows detailed display-mode row height");
-
-    PlaceholderItemMetricsInput extraDetailed         = detailed;
-    extraDetailed.includeMetadataLine                 = true;
-    const PlaceholderItemMetrics extraDetailedMetrics = ResolvePlaceholderItemMetrics(extraDetailed);
-    Require(extraDetailedMetrics.tileHeightDip == expectedTileHeight(extraDetailed),
-            "empty-folder placeholder height follows extra-detailed display-mode row height");
 }
 
 void TestPointerInputEventMouseMoveUsesDeliveredPoint()
@@ -238,160 +126,6 @@ void TestPointerInputEventWheelUsesDeliveredScreenPoint()
             "wheel event uses delivered screen point");
     Require(event.value().clientPointPx.x == expectedClientPoint.x && event.value().clientPointPx.y == expectedClientPoint.y,
             "wheel event derives client point from delivered screen point");
-}
-
-void TestPointerInputEventHasNoLiveCursorState()
-{
-    using namespace DxUi;
-
-    MSG message{};
-    message.hwnd    = nullptr;
-    message.message = WM_TIMER;
-    message.wParam  = 0;
-    message.lParam  = 0;
-    Require(! TryBuildPointerInputEvent(message.hwnd, message.message, message.wParam, message.lParam).has_value(),
-            "non-pointer messages do not build pointer input events");
-    Require(! PointerInputKindFromMessage(WM_TIMER).has_value(), "non-pointer messages do not map to pointer input kinds");
-
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.PointerInput.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "pointer input implementation source is readable for live-cursor guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-    Require(source.find("GetCursorPos") == std::string::npos, "pointer input core does not sample the live cursor");
-}
-
-void TestPointerInputOriginAbstractionIsRemoved()
-{
-    const std::filesystem::path repoRoot    = FindRepoRootForDxUiTests();
-    const std::string removedSourceTypeName = std::string("PointerInput") + "Source";
-
-    std::ifstream headerInput(repoRoot / L"src" / L"Controls" / L"DxUi.PointerInput.h");
-    Require(headerInput.good(), "pointer input header is readable for source-abstraction guard");
-    const std::string header((std::istreambuf_iterator<char>(headerInput)), std::istreambuf_iterator<char>());
-
-    std::ifstream sourceInput(repoRoot / L"src" / L"Controls" / L"DxUi.PointerInput.cpp");
-    Require(sourceInput.good(), "pointer input implementation is readable for source-abstraction guard");
-    const std::string source((std::istreambuf_iterator<char>(sourceInput)), std::istreambuf_iterator<char>());
-
-    Require(header.find(removedSourceTypeName) == std::string::npos, "single-value pointer input source enum is removed");
-    Require(header.find("event.source") == std::string::npos && source.find("event.source") == std::string::npos,
-            "pointer input events no longer carry source metadata");
-    Require(source.find(removedSourceTypeName) == std::string::npos, "pointer input implementation has no pass-through source parameter");
-    Require(header.find("TryBuildPointerInputEventFromMsg") == std::string::npos && source.find("TryBuildPointerInputEventFromMsg") == std::string::npos,
-            "unused MSG-based pointer input builder is removed");
-    Require(source.find("TryBuildPointerInputEventWithMessageTime") == std::string::npos,
-            "pointer input builder no longer keeps a private message-time adapter for a removed MSG path");
-
-    std::ifstream navigationInput(repoRoot / L"RedSalamander" / L"NavigationView.cpp");
-    Require(navigationInput.good(), "NavigationView source is readable for source-abstraction consumer guard");
-    const std::string navigationSource((std::istreambuf_iterator<char>(navigationInput)), std::istreambuf_iterator<char>());
-    Require(navigationSource.find(removedSourceTypeName) == std::string::npos, "NavigationView pointer routing does not pass source metadata");
-}
-
-void TestNavigationViewPointerRoutingHasNoSyntheticGenerationGate()
-{
-    const std::filesystem::path repoRoot                   = FindRepoRootForDxUiTests();
-    const std::array<std::filesystem::path, 5> sourcePaths = {
-        repoRoot / L"RedSalamander" / L"NavigationView.h",
-        repoRoot / L"RedSalamander" / L"NavigationView.cpp",
-        repoRoot / L"RedSalamander" / L"NavigationView.Interaction.cpp",
-        repoRoot / L"RedSalamander" / L"NavigationView.Edit.cpp",
-        repoRoot / L"RedSalamander" / L"NavigationView.Menus.cpp",
-    };
-
-    for (const std::filesystem::path& sourcePath : sourcePaths)
-    {
-        std::ifstream input(sourcePath);
-        Require(input.good(), "NavigationView source is readable for pointer-generation guard");
-        const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-        Require(source.find("BumpInputGeneration") == std::string::npos, "NavigationView does not maintain synthetic input generations");
-        Require(source.find("CurrentInputGeneration") == std::string::npos, "NavigationView does not stamp delivered pointer input with synthetic generations");
-        Require(source.find("_inputGeneration") == std::string::npos, "NavigationView does not store synthetic pointer input generation state");
-    }
-
-    const std::array<std::filesystem::path, 4> tokenSurfacePaths = {
-        repoRoot / L"src" / L"Controls" / L"DxUi.PointerInput.h",
-        repoRoot / L"src" / L"Controls" / L"DxUi.PointerInput.cpp",
-        repoRoot / L"Specs" / L"UI" / L"UI_NavigationView.md",
-        repoRoot / L"Specs" / L"Testing" / L"Testing_TestCoverage.md",
-    };
-    for (const std::filesystem::path& sourcePath : tokenSurfacePaths)
-    {
-        std::ifstream input(sourcePath);
-        Require(input.good(), "pointer input token surface is readable for generation guard");
-        const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-        Require(source.find("InputGeneration") == std::string::npos, "pointer routing contract does not expose a vestigial InputGeneration token");
-    }
-}
-
-void TestMenuWindowClassRegistrationCachesOnlySuccess()
-{
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.Menu.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "Menu source is readable for window-class registration guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    const size_t ensureClass = source.find("void EnsureMenuWindowClass");
-    const size_t nextSection = source.find("// ---------------------------------------------------------------------------", ensureClass + 1u);
-    Require(ensureClass != std::string::npos && nextSection != std::string::npos && ensureClass < nextSection, "EnsureMenuWindowClass source block is found");
-    const std::string block = source.substr(ensureClass, nextSection - ensureClass);
-
-    const size_t alreadyRegistered  = block.find("s_classRegistered.load");
-    const size_t registerClass      = block.find("RegisterClassExW(&wc)");
-    const size_t classAlreadyExists = block.find("ERROR_CLASS_ALREADY_EXISTS");
-    const size_t markRegistered     = block.find("s_classRegistered.store(true");
-    Require(alreadyRegistered != std::string::npos, "menu window-class guard checks the cached registration state without mutating it");
-    Require(registerClass != std::string::npos, "menu window-class guard calls RegisterClassExW");
-    Require(classAlreadyExists != std::string::npos, "menu window-class guard treats ERROR_CLASS_ALREADY_EXISTS as success");
-    Require(markRegistered != std::string::npos && registerClass < markRegistered,
-            "menu window-class guard marks the class registered only after RegisterClassExW succeeds");
-    Require(block.find("s_classRegistered.exchange(true") == std::string::npos,
-            "menu window-class guard does not cache registration before RegisterClassExW succeeds");
-}
-
-void TestMenuPopupWindowRegionTransfersOwnershipOnlyAfterSuccess()
-{
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.Menu.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "Menu source is readable for window-region ownership guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    const size_t applyRegion  = source.find("void ApplyMenuPopupWindowRegion");
-    const size_t nextFunction = source.find("[[nodiscard]] UINT ResolveMenuPopupMessageDpi", applyRegion);
-    Require(applyRegion != std::string::npos && nextFunction != std::string::npos && applyRegion < nextFunction,
-            "ApplyMenuPopupWindowRegion source block is found");
-    const std::string block = source.substr(applyRegion, nextFunction - applyRegion);
-
-    const size_t setWindowRgn  = block.find("SetWindowRgn(hwnd, region.get(), FALSE)");
-    const size_t releaseRegion = block.find("region.release()");
-    Require(setWindowRgn != std::string::npos, "menu popup region passes a borrowed HRGN handle to SetWindowRgn");
-    Require(releaseRegion != std::string::npos && setWindowRgn < releaseRegion, "menu popup region transfers HRGN ownership only after SetWindowRgn succeeds");
-    Require(block.find("SetWindowRgn(hwnd, region.release(), FALSE)") == std::string::npos,
-            "menu popup region does not release HRGN before checking SetWindowRgn");
-}
-
-void TestContextMenuModalLoopDismissesWhenRootPopupDisappearsBeforeWaiting()
-{
-    const std::filesystem::path sourcePath = FindRepoRootForDxUiTests() / L"src" / L"Controls" / L"DxUi.Menu.cpp";
-    std::ifstream input(sourcePath);
-    Require(input.good(), "Menu source is readable for modal-loop root-popup guard");
-    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-
-    const size_t modalLoop = source.find("void RunMenuModalLoop");
-    const size_t waitCall  = source.find("MsgWaitForMultipleObjectsEx", modalLoop);
-    Require(modalLoop != std::string::npos && waitCall != std::string::npos && modalLoop < waitCall, "context-menu modal-loop idle wait block is found");
-
-    const size_t currentRoot = source.rfind("MenuPopup* currentRoot = controller.GetRootPopup();", waitCall);
-    Require(currentRoot != std::string::npos && modalLoop < currentRoot, "context-menu modal-loop revalidates the root popup before its idle wait");
-    const std::string idleBlock = source.substr(currentRoot, waitCall - currentRoot);
-
-    const size_t invalidWindowCheck = idleBlock.find("IsWindow(currentRoot->hwnd) == FALSE");
-    const size_t dismissTrace       = idleBlock.find("menu.loop-dismiss-missing-root");
-    const size_t dismissCall        = idleBlock.find("controller.Dismiss();");
-    Require(invalidWindowCheck != std::string::npos, "context-menu modal-loop checks whether the root popup HWND is still valid");
-    Require(dismissTrace != std::string::npos, "context-menu modal-loop traces dismissal when the root popup is gone");
-    Require(dismissCall != std::string::npos && invalidWindowCheck < dismissCall,
-            "context-menu modal-loop dismisses before waiting when the root popup is gone");
 }
 
 class StripedBackdropControl final : public DxUi::Control
@@ -5193,11 +4927,11 @@ void TestMenuAcrylicBackdropScenarioEmitsMetrics()
         rawAdjacentDelta == 0u ? 0u : static_cast<uint64_t>((popupAdjacentDelta * 1000u + (rawAdjacentDelta / 2u)) / rawAdjacentDelta);
     const uint64_t minStrongBlurDelta = rawAdjacentDelta <= 1u ? 48u : 56u;
 
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_adjacent_rgb_delta", popupAdjacentDelta, S_OK);
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_raw_adjacent_rgb_delta", rawAdjacentDelta, S_OK);
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_vs_raw_rgb_delta", popupVsRawDelta, S_OK);
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_vs_slab_rgb_delta", popupVsSlabDelta, S_OK);
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_to_raw_delta_permille", popupToRawDeltaPermille, S_OK);
+    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_adjacent_rgb_delta", popupAdjacentDelta);
+    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_raw_adjacent_rgb_delta", rawAdjacentDelta);
+    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_vs_raw_rgb_delta", popupVsRawDelta);
+    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_vs_slab_rgb_delta", popupVsSlabDelta);
+    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_to_raw_delta_permille", popupToRawDeltaPermille);
 
     Require(rawAdjacentDelta > 0u, "acrylic backdrop metric scenario records non-zero raw backdrop variance");
     Require(popupVsRawDelta > 0u, "acrylic backdrop metric scenario materially changes the captured backdrop sample");
@@ -5793,22 +5527,13 @@ void RunMenuTests()
     {
         std::cerr << "  [START] " << name << '\n' << std::flush;
         fn();
-        RedSalamander::Ui::AnimationDispatcher::GetInstance().Shutdown();
+        DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
         std::cerr << "  [DONE] " << name << '\n' << std::flush;
     };
 
-    runTest("TestFolderViewIncrementalSearchKeepsContainsHighlightButUsesPrefixFocus", TestFolderViewIncrementalSearchKeepsContainsHighlightButUsesPrefixFocus);
-    runTest("TestFolderViewInactiveVisualStateDimsNormalTextAndIcons", TestFolderViewInactiveVisualStateDimsNormalTextAndIcons);
-    runTest("TestFolderViewEmptyPlaceholderMetricsUseCurrentEmptyLayout", TestFolderViewEmptyPlaceholderMetricsUseCurrentEmptyLayout);
     runTest("TestPointerInputEventMouseMoveUsesDeliveredPoint", TestPointerInputEventMouseMoveUsesDeliveredPoint);
     runTest("TestPointerInputEventButtonUsesDeliveredPointAndFlags", TestPointerInputEventButtonUsesDeliveredPointAndFlags);
     runTest("TestPointerInputEventWheelUsesDeliveredScreenPoint", TestPointerInputEventWheelUsesDeliveredScreenPoint);
-    runTest("TestPointerInputEventHasNoLiveCursorState", TestPointerInputEventHasNoLiveCursorState);
-    runTest("TestPointerInputOriginAbstractionIsRemoved", TestPointerInputOriginAbstractionIsRemoved);
-    runTest("TestNavigationViewPointerRoutingHasNoSyntheticGenerationGate", TestNavigationViewPointerRoutingHasNoSyntheticGenerationGate);
-    runTest("TestMenuWindowClassRegistrationCachesOnlySuccess", TestMenuWindowClassRegistrationCachesOnlySuccess);
-    runTest("TestMenuPopupWindowRegionTransfersOwnershipOnlyAfterSuccess", TestMenuPopupWindowRegionTransfersOwnershipOnlyAfterSuccess);
-    runTest("TestContextMenuModalLoopDismissesWhenRootPopupDisappearsBeforeWaiting", TestContextMenuModalLoopDismissesWhenRootPopupDisappearsBeforeWaiting);
     runTest("TestContextMenuDebugStateProbeBoundsWedgedWindowThread", TestContextMenuDebugStateProbeBoundsWedgedWindowThread);
     runTest("TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen", TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen);
     runTest("TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion", TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion);

@@ -1,18 +1,24 @@
 {
   "schemaVersion": 1,
-  "apiRevision": 1,
+  "apiRevision": 2,
+  "library": "DxUi",
   "supported": [
     "frame-clock",
     "frame-stage-scope",
     "reduced-motion",
-    "injected-frame-diagnostics"
+    "injected-frame-diagnostics",
+    "retained-controls",
+    "control-catalog",
+    "slider-preview-commit-cancel",
+    "embedded-d3d11",
+    "win32-host",
+    "native-text-input",
+    "native-accessibility",
+    "control-gallery"
   ],
   "pending": [
-    "retained-controls",
-    "embedded-d3d11",
-    "win32-services",
-    "win32-host",
     "redxe-adapter",
+    "embedded-host-text-uia-bridge",
     "av-control",
     "redsalamander-migration"
   ]

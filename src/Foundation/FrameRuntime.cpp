@@ -175,7 +175,7 @@ void EmitFrameMetric(std::wstring_view metric, uint64_t valueUs) noexcept
 
 bool IsDxUiRenderStageActiveForDebug() noexcept
 {
-#if defined(_DEBUG) || defined(ENABLE_TESTS)
+#if defined(_DEBUG) || DXUI_ENABLE_DIAGNOSTICS
     return g_currentDebugFrameStage == FrameStage::Render;
 #else
     return false;

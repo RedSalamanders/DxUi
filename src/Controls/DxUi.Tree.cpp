@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "Helpers.h"
+#include "../Support/Diagnostics.h"
 
 namespace DxUi
 {
@@ -128,7 +128,7 @@ struct TreeResolvedRowVisuals final
     return count;
 }
 
-void DrawTreeRow(WindowHost& host,
+void DrawTreeRow(ControlHost& host,
                  const ThemePalette& theme,
                  const TreeItemLayoutMetrics& layout,
                  const TreeItemData& item,
@@ -305,7 +305,7 @@ std::optional<uint64_t> Tree::GetSelectedItemId() const noexcept
 
 void Tree::RefreshAccessibilitySnapshot() const noexcept
 {
-    if (WindowHost* const host = GetHost())
+    if (ControlHost* const host = GetHost())
     {
         RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
     }
@@ -362,7 +362,7 @@ bool Tree::RequestExpandedState(size_t visibleIndex, bool expanded) noexcept
     return true;
 }
 
-TreeItemLayoutMetrics Tree::GetItemLayoutMetrics(const WindowHost& host, size_t visibleIndex) const
+TreeItemLayoutMetrics Tree::GetItemLayoutMetrics(const ControlHost& host, size_t visibleIndex) const
 {
     TreeItemLayoutMetrics metrics{};
     if (! _model || visibleIndex >= _model->GetVisibleItemCount())
@@ -375,7 +375,7 @@ TreeItemLayoutMetrics Tree::GetItemLayoutMetrics(const WindowHost& host, size_t 
     return ComputeItemLayoutMetrics(host, visibleIndex, item);
 }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 float Tree::DebugGetVerticalScrollDip() const noexcept
 {
     return _verticalScrollDip;
@@ -439,7 +439,7 @@ TreeScrollbarVisualState Tree::DebugGetScrollbarVisualState(const ThemePalette& 
 }
 #endif
 
-void Tree::Paint(WindowHost& host) const
+void Tree::Paint(ControlHost& host) const
 {
     const ThemePalette& theme                 = host.GetTheme();
     const TreeSurfaceVisualStyle surfaceStyle = ResolveTreeSurfaceVisualStyle(theme);
@@ -553,7 +553,7 @@ void Tree::Paint(WindowHost& host) const
     }
 }
 
-bool Tree::Tick(WindowHost& host, uint64_t nowTickMs)
+bool Tree::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     if (host.GetTheme().reducedMotion)
     {
@@ -601,7 +601,7 @@ bool Tree::Tick(WindowHost& host, uint64_t nowTickMs)
     return hasActiveAnimation;
 }
 
-bool Tree::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
+bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
     if (_dragVerticalThumb)
     {
@@ -652,7 +652,7 @@ bool Tree::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modifiers*/
     return hit.zone != HitZone::None;
 }
 
-bool Tree::OnMouseLeave(WindowHost& host)
+bool Tree::OnMouseLeave(ControlHost& host)
 {
     const bool hadHover        = _hoveredVisibleIndex.has_value();
     const bool hadHotScrollbar = _verticalScrollbarHotPart != ScrollbarHotPart::None;
@@ -673,7 +673,7 @@ bool Tree::OnMouseLeave(WindowHost& host)
     return true;
 }
 
-bool Tree::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     const HitInfo hit = HitTestPoint(MakePointDip(point));
     if (hit.zone == HitZone::None)
@@ -734,7 +734,7 @@ bool Tree::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton, 
     return true;
 }
 
-bool Tree::OnMouseDoubleClick(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     if (rightButton)
     {
@@ -784,7 +784,7 @@ bool Tree::OnMouseDoubleClick(WindowHost& host, D2D1_POINT_2F point, bool rightB
     return true;
 }
 
-bool Tree::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     if (rightButton)
     {
@@ -803,7 +803,7 @@ bool Tree::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UI
     return wasDragging;
 }
 
-void Tree::OnCaptureLost(WindowHost& host)
+void Tree::OnCaptureLost(ControlHost& host)
 {
     if (_dragVerticalThumb)
     {
@@ -815,7 +815,7 @@ void Tree::OnCaptureLost(WindowHost& host)
     }
 }
 
-bool Tree::OnMouseWheel(WindowHost& host, D2D1_POINT_2F point, float wheelDelta, UINT /*modifiers*/)
+bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT /*modifiers*/)
 {
     if (! PointInRect(GetHitBounds(), point) || GetVerticalScrollableExtent() <= 0.0f)
     {
@@ -836,7 +836,7 @@ bool Tree::OnMouseWheel(WindowHost& host, D2D1_POINT_2F point, float wheelDelta,
     return true;
 }
 
-bool Tree::OnKeyDown(WindowHost& host, UINT virtualKey, UINT /*modifiers*/)
+bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
 {
     if (! _model || _model->GetVisibleItemCount() == 0u)
     {
@@ -938,7 +938,7 @@ bool Tree::OnKeyDown(WindowHost& host, UINT virtualKey, UINT /*modifiers*/)
     }
 }
 
-bool Tree::OnChar(WindowHost& host, wchar_t ch, UINT /*modifiers*/)
+bool Tree::OnChar(ControlHost& host, wchar_t ch, UINT /*modifiers*/)
 {
     if (! _model || _model->GetVisibleItemCount() == 0u || ch < 0x20)
     {
@@ -980,7 +980,7 @@ bool Tree::OnChar(WindowHost& host, wchar_t ch, UINT /*modifiers*/)
     return false;
 }
 
-bool Tree::OnContextMenu(WindowHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
+bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
     if (! _model || ! _delegate || _model->GetVisibleItemCount() == 0u)
     {
@@ -1045,7 +1045,7 @@ bool Tree::OnContextMenu(WindowHost& host, bool keyboardInvocation, D2D1_POINT_2
     return true;
 }
 
-float Tree::MeasureCachedBadgeTextWidthDip(const WindowHost& host, std::wstring_view badgeText) const noexcept
+float Tree::MeasureCachedBadgeTextWidthDip(const ControlHost& host, std::wstring_view badgeText) const noexcept
 {
     auto* textFormat = host.GetTextFormat(FontRole::Small);
     for (const TreeBadgeWidthCacheEntry& entry : _badgeWidthCache)
@@ -1069,7 +1069,7 @@ float Tree::MeasureCachedBadgeTextWidthDip(const WindowHost& host, std::wstring_
     return widthDip;
 }
 
-std::wstring Tree::ResolveCachedTreeTooltipText(const WindowHost& host,
+std::wstring Tree::ResolveCachedTreeTooltipText(const ControlHost& host,
                                                 size_t visibleIndex,
                                                 const TreeItemData& item,
                                                 const TreeItemLayoutMetrics& layout) const
@@ -1112,7 +1112,7 @@ std::wstring Tree::ResolveCachedTreeTooltipText(const WindowHost& host,
     return cache.resolvedTooltipText;
 }
 
-TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const WindowHost& host, size_t visibleIndex, const TreeItemData& item) const noexcept
+TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, size_t visibleIndex, const TreeItemData& item) const noexcept
 {
     TreeItemLayoutMetrics metrics{};
     const D2D1_RECT_F contentRect = GetContentRect();
@@ -1159,7 +1159,7 @@ TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const WindowHost& host, siz
     return metrics;
 }
 
-TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const WindowHost& host, float rowTopDip, const TreeItemData& item) const noexcept
+TreeItemLayoutMetrics Tree::ComputeItemLayoutMetrics(const ControlHost& host, float rowTopDip, const TreeItemData& item) const noexcept
 {
     TreeItemLayoutMetrics metrics{};
     const D2D1_RECT_F contentRect = GetContentRect();
@@ -1391,7 +1391,7 @@ void Tree::UpdateScrollbarHotState(const HitInfo& hit) noexcept
     }
 }
 
-void Tree::SyncScrollbarAnimation(WindowHost& host) noexcept
+void Tree::SyncScrollbarAnimation(ControlHost& host) noexcept
 {
     UpdateScrollbarAnimation(host,
                              _verticalScrollbarAnimation,

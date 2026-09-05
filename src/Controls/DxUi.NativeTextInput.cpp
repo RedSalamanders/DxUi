@@ -1,6 +1,6 @@
 #include "DxUi.Internal.h"
 
-#include "Helpers.h"
+#include "../Support/Diagnostics.h"
 
 #include <algorithm>
 #include <chrono>
@@ -447,12 +447,12 @@ void ReplaceNativeTextInputRange(TextInputState& state, size_t rangeStart, size_
 }
 } // namespace
 
-WindowHost::NativeSystemCaret::~NativeSystemCaret() noexcept
+ControlHost::NativeSystemCaret::~NativeSystemCaret() noexcept
 {
     Reset();
 }
 
-bool WindowHost::NativeSystemCaret::Create(HWND ownerHwnd, int widthPx, int heightPx) noexcept
+bool ControlHost::NativeSystemCaret::Create(HWND ownerHwnd, int widthPx, int heightPx) noexcept
 {
     Reset();
     if (! ownerHwnd || widthPx <= 0 || heightPx <= 0)
@@ -473,7 +473,7 @@ bool WindowHost::NativeSystemCaret::Create(HWND ownerHwnd, int widthPx, int heig
     return true;
 }
 
-bool WindowHost::NativeSystemCaret::Show() noexcept
+bool ControlHost::NativeSystemCaret::Show() noexcept
 {
     if (! _created || ! _ownerHwnd)
     {
@@ -493,7 +493,7 @@ bool WindowHost::NativeSystemCaret::Show() noexcept
     return true;
 }
 
-void WindowHost::NativeSystemCaret::Hide() noexcept
+void ControlHost::NativeSystemCaret::Hide() noexcept
 {
     if (_created && _visible && _ownerHwnd)
     {
@@ -502,7 +502,7 @@ void WindowHost::NativeSystemCaret::Hide() noexcept
     _visible = false;
 }
 
-void WindowHost::NativeSystemCaret::Reset() noexcept
+void ControlHost::NativeSystemCaret::Reset() noexcept
 {
     Hide();
     if (_created)
@@ -516,17 +516,17 @@ void WindowHost::NativeSystemCaret::Reset() noexcept
     _heightPx  = 0;
 }
 
-void WindowHost::ActivateTextInput(Control* control) noexcept
+void ControlHost::ActivateTextInput(Control* control) noexcept
 {
     ActivateNativeTextInputSession(control);
 }
 
-void WindowHost::DeactivateTextInput(bool restoreHostFocus) noexcept
+void ControlHost::DeactivateTextInput(bool restoreHostFocus) noexcept
 {
     DeactivateNativeTextInputSession(restoreHostFocus);
 }
 
-void WindowHost::SetTextInputBackend(TextInputBackend backend) noexcept
+void ControlHost::SetTextInputBackend(TextInputBackend backend) noexcept
 {
     if (_textInputBackend == backend)
     {
@@ -545,17 +545,17 @@ void WindowHost::SetTextInputBackend(TextInputBackend backend) noexcept
     ActivateTextInput(_focusedControl);
 }
 
-TextInputBackend WindowHost::GetTextInputBackend() const noexcept
+TextInputBackend ControlHost::GetTextInputBackend() const noexcept
 {
     return _textInputBackend;
 }
 
-bool WindowHost::HasActiveNativeTextInputSession() const noexcept
+bool ControlHost::HasActiveNativeTextInputSession() const noexcept
 {
     return _nativeTextInputControl != nullptr;
 }
 
-void WindowHost::ActivateNativeTextInputSession(Control* control) noexcept
+void ControlHost::ActivateNativeTextInputSession(Control* control) noexcept
 {
     const auto startedAt = std::chrono::steady_clock::now();
     if (! control || ! control->SupportsTextInput())
@@ -604,14 +604,14 @@ void WindowHost::ActivateNativeTextInputSession(Control* control) noexcept
                       S_OK);
 }
 
-void WindowHost::SecureClearNativeTextInputStateCache() noexcept
+void ControlHost::SecureClearNativeTextInputStateCache() noexcept
 {
     SecureWipe::SecureClear(_nativeTextInputStateCache.text);
     _nativeTextInputStateCache      = NativeTextInputState{};
     _nativeTextInputStateCacheValid = false;
 }
 
-void WindowHost::DeactivateNativeTextInputSession(bool restoreHostFocus) noexcept
+void ControlHost::DeactivateNativeTextInputSession(bool restoreHostFocus) noexcept
 {
     if (_nativeTextInputImeComposing && _nativeTextInputImeBaseState.has_value() && _nativeTextInputControl && ! _nativeTextInputControlLifetime.expired() &&
         NativeTextInputControlBelongsToTree(_root.get(), _nativeTextInputControl))
@@ -650,7 +650,7 @@ void WindowHost::DeactivateNativeTextInputSession(bool restoreHostFocus) noexcep
     }
 }
 
-bool WindowHost::ActivateNativeTextInputTsf(Control* control) noexcept
+bool ControlHost::ActivateNativeTextInputTsf(Control* control) noexcept
 {
     DeactivateNativeTextInputTsf();
     ++_nativeTextInputEventCounters.tsfActivationAttemptCount;
@@ -724,7 +724,7 @@ bool WindowHost::ActivateNativeTextInputTsf(Control* control) noexcept
     return true;
 }
 
-void WindowHost::DeactivateNativeTextInputTsf() noexcept
+void ControlHost::DeactivateNativeTextInputTsf() noexcept
 {
     const bool wasActive = _nativeTextInputTsfActive;
     wil::com_ptr_nothrow<IUnknown> textStoreToDisconnect;
@@ -797,7 +797,7 @@ void ShutdownNativeTextInputForCurrentThread() noexcept
     ShutdownNativeTextInputThreadManagerState(state);
 }
 
-void WindowHost::SyncNativeTextInputSession(Control* control) noexcept
+void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
 {
     if (! control || control != _nativeTextInputControl)
     {
@@ -823,7 +823,7 @@ void WindowHost::SyncNativeTextInputSession(Control* control) noexcept
     UpdateNativeTextInputCaret();
 }
 
-void WindowHost::RaiseNativeTextInputAccessibilityEvent(TextInputAutomationEventKind kind) noexcept
+void ControlHost::RaiseNativeTextInputAccessibilityEvent(TextInputAutomationEventKind kind) noexcept
 {
     if (! RaiseWindowHostTextInputAutomationEvent(_hwnd, _nativeTextInputControl, kind))
     {
@@ -841,7 +841,7 @@ void WindowHost::RaiseNativeTextInputAccessibilityEvent(TextInputAutomationEvent
     }
 }
 
-void WindowHost::RaiseNativeTextInputAccessibilityEvents(const NativeTextInputState& previousState) noexcept
+void ControlHost::RaiseNativeTextInputAccessibilityEvents(const NativeTextInputState& previousState) noexcept
 {
     if (! _nativeTextInputStateCacheValid)
     {
@@ -882,7 +882,7 @@ void WindowHost::RaiseNativeTextInputAccessibilityEvents(const NativeTextInputSt
     }
 }
 
-void WindowHost::ApplyNativeTextInputCompositionStateToCache() noexcept
+void ControlHost::ApplyNativeTextInputCompositionStateToCache() noexcept
 {
     if (! _nativeTextInputStateCacheValid)
     {
@@ -908,7 +908,7 @@ void WindowHost::ApplyNativeTextInputCompositionStateToCache() noexcept
     _nativeTextInputStateCache.compositionClauseBoundaries = _nativeTextInputCompositionClauseBoundaries;
 }
 
-void WindowHost::ClearNativeTextInputCompositionState() noexcept
+void ControlHost::ClearNativeTextInputCompositionState() noexcept
 {
     _nativeTextInputImeComposing = false;
     _nativeTextInputCompositionStartIndex.reset();
@@ -921,7 +921,7 @@ void WindowHost::ClearNativeTextInputCompositionState() noexcept
     ApplyNativeTextInputCompositionStateToCache();
 }
 
-NativeTextInputImePayload WindowHost::ReadNativeTextInputImePayload(LPARAM compositionFlags) noexcept
+NativeTextInputImePayload ControlHost::ReadNativeTextInputImePayload(LPARAM compositionFlags) noexcept
 {
     if (_debugNativeTextInputImePayload.has_value())
     {
@@ -979,7 +979,7 @@ NativeTextInputImePayload WindowHost::ReadNativeTextInputImePayload(LPARAM compo
     return payload;
 }
 
-void WindowHost::UpdateNativeTextInputImeWindows() noexcept
+void ControlHost::UpdateNativeTextInputImeWindows() noexcept
 {
     const auto startedAt = std::chrono::steady_clock::now();
     if (! _hwnd || _textInputBackend != TextInputBackend::Native || ! _nativeTextInputControl || ! _nativeTextInputStateCacheValid)
@@ -1022,7 +1022,7 @@ void WindowHost::UpdateNativeTextInputImeWindows() noexcept
                       S_OK);
 }
 
-bool WindowHost::HandleNativeTextInputEditMessage(UINT msg, WPARAM wp, LPARAM lp, LRESULT& outResult) noexcept
+bool ControlHost::HandleNativeTextInputEditMessage(UINT msg, WPARAM wp, LPARAM lp, LRESULT& outResult) noexcept
 {
     outResult = 0;
     if (_textInputBackend != TextInputBackend::Native || ! _focusedControl || ! _focusedControl->SupportsTextInput())
@@ -1216,7 +1216,7 @@ bool WindowHost::HandleNativeTextInputEditMessage(UINT msg, WPARAM wp, LPARAM lp
     return controlHandled;
 }
 
-bool WindowHost::HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp) noexcept
+bool ControlHost::HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp) noexcept
 {
     static_cast<void>(wp);
     if (_textInputBackend != TextInputBackend::Native || ! _focusedControl || ! _focusedControl->SupportsTextInput())
@@ -1477,7 +1477,7 @@ bool WindowHost::HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp)
     return true;
 }
 
-bool WindowHost::TryReadNativeTextInputState(const Control* control, NativeTextInputState& outState) const noexcept
+bool ControlHost::TryReadNativeTextInputState(const Control* control, NativeTextInputState& outState) const noexcept
 {
     if (! control || control != _nativeTextInputControl || ! _nativeTextInputStateCacheValid)
     {
@@ -1488,7 +1488,7 @@ bool WindowHost::TryReadNativeTextInputState(const Control* control, NativeTextI
     return true;
 }
 
-bool WindowHost::TryGetNativeTextInputCaretRects(D2D1_RECT_F& outRectDip, RECT& outClientRectPx, RECT& outScreenRectPx) const noexcept
+bool ControlHost::TryGetNativeTextInputCaretRects(D2D1_RECT_F& outRectDip, RECT& outClientRectPx, RECT& outScreenRectPx) const noexcept
 {
     if (! _hwnd || ! _nativeTextInputControl || ! _nativeTextInputStateCacheValid)
     {
@@ -1512,7 +1512,7 @@ bool WindowHost::TryGetNativeTextInputCaretRects(D2D1_RECT_F& outRectDip, RECT& 
     return true;
 }
 
-void WindowHost::UpdateNativeTextInputCaret() noexcept
+void ControlHost::UpdateNativeTextInputCaret() noexcept
 {
     D2D1_RECT_F caretRectDip{};
     RECT caretClientRectPx{};
@@ -1552,7 +1552,7 @@ void WindowHost::UpdateNativeTextInputCaret() noexcept
     }
 }
 
-void WindowHost::DestroyNativeTextInputCaret() noexcept
+void ControlHost::DestroyNativeTextInputCaret() noexcept
 {
     _nativeTextInputCaret.Reset();
     _nativeTextInputCaretRectValid    = false;
@@ -1561,19 +1561,19 @@ void WindowHost::DestroyNativeTextInputCaret() noexcept
     _nativeTextInputCaretScreenRectPx = RECT{};
 }
 
-#if defined(ENABLE_TESTS)
-bool WindowHost::DebugHasActiveNativeTextInputSession() const noexcept
+#if DXUI_ENABLE_DIAGNOSTICS
+bool ControlHost::DebugHasActiveNativeTextInputSession() const noexcept
 {
     return HasActiveNativeTextInputSession();
 }
 
-bool WindowHost::DebugHasActiveNativeTextInputTsfDocument() const noexcept
+bool ControlHost::DebugHasActiveNativeTextInputTsfDocument() const noexcept
 {
     return _nativeTextInputTsfActive && _nativeTextInputTsfThreadMgr && _nativeTextInputTsfDocumentMgr && _nativeTextInputTsfContext &&
            _nativeTextInputTsfTextStore;
 }
 
-bool WindowHost::DebugGetNativeTextInputState(NativeTextInputState& outState) const noexcept
+bool ControlHost::DebugGetNativeTextInputState(NativeTextInputState& outState) const noexcept
 {
     if (! _nativeTextInputStateCacheValid)
     {
@@ -1584,7 +1584,7 @@ bool WindowHost::DebugGetNativeTextInputState(NativeTextInputState& outState) co
     return true;
 }
 
-bool WindowHost::DebugGetNativeTextInputCaretRect(D2D1_RECT_F& outRectDip, RECT& outScreenRectPx) const noexcept
+bool ControlHost::DebugGetNativeTextInputCaretRect(D2D1_RECT_F& outRectDip, RECT& outScreenRectPx) const noexcept
 {
     if (! _nativeTextInputCaretRectValid)
     {
@@ -1596,12 +1596,12 @@ bool WindowHost::DebugGetNativeTextInputCaretRect(D2D1_RECT_F& outRectDip, RECT&
     return true;
 }
 
-NativeTextInputEventCounters WindowHost::DebugGetNativeTextInputEventCounters() const noexcept
+NativeTextInputEventCounters ControlHost::DebugGetNativeTextInputEventCounters() const noexcept
 {
     return _nativeTextInputEventCounters;
 }
 
-void WindowHost::DebugSetNativeTextInputImePayloadForTest(NativeTextInputImePayload payload)
+void ControlHost::DebugSetNativeTextInputImePayloadForTest(NativeTextInputImePayload payload)
 {
     _debugNativeTextInputImePayload = std::move(payload);
 }

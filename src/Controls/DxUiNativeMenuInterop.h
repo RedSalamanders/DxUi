@@ -16,7 +16,7 @@
 
 namespace DxUi
 {
-inline constexpr wchar_t kNativeMenuBarHostWindowClassName[] = L"RedSalamander.DxNativeMenuBar";
+inline constexpr wchar_t kNativeMenuBarHostWindowClassName[] = L"DxUi.NativeMenuBar";
 
 struct NativeMenuFlyoutOptions final
 {
@@ -906,7 +906,7 @@ private:
 
     ThemePalette _theme = MakeDefaultThemePalette(false);
     RefreshMenuStateCallback _refreshMenuState;
-    WindowHost _host;
+    ControlHost _host;
     MenuBar* _menuBar = nullptr;
     wil::unique_hwnd _hwnd;
     HWND _ownerWindow      = nullptr;

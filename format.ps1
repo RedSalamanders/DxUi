@@ -9,7 +9,7 @@ if (-not $formatter) {
     if (-not (Test-Path -LiteralPath $candidate)) { throw 'clang-format not found; install Visual Studio C++ Clang tools.' }
     $formatterPath = $candidate
 } else { $formatterPath = $formatter.Source }
-$files = @('src','include','Tests') | ForEach-Object {
+$files = @('src','include','Tests','Samples') | ForEach-Object {
     Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot $_) -Recurse -File | Where-Object Extension -In '.cpp','.h'
 }
 foreach ($file in $files) {

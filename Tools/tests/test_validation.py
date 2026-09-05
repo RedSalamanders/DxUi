@@ -90,14 +90,14 @@ class ValidatorTests(unittest.TestCase):
         self.put('upstream/original.cpp', 'duplicate\n')
         self.assertEqual(self.run_tool('validate_dependencies'), 1)
 
-    def test_exact_pending_dependency_is_recorded(self):
+    def test_application_debt_cannot_be_reintroduced(self):
         self.dependency_fixture()
         self.put('src/Controls/Control.cpp', '#include "Helpers.h"\n')
         self.assertEqual(self.run_tool('validate_dependencies'), 1)
         self.put('provenance/pending-dependencies.json', json.dumps({'schemaVersion': 1, 'files': [{
             'path': 'src/Controls/Control.cpp', 'includes': ['Helpers.h'],
         }]}))
-        self.assertEqual(self.run_tool('validate_dependencies'), 0)
+        self.assertEqual(self.run_tool('validate_dependencies'), 1)
         self.put('src/Controls/Control.cpp', '#include <cstdint>\n')
         self.assertEqual(self.run_tool('validate_dependencies'), 1)
 
@@ -109,16 +109,16 @@ class ValidatorTests(unittest.TestCase):
         }]}))
         self.assertEqual(self.run_tool('validate_dependencies'), 1)
 
-    def test_pending_source_cannot_silently_enter_supported_build(self):
+    def test_independent_controls_can_enter_single_supported_build(self):
         self.dependency_fixture()
         self.put('src/Bad.vcxproj', '<Project><ClCompile Include="Controls/Control.cpp" /></Project>')
-        self.assertEqual(self.run_tool('validate_dependencies'), 1)
+        self.assertEqual(self.run_tool('validate_dependencies'), 0)
 
-    def test_supported_source_cannot_include_pending_header(self):
+    def test_owned_source_can_use_other_owned_headers(self):
         self.dependency_fixture()
         self.put('src/Controls/Control.h', '#pragma once\n')
         self.put('src/Foundation/one.cpp', '#include "../Controls/Control.h"\n')
-        self.assertEqual(self.run_tool('validate_dependencies'), 1)
+        self.assertEqual(self.run_tool('validate_dependencies'), 0)
 
     def test_old_application_namespace_is_rejected(self):
         self.dependency_fixture()

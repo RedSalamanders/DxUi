@@ -11,7 +11,7 @@
 #include <d2d1effects.h>
 #include <limits>
 
-#include "Helpers.h"
+#include "../Support/Diagnostics.h"
 
 namespace DxUi
 {
@@ -77,7 +77,7 @@ struct ComboBoxPopupMaterialStyle
     return nullptr;
 }
 
-[[nodiscard]] const ScrollPanel* FindContainingScrollPanel(const WindowHost* host, const Control& target) noexcept
+[[nodiscard]] const ScrollPanel* FindContainingScrollPanel(const ControlHost* host, const Control& target) noexcept
 {
     return host ? FindContainingScrollPanelRecursive(host->GetRoot(), &target, nullptr) : nullptr;
 }
@@ -174,7 +174,7 @@ struct ComboBoxPopupMaterialStyle
     return D2D1::ColorF(color.r, color.g, color.b, (std::clamp)(alpha, 0.0f, 1.0f));
 }
 
-[[nodiscard]] ID2D1Bitmap1* EnsureComboBoxBackdropBitmap(WindowHost& host,
+[[nodiscard]] ID2D1Bitmap1* EnsureComboBoxBackdropBitmap(ControlHost& host,
                                                          const WindowHostBitmapCapture& capture,
                                                          wil::com_ptr<ID2D1Bitmap1>& cachedBitmap,
                                                          wil::com_ptr<ID2D1Device>& cachedDevice) noexcept
@@ -320,7 +320,7 @@ struct ComboBoxPopupMaterialStyle
     return material;
 }
 
-void PaintComboBoxBackdropSurface(WindowHost& host,
+void PaintComboBoxBackdropSurface(ControlHost& host,
                                   const WindowHostBitmapCapture* capture,
                                   wil::com_ptr<ID2D1Bitmap1>& cachedBitmap,
                                   wil::com_ptr<ID2D1Device>& cachedDevice,
@@ -387,7 +387,7 @@ void PaintComboBoxBackdropSurface(WindowHost& host,
     dc->PopLayer();
 }
 
-void PaintComboBoxPopupMaterialSurface(WindowHost& host,
+void PaintComboBoxPopupMaterialSurface(ControlHost& host,
                                        const WindowHostBitmapCapture* capture,
                                        wil::com_ptr<ID2D1Bitmap1>& cachedBitmap,
                                        wil::com_ptr<ID2D1Device>& cachedDevice,
@@ -695,7 +695,7 @@ void ComboBox::SetOnPopupRequested(std::function<bool()> onPopupRequested)
     _onPopupRequested = std::move(onPopupRequested);
 }
 
-void ComboBox::Paint(WindowHost& host) const
+void ComboBox::Paint(ControlHost& host) const
 {
     const ThemePalette& theme = host.GetTheme();
     const ComboBoxVisualStyle style =
@@ -794,7 +794,7 @@ void ComboBox::Paint(WindowHost& host) const
     DrawChevronGlyph(host, glyphRect, ChevronDirection::Down, style.glyph);
 }
 
-void ComboBox::PaintOverlay(WindowHost& host) const
+void ComboBox::PaintOverlay(ControlHost& host) const
 {
     if (! _open)
     {
@@ -874,7 +874,7 @@ void ComboBox::PaintOverlay(WindowHost& host) const
     }
 }
 
-bool ComboBox::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+bool ComboBox::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     if (rightButton)
     {
@@ -991,7 +991,7 @@ bool ComboBox::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButt
     return true;
 }
 
-bool ComboBox::OnMouseDoubleClick(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+bool ComboBox::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     if (rightButton)
     {
@@ -1019,7 +1019,7 @@ bool ComboBox::OnMouseDoubleClick(WindowHost& host, D2D1_POINT_2F point, bool ri
     return true;
 }
 
-bool ComboBox::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
+bool ComboBox::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
     if (_dragPopupScrollbar)
     {
@@ -1069,12 +1069,12 @@ D2D1_RECT_F ComboBox::DebugGetPopupBounds() const noexcept
     return _popupBounds;
 }
 
-D2D1_RECT_F ComboBox::DebugGetPopupItemRect(size_t popupListIndex, const WindowHost* host) const noexcept
+D2D1_RECT_F ComboBox::DebugGetPopupItemRect(size_t popupListIndex, const ControlHost* host) const noexcept
 {
     return GetPopupItemRect(popupListIndex, host);
 }
 
-D2D1_RECT_F ComboBox::DebugGetPopupItemTextRect(size_t popupListIndex, const WindowHost* host) const noexcept
+D2D1_RECT_F ComboBox::DebugGetPopupItemTextRect(size_t popupListIndex, const ControlHost* host) const noexcept
 {
     return GetPopupItemTextRect(popupListIndex, host);
 }
@@ -1084,7 +1084,7 @@ D2D1_RECT_F ComboBox::DebugGetEditableTextRect() const noexcept
     return GetEditableTextRect();
 }
 
-bool ComboBox::DebugGetEditablePaintState(const WindowHost& host, ComboBoxDebugEditablePaintState& out) const noexcept
+bool ComboBox::DebugGetEditablePaintState(const ControlHost& host, ComboBoxDebugEditablePaintState& out) const noexcept
 {
     if (! _editable)
     {
@@ -1100,7 +1100,7 @@ bool ComboBox::DebugGetEditablePaintState(const WindowHost& host, ComboBoxDebugE
     return true;
 }
 
-size_t ComboBox::HitTestEditableCaretIndex(const WindowHost& host, D2D1_POINT_2F point) const noexcept
+size_t ComboBox::HitTestEditableCaretIndex(const ControlHost& host, D2D1_POINT_2F point) const noexcept
 {
     if (! _editable)
     {
@@ -1111,7 +1111,7 @@ size_t ComboBox::HitTestEditableCaretIndex(const WindowHost& host, D2D1_POINT_2F
         &host, _text, FontRole::Body, GetEditableTextRect(), _editableHorizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
 }
 
-bool ComboBox::OnMouseUp(WindowHost& host, D2D1_POINT_2F /*point*/, bool rightButton, UINT /*modifiers*/)
+bool ComboBox::OnMouseUp(ControlHost& host, D2D1_POINT_2F /*point*/, bool rightButton, UINT /*modifiers*/)
 {
     if (rightButton)
     {
@@ -1130,7 +1130,7 @@ bool ComboBox::OnMouseUp(WindowHost& host, D2D1_POINT_2F /*point*/, bool rightBu
     return wasDragging || wasSelecting;
 }
 
-void ComboBox::OnCaptureLost(WindowHost& host)
+void ComboBox::OnCaptureLost(ControlHost& host)
 {
     const bool wasDragging       = _dragPopupScrollbar;
     const bool wasSelecting      = _dragSelecting;
@@ -1143,7 +1143,7 @@ void ComboBox::OnCaptureLost(WindowHost& host)
     }
 }
 
-bool ComboBox::OnMouseWheel(WindowHost& host, D2D1_POINT_2F point, float wheelDelta, UINT /*modifiers*/)
+bool ComboBox::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT /*modifiers*/)
 {
     if (_open)
     {
@@ -1163,7 +1163,7 @@ bool ComboBox::OnMouseWheel(WindowHost& host, D2D1_POINT_2F point, float wheelDe
     return true;
 }
 
-bool ComboBox::OnMouseLeave(WindowHost& host)
+bool ComboBox::OnMouseLeave(ControlHost& host)
 {
     if (_hoveredPopupIndex)
     {
@@ -1177,7 +1177,7 @@ bool ComboBox::OnMouseLeave(WindowHost& host)
     return _open;
 }
 
-bool ComboBox::OnKeyDown(WindowHost& host, UINT virtualKey, UINT modifiers)
+bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     if (virtualKey == VK_ESCAPE && _open)
@@ -1609,7 +1609,7 @@ bool ComboBox::OnKeyDown(WindowHost& host, UINT virtualKey, UINT modifiers)
     return false;
 }
 
-bool ComboBox::OnContextMenu(WindowHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
+bool ComboBox::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     host.SetFocusControl(this);
@@ -1622,7 +1622,7 @@ bool ComboBox::OnContextMenu(WindowHost& host, bool keyboardInvocation, D2D1_POI
     return Control::OnContextMenu(host, keyboardInvocation, pointDip);
 }
 
-bool ComboBox::OnChar(WindowHost& host, wchar_t ch, UINT /*modifiers*/)
+bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT /*modifiers*/)
 {
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     if (! _editable)
@@ -1696,7 +1696,7 @@ bool ComboBox::OnChar(WindowHost& host, wchar_t ch, UINT /*modifiers*/)
     return true;
 }
 
-bool ComboBox::OnCopy(WindowHost& host)
+bool ComboBox::OnCopy(ControlHost& host)
 {
     if (_editable)
     {
@@ -1721,7 +1721,7 @@ bool ComboBox::DebugIsPopupOpen() const noexcept
     return IsPopupOpen();
 }
 
-bool ComboBox::Tick(WindowHost& /*host*/, uint64_t nowTickMs)
+bool ComboBox::Tick(ControlHost& /*host*/, uint64_t nowTickMs)
 {
     if (! _editable || ! HasFocus())
     {
@@ -1743,7 +1743,7 @@ bool ComboBox::Tick(WindowHost& /*host*/, uint64_t nowTickMs)
     return true;
 }
 
-bool ComboBox::OnSelectAll(WindowHost& host)
+bool ComboBox::OnSelectAll(ControlHost& host)
 {
     if (! _editable)
     {
@@ -1769,7 +1769,7 @@ std::optional<D2D1_RECT_F> ComboBox::GetTextInputViewportRect() const noexcept
     return GetEditableTextRect();
 }
 
-std::optional<D2D1_RECT_F> ComboBox::GetTextInputCaretRect(const WindowHost& host, size_t controlTextIndex) const noexcept
+std::optional<D2D1_RECT_F> ComboBox::GetTextInputCaretRect(const ControlHost& host, size_t controlTextIndex) const noexcept
 {
     if (! SupportsTextInput())
     {
@@ -1799,7 +1799,9 @@ std::optional<D2D1_RECT_F> ComboBox::GetTextInputCaretRect(const WindowHost& hos
     return result;
 }
 
-std::optional<std::vector<D2D1_RECT_F>> ComboBox::GetTextInputRangeRects(const WindowHost& host, size_t controlTextStartIndex, size_t controlTextEndIndex) const
+std::optional<std::vector<D2D1_RECT_F>> ComboBox::GetTextInputRangeRects(const ControlHost& host,
+                                                                         size_t controlTextStartIndex,
+                                                                         size_t controlTextEndIndex) const
 {
     if (! SupportsTextInput() || controlTextStartIndex >= controlTextEndIndex)
     {
@@ -1875,7 +1877,7 @@ std::optional<std::vector<D2D1_RECT_F>> ComboBox::GetTextInputRangeRects(const W
     return rects;
 }
 
-std::optional<size_t> ComboBox::HitTestTextInputPoint(const WindowHost& host, D2D1_POINT_2F point) const noexcept
+std::optional<size_t> ComboBox::HitTestTextInputPoint(const ControlHost& host, D2D1_POINT_2F point) const noexcept
 {
     if (! SupportsTextInput())
     {
@@ -1909,7 +1911,7 @@ bool ComboBox::ExportTextInputState(TextInputState& outState) const
     return true;
 }
 
-bool ComboBox::ImportTextInputState(WindowHost& host, const TextInputState& state, bool notifyChange)
+bool ComboBox::ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange)
 {
     if (! SupportsTextInput())
     {
@@ -2025,7 +2027,7 @@ bool ComboBox::TryRedoEditableEdit() noexcept
     return true;
 }
 
-void ComboBox::RefreshEditableTextAfterMutation(WindowHost& host)
+void ComboBox::RefreshEditableTextAfterMutation(ControlHost& host)
 {
     InvalidateSingleLineLayoutCache();
     SyncEditableSelectionFromText();
@@ -2139,7 +2141,7 @@ const Control* ComboBox::HitTestOverlay(D2D1_POINT_2F point) const
     return (PointInRect(GetBounds(), point) || PointInRect(GetPopupBounds(), point)) ? this : nullptr;
 }
 
-bool ComboBox::DismissOverlayOnPointerDown(WindowHost& host, D2D1_POINT_2F point)
+bool ComboBox::DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F point)
 {
     if (! _open || ! IsVisible() || ! IsEnabled())
     {
@@ -2159,7 +2161,7 @@ bool ComboBox::DismissOverlayOnPointerDown(WindowHost& host, D2D1_POINT_2F point
 
 D2D1_RECT_F ComboBox::GetEditableTextRect() const noexcept
 {
-    const WindowHost* host   = GetHost();
+    const ControlHost* host  = GetHost();
     const ThemePalette theme = host ? host->GetTheme() : MakeDefaultThemePalette(false);
     const ComboBoxVisualStyle style =
         ResolveComboBoxVisualStyle(theme, _variant, IsEnabled(), IsHovered(), _open, HasFocus(), HasFocus() && host && host->IsKeyboardFocusVisible());
@@ -2172,7 +2174,7 @@ D2D1_RECT_F ComboBox::GetEditableTextRect() const noexcept
 }
 
 wil::com_ptr<IDWriteTextLayout> ComboBox::GetOrCreateSingleLineLayout(
-    const WindowHost* host, std::wstring_view text, float minimumWidthDip, float heightDip, DWRITE_READING_DIRECTION readingDirection) const noexcept
+    const ControlHost* host, std::wstring_view text, float minimumWidthDip, float heightDip, DWRITE_READING_DIRECTION readingDirection) const noexcept
 {
     return GetOrCreateSingleLineTextLayout(host, &_singleLineLayoutCache, text, FontRole::Body, minimumWidthDip, heightDip, readingDirection);
 }
@@ -2182,7 +2184,7 @@ void ComboBox::InvalidateSingleLineLayoutCache() const noexcept
     ClearSingleLineTextLayoutCache(_singleLineLayoutCache);
 }
 
-float ComboBox::EnsureEditableCaretVisible(const WindowHost* host, float availableWidthDip) const noexcept
+float ComboBox::EnsureEditableCaretVisible(const ControlHost* host, float availableWidthDip) const noexcept
 {
     if (_text.empty())
     {
@@ -2208,14 +2210,14 @@ float ComboBox::EnsureEditableCaretVisible(const WindowHost* host, float availab
     return caretOffset;
 }
 
-void ComboBox::ResetEditableCaretBlink(WindowHost& host) noexcept
+void ComboBox::ResetEditableCaretBlink(ControlHost& host) noexcept
 {
     _caretBlinkAnchorTickMs = ::GetTickCount64();
     _caretVisible           = true;
     host.RequestAnimation();
 }
 
-void ComboBox::OnFocusChanged(WindowHost& host, bool focused)
+void ComboBox::OnFocusChanged(ControlHost& host, bool focused)
 {
     Control::OnFocusChanged(host, focused);
     if (focused && _editable)
@@ -2244,7 +2246,7 @@ void ComboBox::OnBoundsChanged() noexcept
         return;
     }
 
-    WindowHost* const host = GetHost();
+    ControlHost* const host = GetHost();
     if (host && HasFocus())
     {
         EnsureEditableCaretVisible(host, std::max(1.0f, GetEditableTextRect().right - GetEditableTextRect().left));
@@ -2268,7 +2270,7 @@ void ComboBox::NotifyTextChanged() const
 
 void ComboBox::RefreshAccessibilitySnapshot() const noexcept
 {
-    if (WindowHost* const host = GetHost())
+    if (ControlHost* const host = GetHost())
     {
         RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
     }
@@ -2286,7 +2288,7 @@ void ComboBox::ResetPopupLayout() noexcept
     _popupBackdropDevice.reset();
 }
 
-void ComboBox::OpenPopup(WindowHost& host) noexcept
+void ComboBox::OpenPopup(ControlHost& host) noexcept
 {
     if (_items.empty())
     {
@@ -2301,7 +2303,7 @@ void ComboBox::OpenPopup(WindowHost& host) noexcept
     CapturePopupBackdrop(host);
 }
 
-bool ComboBox::RequestPopup(WindowHost& host)
+bool ComboBox::RequestPopup(ControlHost& host)
 {
     if (_onPopupRequested && _onPopupRequested())
     {
@@ -2320,7 +2322,7 @@ void ComboBox::ClosePopup() noexcept
     ResetPopupLayout();
 }
 
-void ComboBox::MaybeAutoOpenPopup(WindowHost& host) noexcept
+void ComboBox::MaybeAutoOpenPopup(ControlHost& host) noexcept
 {
     if (_editable && _autoOpenOnTextInput && ! _open && ! _items.empty())
     {
@@ -2328,7 +2330,7 @@ void ComboBox::MaybeAutoOpenPopup(WindowHost& host) noexcept
     }
 }
 
-void ComboBox::CapturePopupBackdrop(WindowHost& host) noexcept
+void ComboBox::CapturePopupBackdrop(ControlHost& host) noexcept
 {
     _popupUsesBackdropBlur = false;
     _popupBackdropCapture  = {};
@@ -2370,18 +2372,18 @@ void ComboBox::CapturePopupBackdrop(WindowHost& host) noexcept
                       _popupUsesBackdropBlur ? S_OK : E_FAIL);
 }
 
-void ComboBox::UpdatePopupLayout(const WindowHost* host) const noexcept
+void ComboBox::UpdatePopupLayout(const ControlHost* host) const noexcept
 {
     size_t desiredVisibleRows = std::min(GetPopupRenderRowCount(), _maxVisibleItemsOverride > 0u ? _maxVisibleItemsOverride : kComboBoxMaxVisibleItems);
     _popupVisibleItemCount    = desiredVisibleRows;
 
-    const D2D1_RECT_F bounds       = GetBounds();
-    const WindowHost* resolvedHost = host ? host : GetHost();
-    const ThemePalette popupTheme  = resolvedHost ? resolvedHost->GetTheme() : MakeDefaultThemePalette(false);
-    const float gapDip             = popupTheme.density == Density::Compact ? 3.0f : 4.0f;
-    const float itemHeightDip      = ResolveComboBoxItemHeightDip(popupTheme);
-    const float defaultHeightDip   = ComputeComboPopupHeightDip(desiredVisibleRows, itemHeightDip);
-    _popupBounds                   = D2D1::RectF(bounds.left, bounds.bottom + gapDip, bounds.right, bounds.bottom + gapDip + defaultHeightDip);
+    const D2D1_RECT_F bounds        = GetBounds();
+    const ControlHost* resolvedHost = host ? host : GetHost();
+    const ThemePalette popupTheme   = resolvedHost ? resolvedHost->GetTheme() : MakeDefaultThemePalette(false);
+    const float gapDip              = popupTheme.density == Density::Compact ? 3.0f : 4.0f;
+    const float itemHeightDip       = ResolveComboBoxItemHeightDip(popupTheme);
+    const float defaultHeightDip    = ComputeComboPopupHeightDip(desiredVisibleRows, itemHeightDip);
+    _popupBounds                    = D2D1::RectF(bounds.left, bounds.bottom + gapDip, bounds.right, bounds.bottom + gapDip + defaultHeightDip);
 
     if (! host || desiredVisibleRows == 0u)
     {
@@ -2476,12 +2478,12 @@ void ComboBox::UpdatePopupLayout(const WindowHost* host) const noexcept
     _popupBounds         = D2D1::RectF(popupLeft, popupTop, popupRight, popupTop + popupHeightDip);
 }
 
-float ComboBox::ComputePopupWidthDip(const WindowHost* host) const noexcept
+float ComboBox::ComputePopupWidthDip(const ControlHost* host) const noexcept
 {
-    const WindowHost* resolvedHost = host ? host : GetHost();
-    const ThemePalette theme       = resolvedHost ? resolvedHost->GetTheme() : MakeDefaultThemePalette(false);
-    const float itemTextInsetsDip  = ResolveComboBoxPopupItemLeftInsetDip(theme) + ResolveComboBoxPopupItemRightInsetDip(theme);
-    float popupWidthDip            = std::max(0.0f, GetBounds().right - GetBounds().left);
+    const ControlHost* resolvedHost = host ? host : GetHost();
+    const ThemePalette theme        = resolvedHost ? resolvedHost->GetTheme() : MakeDefaultThemePalette(false);
+    const float itemTextInsetsDip   = ResolveComboBoxPopupItemLeftInsetDip(theme) + ResolveComboBoxPopupItemRightInsetDip(theme);
+    float popupWidthDip             = std::max(0.0f, GetBounds().right - GetBounds().left);
     for (size_t popupListIndex = 0u; popupListIndex < GetPopupItemCount(); ++popupListIndex)
     {
         const std::optional<size_t> itemIndex = GetPopupItemIndexAt(popupListIndex);
@@ -2515,7 +2517,7 @@ bool ComboBox::HasPopupScrollbar() const noexcept
     return GetPopupItemCount() > GetPopupVisibleItemCount();
 }
 
-void ComboBox::RebuildPopupItems(const WindowHost* host) noexcept
+void ComboBox::RebuildPopupItems(const ControlHost* host) noexcept
 {
     _popupItemIndices.clear();
     _popupItemIndices.reserve(_items.size());
@@ -2579,7 +2581,7 @@ void ComboBox::RebuildPopupItems(const WindowHost* host) noexcept
     UpdatePopupLayout(host);
 }
 
-void ComboBox::CommitSelection(WindowHost& host, size_t itemIndex, bool closePopup)
+void ComboBox::CommitSelection(ControlHost& host, size_t itemIndex, bool closePopup)
 {
     if (itemIndex >= _items.size())
     {
@@ -2637,7 +2639,7 @@ void ComboBox::SyncEditableSelectionFromText() noexcept
     _selectedIndex.reset();
 }
 
-void ComboBox::EnsurePopupSelectionVisible(const WindowHost* host) noexcept
+void ComboBox::EnsurePopupSelectionVisible(const ControlHost* host) noexcept
 {
     UpdatePopupLayout(host);
     if (GetPopupItemCount() == 0u)
@@ -2681,7 +2683,7 @@ void ComboBox::EnsurePopupSelectionVisible(const WindowHost* host) noexcept
     UpdatePopupLayout(host);
 }
 
-void ComboBox::ScrollPopupBy(int deltaItems, const WindowHost* host) noexcept
+void ComboBox::ScrollPopupBy(int deltaItems, const ControlHost* host) noexcept
 {
     UpdatePopupLayout(host);
     if (GetPopupItemCount() <= GetPopupVisibleItemCount())
@@ -2799,7 +2801,7 @@ std::optional<size_t> ComboBox::HitTestPopupItem(D2D1_POINT_2F point) const noex
     {
         return std::nullopt;
     }
-    const WindowHost* host      = GetHost();
+    const ControlHost* host     = GetHost();
     const float itemHeightDip   = host ? ResolveComboBoxItemHeightDip(host->GetTheme()) : kMenuItemHeightDip;
     const size_t visibleIndex   = static_cast<size_t>(offset / itemHeightDip);
     const size_t popupListIndex = _popupScrollIndex + visibleIndex;
@@ -2867,7 +2869,7 @@ D2D1_RECT_F ComboBox::GetPopupScrollbarThumbHitRect() const noexcept
     return D2D1::RectF(track.left, thumbTop, track.right, thumbTop + thumbHeight);
 }
 
-D2D1_RECT_F ComboBox::GetPopupItemRect(size_t popupListIndex, const WindowHost* host) const noexcept
+D2D1_RECT_F ComboBox::GetPopupItemRect(size_t popupListIndex, const ControlHost* host) const noexcept
 {
     if (! _open)
     {
@@ -2885,7 +2887,7 @@ D2D1_RECT_F ComboBox::GetPopupItemRect(size_t popupListIndex, const WindowHost* 
     const D2D1_RECT_F popup          = GetPopupBounds();
     const bool drawScrollbar         = HasPopupScrollbar();
     const D2D1_RECT_F popupScrollbar = drawScrollbar ? GetPopupScrollbarRect() : D2D1::RectF();
-    const WindowHost* resolvedHost   = host ? host : GetHost();
+    const ControlHost* resolvedHost  = host ? host : GetHost();
     const float itemHeightDip        = resolvedHost ? ResolveComboBoxItemHeightDip(resolvedHost->GetTheme()) : kMenuItemHeightDip;
     const float contentRight         = drawScrollbar ? std::max(popup.left + kComboBoxPopupPaddingDip, popupScrollbar.left - kComboBoxPopupPaddingDip)
                                                      : (popup.right - kComboBoxPopupPaddingDip);
@@ -2894,13 +2896,13 @@ D2D1_RECT_F ComboBox::GetPopupItemRect(size_t popupListIndex, const WindowHost* 
     return resolvedHost ? SnapRectToPixel(*resolvedHost, itemRect) : itemRect;
 }
 
-D2D1_RECT_F ComboBox::GetPopupItemTextRect(size_t popupListIndex, const WindowHost* host) const noexcept
+D2D1_RECT_F ComboBox::GetPopupItemTextRect(size_t popupListIndex, const ControlHost* host) const noexcept
 {
-    const D2D1_RECT_F itemRect     = GetPopupItemRect(popupListIndex, host);
-    const WindowHost* resolvedHost = host ? host : GetHost();
-    const ThemePalette theme       = resolvedHost ? resolvedHost->GetTheme() : MakeDefaultThemePalette(false);
-    const float leftInsetDip       = ResolveComboBoxPopupItemLeftInsetDip(theme);
-    const float rightInsetDip      = ResolveComboBoxPopupItemRightInsetDip(theme);
+    const D2D1_RECT_F itemRect      = GetPopupItemRect(popupListIndex, host);
+    const ControlHost* resolvedHost = host ? host : GetHost();
+    const ThemePalette theme        = resolvedHost ? resolvedHost->GetTheme() : MakeDefaultThemePalette(false);
+    const float leftInsetDip        = ResolveComboBoxPopupItemLeftInsetDip(theme);
+    const float rightInsetDip       = ResolveComboBoxPopupItemRightInsetDip(theme);
     return D2D1::RectF(itemRect.left + leftInsetDip, itemRect.top, itemRect.right - rightInsetDip, itemRect.bottom);
 }
 
@@ -2937,7 +2939,7 @@ D2D1_RECT_F ComboBox::GetPopupBounds() const noexcept
         return _popupBounds;
     }
 
-    const WindowHost* host    = GetHost();
+    const ControlHost* host   = GetHost();
     const float itemHeightDip = host ? ResolveComboBoxItemHeightDip(host->GetTheme()) : kMenuItemHeightDip;
     const float height        = ComputeComboPopupHeightDip(GetPopupVisibleItemCount(), itemHeightDip);
     return D2D1::RectF(GetBounds().left, GetBounds().bottom + 2.0f, GetBounds().right, GetBounds().bottom + 2.0f + height);
@@ -2945,7 +2947,7 @@ D2D1_RECT_F ComboBox::GetPopupBounds() const noexcept
 
 D2D1_RECT_F ComboBox::GetDropButtonRect() const noexcept
 {
-    const WindowHost* host     = GetHost();
+    const ControlHost* host    = GetHost();
     const float buttonWidthDip = host ? ResolveComboBoxDropButtonWidthDip(host->GetTheme()) : ResolveComboBoxDropButtonWidthDip(MakeDefaultThemePalette(false));
     return D2D1::RectF(GetBounds().right - buttonWidthDip, GetBounds().top, GetBounds().right, GetBounds().bottom);
 }

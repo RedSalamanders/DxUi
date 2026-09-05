@@ -2,11 +2,13 @@
   <Target Name="ValidateDxUiConsumerPin" BeforeTargets="PrepareForBuild">
     <Error Condition="!Exists('$(DxUiConsumerLockFile)')" Text="Missing exact DxUi consumer lock: $(DxUiConsumerLockFile)" />
     <Error Condition="'$(DxUiConsumerOutputRoot)'==''" Text="Set DxUiConsumerOutputRoot to a consumer-owned isolated fingerprint directory." />
+    <Error Condition="!Exists('$(DxUiConsumerOutputRoot)vcpkg_installed\$(Platform)\$(DxUiConsumerTriplet)\include\wil\resource.h')" Text="Restore DxUi dependencies with vcpkg-install.ps1 -Platform $(Platform) -OutputRoot your DxUiConsumerOutputRoot." />
     <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(DxUiResolvedRoot)Tools\validate_consumer.ps1&quot; -DxUiRoot &quot;$(DxUiRoot)&quot; -LockFile &quot;$(DxUiConsumerLockFile)&quot;" />
   </Target>
   <ItemGroup>
-    <ProjectReference Include="$(DxUiResolvedRoot)src\Foundation\DxUi.Foundation.vcxproj">
+    <ProjectReference Include="$(DxUiResolvedRoot)src\DxUi.vcxproj">
       <AdditionalProperties>DxUiOutputRoot=$(DxUiConsumerOutputRoot)</AdditionalProperties>
+      <Project>{F6272096-E42A-56E7-9CCB-A8E08093E2BC}</Project>
     </ProjectReference>
   </ItemGroup>
 </Project>

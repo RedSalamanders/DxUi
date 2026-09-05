@@ -15,10 +15,10 @@ The user approved the independent private DxUi project. Library contracts are in
 - [x] Complete hosted bootstrap validation after the import-manifest correction.
 - [x] Make DxUI the canonical source home; move controls/tests, remove duplicate runtime and application projects.
 - [x] Validate owned-source layout, pending dependency inventory, formatting and local Foundation regressions.
-- [ ] D1: decouple retained controls and tests; remove concrete WindowHost and application-helper dependencies.
-- [ ] D1: deliver Controls, Win32Services and Win32Host static targets plus a standalone WindowHost sample.
-- [ ] D2: implement embedded host, coherent preparation/composition, dirty surfaces and resource pool.
-- [ ] D2: standalone EmbeddedHost sample, WARP, capture, text/IME, UIA and resource benchmarks.
+- [x] D1: decouple retained controls and tests; public ControlHost replaces application-specific host naming.
+- [x] D1: user superseded split targets with one DxUi.lib containing controls and both hosting modes; native gallery fixture retained.
+- [x] D2: implement embedded host, coherent preparation/composition, dirty surfaces and resource pool.
+- [ ] D2/D3: finish RedXe-specific embedded text/IME/UIA bridges and manual touch/accessibility acceptance. Supplied-device sample and WARP/resource tests are delivered by the single-library plan.
 - [ ] D3: RedXe pins the tested revision; implement generic preparation, input, text/UIA bridges and integration fixture.
 - [ ] D3: rebuild every source-coordinated plugin and update RedXe normative contracts with the supported ABI.
 - [ ] D4: AV adopts shared controls and responsive layouts; its audio/camera backend gates remain in RedXe's AV plan.
@@ -53,3 +53,5 @@ Ownership correction validation on 2026-09-05: all owned C++ source/tests pass f
 54 current ownership paths and two retired project files; 21 source files have explicit pending include records.
 Local x64 Debug/Release Foundation tests and ARM64 Debug/Release builds passed after the move. Controls remain
 pending runtime validation; the layout change does not close their D1/D2 acceptance gates.
+
+Current library delivery is tracked by [SingleLibraryPublicControls](SingleLibraryPublicControls_2026-09-05.md); the earlier Foundation-only statements above are historical evidence.

@@ -1,6 +1,6 @@
 #include "DxUi.Internal.h"
 
-#include "Helpers.h"
+#include "../Support/Diagnostics.h"
 
 #include <algorithm>
 #include <atomic>
@@ -77,7 +77,7 @@ struct AcpRange
     return left.left == right.left && left.top == right.top && left.right == right.right && left.bottom == right.bottom;
 }
 
-[[nodiscard]] RECT DipRectToScreenRect(WindowHost& host, const D2D1_RECT_F& rectDip) noexcept
+[[nodiscard]] RECT DipRectToScreenRect(ControlHost& host, const D2D1_RECT_F& rectDip) noexcept
 {
     POINT topLeft{static_cast<LONG>(std::lround(host.DipsToPixels(rectDip.left))), static_cast<LONG>(std::lround(host.DipsToPixels(rectDip.top)))};
     POINT bottomRight{static_cast<LONG>(std::lround(host.DipsToPixels(rectDip.right))), static_cast<LONG>(std::lround(host.DipsToPixels(rectDip.bottom)))};
@@ -103,7 +103,7 @@ struct AcpRange
     return rect;
 }
 
-[[nodiscard]] std::optional<D2D1_RECT_F> TryResolveMultilineTextStoreRangeRect(const WindowHost& host,
+[[nodiscard]] std::optional<D2D1_RECT_F> TryResolveMultilineTextStoreRangeRect(const ControlHost& host,
                                                                                const Control& control,
                                                                                const AcpRange& range,
                                                                                const D2D1_RECT_F& bounds) noexcept
@@ -185,7 +185,7 @@ struct AcpRange
 class DxUiTextStoreACP final : public ITextStoreACP, public ITextStoreACP2, public ITfContextOwnerCompositionSink
 {
 public:
-    DxUiTextStoreACP(WindowHost& host, Control& control) noexcept : _host(&host), _control(&control), _controlLifetime(GetControlLifetimeToken(control))
+    DxUiTextStoreACP(ControlHost& host, Control& control) noexcept : _host(&host), _control(&control), _controlLifetime(GetControlLifetimeToken(control))
     {
     }
 
@@ -1141,8 +1141,8 @@ private:
     }
 
     std::atomic<ULONG> _referenceCount{1u};
-    WindowHost* _host = nullptr;
-    Control* _control = nullptr;
+    ControlHost* _host = nullptr;
+    Control* _control  = nullptr;
     std::weak_ptr<int> _controlLifetime;
     DWORD _lockFlags = 0u;
     DWORD _sinkMask  = 0u;
@@ -1153,7 +1153,7 @@ private:
 };
 } // namespace
 
-ITextStoreACP* CreateNativeTextInputTextStore(WindowHost& host, Control& control) noexcept
+ITextStoreACP* CreateNativeTextInputTextStore(ControlHost& host, Control& control) noexcept
 {
     auto* store = new (std::nothrow) DxUiTextStoreACP(host, control);
     return store ? static_cast<ITextStoreACP*>(store) : nullptr;
@@ -1185,8 +1185,8 @@ void DisconnectNativeTextInputTextStore(IUnknown* textStore) noexcept
     }
 }
 
-#if defined(ENABLE_TESTS)
-ITextStoreACP* WindowHost::DebugCreateNativeTextInputTextStoreForTest() noexcept
+#if DXUI_ENABLE_DIAGNOSTICS
+ITextStoreACP* ControlHost::DebugCreateNativeTextInputTextStoreForTest() noexcept
 {
     if (_textInputBackend != TextInputBackend::Native || ! _nativeTextInputControl || ! _nativeTextInputStateCacheValid)
     {

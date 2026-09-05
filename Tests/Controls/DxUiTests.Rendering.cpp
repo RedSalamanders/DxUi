@@ -273,7 +273,7 @@ void TestThroughputGraphBandsStayBelowHistoryLine()
 void TestThroughputGraphHueChurnPerformanceScenario()
 {
     wchar_t enabled[2]{};
-    if (GetEnvironmentVariableW(L"REDSALAMANDER_DXUI_GRAPH_PERF", enabled, static_cast<DWORD>(std::size(enabled))) != 1u || enabled[0] != L'1')
+    if (GetEnvironmentVariableW(L"DXUI_GRAPH_PERF", enabled, static_cast<DWORD>(std::size(enabled))) != 1u || enabled[0] != L'1')
     {
         return;
     }

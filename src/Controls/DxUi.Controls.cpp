@@ -10,7 +10,7 @@
 #include <string>
 #include <utility>
 
-#include "Helpers.h"
+#include "../Support/Diagnostics.h"
 
 namespace DxUi
 {
@@ -89,7 +89,7 @@ template <typename... Args> void TraceButtonDiagnostics(std::wstring_view eventN
 }
 
 void TraceMenuBarPointerEvent(std::wstring_view eventName,
-                              const WindowHost& host,
+                              const ControlHost& host,
                               D2D1_POINT_2F point,
                               std::optional<size_t> hit,
                               std::optional<size_t> pressed,
@@ -109,7 +109,7 @@ void TraceMenuBarPointerEvent(std::wstring_view eventName,
 }
 
 void DrawFallbackShadowRoundedRects(
-    WindowHost& host, const D2D1_RECT_F& targetRect, float cornerRadiusDip, float yOffsetDip, float spreadDip, float outerOpacity, float innerOpacity) noexcept
+    ControlHost& host, const D2D1_RECT_F& targetRect, float cornerRadiusDip, float yOffsetDip, float spreadDip, float outerOpacity, float innerOpacity) noexcept
 {
     const float outerRadius     = cornerRadiusDip + spreadDip;
     const float innerRadius     = cornerRadiusDip + 1.0f;
@@ -135,7 +135,7 @@ void DrawFallbackShadowRoundedRects(
     }
 }
 
-bool DrawShadowEffectPass(WindowHost& host, const D2D1_RECT_F& targetRect, float cornerRadiusDip, float yOffsetDip, float blurDip, float opacity) noexcept
+bool DrawShadowEffectPass(ControlHost& host, const D2D1_RECT_F& targetRect, float cornerRadiusDip, float yOffsetDip, float blurDip, float opacity) noexcept
 {
     auto* const dc = host.GetDeviceContext();
     if (! dc || blurDip <= 0.0f || opacity <= 0.0f)
@@ -341,7 +341,7 @@ constexpr float kTabHeaderOverflowButtonWidthDip = 24.0f;
     return (std::clamp)((std::min)(widthDip, heightDip) * 0.18f, 4.0f, 10.0f);
 }
 
-[[nodiscard]] wil::com_ptr<IDWriteTextLayout> CreateTooltipTextLayout(const WindowHost& host, std::wstring_view text, float widthDip, float heightDip) noexcept
+[[nodiscard]] wil::com_ptr<IDWriteTextLayout> CreateTooltipTextLayout(const ControlHost& host, std::wstring_view text, float widthDip, float heightDip) noexcept
 {
     auto* factory = host.GetWriteFactory();
     auto* format  = host.GetTextFormat(FontRole::Small, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, true);
@@ -458,17 +458,17 @@ D2D1_RECT_F InflateRect(const D2D1_RECT_F& rect, float amountX, float amountY) n
     return D2D1::RectF(rect.left - amountX, rect.top - amountY, rect.right + amountX, rect.bottom + amountY);
 }
 
-float SnapDipToPixel(const WindowHost& host, float dip) noexcept
+float SnapDipToPixel(const ControlHost& host, float dip) noexcept
 {
     return host.PixelsToDip(std::round(host.DipsToPixels(dip)));
 }
 
-D2D1_RECT_F SnapRectToPixel(const WindowHost& host, const D2D1_RECT_F& rect) noexcept
+D2D1_RECT_F SnapRectToPixel(const ControlHost& host, const D2D1_RECT_F& rect) noexcept
 {
     return D2D1::RectF(SnapDipToPixel(host, rect.left), SnapDipToPixel(host, rect.top), SnapDipToPixel(host, rect.right), SnapDipToPixel(host, rect.bottom));
 }
 
-void FillRoundedRectWithColor(WindowHost& host, const D2D1_ROUNDED_RECT& rounded, const D2D1_COLOR_F& color) noexcept
+void FillRoundedRectWithColor(ControlHost& host, const D2D1_ROUNDED_RECT& rounded, const D2D1_COLOR_F& color) noexcept
 {
     auto* dc = host.GetDeviceContext();
     if (! dc)
@@ -482,7 +482,7 @@ void FillRoundedRectWithColor(WindowHost& host, const D2D1_ROUNDED_RECT& rounded
     }
 }
 
-void DrawRoundedRectWithColor(WindowHost& host, const D2D1_ROUNDED_RECT& rounded, const D2D1_COLOR_F& color, float strokeWidth) noexcept
+void DrawRoundedRectWithColor(ControlHost& host, const D2D1_ROUNDED_RECT& rounded, const D2D1_COLOR_F& color, float strokeWidth) noexcept
 {
     auto* dc = host.GetDeviceContext();
     if (! dc)
@@ -496,7 +496,7 @@ void DrawRoundedRectWithColor(WindowHost& host, const D2D1_ROUNDED_RECT& rounded
     }
 }
 
-void FillRectangleWithColor(WindowHost& host, const D2D1_RECT_F& rect, const D2D1_COLOR_F& color) noexcept
+void FillRectangleWithColor(ControlHost& host, const D2D1_RECT_F& rect, const D2D1_COLOR_F& color) noexcept
 {
     auto* dc = host.GetDeviceContext();
     if (! dc)
@@ -510,7 +510,7 @@ void FillRectangleWithColor(WindowHost& host, const D2D1_RECT_F& rect, const D2D
     }
 }
 
-void DrawLineWithColor(WindowHost& host, D2D1_POINT_2F from, D2D1_POINT_2F to, const D2D1_COLOR_F& color, float strokeWidth) noexcept
+void DrawLineWithColor(ControlHost& host, D2D1_POINT_2F from, D2D1_POINT_2F to, const D2D1_COLOR_F& color, float strokeWidth) noexcept
 {
     auto* dc = host.GetDeviceContext();
     if (! dc)
@@ -524,7 +524,7 @@ void DrawLineWithColor(WindowHost& host, D2D1_POINT_2F from, D2D1_POINT_2F to, c
     }
 }
 
-void FillEllipseWithColor(WindowHost& host, const D2D1_ELLIPSE& ellipse, const D2D1_COLOR_F& color) noexcept
+void FillEllipseWithColor(ControlHost& host, const D2D1_ELLIPSE& ellipse, const D2D1_COLOR_F& color) noexcept
 {
     auto* dc = host.GetDeviceContext();
     if (! dc)
@@ -538,7 +538,7 @@ void FillEllipseWithColor(WindowHost& host, const D2D1_ELLIPSE& ellipse, const D
     }
 }
 
-void DrawEllipseWithColor(WindowHost& host, const D2D1_ELLIPSE& ellipse, const D2D1_COLOR_F& color, float strokeWidth) noexcept
+void DrawEllipseWithColor(ControlHost& host, const D2D1_ELLIPSE& ellipse, const D2D1_COLOR_F& color, float strokeWidth) noexcept
 {
     auto* dc = host.GetDeviceContext();
     if (! dc)
@@ -552,7 +552,7 @@ void DrawEllipseWithColor(WindowHost& host, const D2D1_ELLIPSE& ellipse, const D
     }
 }
 
-void DrawRoundedRect(WindowHost& host, const D2D1_RECT_F& rect, const D2D1_COLOR_F& fill, const D2D1_COLOR_F& stroke, float radiusDip)
+void DrawRoundedRect(ControlHost& host, const D2D1_RECT_F& rect, const D2D1_COLOR_F& fill, const D2D1_COLOR_F& stroke, float radiusDip)
 {
     const D2D1_RECT_F snappedRect = SnapRectToPixel(host, rect);
     const D2D1_ROUNDED_RECT rounded{snappedRect, radiusDip, radiusDip};
@@ -560,7 +560,7 @@ void DrawRoundedRect(WindowHost& host, const D2D1_RECT_F& rect, const D2D1_COLOR
     DrawRoundedRectWithColor(host, rounded, stroke, 1.0f);
 }
 
-void DrawTopRoundedAttachedRect(WindowHost& host,
+void DrawTopRoundedAttachedRect(ControlHost& host,
                                 const D2D1_RECT_F& rect,
                                 const D2D1_COLOR_F& fill,
                                 const D2D1_COLOR_F& stroke,
@@ -665,7 +665,7 @@ void DrawTopRoundedAttachedRect(WindowHost& host,
     }
 }
 
-void PaintFocusRing(WindowHost& host, const D2D1_RECT_F& controlBounds, float controlCornerRadiusDip) noexcept
+void PaintFocusRing(ControlHost& host, const D2D1_RECT_F& controlBounds, float controlCornerRadiusDip) noexcept
 {
     const auto& palette = host.GetTheme();
 
@@ -687,7 +687,7 @@ void PaintFocusRing(WindowHost& host, const D2D1_RECT_F& controlBounds, float co
 }
 
 void DrawDropShadow(
-    WindowHost& host, const D2D1_RECT_F& targetRect, float cornerRadiusDip, float yOffsetDip, float spreadDip, float outerOpacity, float innerOpacity) noexcept
+    ControlHost& host, const D2D1_RECT_F& targetRect, float cornerRadiusDip, float yOffsetDip, float spreadDip, float outerOpacity, float innerOpacity) noexcept
 {
     const D2D1_RECT_F innerTargetRect = D2D1::RectF(targetRect.left - 0.5f, targetRect.top - 0.5f, targetRect.right + 0.5f, targetRect.bottom + 0.5f);
     const float innerBlurDip          = (std::max)(1.0f, spreadDip * 0.4f);
@@ -961,7 +961,7 @@ void DrawButtonChrome(ID2D1RenderTarget* target,
     }
 }
 
-void DrawCenteredText(WindowHost& host,
+void DrawCenteredText(ControlHost& host,
                       std::wstring_view text,
                       const D2D1_RECT_F& rect,
                       FontRole fontRole,
@@ -984,7 +984,7 @@ void DrawCenteredText(WindowHost& host,
     }
 }
 
-void DrawChevronGlyph(WindowHost& host, const D2D1_RECT_F& rect, ChevronDirection direction, const D2D1_COLOR_F& color) noexcept
+void DrawChevronGlyph(ControlHost& host, const D2D1_RECT_F& rect, ChevronDirection direction, const D2D1_COLOR_F& color) noexcept
 {
     if (! host.GetDeviceContext() || rect.right <= rect.left || rect.bottom <= rect.top)
     {
@@ -1015,7 +1015,7 @@ void DrawChevronGlyph(WindowHost& host, const D2D1_RECT_F& rect, ChevronDirectio
 }
 
 void DrawDisclosureChevron(
-    WindowHost& host, const D2D1_RECT_F& rect, float expandedProgress, const D2D1_COLOR_F& color, ChevronDirection collapsedDirection) noexcept
+    ControlHost& host, const D2D1_RECT_F& rect, float expandedProgress, const D2D1_COLOR_F& color, ChevronDirection collapsedDirection) noexcept
 {
     auto* context = host.GetDeviceContext();
     if (! context || rect.right <= rect.left || rect.bottom <= rect.top)
@@ -1056,7 +1056,7 @@ DisclosureChevronVisualState ResolveDisclosureChevronVisualState(float expandedP
     return {.direction = collapsedDirection, .rotationDegrees = rotationDegrees};
 }
 
-void DrawTextWithMnemonic(WindowHost& host,
+void DrawTextWithMnemonic(ControlHost& host,
                           std::wstring_view text,
                           const D2D1_RECT_F& rect,
                           FontRole fontRole,
@@ -1098,12 +1098,12 @@ void DrawTextWithMnemonic(WindowHost& host,
     dc->DrawTextLayout(D2D1::Point2F(rect.left, rect.top), layout.get(), brush, kTextDrawOptions);
 }
 
-std::wstring_view GetCheckboxCheckGlyph(const WindowHost& host) noexcept
+std::wstring_view GetCheckboxCheckGlyph(const ControlHost& host) noexcept
 {
     return host.HasFluentIconFont() ? kFluentCheckGlyph : kFallbackCheckGlyph;
 }
 
-FontRole GetCheckboxCheckFontRole(const WindowHost& host) noexcept
+FontRole GetCheckboxCheckFontRole(const ControlHost& host) noexcept
 {
     return host.HasFluentIconFont() ? FontRole::Icon : FontRole::Small;
 }
@@ -1208,7 +1208,7 @@ const Control* Panel::GetLogicalChild(size_t index) const noexcept
     return index < _children.size() ? _children[index].get() : nullptr;
 }
 
-void Panel::PropagateHost(WindowHost* host) noexcept
+void Panel::PropagateHost(ControlHost* host) noexcept
 {
     Control::PropagateHost(host);
     for (auto& child : _children)
@@ -1244,7 +1244,7 @@ void Panel::OnDensityChanged() noexcept
     }
 }
 
-void Panel::OnHostDpiChanged(WindowHost& host) noexcept
+void Panel::OnHostDpiChanged(ControlHost& host) noexcept
 {
     Control::OnHostDpiChanged(host);
     for (auto& child : _children)
@@ -1256,7 +1256,7 @@ void Panel::OnHostDpiChanged(WindowHost& host) noexcept
     }
 }
 
-void Panel::Paint(WindowHost& host) const
+void Panel::Paint(ControlHost& host) const
 {
     for (const auto& child : _children)
     {
@@ -1267,7 +1267,7 @@ void Panel::Paint(WindowHost& host) const
     }
 }
 
-void Panel::PaintOverlay(WindowHost& host) const
+void Panel::PaintOverlay(ControlHost& host) const
 {
     for (const auto& child : _children)
     {
@@ -1278,7 +1278,7 @@ void Panel::PaintOverlay(WindowHost& host) const
     }
 }
 
-bool Panel::Tick(WindowHost& host, uint64_t nowTickMs)
+bool Panel::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     bool keepTicking = false;
     for (const auto& child : _children)
@@ -1352,8 +1352,8 @@ void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnim
         page->PropagateHost(GetHost());
     }
 
-    WindowHost* const host = GetHost();
-    const bool animate     = host && _currentPage && page && ! host->GetTheme().reducedMotion;
+    ControlHost* const host = GetHost();
+    const bool animate      = host && _currentPage && page && ! host->GetTheme().reducedMotion;
     if (! animate)
     {
         if (_outgoingPage)
@@ -1386,7 +1386,7 @@ void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnim
     _transition.hasConnectedAnimation = false;
     _transition.sourceRectDip         = D2D1::RectF();
     _transition.targetRectDip         = D2D1::RectF();
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     _transition.debugFrozen         = false;
     _transition.debugFrozenProgress = 1.0f;
 #endif
@@ -1423,7 +1423,7 @@ bool PageHost::HasActiveTransition() const noexcept
     return _transition.active;
 }
 
-void PageHost::PaintPage(WindowHost& host, const Control* page, float opacity, float offsetXDip) const
+void PageHost::PaintPage(ControlHost& host, const Control* page, float opacity, float offsetXDip) const
 {
     auto* dc = host.GetDeviceContext();
     if (! dc || ! page || ! page->IsVisible())
@@ -1459,7 +1459,7 @@ PageHostDebugState PageHost::ResolveDebugState(const ThemePalette& theme, uint64
     state.hasConnectedAnimation  = _transition.hasConnectedAnimation;
     state.startTickMs            = _transition.startTickMs;
     float resolvedLinearProgress = _transition.active && ! theme.reducedMotion ? ClampUnit(_transition.linearProgress) : 1.0f;
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     if (_transition.active && _transition.debugFrozen)
     {
         resolvedLinearProgress = ClampUnit(_transition.debugFrozenProgress);
@@ -1491,7 +1491,7 @@ PageHostDebugState PageHost::ResolveDebugState(const ThemePalette& theme, uint64
     return state;
 }
 
-void PageHost::Paint(WindowHost& host) const
+void PageHost::Paint(ControlHost& host) const
 {
     if (! _currentPage)
     {
@@ -1516,7 +1516,7 @@ void PageHost::Paint(WindowHost& host) const
     PaintPage(host, _currentPage.get(), state.incomingOpacity, state.incomingOffsetXDip);
 }
 
-void PageHost::PaintOverlay(WindowHost& host) const
+void PageHost::PaintOverlay(ControlHost& host) const
 {
     if (! _currentPage)
     {
@@ -1584,7 +1584,7 @@ void PageHost::PaintOverlay(WindowHost& host) const
     DrawRoundedRect(host, animatedRect, fill, stroke, ResolveConnectedOverlayCornerRadius(animatedRect));
 }
 
-bool PageHost::Tick(WindowHost& host, uint64_t nowTickMs)
+bool PageHost::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     bool keepTicking = false;
     if (_currentPage && _currentPage->IsVisible())
@@ -1611,7 +1611,7 @@ bool PageHost::Tick(WindowHost& host, uint64_t nowTickMs)
         return keepTicking;
     }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     if (_transition.debugFrozen)
     {
         _transition.linearProgress = ClampUnit(_transition.debugFrozenProgress);
@@ -1645,7 +1645,7 @@ const Control* PageHost::GetLogicalChild(size_t index) const noexcept
     return index == 0u ? _currentPage.get() : nullptr;
 }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 PageHostDebugState PageHost::DebugGetTransitionState(uint64_t nowTickMs) const noexcept
 {
     const ThemePalette theme = GetHost() ? GetHost()->GetTheme() : MakeDefaultThemePalette(false);
@@ -1736,7 +1736,7 @@ const Control* PageHost::HitTestOverlay(D2D1_POINT_2F point) const
     return _currentPage->HitTestOverlay(point);
 }
 
-void PageHost::PropagateHost(WindowHost* host) noexcept
+void PageHost::PropagateHost(ControlHost* host) noexcept
 {
     Control::PropagateHost(host);
     if (_currentPage)
@@ -1780,7 +1780,7 @@ void PageHost::OnDensityChanged() noexcept
     }
 }
 
-void PageHost::OnHostDpiChanged(WindowHost& host) noexcept
+void PageHost::OnHostDpiChanged(ControlHost& host) noexcept
 {
     Control::OnHostDpiChanged(host);
     if (_currentPage)
@@ -1814,7 +1814,7 @@ void PageHost::FinishTransition() noexcept
     _transition.lastTickMs            = 0u;
     _transition.sourceRectDip         = D2D1::RectF();
     _transition.targetRectDip         = D2D1::RectF();
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     _transition.debugFrozen         = false;
     _transition.debugFrozenProgress = 1.0f;
 #endif
@@ -1835,7 +1835,7 @@ float CardPanel::GetCornerRadius() const noexcept
     return _cornerRadiusDip;
 }
 
-void CardPanel::Paint(WindowHost& host) const
+void CardPanel::Paint(ControlHost& host) const
 {
     const CardPanelVisualStyle style = ResolveCardPanelVisualStyle(host.GetTheme());
     DrawRoundedRect(host, GetBounds(), style.fill, style.border, _cornerRadiusDip);
@@ -1851,7 +1851,7 @@ void Label::SetText(std::wstring text)
     if (_text != text)
     {
         _text = std::move(text);
-        if (WindowHost* const host = GetHost())
+        if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
@@ -1898,14 +1898,14 @@ void Label::SetMnemonicTarget(Control* target) noexcept
     if (_mnemonicTarget != target)
     {
         _mnemonicTarget = target;
-        if (WindowHost* const host = GetHost())
+        if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
     }
 }
 
-void Label::Paint(WindowHost& host) const
+void Label::Paint(ControlHost& host) const
 {
     const LabelVisualStyle style = ResolveLabelVisualStyle(host.GetTheme(), _textColor);
     DrawTextWithMnemonic(
@@ -1923,7 +1923,7 @@ const Control* Label::HitTest(D2D1_POINT_2F /*point*/) const
     return nullptr;
 }
 
-bool Label::OnMnemonic(WindowHost& host)
+bool Label::OnMnemonic(ControlHost& host)
 {
     if (_mnemonicTarget && ControlBelongsToBranch(host.GetRoot(), _mnemonicTarget))
     {
@@ -1943,7 +1943,7 @@ void Button::SetText(std::wstring text)
     if (_text != text)
     {
         _text = std::move(text);
-        if (WindowHost* const host = GetHost())
+        if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
@@ -2009,7 +2009,7 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
     _disclosureTransition.target        = target;
     _disclosureTransition.startTickMs   = GetTickCount64();
     _disclosureTransition.initialized   = true;
-    WindowHost* const host              = GetHost();
+    ControlHost* const host             = GetHost();
     _disclosureTransition.active        = host && ! host->GetTheme().reducedMotion;
     if (_disclosureTransition.active)
     {
@@ -2042,7 +2042,7 @@ void Button::SetOnDropDownClick(std::function<void()> onDropDownClick)
     _onDropDownClick = std::move(onDropDownClick);
 }
 
-bool Button::Invoke(WindowHost& host, bool focusSelf)
+bool Button::Invoke(ControlHost& host, bool focusSelf)
 {
     TraceButtonDiagnostics(L"dxui.button.invoke",
                            L"hwnd={:#x} text=\"{}\" variant={} focusSelf={} enabled={} visible={} hasClick={} hasDropDown={}",
@@ -2082,7 +2082,7 @@ bool Button::Invoke(WindowHost& host, bool focusSelf)
     return true;
 }
 
-void Button::Paint(WindowHost& host) const
+void Button::Paint(ControlHost& host) const
 {
     const FlowDirection flowDirection = GetFlowDirection();
     const ButtonVisualStyle style     = ResolveButtonVisualStyle(host.GetTheme(),
@@ -2211,7 +2211,7 @@ void Button::Paint(WindowHost& host) const
     }
 }
 
-bool Button::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool Button::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     const bool dropDownPoint = IsDropDownInvocationPoint(point);
     TraceButtonDiagnostics(L"dxui.button.mouse-down",
@@ -2254,7 +2254,7 @@ bool Button::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton
     return true;
 }
 
-bool Button::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool Button::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     const bool wasPressedBeforeReturn = _pressed;
     const bool hitBeforeReturn        = PointInRect(GetHitBounds(), point);
@@ -2312,7 +2312,7 @@ bool Button::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, 
     return wasPressed;
 }
 
-bool Button::OnKeyDown(WindowHost& host, UINT virtualKey, UINT modifiers)
+bool Button::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     if (! IsEnabled())
     {
@@ -2330,7 +2330,7 @@ bool Button::OnKeyDown(WindowHost& host, UINT virtualKey, UINT modifiers)
     return false;
 }
 
-bool Button::OnMnemonic(WindowHost& host)
+bool Button::OnMnemonic(ControlHost& host)
 {
     return Invoke(host, true);
 }
@@ -2355,7 +2355,7 @@ bool Button::DebugIsDisclosureAnimationActive() const noexcept
     return _disclosureTransition.active;
 }
 
-bool Button::Tick(WindowHost& host, uint64_t nowTickMs)
+bool Button::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     const bool hoverAnimating      = AdvanceInteractionTransition(host, _hoverTransition, nowTickMs);
     const bool focusAnimating      = AdvanceInteractionTransition(host, _focusTransition, nowTickMs);
@@ -2363,7 +2363,7 @@ bool Button::Tick(WindowHost& host, uint64_t nowTickMs)
     return hoverAnimating || focusAnimating || disclosureAnimating;
 }
 
-bool Button::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT modifiers)
+bool Button::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers)
 {
     const std::wstring_view tooltipText = GetTooltipText();
     if (! tooltipText.empty() && tooltipText == _text)
@@ -2374,7 +2374,7 @@ bool Button::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT modifiers)
     return Control::OnMouseMove(host, point, modifiers);
 }
 
-bool Button::OnMouseLeave(WindowHost& host)
+bool Button::OnMouseLeave(ControlHost& host)
 {
     const bool handled = Control::OnMouseLeave(host);
     TraceButtonDiagnostics(L"dxui.button.mouse-leave",
@@ -2406,7 +2406,7 @@ std::wstring_view Button::GetText() const noexcept
     return _text;
 }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 bool Button::DebugIsPressed() const noexcept
 {
     return IsPressed();
@@ -2423,7 +2423,7 @@ void Button::SetPressedVisual(bool pressed) noexcept
     SetPressed(pressed);
 }
 
-void Button::OnCaptureLost(WindowHost& host)
+void Button::OnCaptureLost(ControlHost& host)
 {
     TraceButtonDiagnostics(L"dxui.button.capture-lost",
                            L"hwnd={:#x} text=\"{}\" variant={} pressedBefore={} pressedDropDownBefore={} enabled={} visible={}",
@@ -2464,7 +2464,7 @@ bool Button::IsDropDownInvocationPoint(D2D1_POINT_2F point) const noexcept
     return point.x >= dividerX && PointInRect(bounds, point);
 }
 
-bool Button::InvokeDropDown(WindowHost& host)
+bool Button::InvokeDropDown(ControlHost& host)
 {
     TraceButtonDiagnostics(L"dxui.button.dropdown-invoke",
                            L"hwnd={:#x} text=\"{}\" variant={} enabled={} visible={} hasDropDown={} pressedBefore={} pressedDropDownBefore={} openBefore={}",
@@ -2507,19 +2507,19 @@ bool Button::InvokeDropDown(WindowHost& host)
     return true;
 }
 
-void Button::OnFocusChanged(WindowHost& host, bool focused)
+void Button::OnFocusChanged(ControlHost& host, bool focused)
 {
     Control::OnFocusChanged(host, focused);
     UpdateInteractionTransition(host, _focusTransition, focused ? 1.0f : 0.0f);
 }
 
-void Button::OnHoverChanged(WindowHost& host, bool hovered)
+void Button::OnHoverChanged(ControlHost& host, bool hovered)
 {
     Control::OnHoverChanged(host, hovered);
     UpdateInteractionTransition(host, _hoverTransition, hovered ? 1.0f : 0.0f);
 }
 
-void Button::UpdateInteractionTransition(WindowHost& host, InteractionTransitionState& transition, float target) noexcept
+void Button::UpdateInteractionTransition(ControlHost& host, InteractionTransitionState& transition, float target) noexcept
 {
     const float clampedTarget = std::clamp(target, 0.0f, 1.0f);
     transition.target         = clampedTarget;
@@ -2542,7 +2542,7 @@ void Button::UpdateInteractionTransition(WindowHost& host, InteractionTransition
     Invalidate(host);
 }
 
-bool Button::AdvanceInteractionTransition(const WindowHost& host, InteractionTransitionState& transition, uint64_t nowTickMs) noexcept
+bool Button::AdvanceInteractionTransition(const ControlHost& host, InteractionTransitionState& transition, uint64_t nowTickMs) noexcept
 {
     if (host.GetTheme().reducedMotion || ! transition.active)
     {
@@ -2586,7 +2586,7 @@ bool Button::AdvanceInteractionTransition(const WindowHost& host, InteractionTra
     return transition.active || changedThisTick;
 }
 
-bool Button::AdvanceDisclosureTransition(WindowHost& host, uint64_t nowTickMs) noexcept
+bool Button::AdvanceDisclosureTransition(ControlHost& host, uint64_t nowTickMs) noexcept
 {
     if (! _disclosureExpanded.has_value() || ! _disclosureTransition.initialized)
     {
@@ -2616,12 +2616,12 @@ bool Button::AdvanceDisclosureTransition(WindowHost& host, uint64_t nowTickMs) n
     return _disclosureTransition.active;
 }
 
-float Button::ResolveHoverAnimationProgress(const WindowHost& host) const noexcept
+float Button::ResolveHoverAnimationProgress(const ControlHost& host) const noexcept
 {
     return host.GetTheme().reducedMotion ? (IsHovered() ? 1.0f : 0.0f) : _hoverTransition.progress;
 }
 
-float Button::ResolveFocusAnimationProgress(const WindowHost& host) const noexcept
+float Button::ResolveFocusAnimationProgress(const ControlHost& host) const noexcept
 {
     return host.GetTheme().reducedMotion ? (HasFocus() ? 1.0f : 0.0f) : _focusTransition.progress;
 }
@@ -2635,7 +2635,7 @@ void Toggle::SetChecked(bool checked) noexcept
     if (_checked != checked)
     {
         _checked = checked;
-        if (WindowHost* const host = GetHost())
+        if (ControlHost* const host = GetHost())
         {
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
@@ -2681,7 +2681,7 @@ ToggleLayoutMetrics Toggle::GetLayoutMetrics() const noexcept
     return BuildToggleLayoutMetrics(GetBounds(), IsChecked(), GetDisplayedText().empty());
 }
 
-void Toggle::Paint(WindowHost& host) const
+void Toggle::Paint(ControlHost& host) const
 {
     const FlowDirection flowDirection = GetFlowDirection();
     const ToggleVisualStyle style     = ResolveToggleVisualStyle(host.GetTheme(),
@@ -2729,7 +2729,7 @@ void Toggle::Paint(WindowHost& host) const
     }
 }
 
-bool Toggle::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool Toggle::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     if (rightButton || ! IsEnabled())
     {
@@ -2749,7 +2749,7 @@ bool Toggle::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, 
     return true;
 }
 
-bool Toggle::OnKeyDown(WindowHost& host, UINT virtualKey, UINT modifiers)
+bool Toggle::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     if (virtualKey == VK_LEFT)
     {
@@ -2769,7 +2769,7 @@ bool Toggle::OnKeyDown(WindowHost& host, UINT virtualKey, UINT modifiers)
     return Button::OnKeyDown(host, virtualKey, modifiers);
 }
 
-bool Toggle::OnMnemonic(WindowHost& host)
+bool Toggle::OnMnemonic(ControlHost& host)
 {
     if (! IsEnabled() || ! IsVisible())
     {
@@ -2785,7 +2785,7 @@ bool Toggle::OnMnemonic(WindowHost& host)
     return true;
 }
 
-void Toggle::ApplyCheckedState(WindowHost& host, bool checked, bool notify)
+void Toggle::ApplyCheckedState(ControlHost& host, bool checked, bool notify)
 {
     if (_checked == checked)
     {
@@ -2808,7 +2808,7 @@ Checkbox::Checkbox(std::wstring text) : Toggle(std::move(text))
 {
 }
 
-bool Checkbox::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+bool Checkbox::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     const bool willToggle = ! rightButton && IsEnabled() && IsPressed() && PointInRect(GetHitBounds(), point);
     if (willToggle)
@@ -2819,7 +2819,7 @@ bool Checkbox::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton
     return Toggle::OnMouseUp(host, point, rightButton, modifiers);
 }
 
-bool Checkbox::OnKeyDown(WindowHost& host, UINT virtualKey, UINT modifiers)
+bool Checkbox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     if (virtualKey == VK_RETURN)
     {
@@ -2839,7 +2839,7 @@ bool Checkbox::OnKeyDown(WindowHost& host, UINT virtualKey, UINT modifiers)
     return Toggle::OnKeyDown(host, virtualKey, modifiers);
 }
 
-bool Checkbox::OnMnemonic(WindowHost& host)
+bool Checkbox::OnMnemonic(ControlHost& host)
 {
     if (! IsEnabled() || ! IsVisible())
     {
@@ -2861,7 +2861,7 @@ bool Checkbox::IsIndeterminate() const noexcept
     return _indeterminate;
 }
 
-void Checkbox::Paint(WindowHost& host) const
+void Checkbox::Paint(ControlHost& host) const
 {
     const bool rightToLeft          = IsRightToLeft();
     const bool effectiveChecked     = IsChecked() || _indeterminate;
@@ -2947,7 +2947,7 @@ void RadioButton::SetGroup(RadioButtons* group) noexcept
     _group = group;
 }
 
-void RadioButton::Paint(WindowHost& host) const
+void RadioButton::Paint(ControlHost& host) const
 {
     const bool rightToLeft             = IsRightToLeft();
     const RadioButtonVisualStyle style = ResolveRadioButtonVisualStyle(host.GetTheme(),
@@ -3002,7 +3002,7 @@ void RadioButton::Paint(WindowHost& host) const
         GetFlowDirection());
 }
 
-bool RadioButton::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool RadioButton::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     if (rightButton || ! IsEnabled())
     {
@@ -3022,7 +3022,7 @@ bool RadioButton::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightBut
     return true;
 }
 
-bool RadioButton::OnKeyDown(WindowHost& host, UINT virtualKey, UINT modifiers)
+bool RadioButton::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     if (virtualKey == VK_SPACE || virtualKey == VK_RETURN)
     {
@@ -3032,7 +3032,7 @@ bool RadioButton::OnKeyDown(WindowHost& host, UINT virtualKey, UINT modifiers)
     return Button::OnKeyDown(host, virtualKey, modifiers);
 }
 
-bool RadioButton::OnMnemonic(WindowHost& host)
+bool RadioButton::OnMnemonic(ControlHost& host)
 {
     if (! IsEnabled() || ! IsVisible())
     {
@@ -3048,7 +3048,7 @@ bool RadioButton::OnMnemonic(WindowHost& host)
     return true;
 }
 
-void RadioButton::SelectSelf(WindowHost& host)
+void RadioButton::SelectSelf(ControlHost& host)
 {
     if (! _checked)
     {
@@ -3153,7 +3153,7 @@ void RadioButtons::SelectItem(RadioButton* item)
     }
 }
 
-void RadioButtons::Paint(WindowHost& host) const
+void RadioButtons::Paint(ControlHost& host) const
 {
     if (! _header.empty())
     {
@@ -3211,7 +3211,7 @@ void ProgressBar::SetIndeterminate(bool indeterminate) noexcept
     _lastTickMs     = 0u;
     if (indeterminate && IsEnabled() && IsVisible())
     {
-        if (WindowHost* host = GetHost())
+        if (ControlHost* host = GetHost())
         {
             host->RequestAnimation();
         }
@@ -3263,7 +3263,7 @@ bool ProgressBar::HasSegmentedValues() const noexcept
     return _segmented;
 }
 
-void ProgressBar::Paint(WindowHost& host) const
+void ProgressBar::Paint(ControlHost& host) const
 {
     const ProgressBarVisualStyle style = ResolveProgressBarVisualStyle(host.GetTheme());
     const D2D1_RECT_F bounds           = GetBounds();
@@ -3349,7 +3349,7 @@ void ProgressBar::Paint(WindowHost& host) const
     }
 }
 
-bool ProgressBar::Tick(WindowHost& host, uint64_t nowTickMs)
+bool ProgressBar::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     if (! _indeterminate || ! IsEnabled() || ! IsVisible())
     {
@@ -3709,7 +3709,7 @@ void ThroughputGraph::SetSamples(std::span<const ThroughputGraphSample> samples)
     _samples.assign(samples.end() - static_cast<std::ptrdiff_t>(retainedCount), samples.end());
     _targetLatestValue = _samples.empty() ? 0.0 : std::max(0.0, _samples.back().value);
 
-    WindowHost* const host   = GetHost();
+    ControlHost* const host  = GetHost();
     const bool targetChanged = previousTarget != _targetLatestValue;
     if (host && ! host->GetTheme().reducedMotion && ! _samples.empty() && targetChanged)
     {
@@ -3755,7 +3755,7 @@ void ThroughputGraph::SetCurrentValueMarker(double value, std::wstring label, st
     _currentValueLabel         = std::move(label);
     _currentValueTrailingLabel = std::move(trailingLabel);
 
-    WindowHost* const host   = GetHost();
+    ControlHost* const host  = GetHost();
     const bool targetChanged = _targetCurrentValue != nextTarget;
     _targetCurrentValue      = nextTarget;
     if (host && ! host->GetTheme().reducedMotion && targetChanged)
@@ -3825,7 +3825,7 @@ ThroughputGraphDebugState ThroughputGraph::GetDebugState() const noexcept
     return state;
 }
 
-void ThroughputGraph::Paint(WindowHost& host) const
+void ThroughputGraph::Paint(ControlHost& host) const
 {
     const ThemePalette& palette = host.GetTheme();
     _lastReducedMotion          = palette.reducedMotion;
@@ -4007,7 +4007,7 @@ void ThroughputGraph::Paint(WindowHost& host) const
     }
 }
 
-bool ThroughputGraph::Tick(WindowHost& host, uint64_t nowTickMs)
+bool ThroughputGraph::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     if (! _transitionActive && ! _currentValueTransitionActive)
     {
@@ -4138,6 +4138,29 @@ std::span<const double> Slider::GetTickMarks() const noexcept
     return _tickMarks;
 }
 
+void Slider::SetOnChange(std::function<void(SliderChange)> onChange)
+{
+    _onChange = std::move(onChange);
+}
+void Slider::NotifyChange(SliderChangePhase phase, bool notifyLegacy) noexcept
+{
+    try
+    {
+        const auto life    = GetLifetimeToken();
+        const auto legacy  = _onValueChanged;
+        const auto changed = _onChange;
+        const double value = _value;
+        if (notifyLegacy && legacy)
+            legacy(value);
+        if (! life.expired() && changed)
+            changed({phase, value});
+    }
+    catch (const std::exception&)
+    {
+        Debug::Warning(L"Slider change callback failed");
+    }
+}
+
 void Slider::SetOnValueChanged(std::function<void(double)> onValueChanged)
 {
     _onValueChanged = std::move(onValueChanged);
@@ -4149,6 +4172,8 @@ double Slider::ClampValue(double value) const noexcept
     {
         return _minimum;
     }
+    if (! std::isfinite(value))
+        return _value;
     return (std::clamp)(value, _minimum, _maximum);
 }
 
@@ -4161,7 +4186,7 @@ double Slider::GetNormalizedValue() const noexcept
     return (std::clamp)((_value - _minimum) / (_maximum - _minimum), 0.0, 1.0);
 }
 
-void Slider::SetValueInternal(WindowHost* host, double value, bool notifyChanged) noexcept
+void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChanged) noexcept
 {
     const double clamped = ClampValue(value);
     if (std::fabs(clamped - _value) <= 0.0001)
@@ -4179,11 +4204,8 @@ void Slider::SetValueInternal(WindowHost* host, double value, bool notifyChanged
         RequestInvalidate();
     }
 
-    const std::function<void(double)> onValueChanged = _onValueChanged;
-    if (notifyChanged && onValueChanged)
-    {
-        onValueChanged(_value);
-    }
+    if (notifyChanged)
+        NotifyChange(_dragging ? SliderChangePhase::Preview : SliderChangePhase::Commit, true);
 }
 
 D2D1_RECT_F Slider::GetTrackRect() const noexcept
@@ -4240,7 +4262,7 @@ D2D1_RECT_F Slider::GetFillRect() const noexcept
     return IsRightToLeft() ? D2D1::RectF(centerX, track.top, track.right, track.bottom) : D2D1::RectF(track.left, track.top, centerX, track.bottom);
 }
 
-void Slider::UpdateValueFromPoint(WindowHost& host, D2D1_POINT_2F point) noexcept
+void Slider::UpdateValueFromPoint(ControlHost& host, D2D1_POINT_2F point) noexcept
 {
     const D2D1_RECT_F track = GetTrackRect();
     double normalized       = 0.0;
@@ -4260,7 +4282,7 @@ void Slider::UpdateValueFromPoint(WindowHost& host, D2D1_POINT_2F point) noexcep
     SetValueInternal(&host, nextValue, true);
 }
 
-void Slider::Paint(WindowHost& host) const
+void Slider::Paint(ControlHost& host) const
 {
     Debug::Perf::Scope sliderPaintPerf(L"dxui.slider.paint");
 
@@ -4317,7 +4339,7 @@ void Slider::Paint(WindowHost& host) const
     }
 }
 
-bool Slider::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool Slider::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     if (! IsEnabled() || rightButton || ! PointInRect(GetHitBounds(), point))
     {
@@ -4325,13 +4347,14 @@ bool Slider::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton
     }
 
     host.SetFocusControl(this);
-    _dragging = true;
+    _dragInitialValue = _value;
+    _dragging         = true;
     host.CaptureMouse(this);
     UpdateValueFromPoint(host, point);
     return true;
 }
 
-bool Slider::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
+bool Slider::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
     if (! _dragging)
     {
@@ -4342,25 +4365,36 @@ bool Slider::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modifiers
     return true;
 }
 
-bool Slider::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool Slider::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     if (rightButton || ! _dragging)
     {
         return false;
     }
 
+    const auto life = GetLifetimeToken();
+    UpdateValueFromPoint(host, point);
+    if (life.expired())
+        return true;
     _dragging = false;
     host.ReleaseMouseCapture();
-    UpdateValueFromPoint(host, point);
     Invalidate(host);
+    NotifyChange(SliderChangePhase::Commit, false);
     return true;
 }
 
-bool Slider::OnKeyDown(WindowHost& host, UINT virtualKey, UINT /*modifiers*/)
+bool Slider::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
 {
     if (! IsEnabled())
     {
         return false;
+    }
+
+    if (virtualKey == VK_ESCAPE && _dragging)
+    {
+        OnCaptureLost(host);
+        host.ReleaseMouseCapture();
+        return true;
     }
 
     switch (virtualKey)
@@ -4403,16 +4437,18 @@ bool Slider::OnKeyDown(WindowHost& host, UINT virtualKey, UINT /*modifiers*/)
     return false;
 }
 
-void Slider::OnCaptureLost(WindowHost& host)
+void Slider::OnCaptureLost(ControlHost& host)
 {
     if (_dragging)
     {
         _dragging = false;
+        _value    = ClampValue(_dragInitialValue);
         Invalidate(host);
+        NotifyChange(SliderChangePhase::Cancel, true);
     }
 }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 D2D1_RECT_F Slider::DebugGetTrackRect() const noexcept
 {
     return GetTrackRect();
@@ -4726,7 +4762,7 @@ void TagPicker::SetOnSelectionChanged(std::function<void(std::span<const std::ws
     _onSelectionChanged = std::move(onSelectionChanged);
 }
 
-void TagPicker::Paint(WindowHost& host) const
+void TagPicker::Paint(ControlHost& host) const
 {
     const ThemePalette& theme            = host.GetTheme();
     const bool comboFocused              = _combo && _combo->HasFocus();
@@ -4762,7 +4798,7 @@ void TagPicker::Paint(WindowHost& host) const
     Panel::Paint(host);
 }
 
-bool TagPicker::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+bool TagPicker::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     if (rightButton)
     {
@@ -4789,7 +4825,7 @@ bool TagPicker::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightBut
     return Panel::OnMouseDown(host, point, rightButton, modifiers);
 }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 size_t TagPicker::DebugGetLaidOutDisplayTagCount() const noexcept
 {
     return _tagRects.size();
@@ -4895,7 +4931,7 @@ void TagPicker::LayoutParts() noexcept
         return;
     }
 
-    const WindowHost* host        = GetHost();
+    const ControlHost* host       = GetHost();
     const float preferredHeight   = ComputePreferredHeightDip(width, host);
     const float preferredContentH = std::max(kTagPickerRowHeightDip, preferredHeight - (kTagPickerFramePaddingDip * 2.0f));
     const float rowTopInset       = std::max(kTagPickerFramePaddingDip, (height - preferredContentH) * 0.5f);
@@ -4933,7 +4969,7 @@ void TagPicker::LayoutParts() noexcept
     _combo->SetBounds(D2D1::RectF(comboLeft, rowTop, rowRight, rowTop + kTagPickerRowHeightDip));
 }
 
-float TagPicker::ComputePreferredHeightDip(float widthDip, const WindowHost* host) const noexcept
+float TagPicker::ComputePreferredHeightDip(float widthDip, const ControlHost* host) const noexcept
 {
     const float availableWidth = std::max(0.0f, widthDip - (kTagPickerFramePaddingDip * 2.0f));
     if (availableWidth <= 0.0f)
@@ -4964,7 +5000,7 @@ float TagPicker::ComputePreferredHeightDip(float widthDip, const WindowHost* hos
     return std::max(kTagPickerMinHeightDip, rowsH + (kTagPickerFramePaddingDip * 2.0f));
 }
 
-float TagPicker::MeasureDisplayTagWidthDip(const DisplayTag& tag, float rowHeightDip, const WindowHost* host) const noexcept
+float TagPicker::MeasureDisplayTagWidthDip(const DisplayTag& tag, float rowHeightDip, const ControlHost* host) const noexcept
 {
     const DWRITE_READING_DIRECTION readingDirection = ResolveReadingDirection(GetFlowDirection());
     const float measuredTextW                       = MeasureSingleLineTextWidthDip(host, tag.text, FontRole::Small, rowHeightDip, readingDirection);
@@ -5083,7 +5119,7 @@ void Toolbar::AddSeparator()
     separator->SetEnabled(false);
 }
 
-void Toolbar::Paint(WindowHost& host) const
+void Toolbar::Paint(ControlHost& host) const
 {
     const ToolbarVisualStyle style = ResolveToolbarVisualStyle(host.GetTheme());
     const ThemePalette& theme      = host.GetTheme();
@@ -5211,7 +5247,7 @@ size_t MenuBar::GetVisualHighlightCount() const noexcept
     return GetVisualHighlightIndex().has_value() ? 1u : 0u;
 }
 
-bool MenuBar::ActivateMnemonic(WindowHost& host, wchar_t mnemonic)
+bool MenuBar::ActivateMnemonic(ControlHost& host, wchar_t mnemonic)
 {
     if (const std::optional<size_t> match = FindMnemonicItem(mnemonic); match.has_value())
     {
@@ -5221,7 +5257,7 @@ bool MenuBar::ActivateMnemonic(WindowHost& host, wchar_t mnemonic)
     return false;
 }
 
-bool MenuBar::ActivateItem(WindowHost& host, size_t index, bool keyboardInvocation)
+bool MenuBar::ActivateItem(ControlHost& host, size_t index, bool keyboardInvocation)
 {
     if (index >= _items.size() || ! _items[index].enabled || ! _onOpenItem)
     {
@@ -5259,7 +5295,7 @@ bool MenuBar::ActivateItem(WindowHost& host, size_t index, bool keyboardInvocati
     return true;
 }
 
-bool MenuBar::ActivateSelected(WindowHost& host, bool keyboardInvocation)
+bool MenuBar::ActivateSelected(ControlHost& host, bool keyboardInvocation)
 {
     if (! _selectedIndex.has_value())
     {
@@ -5268,12 +5304,12 @@ bool MenuBar::ActivateSelected(WindowHost& host, bool keyboardInvocation)
     return ActivateItem(host, _selectedIndex.value(), keyboardInvocation);
 }
 
-std::optional<size_t> MenuBar::HitTestPoint(const WindowHost& host, PointDip pointDip) const noexcept
+std::optional<size_t> MenuBar::HitTestPoint(const ControlHost& host, PointDip pointDip) const noexcept
 {
     return HitTestItem(host, pointDip);
 }
 
-bool MenuBar::TryGetItemScreenRect(const WindowHost& host, size_t index, RECT& rectPx) const noexcept
+bool MenuBar::TryGetItemScreenRect(const ControlHost& host, size_t index, RECT& rectPx) const noexcept
 {
     if (index >= _items.size())
     {
@@ -5292,7 +5328,7 @@ bool MenuBar::TryGetItemScreenRect(const WindowHost& host, size_t index, RECT& r
     return true;
 }
 
-void MenuBar::Paint(WindowHost& host) const
+void MenuBar::Paint(ControlHost& host) const
 {
     auto* dc = host.GetDeviceContext();
     if (! dc)
@@ -5333,7 +5369,7 @@ void MenuBar::Paint(WindowHost& host) const
     }
 }
 
-bool MenuBar::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
+bool MenuBar::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
     const std::optional<size_t> hit = HitTestItem(host, MakePointDip(point));
     if (_hoveredIndex != hit)
@@ -5349,7 +5385,7 @@ bool MenuBar::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modifier
     return true;
 }
 
-bool MenuBar::OnMouseLeave(WindowHost& host)
+bool MenuBar::OnMouseLeave(ControlHost& host)
 {
     if (_hoveredIndex.has_value())
     {
@@ -5363,7 +5399,7 @@ bool MenuBar::OnMouseLeave(WindowHost& host)
     return true;
 }
 
-void MenuBar::OnCaptureLost(WindowHost& host)
+void MenuBar::OnCaptureLost(ControlHost& host)
 {
     if (_pressedIndex.has_value())
     {
@@ -5372,7 +5408,7 @@ void MenuBar::OnCaptureLost(WindowHost& host)
     }
 }
 
-bool MenuBar::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool MenuBar::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     if (rightButton)
     {
@@ -5393,7 +5429,7 @@ bool MenuBar::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButto
     return true;
 }
 
-bool MenuBar::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool MenuBar::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     if (rightButton)
     {
@@ -5430,7 +5466,7 @@ bool MenuBar::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton,
     return ActivateItem(host, openIndex, false);
 }
 
-void MenuBar::PropagateHost(WindowHost* host) noexcept
+void MenuBar::PropagateHost(ControlHost* host) noexcept
 {
     const bool hostChanged = GetHost() != host;
     Control::PropagateHost(host);
@@ -5457,13 +5493,13 @@ void MenuBar::OnDensityChanged() noexcept
     InvalidateMenuBarLayoutCache();
 }
 
-void MenuBar::OnHostDpiChanged(WindowHost& host) noexcept
+void MenuBar::OnHostDpiChanged(ControlHost& host) noexcept
 {
     Control::OnHostDpiChanged(host);
     InvalidateMenuBarLayoutCache();
 }
 
-bool MenuBar::OnKeyDown(WindowHost& host, UINT virtualKey, UINT /*modifiers*/)
+bool MenuBar::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
 {
     if (_items.empty())
     {
@@ -5558,12 +5594,12 @@ bool MenuBar::OnKeyDown(WindowHost& host, UINT virtualKey, UINT /*modifiers*/)
     }
 }
 
-bool MenuBar::OnMnemonic(WindowHost& host)
+bool MenuBar::OnMnemonic(ControlHost& host)
 {
     return ActivateSelected(host, true);
 }
 
-void MenuBar::OnFocusChanged(WindowHost& host, bool focused)
+void MenuBar::OnFocusChanged(ControlHost& host, bool focused)
 {
     Control::OnFocusChanged(host, focused);
     if (! focused)
@@ -5605,7 +5641,7 @@ std::optional<size_t> MenuBar::GetVisualHighlightIndex() const noexcept
     return sanitize(_hoveredIndex);
 }
 
-std::optional<size_t> MenuBar::HitTestItem(const WindowHost& host, PointDip pointDip) const noexcept
+std::optional<size_t> MenuBar::HitTestItem(const ControlHost& host, PointDip pointDip) const noexcept
 {
     const D2D1_POINT_2F point        = pointDip.AsD2D();
     const D2D1_RECT_F bounds         = GetBounds();
@@ -5628,7 +5664,7 @@ void MenuBar::InvalidateMenuBarLayoutCache() const noexcept
     _menuBarLayoutCache.valid = false;
 }
 
-const MenuBar::MenuBarLayoutCache& MenuBar::EnsureMenuBarLayoutCache(const WindowHost& host) const noexcept
+const MenuBar::MenuBarLayoutCache& MenuBar::EnsureMenuBarLayoutCache(const ControlHost& host) const noexcept
 {
     // Layout-cache allocation failure remains fatal by repository policy; noexcept is intentional at this UI boundary.
     const D2D1_RECT_F bounds                        = GetBounds();
@@ -5705,7 +5741,7 @@ const MenuBar::MenuBarLayoutCache& MenuBar::EnsureMenuBarLayoutCache(const Windo
     return layout;
 }
 
-D2D1_RECT_F MenuBar::GetItemRect(const WindowHost& host, size_t index) const noexcept
+D2D1_RECT_F MenuBar::GetItemRect(const ControlHost& host, size_t index) const noexcept
 {
     const MenuBarLayoutCache& layout = EnsureMenuBarLayoutCache(host);
     if (index >= layout.itemRects.size())
@@ -5716,7 +5752,7 @@ D2D1_RECT_F MenuBar::GetItemRect(const WindowHost& host, size_t index) const noe
     return layout.itemRects[index];
 }
 
-float MenuBar::MeasureItemWidth(const WindowHost& host, const MenuBarItem& item) const noexcept
+float MenuBar::MeasureItemWidth(const ControlHost& host, const MenuBarItem& item) const noexcept
 {
     auto* factory                = host.GetWriteFactory();
     const ThemePalette& theme    = host.GetTheme();
@@ -5770,7 +5806,7 @@ std::optional<size_t> MenuBar::FindMnemonicItem(wchar_t mnemonic) const noexcept
     return std::nullopt;
 }
 
-void MenuBar::InvalidateIfInteractive(WindowHost& host) noexcept
+void MenuBar::InvalidateIfInteractive(ControlHost& host) noexcept
 {
     if (IsVisible())
     {
@@ -5793,7 +5829,7 @@ void TabControl::RemoveTab(size_t index) noexcept
         return;
     }
 
-    if (WindowHost* host = GetHost())
+    if (ControlHost* host = GetHost())
     {
         if (Control* focused = host->GetFocusControl(); focused && ControlBelongsToBranch(children[index].get(), focused))
         {
@@ -6117,7 +6153,7 @@ float TabControl::GetHeaderViewportRight() const noexcept
     return EnsureTabHeaderLayoutCache().viewportRightDip;
 }
 
-float TabControl::MeasureTabTitleWidthDip(size_t index, const WindowHost& host) const noexcept
+float TabControl::MeasureTabTitleWidthDip(size_t index, const ControlHost& host) const noexcept
 {
     if (index >= _tabs.size())
     {
@@ -6254,7 +6290,7 @@ float TabControl::MeasureTabWidthDip(size_t index) const noexcept
         return 0.0f;
     }
 
-    const WindowHost* host   = GetHost();
+    const ControlHost* host  = GetHost();
     const float textWidthDip = host ? MeasureTabTitleWidthDip(index, *host) : static_cast<float>(_tabs[index].title.size()) * 7.5f;
     return (std::max)(kTabHeaderMinWidthDip,
                       textWidthDip + (kTabHeaderPaddingXDip * 2.0f) + (_tabs[index].closable ? (kTabHeaderCloseButtonSizeDip + 6.0f) : 0.0f));
@@ -6427,7 +6463,7 @@ void TabControl::SyncLayout() noexcept
     RequestInvalidate();
 }
 
-void TabControl::SelectTab(WindowHost& host, size_t index, bool focusSelf) noexcept
+void TabControl::SelectTab(ControlHost& host, size_t index, bool focusSelf) noexcept
 {
     if (index >= _tabs.size() || ! _tabs[index].visible)
     {
@@ -6460,7 +6496,7 @@ void TabControl::SelectTab(WindowHost& host, size_t index, bool focusSelf) noexc
     }
 }
 
-void TabControl::CloseTab(WindowHost& host, size_t index) noexcept
+void TabControl::CloseTab(ControlHost& host, size_t index) noexcept
 {
     if (index >= _tabs.size())
     {
@@ -6534,7 +6570,7 @@ void TabControl::ReorderTab(size_t fromIndex, size_t toIndex) noexcept
     InvalidateTabHeaderLayoutCache();
 }
 
-void TabControl::UpdateDragReorder(WindowHost& host, D2D1_POINT_2F point) noexcept
+void TabControl::UpdateDragReorder(ControlHost& host, D2D1_POINT_2F point) noexcept
 {
     if (! _tabReorderingEnabled || ! _draggingTabIndex.has_value())
     {
@@ -6567,7 +6603,7 @@ void TabControl::UpdateDragReorder(WindowHost& host, D2D1_POINT_2F point) noexce
     }
 }
 
-void TabControl::PaintHeaderDivider(WindowHost& host) const noexcept
+void TabControl::PaintHeaderDivider(ControlHost& host) const noexcept
 {
     const D2D1_RECT_F dividerRect = GetHeaderDividerRect();
     if (! HasHeaderDividerPaintSegment())
@@ -6599,7 +6635,7 @@ void TabControl::PaintHeaderDivider(WindowHost& host) const noexcept
     drawSegment(dividerRect.left, dividerRect.right);
 }
 
-void TabControl::Paint(WindowHost& host) const
+void TabControl::Paint(ControlHost& host) const
 {
     Debug::Perf::Scope tabPaintPerf(L"dxui.tabcontrol.paint");
 
@@ -6748,7 +6784,7 @@ void TabControl::Paint(WindowHost& host) const
     PaintHeaderDivider(host);
 }
 
-bool TabControl::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool TabControl::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     if (rightButton || ! IsEnabled())
     {
@@ -6792,7 +6828,7 @@ bool TabControl::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightBu
     return false;
 }
 
-bool TabControl::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
+bool TabControl::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
     const HeaderHitInfo hit = HitTestHeader(point);
     const std::optional<size_t> nextHover =
@@ -6832,7 +6868,7 @@ bool TabControl::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modif
     return hit.part != HeaderPart::None;
 }
 
-bool TabControl::OnMouseLeave(WindowHost& host)
+bool TabControl::OnMouseLeave(ControlHost& host)
 {
     const bool tooltipChanged = host.BeginTooltipHideDelay();
     if (_hoveredTabIndex.has_value())
@@ -6847,7 +6883,7 @@ bool TabControl::OnMouseLeave(WindowHost& host)
     return true;
 }
 
-void TabControl::OnCaptureLost(WindowHost& host)
+void TabControl::OnCaptureLost(ControlHost& host)
 {
     const bool hadPressedState = _pressedTabIndex.has_value() || _closePressedIndex.has_value() || _draggingTabIndex.has_value() || _dragReordering;
     _pressedTabIndex.reset();
@@ -6860,7 +6896,7 @@ void TabControl::OnCaptureLost(WindowHost& host)
     }
 }
 
-bool TabControl::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool TabControl::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     host.ReleaseMouseCapture();
 
@@ -6893,7 +6929,7 @@ bool TabControl::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButt
     return false;
 }
 
-bool TabControl::OnMouseWheel(WindowHost& host, D2D1_POINT_2F point, float wheelDelta, UINT /*modifiers*/)
+bool TabControl::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT /*modifiers*/)
 {
     if (! PointInRect(GetHeaderRect(), point) || ! NeedsOverflowButtons())
     {
@@ -6905,7 +6941,7 @@ bool TabControl::OnMouseWheel(WindowHost& host, D2D1_POINT_2F point, float wheel
     return true;
 }
 
-bool TabControl::OnKeyDown(WindowHost& host, UINT virtualKey, UINT /*modifiers*/)
+bool TabControl::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
 {
     if (GetVisibleTabCount() == 0u)
     {
@@ -6989,7 +7025,7 @@ const Control* TabControl::HitTest(D2D1_POINT_2F point) const
     return Panel::HitTest(point);
 }
 
-void TabControl::PropagateHost(WindowHost* host) noexcept
+void TabControl::PropagateHost(ControlHost* host) noexcept
 {
     const bool hostChanged = GetHost() != host;
     Panel::PropagateHost(host);
@@ -7019,14 +7055,14 @@ void TabControl::OnDensityChanged() noexcept
     SyncLayout();
 }
 
-void TabControl::OnHostDpiChanged(WindowHost& host) noexcept
+void TabControl::OnHostDpiChanged(ControlHost& host) noexcept
 {
     Panel::OnHostDpiChanged(host);
     InvalidateTabTitleMeasurements();
     SyncLayout();
 }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 D2D1_RECT_F TabControl::DebugGetTabRect(size_t index) const noexcept
 {
     return GetTabRect(index);
@@ -7157,7 +7193,7 @@ bool StatusStrip::GetSectionLeadingEllipsis(size_t index) const noexcept
     return index < _sections.size() && _sections[index].leadingEllipsis;
 }
 
-std::wstring StatusStrip::ElideLeadingForWidth(const WindowHost* host, std::wstring_view text, FontRole fontRole, float widthDip, float heightDip) noexcept
+std::wstring StatusStrip::ElideLeadingForWidth(const ControlHost* host, std::wstring_view text, FontRole fontRole, float widthDip, float heightDip) noexcept
 {
     if (text.empty())
     {
@@ -7210,12 +7246,13 @@ std::wstring StatusStrip::ElideLeadingForWidth(const WindowHost* host, std::wstr
     return result;
 }
 
-std::wstring StatusStrip::DebugElideLeadingForWidth(const WindowHost* host, std::wstring_view text, FontRole fontRole, float widthDip, float heightDip) noexcept
+std::wstring StatusStrip::DebugElideLeadingForWidth(
+    const ControlHost* host, std::wstring_view text, FontRole fontRole, float widthDip, float heightDip) noexcept
 {
     return ElideLeadingForWidth(host, text, fontRole, widthDip, heightDip);
 }
 
-void StatusStrip::Paint(WindowHost& host) const
+void StatusStrip::Paint(ControlHost& host) const
 {
     const auto& theme             = host.GetTheme();
     const D2D1_RECT_F bounds      = GetBounds();
@@ -7318,7 +7355,7 @@ std::optional<uint32_t> ColorSwatch::GetSwatchValue() const noexcept
     return _swatchArgb;
 }
 
-void ColorSwatch::Paint(WindowHost& host) const
+void ColorSwatch::Paint(ControlHost& host) const
 {
     const D2D1_RECT_F bounds           = GetBounds();
     const ColorSwatchVisualStyle style = ResolveColorSwatchVisualStyle(
@@ -7334,7 +7371,7 @@ void ColorSwatch::Paint(WindowHost& host) const
     }
 }
 
-bool ColorSwatch::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool ColorSwatch::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     if (! IsEnabled() || rightButton)
     {
@@ -7347,7 +7384,7 @@ bool ColorSwatch::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightB
     return _pressed;
 }
 
-bool ColorSwatch::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool ColorSwatch::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
     if (! IsEnabled() || rightButton)
     {
@@ -7368,7 +7405,7 @@ bool ColorSwatch::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightBut
     return wasPressed;
 }
 
-bool ColorSwatch::OnKeyDown(WindowHost& host, UINT virtualKey, UINT /*modifiers*/)
+bool ColorSwatch::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
 {
     if (! IsEnabled())
     {
@@ -7389,7 +7426,7 @@ bool ColorSwatch::OnKeyDown(WindowHost& host, UINT virtualKey, UINT /*modifiers*
     return false;
 }
 
-void ColorSwatch::OnCaptureLost(WindowHost& host)
+void ColorSwatch::OnCaptureLost(ControlHost& host)
 {
     if (_pressed)
     {
@@ -7398,12 +7435,12 @@ void ColorSwatch::OnCaptureLost(WindowHost& host)
     }
 }
 
-void PopupLayer::Paint(WindowHost& host) const
+void PopupLayer::Paint(ControlHost& host) const
 {
     static_cast<void>(host);
 }
 
-void PopupLayer::PaintOverlay(WindowHost& host) const
+void PopupLayer::PaintOverlay(ControlHost& host) const
 {
     Panel::Paint(host);
     Panel::PaintOverlay(host);
@@ -7774,7 +7811,7 @@ const Control* ScrollPanel::FindOverlayChildAtContent(D2D1_POINT_2F contentPoint
     return const_cast<ScrollPanel*>(this)->FindOverlayChildAtContent(contentPoint);
 }
 
-void ScrollPanel::UpdateInnerHover(WindowHost& host, D2D1_POINT_2F viewportPoint)
+void ScrollPanel::UpdateInnerHover(ControlHost& host, D2D1_POINT_2F viewportPoint)
 {
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     const D2D1_RECT_F viewport            = GetViewportRect();
@@ -7818,7 +7855,7 @@ void ScrollPanel::UpdateInnerHover(WindowHost& host, D2D1_POINT_2F viewportPoint
     }
 }
 
-void ScrollPanel::Paint(WindowHost& host) const
+void ScrollPanel::Paint(ControlHost& host) const
 {
     if (! IsVisible())
     {
@@ -7860,7 +7897,7 @@ void ScrollPanel::Paint(WindowHost& host) const
     }
 }
 
-void ScrollPanel::PaintOverlay(WindowHost& host) const
+void ScrollPanel::PaintOverlay(ControlHost& host) const
 {
     if (! IsVisible())
     {
@@ -7920,7 +7957,7 @@ const Control* ScrollPanel::HitTestOverlay(D2D1_POINT_2F point) const
     return const_cast<ScrollPanel*>(this)->HitTestOverlay(point);
 }
 
-bool ScrollPanel::DismissOverlayOnPointerDown(WindowHost& host, D2D1_POINT_2F point)
+bool ScrollPanel::DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F point)
 {
     if (! IsVisible() || ! IsEnabled())
     {
@@ -7940,7 +7977,7 @@ bool ScrollPanel::DismissOverlayOnPointerDown(WindowHost& host, D2D1_POINT_2F po
     return false;
 }
 
-bool ScrollPanel::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+bool ScrollPanel::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     if (rightButton)
     {
@@ -8027,7 +8064,7 @@ bool ScrollPanel::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightB
     return false;
 }
 
-bool ScrollPanel::OnMouseDoubleClick(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+bool ScrollPanel::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     if (rightButton)
     {
@@ -8051,7 +8088,7 @@ bool ScrollPanel::OnMouseDoubleClick(WindowHost& host, D2D1_POINT_2F point, bool
     return false;
 }
 
-bool ScrollPanel::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT modifiers)
+bool ScrollPanel::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers)
 {
     if (_innerCapturedChild)
     {
@@ -8172,7 +8209,7 @@ bool ScrollPanel::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT modifi
     return true;
 }
 
-bool ScrollPanel::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+bool ScrollPanel::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     if (_innerCapturedChild)
     {
@@ -8227,7 +8264,7 @@ bool ScrollPanel::OnMouseUp(WindowHost& host, D2D1_POINT_2F point, bool rightBut
     return false;
 }
 
-bool ScrollPanel::OnMouseWheel(WindowHost& host, D2D1_POINT_2F point, float wheelDelta, UINT modifiers)
+bool ScrollPanel::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT modifiers)
 {
     const D2D1_POINT_2F contentPoint = ToContentSpace(point);
     if (Control* overlayChild = FindOverlayChildAtContent(contentPoint))
@@ -8281,7 +8318,7 @@ bool ScrollPanel::OnMouseWheel(WindowHost& host, D2D1_POINT_2F point, float whee
     return true;
 }
 
-bool ScrollPanel::OnMouseLeave(WindowHost& host)
+bool ScrollPanel::OnMouseLeave(ControlHost& host)
 {
     if (_innerCapturedChild)
     {
@@ -8307,7 +8344,7 @@ bool ScrollPanel::OnMouseLeave(WindowHost& host)
     return true;
 }
 
-void ScrollPanel::OnCaptureLost(WindowHost& host)
+void ScrollPanel::OnCaptureLost(ControlHost& host)
 {
     const bool hadDrag = _dragThumb || _innerCapturedChild != nullptr;
     if (_innerCapturedChild)
@@ -8464,14 +8501,14 @@ std::wstring_view TooltipLayer::GetTooltipText() const noexcept
     return _text;
 }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 std::wstring_view TooltipLayer::DebugGetPendingTooltipText() const noexcept
 {
     return _showScheduled ? std::wstring_view{_pendingText} : std::wstring_view{};
 }
 #endif
 
-bool TooltipLayer::Tick(WindowHost& host, uint64_t nowTickMs)
+bool TooltipLayer::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     static_cast<void>(host);
     if (_showScheduled)
@@ -8509,7 +8546,7 @@ bool TooltipLayer::Tick(WindowHost& host, uint64_t nowTickMs)
     return Clear();
 }
 
-void TooltipLayer::OnHostDpiChanged(WindowHost& host) noexcept
+void TooltipLayer::OnHostDpiChanged(ControlHost& host) noexcept
 {
     Control::OnHostDpiChanged(host);
     InvalidateLayoutCache();
@@ -8520,7 +8557,7 @@ void TooltipLayer::InvalidateLayoutCache() noexcept
     _layoutCache = {};
 }
 
-bool TooltipLayer::EnsureLayoutCache(const WindowHost& host) const noexcept
+bool TooltipLayer::EnsureLayoutCache(const ControlHost& host) const noexcept
 {
     const D2D1_RECT_F clientBounds = host.GetClientBoundsDip();
     if (_text.empty() || clientBounds.right <= clientBounds.left || clientBounds.bottom <= clientBounds.top)
@@ -8587,20 +8624,20 @@ bool TooltipLayer::EnsureLayoutCache(const WindowHost& host) const noexcept
     return static_cast<bool>(_layoutCache.layout);
 }
 
-D2D1_RECT_F TooltipLayer::ComputeBoundsDip(const WindowHost& host) const noexcept
+D2D1_RECT_F TooltipLayer::ComputeBoundsDip(const ControlHost& host) const noexcept
 {
     static_cast<void>(EnsureLayoutCache(host));
     return _layoutCache.bounds;
 }
 
-#if defined(ENABLE_TESTS)
-D2D1_RECT_F TooltipLayer::DebugGetBoundsDip(const WindowHost& host) const noexcept
+#if DXUI_ENABLE_DIAGNOSTICS
+D2D1_RECT_F TooltipLayer::DebugGetBoundsDip(const ControlHost& host) const noexcept
 {
     return ComputeBoundsDip(host);
 }
 #endif
 
-void TooltipLayer::Paint(WindowHost& host) const
+void TooltipLayer::Paint(ControlHost& host) const
 {
     if (_text.empty())
     {

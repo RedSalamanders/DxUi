@@ -16,9 +16,9 @@
 #include <wincodec.h>
 #include <windowsx.h>
 
-#include "Helpers.h"
-#include "WindowMessages.h"
-#include "WindowSizing.h"
+#include "../Support/Diagnostics.h"
+#include "../Support/Utilities.h"
+#include "../Support/WindowMessages.h"
 
 #pragma comment(lib, "shcore.lib")
 
@@ -26,27 +26,15 @@
 #define CLSID_WICImagingFactory2 CLSID_WICImagingFactory
 #endif
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 #define DXUI_MENU_TRACE(...) Debug::Info(__VA_ARGS__)
 #else
 #define DXUI_MENU_TRACE(...) static_cast<void>(0)
 #endif
 
-#if defined(ENABLE_DXUI_MENU_DIAGNOSTICS) || (defined(ENABLE_TESTS) && ! defined(NDEBUG))
-#define DXUI_MENU_PERSISTENT_DIAGNOSTICS 1
-#else
-#define DXUI_MENU_PERSISTENT_DIAGNOSTICS 0
-#endif
-
-// Persistent menu file tracing is compiled out of retail builds. To reactivate
-// it for a support build, define ENABLE_DXUI_MENU_DIAGNOSTICS at compile time
-// and set REDSALAMANDER_DXUI_MENU_TRACE=1 at runtime. Debug/test builds also
-// keep it available while NDEBUG is not defined.
-#if DXUI_MENU_PERSISTENT_DIAGNOSTICS
+// Native menu diagnostics use the same borrowed sink as the rest of DxUI; no file or environment configuration.
+#define DXUI_MENU_SINK_DIAGNOSTICS 1
 #define DXUI_MENU_DIAGNOSTICS_TRACE(...) WriteMenuDiagnosticsTrace(__VA_ARGS__)
-#else
-#define DXUI_MENU_DIAGNOSTICS_TRACE(...) static_cast<void>(0)
-#endif
 
 namespace DxUi
 {
@@ -90,7 +78,7 @@ constexpr float kSliderMenuMinWidthDip        = 260.0f;
 constexpr float kSubmenuVerticalOffsetDip     = 4.0f;
 constexpr float kCascadeHoverDelayMs          = 400;
 constexpr float kTextMeasureWidthDip          = 1024.0f;
-#if DXUI_MENU_PERSISTENT_DIAGNOSTICS
+#if DXUI_MENU_SINK_DIAGNOSTICS
 constexpr uint64_t kMenuLoopTraceRepeatFlushCount = 1024u;
 #endif
 
@@ -102,7 +90,7 @@ constexpr GUID kMenuGaussianBlurEffectId = {0x1feb6d69, 0x2fe6, 0x4ac9, {0x8c, 0
 struct MenuController;
 struct MenuPopup;
 
-#if DXUI_MENU_PERSISTENT_DIAGNOSTICS || defined(ENABLE_TESTS)
+#if DXUI_MENU_SINK_DIAGNOSTICS || DXUI_ENABLE_DIAGNOSTICS
 [[nodiscard]] const wchar_t* TraceMenuMessageName(UINT message) noexcept
 {
     switch (message)
@@ -154,7 +142,7 @@ struct MenuPopup;
     return reinterpret_cast<uintptr_t>(hwnd);
 }
 
-#if DXUI_MENU_PERSISTENT_DIAGNOSTICS
+#if DXUI_MENU_SINK_DIAGNOSTICS
 [[nodiscard]] const wchar_t* TraceBool(bool value) noexcept
 {
     return value ? L"true" : L"false";
@@ -166,7 +154,7 @@ struct MenuPopup;
     return message >= WM_MOUSEFIRST && message <= WM_MOUSELAST;
 }
 
-#if DXUI_MENU_PERSISTENT_DIAGNOSTICS
+#if DXUI_MENU_SINK_DIAGNOSTICS
 [[nodiscard]] bool IsMenuNonClientMouseMessage(UINT message) noexcept
 {
     return message >= WM_NCMOUSEMOVE && message <= WM_NCXBUTTONDBLCLK;
@@ -200,128 +188,6 @@ struct MenuPopup;
     return false;
 }
 
-#if DXUI_MENU_PERSISTENT_DIAGNOSTICS
-struct MenuDiagnosticsTraceState
-{
-    MenuDiagnosticsTraceState()                                            = default;
-    MenuDiagnosticsTraceState(const MenuDiagnosticsTraceState&)            = delete;
-    MenuDiagnosticsTraceState& operator=(const MenuDiagnosticsTraceState&) = delete;
-    MenuDiagnosticsTraceState(MenuDiagnosticsTraceState&&)                 = delete;
-    MenuDiagnosticsTraceState& operator=(MenuDiagnosticsTraceState&&)      = delete;
-
-    std::once_flag initOnce;
-    std::atomic<bool> enabled = false;
-    wil::unique_hfile file;
-    std::mutex mutex;
-    std::wstring path;
-    std::atomic<uint64_t> sequence = 0u;
-};
-
-[[nodiscard]] MenuDiagnosticsTraceState& GetMenuDiagnosticsTraceState() noexcept
-{
-    static MenuDiagnosticsTraceState state;
-    return state;
-}
-
-[[nodiscard]] bool MenuDiagnosticsEnvEquals(std::wstring_view value, std::wstring_view expected) noexcept
-{
-    if (value.size() != expected.size() || value.size() > static_cast<size_t>((std::numeric_limits<int>::max)()))
-    {
-        return false;
-    }
-    return CompareStringOrdinal(value.data(), static_cast<int>(value.size()), expected.data(), static_cast<int>(expected.size()), TRUE) == CSTR_EQUAL;
-}
-
-[[nodiscard]] std::wstring ReadMenuDiagnosticsEnvironmentVariable(const wchar_t* name)
-{
-    const DWORD required = GetEnvironmentVariableW(name, nullptr, 0u);
-    if (required == 0u)
-    {
-        return {};
-    }
-
-    std::wstring value(required, L'\0');
-    const DWORD copied = GetEnvironmentVariableW(name, value.data(), required);
-    if (copied == 0u || copied >= required)
-    {
-        return {};
-    }
-
-    value.resize(copied);
-    return value;
-}
-
-[[nodiscard]] bool IsMenuDiagnosticsTraceRequested(std::wstring_view value) noexcept
-{
-    if (value.empty())
-    {
-        return false;
-    }
-    if (value == L"0" || MenuDiagnosticsEnvEquals(value, L"false") || MenuDiagnosticsEnvEquals(value, L"off") || MenuDiagnosticsEnvEquals(value, L"no"))
-    {
-        return false;
-    }
-    return true;
-}
-
-[[nodiscard]] std::wstring BuildDefaultMenuDiagnosticsTracePath()
-{
-    wchar_t tempPath[MAX_PATH + 1]{};
-    const DWORD tempPathLength = GetTempPathW(static_cast<DWORD>(_countof(tempPath)), tempPath);
-    std::wstring root          = (tempPathLength > 0u && tempPathLength < _countof(tempPath)) ? std::wstring(tempPath, tempPathLength) : std::wstring(L".\\");
-    if (! root.empty() && root.back() != L'\\' && root.back() != L'/')
-    {
-        root.push_back(L'\\');
-    }
-    return std::format(L"{}RedSalamander-DxUiMenuTrace-{}.log", root, GetCurrentProcessId());
-}
-
-void InitializeMenuDiagnosticsTrace() noexcept
-{
-    auto& state = GetMenuDiagnosticsTraceState();
-    try
-    {
-        const std::wstring enabledValue = ReadMenuDiagnosticsEnvironmentVariable(L"REDSALAMANDER_DXUI_MENU_TRACE");
-        if (! IsMenuDiagnosticsTraceRequested(enabledValue))
-        {
-            return;
-        }
-
-        std::wstring path = ReadMenuDiagnosticsEnvironmentVariable(L"REDSALAMANDER_DXUI_MENU_TRACE_FILE");
-        if (path.empty())
-        {
-            path = BuildDefaultMenuDiagnosticsTracePath();
-        }
-
-        wil::unique_hfile file(CreateFileW(
-            path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr));
-        if (! file)
-        {
-            OutputDebugStringW(L"DxUi::MenuTrace: failed to open diagnostics trace file.\r\n");
-            return;
-        }
-
-        constexpr wchar_t kUtf16Bom = 0xFEFF;
-        DWORD bytesWritten          = 0u;
-        static_cast<void>(WriteFile(file.get(), &kUtf16Bom, sizeof(kUtf16Bom), &bytesWritten, nullptr));
-
-        state.path = std::move(path);
-        state.file = std::move(file);
-        state.enabled.store(true, std::memory_order_release);
-        Debug::Info(L"DxUi::MenuTrace: writing context menu diagnostics to '{}'", state.path);
-    }
-    catch (const std::bad_alloc&)
-    {
-        std::terminate();
-    }
-    catch (const std::exception&)
-    {
-        // Diagnostics are optional evidence gathering; a trace setup failure must not alter menu input behavior.
-        OutputDebugStringW(L"DxUi::MenuTrace: diagnostics initialization failed; continuing without trace file.\r\n");
-    }
-}
-
-#if DXUI_MENU_PERSISTENT_DIAGNOSTICS
 [[nodiscard]] bool ShouldTraceMenuLoopMessageImmediately(UINT message, bool popupMessage) noexcept
 {
     if (popupMessage || IsMenuPriorityInputMessage(message))
@@ -344,132 +210,27 @@ void InitializeMenuDiagnosticsTrace() noexcept
         default: return false;
     }
 }
-#endif
 
 [[nodiscard]] bool IsMenuDiagnosticsTraceEnabled() noexcept
 {
-    try
-    {
-        auto& state = GetMenuDiagnosticsTraceState();
-        std::call_once(state.initOnce, InitializeMenuDiagnosticsTrace);
-        return state.enabled.load(std::memory_order_acquire);
-    }
-    catch (const std::bad_alloc&)
-    {
-        std::terminate();
-    }
-    catch (const std::exception&)
-    {
-        // std::call_once can fail before the flag is initialized; tracing stays disabled in that case.
-        OutputDebugStringW(L"DxUi::MenuTrace: diagnostics enable check failed; continuing without trace file.\r\n");
-        return false;
-    }
+    return Diagnostics::sink != nullptr;
 }
-
-void DisableMenuDiagnosticsTraceAfterFailure() noexcept
-{
-    auto& state = GetMenuDiagnosticsTraceState();
-    state.enabled.store(false, std::memory_order_release);
-    OutputDebugStringW(L"DxUi::MenuTrace: diagnostics disabled after a write failure.\r\n");
-}
-
 void WriteMenuDiagnosticsTraceLine(std::wstring_view eventName, std::wstring_view details) noexcept
 {
-    if (! IsMenuDiagnosticsTraceEnabled())
-    {
-        return;
-    }
-
-    auto& state = GetMenuDiagnosticsTraceState();
-    try
-    {
-        SYSTEMTIME now{};
-        GetLocalTime(&now);
-        POINT cursor{};
-        static_cast<void>(GetCursorPos(&cursor)); // getcursorpos-allow: diagnostic-only
-        const uint64_t sequence = state.sequence.fetch_add(1u, std::memory_order_relaxed) + 1u;
-
-        std::wstring line = std::format(L"{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03} seq={} pid={} tid={} event={} "
-                                        L"cursor=({}, {}) capture={:#x} focus={:#x} active={:#x} foreground={:#x}",
-                                        static_cast<unsigned int>(now.wYear),
-                                        static_cast<unsigned int>(now.wMonth),
-                                        static_cast<unsigned int>(now.wDay),
-                                        static_cast<unsigned int>(now.wHour),
-                                        static_cast<unsigned int>(now.wMinute),
-                                        static_cast<unsigned int>(now.wSecond),
-                                        static_cast<unsigned int>(now.wMilliseconds),
-                                        sequence,
-                                        static_cast<unsigned long>(GetCurrentProcessId()),
-                                        static_cast<unsigned long>(GetCurrentThreadId()),
-                                        eventName,
-                                        cursor.x,
-                                        cursor.y,
-                                        TraceHwndValue(GetCapture()),
-                                        TraceHwndValue(GetFocus()),
-                                        TraceHwndValue(GetActiveWindow()),
-                                        TraceHwndValue(GetForegroundWindow()));
-        if (! details.empty())
-        {
-            line.push_back(L' ');
-            line.append(details);
-        }
-        line.append(L"\r\n");
-
-        const DWORD byteCount = static_cast<DWORD>(line.size() * sizeof(wchar_t));
-        DWORD bytesWritten    = 0u;
-        std::lock_guard lock(state.mutex);
-        if (! state.file || WriteFile(state.file.get(), line.data(), byteCount, &bytesWritten, nullptr) == FALSE)
-        {
-            DisableMenuDiagnosticsTraceAfterFailure();
-        }
-    }
-    catch (const std::bad_alloc&)
-    {
-        std::terminate();
-    }
-    catch (const std::exception&)
-    {
-        // Diagnostics must never throw through a Win32 input path.
-        DisableMenuDiagnosticsTraceAfterFailure();
-    }
+    Debug::Info(L"{} {}", eventName, details);
 }
-
 template <typename... Args> void WriteMenuDiagnosticsTrace(std::wstring_view eventName, std::wformat_string<Args...> format, Args&&... args) noexcept
 {
     if (! IsMenuDiagnosticsTraceEnabled())
-    {
         return;
-    }
-
     try
     {
         WriteMenuDiagnosticsTraceLine(eventName, std::format(format, std::forward<Args>(args)...));
     }
-    catch (const std::bad_alloc&)
-    {
-        std::terminate();
-    }
     catch (const std::exception&)
-    {
-        // Formatting is diagnostic only; disable tracing instead of disturbing menu dispatch.
-        DisableMenuDiagnosticsTraceAfterFailure();
+    { /* Optional diagnostics never change menu dispatch. */
     }
 }
-#else
-[[nodiscard]] constexpr bool IsMenuDiagnosticsTraceEnabled() noexcept
-{
-    return false;
-}
-
-void WriteMenuDiagnosticsTraceLine(std::wstring_view /*eventName*/, std::wstring_view /*details*/) noexcept
-{
-}
-
-template <typename... Args>
-void WriteMenuDiagnosticsTrace(std::wstring_view /*eventName*/, std::wformat_string<Args...> /*format*/, Args&&... /*args*/) noexcept
-{
-}
-#endif
 
 // ---------------------------------------------------------------------------
 // Menu item visual style
@@ -691,7 +452,7 @@ struct MenuBackdropSnapshot
     return resolved;
 }
 
-[[nodiscard]] ID2D1Bitmap1* EnsureMenuBackdropBitmap(WindowHost& host, MenuBackdropSnapshot& snapshot) noexcept
+[[nodiscard]] ID2D1Bitmap1* EnsureMenuBackdropBitmap(ControlHost& host, MenuBackdropSnapshot& snapshot) noexcept
 {
     if (snapshot.capture.widthPx == 0u || snapshot.capture.heightPx == 0u || snapshot.capture.bgraPixels.empty())
     {
@@ -896,7 +657,7 @@ struct MenuBackdropSnapshot
 }
 
 void PaintMenuBackdropSurface(
-    WindowHost& host, MenuBackdropSnapshot* snapshot, const D2D1_RECT_F& menuRect, float cornerRadiusDip, const MenuSurfaceMaterialStyle& material) noexcept
+    ControlHost& host, MenuBackdropSnapshot* snapshot, const D2D1_RECT_F& menuRect, float cornerRadiusDip, const MenuSurfaceMaterialStyle& material) noexcept
 {
     if (! snapshot || material.backdropOpacity <= 0.0f || material.backdropBlurDip <= 0.0f)
     {
@@ -958,7 +719,7 @@ void PaintMenuBackdropSurface(
 }
 
 void PaintMenuMaterialSurface(
-    WindowHost& host, MenuBackdropSnapshot* snapshot, const D2D1_RECT_F& menuRect, float cornerRadiusDip, const MenuSurfaceMaterialStyle& material) noexcept
+    ControlHost& host, MenuBackdropSnapshot* snapshot, const D2D1_RECT_F& menuRect, float cornerRadiusDip, const MenuSurfaceMaterialStyle& material) noexcept
 {
     auto* const dc = host.GetDeviceContext();
     if (! dc)
@@ -1038,7 +799,7 @@ void PaintMenuMaterialSurface(
     return factory.get();
 }
 
-[[nodiscard]] ID2D1Bitmap1* EnsureMenuBitmapIconBitmap(WindowHost& host, const MenuFlyoutItem::BitmapIcon& icon) noexcept
+[[nodiscard]] ID2D1Bitmap1* EnsureMenuBitmapIconBitmap(ControlHost& host, const MenuFlyoutItem::BitmapIcon& icon) noexcept
 {
     if (! icon.sourceBitmap)
     {
@@ -1093,7 +854,7 @@ void PaintMenuMaterialSurface(
     return icon.cachedBitmap.get();
 }
 
-void DrawMenuBitmapIcon(WindowHost& host, const MenuFlyoutItem::BitmapIcon& icon, const D2D1_RECT_F& iconRectDip, float opacity) noexcept
+void DrawMenuBitmapIcon(ControlHost& host, const MenuFlyoutItem::BitmapIcon& icon, const D2D1_RECT_F& iconRectDip, float opacity) noexcept
 {
     ID2D1Bitmap1* const bitmap = EnsureMenuBitmapIconBitmap(host, icon);
     if (! bitmap)
@@ -1240,7 +1001,7 @@ struct MenuItemLayoutRects
 
 static constexpr wchar_t kMenuWindowClass[] = L"DxUi_ContextMenu";
 static std::atomic<bool> s_classRegistered  = false;
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 static constexpr UINT kMenuDebugCaptureBitmapMessage    = WM_APP + 0x214;
 static constexpr UINT kMenuDebugGetItemTextMessage      = WM_APP + 0x215;
 static constexpr UINT kMenuDebugSetBackdropMessage      = WM_APP + 0x216;
@@ -1280,7 +1041,7 @@ struct MenuPopup
     MenuPopup& operator=(MenuPopup&&)      = delete;
 
     HWND hwnd = nullptr;
-    WindowHost host;
+    ControlHost host;
     std::vector<MenuFlyoutItem> ownedItems;
     std::vector<float> itemOffsetsDip;
     const MenuFlyoutItem* items = nullptr;
@@ -1333,7 +1094,7 @@ struct MenuPopup
 
     [[nodiscard]] float PixelToDip(float px) const noexcept
     {
-        return Common::WindowSizing::PixelToDip(px, static_cast<float>(dpi));
+        return DxUi::Detail::PixelToDip(px, static_cast<float>(dpi));
     }
 
     [[nodiscard]] bool IsNavigableItem(size_t index) const noexcept
@@ -1570,7 +1331,7 @@ struct MenuController
     bool hasLastRootSwitchPointerScreenPoint  = false;
     DWORD lastKeyboardRootSwitchMessageTime   = 0;
     bool hasLastKeyboardRootSwitchMessageTime = false;
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     uint64_t rootPointerSwitchCount         = 0;
     uint64_t rootSwitchImmediateRenderCount = 0;
 #endif
@@ -1651,7 +1412,7 @@ struct MenuController
     }
 };
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 [[nodiscard]] bool PeekMenuDebugStateMessage(const MenuController& controller, MSG& msg) noexcept
 {
     for (const auto& popup : controller.popups)
@@ -1671,7 +1432,7 @@ struct MenuController
     {
         return true;
     }
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     // Test-only state probes must observe already-prioritized input without
     // waiting behind unrelated owner traffic in the modal thread queue.
     return PeekMenuDebugStateMessage(controller, msg);
@@ -1977,7 +1738,7 @@ void RememberRootSwitchPointerPoint(MenuController& controller, POINT screenPoin
     return event.source == MenuInputSource::ModalMessage;
 }
 
-#if DXUI_MENU_PERSISTENT_DIAGNOSTICS
+#if DXUI_MENU_SINK_DIAGNOSTICS
 [[nodiscard]] const wchar_t* TraceInputSourceName(MenuInputSource source) noexcept
 {
     switch (source)
@@ -2048,10 +1809,10 @@ void RememberRootSwitchPointerPoint(MenuController& controller, POINT screenPoin
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Window class registration — WndProc delegates to WindowHost
+// Window class registration — WndProc delegates to ControlHost
 // ---------------------------------------------------------------------------
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 struct MenuDebugGetItemTextRequest
 {
     size_t itemIndex      = 0u;
@@ -2149,7 +1910,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     if (popup)
     {
         MenuController* const controller = popup->controller;
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
         if (msg == kMenuDebugCaptureBitmapMessage)
         {
             auto* const outCapture = reinterpret_cast<WindowHostBitmapCapture*>(lp);
@@ -2336,7 +2097,7 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
 // ---------------------------------------------------------------------------
 
 [[nodiscard]] D2D1_SIZE_F ComputeMenuSize(
-    const MenuFlyoutItem* items, size_t count, WindowHost& host, float* outAcceleratorColumnWidthDip = nullptr, bool* outHasSubmenuItems = nullptr) noexcept
+    const MenuFlyoutItem* items, size_t count, ControlHost& host, float* outAcceleratorColumnWidthDip = nullptr, bool* outHasSubmenuItems = nullptr) noexcept
 {
     const ThemePalette& theme   = host.GetTheme();
     const float itemHeightDip   = ResolveMenuItemHeightDip(theme);
@@ -2612,7 +2373,7 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
 }
 
 // ---------------------------------------------------------------------------
-// Paint menu content (called from WM_PAINT via WindowHost)
+// Paint menu content (called from WM_PAINT via ControlHost)
 // ---------------------------------------------------------------------------
 
 class MenuContentControl final : public Control
@@ -2620,13 +2381,13 @@ class MenuContentControl final : public Control
 public:
     MenuPopup* popup = nullptr;
 
-    bool Tick(WindowHost& host, uint64_t nowTickMs) override
+    bool Tick(ControlHost& host, uint64_t nowTickMs) override
     {
         static_cast<void>(host);
         return popup && AdvanceSliderAnimation(*popup, nowTickMs);
     }
 
-    void Paint(WindowHost& host) const override
+    void Paint(ControlHost& host) const override
     {
         if (! popup || ! popup->controller)
             return;
@@ -3349,7 +3110,7 @@ bool CreateMenuPopupWindow(MenuController& controller,
     else
         popup->dpi = GetDpiForSystem();
 
-    // Create a temporary dummy window to initialize WindowHost for text measurement
+    // Create a temporary dummy window to initialize ControlHost for text measurement
     // We need the host before we can compute the menu size
     const DWORD exStyle = WS_EX_TOOLWINDOW | WS_EX_NOREDIRECTIONBITMAP | (isSubmenu ? WS_EX_NOACTIVATE : 0u);
     const DWORD style   = WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
@@ -3370,11 +3131,11 @@ bool CreateMenuPopupWindow(MenuController& controller,
     // Store the popup pointer on the HWND before Attach so the WndProc can find it
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(popup.get()));
 
-    // Attach WindowHost and set theme
-    if (! popup->host.Attach(hwnd, WindowHost::AttachOptions{.presentationMode = WindowHost::PresentationMode::CompositionSwapChain}))
+    // Attach ControlHost and set theme
+    if (! popup->host.Attach(hwnd, ControlHost::AttachOptions{.presentationMode = ControlHost::PresentationMode::CompositionSwapChain}))
     {
         DXUI_MENU_DIAGNOSTICS_TRACE(
-            L"menu.popup-create-failed", L"owner={:#x} hwnd={:#x} stage=WindowHost.Attach", TraceHwndValue(controller.ownerHwnd), TraceHwndValue(hwnd));
+            L"menu.popup-create-failed", L"owner={:#x} hwnd={:#x} stage=ControlHost.Attach", TraceHwndValue(controller.ownerHwnd), TraceHwndValue(hwnd));
         // Controller-initiated destroy: keep the WM_NCDESTROY external-teardown
         // guard from finalizing the async session re-entrantly (see
         // DestroyMenuPopupWindow).
@@ -3388,7 +3149,7 @@ bool CreateMenuPopupWindow(MenuController& controller,
     popup->RebuildItemOffsets();
     // Popup menus stay fully app-rendered even on the transparent composition host.
     // Applying a DWM system backdrop here pulls in OS palette colors that do not match
-    // custom RedSalamander themes, so the popup HWND intentionally stays backdrop-free.
+    // custom consumer themes, so the popup HWND intentionally stays backdrop-free.
     popup->usesSystemBackdrop = false;
 
     // Compute menu size
@@ -3951,7 +3712,7 @@ void FinalizeAsyncMenuController(MenuController& controller) noexcept
 
     if (MenuPopup* root = controller.GetRootPopup(); root && root->hwnd)
     {
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
         if (root->host.DebugGetRenderCount() > 0u)
         {
             ++controller.rootSwitchImmediateRenderCount;
@@ -4206,7 +3967,7 @@ void TraceMenuPointerRoute(MenuController& controller,
                             request->items.size(),
                             request->screenPoint.x,
                             request->screenPoint.y);
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
             ++controller.rootPointerSwitchCount;
 #endif
             RememberRootSwitchPointerPoint(controller, routedRootSwitchPoint);
@@ -5044,7 +4805,7 @@ void RunMenuModalLoop(MenuController& controller)
                                 TraceBool((GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0),
                                 TraceBool((GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0));
     MSG msg{};
-#if DXUI_MENU_PERSISTENT_DIAGNOSTICS
+#if DXUI_MENU_SINK_DIAGNOSTICS
     struct MenuLoopRepeatedMessageTrace
     {
         UINT message             = 0;
@@ -5187,7 +4948,7 @@ void RunMenuModalLoop(MenuController& controller)
                                     request->items.size(),
                                     request->screenPoint.x,
                                     request->screenPoint.y);
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
                     ++controller.rootPointerSwitchCount;
 #endif
                     ClearKeyboardRootSwitchMessageTime(controller);
@@ -5336,7 +5097,7 @@ void RunMenuModalLoop(MenuController& controller)
             // Fall through for unhandled keys
         }
 
-        // All WM_PAINT/WM_ERASEBKGND handled by MenuWndProc → WindowHost::HandleMessage
+        // All WM_PAINT/WM_ERASEBKGND handled by MenuWndProc → ControlHost::HandleMessage
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
@@ -5559,7 +5320,7 @@ bool ContextMenu::ShowAsync(HWND ownerHwnd,
     return true;
 }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 bool DebugGetContextMenuItemDisplayText(const MenuFlyoutItem& item, std::wstring& outText)
 {
     outText = ParseMenuLabel(DecodeMenuItemText(item).labelText).displayText;

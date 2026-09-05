@@ -41,10 +41,28 @@ its integration tests. A library update changes the consumer lock in a reviewed 
 rollback to the previous pin. RedSalamander may stay on the old in-tree implementation and later its own pin; shared
 source ownership does not require simultaneous releases of the two applications.
 
-## Bootstrap implementation
+## Implemented build and consumption
 
-Only `DxUi.Foundation.lib` is currently built. It has no WIL dependency and does not advertise control or embedded
-support. `DxUi.Controls`, `DxUi.Embedded`, `DxUi.Win32Services` and `DxUi.Win32Host` are the required later targets.
-`build.ps1` builds the foundation solution; it accepts an explicit output root and chooses independent intermediates.
-The current consumer props/targets accept only the Foundation target and verify a full revision lock before build.
-No RedXe runtime uses the library yet. Consumer lock creation waits for the first tested integration revision.
+`src/DxUi.vcxproj` produces the only archive, `DxUi.lib`. FoundationTests, ControlTests, EmbeddedTests and the
+standalone EmbeddedControls executable all consume it. The supported lock target is `["DxUi"]`, API revision 2.
+
+Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the vcpkg tool revision are pinned.
+`-OutputRoot` isolates restore and build work in a consumer-owned directory. The same absolute directory, including
+its trailing separator, becomes `DxUiConsumerOutputRoot`; props locate its public WIL headers and the project
+reference passes it as `DxUiOutputRoot`. No application checkout is needed. Missing restore and mismatched/dirty pins
+fail with actionable diagnostics. Both tracked and untracked source changes invalidate a release pin.
+
+External consumers import `Build/DxUi.Consumer.props` after Microsoft.Cpp.props and `.targets` after
+Microsoft.Cpp.targets. Set DxUiRoot, DxUiConsumerLockFile and DxUiConsumerOutputRoot before those imports.
+Compile with Unicode, stdcpplatest, v145 and the matching /MDd or /MD runtime. The public example's source includes
+only public DxUi headers and ordinary Windows/WIL headers; it never reaches src. Diagnostic hook availability is
+fixed in Configuration.h and must not be overridden by consumers.
+
+`build.ps1` rejects only running executables in the selected output directory and never terminates them.
+`test.ps1` runs all three test executables, splitting inherited control suites into independent runs with exit-code,
+SHA256, native architecture and capability-skip receipts. `gallery.ps1` generates five themed control sheets, a
+supplied-device example image and an HTML index. `DxUi.EmbeddedControls.exe` opens the live toggle/slider example;
+`--output image.png` renders it headlessly through an application-created WARP device.
+
+RedXe still needs its first release pin and preparation/input/text/UIA bridge. RedSalamander's application migration
+remains on hold. Neither application's runtime changes merely because this library builds.

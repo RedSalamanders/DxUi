@@ -2,10 +2,9 @@
 
 #include "../../src/Controls/DxUi.Internal.h"
 #include "../../src/Controls/DxUi.h"
-#include "Helpers.h"
-#include "TestSupport/TestSupport.h"
-#include "TestWindowActivationGuard.h"
-#include "WindowMessages.h"
+#include "../../src/Support/Diagnostics.h"
+#include "../../src/Support/WindowMessages.h"
+#include "../Support/TestWindowActivationGuard.h"
 
 #include <UIAutomation.h>
 #include <imm.h>
@@ -214,12 +213,9 @@ inline constexpr std::wstring_view kDxUiHarnessArtifactSegment{L"dxui"};
 
 [[nodiscard]] inline std::filesystem::path GetDxUiTestArtifactDirectory(std::error_code& ec) noexcept
 {
-    return RedSalamander::TestSupport::AcquireTestDirectory({.harnessSegment      = kDxUiHarnessArtifactSegment,
-                                                             .fallbackRunIdPrefix = L"dxui",
-                                                             .kind                = RedSalamander::TestSupport::TestDirectoryKind::Artifacts,
-                                                             .includeLeafSegment  = false,
-                                                             .cleanExisting       = false},
-                                                            ec);
+    auto directory = std::filesystem::current_path() / L".build" / L"test-artifacts" / std::to_wstring(GetCurrentProcessId());
+    std::filesystem::create_directories(directory, ec);
+    return directory;
 }
 
 [[nodiscard]] inline std::filesystem::path GetDxUiTestArtifactDirectory()
@@ -826,7 +822,7 @@ public:
     }
 
 private:
-    static constexpr PCWSTR kWindowClassName = L"RedSalamander.DxUiTests.AttachedHostWindow";
+    static constexpr PCWSTR kWindowClassName = L"DxUiTests.AttachedHostWindow";
 
     static ATOM EnsureWindowClass()
     {

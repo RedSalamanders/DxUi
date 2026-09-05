@@ -60,3 +60,40 @@ surface. Raise animation scales the final raised surface for its presentation on
 at every intermediate extent. Hit testing uses the displayed transform and active interaction surface. Page swipes
 with negative viewport origins do not rerasterize or reflow content. Host notifications must cover both extents,
 even when the existing largest-extent notification alone would not change.
+
+### Implemented public contract
+
+`GraphicsDevice::Create` retains an application-created BGRA-capable D3D11 device and creates D2D/DWrite resources,
+embedded shader objects and composition state. It never creates a D3D device. Each EmbeddedHost retains the shared
+pool, its own ControlHost and one offscreen BGRA surface. Two density variants use two EmbeddedHosts with the same
+pool and application model; their trees and hit rectangles remain independent. The caller selects which view is
+interactive and supplies view-local physical coordinates. This replaces the earlier single-tree/two-surface sketch.
+
+Attach, prepare, input, animation, replace-device and destruction are UI-thread affine. The borrowed preparation
+callback is synchronous and must not re-enter the host. Dirty requests coalesce; requests raised during painting
+remain pending after preparation. The caller advances animation only when NeedsAnimation is true. Hidden views
+request no periodic work; zero-sized targets disable interaction. Prepare returns S_FALSE for a clean or suspended
+view. Failed preparation suppresses composition/input until a successful prepare. No automatic retry loop exists.
+
+Prepare receives width/height in pixels and DPI (48..768), checks D3D dimension limits and a 64 MiB surface ceiling,
+then performs changed layout/raster work. Surface replacement peaks at at most 128 MiB per view. Graphics resources
+are shared at the pool; surface bytes, replacement peak, allocation/preparation/composition counts are queryable.
+AV must additionally admit the combined cost of its tile and raised views and all simultaneous instances.
+
+Composite requires the same device's immediate context and a host-bound render target. It issues one premultiplied
+alpha triangle, sets the viewport and every other state it depends on (including disabled scissor/depth/predication
+and unused shader stages), then unbinds its SRV. It does not preserve the caller's pipeline state. Negative origins
+are allowed for page transitions; non-finite or invalid dimensions/depth ranges fail. It never allocates, shapes
+text, rerasterizes, reads back, presents or calls user diagnostics. Consumers bind their state before subsequent work.
+
+ReplaceDevice cancels capture and drops old surface resources while preserving the logical tree/model; a successful
+prepare is required before interaction resumes. Recovery never reapplies AV commands. EmbeddedTests checks an actual
+new WARP device generation, foreign-device rejection, dirty/hidden/zero/DPI behavior, pixel changes, hostile state,
+negative origins, all catalog controls and allocation-free warm composition. Injected physical GPU removal remains
+a separate hardware validation case; device-generation replacement is not evidence of a physical fault.
+
+
+Hit-tested gestures require clean prepared content. Captured continuation can update a live draft before its next
+paint, but any intervening bounds, tree or availability revision cancels capture and disables input until prepare
+succeeds. This prevents new hit rectangles from being used with an old texture. Keyboard continuation uses the
+same prepared interaction revision. A consumer must call Prepare between independent hit-tested gestures.

@@ -1,4 +1,5 @@
 #pragma once
+#include "Configuration.h"
 
 #include <cstdint>
 #include <string_view>

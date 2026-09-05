@@ -25,13 +25,19 @@ $msbuild = Join-Path $installation 'MSBuild/Current/Bin/MSBuild.exe'
 if (-not (Test-Path -LiteralPath $msbuild)) { throw "MSBuild is missing: $msbuild" }
 if (-not $OutputRoot) { $OutputRoot = Join-Path $PSScriptRoot '.build' }
 $output = [IO.Path]::GetFullPath($OutputRoot).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
-$testExecutable = Join-Path $output "$Platform/$Configuration/DxUi.FoundationTests.exe"
-$running = Get-CimInstance Win32_Process -Filter "Name = 'DxUi.FoundationTests.exe'"
-foreach ($process in $running) {
-    if (-not $process.ExecutablePath) { throw 'Cannot inspect a running test path; no process was terminated.' }
-    if ([IO.Path]::GetFullPath($process.ExecutablePath) -eq [IO.Path]::GetFullPath($testExecutable)) {
-        throw "Build output is running: PID $($process.ProcessId), $($process.ExecutablePath). No process was terminated."
+$executables = @('DxUi.FoundationTests.exe','DxUi.ControlTests.exe','DxUi.EmbeddedTests.exe','DxUi.EmbeddedControls.exe')
+foreach ($name in $executables) {
+    $expected = [IO.Path]::GetFullPath((Join-Path $output "$Platform/$Configuration/$name"))
+    foreach ($process in (Get-CimInstance Win32_Process -Filter "Name = '$name'")) {
+        if (-not $process.ExecutablePath) { throw "Cannot inspect running $name; no process was terminated." }
+        if ([IO.Path]::GetFullPath($process.ExecutablePath) -eq $expected) {
+            throw "Build output is running: PID $($process.ProcessId), $($process.ExecutablePath). No process was terminated."
+        }
     }
+}
+$triplet = if ($Platform -eq 'ARM64') { 'arm64-windows' } else { 'x64-windows' }
+if (-not (Test-Path -LiteralPath (Join-Path $output "vcpkg_installed/$Platform/$triplet/include/wil/resource.h"))) {
+    throw "Restore dependencies first: vcpkg-install.ps1 -Platform $Platform -OutputRoot `"$output`""
 }
 $logDirectory = Join-Path $output 'logs'
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null

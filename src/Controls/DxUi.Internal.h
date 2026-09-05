@@ -21,8 +21,8 @@ using unique_safearray = std::unique_ptr<SAFEARRAY, safearray_deleter>;
 
 [[nodiscard]] bool PointInRect(const D2D1_RECT_F& rect, const D2D1_POINT_2F& point) noexcept;
 [[nodiscard]] D2D1_RECT_F InflateRect(const D2D1_RECT_F& rect, float amountX, float amountY) noexcept;
-[[nodiscard]] float SnapDipToPixel(const WindowHost& host, float dip) noexcept;
-[[nodiscard]] D2D1_RECT_F SnapRectToPixel(const WindowHost& host, const D2D1_RECT_F& rect) noexcept;
+[[nodiscard]] float SnapDipToPixel(const ControlHost& host, float dip) noexcept;
+[[nodiscard]] D2D1_RECT_F SnapRectToPixel(const ControlHost& host, const D2D1_RECT_F& rect) noexcept;
 [[nodiscard]] std::optional<size_t> FindMnemonicTextIndex(std::wstring_view text, wchar_t mnemonic) noexcept;
 
 [[nodiscard]] D2D1_COLOR_F CompositeOverBackground(const D2D1_COLOR_F& overlay, const D2D1_COLOR_F& background) noexcept;
@@ -32,12 +32,12 @@ using unique_safearray = std::unique_ptr<SAFEARRAY, safearray_deleter>;
 [[nodiscard]] D2D1_COLOR_F RainbowMenuSelectionTint(std::wstring_view seed, bool dark) noexcept;
 [[nodiscard]] D2D1_COLOR_F RainbowFolderViewSelectionTint(uint32_t stableHash32, bool dark) noexcept;
 [[nodiscard]] D2D1_COLOR_F ChooseContrastingTextColor(const D2D1_COLOR_F& background) noexcept;
-[[nodiscard]] std::wstring_view GetCheckboxCheckGlyph(const WindowHost& host) noexcept;
-[[nodiscard]] FontRole GetCheckboxCheckFontRole(const WindowHost& host) noexcept;
+[[nodiscard]] std::wstring_view GetCheckboxCheckGlyph(const ControlHost& host) noexcept;
+[[nodiscard]] FontRole GetCheckboxCheckFontRole(const ControlHost& host) noexcept;
 [[nodiscard]] DWRITE_READING_DIRECTION ResolveReadingDirection(FlowDirection flowDirection) noexcept;
 void ResolveAdornmentColors(const ThemePalette& theme, AdornmentTone tone, D2D1_COLOR_F& fill, D2D1_COLOR_F& text) noexcept;
 [[nodiscard]] bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, TextInputAutomationEventKind kind) noexcept;
-[[nodiscard]] ITextStoreACP* CreateNativeTextInputTextStore(WindowHost& host, Control& control) noexcept;
+[[nodiscard]] ITextStoreACP* CreateNativeTextInputTextStore(ControlHost& host, Control& control) noexcept;
 void DetachNativeTextInputTextStore(IUnknown* store) noexcept;
 void DisconnectNativeTextInputTextStore(IUnknown* textStore) noexcept;
 [[nodiscard]] bool IsDxUiRenderStageActiveForDebug() noexcept;
@@ -130,14 +130,14 @@ inline constexpr float kOverlayAcrylicBackdropBlurDip  = 40.0f;
     }
 }
 
-void DrawRoundedRect(WindowHost& host, const D2D1_RECT_F& rect, const D2D1_COLOR_F& fill, const D2D1_COLOR_F& stroke, float radiusDip = 4.0f);
+void DrawRoundedRect(ControlHost& host, const D2D1_RECT_F& rect, const D2D1_COLOR_F& fill, const D2D1_COLOR_F& stroke, float radiusDip = 4.0f);
 
 // WinUI double-stroke focus ring: outer stroke (2 DIP) + inner stroke (1 DIP) outside control bounds.
-void PaintFocusRing(WindowHost& host, const D2D1_RECT_F& controlBounds, float controlCornerRadiusDip) noexcept;
+void PaintFocusRing(ControlHost& host, const D2D1_RECT_F& controlBounds, float controlCornerRadiusDip) noexcept;
 
 // Popup/menu drop shadow. Uses the D2D shadow effect when available and falls back
 // to a coarse rounded-rect approximation only if effect creation fails.
-void DrawDropShadow(WindowHost& host,
+void DrawDropShadow(ControlHost& host,
                     const D2D1_RECT_F& targetRect,
                     float cornerRadiusDip,
                     float yOffsetDip   = 4.0f,
@@ -147,7 +147,7 @@ void DrawDropShadow(WindowHost& host,
 
 inline constexpr auto kTextDrawOptions = static_cast<D2D1_DRAW_TEXT_OPTIONS>(D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
-void DrawCenteredText(WindowHost& host,
+void DrawCenteredText(ControlHost& host,
                       std::wstring_view text,
                       const D2D1_RECT_F& rect,
                       FontRole fontRole,
@@ -156,7 +156,7 @@ void DrawCenteredText(WindowHost& host,
                       DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment = DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
                       bool wrap                                     = false,
                       FlowDirection flowDirection                   = FlowDirection::LeftToRight);
-void DrawTextWithMnemonic(WindowHost& host,
+void DrawTextWithMnemonic(ControlHost& host,
                           std::wstring_view text,
                           const D2D1_RECT_F& rect,
                           FontRole fontRole,
@@ -203,15 +203,15 @@ void DrawTextWithMnemonic(WindowHost& host,
 [[nodiscard]] ComboBoxVisualStyle ResolveComboBoxVisualStyle(
     const ThemePalette& theme, ComboBoxVariant variant, bool enabled, bool hovered, bool popupOpen, bool focused, bool keyboardFocused) noexcept;
 
-void RegisterWindowHostAccessibilityTarget(HWND hwnd, WindowHost* host) noexcept;
-void UnregisterWindowHostAccessibilityTarget(HWND hwnd, WindowHost* host) noexcept;
+void RegisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept;
+void UnregisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept;
 void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept;
-void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, WindowHost* host) noexcept;
-void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, WindowHost* host) noexcept;
+void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
+void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
 [[nodiscard]] LRESULT ReturnWindowHostAccessibilityProvider(HWND hwnd, WPARAM wp, LPARAM lp) noexcept;
 [[nodiscard]] bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, LRESULT& outResult) noexcept;
 [[nodiscard]] IRawElementProviderFragmentRoot* CreateWindowHostAccessibilityProvider(HWND hwnd) noexcept;
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 void DebugSetAccessibilityUiActionHandlerStallForTest(HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
 void DebugSetAccessibilityUiActionHandlerTakenStallForTest(HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
 void DebugSetAccessibilityUiActionPostedEventForTest(HANDLE postedEvent) noexcept;
@@ -251,8 +251,8 @@ struct ScrollbarAnimationTargets
                                                                float trackHotStrength,
                                                                float thumbHotStrength) noexcept;
 [[nodiscard]] ScrollbarAnimationTargets ResolveScrollbarAnimationTargets(bool trackHovered, bool thumbHovered, bool thumbDragging) noexcept;
-void UpdateScrollbarAnimation(WindowHost& host, ScrollbarAnimationState& animation, bool trackHovered, bool thumbHovered, bool thumbDragging) noexcept;
-[[nodiscard]] bool AdvanceScrollbarAnimation(const WindowHost& host, ScrollbarAnimationState& animation, uint64_t nowTickMs) noexcept;
+void UpdateScrollbarAnimation(ControlHost& host, ScrollbarAnimationState& animation, bool trackHovered, bool thumbHovered, bool thumbDragging) noexcept;
+[[nodiscard]] bool AdvanceScrollbarAnimation(const ControlHost& host, ScrollbarAnimationState& animation, uint64_t nowTickMs) noexcept;
 
 [[nodiscard]] float ComputeScrollbarPageStepDip(const D2D1_RECT_F& trackRect,
                                                 ScrollbarOrientation orientation,
@@ -271,7 +271,7 @@ void UpdateScrollbarAnimation(WindowHost& host, ScrollbarAnimationState& animati
                                                        float scrollOffsetDip,
                                                        float scrollExtentDip) noexcept;
 
-void PaintScrollbar(WindowHost& host, const D2D1_RECT_F& trackRect, const D2D1_RECT_F& thumbRect, const ResolvedScrollbarVisuals& visuals) noexcept;
+void PaintScrollbar(ControlHost& host, const D2D1_RECT_F& trackRect, const D2D1_RECT_F& thumbRect, const ResolvedScrollbarVisuals& visuals) noexcept;
 
 // Typeahead / case-insensitive search helpers (shared by Tree and ComboBox)
 constexpr uint64_t kTypeaheadResetMs = 1000u;
@@ -295,20 +295,20 @@ constexpr uint64_t kTypeaheadResetMs = 1000u;
 
 void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secureText = false) noexcept;
 
-[[nodiscard]] float MeasureSingleLineTextWidthDip(const WindowHost* host,
+[[nodiscard]] float MeasureSingleLineTextWidthDip(const ControlHost* host,
                                                   std::wstring_view text,
                                                   FontRole role,
                                                   float heightDip                           = 24.0f,
                                                   DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT) noexcept;
 [[nodiscard]] wil::com_ptr<IDWriteTextLayout> CreateSingleLineTextLayout(
-    const WindowHost* host,
+    const ControlHost* host,
     std::wstring_view text,
     FontRole role,
     float widthDip,
     float heightDip,
     DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT) noexcept;
 [[nodiscard]] wil::com_ptr<IDWriteTextLayout> GetOrCreateSingleLineTextLayout(
-    const WindowHost* host,
+    const ControlHost* host,
     SingleLineTextLayoutCache* cache,
     std::wstring_view text,
     FontRole role,
@@ -316,7 +316,7 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
     float heightDip,
     DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT,
     bool secureCacheText                      = false) noexcept;
-[[nodiscard]] float MeasureCaretOffsetDip(const WindowHost* host,
+[[nodiscard]] float MeasureCaretOffsetDip(const ControlHost* host,
                                           std::wstring_view text,
                                           FontRole role,
                                           size_t caretIndex,
@@ -324,7 +324,7 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
                                           DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT,
                                           float layoutWidthDip                      = 0.0f) noexcept;
 [[nodiscard]] float MeasureCaretOffsetDip(IDWriteTextLayout* layout, std::wstring_view text, size_t caretIndex) noexcept;
-[[nodiscard]] size_t HitTestCaretIndexDip(const WindowHost* host,
+[[nodiscard]] size_t HitTestCaretIndexDip(const ControlHost* host,
                                           std::wstring_view text,
                                           FontRole role,
                                           const D2D1_RECT_F& textRect,
@@ -332,14 +332,14 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
                                           D2D1_POINT_2F point,
                                           DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT) noexcept;
 
-void DrawSingleLineTextClipped(WindowHost& host,
+void DrawSingleLineTextClipped(ControlHost& host,
                                std::wstring_view text,
                                const D2D1_RECT_F& rect,
                                FontRole role,
                                const D2D1_COLOR_F& color,
                                float scrollDip,
                                DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT) noexcept;
-void DrawSingleLineTextClippedWithLayout(WindowHost& host,
+void DrawSingleLineTextClippedWithLayout(ControlHost& host,
                                          std::wstring_view text,
                                          const D2D1_RECT_F& rect,
                                          FontRole role,
@@ -355,7 +355,7 @@ void SelectAllSingleLineText(size_t textLength, size_t& caretIndex, std::optiona
 
 void ResetSingleLineSelectionClickSequence(SingleLineSelectionClickSequence& sequence) noexcept;
 void ArmSingleLineSelectionClickSequence(SingleLineSelectionClickSequence& sequence, D2D1_POINT_2F pointDip) noexcept;
-[[nodiscard]] bool ShouldPromoteSingleLineClickToSelectAll(const WindowHost& host,
+[[nodiscard]] bool ShouldPromoteSingleLineClickToSelectAll(const ControlHost& host,
                                                            const SingleLineSelectionClickSequence& sequence,
                                                            D2D1_POINT_2F pointDip) noexcept;
 
@@ -364,14 +364,14 @@ void ArmSingleLineSelectionClickSequence(SingleLineSelectionClickSequence& seque
 void SelectSingleLineWordAt(std::wstring_view text, size_t hitIndex, size_t& caretIndex, std::optional<size_t>& anchorIndex) noexcept;
 
 [[nodiscard]] std::optional<D2D1_RECT_F> ComputeSingleLineSelectionPaintRect(
-    const WindowHost& host,
+    const ControlHost& host,
     std::wstring_view text,
     const D2D1_RECT_F& rect,
     FontRole role,
     float scrollDip,
     std::optional<std::pair<size_t, size_t>> selectionRange,
     DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT) noexcept;
-void DrawSingleLineSelection(WindowHost& host,
+void DrawSingleLineSelection(ControlHost& host,
                              std::wstring_view text,
                              const D2D1_RECT_F& rect,
                              FontRole role,
@@ -381,7 +381,7 @@ void DrawSingleLineSelection(WindowHost& host,
                              float scrollDip,
                              std::optional<std::pair<size_t, size_t>> selectionRange,
                              DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT) noexcept;
-void DrawSingleLineSelectionWithLayout(WindowHost& host,
+void DrawSingleLineSelectionWithLayout(ControlHost& host,
                                        std::wstring_view text,
                                        const D2D1_RECT_F& rect,
                                        FontRole role,
@@ -397,7 +397,7 @@ void DrawSingleLineSelectionWithLayout(WindowHost& host,
                                                                                            std::optional<size_t> startIndex,
                                                                                            std::optional<size_t> endIndex) noexcept;
 [[nodiscard]] std::vector<D2D1_RECT_F> BuildTextInputUnderlineRects(
-    const WindowHost& host, const Control& control, std::pair<size_t, size_t> range, float bottomInsetDip, float thicknessDip);
-[[nodiscard]] std::vector<D2D1_RECT_F> BuildNativeCompositionUnderlineRects(const WindowHost& host, const Control& control, bool conversionTarget);
-void DrawTextInputUnderlineRects(WindowHost& host, const std::vector<D2D1_RECT_F>& underlineRects, const D2D1_COLOR_F& color) noexcept;
+    const ControlHost& host, const Control& control, std::pair<size_t, size_t> range, float bottomInsetDip, float thicknessDip);
+[[nodiscard]] std::vector<D2D1_RECT_F> BuildNativeCompositionUnderlineRects(const ControlHost& host, const Control& control, bool conversionTarget);
+void DrawTextInputUnderlineRects(ControlHost& host, const std::vector<D2D1_RECT_F>& underlineRects, const D2D1_COLOR_F& color) noexcept;
 } // namespace DxUi

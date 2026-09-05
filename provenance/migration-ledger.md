@@ -16,3 +16,18 @@ The 2026-09-05 ownership correction moved source into this repository's normal d
 duplicate frame runtime, removed obsolete application projects and adopted the neutral DxUi namespace.
 Original hashes remain historical; current files evolve through Git reviews and tests.
 Record behavior fixes that need an explicit backport. Do not synchronize source directories automatically.
+
+
+## Single-library extraction (2026-09-05)
+
+Controls, native services and window hosting now build in DxUi.lib together with Foundation and EmbeddedHost.
+The public control header lives in include/DxUi; the old private path forwards to it. Application includes are gone.
+Neutral replacements cover theme input, diagnostics, posted payloads, HWND hook utilities and small color/DPI helpers.
+The owned AnimationDispatcher and test activation guard retain explicit source-origin entries. Helper algorithms
+were extracted from RedSalamander Common/Helpers.h and Common/WindowSizing.h at the recorded origin
+revision; they are maintained here. The payload registry is newly bounded rather than copied wholesale.
+
+All 941 named inherited cases have a disposition in test-port.json (853 retained, 88 excluded). Original baselines
+are retained. New tests cover public catalog construction, supplied-device drawing, typed slider lifecycle,
+rendering resource behavior and bounded payload ownership. Application-specific helpers and source-text-only
+assertions remain historical records rather than dependencies of the shared library.

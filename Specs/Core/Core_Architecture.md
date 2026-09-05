@@ -11,45 +11,50 @@ targets are acceptance contracts, not claims of current support.
 This repository is the root and home of DxUI. Shared implementation and tests evolve here; RedXe and RedSalamander
 are consumers. Source is organized under `src`, tests under `Tests`, supported API under `include/DxUi`.
 The owned control/host source currently lives in `src/Controls`, with tests/baselines in `Tests/Controls`.
-These files are editable even while standalone dependency removal is pending. Build support remains explicit in
-`capabilities.json`; a directory move or namespace change does not establish tested runtime support.
+The controls and native tests compile independently of either application. Build support and pending consumer bridges
+remain explicit in `capabilities.json`.
 
 Historical source commit, original hashes and current ownership mappings live in `provenance/source-origin.json`.
 Git history retains earlier bytes. No duplicate original source tree is retained or periodically synchronized.
 `provenance/pending-dependencies.json` enumerates unresolved application includes until they are removed.
 The frame runtime has one implementation under Foundation; obsolete application-bound project files are retired.
 
-## Target boundaries
+## Single library and hosting modes
 
-| Target | Responsibility | V1 consumer |
-| --- | --- | --- |
-| `DxUi.Controls.lib` | Shared retained controls, layout, state, theme/text, prepared D2D drawing and host abstraction. | AV Control and the library's two samples. |
-| `DxUi.Embedded.lib` | Externally scheduled content preparation and texture composition using a supplied D3D11 device. | AV Control. |
-| `DxUi.Win32Services.lib` | Reusable OS text-input/accessibility service implementation behind bounded transport contracts; no window renderer. | RedXe host adapter where needed, and WindowHost. |
-| `DxUi.Win32Host.lib` | HWND/message integration, window presentation, popups and scheduling on top of shared controls/services. | WindowHost sample now; RedSalamander later. |
+The single public target is `src/DxUi.vcxproj`, producing **DxUi.lib**. Foundation, controls, embedded rendering,
+native text/accessibility and Win32 hosting are implementation areas of that target, not separately shipped libraries.
+Consumers reference this project once. There is no DxUi runtime DLL and no consumer-maintained source list.
 
-Controls depend on neutral host-service contracts, not the concrete embedded or window host. The services target must
-not pull the control renderer into `RedXe.exe`. The embedded target must not link the window presentation target.
-The public namespace is `DxUi`; application compatibility aliases, viewer-theme translation, logging IDs and settings
-adapters live with the consumer. Platform libraries and WIL are allowed dependencies. A monolithic RedSalamander
-`Helpers.h`, settings store, plugin ABI, animation dispatcher or global logger is not.
+Public headers are under `include/DxUi`: `DxUi.h` exposes all retained controls and `ControlHost`; `Embedded.h`
+exposes supplied-device graphics and scheduling; `ControlCatalog.h` enumerates/constructs all 26 concrete controls;
+`ThemeColors.h`, `Diagnostics.h`, `FrameRuntime.h` and `Configuration.h` complete the neutral supporting API.
+
+`ControlHost` supplies the shared tree, text, theme, focus and drawing services. Its native mode attaches to a
+caller-owned HWND (`WindowHost` is a source compatibility alias). `EmbeddedHost` contains a ControlHost configured
+for a supplied device and callbacks; attempts to attach that host to an HWND fail. Embedded code does not run the
+native presentation/scheduling path. The archive includes both modes; static linking alone does not guarantee that
+no native object code or Windows system import is linked into an embedded consumer.
+
+The library has no application include dependencies. It owns a small diagnostics adapter, fixed-capacity posted
+payload registry, neutral ThemeColors record and native animation dispatcher. Consumers inject synchronous borrowed
+diagnostic sinks; DxUI opens no application log file. Platform libraries and pinned WIL are permitted dependencies.
+Public configuration is fixed by API revision: diagnostic hooks are compiled but dormant until used. Consumer flags
+must not change class definitions. Control C++ objects remain within their owning module.
 
 Library controls implement UI semantics, not AV operations. DxUi never enumerates audio/camera devices, switches
 profiles, stores RedXe settings, or embeds XENEON-specific dimensions. The consumer supplies labels, application
 state, style tokens and layout policy. Host chrome keeps its own icon source; AV uses the shared control/glyph system
 with the agreed Fluent-font fallback, and does not copy browser Lucide assets into the native product.
 
-Use one independent source repository and MSBuild static-library targets. Build the selected targets with the
-consumer's supported toolchain and link them into the binary that owns the controls. For the first RedXe integration,
-that binary is `AVControl.dll`. A small OS-services target may also be linked into `RedXe.exe` for host-owned text
-and accessibility integration; it does not contain a second control tree or renderer.
+Use one independent source repository and compile its single static library with the consumer's supported
+toolchain. `AVControl.dll` is RedXe's first intended control owner. Its module owns one shared GraphicsDevice pool
+per device generation; each tile/raised view owns an EmbeddedHost. RedXe's text/UIA bridge remains an application ABI
+task. If its host side needs shared utilities it consumes the same DxUi.lib, with resource ownership reviewed before
+adding another module. Separate service or renderer libraries are not part of this decision.
 
-| Integration | Benefit | Cost / constraint | Decision |
-| --- | --- | --- | --- |
-| Pinned source, compiled into static `.lib` targets | Shared implementation and tests; ordinary C++ internally; no additional DxUi runtime DLL to deploy. | Consumer rebuild on updates; code/state can be duplicated if many DLLs link the same targets. | **Use for V1.** Link only the necessary targets. |
-| Shared `DxUi.dll` runtime | Can centralize code and resources across modules within one process. | Export/ownership ABI, version negotiation, loader/staging policy, and coordinated lifetime become a separate product surface. | Defer until measurements justify it. A future DLL needs its own reviewed interface contract. |
-| Include the sibling `.cpp` files in each application project | Small initial project-file change. | Consumer flags and source inventories drift; no independent build boundary. | Reject. Consume a project/library target. |
-| Copy DxUi source into each application | Each checkout is self-contained. | Permanent parallel implementations and fixes; defeats the requested shared ownership. | Reject as the ongoing integration model. A documented initial extraction is the only copy. |
+Pinned source plus a static archive provides an ordinary C++ interface and no extra runtime deployment. A shared DLL
+would introduce a second versioned ABI and loader/lifetime policy; defer it until measurements justify that cost.
+Copying controls or enumerating sibling .cpp files in consumers is prohibited: shared fixes are made here.
 
 Static linking does not by itself share runtime memory between executables or between independently linked DLLs.
 V1 has one control runtime/cache owner inside `AVControl.dll`, shared by all its instances and staged pages. Before

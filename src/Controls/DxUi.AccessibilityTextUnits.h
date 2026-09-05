@@ -3,8 +3,10 @@
 #include <cstddef>
 #include <string_view>
 
-#include <UIAutomation.h>
 #include <objbase.h>
+
+// The SDK UIA header requires COM interface definitions from objbase first.
+#include <UIAutomation.h>
 
 namespace DxUi
 {

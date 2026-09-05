@@ -25,11 +25,11 @@
 #include <richedit.h>
 #include <windowsx.h>
 
+#include "../Support/AnimationDispatcher.h"
+#include "../Support/Diagnostics.h"
+#include "../Support/WindowMessages.h"
 #include "DxUi.Typography.h"
 #include "DxUi/FrameRuntime.h"
-#include "Helpers.h"
-#include "Ui/AnimationDispatcher.h"
-#include "WindowMessages.h"
 
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "d3d11.lib")
@@ -127,7 +127,7 @@ namespace DxUi
 
 namespace
 {
-constexpr wchar_t kDxUiDiagnosticsProp[]       = L"RedSalamander.Preferences.DxDiagnostics";
+constexpr wchar_t kDxUiDiagnosticsProp[]       = L"DxUi.Diagnostics";
 constexpr uint64_t kTooltipFallbackShowDelayMs = 500u;
 constexpr uint64_t kTooltipMinShowDelayMs      = 100u;
 constexpr uint64_t kTooltipMaxShowDelayMs      = 2500u;
@@ -531,13 +531,13 @@ template <typename... Args> void TraceWindowHostDiagnostics(std::wstring_view ev
     return mutex;
 }
 
-[[nodiscard]] std::vector<WindowHost*>& GetAttachedWindowHosts() noexcept
+[[nodiscard]] std::vector<ControlHost*>& GetAttachedWindowHosts() noexcept
 {
-    static std::vector<WindowHost*> hosts;
+    static std::vector<ControlHost*> hosts;
     return hosts;
 }
 
-[[nodiscard]] bool IsAttachedWindowHostRegistered(WindowHost* host) noexcept
+[[nodiscard]] bool IsAttachedWindowHostRegistered(ControlHost* host) noexcept
 {
     if (! host)
     {
@@ -600,7 +600,7 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
     resourcesByThread.clear();
 }
 
-void RegisterSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) noexcept
+void RegisterSharedWindowHostAttachment(ControlHost* host, DWORD ownerThreadId) noexcept
 {
     {
         const std::scoped_lock hostLock(GetAttachedWindowHostsMutex());
@@ -616,7 +616,7 @@ void RegisterSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) n
     ++resources.attachedHostCount;
 }
 
-void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) noexcept
+void ReleaseSharedWindowHostAttachment(ControlHost* host, DWORD ownerThreadId) noexcept
 {
     {
         const std::scoped_lock hostLock(GetAttachedWindowHostsMutex());
@@ -634,7 +634,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
     }
     else if (ownerThreadId != currentThreadId)
     {
-        Debug::Warning(L"DxUi::WindowHost: cross-thread detach releasing thread-local graphics bucket owner={} current={}", ownerThreadId, currentThreadId);
+        Debug::Warning(L"DxUi::ControlHost: cross-thread detach releasing thread-local graphics bucket owner={} current={}", ownerThreadId, currentThreadId);
     }
 
     const std::scoped_lock lock(GetSharedWindowHostGraphicsResourcesMutex());
@@ -642,7 +642,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
     const auto it           = resourcesByThread.find(ownerThreadId);
     if (it == resourcesByThread.end() || it->second.attachedHostCount == 0u)
     {
-        Debug::Warning(L"DxUi::WindowHost: missing shared graphics bucket during detach owner={} current={}", ownerThreadId, currentThreadId);
+        Debug::Warning(L"DxUi::ControlHost: missing shared graphics bucket during detach owner={} current={}", ownerThreadId, currentThreadId);
         return;
     }
 
@@ -679,13 +679,13 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
         creationFlags, levels, false, resources.d3dDevice.addressof(), &resources.featureLevel, resources.d3dContext.addressof(), &createdDriverType);
     if (FAILED(hr) || ! resources.d3dDevice || ! resources.d3dContext)
     {
-        Debug::Error(L"DxUi::WindowHost: shared D3D11CreateDevice failed: 0x{:08X}", hr);
+        Debug::Error(L"DxUi::ControlHost: shared D3D11CreateDevice failed: 0x{:08X}", hr);
         ResetSharedWindowHostGraphicsResourcesLocked(resources);
         return false;
     }
     if (createdDriverType == D3D_DRIVER_TYPE_WARP)
     {
-        Debug::Warning(L"DxUi::WindowHost: shared D3D11CreateDevice fell back to WARP.");
+        Debug::Warning(L"DxUi::ControlHost: shared D3D11CreateDevice fell back to WARP.");
     }
 
     wil::com_ptr<IDXGIDevice> dxgiDevice;
@@ -695,7 +695,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
     const HRESULT hrDxgiFactory = SUCCEEDED(hrAdapter) && adapter ? adapter->GetParent(IID_PPV_ARGS(resources.dxgiFactory.addressof())) : E_FAIL;
     if (FAILED(hrDxgi) || ! dxgiDevice || FAILED(hrAdapter) || ! adapter || FAILED(hrDxgiFactory) || ! resources.dxgiFactory)
     {
-        Debug::Error(L"DxUi::WindowHost: shared DXGI factory chain failed ({:08X}, {:08X}, {:08X})", hrDxgi, hrAdapter, hrDxgiFactory);
+        Debug::Error(L"DxUi::ControlHost: shared DXGI factory chain failed ({:08X}, {:08X}, {:08X})", hrDxgi, hrAdapter, hrDxgiFactory);
         ResetSharedWindowHostGraphicsResourcesLocked(resources);
         return false;
     }
@@ -711,7 +711,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
         D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory1), &options, reinterpret_cast<void**>(resources.d2dFactory.addressof()));
     if (FAILED(hrD2dFactory) || ! resources.d2dFactory)
     {
-        Debug::Error(L"DxUi::WindowHost: shared D2D1CreateFactory failed: 0x{:08X}", hrD2dFactory);
+        Debug::Error(L"DxUi::ControlHost: shared D2D1CreateFactory failed: 0x{:08X}", hrD2dFactory);
         ResetSharedWindowHostGraphicsResourcesLocked(resources);
         return false;
     }
@@ -719,7 +719,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
     const HRESULT hrDevice = resources.d2dFactory->CreateDevice(dxgiDevice.get(), resources.d2dDevice.addressof());
     if (FAILED(hrDevice) || ! resources.d2dDevice)
     {
-        Debug::Error(L"DxUi::WindowHost: shared ID2D1Factory1::CreateDevice failed: 0x{:08X}", hrDevice);
+        Debug::Error(L"DxUi::ControlHost: shared ID2D1Factory1::CreateDevice failed: 0x{:08X}", hrDevice);
         ResetSharedWindowHostGraphicsResourcesLocked(resources);
         return false;
     }
@@ -728,7 +728,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
         DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(resources.dwriteFactory.addressof()));
     if (FAILED(hrWrite) || ! resources.dwriteFactory)
     {
-        Debug::Error(L"DxUi::WindowHost: shared DWriteCreateFactory failed: 0x{:08X}", hrWrite);
+        Debug::Error(L"DxUi::ControlHost: shared DWriteCreateFactory failed: 0x{:08X}", hrWrite);
         ResetSharedWindowHostGraphicsResourcesLocked(resources);
         return false;
     }
@@ -753,7 +753,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
     const HRESULT hrDxgiDevice = resources.d3dDevice->QueryInterface(IID_PPV_ARGS(dxgiDevice.addressof()));
     if (FAILED(hrDxgiDevice) || ! dxgiDevice)
     {
-        Debug::Error(L"DxUi::WindowHost: shared QueryInterface(IDXGIDevice) for DirectComposition failed: 0x{:08X}", hrDxgiDevice);
+        Debug::Error(L"DxUi::ControlHost: shared QueryInterface(IDXGIDevice) for DirectComposition failed: 0x{:08X}", hrDxgiDevice);
         return false;
     }
 
@@ -761,7 +761,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
         DCompositionCreateDevice2(dxgiDevice.get(), __uuidof(IDCompositionDesktopDevice), reinterpret_cast<void**>(resources.dcompDevice.addressof()));
     if (FAILED(hrDComp) || ! resources.dcompDevice)
     {
-        Debug::Error(L"DxUi::WindowHost: DCompositionCreateDevice2 failed: 0x{:08X}", hrDComp);
+        Debug::Error(L"DxUi::ControlHost: DCompositionCreateDevice2 failed: 0x{:08X}", hrDComp);
         resources.dcompDevice.reset();
         return false;
     }
@@ -867,7 +867,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
     return false;
 }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 [[nodiscard]] std::mutex& GetClipboardFallbackMutex() noexcept
 {
     static std::mutex mutex;
@@ -913,7 +913,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
     out[text.size()] = L'\0';
     GlobalUnlock(memory.get());
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     const auto setFallbackText = [&]() noexcept
     {
         static_cast<void>(DebugSetClipboardFallbackText(text));
@@ -923,7 +923,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
 
     if (! OpenClipboardWithRetries(ownerWindow))
     {
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
         return setFallbackText();
 #else
         return false;
@@ -933,7 +933,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
 
     if (EmptyClipboard() == 0)
     {
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
         return setFallbackText();
 #else
         return false;
@@ -941,7 +941,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
     }
     if (SetClipboardData(CF_UNICODETEXT, memory.get()) == nullptr)
     {
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
         return setFallbackText();
 #else
         return false;
@@ -949,7 +949,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
     }
 
     static_cast<void>(memory.release());
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     static_cast<void>(DebugSetClipboardFallbackText(text));
 #endif
     return true;
@@ -959,7 +959,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
 {
     if (! OpenClipboardWithRetries(ownerWindow))
     {
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
         return DebugReadClipboardFallbackText();
 #else
         return std::nullopt;
@@ -970,7 +970,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
     HANDLE handle = GetClipboardData(CF_UNICODETEXT);
     if (! handle)
     {
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
         return DebugReadClipboardFallbackText();
 #else
         return std::nullopt;
@@ -980,7 +980,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
     const auto* text = static_cast<const wchar_t*>(GlobalLock(handle));
     if (! text)
     {
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
         return DebugReadClipboardFallbackText();
 #else
         return std::nullopt;
@@ -988,7 +988,7 @@ void ReleaseSharedWindowHostAttachment(WindowHost* host, DWORD ownerThreadId) no
     }
     const auto unlock = wil::scope_exit([&] { GlobalUnlock(handle); });
     std::wstring clipboardText(text);
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     static_cast<void>(DebugSetClipboardFallbackText(clipboardText));
 #endif
     return clipboardText;
@@ -1203,7 +1203,7 @@ void ShutdownAllWindowHostsForProcessExit() noexcept
 {
     struct ShutdownTarget final
     {
-        WindowHost* host    = nullptr;
+        ControlHost* host   = nullptr;
         HWND hwnd           = nullptr;
         DWORD ownerThreadId = 0u;
     };
@@ -1212,7 +1212,7 @@ void ShutdownAllWindowHostsForProcessExit() noexcept
     {
         const std::scoped_lock lock(GetAttachedWindowHostsMutex());
         attachedHosts.reserve(GetAttachedWindowHosts().size());
-        for (WindowHost* const host : GetAttachedWindowHosts())
+        for (ControlHost* const host : GetAttachedWindowHosts())
         {
             if (host)
             {
@@ -1235,14 +1235,14 @@ void ShutdownAllWindowHostsForProcessExit() noexcept
         }
         if (! target.hwnd || IsWindow(target.hwnd) == FALSE || GetWindowThreadProcessId(target.hwnd, nullptr) != target.ownerThreadId)
         {
-            Debug::Error(L"DxUi::WindowHost: cannot marshal process-exit detach for foreign owner thread {}.", target.ownerThreadId);
+            Debug::Error(L"DxUi::ControlHost: cannot marshal process-exit detach for foreign owner thread {}.", target.ownerThreadId);
             continue;
         }
 
         DWORD_PTR detachResult = 0u;
         if (SendMessageTimeoutW(target.hwnd, WndMsg::kDxUiWindowHostProcessExitDetach, 0u, 0, SMTO_ABORTIFHUNG | SMTO_BLOCK, 5000u, &detachResult) == 0)
         {
-            Debug::ErrorWithLastError(L"DxUi::WindowHost: owner-thread process-exit detach timed out for thread {}.", target.ownerThreadId);
+            Debug::ErrorWithLastError(L"DxUi::ControlHost: owner-thread process-exit detach timed out for thread {}.", target.ownerThreadId);
         }
     }
 
@@ -1253,7 +1253,7 @@ void ShutdownAllWindowHostsForProcessExit() noexcept
     }
     if (remainingHostCount != 0u)
     {
-        Debug::Error(L"DxUi::WindowHost: process-exit host registry is not empty after owner-thread teardown ({} host(s)).", remainingHostCount);
+        Debug::Error(L"DxUi::ControlHost: process-exit host registry is not empty after owner-thread teardown ({} host(s)).", remainingHostCount);
         ShutdownNativeTextInputForCurrentThread();
         return;
     }
@@ -1262,7 +1262,7 @@ void ShutdownAllWindowHostsForProcessExit() noexcept
     ShutdownNativeTextInputForCurrentThread();
 }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
 size_t DebugGetAttachedWindowHostCount() noexcept
 {
     const std::scoped_lock lock(GetAttachedWindowHostsMutex());
@@ -1282,18 +1282,20 @@ uint32_t DebugGetSharedWindowHostAttachmentCountForThread(DWORD threadId) noexce
 }
 #endif
 
-WindowHost::~WindowHost()
+ControlHost::~ControlHost()
 {
     Detach();
 }
 
-bool WindowHost::Attach(HWND hwnd) noexcept
+bool ControlHost::Attach(HWND hwnd) noexcept
 {
     return Attach(hwnd, AttachOptions{});
 }
 
-bool WindowHost::Attach(HWND hwnd, const AttachOptions& options) noexcept
+bool ControlHost::Attach(HWND hwnd, const AttachOptions& options) noexcept
 {
+    if (_embedded)
+        return false;
     if (! hwnd)
     {
         return false;
@@ -1317,24 +1319,24 @@ bool WindowHost::Attach(HWND hwnd, const AttachOptions& options) noexcept
     return true;
 }
 
-void WindowHost::Detach() noexcept
+void ControlHost::Detach() noexcept
 {
     Detach(false);
 }
 
-void WindowHost::DetachForProcessExit() noexcept
+void ControlHost::DetachForProcessExit() noexcept
 {
     Detach(true);
 }
 
-#if defined(ENABLE_TESTS)
-void WindowHost::DebugDetachForProcessExit() noexcept
+#if DXUI_ENABLE_DIAGNOSTICS
+void ControlHost::DebugDetachForProcessExit() noexcept
 {
     DetachForProcessExit();
 }
 #endif
 
-void WindowHost::AbandonRetainedControlObserversForProcessExit() noexcept
+void ControlHost::AbandonRetainedControlObserversForProcessExit() noexcept
 {
     // The process-exit sweep is a quiet-point teardown, not an interactive state
     // transition. Clear every non-owning observer before ReleaseCapture or TSF can
@@ -1356,11 +1358,11 @@ void WindowHost::AbandonRetainedControlObserversForProcessExit() noexcept
     ClearNativeTextInputCompositionState();
 }
 
-void WindowHost::Detach(bool processExit) noexcept
+void ControlHost::Detach(bool processExit) noexcept
 {
     if (_attachmentOwnerThreadId != 0u && _attachmentOwnerThreadId != GetCurrentThreadId())
     {
-        Debug::Error(L"DxUi::WindowHost: refusing foreign-thread detach owner={} current={}.", _attachmentOwnerThreadId, GetCurrentThreadId());
+        Debug::Error(L"DxUi::ControlHost: refusing foreign-thread detach owner={} current={}.", _attachmentOwnerThreadId, GetCurrentThreadId());
         return;
     }
     if (_detachInProgress.exchange(true, std::memory_order_acq_rel))
@@ -1429,7 +1431,7 @@ void WindowHost::Detach(bool processExit) noexcept
     }
 }
 
-void WindowHost::SetTheme(const ThemePalette& palette) noexcept
+void ControlHost::SetTheme(const ThemePalette& palette) noexcept
 {
     const bool densityChanged = _palette.density != palette.density;
     _palette                  = palette;
@@ -1441,12 +1443,12 @@ void WindowHost::SetTheme(const ThemePalette& palette) noexcept
     Invalidate();
 }
 
-const ThemePalette& WindowHost::GetTheme() const noexcept
+const ThemePalette& ControlHost::GetTheme() const noexcept
 {
     return _palette;
 }
 
-void WindowHost::SetRoot(std::unique_ptr<Control> root)
+void ControlHost::SetRoot(std::unique_ptr<Control> root)
 {
     PublishEmptyWindowHostAccessibilitySnapshot(_hwnd, this);
     ResetRootInteractionState();
@@ -1464,20 +1466,22 @@ void WindowHost::SetRoot(std::unique_ptr<Control> root)
         _root->SetBounds(D2D1::RectF(0.0f, 0.0f, PixelsToDip(static_cast<float>(_widthPx)), PixelsToDip(static_cast<float>(_heightPx))));
     }
     RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
+    if (_embedded && _root)
+        RequestAnimation();
     Invalidate();
 }
 
-Control* WindowHost::GetRoot() noexcept
+Control* ControlHost::GetRoot() noexcept
 {
     return _root.get();
 }
 
-const Control* WindowHost::GetRoot() const noexcept
+const Control* ControlHost::GetRoot() const noexcept
 {
     return _root.get();
 }
 
-bool WindowHost::SetTooltip(std::wstring text, const D2D1_POINT_2F& originDip)
+bool ControlHost::SetTooltip(std::wstring text, const D2D1_POINT_2F& originDip)
 {
     const bool changed = _tooltipLayer.SetTooltip(std::move(text), originDip);
     if (changed)
@@ -1487,7 +1491,7 @@ bool WindowHost::SetTooltip(std::wstring text, const D2D1_POINT_2F& originDip)
     return changed;
 }
 
-bool WindowHost::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& originDip)
+bool ControlHost::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& originDip)
 {
     const uint64_t nowTickMs = _lastAnimationTickMs != 0u ? _lastAnimationTickMs : GetTickCount64();
     const bool changed       = _tooltipLayer.SetTooltipDelayed(std::move(text), originDip, nowTickMs, ResolveTooltipShowDelayMs());
@@ -1499,7 +1503,7 @@ bool WindowHost::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& origi
     return changed;
 }
 
-bool WindowHost::BeginTooltipHideDelay(uint64_t delayMs) noexcept
+bool ControlHost::BeginTooltipHideDelay(uint64_t delayMs) noexcept
 {
     const uint64_t nowTickMs = _lastAnimationTickMs != 0u ? _lastAnimationTickMs : GetTickCount64();
     const bool changed       = _tooltipLayer.BeginHideDelay(nowTickMs, delayMs);
@@ -1510,7 +1514,7 @@ bool WindowHost::BeginTooltipHideDelay(uint64_t delayMs) noexcept
     return changed;
 }
 
-bool WindowHost::ClearTooltip() noexcept
+bool ControlHost::ClearTooltip() noexcept
 {
     const bool changed = _tooltipLayer.Clear();
     if (changed)
@@ -1520,23 +1524,23 @@ bool WindowHost::ClearTooltip() noexcept
     return changed;
 }
 
-bool WindowHost::HasTooltip() const noexcept
+bool ControlHost::HasTooltip() const noexcept
 {
     return _tooltipLayer.HasTooltip();
 }
 
-std::wstring_view WindowHost::GetTooltipText() const noexcept
+std::wstring_view ControlHost::GetTooltipText() const noexcept
 {
     return _tooltipLayer.GetTooltipText();
 }
 
-#if defined(ENABLE_TESTS)
-std::wstring_view WindowHost::DebugGetPendingTooltipText() const noexcept
+#if DXUI_ENABLE_DIAGNOSTICS
+std::wstring_view ControlHost::DebugGetPendingTooltipText() const noexcept
 {
     return _tooltipLayer.DebugGetPendingTooltipText();
 }
 
-bool WindowHost::DebugAdvanceTooltipDelayForTest() noexcept
+bool ControlHost::DebugAdvanceTooltipDelayForTest() noexcept
 {
     const uint64_t nowTickMs = _lastAnimationTickMs != 0u ? _lastAnimationTickMs : GetTickCount64();
     const bool changed       = _tooltipLayer.Tick(*this, nowTickMs + ResolveTooltipShowDelayMs() + 1u);
@@ -1548,7 +1552,7 @@ bool WindowHost::DebugAdvanceTooltipDelayForTest() noexcept
 }
 #endif
 
-void WindowHost::SetSmokeOverlayVisible(bool visible) noexcept
+void ControlHost::SetSmokeOverlayVisible(bool visible) noexcept
 {
     if (_smokeOverlayVisible != visible)
     {
@@ -1557,12 +1561,12 @@ void WindowHost::SetSmokeOverlayVisible(bool visible) noexcept
     }
 }
 
-bool WindowHost::IsSmokeOverlayVisible() const noexcept
+bool ControlHost::IsSmokeOverlayVisible() const noexcept
 {
     return _smokeOverlayVisible;
 }
 
-bool WindowHost::SetSystemBackdrop(BackdropType type) noexcept
+bool ControlHost::SetSystemBackdrop(BackdropType type) noexcept
 {
     if (! _hwnd)
     {
@@ -1576,16 +1580,22 @@ bool WindowHost::SetSystemBackdrop(BackdropType type) noexcept
     return SUCCEEDED(hr);
 }
 
-#if defined(ENABLE_TESTS)
-D2D1_RECT_F WindowHost::DebugGetTooltipBoundsDip() const noexcept
+#if DXUI_ENABLE_DIAGNOSTICS
+D2D1_RECT_F ControlHost::DebugGetTooltipBoundsDip() const noexcept
 {
     return _tooltipLayer.DebugGetBoundsDip(*this);
 }
 #endif
 
-void WindowHost::Invalidate() const noexcept
+void ControlHost::Invalidate() const noexcept
 {
-#if defined(ENABLE_TESTS)
+    if (_embedded)
+    {
+        if (_embeddedInvalidate)
+            _embeddedInvalidate(_embeddedContext);
+        return;
+    }
+#if DXUI_ENABLE_DIAGNOSTICS
     ++_debugInvalidateCount;
 #endif
     if (_hwnd && IsHostWindowEffectivelyVisible(_hwnd))
@@ -1594,17 +1604,17 @@ void WindowHost::Invalidate() const noexcept
     }
 }
 
-void WindowHost::RefreshAccessibilitySnapshot() noexcept
+void ControlHost::RefreshAccessibilitySnapshot() noexcept
 {
     RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
 }
 
-bool WindowHost::PrimeForShow() noexcept
+bool ControlHost::PrimeForShow() noexcept
 {
     return EnsureSizeDependentResources(true);
 }
 
-bool WindowHost::RenderInitialFrameForShow() noexcept
+bool ControlHost::RenderInitialFrameForShow() noexcept
 {
     if (! EnsureSizeDependentResources(true))
     {
@@ -1615,15 +1625,21 @@ bool WindowHost::RenderInitialFrameForShow() noexcept
     return true;
 }
 
-void WindowHost::RequestAnimation() noexcept
+void ControlHost::RequestAnimation() noexcept
 {
+    if (_embedded)
+    {
+        _embeddedAnimationRequested = true;
+        Invalidate();
+        return;
+    }
     if (_animationSubscriptionId == 0u)
     {
-        _animationSubscriptionId = Ui::AnimationDispatcher::GetInstance().Subscribe(&WindowHost::AnimationTickThunk, this);
+        _animationSubscriptionId = Ui::AnimationDispatcher::GetInstance().Subscribe(&ControlHost::AnimationTickThunk, this);
     }
 }
 
-void WindowHost::SetDefaultButton(Button* button) noexcept
+void ControlHost::SetDefaultButton(Button* button) noexcept
 {
     if (button && _root && ! ControlBelongsToTree(_root.get(), button))
     {
@@ -1633,12 +1649,12 @@ void WindowHost::SetDefaultButton(Button* button) noexcept
     Invalidate();
 }
 
-Button* WindowHost::GetDefaultButton() const noexcept
+Button* ControlHost::GetDefaultButton() const noexcept
 {
     return const_cast<Button*>(ResolveTreeButton(_root, _defaultButton));
 }
 
-void WindowHost::SetCancelButton(Button* button) noexcept
+void ControlHost::SetCancelButton(Button* button) noexcept
 {
     if (button && _root && ! ControlBelongsToTree(_root.get(), button))
     {
@@ -1647,33 +1663,33 @@ void WindowHost::SetCancelButton(Button* button) noexcept
     _cancelButton = button;
 }
 
-Button* WindowHost::GetCancelButton() const noexcept
+Button* ControlHost::GetCancelButton() const noexcept
 {
     return const_cast<Button*>(ResolveTreeButton(_root, _cancelButton));
 }
 
-void WindowHost::SetOnTabBoundary(std::function<bool(bool reverse)> onTabBoundary)
+void ControlHost::SetOnTabBoundary(std::function<bool(bool reverse)> onTabBoundary)
 {
     _onTabBoundary = std::move(onTabBoundary);
 }
 
-void WindowHost::SetOnEscape(std::function<bool()> onEscape)
+void ControlHost::SetOnEscape(std::function<bool()> onEscape)
 {
     _onEscape = std::move(onEscape);
 }
 
-void WindowHost::SetOnFocusChanged(std::function<void(Control* control)> onFocusChanged)
+void ControlHost::SetOnFocusChanged(std::function<void(Control* control)> onFocusChanged)
 {
     _onFocusChanged = std::move(onFocusChanged);
 }
 
-void WindowHost::ResetInteractionState() noexcept
+void ControlHost::ResetInteractionState() noexcept
 {
     ResetRootInteractionState();
     Invalidate();
 }
 
-void WindowHost::SetFocusControl(Control* control) noexcept
+void ControlHost::SetFocusControl(Control* control) noexcept
 {
     PruneStaleInteractionState();
     const auto validateFocusTarget = [this](Control* candidate, const std::weak_ptr<int>& lifetime) noexcept -> Control*
@@ -1754,7 +1770,7 @@ void WindowHost::SetFocusControl(Control* control) noexcept
         const uint64_t renderCount = 0;
         const uint64_t resizeCount = 0;
 #endif
-        Debug::Info(L"DxUi::WindowHost: focus-change hwnd={:#x} focus={} hovered={} captured={} textInput={} size={}x{} renderCount={} resizeCount={}",
+        Debug::Info(L"DxUi::ControlHost: focus-change hwnd={:#x} focus={} hovered={} captured={} textInput={} size={}x{} renderCount={} resizeCount={}",
                     reinterpret_cast<uintptr_t>(_hwnd),
                     static_cast<const void*>(_focusedControl),
                     static_cast<const void*>(_hoveredControl),
@@ -1774,12 +1790,12 @@ void WindowHost::SetFocusControl(Control* control) noexcept
     Invalidate();
 }
 
-Control* WindowHost::GetFocusControl() const noexcept
+Control* ControlHost::GetFocusControl() const noexcept
 {
     return _focusedControl;
 }
 
-bool WindowHost::HandleMnemonic(wchar_t mnemonic) noexcept
+bool ControlHost::HandleMnemonic(wchar_t mnemonic) noexcept
 {
     if (! _root)
     {
@@ -1801,7 +1817,7 @@ bool WindowHost::HandleMnemonic(wchar_t mnemonic) noexcept
     return false;
 }
 
-void WindowHost::RecordNativeTextInputKeyToStateMetric(
+void ControlHost::RecordNativeTextInputKeyToStateMetric(
     std::chrono::steady_clock::time_point inputStartedAt, const wchar_t* detail, uint64_t value0, uint64_t value1, bool armPaintMetric) noexcept
 {
     Debug::Perf::Emit(L"dxui.textinput.key_to_state_us", detail, Debug::Perf::ElapsedUs(inputStartedAt), value0, value1, S_OK);
@@ -1813,7 +1829,7 @@ void WindowHost::RecordNativeTextInputKeyToStateMetric(
     _pendingNativeTextInputPaintMetric = PendingNativeTextInputPaintMetric{inputStartedAt, detail ? detail : L"", value0, value1};
 }
 
-void WindowHost::EmitPendingNativeTextInputPaintMetric(HRESULT hr) noexcept
+void ControlHost::EmitPendingNativeTextInputPaintMetric(HRESULT hr) noexcept
 {
     if (! _pendingNativeTextInputPaintMetric.has_value())
     {
@@ -1830,7 +1846,7 @@ void WindowHost::EmitPendingNativeTextInputPaintMetric(HRESULT hr) noexcept
                       hr);
 }
 
-bool WindowHost::RouteFocusedCharInput(wchar_t ch, UINT modifiers, const wchar_t* perfDetail) noexcept
+bool ControlHost::RouteFocusedCharInput(wchar_t ch, UINT modifiers, const wchar_t* perfDetail) noexcept
 {
     if (! _focusedControl)
     {
@@ -1854,7 +1870,7 @@ bool WindowHost::RouteFocusedCharInput(wchar_t ch, UINT modifiers, const wchar_t
     return controlHandled;
 }
 
-bool WindowHost::HandleTabNavigation(bool reverse) noexcept
+bool ControlHost::HandleTabNavigation(bool reverse) noexcept
 {
     if (! _root)
     {
@@ -1877,7 +1893,7 @@ bool WindowHost::HandleTabNavigation(bool reverse) noexcept
     return true;
 }
 
-void WindowHost::CaptureMouse(Control* control) noexcept
+void ControlHost::CaptureMouse(Control* control) noexcept
 {
     if (control && _root && ! ControlBelongsToTree(_root.get(), control))
     {
@@ -1892,7 +1908,7 @@ void WindowHost::CaptureMouse(Control* control) noexcept
     }
     if (IsInteractionDiagnosticsEnabled(_hwnd))
     {
-        Debug::Info(L"DxUi::WindowHost: capture hwnd={:#x} target={} focus={} textInput={}",
+        Debug::Info(L"DxUi::ControlHost: capture hwnd={:#x} target={} focus={} textInput={}",
                     reinterpret_cast<uintptr_t>(_hwnd),
                     static_cast<const void*>(_capturedControl),
                     static_cast<const void*>(_focusedControl),
@@ -1900,12 +1916,12 @@ void WindowHost::CaptureMouse(Control* control) noexcept
     }
 }
 
-Control* WindowHost::GetCapturedControl() const noexcept
+Control* ControlHost::GetCapturedControl() const noexcept
 {
     return _capturedControl;
 }
 
-void WindowHost::ReleaseMouseCapture() noexcept
+void ControlHost::ReleaseMouseCapture() noexcept
 {
     _capturedControl = nullptr;
     if (_hwnd && GetCapture() == _hwnd)
@@ -1914,7 +1930,7 @@ void WindowHost::ReleaseMouseCapture() noexcept
     }
     if (IsInteractionDiagnosticsEnabled(_hwnd))
     {
-        Debug::Info(L"DxUi::WindowHost: release-capture hwnd={:#x} focus={} hovered={} textInput={}",
+        Debug::Info(L"DxUi::ControlHost: release-capture hwnd={:#x} focus={} hovered={} textInput={}",
                     reinterpret_cast<uintptr_t>(_hwnd),
                     static_cast<const void*>(_focusedControl),
                     static_cast<const void*>(_hoveredControl),
@@ -1922,12 +1938,12 @@ void WindowHost::ReleaseMouseCapture() noexcept
     }
 }
 
-void WindowHost::ClearPendingPointerDoubleClick() noexcept
+void ControlHost::ClearPendingPointerDoubleClick() noexcept
 {
     _pendingPointerDoubleClick = {};
 }
 
-bool WindowHost::ShouldTreatButtonDownAsDoubleClick(Control* target, UINT buttonDownMessage, LPARAM lp) const noexcept
+bool ControlHost::ShouldTreatButtonDownAsDoubleClick(Control* target, UINT buttonDownMessage, LPARAM lp) const noexcept
 {
     if (! target || ! IsPointerButtonDownMessage(buttonDownMessage))
     {
@@ -1950,7 +1966,7 @@ bool WindowHost::ShouldTreatButtonDownAsDoubleClick(Control* target, UINT button
     return IsWithinSystemDoubleClickBounds(candidate.pointPx, pointPx);
 }
 
-void WindowHost::RememberPointerButtonDown(Control* target, UINT buttonDownMessage, LPARAM lp) noexcept
+void ControlHost::RememberPointerButtonDown(Control* target, UINT buttonDownMessage, LPARAM lp) noexcept
 {
     if (! target || ! IsPointerButtonDownMessage(buttonDownMessage))
     {
@@ -1964,37 +1980,37 @@ void WindowHost::RememberPointerButtonDown(Control* target, UINT buttonDownMessa
     _pendingPointerDoubleClick.tickMs      = GetTickCount64();
 }
 
-HWND WindowHost::GetHwnd() const noexcept
+HWND ControlHost::GetHwnd() const noexcept
 {
     return _hwnd;
 }
 
-D2D1_RECT_F WindowHost::GetClientBoundsDip() const noexcept
+D2D1_RECT_F ControlHost::GetClientBoundsDip() const noexcept
 {
     return D2D1::RectF(0.0f, 0.0f, PixelsToDip(static_cast<float>(_widthPx)), PixelsToDip(static_cast<float>(_heightPx)));
 }
 
-float WindowHost::GetDpi() const noexcept
+float ControlHost::GetDpi() const noexcept
 {
     return static_cast<float>(_dpi == 0 ? USER_DEFAULT_SCREEN_DPI : _dpi);
 }
 
-float WindowHost::PixelsToDip(float pixels) const noexcept
+float ControlHost::PixelsToDip(float pixels) const noexcept
 {
     return (pixels * USER_DEFAULT_SCREEN_DPI) / GetDpi();
 }
 
-float WindowHost::DipsToPixels(float dips) const noexcept
+float ControlHost::DipsToPixels(float dips) const noexcept
 {
     return (dips * GetDpi()) / USER_DEFAULT_SCREEN_DPI;
 }
 
-PointDip WindowHost::PixelsToDipPoint(POINT pointPx) const noexcept
+PointDip ControlHost::PixelsToDipPoint(POINT pointPx) const noexcept
 {
     return MakePointDip(PixelsToDip(static_cast<float>(pointPx.x)), PixelsToDip(static_cast<float>(pointPx.y)));
 }
 
-std::optional<PointDip> WindowHost::ScreenPointToDipPoint(POINT screenPointPx) const noexcept
+std::optional<PointDip> ControlHost::ScreenPointToDipPoint(POINT screenPointPx) const noexcept
 {
     if (! _hwnd || IsWindow(_hwnd) == FALSE)
     {
@@ -2010,7 +2026,7 @@ std::optional<PointDip> WindowHost::ScreenPointToDipPoint(POINT screenPointPx) c
     return PixelsToDipPoint(clientPointPx);
 }
 
-POINT WindowHost::DipPointToScreenPoint(D2D1_POINT_2F pointDip) const noexcept
+POINT ControlHost::DipPointToScreenPoint(D2D1_POINT_2F pointDip) const noexcept
 {
     POINT pointPx{static_cast<LONG>(std::lround(DipsToPixels(pointDip.x))), static_cast<LONG>(std::lround(DipsToPixels(pointDip.y)))};
     if (_hwnd)
@@ -2020,22 +2036,22 @@ POINT WindowHost::DipPointToScreenPoint(D2D1_POINT_2F pointDip) const noexcept
     return pointPx;
 }
 
-InputModality WindowHost::GetInputModality() const noexcept
+InputModality ControlHost::GetInputModality() const noexcept
 {
     return _inputModality;
 }
 
-bool WindowHost::IsKeyboardFocusVisible() const noexcept
+bool ControlHost::IsKeyboardFocusVisible() const noexcept
 {
     return _inputModality == InputModality::Keyboard;
 }
 
-ID2D1DeviceContext* WindowHost::GetDeviceContext() const noexcept
+ID2D1DeviceContext* ControlHost::GetDeviceContext() const noexcept
 {
     return _d2dContext.get();
 }
 
-IDWriteFactory* WindowHost::GetWriteFactory() const noexcept
+IDWriteFactory* ControlHost::GetWriteFactory() const noexcept
 {
     if (! _dwriteFactory)
     {
@@ -2047,7 +2063,7 @@ IDWriteFactory* WindowHost::GetWriteFactory() const noexcept
     return _dwriteFactory.get();
 }
 
-IDWriteTextFormat* WindowHost::GetTextFormat(FontRole role) const noexcept
+IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role) const noexcept
 {
     if ((! _dwriteFactory || ! _bodyTextFormat || ! _bodyStrongTextFormat || ! _bodyLargeTextFormat || ! _listItemTextFormat || ! _titleTextFormat ||
          ! _subtitleTextFormat || ! _titleLargeTextFormat || ! _displayTextFormat || ! _headerTextFormat || ! _smallTextFormat || ! _monoTextFormat ||
@@ -2078,11 +2094,11 @@ IDWriteTextFormat* WindowHost::GetTextFormat(FontRole role) const noexcept
     }
 }
 
-IDWriteTextFormat* WindowHost::GetTextFormat(FontRole role,
-                                             DWRITE_TEXT_ALIGNMENT alignment,
-                                             DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment,
-                                             bool wrap,
-                                             DWRITE_READING_DIRECTION readingDirection) const noexcept
+IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
+                                              DWRITE_TEXT_ALIGNMENT alignment,
+                                              DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment,
+                                              bool wrap,
+                                              DWRITE_READING_DIRECTION readingDirection) const noexcept
 {
     if (! _dwriteFactory)
     {
@@ -2114,7 +2130,7 @@ IDWriteTextFormat* WindowHost::GetTextFormat(FontRole role,
     const HRESULT hrCreate = Typography::CreateTextFormat(_dwriteFactory.get(), spec, format.addressof());
     if (FAILED(hrCreate) || ! format)
     {
-        Debug::Warning(L"DxUi::WindowHost: CreateTextFormat failed for configured font role {}: 0x{:08X}", static_cast<uint32_t>(role), hrCreate);
+        Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for configured font role {}: 0x{:08X}", static_cast<uint32_t>(role), hrCreate);
         return GetTextFormat(role);
     }
 
@@ -2124,7 +2140,7 @@ IDWriteTextFormat* WindowHost::GetTextFormat(FontRole role,
     const HRESULT hrReadingDirection = format->SetReadingDirection(readingDirection);
     if (FAILED(hrAlignment) || FAILED(hrParagraph) || FAILED(hrWrapping) || FAILED(hrReadingDirection))
     {
-        Debug::Warning(L"DxUi::WindowHost: failed to configure text format role {} alignment/paragraph/wrap/reading ({:08X}, {:08X}, {:08X}, {:08X})",
+        Debug::Warning(L"DxUi::ControlHost: failed to configure text format role {} alignment/paragraph/wrap/reading ({:08X}, {:08X}, {:08X}, {:08X})",
                        static_cast<uint32_t>(role),
                        hrAlignment,
                        hrParagraph,
@@ -2136,7 +2152,7 @@ IDWriteTextFormat* WindowHost::GetTextFormat(FontRole role,
     return _configuredTextFormats.emplace(key, std::move(format)).first->second.get();
 }
 
-bool WindowHost::HasFluentIconFont() const noexcept
+bool ControlHost::HasFluentIconFont() const noexcept
 {
     if (! _dwriteFactory || ! _fluentIconFontAvailabilityChecked)
     {
@@ -2149,9 +2165,9 @@ bool WindowHost::HasFluentIconFont() const noexcept
     return _fluentIconFontAvailable;
 }
 
-ID2D1SolidColorBrush* WindowHost::GetSolidBrush(const D2D1_COLOR_F& color) const
+ID2D1SolidColorBrush* ControlHost::GetSolidBrush(const D2D1_COLOR_F& color) const
 {
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     if (_debugForceNullSolidBrushes)
     {
         return nullptr;
@@ -2176,7 +2192,7 @@ ID2D1SolidColorBrush* WindowHost::GetSolidBrush(const D2D1_COLOR_F& color) const
         if (std::ranges::find(_brushFailureLogKeys, key) == _brushFailureLogKeys.end())
         {
             _brushFailureLogKeys.push_back(key);
-            Debug::Warning(L"DxUi::WindowHost: CreateSolidColorBrush failed for ARGB 0x{:08X}: 0x{:08X}", key, hr);
+            Debug::Warning(L"DxUi::ControlHost: CreateSolidColorBrush failed for ARGB 0x{:08X}: 0x{:08X}", key, hr);
         }
         if (! _fallbackBrush && _d2dContext)
         {
@@ -2193,23 +2209,23 @@ ID2D1SolidColorBrush* WindowHost::GetSolidBrush(const D2D1_COLOR_F& color) const
     return brush.get();
 }
 
-bool WindowHost::CopyTextToClipboard(std::wstring_view text) const noexcept
+bool ControlHost::CopyTextToClipboard(std::wstring_view text) const noexcept
 {
     return SetClipboardUnicodeText(_hwnd, text);
 }
 
-std::optional<std::wstring> WindowHost::ReadTextFromClipboard() const noexcept
+std::optional<std::wstring> ControlHost::ReadTextFromClipboard() const noexcept
 {
     return TryReadClipboardUnicodeText(_hwnd);
 }
 
-#if defined(ENABLE_TESTS)
-uint64_t WindowHost::DebugGetInvalidateCount() const noexcept
+#if DXUI_ENABLE_DIAGNOSTICS
+uint64_t ControlHost::DebugGetInvalidateCount() const noexcept
 {
     return _debugInvalidateCount;
 }
 
-UINT WindowHost::DebugGetModifierState() const noexcept
+UINT ControlHost::DebugGetModifierState() const noexcept
 {
     return _modifierState;
 }
@@ -2238,47 +2254,47 @@ bool DebugWriteClipboardUnicodeText(HWND ownerWindow, std::wstring_view text) no
     return SetClipboardUnicodeText(ownerWindow, text);
 }
 
-uint64_t WindowHost::DebugGetRenderCount() const noexcept
+uint64_t ControlHost::DebugGetRenderCount() const noexcept
 {
     return _debugRenderCount;
 }
 
-uint64_t WindowHost::DebugGetResizeCount() const noexcept
+uint64_t ControlHost::DebugGetResizeCount() const noexcept
 {
     return _debugResizeCount;
 }
 
-uint64_t WindowHost::DebugGetResizeFailureCount() const noexcept
+uint64_t ControlHost::DebugGetResizeFailureCount() const noexcept
 {
     return _debugResizeFailureCount;
 }
 
-uint64_t WindowHost::DebugGetSwapChainPrepareD2DFlushFailureCount() const noexcept
+uint64_t ControlHost::DebugGetSwapChainPrepareD2DFlushFailureCount() const noexcept
 {
     return _debugSwapChainPrepareD2DFlushFailureCount;
 }
 
-uint64_t WindowHost::DebugGetPresentFailureCount() const noexcept
+uint64_t ControlHost::DebugGetPresentFailureCount() const noexcept
 {
     return _debugPresentFailureCount;
 }
 
-bool WindowHost::DebugHasActiveAnimationSubscription() const noexcept
+bool ControlHost::DebugHasActiveAnimationSubscription() const noexcept
 {
     return _animationSubscriptionId != 0u;
 }
 
-bool WindowHost::DebugAnimationTickForTest(uint64_t nowTickMs) noexcept
+bool ControlHost::DebugAnimationTickForTest(uint64_t nowTickMs) noexcept
 {
     return OnAnimationTick(nowTickMs);
 }
 
-IRawElementProviderFragmentRoot* WindowHost::DebugCreateAccessibilityProvider() const noexcept
+IRawElementProviderFragmentRoot* ControlHost::DebugCreateAccessibilityProvider() const noexcept
 {
     return _hwnd ? CreateWindowHostAccessibilityProvider(_hwnd) : nullptr;
 }
 
-void WindowHost::DebugSimulateDeviceLoss() noexcept
+void ControlHost::DebugSimulateDeviceLoss() noexcept
 {
     DiscardSizeDependentResources(L"debug-simulate-device-loss");
     DiscardDeviceResources();
@@ -2287,42 +2303,42 @@ void WindowHost::DebugSimulateDeviceLoss() noexcept
     Invalidate();
 }
 
-size_t WindowHost::DebugGetBrushCacheSize() const noexcept
+size_t ControlHost::DebugGetBrushCacheSize() const noexcept
 {
     return _brushCache.size();
 }
 
-bool WindowHost::DebugHasFallbackBrush() const noexcept
+bool ControlHost::DebugHasFallbackBrush() const noexcept
 {
     return _fallbackBrush != nullptr;
 }
 
-bool WindowHost::DebugHasD2DContext() const noexcept
+bool ControlHost::DebugHasD2DContext() const noexcept
 {
     return _d2dContext != nullptr;
 }
 
-size_t WindowHost::DebugGetConfiguredTextFormatCount() const noexcept
+size_t ControlHost::DebugGetConfiguredTextFormatCount() const noexcept
 {
     return _configuredTextFormats.size();
 }
 
-void WindowHost::DebugSetForceNullSolidBrushes(const bool force) noexcept
+void ControlHost::DebugSetForceNullSolidBrushes(const bool force) noexcept
 {
     _debugForceNullSolidBrushes = force;
 }
 
-const Control* WindowHost::DebugHitTestControl(D2D1_POINT_2F pointDip) noexcept
+const Control* ControlHost::DebugHitTestControl(D2D1_POINT_2F pointDip) noexcept
 {
     return HitTestControl(pointDip);
 }
 
-WindowHostCursorKind WindowHost::DebugResolveCursorKindForPoint(D2D1_POINT_2F pointDip) noexcept
+WindowHostCursorKind ControlHost::DebugResolveCursorKindForPoint(D2D1_POINT_2F pointDip) noexcept
 {
     return ResolveCursorKindForPoint(pointDip);
 }
 
-bool WindowHost::DebugCaptureBitmap(WindowHostBitmapCapture& out) noexcept
+bool ControlHost::DebugCaptureBitmap(WindowHostBitmapCapture& out) noexcept
 {
     out = {};
     if (! _hwnd)
@@ -2335,7 +2351,7 @@ bool WindowHost::DebugCaptureBitmap(WindowHostBitmapCapture& out) noexcept
 }
 #endif
 
-void WindowHost::OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect) noexcept
+void ControlHost::OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect) noexcept
 {
     Debug::Perf::Scope perf(L"dxui.windowhost.dpi_change_us");
 
@@ -2377,7 +2393,7 @@ void WindowHost::OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect)
     Invalidate();
 }
 
-LRESULT WindowHost::HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bool& handled) noexcept
+LRESULT ControlHost::HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bool& handled) noexcept
 {
     handled = false;
     if (hwnd != _hwnd)
@@ -2493,7 +2509,7 @@ LRESULT WindowHost::HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, boo
             }
             return 0;
         case WM_SHOWWINDOW:
-            Debug::Warning(L"DxUi::WindowHost: WM_SHOWWINDOW hwnd=0x{:X}  show={}", reinterpret_cast<uintptr_t>(hwnd), static_cast<int>(wp));
+            Debug::Warning(L"DxUi::ControlHost: WM_SHOWWINDOW hwnd=0x{:X}  show={}", reinterpret_cast<uintptr_t>(hwnd), static_cast<int>(wp));
             // Do NOT discard the swap chain when the window is hidden.
             // WM_SETREDRAW FALSE on a parent sends WM_SHOWWINDOW FALSE
             // to children, but WM_SETREDRAW TRUE does NOT reliably send
@@ -3002,10 +3018,12 @@ LRESULT WindowHost::HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, boo
 }
 
 // DWrite text formats are device-independent and do NOT need to be recreated on DPI changes.
-// They are only cleared on Detach() when the WindowHost is fully torn down.
+// They are only cleared on Detach() when the ControlHost is fully torn down.
 // DPI scaling is handled by the D2D device context, not by recreating text formats.
-bool WindowHost::EnsureDeviceIndependentResources() const noexcept
+bool ControlHost::EnsureDeviceIndependentResources() const noexcept
 {
+    if (_embedded && ! _dwriteFactory)
+        return false;
     if (! _dwriteFactory)
     {
         if (! EnsureSharedWindowHostGraphicsResources())
@@ -3024,7 +3042,7 @@ bool WindowHost::EnsureDeviceIndependentResources() const noexcept
         const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyTextFormat.addressof());
         if (FAILED(hr) || ! _bodyTextFormat)
         {
-            Debug::Error(L"DxUi::WindowHost: CreateTextFormat failed for body text: 0x{:08X}", hr);
+            Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for body text: 0x{:08X}", hr);
             return false;
         }
     }
@@ -3034,7 +3052,7 @@ bool WindowHost::EnsureDeviceIndependentResources() const noexcept
         const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyStrongTextFormat.addressof());
         if (FAILED(hr) || ! _bodyStrongTextFormat)
         {
-            Debug::Error(L"DxUi::WindowHost: CreateTextFormat failed for body-strong text: 0x{:08X}", hr);
+            Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for body-strong text: 0x{:08X}", hr);
             return false;
         }
     }
@@ -3044,7 +3062,7 @@ bool WindowHost::EnsureDeviceIndependentResources() const noexcept
         const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyLargeTextFormat.addressof());
         if (FAILED(hr) || ! _bodyLargeTextFormat)
         {
-            Debug::Error(L"DxUi::WindowHost: CreateTextFormat failed for body-large text: 0x{:08X}", hr);
+            Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for body-large text: 0x{:08X}", hr);
             return false;
         }
     }
@@ -3054,7 +3072,7 @@ bool WindowHost::EnsureDeviceIndependentResources() const noexcept
         const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _listItemTextFormat.addressof());
         if (FAILED(hr) || ! _listItemTextFormat)
         {
-            Debug::Error(L"DxUi::WindowHost: CreateTextFormat failed for list-item text: 0x{:08X}", hr);
+            Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for list-item text: 0x{:08X}", hr);
             return false;
         }
     }
@@ -3064,7 +3082,7 @@ bool WindowHost::EnsureDeviceIndependentResources() const noexcept
         const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _titleTextFormat.addressof());
         if (FAILED(hr) || ! _titleTextFormat)
         {
-            Debug::Error(L"DxUi::WindowHost: CreateTextFormat failed for title text: 0x{:08X}", hr);
+            Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for title text: 0x{:08X}", hr);
             return false;
         }
     }
@@ -3074,7 +3092,7 @@ bool WindowHost::EnsureDeviceIndependentResources() const noexcept
         const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _subtitleTextFormat.addressof());
         if (FAILED(hr) || ! _subtitleTextFormat)
         {
-            Debug::Error(L"DxUi::WindowHost: CreateTextFormat failed for subtitle text: 0x{:08X}", hr);
+            Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for subtitle text: 0x{:08X}", hr);
             return false;
         }
     }
@@ -3084,7 +3102,7 @@ bool WindowHost::EnsureDeviceIndependentResources() const noexcept
         const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _titleLargeTextFormat.addressof());
         if (FAILED(hr) || ! _titleLargeTextFormat)
         {
-            Debug::Error(L"DxUi::WindowHost: CreateTextFormat failed for title-large text: 0x{:08X}", hr);
+            Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for title-large text: 0x{:08X}", hr);
             return false;
         }
     }
@@ -3094,7 +3112,7 @@ bool WindowHost::EnsureDeviceIndependentResources() const noexcept
         const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _displayTextFormat.addressof());
         if (FAILED(hr) || ! _displayTextFormat)
         {
-            Debug::Error(L"DxUi::WindowHost: CreateTextFormat failed for display text: 0x{:08X}", hr);
+            Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for display text: 0x{:08X}", hr);
             return false;
         }
     }
@@ -3104,7 +3122,7 @@ bool WindowHost::EnsureDeviceIndependentResources() const noexcept
         const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _headerTextFormat.addressof());
         if (FAILED(hr) || ! _headerTextFormat)
         {
-            Debug::Error(L"DxUi::WindowHost: CreateTextFormat failed for header text: 0x{:08X}", hr);
+            Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for header text: 0x{:08X}", hr);
             return false;
         }
     }
@@ -3114,7 +3132,7 @@ bool WindowHost::EnsureDeviceIndependentResources() const noexcept
         const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _smallTextFormat.addressof());
         if (FAILED(hr) || ! _smallTextFormat)
         {
-            Debug::Error(L"DxUi::WindowHost: CreateTextFormat failed for small text: 0x{:08X}", hr);
+            Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for small text: 0x{:08X}", hr);
             return false;
         }
     }
@@ -3129,7 +3147,7 @@ bool WindowHost::EnsureDeviceIndependentResources() const noexcept
         const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _iconTextFormat.addressof());
         if (FAILED(hr) || ! _iconTextFormat)
         {
-            Debug::Warning(L"DxUi::WindowHost: CreateTextFormat failed for fluent icon text: 0x{:08X}", hr);
+            Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for fluent icon text: 0x{:08X}", hr);
             _fluentIconFontAvailable = false;
             _iconTextFormat.reset();
         }
@@ -3140,7 +3158,7 @@ bool WindowHost::EnsureDeviceIndependentResources() const noexcept
         const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _heroIconTextFormat.addressof());
         if (FAILED(hr) || ! _heroIconTextFormat)
         {
-            Debug::Warning(L"DxUi::WindowHost: CreateTextFormat failed for fluent hero icon text: 0x{:08X}", hr);
+            Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for fluent hero icon text: 0x{:08X}", hr);
             _heroIconTextFormat.reset();
         }
     }
@@ -3150,15 +3168,17 @@ bool WindowHost::EnsureDeviceIndependentResources() const noexcept
         const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _monoTextFormat.addressof());
         if (FAILED(hr) || ! _monoTextFormat)
         {
-            Debug::Error(L"DxUi::WindowHost: CreateTextFormat failed for monospace text: 0x{:08X}", hr);
+            Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for monospace text: 0x{:08X}", hr);
             return false;
         }
     }
     return true;
 }
 
-bool WindowHost::EnsureDeviceResources() noexcept
+bool ControlHost::EnsureDeviceResources() noexcept
 {
+    if (_embedded)
+        return _d3dDevice && _d2dContext && _d2dFactory;
     SharedWindowHostGraphicsResources& shared = GetSharedWindowHostGraphicsResources();
     if (_sharedGraphicsGeneration != 0u && _sharedGraphicsGeneration != shared.generation)
     {
@@ -3209,7 +3229,7 @@ bool WindowHost::EnsureDeviceResources() noexcept
     const HRESULT hrContext = _d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, _d2dContext.addressof());
     if (FAILED(hrContext) || ! _d2dContext)
     {
-        Debug::Error(L"DxUi::WindowHost: ID2D1Device::CreateDeviceContext failed: 0x{:08X}", hrContext);
+        Debug::Error(L"DxUi::ControlHost: ID2D1Device::CreateDeviceContext failed: 0x{:08X}", hrContext);
         _d2dDevice.reset();
         _d2dFactory.reset();
         _d3dContext.reset();
@@ -3224,7 +3244,7 @@ bool WindowHost::EnsureDeviceResources() noexcept
     return true;
 }
 
-bool WindowHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
+bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
 {
     if (! _hwnd || _widthPx == 0u || _heightPx == 0u)
     {
@@ -3273,7 +3293,7 @@ bool WindowHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
             {
                 if (! _dcompDevice)
                 {
-                    Debug::Error(L"DxUi::WindowHost: composition swap chain created without DirectComposition device.");
+                    Debug::Error(L"DxUi::ControlHost: composition swap chain created without DirectComposition device.");
                     _swapChain.reset();
                     return false;
                 }
@@ -3283,7 +3303,7 @@ bool WindowHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
                     const HRESULT hrTarget = _dcompDevice->CreateTargetForHwnd(_hwnd, TRUE, _dcompTarget.addressof());
                     if (FAILED(hrTarget) || ! _dcompTarget)
                     {
-                        Debug::Error(L"DxUi::WindowHost: IDCompositionDesktopDevice::CreateTargetForHwnd failed: 0x{:08X}", hrTarget);
+                        Debug::Error(L"DxUi::ControlHost: IDCompositionDesktopDevice::CreateTargetForHwnd failed: 0x{:08X}", hrTarget);
                         _swapChain.reset();
                         return false;
                     }
@@ -3294,7 +3314,7 @@ bool WindowHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
                     const HRESULT hrVisual = _dcompDevice->CreateVisual(_dcompVisual.addressof());
                     if (FAILED(hrVisual) || ! _dcompVisual)
                     {
-                        Debug::Error(L"DxUi::WindowHost: IDCompositionDesktopDevice::CreateVisual failed: 0x{:08X}", hrVisual);
+                        Debug::Error(L"DxUi::ControlHost: IDCompositionDesktopDevice::CreateVisual failed: 0x{:08X}", hrVisual);
                         _swapChain.reset();
                         return false;
                     }
@@ -3305,7 +3325,7 @@ bool WindowHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
                 const HRESULT hrCommit     = SUCCEEDED(hrSetRoot) ? _dcompDevice->Commit() : E_FAIL;
                 if (FAILED(hrSetContent) || FAILED(hrSetRoot) || FAILED(hrCommit))
                 {
-                    Debug::Error(L"DxUi::WindowHost: DirectComposition visual setup failed ({:08X}, {:08X}, {:08X})", hrSetContent, hrSetRoot, hrCommit);
+                    Debug::Error(L"DxUi::ControlHost: DirectComposition visual setup failed ({:08X}, {:08X}, {:08X})", hrSetContent, hrSetRoot, hrCommit);
                     _dcompVisual.reset();
                     _dcompTarget.reset();
                     _swapChain.reset();
@@ -3319,7 +3339,7 @@ bool WindowHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
         }
         if (FAILED(hrSwapChain) || ! _swapChain)
         {
-            Debug::Error(L"DxUi::WindowHost: {} failed: 0x{:08X}",
+            Debug::Error(L"DxUi::ControlHost: {} failed: 0x{:08X}",
                          _presentationMode == PresentationMode::CompositionSwapChain ? L"CreateSwapChainForComposition" : L"CreateSwapChainForHwnd",
                          hrSwapChain);
             return false;
@@ -3343,7 +3363,7 @@ bool WindowHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
         const HRESULT hrBuffer = _swapChain->GetBuffer(0u, IID_PPV_ARGS(surface.addressof()));
         if (FAILED(hrBuffer) || ! surface)
         {
-            Debug::Error(L"DxUi::WindowHost: IDXGISwapChain1::GetBuffer failed: 0x{:08X}", hrBuffer);
+            Debug::Error(L"DxUi::ControlHost: IDXGISwapChain1::GetBuffer failed: 0x{:08X}", hrBuffer);
             return false;
         }
         const D2D1_BITMAP_PROPERTIES1 props = D2D1::BitmapProperties1(
@@ -3355,7 +3375,7 @@ bool WindowHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
         const HRESULT hrBitmap = _d2dContext->CreateBitmapFromDxgiSurface(surface.get(), &props, _targetBitmap.addressof());
         if (FAILED(hrBitmap) || ! _targetBitmap)
         {
-            Debug::Error(L"DxUi::WindowHost: CreateBitmapFromDxgiSurface failed: 0x{:08X}", hrBitmap);
+            Debug::Error(L"DxUi::ControlHost: CreateBitmapFromDxgiSurface failed: 0x{:08X}", hrBitmap);
             return false;
         }
         _d2dContext->SetTarget(_targetBitmap.get());
@@ -3365,7 +3385,7 @@ bool WindowHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
 
     if (sizeChanged)
     {
-        Debug::Warning(L"DxUi::WindowHost: ResizeBuffers hwnd=0x{:X}  {}x{} -> {}x{}",
+        Debug::Warning(L"DxUi::ControlHost: ResizeBuffers hwnd=0x{:X}  {}x{} -> {}x{}",
                        reinterpret_cast<uintptr_t>(_hwnd),
                        _swapChainWidthPx,
                        _swapChainHeightPx,
@@ -3375,17 +3395,17 @@ bool WindowHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
         const HRESULT hrResize = _swapChain->ResizeBuffers(0u, desiredWidthPx, desiredHeightPx, DXGI_FORMAT_UNKNOWN, 0u);
         if (FAILED(hrResize))
         {
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
             ++_debugResizeFailureCount;
 #endif
-            Debug::Warning(L"DxUi::WindowHost: ResizeBuffers failed; deferring swap-chain recreation to a later visible render: 0x{:08X}", hrResize);
+            Debug::Warning(L"DxUi::ControlHost: ResizeBuffers failed; deferring swap-chain recreation to a later visible render: 0x{:08X}", hrResize);
             DiscardSizeDependentResources(L"resize-buffers-failed");
             return false;
         }
 
         _swapChainWidthPx  = desiredWidthPx;
         _swapChainHeightPx = desiredHeightPx;
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
         ++_debugResizeCount;
 #endif
     }
@@ -3393,7 +3413,7 @@ bool WindowHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
     return createTargetBitmap();
 }
 
-void WindowHost::PrepareForSwapChainResize() noexcept
+void ControlHost::PrepareForSwapChainResize() noexcept
 {
     if (_d2dContext && _targetBitmap)
     {
@@ -3411,9 +3431,9 @@ void WindowHost::PrepareForSwapChainResize() noexcept
     }
 }
 
-void WindowHost::DiscardSizeDependentResources(const std::wstring_view reason) noexcept
+void ControlHost::DiscardSizeDependentResources(const std::wstring_view reason) noexcept
 {
-    Debug::Warning(L"DxUi::WindowHost: DiscardSizeDependentResources hwnd=0x{:X} reason={} size={}x{} swap={}x{} visible={} focused={} hovered={} captured={} "
+    Debug::Warning(L"DxUi::ControlHost: DiscardSizeDependentResources hwnd=0x{:X} reason={} size={}x{} swap={}x{} visible={} focused={} hovered={} captured={} "
                    L"textInput={}",
                    reinterpret_cast<uintptr_t>(_hwnd),
                    reason.empty() ? L"(unspecified)" : reason,
@@ -3432,7 +3452,7 @@ void WindowHost::DiscardSizeDependentResources(const std::wstring_view reason) n
     _swapChainHeightPx = 0u;
 }
 
-void WindowHost::DiscardDeviceResources() noexcept
+void ControlHost::DiscardDeviceResources() noexcept
 {
     if (_d2dContext || _targetBitmap || _swapChain || _d3dContext)
     {
@@ -3456,7 +3476,7 @@ void WindowHost::DiscardDeviceResources() noexcept
     _sharedGraphicsGeneration = 0u;
 }
 
-void WindowHost::RecreateBrushCache() const
+void ControlHost::RecreateBrushCache() const
 {
     _brushCache.clear();
     _brushFailureLogKeys.clear();
@@ -3469,13 +3489,13 @@ void WindowHost::RecreateBrushCache() const
     const HRESULT hr = _d2dContext->CreateSolidColorBrush(D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f), _fallbackBrush.addressof());
     if (FAILED(hr) || ! _fallbackBrush)
     {
-        Debug::Warning(L"DxUi::WindowHost: failed to create fallback solid brush: 0x{:08X}", hr);
+        Debug::Warning(L"DxUi::ControlHost: failed to create fallback solid brush: 0x{:08X}", hr);
     }
 }
 
-void WindowHost::Render(const RECT* dirtyRectPx, bool allowHidden) noexcept
+void ControlHost::Render(const RECT* dirtyRectPx, bool allowHidden) noexcept
 {
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     Render(dirtyRectPx, nullptr, allowHidden);
 #else
     FrameClock frameClock;
@@ -3615,20 +3635,20 @@ void WindowHost::Render(const RECT* dirtyRectPx, bool allowHidden) noexcept
     EmitPendingNativeTextInputPaintMetric(renderHr);
     if (FAILED(hrDraw))
     {
-        Debug::Error(L"DxUi::WindowHost: EndDraw failed: 0x{:08X}", hrDraw);
+        Debug::Error(L"DxUi::ControlHost: EndDraw failed: 0x{:08X}", hrDraw);
     }
     if (FAILED(hrPresent))
     {
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
         ++_debugPresentFailureCount;
 #endif
-        Debug::Error(L"DxUi::WindowHost: Present failed: 0x{:08X}", hrPresent);
+        Debug::Error(L"DxUi::ControlHost: Present failed: 0x{:08X}", hrPresent);
     }
 #endif
 }
 
-#if defined(ENABLE_TESTS)
-bool WindowHost::CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcept
+#if DXUI_ENABLE_DIAGNOSTICS
+bool ControlHost::CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcept
 {
     if (! _swapChain || ! _d3dDevice || ! _d3dContext)
     {
@@ -3676,7 +3696,7 @@ bool WindowHost::CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcept
     return true;
 }
 
-void WindowHost::Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture, bool allowHidden) noexcept
+void ControlHost::Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture, bool allowHidden) noexcept
 {
     FrameClock frameClock;
     FrameStage frameStage       = FrameStage::Idle;
@@ -3705,7 +3725,7 @@ void WindowHost::Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* captur
         updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now());
     }
 
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
     ++_debugRenderCount;
 #endif
 
@@ -3834,23 +3854,23 @@ void WindowHost::Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* captur
     EmitPendingNativeTextInputPaintMetric(renderHr);
     if (FAILED(hrDraw))
     {
-        Debug::Error(L"DxUi::WindowHost: EndDraw failed: 0x{:08X}", hrDraw);
+        Debug::Error(L"DxUi::ControlHost: EndDraw failed: 0x{:08X}", hrDraw);
     }
     if (FAILED(hrCapture))
     {
-        Debug::Error(L"DxUi::WindowHost: Debug capture failed.");
+        Debug::Error(L"DxUi::ControlHost: Debug capture failed.");
     }
     if (FAILED(hrPresent))
     {
-#if defined(ENABLE_TESTS)
+#if DXUI_ENABLE_DIAGNOSTICS
         ++_debugPresentFailureCount;
 #endif
-        Debug::Error(L"DxUi::WindowHost: Present failed: 0x{:08X}", hrPresent);
+        Debug::Error(L"DxUi::ControlHost: Present failed: 0x{:08X}", hrPresent);
     }
 }
 #endif
 
-void WindowHost::OnSize(UINT widthPx, UINT heightPx) noexcept
+void ControlHost::OnSize(UINT widthPx, UINT heightPx) noexcept
 {
     _widthPx  = widthPx;
     _heightPx = heightPx;
@@ -3863,7 +3883,7 @@ void WindowHost::OnSize(UINT widthPx, UINT heightPx) noexcept
     {
         if (IsInteractionDiagnosticsEnabled(_hwnd))
         {
-            Debug::Info(L"DxUi::WindowHost: on-size-zero hwnd={:#x} size={}x{} focus={} textInput={} visible={}",
+            Debug::Info(L"DxUi::ControlHost: on-size-zero hwnd={:#x} size={}x{} focus={} textInput={} visible={}",
                         reinterpret_cast<uintptr_t>(_hwnd),
                         _widthPx,
                         _heightPx,
@@ -3879,12 +3899,12 @@ void WindowHost::OnSize(UINT widthPx, UINT heightPx) noexcept
     }
 }
 
-void WindowHost::OnSetFocus() noexcept
+void ControlHost::OnSetFocus() noexcept
 {
     PruneStaleInteractionState();
     if (IsInteractionDiagnosticsEnabled(_hwnd))
     {
-        Debug::Info(L"DxUi::WindowHost: on-set-focus hwnd={:#x} focus={} hovered={} captured={} textInput={}",
+        Debug::Info(L"DxUi::ControlHost: on-set-focus hwnd={:#x} focus={} hovered={} captured={} textInput={}",
                     reinterpret_cast<uintptr_t>(_hwnd),
                     static_cast<const void*>(_focusedControl),
                     static_cast<const void*>(_hoveredControl),
@@ -3916,7 +3936,7 @@ void WindowHost::OnSetFocus() noexcept
     }
 }
 
-void WindowHost::OnKillFocus(bool clearRetainedFocus) noexcept
+void ControlHost::OnKillFocus(bool clearRetainedFocus) noexcept
 {
     DeactivateTextInput(false);
     PruneStaleInteractionState();
@@ -3940,7 +3960,7 @@ void WindowHost::OnKillFocus(bool clearRetainedFocus) noexcept
     }
     if (IsInteractionDiagnosticsEnabled(_hwnd))
     {
-        Debug::Info(L"DxUi::WindowHost: on-kill-focus hwnd={:#x} focus={} hovered={} captured={} textInput={}",
+        Debug::Info(L"DxUi::ControlHost: on-kill-focus hwnd={:#x} focus={} hovered={} captured={} textInput={}",
                     reinterpret_cast<uintptr_t>(_hwnd),
                     static_cast<const void*>(_focusedControl),
                     static_cast<const void*>(_hoveredControl),
@@ -3950,7 +3970,7 @@ void WindowHost::OnKillFocus(bool clearRetainedFocus) noexcept
     Invalidate();
 }
 
-void WindowHost::PruneStaleInteractionState() noexcept
+void ControlHost::PruneStaleInteractionState() noexcept
 {
     const auto classifyInteractionState = [this](const Control* control) noexcept
     {
@@ -4019,7 +4039,7 @@ void WindowHost::PruneStaleInteractionState() noexcept
 
     if ((prunedCapture || prunedHover || prunedFocus || prunedNativeTextInput) && IsInteractionDiagnosticsEnabled(_hwnd))
     {
-        Debug::Info(L"DxUi::WindowHost: prune hwnd={:#x} capture={} hover={} focus={} nativeTextInput={} remainingFocus={} remainingHover={} "
+        Debug::Info(L"DxUi::ControlHost: prune hwnd={:#x} capture={} hover={} focus={} nativeTextInput={} remainingFocus={} remainingHover={} "
                     L"remainingCapture={} activeTextInput={}",
                     reinterpret_cast<uintptr_t>(_hwnd),
                     prunedCapture ? L"true" : L"false",
@@ -4033,7 +4053,7 @@ void WindowHost::PruneStaleInteractionState() noexcept
     }
 }
 
-void WindowHost::ResetRootInteractionState() noexcept
+void ControlHost::ResetRootInteractionState() noexcept
 {
     ClearPendingPointerDoubleClick();
     if (_capturedControl && ControlBelongsToTree(_root.get(), _capturedControl))
@@ -4080,7 +4100,7 @@ void WindowHost::ResetRootInteractionState() noexcept
     ClearTooltip();
 }
 
-Control* WindowHost::HitTestControl(D2D1_POINT_2F pointDip) noexcept
+Control* ControlHost::HitTestControl(D2D1_POINT_2F pointDip) noexcept
 {
     if (! _root)
     {
@@ -4095,7 +4115,7 @@ Control* WindowHost::HitTestControl(D2D1_POINT_2F pointDip) noexcept
     return _root->HitTest(pointDip);
 }
 
-WindowHostCursorKind WindowHost::ResolveCursorKindForPoint(D2D1_POINT_2F pointDip) noexcept
+WindowHostCursorKind ControlHost::ResolveCursorKindForPoint(D2D1_POINT_2F pointDip) noexcept
 {
     Control* target = _capturedControl;
     if (! target)
@@ -4105,7 +4125,7 @@ WindowHostCursorKind WindowHost::ResolveCursorKindForPoint(D2D1_POINT_2F pointDi
     return target ? target->ResolveCursorKind(*this, pointDip) : WindowHostCursorKind::Default;
 }
 
-HCURSOR WindowHost::ResolveCursorHandle(WindowHostCursorKind cursorKind) const noexcept
+HCURSOR ControlHost::ResolveCursorHandle(WindowHostCursorKind cursorKind) const noexcept
 {
     static const HCURSOR arrowCursor      = LoadCursorW(nullptr, IDC_ARROW);
     static const HCURSOR horizontalCursor = LoadCursorW(nullptr, IDC_SIZEWE);
@@ -4120,7 +4140,7 @@ HCURSOR WindowHost::ResolveCursorHandle(WindowHostCursorKind cursorKind) const n
     }
 }
 
-void WindowHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
+void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
 {
     PruneStaleInteractionState();
     Control* target = _capturedControl;
@@ -4166,7 +4186,7 @@ void WindowHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
     }
 }
 
-void WindowHost::UpdateSupplementalTooltipTarget(D2D1_POINT_2F pointDip) noexcept
+void ControlHost::UpdateSupplementalTooltipTarget(D2D1_POINT_2F pointDip) noexcept
 {
     Control* const target            = FindSupplementalTooltipTarget(_root.get(), pointDip);
     const std::wstring targetText    = target ? std::wstring(target->GetTooltipText()) : std::wstring{};
@@ -4187,7 +4207,7 @@ void WindowHost::UpdateSupplementalTooltipTarget(D2D1_POINT_2F pointDip) noexcep
     }
 }
 
-void WindowHost::ValidateSupplementalTooltipTarget() noexcept
+void ControlHost::ValidateSupplementalTooltipTarget() noexcept
 {
     if (! _supplementalTooltipControl)
     {
@@ -4201,7 +4221,7 @@ void WindowHost::ValidateSupplementalTooltipTarget() noexcept
     }
 }
 
-void WindowHost::SetInputModality(InputModality modality) noexcept
+void ControlHost::SetInputModality(InputModality modality) noexcept
 {
     if (_inputModality == modality)
     {
@@ -4215,7 +4235,7 @@ void WindowHost::SetInputModality(InputModality modality) noexcept
     }
 }
 
-void WindowHost::UpdateModifierStateForKey(UINT virtualKey, bool keyDown, bool /*systemKey*/) noexcept
+void ControlHost::UpdateModifierStateForKey(UINT virtualKey, bool keyDown, bool /*systemKey*/) noexcept
 {
     UINT bit = 0u;
     switch (virtualKey)
@@ -4242,23 +4262,23 @@ void WindowHost::UpdateModifierStateForKey(UINT virtualKey, bool keyDown, bool /
     }
 }
 
-D2D1_POINT_2F WindowHost::PointFromLParam(LPARAM lp) const noexcept
+D2D1_POINT_2F ControlHost::PointFromLParam(LPARAM lp) const noexcept
 {
     return D2D1::Point2F(PixelsToDip(static_cast<float>(GET_X_LPARAM(lp))), PixelsToDip(static_cast<float>(GET_Y_LPARAM(lp))));
 }
 
-UINT WindowHost::GetModifierState() const noexcept
+UINT ControlHost::GetModifierState() const noexcept
 {
     return _modifierState;
 }
 
-bool WindowHost::AnimationTickThunk(void* context, uint64_t nowTickMs) noexcept
+bool ControlHost::AnimationTickThunk(void* context, uint64_t nowTickMs) noexcept
 {
-    auto* self = static_cast<WindowHost*>(context);
+    auto* self = static_cast<ControlHost*>(context);
     return (self && IsAttachedWindowHostRegistered(self)) ? self->OnAnimationTick(nowTickMs) : false;
 }
 
-bool WindowHost::OnAnimationTick(uint64_t nowTickMs) noexcept
+bool ControlHost::OnAnimationTick(uint64_t nowTickMs) noexcept
 {
     _lastAnimationTickMs = nowTickMs;
     if (_hwnd && ! IsHostWindowEffectivelyVisible(_hwnd))

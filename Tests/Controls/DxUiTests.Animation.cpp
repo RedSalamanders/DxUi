@@ -1,6 +1,7 @@
+#include "../../src/Support/AnimationDispatcher.h"
+#include "../Support/PerformanceCapture.h"
 #include "DxUi/FrameRuntime.h"
 #include "DxUiTestHelpers.h"
-#include "Ui/AnimationDispatcher.h"
 
 #include <fstream>
 #include <limits>
@@ -11,14 +12,14 @@ namespace
 {
 [[nodiscard]] std::filesystem::path GetAnimationPerfJsonlPathFromEnvironment()
 {
-    const DWORD required = GetEnvironmentVariableW(L"REDSALAMANDER_PERF_JSONL_PATH", nullptr, 0u);
+    const DWORD required = GetEnvironmentVariableW(L"DXUI_PERF_JSONL_PATH", nullptr, 0u);
     if (required == 0u)
     {
         return {};
     }
 
     std::wstring value(required, L'\0');
-    const DWORD copied = GetEnvironmentVariableW(L"REDSALAMANDER_PERF_JSONL_PATH", value.data(), required);
+    const DWORD copied = GetEnvironmentVariableW(L"DXUI_PERF_JSONL_PATH", value.data(), required);
     if (copied == 0u)
     {
         return {};
@@ -78,7 +79,7 @@ public:
         _path = GetDxUiTestArtifactPath(L"dxui_animation_scheduler_testlocal.jsonl");
         std::error_code ec;
         std::filesystem::remove(_path, ec);
-        Debug::Perf::ConfigureJsonlOutput(_path, L"DxUiTests", L"Debug");
+        TestPerformanceCapture::Start(_path, L"DxUiTests", L"Debug");
         _ownsConfiguration = true;
     }
 
@@ -86,7 +87,7 @@ public:
     {
         if (_ownsConfiguration)
         {
-            Debug::Perf::ClearJsonlOutput();
+            TestPerformanceCapture::Stop();
         }
     }
 
@@ -167,7 +168,7 @@ void TestFrameRuntimeClampsLargeDelta()
 
 void TestAnimationDispatcherSchedulerPolicyUses120HzTargetAndClampsHitches()
 {
-    using RedSalamander::Ui::AnimationDispatcher;
+    using DxUi::Ui::AnimationDispatcher;
 
     AnimationDispatcher::GetInstance().Shutdown();
     auto& dispatcher = AnimationDispatcher::GetInstance();
@@ -182,7 +183,7 @@ void TestAnimationDispatcherSchedulerPolicyUses120HzTargetAndClampsHitches()
 
 void TestAnimationDispatcherActiveSubscribersReceiveMonotonicHighResolutionTicks()
 {
-    using RedSalamander::Ui::AnimationDispatcher;
+    using DxUi::Ui::AnimationDispatcher;
 
     AnimationDispatcher::GetInstance().Shutdown();
     ScopedAnimationPerfJsonl perfJsonl;
@@ -212,7 +213,7 @@ void TestAnimationDispatcherActiveSubscribersReceiveMonotonicHighResolutionTicks
 
 void TestAnimationDispatcherInactiveSubscriberStopsContinuousTicks()
 {
-    using RedSalamander::Ui::AnimationDispatcher;
+    using DxUi::Ui::AnimationDispatcher;
 
     AnimationDispatcher::GetInstance().Shutdown();
 
@@ -1042,7 +1043,7 @@ void TestPageHostConnectedOverlayAnimationEmitsCompositionGateMetrics()
 {
     using namespace DxUi;
 
-    RedSalamander::Ui::AnimationDispatcher::GetInstance().Shutdown();
+    DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
 
     ScopedAnimationPerfJsonl perfJsonl;
     Require(! perfJsonl.Path().empty(), "connected overlay animation gate has a perf JSONL sink");
@@ -1110,7 +1111,7 @@ void TestPageHostConnectedOverlayAnimationEmitsCompositionGateMetrics()
     Require(CountAnimationMetricRows(appendedMetrics, "\"metric\":\"dxui.animation.jitter_us\"") >= 2u,
             "connected overlay animation gate records multiple animation jitter samples");
 
-    RedSalamander::Ui::AnimationDispatcher::GetInstance().Shutdown();
+    DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
 }
 
 void TestPageHostReducedMotionSnapsTransition()

@@ -15,11 +15,12 @@ The repository is private and its default branch is `main`. Use focused feature 
 - Source ownership and build readiness are separate: pending dependencies are enumerated per file in
   `provenance/pending-dependencies.json`. Remove them as controls are decoupled; do not freeze the source or
   silently compile unresolved application dependencies into supported targets.
-- Consumers link pinned static targets. They must not enumerate this repository's `.cpp` files or pass DxUi C++
+- Consumers link the single pinned DxUi.lib target. They must not enumerate this repository's `.cpp` files or pass DxUi C++
   ownership through a plugin ABI. No consumer project is changed implicitly by a library edit.
 - Embedded hosting borrows the application's device/context and uses its scheduling. It owns no swap chain,
   renderer HWND, worker or periodic timer. Preparation and composition are separate contracts.
-- The current foundation target is not proof that controls, Win32 services or embedded hosting have been ported.
+- Validate the control and embedded suites for UI changes; Foundation alone cannot establish their correctness.
+- New controls require a catalog/factory entry, meaningful interaction tests and a populated gallery tile.
 
 ## Engineering
 

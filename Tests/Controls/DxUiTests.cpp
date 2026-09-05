@@ -1,7 +1,7 @@
-#define REDSAL_DEFINE_TRACE_PROVIDER
+#include "../../src/Support/AnimationDispatcher.h"
 #include "DxUiTestHelpers.h"
-#include "Ui/AnimationDispatcher.h"
 
+#include "../Support/PerformanceCapture.h"
 #include <optional>
 #include <string>
 #include <string_view>
@@ -123,9 +123,9 @@ int wmain(int argc, wchar_t** argv)
 #else
         constexpr std::wstring_view kBuildFlavor = L"Debug";
 #endif
-        Debug::Perf::ConfigureJsonlOutput(perfJsonlPath.value(), L"DxUiTests", kBuildFlavor);
+        TestPerformanceCapture::Start(perfJsonlPath.value(), L"DxUiTests", kBuildFlavor);
     }
-    const auto perfCleanup = wil::scope_exit([&] { Debug::Perf::ClearJsonlOutput(); });
+    const auto perfCleanup = wil::scope_exit([&] { TestPerformanceCapture::Stop(); });
 
     const auto shouldRunSuite = [&](const char* name) -> bool
     {
@@ -152,7 +152,7 @@ int wmain(int argc, wchar_t** argv)
         return 2;
     }
 
-    RedSalamander::TestSupport::ScopedWindowActivationBlocker activationBlocker;
+    DxUi::TestSupport::ScopedWindowActivationBlocker activationBlocker;
     if (blockActivation && ! activationBlocker.Start())
     {
         std::wcerr << L"Failed to install the DxUi no-activation guard.\n";
@@ -164,7 +164,7 @@ int wmain(int argc, wchar_t** argv)
         SetDxUiTestWindowsCanActivate(suiteCanActivate(name));
         std::cerr << "[START] " << name << '\n' << std::flush;
         fn();
-        RedSalamander::Ui::AnimationDispatcher::GetInstance().Shutdown();
+        DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
         std::cerr << "[DONE] " << name << '\n' << std::flush;
     };
 
@@ -181,7 +181,7 @@ int wmain(int argc, wchar_t** argv)
         {
             RunGalleryGenerator(outputPath);
         }
-        RedSalamander::Ui::AnimationDispatcher::GetInstance().Shutdown();
+        DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
         std::cerr << "[DONE] Gallery\n" << std::flush;
         ranAnySuite = true;
     }
@@ -190,7 +190,7 @@ int wmain(int argc, wchar_t** argv)
         const std::filesystem::path outputPath = buttonAuditOutputPath.value_or(GetDxUiTestArtifactPath(L"DxUiButtonContrast.png"));
         std::cerr << "[START] ButtonContrast\n" << std::flush;
         RunButtonContrastAuditGenerator(outputPath);
-        RedSalamander::Ui::AnimationDispatcher::GetInstance().Shutdown();
+        DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
         std::cerr << "[DONE] ButtonContrast\n" << std::flush;
         ranAnySuite = true;
     }

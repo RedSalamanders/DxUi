@@ -18,3 +18,17 @@ Consumers own density tiers and responsive policy; DxUi contains no AV profile o
 The bootstrap only supports frame timing/stage and motion policy. DxUI owns the controls in `src/Controls` and
 their tests in `Tests/Controls`. Application-dependency removal and standalone control tests remain D1/D2 work.
 Source is edited in place here; historical origin records do not freeze it.
+
+### Public catalog and gallery
+
+The public API exposes Panel, PageHost, CardPanel, Label, Button, Toggle, Checkbox, RadioButton, RadioButtons,
+ProgressBar, ThroughputGraph, Slider, Toolbar, MenuBar, TabControl, ColorSwatch, TextField, ComboBox, TagPicker,
+StatusStrip, PopupLayer, StackPanel, ScrollPanel, TooltipLayer, Tree and Grid. GetControlCatalog returns immutable
+descriptors; CreateControl constructs the selected kind and returns E_INVALIDARG for unknown kinds, leaving the
+existing result intact on failure. Controls with models are configured by the caller; the factory does not invent
+application data. Constructors and examples are ordinary code, with no source-code generator or second control copy.
+
+Adding a control requires an aligned public declaration/implementation, catalog entry/factory case, meaningful
+behavior tests and a populated gallery tile. `gallery.ps1` generates light, dark, rainbow light/dark and high-contrast
+PNG sheets with interactive-state variants, plus a supplied-device toggle/slider image. Gallery rendering supplements
+runtime tests; empty-control construction alone does not prove selection, keyboard, editing or accessibility behavior.

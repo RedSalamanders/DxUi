@@ -72,7 +72,7 @@
       "source": "Common/DxUI/DxUi.h",
       "originalSha256": "7c7f64a074b99195cf18c3dec2e5e2aa6feeab621ed477ab74144689a426415c",
       "originalBytes": 191369,
-      "currentPath": "src/Controls/DxUi.h",
+      "currentPath": "include/DxUi/DxUi.h",
       "disposition": "owned"
     },
     {
@@ -396,6 +396,20 @@
       "disposition": "owned",
       "originalSha256": "768439d2a9832aee4d04ebc0fd4c8f5e16cc5e2bc5a7c0705913e1e8646e2b20",
       "originalBytes": 3697
+    },
+    {
+      "source": "RedSalamander/Ui/AnimationDispatcher.h",
+      "currentPath": "src/Support/AnimationDispatcher.h",
+      "disposition": "owned",
+      "originalSha256": "a838eb76269882df522dc80197844e0e78467783ef8a33165bcd4cf453eff0de",
+      "originalBytes": 13090
+    },
+    {
+      "source": "Common/TestWindowActivationGuard.h",
+      "currentPath": "Tests/Support/TestWindowActivationGuard.h",
+      "disposition": "owned",
+      "originalSha256": "963bffca9a8edf6718f6cd1ae3a862bdb854d9992b63755f0f605e8714ebb08b",
+      "originalBytes": 4371
     }
   ],
   "policy": "Historical source identity only. DxUI owns and edits current source; original hashes do not constrain current bytes."

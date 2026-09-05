@@ -4,7 +4,7 @@
 
 #include "DxUi.Internal.h"
 
-#include "Helpers.h"
+#include "../Support/Diagnostics.h"
 
 #include <algorithm>
 #include <array>
@@ -511,7 +511,7 @@ struct Utf16CodePoint
 }
 
 [[nodiscard]] float MeasureSingleLineTextWidthDip(
-    const WindowHost* host, std::wstring_view text, FontRole role, float heightDip, DWRITE_READING_DIRECTION readingDirection) noexcept
+    const ControlHost* host, std::wstring_view text, FontRole role, float heightDip, DWRITE_READING_DIRECTION readingDirection) noexcept
 {
     if (text.empty())
     {
@@ -542,14 +542,14 @@ struct Utf16CodePoint
 }
 
 [[nodiscard]] float ResolveSingleLineLayoutWidthDip(
-    const WindowHost* host, std::wstring_view text, FontRole role, float heightDip, float minimumWidthDip, DWRITE_READING_DIRECTION readingDirection) noexcept
+    const ControlHost* host, std::wstring_view text, FontRole role, float heightDip, float minimumWidthDip, DWRITE_READING_DIRECTION readingDirection) noexcept
 {
     const float measuredTextWidthDip = MeasureSingleLineTextWidthDip(host, text, role, heightDip, readingDirection);
     return std::max({1.0f, minimumWidthDip, measuredTextWidthDip + 32.0f});
 }
 
 [[nodiscard]] wil::com_ptr<IDWriteTextLayout> CreateSingleLineTextLayout(
-    const WindowHost* host, std::wstring_view text, FontRole role, float widthDip, float heightDip, DWRITE_READING_DIRECTION readingDirection) noexcept
+    const ControlHost* host, std::wstring_view text, FontRole role, float widthDip, float heightDip, DWRITE_READING_DIRECTION readingDirection) noexcept
 {
     if (! host)
     {
@@ -592,7 +592,7 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
     cache.layoutHeightDip      = 0.0f;
 }
 
-[[nodiscard]] wil::com_ptr<IDWriteTextLayout> GetOrCreateSingleLineTextLayout(const WindowHost* host,
+[[nodiscard]] wil::com_ptr<IDWriteTextLayout> GetOrCreateSingleLineTextLayout(const ControlHost* host,
                                                                               SingleLineTextLayoutCache* cache,
                                                                               std::wstring_view text,
                                                                               FontRole role,
@@ -721,7 +721,7 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
     return static_cast<float>(clampedCaret) * 7.0f;
 }
 
-[[nodiscard]] float MeasureCaretOffsetDip(const WindowHost* host,
+[[nodiscard]] float MeasureCaretOffsetDip(const ControlHost* host,
                                           std::wstring_view text,
                                           FontRole role,
                                           size_t caretIndex,
@@ -734,7 +734,7 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
     return MeasureCaretOffsetDip(layout.get(), text, caretIndex);
 }
 
-[[nodiscard]] size_t HitTestCaretIndexDip(const WindowHost* host,
+[[nodiscard]] size_t HitTestCaretIndexDip(const ControlHost* host,
                                           std::wstring_view text,
                                           FontRole role,
                                           const D2D1_RECT_F& textRect,
@@ -816,7 +816,7 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
     return finish(SnapCaretIndexToTextElementBoundary(text, static_cast<size_t>(fallbackValue)));
 }
 
-void DrawSingleLineTextClippedWithLayout(WindowHost& host,
+void DrawSingleLineTextClippedWithLayout(ControlHost& host,
                                          std::wstring_view text,
                                          const D2D1_RECT_F& rect,
                                          FontRole role,
@@ -855,7 +855,7 @@ void DrawSingleLineTextClippedWithLayout(WindowHost& host,
     }
 }
 
-void DrawSingleLineTextClipped(WindowHost& host,
+void DrawSingleLineTextClipped(ControlHost& host,
                                std::wstring_view text,
                                const D2D1_RECT_F& rect,
                                FontRole role,
@@ -942,14 +942,14 @@ void ArmSingleLineSelectionClickSequence(SingleLineSelectionClickSequence& seque
     sequence.promoteNextClickToSelectAll = true;
 }
 
-[[nodiscard]] bool ArePointsWithinSelectionClickBounds(const WindowHost& host, D2D1_POINT_2F firstPointDip, D2D1_POINT_2F secondPointDip) noexcept
+[[nodiscard]] bool ArePointsWithinSelectionClickBounds(const ControlHost& host, D2D1_POINT_2F firstPointDip, D2D1_POINT_2F secondPointDip) noexcept
 {
     const float halfWidthDip  = std::max(1.0f, host.PixelsToDip(static_cast<float>(GetSystemMetrics(SM_CXDOUBLECLK))) * 0.5f);
     const float halfHeightDip = std::max(1.0f, host.PixelsToDip(static_cast<float>(GetSystemMetrics(SM_CYDOUBLECLK))) * 0.5f);
     return std::abs(firstPointDip.x - secondPointDip.x) <= halfWidthDip && std::abs(firstPointDip.y - secondPointDip.y) <= halfHeightDip;
 }
 
-bool ShouldPromoteSingleLineClickToSelectAll(const WindowHost& host, const SingleLineSelectionClickSequence& sequence, D2D1_POINT_2F pointDip) noexcept
+bool ShouldPromoteSingleLineClickToSelectAll(const ControlHost& host, const SingleLineSelectionClickSequence& sequence, D2D1_POINT_2F pointDip) noexcept
 {
     if (! sequence.promoteNextClickToSelectAll)
     {
@@ -1019,7 +1019,7 @@ void SelectSingleLineWordAt(std::wstring_view text, size_t hitIndex, size_t& car
 }
 
 [[nodiscard]] std::optional<D2D1_RECT_F> ComputeSingleLineSelectionPaintRectFromLayout(
-    const WindowHost& host, IDWriteTextLayout* layout, const D2D1_RECT_F& snappedRect, float scrollDip, std::pair<size_t, size_t> selectionRange) noexcept
+    const ControlHost& host, IDWriteTextLayout* layout, const D2D1_RECT_F& snappedRect, float scrollDip, std::pair<size_t, size_t> selectionRange) noexcept
 {
     const auto [selectionStart, selectionEnd] = selectionRange;
     if (selectionStart >= selectionEnd || selectionStart > static_cast<size_t>(std::numeric_limits<UINT32>::max()) ||
@@ -1084,7 +1084,7 @@ void SelectSingleLineWordAt(std::wstring_view text, size_t hitIndex, size_t& car
     return selectionRect;
 }
 
-std::optional<D2D1_RECT_F> ComputeSingleLineSelectionPaintRect(const WindowHost& host,
+std::optional<D2D1_RECT_F> ComputeSingleLineSelectionPaintRect(const ControlHost& host,
                                                                std::wstring_view text,
                                                                const D2D1_RECT_F& rect,
                                                                FontRole role,
@@ -1105,7 +1105,7 @@ std::optional<D2D1_RECT_F> ComputeSingleLineSelectionPaintRect(const WindowHost&
     return ComputeSingleLineSelectionPaintRectFromLayout(host, layout.get(), snappedRect, scrollDip, selectionRange.value());
 }
 
-void DrawSingleLineSelection(WindowHost& host,
+void DrawSingleLineSelection(ControlHost& host,
                              std::wstring_view text,
                              const D2D1_RECT_F& rect,
                              FontRole role,
@@ -1125,7 +1125,7 @@ void DrawSingleLineSelection(WindowHost& host,
         host, text, rect, role, textColor, selectionFill, selectionText, scrollDip, selectionRange, readingDirection, layout.get());
 }
 
-void DrawSingleLineSelectionWithLayout(WindowHost& host,
+void DrawSingleLineSelectionWithLayout(ControlHost& host,
                                        std::wstring_view text,
                                        const D2D1_RECT_F& rect,
                                        FontRole role,

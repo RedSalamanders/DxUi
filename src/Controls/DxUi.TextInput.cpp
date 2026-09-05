@@ -6,7 +6,7 @@
 #include <cwctype>
 #include <limits>
 
-#include "Helpers.h"
+#include "../Support/Diagnostics.h"
 
 namespace DxUi
 {
@@ -85,7 +85,7 @@ struct ConcealedMaskBucket final
 }
 
 [[nodiscard]] std::vector<D2D1_RECT_F> BuildTextInputUnderlineRects(
-    const WindowHost& host, const Control& control, std::pair<size_t, size_t> range, float bottomInsetDip, float thicknessDip)
+    const ControlHost& host, const Control& control, std::pair<size_t, size_t> range, float bottomInsetDip, float thicknessDip)
 {
     std::vector<D2D1_RECT_F> underlineRects;
     const std::optional<std::vector<D2D1_RECT_F>> rangeRects = control.TryGetTextInputRangeRects(host, range.first, range.second);
@@ -114,7 +114,7 @@ struct ConcealedMaskBucket final
     return underlineRects;
 }
 
-[[nodiscard]] std::vector<D2D1_RECT_F> BuildNativeCompositionUnderlineRects(const WindowHost& host, const Control& control, const bool conversionTarget)
+[[nodiscard]] std::vector<D2D1_RECT_F> BuildNativeCompositionUnderlineRects(const ControlHost& host, const Control& control, const bool conversionTarget)
 {
     NativeTextInputState state{};
     if (! host.TryReadNativeTextInputState(&control, state))
@@ -133,7 +133,7 @@ struct ConcealedMaskBucket final
     return BuildTextInputUnderlineRects(host, control, range.value(), conversionTarget ? 1.0f : 2.0f, conversionTarget ? 2.0f : 1.0f);
 }
 
-void DrawTextInputUnderlineRects(WindowHost& host, const std::vector<D2D1_RECT_F>& underlineRects, const D2D1_COLOR_F& color) noexcept
+void DrawTextInputUnderlineRects(ControlHost& host, const std::vector<D2D1_RECT_F>& underlineRects, const D2D1_COLOR_F& color) noexcept
 {
     auto* dc    = host.GetDeviceContext();
     auto* brush = host.GetSolidBrush(color);
@@ -229,7 +229,7 @@ namespace
 }
 
 [[nodiscard]] wil::com_ptr<IDWriteTextLayout> CreateMultilineTextLayout(
-    const WindowHost* host, std::wstring_view text, FontRole role, float widthDip, float heightDip) noexcept;
+    const ControlHost* host, std::wstring_view text, FontRole role, float widthDip, float heightDip) noexcept;
 [[nodiscard]] std::vector<DWRITE_LINE_METRICS> GetMultilineLineMetrics(IDWriteTextLayout* layout) noexcept;
 [[nodiscard]] std::optional<size_t> TryGetMultilineCaretLineIndex(IDWriteTextLayout* layout,
                                                                   const std::vector<DWRITE_LINE_METRICS>& metrics,
@@ -242,7 +242,7 @@ struct WrappedLineTextRange
 };
 [[nodiscard]] std::vector<WrappedLineTextRange> BuildWrappedLineTextRanges(const std::vector<DWRITE_LINE_METRICS>& metrics, size_t textLength) noexcept;
 [[nodiscard]] std::optional<size_t> TryMoveCaretToWrappedLineBoundary(
-    const WindowHost* host, std::wstring_view text, FontRole role, const D2D1_RECT_F& textRect, size_t caretIndex, bool moveToLineEnd) noexcept;
+    const ControlHost* host, std::wstring_view text, FontRole role, const D2D1_RECT_F& textRect, size_t caretIndex, bool moveToLineEnd) noexcept;
 
 [[nodiscard]] size_t MoveCaretVerticallyByLogicalLine(std::wstring_view text,
                                                       size_t caretIndex,
@@ -335,7 +335,7 @@ struct MultilineViewportMetrics
     return nextCaretIndex;
 }
 
-[[nodiscard]] std::optional<size_t> TryMoveCaretVerticallyByWrappedLines(const WindowHost* host,
+[[nodiscard]] std::optional<size_t> TryMoveCaretVerticallyByWrappedLines(const ControlHost* host,
                                                                          std::wstring_view text,
                                                                          FontRole role,
                                                                          const D2D1_RECT_F& textRect,
@@ -407,7 +407,7 @@ struct MultilineViewportMetrics
     return std::min(text.size(), textPosition + trailingAdvance);
 }
 
-[[nodiscard]] size_t MoveMultilineCaretVertically(const WindowHost* host,
+[[nodiscard]] size_t MoveMultilineCaretVertically(const ControlHost* host,
                                                   std::wstring_view text,
                                                   FontRole role,
                                                   const D2D1_RECT_F& textRect,
@@ -424,7 +424,7 @@ struct MultilineViewportMetrics
     return MoveCaretVerticallyByLogicalLine(text, caretIndex, moveDown, preferredXOffsetDip);
 }
 
-[[nodiscard]] size_t MoveMultilineCaretByPage(const WindowHost* host,
+[[nodiscard]] size_t MoveMultilineCaretByPage(const ControlHost* host,
                                               std::wstring_view text,
                                               FontRole role,
                                               const D2D1_RECT_F& textRect,
@@ -471,7 +471,7 @@ struct MultilineViewportMetrics
 }
 
 [[nodiscard]] std::optional<size_t> TryMoveCaretToWrappedLineBoundary(
-    const WindowHost* host, std::wstring_view text, FontRole role, const D2D1_RECT_F& textRect, size_t caretIndex, bool moveToLineEnd) noexcept
+    const ControlHost* host, std::wstring_view text, FontRole role, const D2D1_RECT_F& textRect, size_t caretIndex, bool moveToLineEnd) noexcept
 {
     if (! host || text.empty() || (textRect.right - textRect.left) <= 1.0f || (textRect.bottom - textRect.top) <= 1.0f)
     {
@@ -508,7 +508,7 @@ struct MultilineViewportMetrics
 }
 
 [[nodiscard]] wil::com_ptr<IDWriteTextLayout> CreateMultilineTextLayout(
-    const WindowHost* host, std::wstring_view text, FontRole role, float widthDip, float heightDip) noexcept
+    const ControlHost* host, std::wstring_view text, FontRole role, float widthDip, float heightDip) noexcept
 {
     if (! host)
     {
@@ -565,7 +565,7 @@ struct MultilineViewportMetrics
     return metrics;
 }
 
-[[nodiscard]] float EstimateMultilineFallbackLineHeightDip(const WindowHost* host, FontRole role) noexcept
+[[nodiscard]] float EstimateMultilineFallbackLineHeightDip(const ControlHost* host, FontRole role) noexcept
 {
     if (! host)
     {
@@ -703,7 +703,7 @@ struct MultilineViewportMetrics
     return std::nullopt;
 }
 
-[[nodiscard]] MultilineViewportMetrics ComputeMultilineViewportMetrics(const WindowHost* host,
+[[nodiscard]] MultilineViewportMetrics ComputeMultilineViewportMetrics(const ControlHost* host,
                                                                        std::wstring_view text,
                                                                        FontRole role,
                                                                        const D2D1_RECT_F& textRect) noexcept
@@ -715,7 +715,7 @@ struct MultilineViewportMetrics
 }
 
 [[nodiscard]] size_t HitTestMultilineCaretIndexDip(
-    const WindowHost* host, std::wstring_view text, FontRole role, const D2D1_RECT_F& textRect, float scrollDip, D2D1_POINT_2F point) noexcept
+    const ControlHost* host, std::wstring_view text, FontRole role, const D2D1_RECT_F& textRect, float scrollDip, D2D1_POINT_2F point) noexcept
 {
     if (text.empty())
     {
@@ -758,7 +758,7 @@ struct MultilineViewportMetrics
 }
 
 [[nodiscard]] D2D1_RECT_F MeasureMultilineCaretRectDip(
-    const WindowHost* host, std::wstring_view text, FontRole role, const D2D1_RECT_F& textRect, float scrollDip, size_t caretIndex) noexcept
+    const ControlHost* host, std::wstring_view text, FontRole role, const D2D1_RECT_F& textRect, float scrollDip, size_t caretIndex) noexcept
 {
     const D2D1_RECT_F fallbackRect = D2D1::RectF(textRect.left, textRect.top + 2.0f, textRect.left + 1.0f, textRect.top + 18.0f);
     if (wil::com_ptr<IDWriteTextLayout> layout =
@@ -787,7 +787,7 @@ struct MultilineViewportMetrics
     return rect;
 }
 
-void DrawMultilineSelection(WindowHost& host,
+void DrawMultilineSelection(ControlHost& host,
                             std::wstring_view text,
                             const D2D1_RECT_F& rect,
                             FontRole role,
@@ -878,12 +878,12 @@ void DrawMultilineSelection(WindowHost& host,
 
 } // namespace
 
-void WindowHost::CommitFocusedTextInput() noexcept
+void ControlHost::CommitFocusedTextInput() noexcept
 {
     SyncNativeTextInputSession(_focusedControl);
 }
 
-bool WindowHost::TryReadTextInputState(const Control* control, TextInputState& outState) const noexcept
+bool ControlHost::TryReadTextInputState(const Control* control, TextInputState& outState) const noexcept
 {
     if (! control || control != _nativeTextInputControl || ! _nativeTextInputStateCacheValid)
     {
@@ -900,17 +900,17 @@ bool WindowHost::TryReadTextInputState(const Control* control, TextInputState& o
     return true;
 }
 
-void WindowHost::SyncTextInput(Control* control) noexcept
+void ControlHost::SyncTextInput(Control* control) noexcept
 {
     SyncNativeTextInputSession(control);
 }
 
-bool WindowHost::HasActiveTextInput() const noexcept
+bool ControlHost::HasActiveTextInput() const noexcept
 {
     return HasActiveNativeTextInputSession();
 }
 
-HWND WindowHost::GetTextInputHwnd() const noexcept
+HWND ControlHost::GetTextInputHwnd() const noexcept
 {
     return HasActiveNativeTextInputSession() ? _hwnd : nullptr;
 }
@@ -946,7 +946,7 @@ void TextField::SecureClearStorage() noexcept
 
 void TextField::RefreshAccessibilitySnapshot() const noexcept
 {
-    if (WindowHost* const host = GetHost())
+    if (ControlHost* const host = GetHost())
     {
         RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
     }
@@ -1061,7 +1061,7 @@ void TextField::SetMasked(bool masked) noexcept
     _masked = masked;
     RegenerateConcealedMaskEpoch();
     InvalidateSingleLineLayoutCache();
-    if (WindowHost* const host = GetHost(); host && HasFocus())
+    if (ControlHost* const host = GetHost(); host && HasFocus())
     {
         host->SyncTextInput(this);
     }
@@ -1210,7 +1210,7 @@ D2D1_RECT_F TextField::GetPasswordRevealButtonAccessibilityRect() const noexcept
     return GetPasswordRevealButtonRect();
 }
 
-bool TextField::InvokePasswordRevealButton(WindowHost& host)
+bool TextField::InvokePasswordRevealButton(ControlHost& host)
 {
     if (! IsPasswordRevealButtonVisible())
     {
@@ -1331,7 +1331,7 @@ void TextField::SetReadOnly(bool readOnly) noexcept
         _passwordRevealKeyboardFocused = false;
         RemaskPasswordReveal();
     }
-    if (WindowHost* const host = GetHost(); host && HasFocus())
+    if (ControlHost* const host = GetHost(); host && HasFocus())
     {
         host->SyncTextInput(this);
     }
@@ -1353,7 +1353,7 @@ void TextField::SetOnSubmitted(std::function<void()> onSubmitted)
     _onSubmitted = std::move(onSubmitted);
 }
 
-void TextField::SetOnPreviewKeyDown(std::function<bool(WindowHost& host, UINT virtualKey, UINT modifiers)> onPreviewKeyDown)
+void TextField::SetOnPreviewKeyDown(std::function<bool(ControlHost& host, UINT virtualKey, UINT modifiers)> onPreviewKeyDown)
 {
     _onPreviewKeyDown = std::move(onPreviewKeyDown);
 }
@@ -1363,7 +1363,7 @@ void TextField::SetOnBlur(std::function<void()> onBlur)
     _onBlur = std::move(onBlur);
 }
 
-bool TextField::DebugGetMultilineState(const WindowHost& host, TextFieldDebugMultilineState& out) const noexcept
+bool TextField::DebugGetMultilineState(const ControlHost& host, TextFieldDebugMultilineState& out) const noexcept
 {
     out = {};
     if (! _multiline)
@@ -1392,7 +1392,7 @@ bool TextField::DebugGetMultilineState(const WindowHost& host, TextFieldDebugMul
     return true;
 }
 
-bool TextField::DebugGetSingleLinePaintState(const WindowHost& host, TextFieldDebugSingleLinePaintState& out) const noexcept
+bool TextField::DebugGetSingleLinePaintState(const ControlHost& host, TextFieldDebugSingleLinePaintState& out) const noexcept
 {
     out = {};
     if (_multiline)
@@ -1431,7 +1431,7 @@ bool TextField::DebugGetSingleLinePaintState(const WindowHost& host, TextFieldDe
     return true;
 }
 
-bool TextField::DebugGetCaretRect(const WindowHost& host, size_t controlTextIndex, D2D1_RECT_F& outRect) const noexcept
+bool TextField::DebugGetCaretRect(const ControlHost& host, size_t controlTextIndex, D2D1_RECT_F& outRect) const noexcept
 {
     outRect                                    = {};
     const std::optional<D2D1_RECT_F> caretRect = GetTextInputCaretRect(host, controlTextIndex);
@@ -1451,14 +1451,14 @@ void TextField::OnBoundsChanged() noexcept
     if (! _multiline)
     {
         _horizontalScrollDip = 0.0f;
-        if (WindowHost* const host = GetHost(); host && HasFocus())
+        if (ControlHost* const host = GetHost(); host && HasFocus())
         {
             host->SyncTextInput(this);
         }
         return;
     }
 
-    WindowHost* const host = GetHost();
+    ControlHost* const host = GetHost();
     if (! host)
     {
         _multilineFirstVisibleLine    = 0u;
@@ -1489,7 +1489,7 @@ void TextField::OnBoundsChanged() noexcept
     }
 }
 
-void TextField::Paint(WindowHost& host) const
+void TextField::Paint(ControlHost& host) const
 {
     const TextFieldVisualStyle style =
         ResolveTextFieldVisualStyle(host.GetTheme(), IsEnabled(), IsHovered(), HasFocus(), HasFocus() && host.IsKeyboardFocusVisible(), _caretColorOverride);
@@ -1628,7 +1628,7 @@ void TextField::Paint(WindowHost& host) const
     }
 }
 
-bool TextField::Tick(WindowHost& /*host*/, uint64_t nowTickMs)
+bool TextField::Tick(ControlHost& /*host*/, uint64_t nowTickMs)
 {
     if (! HasFocus())
     {
@@ -1650,7 +1650,7 @@ bool TextField::Tick(WindowHost& /*host*/, uint64_t nowTickMs)
     return true;
 }
 
-void TextField::OnFocusChanged(WindowHost& host, bool focused)
+void TextField::OnFocusChanged(ControlHost& host, bool focused)
 {
     Control::OnFocusChanged(host, focused);
     if (focused)
@@ -1697,7 +1697,7 @@ void TextField::OnEnabledChanged(bool enabled) noexcept
     }
 }
 
-bool TextField::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     if (rightButton)
     {
@@ -1813,7 +1813,7 @@ bool TextField::OnMouseDown(WindowHost& host, D2D1_POINT_2F point, bool rightBut
     return true;
 }
 
-bool TextField::OnMouseDoubleClick(WindowHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
+bool TextField::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     if (rightButton)
     {
@@ -1865,7 +1865,7 @@ bool TextField::OnMouseDoubleClick(WindowHost& host, D2D1_POINT_2F point, bool r
     return true;
 }
 
-bool TextField::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
+bool TextField::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
     const bool wasClearHovered   = _clearButtonHovered;
     const bool wasRevealHovered  = _passwordRevealButtonHovered;
@@ -1919,7 +1919,7 @@ bool TextField::OnMouseMove(WindowHost& host, D2D1_POINT_2F point, UINT /*modifi
     return true;
 }
 
-bool TextField::OnMouseUp(WindowHost& host, D2D1_POINT_2F /*point*/, bool rightButton, UINT /*modifiers*/)
+bool TextField::OnMouseUp(ControlHost& host, D2D1_POINT_2F /*point*/, bool rightButton, UINT /*modifiers*/)
 {
     if (rightButton)
     {
@@ -1945,7 +1945,7 @@ bool TextField::OnMouseUp(WindowHost& host, D2D1_POINT_2F /*point*/, bool rightB
     return wasDragging;
 }
 
-void TextField::OnCaptureLost(WindowHost& host)
+void TextField::OnCaptureLost(ControlHost& host)
 {
     const bool hadRevealPress    = _passwordRevealButtonPressed;
     const bool wasDragging       = _dragSelecting;
@@ -1965,7 +1965,7 @@ void TextField::OnCaptureLost(WindowHost& host)
     }
 }
 
-bool TextField::OnMouseWheel(WindowHost& host, D2D1_POINT_2F /*point*/, float wheelDelta, UINT /*modifiers*/)
+bool TextField::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float wheelDelta, UINT /*modifiers*/)
 {
     if (! _multiline)
     {
@@ -2031,7 +2031,7 @@ bool TextField::OnMouseWheel(WindowHost& host, D2D1_POINT_2F /*point*/, float wh
     return true;
 }
 
-bool TextField::OnKeyDown(WindowHost& host, UINT virtualKey, UINT modifiers)
+bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     const auto textRect     = GetTextRect();
@@ -2501,7 +2501,7 @@ bool TextField::OnKeyDown(WindowHost& host, UINT virtualKey, UINT modifiers)
     return false;
 }
 
-bool TextField::OnKeyUp(WindowHost& host, UINT virtualKey, UINT modifiers)
+bool TextField::OnKeyUp(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     if (! _passwordRevealKeyboardFocused || (virtualKey != VK_SPACE && virtualKey != VK_RETURN) || ModifiersContainAlt(modifiers) ||
         ModifiersContainCtrl(modifiers))
@@ -2520,7 +2520,7 @@ bool TextField::OnKeyUp(WindowHost& host, UINT virtualKey, UINT modifiers)
     return true;
 }
 
-bool TextField::OnChar(WindowHost& host, wchar_t ch, UINT /*modifiers*/)
+bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT /*modifiers*/)
 {
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     if (_passwordRevealKeyboardFocused && (ch == L' ' || ch == L'\r'))
@@ -2581,7 +2581,7 @@ bool TextField::OnChar(WindowHost& host, wchar_t ch, UINT /*modifiers*/)
     return true;
 }
 
-bool TextField::OnContextMenu(WindowHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
+bool TextField::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     host.SetFocusControl(this);
@@ -2591,7 +2591,7 @@ bool TextField::OnContextMenu(WindowHost& host, bool keyboardInvocation, D2D1_PO
     return Control::OnContextMenu(host, keyboardInvocation, pointDip);
 }
 
-bool TextField::OnCopy(WindowHost& host)
+bool TextField::OnCopy(ControlHost& host)
 {
     if (_masked && _passwordRevealMode != PasswordRevealMode::Visible && _passwordRevealState != PasswordRevealState::Visible)
     {
@@ -2607,7 +2607,7 @@ bool TextField::OnCopy(WindowHost& host)
     return false;
 }
 
-bool TextField::OnSelectAll(WindowHost& host)
+bool TextField::OnSelectAll(ControlHost& host)
 {
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     _preferredMultilineXOffsetDip.reset();
@@ -2641,7 +2641,7 @@ std::optional<D2D1_RECT_F> TextField::GetTextInputViewportRect() const noexcept
     return textRect;
 }
 
-std::optional<D2D1_RECT_F> TextField::GetTextInputCaretRect(const WindowHost& host, size_t controlTextIndex) const noexcept
+std::optional<D2D1_RECT_F> TextField::GetTextInputCaretRect(const ControlHost& host, size_t controlTextIndex) const noexcept
 {
     const D2D1_RECT_F textRect     = GetTextRect();
     const std::wstring displayText = GetDisplayText();
@@ -2680,7 +2680,7 @@ std::optional<D2D1_RECT_F> TextField::GetTextInputCaretRect(const WindowHost& ho
     return result;
 }
 
-std::optional<std::vector<D2D1_RECT_F>> TextField::GetTextInputRangeRects(const WindowHost& host,
+std::optional<std::vector<D2D1_RECT_F>> TextField::GetTextInputRangeRects(const ControlHost& host,
                                                                           size_t controlTextStartIndex,
                                                                           size_t controlTextEndIndex) const
 {
@@ -2815,7 +2815,7 @@ std::optional<std::vector<D2D1_RECT_F>> TextField::GetTextInputRangeRects(const 
     return rects;
 }
 
-std::optional<size_t> TextField::HitTestTextInputPoint(const WindowHost& host, D2D1_POINT_2F point) const noexcept
+std::optional<size_t> TextField::HitTestTextInputPoint(const ControlHost& host, D2D1_POINT_2F point) const noexcept
 {
     const D2D1_RECT_F textRect = GetTextRect();
     if (textRect.right <= textRect.left || textRect.bottom <= textRect.top)
@@ -2855,7 +2855,7 @@ bool TextField::ExportTextInputState(TextInputState& outState) const
     return true;
 }
 
-bool TextField::ImportTextInputState(WindowHost& host, const TextInputState& state, bool notifyChange)
+bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange)
 {
     const std::wstring previousText       = _text;
     const size_t previousFirstVisibleLine = _multilineFirstVisibleLine;
@@ -3268,7 +3268,7 @@ std::optional<std::pair<size_t, size_t>> TextField::ControlTextRangeToDisplayTex
     return std::pair<size_t, size_t>{displayStart, displayEnd};
 }
 
-wil::com_ptr<IDWriteTextLayout> TextField::GetOrCreateMultilineLayout(const WindowHost* host,
+wil::com_ptr<IDWriteTextLayout> TextField::GetOrCreateMultilineLayout(const ControlHost* host,
                                                                       std::wstring_view text,
                                                                       float widthDip,
                                                                       float heightDip) const noexcept
@@ -3294,7 +3294,7 @@ wil::com_ptr<IDWriteTextLayout> TextField::GetOrCreateMultilineLayout(const Wind
 }
 
 wil::com_ptr<IDWriteTextLayout> TextField::GetOrCreateSingleLineLayout(
-    const WindowHost* host, std::wstring_view text, float minimumWidthDip, float heightDip, DWRITE_READING_DIRECTION readingDirection) const noexcept
+    const ControlHost* host, std::wstring_view text, float minimumWidthDip, float heightDip, DWRITE_READING_DIRECTION readingDirection) const noexcept
 {
     if (_multiline)
     {
@@ -3317,7 +3317,7 @@ void TextField::InvalidateMultilineLayoutCache() const noexcept
     _cachedLayoutText.clear();
 }
 
-void TextField::EnsureCaretVisible(const WindowHost* host, float availableWidthDip) const noexcept
+void TextField::EnsureCaretVisible(const ControlHost* host, float availableWidthDip) const noexcept
 {
     if (_multiline || _text.empty())
     {
@@ -3343,7 +3343,7 @@ void TextField::EnsureCaretVisible(const WindowHost* host, float availableWidthD
     }
 }
 
-void TextField::EnsureMultilineCaretVisible(const WindowHost* host) noexcept
+void TextField::EnsureMultilineCaretVisible(const ControlHost* host) noexcept
 {
     if (! _multiline)
     {
@@ -3390,7 +3390,7 @@ void TextField::OnFlowDirectionChanged() noexcept
     Control::OnFlowDirectionChanged();
 }
 
-void TextField::OnHostDpiChanged(WindowHost& host) noexcept
+void TextField::OnHostDpiChanged(ControlHost& host) noexcept
 {
     Control::OnHostDpiChanged(host);
     InvalidateSingleLineLayoutCache();
@@ -3408,7 +3408,7 @@ void TextField::OnDensityChanged() noexcept
     Control::OnDensityChanged();
 }
 
-void TextField::ResetCaretBlink(WindowHost& host) noexcept
+void TextField::ResetCaretBlink(ControlHost& host) noexcept
 {
     _caretBlinkAnchorTickMs = ::GetTickCount64();
     _caretVisible           = true;

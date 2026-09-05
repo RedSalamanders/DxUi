@@ -20,6 +20,7 @@ jobs:
       - run: python Tools/validate_skills.py
       - run: python Tools/validate_specs.py
       - run: python Tools/validate_dependencies.py
+      - run: python Tools/validate_test_port.py
       - run: python -m unittest discover -s Tools/tests -v
   native:
     strategy:
@@ -39,10 +40,18 @@ jobs:
             runner: windows-11-vs2026-arm
             configuration: Release
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - shell: pwsh
+        run: ./vcpkg-install.ps1 -Platform ${{ matrix.platform }}
+      - shell: pwsh
         run: ./test.ps1 -Configuration ${{ matrix.configuration }} -Platform ${{ matrix.platform }}
+      - shell: pwsh
+        if: matrix.platform == 'x64' && matrix.configuration == 'Debug'
+        run: ./test-consumer.ps1
+      - shell: pwsh
+        run: ./gallery.ps1 -SkipBuild -Configuration ${{ matrix.configuration }} -Platform ${{ matrix.platform }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -50,4 +59,6 @@ jobs:
           path: |
             .build/logs/*.log
             .build/reports/*.json
+            .build/test-artifacts/**
+            .build/gallery/**
           retention-days: 14

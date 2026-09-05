@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "Helpers.h"
+#include "../Support/Diagnostics.h"
 
 namespace DxUi
 {
@@ -23,7 +23,7 @@ constexpr UINT kDxUiNoDataStringId    = 1305u;
     return clientAreaAnimation == FALSE;
 }
 
-using Common::Colors::StableVisualHash32Utf16V1;
+using DxUi::Detail::StableVisualHash32Utf16V1;
 
 [[nodiscard]] D2D1_COLOR_F ColorFromHsv(float hueDegrees, float saturation, float value, float alpha = 1.0f) noexcept
 {
@@ -114,14 +114,14 @@ using Common::Colors::StableVisualHash32Utf16V1;
 
 [[nodiscard]] double RelativeLuminance(const D2D1_COLOR_F& color) noexcept
 {
-    return Common::Colors::RelativeLuminanceFromSrgb(ClampUnit(color.r), ClampUnit(color.g), ClampUnit(color.b));
+    return DxUi::Detail::RelativeLuminanceFromSrgb(ClampUnit(color.r), ClampUnit(color.g), ClampUnit(color.b));
 }
 
 [[nodiscard]] double ContrastRatio(const D2D1_COLOR_F& foreground, const D2D1_COLOR_F& background) noexcept
 {
     const double foregroundLuminance = RelativeLuminance(foreground);
     const double backgroundLuminance = RelativeLuminance(background);
-    return Common::Colors::ContrastRatioFromRelativeLuminance(foregroundLuminance, backgroundLuminance);
+    return DxUi::Detail::ContrastRatioFromRelativeLuminance(foregroundLuminance, backgroundLuminance);
 }
 
 [[nodiscard]] D2D1_COLOR_F ResolvePrimaryButtonTextColor(const ThemePalette& theme, const D2D1_COLOR_F& fill) noexcept
@@ -189,7 +189,7 @@ std::wstring_view LoadDxUiString(UINT resourceId, std::wstring_view fallback) no
 
     if (target->empty())
     {
-        *target = LoadStringResource(nullptr, resourceId);
+        *target = std::wstring(fallback);
         if (target->empty())
         {
             *target = std::wstring(fallback);
@@ -956,7 +956,7 @@ ThemePalette MakeDefaultThemePalette(bool dark) noexcept
     return palette;
 }
 
-ThemePalette MakeThemePaletteFromViewerTheme(const ViewerTheme& viewerTheme) noexcept
+ThemePalette MakeThemePalette(const ThemeColors& viewerTheme) noexcept
 {
     ThemePalette palette             = MakeDefaultThemePalette(viewerTheme.darkMode != FALSE);
     const bool darkBase              = viewerTheme.darkBase != FALSE;
