@@ -475,7 +475,7 @@ inline void VerifyOrUpdateBaselineForTest(const char* context,
     const BitmapComparisonStats stats = CompareWindowHostBitmapCapturesForTest(actual, expected, perChannelTolerance);
     if (stats.DifferenceRatio() > maxDifferenceRatio)
     {
-        const std::filesystem::path actualPath = baselinePath.parent_path() / L"_Actual" / baselinePath.filename();
+        const std::filesystem::path actualPath = FindRepoRootForDxUiTests() / L".build" / L"test-artifacts" / L"baseline-actual" / baselinePath.filename();
         static_cast<void>(SaveWindowHostBitmapCaptureAsPngForTest(actualPath, actual));
         std::cerr << "FAILED: " << context << " diffRatio=" << stats.DifferenceRatio() << " maxChannelDelta=" << static_cast<int>(stats.maxChannelDelta)
                   << " actual=" << actualPath.string() << '\n';
