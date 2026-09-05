@@ -663,7 +663,9 @@ HWND FindOwnedContextMenuPopupWindow(HWND ownerHwnd)
             continue;
         }
 
-        if (GetWindow(popupHwnd, GW_OWNER) == ownerHwnd)
+        // The menu creates a hidden 1x1 measurement HWND before its final layout,
+        // backdrop capture and initial frame. Drivers must not address that HWND yet.
+        if (GetWindow(popupHwnd, GW_OWNER) == ownerHwnd && IsWindowVisible(popupHwnd) != FALSE)
         {
             return popupHwnd;
         }
@@ -672,7 +674,7 @@ HWND FindOwnedContextMenuPopupWindow(HWND ownerHwnd)
     return nullptr;
 }
 
-HWND WaitForOwnedContextMenuPopupWindow(HWND ownerHwnd, std::chrono::milliseconds timeout = std::chrono::milliseconds(800))
+HWND WaitForOwnedContextMenuPopupWindow(HWND ownerHwnd, std::chrono::milliseconds timeout = std::chrono::milliseconds(5000))
 {
     const auto deadline = std::chrono::steady_clock::now() + timeout;
     do
@@ -730,7 +732,9 @@ HWND FindOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd, std::wstring
             continue;
         }
 
-        if (GetWindow(popupHwnd, GW_OWNER) != ownerHwnd)
+        // Visibility is published after final positioning and the initial frame.
+        // Reading item text alone can succeed on the temporary measurement HWND.
+        if (GetWindow(popupHwnd, GW_OWNER) != ownerHwnd || IsWindowVisible(popupHwnd) == FALSE)
         {
             continue;
         }
@@ -747,7 +751,7 @@ HWND FindOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd, std::wstring
 
 HWND WaitForOwnedContextMenuPopupWindowByFirstItemText(HWND ownerHwnd,
                                                        std::wstring_view firstItemText,
-                                                       std::chrono::milliseconds timeout = std::chrono::milliseconds(800))
+                                                       std::chrono::milliseconds timeout = std::chrono::milliseconds(5000))
 {
     const auto deadline = std::chrono::steady_clock::now() + timeout;
     do

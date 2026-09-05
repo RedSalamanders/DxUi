@@ -53,3 +53,7 @@ Motion-dependent fixtures explicitly choose an animated theme; reduced-motion fi
 They never change the user's Windows animation preference. Popup pixel capture waits for the visible final-sized
 window so a temporary sizing HWND cannot satisfy visual-baseline readiness. Pixel assertions and original baselines
 remain unchanged across runner environments.
+
+Native menu input fixtures wait for a visible popup: the hidden measurement HWND is not ready for input.
+Cold creation has a separate five-second setup allowance; owner-message-flood hover and invocation checks
+retain their 800 ms deadlines after setup. Capture readiness similarly waits for the final visible surface.
