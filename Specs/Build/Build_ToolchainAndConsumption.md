@@ -68,7 +68,10 @@ supplied-device example image and an HTML index. `DxUi.EmbeddedControls.exe` ope
 `gallery.ps1 -PublishDocs` publishes reviewed sheets and a generation receipt under `docs/gallery`, leaving runtime
 logs in `.build`. Docs/gallery maintenance follows [Core_Documentation](../Core/Core_Documentation.md).
 The formatting workflow uses `format.ps1` and the repository `.clang-format` on pushes and PRs, returning a patch
-when changes are needed. Manual `apply_changes` mode commits formatting to the selected branch with ordinary push
+when changes are needed. Formatting is pinned to clang-format 22.1.3; CI installs the Windows x64 wheel using the
+version and SHA256 in `Tools/requirements-format.txt`. `format.ps1` checks the version and accepts `-FormatterPath`
+or `DXUI_CLANG_FORMAT` before PATH/Visual Studio discovery, so a runner image update cannot silently change output.
+Manual `apply_changes` mode commits formatting to the selected branch with ordinary push
 semantics; it never force-pushes, runs on pull_request_target, or grants fork PRs a write token. Branch protection
 still applies. Token-created commits require an explicit validation run or subsequent user push for fresh CI.
 Native CI installs Python for performance receipt validation. Each test invocation includes complex-UI FPS/memory,
