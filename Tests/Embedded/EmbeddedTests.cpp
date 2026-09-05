@@ -208,6 +208,7 @@ int main()
     scene.view.SetVisible(true);
     Hr(scene.view.Prepare(480, 240), "resume");
     Check(scene.view.Prepare(0, 0) == S_FALSE, "zero target suspends");
+    Check(! scene.view.NeedsPreparation() && ! scene.view.NeedsAnimation(), "zero target schedules no work");
     Check(! scene.view.DispatchPointer({DxUi::PointerAction::Down, 45, 84}), "zero target ignores input");
     Hr(scene.view.Prepare(960, 480, 192), "DPI and resize");
     Check(scene.view.GetStatistics().surfaceBytes == 960ull * 480 * 4, "surface budget accounted");
@@ -251,6 +252,12 @@ int main()
     Check(b.NeedsAnimation(), "attaching an indeterminate control schedules initial discovery");
     const auto tick = GetTickCount64();
     Check(b.AdvanceAnimation(tick), "indeterminate progress requests another host tick");
+    Check(b.Prepare(0, 0) == S_FALSE, "zero-sized animation suspends");
+    Check(! b.NeedsAnimation() && ! b.NeedsPreparation() && ! b.AdvanceAnimation(tick + 8), "zero-sized view has no ticking or preparation");
+    b.MarkDirty();
+    Check(! b.NeedsPreparation(), "zero-sized invalidation remains deferred");
+    Hr(b.Prepare(320, 160, 144), "resume sized animation");
+    Check(b.NeedsAnimation(), "sizing restores pending animation");
     b.SetVisible(false);
     Check(! b.NeedsAnimation(), "hidden animation suspends");
     b.SetVisible(true);

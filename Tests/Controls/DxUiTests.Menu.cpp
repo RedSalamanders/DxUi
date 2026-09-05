@@ -267,8 +267,12 @@ bool WaitForContextMenuPopupBitmapCapture(HWND popupHwnd,
     const auto deadline = std::chrono::steady_clock::now() + timeout;
     do
     {
-        if (DxUi::DebugCaptureContextMenuPopupBitmap(popupHwnd, outCapture) && outCapture.widthPx > 0u && outCapture.heightPx > 0u &&
-            ! outCapture.bgraPixels.empty())
+        // Popup creation first exposes a hidden 1x1 measurement HWND. Cross-thread SendMessage can run during
+        // initialization, so only capture the visible, sized popup used for the material comparison.
+        RECT client{};
+        if (IsWindowVisible(popupHwnd) && GetClientRect(popupHwnd, &client) && client.right > 1 && client.bottom > 1 &&
+            DxUi::DebugCaptureContextMenuPopupBitmap(popupHwnd, outCapture) && outCapture.widthPx == static_cast<UINT>(client.right) &&
+            outCapture.heightPx == static_cast<UINT>(client.bottom) && ! outCapture.bgraPixels.empty())
         {
             return true;
         }
@@ -1501,7 +1505,7 @@ void TestMenuKeyboardNavigationSkipsInfoRows()
         }
     });
 
-    const ThemePalette theme        = MakeDefaultThemePalette(true);
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     driver.join();
 
@@ -1633,7 +1637,7 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
         }
     });
 
-    const ThemePalette theme        = MakeDefaultThemePalette(true);
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, rootMenus[activeRootIndex], theme, sessionCallbacks);
     driver.join();
 
@@ -1838,7 +1842,7 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
         }
     });
 
-    const ThemePalette theme = MakeDefaultThemePalette(true);
+    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result =
         ContextMenu::Show(ownerWindow.Hwnd(), rootPopupPoints[activeRootIndex], rootMenus[activeRootIndex], theme, sessionCallbacks);
     driver.join();
@@ -1960,7 +1964,7 @@ void TestMenuPointerOverSiblingRootSwitchesOpenMenu()
         }
     });
 
-    const ThemePalette theme = MakeDefaultThemePalette(true);
+    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result =
         ContextMenu::Show(ownerWindow.Hwnd(), rootPopupPoints[activeRootIndex], rootMenus[activeRootIndex], theme, sessionCallbacks);
     driver.join();
@@ -2056,7 +2060,7 @@ void TestMenuPopupMouseMoveUsesDeliveredPointForRootSwitch()
         }
     });
 
-    const ThemePalette theme = MakeDefaultThemePalette(true);
+    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result =
         ContextMenu::Show(ownerWindow.Hwnd(), rootPopupPoints[activeRootIndex], rootMenus[activeRootIndex], theme, sessionCallbacks);
     driver.join();
@@ -2162,7 +2166,7 @@ void TestMenuOwnerMouseMoveRoutesRootSwitchImmediately()
         }
     });
 
-    const ThemePalette theme = MakeDefaultThemePalette(true);
+    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result =
         ContextMenu::Show(ownerWindow.Hwnd(), rootPopupPoints[activeRootIndex], rootMenus[activeRootIndex], theme, sessionCallbacks);
     driver.join();
@@ -2258,7 +2262,7 @@ void TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup()
         }
     });
 
-    const ThemePalette theme = MakeDefaultThemePalette(true);
+    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result =
         ContextMenu::Show(ownerWindow.Hwnd(), rootPopupPoints[activeRootIndex], rootMenus[activeRootIndex], theme, sessionCallbacks);
     driver.join();
@@ -2417,7 +2421,7 @@ void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
         }
     });
 
-    const ThemePalette theme = MakeDefaultThemePalette(true);
+    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result =
         ContextMenu::Show(ownerWindow.Hwnd(), rootPopupPoints[activeRootIndex], rootMenus[activeRootIndex], theme, sessionCallbacks);
     driver.join();
@@ -2557,7 +2561,7 @@ void TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch()
         }
     });
 
-    const ThemePalette theme      = MakeDefaultThemePalette(true);
+    const ThemePalette theme      = MakeAnimatedTestThemePalette(true);
     const size_t initialRootIndex = activeRootIndex.load(std::memory_order_acquire);
     const std::optional<int> result =
         ContextMenu::Show(ownerWindow.Hwnd(), rootPopupPoints[initialRootIndex], rootMenus[initialRootIndex], theme, sessionCallbacks);
@@ -2646,7 +2650,7 @@ void TestMenuRootSwitchDoesNotPollCursorWhileIdle()
         }
     });
 
-    const ThemePalette theme = MakeDefaultThemePalette(true);
+    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result =
         ContextMenu::Show(ownerWindow.Hwnd(), rootPopupPoints[activeRootIndex], rootMenus[activeRootIndex], theme, sessionCallbacks);
     driver.join();
@@ -2737,7 +2741,7 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
         }
     });
 
-    const ThemePalette theme        = MakeDefaultThemePalette(true);
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     driver.join();
 
@@ -2840,7 +2844,7 @@ void TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay()
         }
     });
 
-    const ThemePalette theme        = MakeDefaultThemePalette(true);
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     driver.join();
 
@@ -2974,7 +2978,7 @@ void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
         }
     });
 
-    const ThemePalette theme        = MakeDefaultThemePalette(true);
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     driver.join();
 
@@ -3120,7 +3124,7 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
         }
     });
 
-    const ThemePalette theme        = MakeDefaultThemePalette(true);
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, rootMenus[activeRootIndex], theme, sessionCallbacks);
     driver.join();
 
@@ -3362,7 +3366,7 @@ void TestMenuInfoRowsDoNotDismissOnClick()
         }
     });
 
-    const ThemePalette theme        = MakeDefaultThemePalette(true);
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     driver.join();
 
@@ -3533,7 +3537,7 @@ void TestMenuInfoRowsUseMeasuredValueColumnWidth()
         }
     });
 
-    const ThemePalette theme        = MakeDefaultThemePalette(true);
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     driver.join();
 
@@ -3604,7 +3608,7 @@ void TestMenuStandardRowsDeriveAndAlignShortcutColumnFromTabbedText()
         }
     });
 
-    const ThemePalette theme        = MakeDefaultThemePalette(true);
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     driver.join();
 
@@ -3677,7 +3681,7 @@ void TestMenuShortcutRowsReserveChevronLaneWhenAnySubmenuExists()
         }
     });
 
-    const ThemePalette theme        = MakeDefaultThemePalette(true);
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     driver.join();
 
@@ -3740,7 +3744,7 @@ void TestMenuBitmapIconsReachPopupLayout()
         }
     });
 
-    const ThemePalette theme        = MakeDefaultThemePalette(true);
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     driver.join();
 
@@ -3759,7 +3763,7 @@ void TestMenuPopupMaterialsProduceDistinctCaptures()
         {.text = L"Properties", .commandId = 3003},
     };
 
-    ThemePalette micaTheme    = MakeDefaultThemePalette(true);
+    ThemePalette micaTheme    = MakeAnimatedTestThemePalette(true);
     micaTheme.overlayMaterial = OverlayMaterial::Mica;
 
     ThemePalette micaAltTheme    = micaTheme;
@@ -3785,7 +3789,7 @@ void TestMenuRainbowHoverUsesSeededHighlightContrast()
 {
     using namespace DxUi;
 
-    ThemePalette theme    = MakeDefaultThemePalette(true);
+    ThemePalette theme    = MakeAnimatedTestThemePalette(true);
     theme.rainbowMode     = true;
     theme.overlayMaterial = OverlayMaterial::Solid;
 
@@ -3869,7 +3873,7 @@ void TestMenuHoverContrastAppliesToGlyphsAcrossThemes()
 {
     using namespace DxUi;
 
-    ThemePalette theme      = MakeDefaultThemePalette(false);
+    ThemePalette theme      = MakeAnimatedTestThemePalette(false);
     theme.rainbowMode       = false;
     theme.highContrast      = false;
     theme.overlayMaterial   = OverlayMaterial::Acrylic;
@@ -3956,7 +3960,7 @@ void TestMenuRainbowCheckedItemUsesAccentIndicator()
 {
     using namespace DxUi;
 
-    ThemePalette theme    = MakeDefaultThemePalette(true);
+    ThemePalette theme    = MakeAnimatedTestThemePalette(true);
     theme.rainbowMode     = true;
     theme.overlayMaterial = OverlayMaterial::Solid;
 
@@ -4034,7 +4038,7 @@ void TestMenuCheckedRowsDoNotPaintSecondFullRowSelection()
 {
     using namespace DxUi;
 
-    ThemePalette theme    = MakeDefaultThemePalette(true);
+    ThemePalette theme    = MakeAnimatedTestThemePalette(true);
     theme.rainbowMode     = true;
     theme.overlayMaterial = OverlayMaterial::Solid;
 
@@ -4140,7 +4144,7 @@ void TestMenuCheckedRowsDoNotPaintLeadingCheckedBox()
 {
     using namespace DxUi;
 
-    ThemePalette theme    = MakeDefaultThemePalette(true);
+    ThemePalette theme    = MakeAnimatedTestThemePalette(true);
     theme.overlayMaterial = OverlayMaterial::Solid;
 
     const std::vector<MenuFlyoutItem> uncheckedItems = {
@@ -4374,7 +4378,7 @@ void TestMenuPopupCompositionHostUsesTransparentShadowMargins()
         }
     });
 
-    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, MakeDefaultThemePalette(true));
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, MakeAnimatedTestThemePalette(true));
     driver.join();
 
     Require(driverFailure.empty(), driverFailure.c_str());
@@ -4420,7 +4424,7 @@ void TestMenuPopupWindowClassDoesNotUseNativeDropShadow()
         }
     });
 
-    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, MakeDefaultThemePalette(true));
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, MakeAnimatedTestThemePalette(true));
     driver.join();
 
     Require(driverFailure.empty(), driverFailure.c_str());
@@ -4431,7 +4435,7 @@ void TestMenuPopupAcrylicLightVisualBaseline()
 {
     using namespace DxUi;
 
-    ThemePalette theme    = MakeDefaultThemePalette(false);
+    ThemePalette theme    = MakeAnimatedTestThemePalette(false);
     theme.overlayMaterial = OverlayMaterial::Acrylic;
 
     const std::vector<MenuFlyoutItem> items = {
@@ -4524,7 +4528,7 @@ void TestMenuPopupKeepsSystemBackdropDisabledForAppRenderedMaterials()
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
 
-    ThemePalette theme    = MakeDefaultThemePalette(true);
+    ThemePalette theme    = MakeAnimatedTestThemePalette(true);
     theme.overlayMaterial = OverlayMaterial::Acrylic;
 
     const std::vector<MenuFlyoutItem> items = {
@@ -4695,7 +4699,7 @@ void TestMenuMnemonicHonorsExplicitAmpersandLabels()
         }
     });
 
-    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, MakeDefaultThemePalette(true));
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, MakeAnimatedTestThemePalette(true));
     driver.join();
 
     Require(driverFailure.empty(), driverFailure.c_str());
@@ -4752,7 +4756,7 @@ void TestMenuOpeningPointerUpCanBeIgnoredOutsideVisibleSurface()
         PostMessageW(popupHwnd, WM_KEYDOWN, VK_ESCAPE, 0);
     });
 
-    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, MakeDefaultThemePalette(true), sessionCallbacks);
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, MakeAnimatedTestThemePalette(true), sessionCallbacks);
     driver.join();
 
     Require(driverFailure.empty(), driverFailure.c_str());
@@ -4802,7 +4806,7 @@ void TestMenuShadowMarginMouseUpLightDismissesAfterInitialRelease()
         }
     });
 
-    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, MakeDefaultThemePalette(true));
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, MakeAnimatedTestThemePalette(true));
     driver.join();
 
     Require(driverFailure.empty(), driverFailure.c_str());
@@ -4823,7 +4827,7 @@ void TestMenuAcrylicBackdropScenarioEmitsMetrics()
     Require(ownerWindow.Host().DebugCaptureBitmap(ownerBackdropBeforePopup), "owner backdrop renders before acrylic metric capture");
     const POINT menuPoint = ClientScreenPointForTest(ownerWindow.Hwnd(), 96, 72, "acrylic metric popup anchor maps to screen coordinates");
 
-    ThemePalette theme    = MakeDefaultThemePalette(true);
+    ThemePalette theme    = MakeAnimatedTestThemePalette(true);
     theme.overlayMaterial = OverlayMaterial::Acrylic;
 
     const std::vector<MenuFlyoutItem> items = {

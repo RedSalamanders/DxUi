@@ -315,6 +315,8 @@ void TestButtonHoverAnimationRequestsTicksUntilSettled()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ExposedButton button(L"Apply");
 
     const uint64_t hoverStartTickMs = ::GetTickCount64();
@@ -341,10 +343,12 @@ void TestButtonReducedMotionSnapsInteractionAnimation()
 {
     using namespace DxUi;
 
-    ThemePalette theme  = MakeDefaultThemePalette(true);
+    ThemePalette theme  = MakeAnimatedTestThemePalette(true);
     theme.reducedMotion = true;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     host.SetTheme(theme);
 
     ExposedButton button(L"Apply");
@@ -362,6 +366,8 @@ void TestTextFieldTickTracksFocusedCaretAnimation()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = false;
     host.SetTheme(theme);
@@ -380,6 +386,8 @@ void TestEditableComboBoxTickTracksFocusedCaretAnimation()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = false;
     host.SetTheme(theme);
@@ -400,6 +408,8 @@ void TestPanelOverlayPaintsComboPopupAfterLaterSiblingContent()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     Panel root;
     root.SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 200.0f));
 
@@ -427,6 +437,8 @@ void TestPopupLayerPaintsOnlyInOverlayPass()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     Panel root;
     root.SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 200.0f));
 
@@ -451,6 +463,8 @@ void TestPanelTickPropagatesAnimatedGrid()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = false;
     host.SetTheme(theme);
@@ -474,6 +488,8 @@ void TestGridTickReturnsFalseForTextOnlyCells()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     Grid grid;
     grid.SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
 
@@ -491,6 +507,8 @@ void TestGridTickReturnsTrueForHeaderBusyIndicator()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = false;
     host.SetTheme(theme);
@@ -512,6 +530,8 @@ void TestGridTickReturnsTrueForSortGlyphTransition()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = false;
     host.SetTheme(theme);
@@ -565,6 +585,8 @@ void TestReducedMotionSuppressesSortGlyphTransition()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = true;
     host.SetTheme(theme);
@@ -607,7 +629,9 @@ void TestGridScrollbarFeedbackFollowsHoverAndDragState()
     };
 
     WindowHost host;
-    const ThemePalette theme = MakeDefaultThemePalette(true);
+
+    EnableMotionForTest(host);
+    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
     host.SetTheme(theme);
     Grid grid;
     grid.SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 160.0f));
@@ -747,10 +771,12 @@ void TestGridScrollbarReducedMotionSnapsFeedback()
         return D2D1::Point2F(x, y);
     };
 
-    ThemePalette theme  = MakeDefaultThemePalette(true);
+    ThemePalette theme  = MakeAnimatedTestThemePalette(true);
     theme.reducedMotion = true;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     host.SetTheme(theme);
     Grid grid;
     grid.SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 160.0f));
@@ -786,6 +812,8 @@ void TestGridTickReturnsTrueForIndeterminateMarquee()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = false;
     host.SetTheme(theme);
@@ -807,6 +835,8 @@ void TestGridTickReturnsFalseForDeterminateProgress()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = false;
     host.SetTheme(theme);
@@ -828,6 +858,8 @@ void TestGridTickReturnsFalseForSpinnerWhenReducedMotionEnabled()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = true;
     host.SetTheme(theme);
@@ -849,6 +881,8 @@ void TestGridTickReturnsFalseForHeaderBusyIndicatorWhenReducedMotionEnabled()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = true;
     host.SetTheme(theme);
@@ -871,6 +905,8 @@ void TestGridTickReturnsFalseForIndeterminateMarqueeWhenReducedMotionEnabled()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = true;
     host.SetTheme(theme);
@@ -893,6 +929,8 @@ void TestTextFieldCaretTickIgnoresReducedMotion()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = true;
     host.SetTheme(theme);
@@ -908,6 +946,8 @@ void TestEditableComboBoxCaretTickIgnoresReducedMotion()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = true;
     host.SetTheme(theme);
@@ -972,6 +1012,8 @@ void TestPageHostPageTransitionAnimatesAndSettles()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = false;
     host.SetTheme(theme);
@@ -1015,6 +1057,8 @@ void TestPageHostConnectedAnimationInterpolatesSharedElementRect()
     const D2D1_RECT_F targetHeroBounds = D2D1::RectF(184.0f, 120.0f, 296.0f, 156.0f);
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     auto root      = std::make_unique<Panel>();
     auto* pageHost = root->AddChild<PageHost>();
     pageHost->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 200.0f));
@@ -1119,6 +1163,8 @@ void TestPageHostReducedMotionSnapsTransition()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     ThemePalette theme  = host.GetTheme();
     theme.reducedMotion = true;
     host.SetTheme(theme);

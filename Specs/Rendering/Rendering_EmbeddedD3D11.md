@@ -97,3 +97,7 @@ Hit-tested gestures require clean prepared content. Captured continuation can up
 paint, but any intervening bounds, tree or availability revision cancels capture and disables input until prepare
 succeeds. This prevents new hit rectangles from being used with an old texture. Keyboard continuation uses the
 same prepared interaction revision. A consumer must call Prepare between independent hit-tested gestures.
+
+A zero-sized prepared target suspends both preparation requests and animation ticks. Dirty state and pending motion
+remain retained; the caller resumes them by preparing a nonzero target. Hidden and zero-sized views never request
+background frames for those deferred changes.

@@ -48,3 +48,8 @@ allocations or extra preparations. Its elapsed time is reported, not a machine-i
 and PNG generation are fixture-only operations. The public standalone consumer must compile without private headers.
 
 `Tools/validate_test_port.py` enforces the original case count, unique origins, explicit exclusion reasons and retained/renamed entrypoints. Tooling regression tests verify that deleting a retained case or its disposition fails.
+
+Motion-dependent fixtures explicitly choose an animated theme; reduced-motion fixtures explicitly disable motion.
+They never change the user's Windows animation preference. Popup pixel capture waits for the visible final-sized
+window so a temporary sizing HWND cannot satisfy visual-baseline readiness. Pixel assertions and original baselines
+remain unchanged across runner environments.

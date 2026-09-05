@@ -97,7 +97,7 @@ void TestSharedTransientSurfaceRendersOrdinaryPressedAndHighContrastPolicies()
     AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
     SetWindowPos(window.Hwnd(), nullptr, 0, 0, 640, 240, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     window.PumpMessages();
-    ThemePalette ordinary    = MakeDefaultThemePalette(true);
+    ThemePalette ordinary    = MakeAnimatedTestThemePalette(true);
     ordinary.overlayMaterial = OverlayMaterial::Solid;
     window.Host().SetTheme(ordinary);
     auto root                          = std::make_unique<TransientSurfaceProbe>();
@@ -174,7 +174,7 @@ void TestThroughputGraphBandsStayBelowHistoryLine()
     SetWindowPos(window.Hwnd(), nullptr, 0, 0, 640, 240, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     window.PumpMessages();
 
-    ThemePalette theme  = MakeDefaultThemePalette(true);
+    ThemePalette theme  = MakeAnimatedTestThemePalette(true);
     theme.reducedMotion = true;
     window.Host().SetTheme(theme);
 
@@ -284,7 +284,7 @@ void TestThroughputGraphHueChurnPerformanceScenario()
     SetWindowPos(window.Hwnd(), nullptr, 0, 0, 640, 240, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     window.PumpMessages();
 
-    ThemePalette theme  = MakeDefaultThemePalette(true);
+    ThemePalette theme  = MakeAnimatedTestThemePalette(true);
     theme.reducedMotion = true;
     window.Host().SetTheme(theme);
 
@@ -411,7 +411,7 @@ void TestDxUiCoreControlsDarkVisualBaseline()
     using namespace DxUi;
 
     AttachedHostWindow window;
-    ThemePalette theme  = MakeDefaultThemePalette(true);
+    ThemePalette theme  = MakeAnimatedTestThemePalette(true);
     theme.reducedMotion = true;
     window.Host().SetTheme(theme);
 
@@ -432,7 +432,7 @@ void TestDxUiCoreControlsLightVisualBaseline()
     using namespace DxUi;
 
     AttachedHostWindow window;
-    ThemePalette theme  = MakeDefaultThemePalette(false);
+    ThemePalette theme  = MakeAnimatedTestThemePalette(false);
     theme.reducedMotion = true;
     window.Host().SetTheme(theme);
 
@@ -453,7 +453,7 @@ void TestDxUiHighContrastVisualBaseline()
     using namespace DxUi;
 
     AttachedHostWindow window;
-    ThemePalette theme  = MakeDefaultThemePalette(false);
+    ThemePalette theme  = MakeAnimatedTestThemePalette(false);
     theme.highContrast  = true;
     theme.reducedMotion = true;
     window.Host().SetTheme(theme);
@@ -474,7 +474,7 @@ void TestDxUiPopupAndBarsVisualBaseline()
     using namespace DxUi;
 
     AttachedHostWindow window;
-    window.Host().SetTheme(MakeDefaultThemePalette(true));
+    window.Host().SetTheme(MakeAnimatedTestThemePalette(true));
 
     auto root     = std::make_unique<Panel>();
     auto* menuBar = root->AddChild<MenuBar>();
@@ -522,7 +522,7 @@ void TestDxUiPopupAndBarsAcrylicLightVisualBaseline()
     using namespace DxUi;
 
     AttachedHostWindow window;
-    ThemePalette theme    = MakeDefaultThemePalette(false);
+    ThemePalette theme    = MakeAnimatedTestThemePalette(false);
     theme.overlayMaterial = OverlayMaterial::Acrylic;
     window.Host().SetTheme(theme);
 
@@ -571,7 +571,7 @@ void TestDxUiPageTransitionVisualBaseline()
     using namespace DxUi;
 
     AttachedHostWindow window;
-    window.Host().SetTheme(MakeDefaultThemePalette(true));
+    window.Host().SetTheme(MakeAnimatedTestThemePalette(true));
 
     auto root      = std::make_unique<Panel>();
     auto* pageHost = root->AddChild<PageHost>();
@@ -591,7 +591,7 @@ void TestDxUiAdvancedControlsVisualBaseline()
     using namespace DxUi;
 
     AttachedHostWindow window;
-    window.Host().SetTheme(MakeDefaultThemePalette(true));
+    window.Host().SetTheme(MakeAnimatedTestThemePalette(true));
     SetWindowPos(window.Hwnd(), nullptr, 0, 0, 820, 280, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     window.PumpMessages();
 

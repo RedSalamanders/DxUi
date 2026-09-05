@@ -13,6 +13,8 @@ void TestTreePointerSelectionNotifiesDelegate()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
@@ -50,6 +52,8 @@ void TestTreeExpanderClickRequestsToggle()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
@@ -116,6 +120,8 @@ void TestTreeExpanderReResolvesStableItemAfterSelectionReorder()
     };
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
@@ -169,6 +175,8 @@ void TestTreeSelectionDelegateCanReplaceRootSafely()
     };
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
@@ -195,6 +203,8 @@ void TestTreeKeyboardRightAndLeftHandleExpansionAndParentTraversal()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
@@ -253,6 +263,8 @@ void TestTreeTypeaheadSelectsVisibleMatch()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
@@ -287,6 +299,8 @@ void TestTreeTypeaheadFallsBackToSingleCharacterAfterPrefixMiss()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
@@ -351,6 +365,8 @@ void TestTreeDoubleClickInvokesLeafItem()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
@@ -380,6 +396,8 @@ void TestTreePageDownAdvancesByVisibleRows()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     Tree tree;
     tree.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 116.0f));
 
@@ -407,6 +425,8 @@ void TestTreePageUpRetreatsByVisibleRows()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     Tree tree;
     tree.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 116.0f));
 
@@ -434,6 +454,8 @@ void TestTreeHomeAndEndNavigateToBoundaries()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     Tree tree;
     tree.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 116.0f));
 
@@ -463,6 +485,8 @@ void TestTreePageAndBoundaryKeysClampAtExtremes()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     Tree tree;
     tree.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 116.0f));
 
@@ -504,6 +528,8 @@ void TestTreeMouseWheelScrollAffectsLaterHitTesting()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     Tree tree;
     tree.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 116.0f));
 
@@ -535,6 +561,8 @@ void TestTreeScrollbarThumbGutterDragThroughWindowHost()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
@@ -553,7 +581,7 @@ void TestTreeScrollbarThumbGutterDragThroughWindowHost()
     host.SetRoot(std::move(root));
     static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
 
-    const ThemePalette theme             = MakeDefaultThemePalette(true);
+    const ThemePalette theme             = MakeAnimatedTestThemePalette(true);
     const TreeScrollbarVisualState state = tree->DebugGetScrollbarVisualState(theme);
     Require(state.hasVerticalScrollbar, "tree exposes a vertical scrollbar for thumb gutter drag");
     RequireRectHasArea(state.verticalThumbRect, "tree exposes a visible vertical scrollbar thumb for gutter drag");
@@ -589,6 +617,8 @@ void TestTreeLargeWheelDeltaUsesFullMagnitude()
     };
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     Tree singleStepTree;
     singleStepTree.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 116.0f));
     MutableTreeModel singleStepModel;
@@ -628,6 +658,8 @@ void TestTreeAccumulatesPartialWheelDelta()
     };
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     Tree singleStepTree;
     singleStepTree.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 116.0f));
     MutableTreeModel singleStepModel;
@@ -668,7 +700,9 @@ void TestTreeScrollbarFeedbackFollowsHoverAndDragState()
     };
 
     WindowHost host;
-    const ThemePalette theme = MakeDefaultThemePalette(true);
+
+    EnableMotionForTest(host);
+    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
     host.SetTheme(theme);
     Tree tree;
     tree.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 116.0f));
@@ -768,7 +802,9 @@ void TestTreeFocusVisualsRespectKeyboardFocusVisibilityAndHighContrast()
     using namespace DxUi;
 
     WindowHost host;
-    const ThemePalette theme = MakeDefaultThemePalette(true);
+
+    EnableMotionForTest(host);
+    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
     Tree tree;
 
     MutableTreeModel model;
@@ -845,6 +881,8 @@ void TestTreeSelectedRowUsesRainbowOnlyInRainbowMode()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     Tree tree;
 
     MutableTreeModel model;
@@ -857,7 +895,7 @@ void TestTreeSelectedRowUsesRainbowOnlyInRainbowMode()
     tree.SetSelectedItemId(2u);
     host.SetFocusControl(&tree);
 
-    ThemePalette rainbowTheme = MakeDefaultThemePalette(true);
+    ThemePalette rainbowTheme = MakeAnimatedTestThemePalette(true);
     rainbowTheme.rainbowMode  = true;
 
     TreeDebugRowVisualState state{};
@@ -903,6 +941,8 @@ void TestTreeRightClickInvokesContextMenuForHitItem()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
@@ -937,6 +977,8 @@ void TestTreeKeyboardContextMenuBringsOffscreenSelectionIntoViewBeforeAnchoring(
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
@@ -978,6 +1020,8 @@ void TestTreeLayoutMetricsReserveSpaceForIconAndBadge()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     Tree tree;
     tree.SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 120.0f));
 
@@ -1007,6 +1051,8 @@ void TestTreeLayoutMetricsOmitOptionalAdornmentRectsWhenUnused()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     Tree tree;
     tree.SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 120.0f));
 
@@ -1031,6 +1077,8 @@ void TestTreeRowMetricsClampToSegoeVariableBodyLineHeight()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     Tree tree;
     tree.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
     tree.SetRowHeightDip(12.0f);
@@ -1057,6 +1105,8 @@ void TestTreeCompactDensityShrinksRowMetrics()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 160.0f));
@@ -1070,7 +1120,7 @@ void TestTreeCompactDensityShrinksRowMetrics()
     tree->SetModel(&model);
     host.SetRoot(std::move(root));
 
-    ThemePalette standardTheme = MakeDefaultThemePalette(false);
+    ThemePalette standardTheme = MakeAnimatedTestThemePalette(false);
     standardTheme.density      = Density::Standard;
     host.SetTheme(standardTheme);
     const TreeItemLayoutMetrics standardFirst  = tree->GetItemLayoutMetrics(host, 0u);
@@ -1096,6 +1146,8 @@ void TestTreeHoveredClippedTextShowsFullTextTooltip()
     using namespace DxUi;
 
     WindowHost host;
+
+    EnableMotionForTest(host);
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 72.0f));

@@ -91,6 +91,7 @@ struct EmbeddedHost::State
     UINT width = 0, height = 0;
     float dpi    = 96;
     bool visible = true, dirty = true, coherent = false;
+    bool zeroSized                       = false;
     bool animationSuspended              = false;
     uint64_t revision                    = 0;
     uint64_t preparedInteractionRevision = 0;
@@ -179,7 +180,7 @@ void EmbeddedHost::MarkDirty() noexcept
     const bool changed = ! s.dirty;
     s.dirty            = true;
     ++s.revision;
-    if (changed && s.visible && s.callbacks.requestPreparation)
+    if (changed && s.visible && ! s.zeroSized && s.callbacks.requestPreparation)
         s.callbacks.requestPreparation(s.callbacks.context);
 }
 void EmbeddedHost::SetVisible(bool visible) noexcept
@@ -198,17 +199,17 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
         _host._embeddedAnimationRequested = _host._embeddedAnimationRequested || _state->animationSuspended;
         _state->animationSuspended        = false;
         _state->dirty                     = true;
-        if (_state->callbacks.requestPreparation)
+        if (! _state->zeroSized && _state->callbacks.requestPreparation)
             _state->callbacks.requestPreparation(_state->callbacks.context);
     }
 }
 bool EmbeddedHost::NeedsPreparation() const noexcept
 {
-    return _state && _state->visible && _state->dirty;
+    return _state && _state->visible && ! _state->zeroSized && _state->dirty;
 }
 bool EmbeddedHost::NeedsAnimation() const noexcept
 {
-    return _state && _state->visible && _host._embeddedAnimationRequested;
+    return _state && _state->visible && ! _state->zeroSized && _host._embeddedAnimationRequested;
 }
 bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
 {
@@ -238,7 +239,8 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     auto& g = *s.graphics->_state;
     if (g.thread != GetCurrentThreadId())
         return RPC_E_WRONG_THREAD;
-    if (! s.visible || ! width || ! height)
+    s.zeroSized = ! width || ! height;
+    if (! s.visible || s.zeroSized)
     {
         CancelPointer();
         s.coherent = false;

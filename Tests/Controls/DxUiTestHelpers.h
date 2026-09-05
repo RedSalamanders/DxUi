@@ -29,6 +29,22 @@
 
 #pragma comment(lib, "imm32.lib")
 
+// Animation fixtures explicitly choose motion instead of depending on the runner's accessibility preference.
+// Tests for reduced motion still set theme.reducedMotion = true. No system setting is changed.
+[[nodiscard]] inline DxUi::ThemePalette MakeAnimatedTestThemePalette(bool dark)
+{
+    auto theme          = DxUi::MakeDefaultThemePalette(dark);
+    theme.reducedMotion = false;
+    return theme;
+}
+
+inline void EnableMotionForTest(DxUi::WindowHost& host)
+{
+    auto theme          = host.GetTheme();
+    theme.reducedMotion = false;
+    host.SetTheme(theme);
+}
+
 inline void Require(bool condition, const char* message)
 {
     if (! condition)
@@ -776,6 +792,7 @@ public:
 
     explicit AttachedHostWindow(DxUi::WindowHost::PresentationMode presentationMode = DxUi::WindowHost::PresentationMode::HwndSwapChain)
     {
+        EnableMotionForTest(_host);
         static_cast<void>(EnsureWindowClass());
         const DWORD exStyle = DxUiTestWindowsCanActivateFlag() ? 0u : WS_EX_NOACTIVATE;
         HWND hwnd           = CreateWindowExW(
