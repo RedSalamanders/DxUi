@@ -259,7 +259,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         CancelPointer();
         return E_OUTOFMEMORY;
     }
-    if (s.width && (width != s.width || height != s.height || dpi != s.dpi))
+    if (s.preparedInteractionRevision != _host._interactionRevision || (s.width && (width != s.width || height != s.height || dpi != s.dpi)))
         CancelPointer();
     if (! s.dirty && s.coherent && width == s.width && height == s.height && dpi == s.dpi)
         return S_FALSE;
@@ -391,17 +391,29 @@ HRESULT EmbeddedHost::Composite(ID3D11DeviceContext* context, const D3D11_VIEWPO
 }
 void EmbeddedHost::CancelPointer() noexcept
 {
-    _host.PruneStaleInteractionState();
-    if (auto* captured = _host._capturedControl)
+    // Validate by traversing live children without dereferencing a possibly removed captured pointer.
+    const auto contains = [](auto&& self, const Control* root, const Control* target) noexcept -> bool
     {
-        _host._capturedControl = nullptr;
-        try
-        {
+        if (! root)
+            return false;
+        if (root == target)
+            return true;
+        for (size_t i = 0; i < root->GetLogicalChildCount(); ++i)
+            if (self(self, root->GetLogicalChild(i), target))
+                return true;
+        return false;
+    };
+    auto* captured         = _host._capturedControl;
+    _host._capturedControl = nullptr;
+    try
+    {
+        // Hidden/disabled controls still need their draft canceled before ordinary interaction pruning.
+        if (captured && contains(contains, _host._root.get(), captured))
             captured->OnCaptureLost(_host);
-        }
-        catch (const std::exception&)
-        { /* Capture is already cleared. */
-        }
+        _host.PruneStaleInteractionState();
+    }
+    catch (const std::exception&)
+    { /* Capture is already cleared. */
     }
 }
 bool EmbeddedHost::InputIsCoherent(bool allowDirty) noexcept

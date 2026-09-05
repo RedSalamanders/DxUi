@@ -226,6 +226,22 @@ int main()
     Check(scene.view.Controls().GetCapturedControl() == nullptr && scene.slider->GetValue() == capturedStart, "geometry invalidation cancels draft");
     scene.slider->SetBounds(originalBounds);
     Hr(scene.view.Prepare(480, 240), "prepare restored geometry");
+    for (bool hide : {false, true})
+    {
+        const double initial        = scene.slider->GetValue();
+        const size_t canceledBefore = cancel;
+        Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 80, 184}), "press before availability change");
+        if (hide)
+            scene.slider->SetVisible(false);
+        else
+            scene.slider->SetEnabled(false);
+        Hr(scene.view.Prepare(480, 240), "prepare unavailable control cancels before pruning capture");
+        Check(scene.slider->GetValue() == initial && cancel == canceledBefore + 1 && scene.view.Controls().GetCapturedControl() == nullptr,
+              "hidden or disabled slider restores its draft exactly once");
+        scene.slider->SetVisible(true);
+        scene.slider->SetEnabled(true);
+        Hr(scene.view.Prepare(480, 240), "restore control availability");
+    }
     std::shared_ptr<DxUi::GraphicsDevice> shared;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), shared), "shared supplied device pool");
     DxUi::EmbeddedHost a, b;
