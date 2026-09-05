@@ -51,7 +51,7 @@ try {
     $receipt.executableSha256 = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
     $receipt.workloadOwner = 'DxUi'
     $receipt.benchmarkInputs = [ordered]@{}
-    foreach ($inputPath in @('Tests/Embedded/ComplexUiBenchmark.h', 'Samples/ComplexUi/ComplexUiScene.h', 'Samples/EmbeddedControls/GraphicsFixture.h')) {
+    foreach ($inputPath in @('Tests/Embedded/BenchmarkMain.h', 'Tests/Embedded/ComplexUiBenchmark.h', 'Samples/ComplexUi/ComplexUiScene.h', 'Samples/EmbeddedControls/GraphicsFixture.h')) {
         $receipt.benchmarkInputs[$inputPath] = (Get-FileHash -LiteralPath $inputPath -Algorithm SHA256).Hash
     }
     $fixtureIdentity = ($receipt.benchmarkInputs.GetEnumerator() | ForEach-Object { "$($_.Key) $($_.Value)" }) -join "`n"

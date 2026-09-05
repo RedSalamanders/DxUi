@@ -83,3 +83,6 @@ and implementation acceptance requires matched before/after evidence under the p
 
 RedXe still needs its first release pin and preparation/input/text/UIA bridge. RedSalamander's application migration
 remains on hold. Neither application's runtime changes merely because this library builds.
+
+Managed vcpkg clones enable Git long-path support in their own repository configuration so deeply relocated
+consumer fixtures can check out tool sources. No user/global Git configuration is changed.

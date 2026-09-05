@@ -85,16 +85,11 @@ static void Hr(HRESULT hr, const char* text)
     Check(SUCCEEDED(hr), text);
 }
 #include "ComplexUiBenchmark.h"
+#include "EmbeddedTextInputTests.h"
 
-int wmain(int argc, wchar_t** argv)
+// Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
+__declspec(noinline) static int RunFunctionalTests()
 {
-    Hr(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED), "COM apartment");
-    const auto com = wil::scope_exit([] { CoUninitialize(); });
-    if (argc == 3 && std::wstring_view(argv[1]) == L"--benchmark")
-    {
-        ComplexUiBenchmark::Run(argv[2]);
-        return 0;
-    }
     static size_t diagnosticCalls = 0;
     DxUi::Diagnostics::sink       = [](std::wstring_view, std::wstring_view message) noexcept
     {
@@ -108,6 +103,7 @@ int wmain(int argc, wchar_t** argv)
     Check(! DxUi::IsContextMenuDiagnosticsEnabled(), "clearing sink disables native diagnostics");
     GraphicsFixture gpu;
     Hr(gpu.Create(), "supplied WARP device");
+    TestEmbeddedTextInput(gpu);
     EmbeddedScene scene;
     size_t requests = 0;
     Hr(scene.Initialize(gpu.device.get(), {&requests, [](void* p) noexcept { ++*static_cast<size_t*>(p); }}), "public scene");
@@ -347,4 +343,7 @@ int wmain(int argc, wchar_t** argv)
     }
     std::cout << "PASS " << checks << " checks; 1000 warm composites " << us << " us; C++ allocations " << allocations << "; changed toggle pixels " << changed
               << '\n';
+    return 0;
 }
+
+#include "BenchmarkMain.h"

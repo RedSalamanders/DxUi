@@ -3720,6 +3720,10 @@ public:
     [[nodiscard]] Control* GetCapturedControl() const noexcept;
     void ReleaseMouseCapture() noexcept;
     [[nodiscard]] HWND GetHwnd() const noexcept;
+    [[nodiscard]] bool IsEmbedded() const noexcept
+    {
+        return _embedded;
+    }
     [[nodiscard]] D2D1_RECT_F GetClientBoundsDip() const noexcept;
     [[nodiscard]] float GetDpi() const noexcept;
     [[nodiscard]] float PixelsToDip(float pixels) const noexcept;

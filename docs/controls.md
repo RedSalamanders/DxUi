@@ -92,4 +92,4 @@ states. Disabled Buttons retain a border with the disabled text color; focus is 
 Embedded surfaces are transparent by default: consumers needing an opaque application background must paint it
 from their theme in their root panel before painting the child controls.
 
-[Primary-button contrast validation](measurements/primary-high-contrast-2026-09-05/README.md) records the native suites, gallery and matched performance evidence.
+[Primary-button contrast validation](https://github.com/RedSalamanders/DxUi/blob/1947a5b91beb029e9b99d71e0893c6075bbb29ca/docs/measurements/primary-high-contrast-2026-09-05/README.md) records the native suites, gallery and matched performance evidence.

@@ -131,11 +131,13 @@ void EmbeddedHost::Detach() noexcept
     if (! _state)
         return;
     CancelPointer();
+    CancelTextInput();
     _host._embeddedInvalidate = nullptr;
     _host._embeddedContext    = nullptr;
     _host.Detach();
     _host._embedded                   = false;
     _host._embeddedAnimationRequested = false;
+    _textInputRevision += _state->revision + 1;
     _state.reset();
 }
 HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) noexcept
@@ -143,6 +145,7 @@ HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) no
     if (! _state || ! graphics || graphics->_state->thread != GetCurrentThreadId())
         return E_INVALIDARG;
     CancelPointer();
+    CancelTextInput();
     auto& s    = *_state;
     auto& g    = *graphics->_state;
     s.coherent = false;
@@ -191,6 +194,7 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
     if (! visible)
     {
         CancelPointer();
+        CancelTextInput();
         _state->animationSuspended        = _host._embeddedAnimationRequested;
         _host._embeddedAnimationRequested = false;
     }
@@ -243,6 +247,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     if (! s.visible || s.zeroSized)
     {
         CancelPointer();
+        CancelTextInput();
         s.coherent = false;
         return S_FALSE;
     }
@@ -489,6 +494,8 @@ bool EmbeddedHost::DispatchKey(UINT key, bool down, UINT modifiers) noexcept
     {
         _host.PruneStaleInteractionState();
         _host.SetInputModality(InputModality::Keyboard);
+        if (down && key == VK_ESCAPE && _host._nativeTextInputImeComposing)
+            return ApplyTextInput(_textInputRevision + _state->revision, {}, EmbeddedTextInputAction::Cancel) == S_OK;
         if (down && key == VK_TAB)
             return _host.HandleTabNavigation((modifiers & MK_SHIFT) != 0);
         auto* target = _host.GetFocusControl();
@@ -513,6 +520,184 @@ bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers) noexcept
     {
         return false;
     }
+}
+namespace
+{
+bool ValidEmbeddedTextState(const NativeTextInputState& state, bool preview) noexcept
+{
+    const auto length = state.text.size();
+    if (length > 65536 || state.compositionClauseBoundaries.size() > 256 || state.caretIndex > length || state.firstVisibleLine > length ||
+        (state.selectionAnchorIndex && *state.selectionAnchorIndex > length))
+        return false;
+    const auto validRange = [length](std::optional<size_t> first, std::optional<size_t> last) noexcept
+    { return first.has_value() == last.has_value() && (! first || (*first <= *last && *last <= length)); };
+    if (! validRange(state.compositionStartIndex, state.compositionEndIndex) || ! validRange(state.conversionTargetStartIndex, state.conversionTargetEndIndex))
+        return false;
+    if (! preview)
+        return ! state.compositionStartIndex && ! state.conversionTargetStartIndex && ! state.compositionCursorIndex &&
+               state.compositionClauseBoundaries.empty();
+    if (! state.compositionStartIndex)
+        return false;
+    const auto first = *state.compositionStartIndex, last = *state.compositionEndIndex;
+    if ((state.conversionTargetStartIndex && (*state.conversionTargetStartIndex < first || *state.conversionTargetEndIndex > last)) ||
+        (state.compositionCursorIndex && (*state.compositionCursorIndex < first || *state.compositionCursorIndex > last)))
+        return false;
+    size_t previous = first;
+    for (const auto boundary : state.compositionClauseBoundaries)
+    {
+        if (boundary < previous || boundary > last)
+            return false;
+        previous = boundary;
+    }
+    return true;
+}
+} // namespace
+HRESULT EmbeddedHost::ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcept
+{
+    snapshot = {};
+    if (! _state || ! _state->graphics)
+        return E_UNEXPECTED;
+    if (_state->graphics->_state->thread != GetCurrentThreadId())
+        return RPC_E_WRONG_THREAD;
+    if (! InputIsCoherent(true))
+        return S_FALSE;
+    _host.PruneStaleInteractionState();
+    auto* control = _host.GetFocusControl();
+    if (! control || control != _host._nativeTextInputControl || ! control->SupportsTextInput())
+        return S_FALSE;
+    try
+    {
+        // SetText/selection changes may originate outside input dispatch. Read the control, not an old cache.
+        TextInputState actual;
+        if (! _host.TryReadTextInputState(control, actual))
+            return S_FALSE;
+        if (_host._nativeTextInputImeComposing && actual.text != _host._nativeTextInputStateCache.text)
+            _host.ClearNativeTextInputCompositionState();
+        _host.SyncNativeTextInputSession(control);
+        if (! _host.TryReadNativeTextInputState(control, snapshot.state))
+            return S_FALSE;
+        if (snapshot.state.text.size() > 65536)
+        {
+            snapshot = {};
+            return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+        }
+        snapshot.caretBoundsDip    = control->GetTextInputCaretRect(_host, snapshot.state.caretIndex);
+        snapshot.viewportBoundsDip = control->GetTextInputViewportRect();
+        snapshot.revision          = _textInputRevision + _state->revision;
+        return S_OK;
+    }
+    catch (const std::bad_alloc&)
+    {
+        snapshot = {};
+        return E_OUTOFMEMORY;
+    }
+}
+HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputState& state, EmbeddedTextInputAction action) noexcept
+{
+    if (! _state || ! _state->graphics)
+        return E_UNEXPECTED;
+    if (_state->graphics->_state->thread != GetCurrentThreadId())
+        return RPC_E_WRONG_THREAD;
+    if (action != EmbeddedTextInputAction::Preview && action != EmbeddedTextInputAction::Commit && action != EmbeddedTextInputAction::Cancel)
+        return E_INVALIDARG;
+    if (! InputIsCoherent(true))
+        return S_FALSE;
+    _host.PruneStaleInteractionState();
+    if (! revision || revision != _textInputRevision + _state->revision)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    auto* control = _host.GetFocusControl();
+    if (! control || control != _host._nativeTextInputControl || ! control->SupportsTextInput())
+        return S_FALSE;
+    const auto lifetime  = control->GetLifetimeToken();
+    const auto stillLive = [&]() noexcept
+    { return ! lifetime.expired() && control == _host.GetFocusControl() && control == _host._nativeTextInputControl && control->GetHost() == &_host; };
+    try
+    {
+        TextInputState actual;
+        if (! _host.TryReadTextInputState(control, actual))
+            return S_FALSE;
+        if (action != EmbeddedTextInputAction::Cancel && ! ValidEmbeddedTextState(state, action == EmbeddedTextInputAction::Preview))
+            return E_INVALIDARG;
+        if (action != EmbeddedTextInputAction::Cancel && actual.readOnly && (action == EmbeddedTextInputAction::Preview || actual.text != state.text))
+            return E_ACCESSDENIED;
+        if (_host._nativeTextInputImeComposing && actual.text != _host._nativeTextInputStateCache.text)
+            _host.ClearNativeTextInputCompositionState();
+        const auto previous = _host._nativeTextInputStateCache;
+        if (action == EmbeddedTextInputAction::Cancel)
+        {
+            if (! _host._nativeTextInputImeComposing)
+                return S_FALSE;
+            const auto base = _host._nativeTextInputImeBaseState;
+            _host.ClearNativeTextInputCompositionState();
+            if (base && ! control->ImportTextInputState(_host, *base, false))
+                return E_FAIL;
+        }
+        else
+        {
+            TextInputState edit       = actual;
+            edit.text                 = state.text;
+            edit.selectionAnchorIndex = state.selectionAnchorIndex;
+            edit.caretIndex           = state.caretIndex;
+            edit.firstVisibleLine     = state.firstVisibleLine;
+            if (action == EmbeddedTextInputAction::Preview)
+            {
+                if (! _host._nativeTextInputImeComposing)
+                    _host._nativeTextInputImeBaseState = actual;
+                _host._nativeTextInputImeComposing                = true;
+                _host._nativeTextInputCompositionStartIndex       = state.compositionStartIndex;
+                _host._nativeTextInputCompositionEndIndex         = state.compositionEndIndex;
+                _host._nativeTextInputConversionTargetStartIndex  = state.conversionTargetStartIndex;
+                _host._nativeTextInputConversionTargetEndIndex    = state.conversionTargetEndIndex;
+                _host._nativeTextInputCompositionCursorIndex      = state.compositionCursorIndex;
+                _host._nativeTextInputCompositionClauseBoundaries = state.compositionClauseBoundaries;
+                if (! control->ImportTextInputState(_host, edit, false))
+                    return E_FAIL;
+            }
+            else
+            {
+                // Compare/notify against the pre-composition value even when the final text equals its preview.
+                const auto base = _host._nativeTextInputImeBaseState;
+                _host.ClearNativeTextInputCompositionState();
+                if (base && ! control->ImportTextInputState(_host, *base, false))
+                    return E_FAIL;
+                if (! stillLive())
+                    return S_OK;
+                if (! control->ImportTextInputState(_host, edit, true))
+                    return E_FAIL;
+            }
+        }
+        ++_state->revision;
+        // An application callback may remove/replace the root or focus another control.
+        if (stillLive())
+        {
+            _host.SyncNativeTextInputSession(control);
+            _host.RaiseNativeTextInputAccessibilityEvents(previous);
+        }
+        return S_OK;
+    }
+    catch (const std::bad_alloc&)
+    {
+        _state->coherent = false;
+        MarkDirty();
+        return E_OUTOFMEMORY;
+    }
+    catch (const std::exception&)
+    {
+        // Consumer callbacks can throw after changing text. Suppress interaction until the next prepare
+        // publishes a coherent control state; never let an exception escape this noexcept input boundary.
+        _host.ClearNativeTextInputCompositionState();
+        _state->coherent = false;
+        MarkDirty();
+        return E_FAIL;
+    }
+}
+void EmbeddedHost::CancelTextInput() noexcept
+{
+    if (! _state || (_state->graphics && _state->graphics->_state->thread != GetCurrentThreadId()))
+        return;
+    ++_state->revision;
+    _host.DeactivateTextInput(false);
+    _host.SetFocusControl(nullptr);
 }
 EmbeddedStatistics EmbeddedHost::GetStatistics() const noexcept
 {

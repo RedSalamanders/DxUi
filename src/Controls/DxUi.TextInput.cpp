@@ -902,6 +902,14 @@ bool ControlHost::TryReadTextInputState(const Control* control, TextInputState& 
 
 void ControlHost::SyncTextInput(Control* control) noexcept
 {
+    // Embedded composition imports synchronize privately. A public control edit is newer application/input
+    // state and must not be undone by cancellation of the previous OS-service preview.
+    if (_embedded && _nativeTextInputImeComposing && control == _nativeTextInputControl)
+    {
+        TextInputState actual;
+        if (control && control->ExportTextInputState(actual) && actual.text != _nativeTextInputStateCache.text)
+            ClearNativeTextInputCompositionState();
+    }
     SyncNativeTextInputSession(control);
 }
 
@@ -2859,8 +2867,18 @@ bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& st
 {
     const std::wstring previousText       = _text;
     const size_t previousFirstVisibleLine = _multilineFirstVisibleLine;
-    _undoHistory.clear();
-    _redoHistory.clear();
+    if (host.IsEmbedded())
+    {
+        // Preview/cancel/selection imports preserve history. EmbeddedHost restores the composition base
+        // before the single notifying commit, so the committed edit gets exactly one meaningful undo entry.
+        if (notifyChange && previousText != state.text)
+            RecordUndoStateForDirectEdit();
+    }
+    else
+    {
+        _undoHistory.clear();
+        _redoHistory.clear();
+    }
     BreakDirectEditMerge();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     _text       = state.text;

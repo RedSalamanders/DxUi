@@ -30,8 +30,9 @@ Receipts record completed offscreen WARP FPS, p50/p95 total frame milliseconds, 
 times, C++ allocation counts, exact surface payload and replacement peak, process private bytes and working set
 with sampled peaks and private-byte growth. Source commit/content fingerprint, executable/fixture hashes, compiler,
 machine, CPU, OS, WARP binary version, active power policy, native architecture and configuration make the comparison
-auditable. The fixture fingerprint covers the benchmark, shared sample scene and graphics helper; receipts declare
-`workloadOwner: DxUi`. Changes to those inputs invalidate earlier fixture comparisons. `-SkipBuild` is recorded; the caller is responsible for matching existing binaries to the recorded sources.
+auditable. The fixture fingerprint covers the minimal benchmark entry (`BenchmarkMain.h`), benchmark, shared
+sample scene and graphics helper; receipts declare `workloadOwner: DxUi`. Functional tests run in a separate
+non-inlined function so their stack frame is not part of benchmark entry. Changes to those inputs invalidate earlier fixture comparisons. `-SkipBuild` is recorded; the caller is responsible for matching existing binaries to the recorded sources.
 
 FPS includes target clear and a blocking readback of one pixel into a reusable staging texture, ensuring submitted
 work has completed. It excludes PNG encoding, statistics serialization and process-memory sampling. This readback

@@ -14,3 +14,7 @@ limitations and noisy results. Temporary output remains in `.build`; docs link h
 
 Run and compare using [the performance guide](../docs/performance.md). Do not replace an earlier baseline to hide
 a regression or claim application-level acceptance from these library measurements.
+
+- [Primary high contrast, 2026-09-05](https://github.com/RedSalamanders/DxUi/blob/1947a5b91beb029e9b99d71e0893c6075bbb29ca/docs/measurements/primary-high-contrast-2026-09-05/README.md): retained v1 fixture evidence and native validation for the focused color-pair correction. This is historical v1 evidence, not a comparison against the new v2 scene.
+
+- [Embedded text state, 2026-09-05](TextInput/2026-09-05/README.md): matched final-driver measurements, earlier investigation runs and complete x64 suite receipts.
