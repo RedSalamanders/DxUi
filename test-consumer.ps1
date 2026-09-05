@@ -1,13 +1,14 @@
 <# .SYNOPSIS Proves exact-pin consumption from a relocated clean checkout and isolated outputs. #>
 [CmdletBinding()]
-param([ValidateSet('Debug','Release')][string] $Configuration='Debug')
+param([ValidateSet('Debug','Release')][string] $Configuration='Debug', [string] $FixtureRoot='')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $revision=(& git -C $PSScriptRoot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Cannot read the DxUi revision.' }
 if (& git -C $PSScriptRoot status --porcelain --untracked-files=normal) { throw 'Commit the library changes before validating a release consumer pin.' }
-$root=Join-Path $PSScriptRoot ('.build/consumer fixtures/'+[guid]::NewGuid().ToString('N'))
-$checkout=Join-Path $root 'relocated DxUI'
+if (-not $FixtureRoot) { $FixtureRoot=Join-Path $PSScriptRoot '.build/consumer fixtures' }
+$root=Join-Path ([IO.Path]::GetFullPath($FixtureRoot)) ([guid]::NewGuid().ToString('N'))
+$checkout=Join-Path $root 'relocated DxUi'
 $consumer=Join-Path $root 'external consumer'
 $output=(Join-Path $consumer 'dependencies')+[IO.Path]::DirectorySeparatorChar
 New-Item -ItemType Directory -Path $consumer -Force | Out-Null
@@ -15,15 +16,20 @@ New-Item -ItemType Directory -Path $consumer -Force | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Cannot create the isolated consumer source fixture.' }
 & (Join-Path $checkout 'vcpkg-install.ps1') -Platform x64 -OutputRoot $output
 $lock=Join-Path $consumer 'DxUi.lock.json'
-$pin=[ordered]@{repository='https://github.com/RedSalamanders/DxUI';commit=$revision;apiRevision=2;targets=@('DxUi')}
+$pin=[ordered]@{repository='https://github.com/RedSalamanders/DxUi';commit=$revision;apiRevision=2;targets=@('DxUi')}
 function Write-Lock { $pin | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $lock -Encoding utf8 }
 Write-Lock
 # Prevent ancestor repository properties from contaminating this external consumer.
 '<Project />' | Set-Content (Join-Path $consumer 'Directory.Build.props')
 '<Project />' | Set-Content (Join-Path $consumer 'Directory.Build.targets')
 foreach($name in @('EmbeddedScene.h','GraphicsFixture.h','Main.cpp')) {
-    Copy-Item -LiteralPath (Join-Path $checkout "Samples/EmbeddedControls/$name") -Destination (Join-Path $consumer $name)
+    $sampleDirectory=Join-Path $consumer 'Samples/EmbeddedControls'
+    New-Item -ItemType Directory -Path $sampleDirectory -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $checkout "Samples/EmbeddedControls/$name") -Destination (Join-Path $sampleDirectory $name)
 }
+$complexDirectory=Join-Path $consumer 'Samples/ComplexUi'
+New-Item -ItemType Directory -Path $complexDirectory -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $checkout 'Samples/ComplexUi/ComplexUiScene.h') -Destination $complexDirectory
 $escape={param($value) [System.Security.SecurityElement]::Escape($value)}
 $rootXml=& $escape $checkout
 $outputXml=& $escape $output
@@ -38,7 +44,7 @@ $project=@"
  <PropertyGroup><DxUiRoot>$rootXml</DxUiRoot><DxUiConsumerOutputRoot>$outputXml</DxUiConsumerOutputRoot><DxUiConsumerLockFile>$lockXml</DxUiConsumerLockFile><OutDir>`$(MSBuildProjectDirectory)\bin\</OutDir><IntDir>`$(MSBuildProjectDirectory)\obj\</IntDir></PropertyGroup>
  <Import Project="$rootXml\Build\DxUi.Consumer.props" />
  <ItemDefinitionGroup><ClCompile><LanguageStandard>stdcpplatest</LanguageStandard><ExceptionHandling>Sync</ExceptionHandling><PreprocessorDefinitions>UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions><AdditionalOptions>/utf-8 /Zc:preprocessor %(AdditionalOptions)</AdditionalOptions><WarningLevel>Level4</WarningLevel><TreatWarningAsError>true</TreatWarningAsError><RuntimeLibrary Condition="'`$(Configuration)'=='Debug'">MultiThreadedDebugDLL</RuntimeLibrary><RuntimeLibrary Condition="'`$(Configuration)'=='Release'">MultiThreadedDLL</RuntimeLibrary></ClCompile><Link><SubSystem>Console</SubSystem></Link></ItemDefinitionGroup>
- <ItemGroup><ClCompile Include="Main.cpp" /></ItemGroup>
+ <ItemGroup><ClCompile Include="Samples/EmbeddedControls/Main.cpp" /></ItemGroup>
  <Import Project="`$(VCTargetsPath)\Microsoft.Cpp.targets" />
  <Import Project="$rootXml\Build\DxUi.Consumer.targets" />
 </Project>
@@ -52,6 +58,8 @@ $msbuild=Join-Path $installation 'MSBuild/Current/Bin/MSBuild.exe'
 if ($LASTEXITCODE -ne 0) { throw 'The external public consumer failed to build.' }
 & (Join-Path $consumer 'bin/ExternalConsumer.exe') --output (Join-Path $consumer 'public-consumer.png')
 if ($LASTEXITCODE -ne 0) { throw 'The relocated public consumer failed to render.' }
+& (Join-Path $consumer 'bin/ExternalConsumer.exe') --complex-ui --output (Join-Path $consumer 'complex-consumer.png')
+if ($LASTEXITCODE -ne 0) { throw 'The relocated independent complex sample failed to render.' }
 if (-not (Test-Path (Join-Path $output "x64/$Configuration/DxUi.lib")) -or (Test-Path (Join-Path $checkout ".build/x64/$Configuration/DxUi.lib"))) { throw 'Consumer outputs are not isolated.' }
 $validator=Join-Path $checkout 'Tools/validate_consumer.ps1'
 function Require-Rejection([string] $scenario) {

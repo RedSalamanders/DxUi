@@ -44,3 +44,23 @@ unchanged final value. Capture loss, Escape, hiding or detach reports Cancel and
 steps report Commit. SetValue updates from externally acknowledged state without firing an input callback. Existing
 SetOnValueChanged remains the legacy live-value observer; AV uses SetOnChange and calls the OS setter only on Commit.
 Callback-driven root replacement is supported and covered by a regression test.
+
+### Embedded text-state transport
+
+`ReadTextInput` returns an owned snapshot of the available focused control, a view revision and caret/viewport
+bounds in view-local DIPs. It clears its output on failure. No snapshot is available while hidden, suspended,
+detached or incoherently prepared. `ApplyTextInput` accepts only that view's current revision; any intervening
+invalidation, focus/tree replacement or device/attachment lifetime change invalidates the token. Read again after
+an accepted edit. These C++ records stay within a module; a consumer defines its own bounded plugin transport.
+
+Preview imports displayed text, selection and composition markers without a model notification. Commit notifies
+once relative to the pre-composition text, including when the committed text already matches the preview. Cancel,
+focus loss, hiding, zero-size suspension and device replacement discard composition without committing it.
+Externally replaced text survives cancellation. Preview/cancel/selection preserve TextField undo/redo history;
+a committed composition is one undoable edit. Escape cancels composition before ordinary application handling. Read-only policy belongs to the control and cannot be changed by
+an imported snapshot; selection is still available. Validate text/range/clauses before mutation, with a 65,536
+UTF-16-unit text ceiling and 256 clause boundaries. A callback may destroy the edited control; no access follows
+without lifetime/focus revalidation. All APIs are UI-thread operations outside composition/rendering.
+
+This API does not establish an OS text store, IME HWND association, clipboard service or UIA root. Those remain
+application-side adoption gates. Native and embedded controls share the existing text model and rendering.

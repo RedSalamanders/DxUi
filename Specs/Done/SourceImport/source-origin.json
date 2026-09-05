@@ -6,189 +6,189 @@
   "importedAt": "2026-09-05",
   "files": [
     {
-      "source": "Common/DxUI/DxUi.Accessibility.cpp",
+      "source": "Common/DxUi/DxUi.Accessibility.cpp",
       "originalSha256": "fdc9c066cba2b25e00b064545dcc9a34f1c84ea5aacfa5dd3e6f24e40c6d3720",
       "originalBytes": 320709,
       "currentPath": "src/Controls/DxUi.Accessibility.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.AccessibilityTextUnits.h",
+      "source": "Common/DxUi/DxUi.AccessibilityTextUnits.h",
       "originalSha256": "c85860ad541cc8941043b68b7ed7af80461a13221a2e9500054625ee2caf7707",
       "originalBytes": 993,
       "currentPath": "src/Controls/DxUi.AccessibilityTextUnits.h",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.ComboBox.cpp",
+      "source": "Common/DxUi/DxUi.ComboBox.cpp",
       "originalSha256": "b8a9a6b769c64b91fa02edddb2689529122ba1aba8d5235bb645f9a2d004cbf0",
       "originalBytes": 108845,
       "currentPath": "src/Controls/DxUi.ComboBox.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.Controls.cpp",
+      "source": "Common/DxUi/DxUi.Controls.cpp",
       "originalSha256": "cd3d606fc711abb87418a7b81f5eb4cf7b516662916dd1974128e1bcf74ab948",
       "originalBytes": 296541,
       "currentPath": "src/Controls/DxUi.Controls.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.cpp",
+      "source": "Common/DxUi/DxUi.cpp",
       "originalSha256": "dce641627b1575bee3ec6a0351e3fc05bbb37a3977c5df440ed8b6a448981bf6",
       "originalBytes": 29178,
       "currentPath": "src/Controls/DxUi.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.FocusRestore.h",
+      "source": "Common/DxUi/DxUi.FocusRestore.h",
       "originalSha256": "4a673b20b3345d5da19b3cc5c9217e5508311006b650d7d86f7f75df54f1f5d1",
       "originalBytes": 1339,
       "currentPath": "src/Controls/DxUi.FocusRestore.h",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.FrameRuntime.cpp",
+      "source": "Common/DxUi/DxUi.FrameRuntime.cpp",
       "originalSha256": "dcd573fb81a9c13925bd02091c592dd7347b578ff4f91f49199e82c363d7f67b",
       "originalBytes": 5167,
       "currentPath": "src/Foundation/FrameRuntime.cpp",
       "disposition": "consolidated"
     },
     {
-      "source": "Common/DxUI/DxUi.FrameRuntime.h",
+      "source": "Common/DxUi/DxUi.FrameRuntime.h",
       "originalSha256": "b24059e34641b6d3c46b9c28c1e0e448657f3afd2987dff0c93ab567e3a4affb",
       "originalBytes": 1682,
       "currentPath": "include/DxUi/FrameRuntime.h",
       "disposition": "consolidated"
     },
     {
-      "source": "Common/DxUI/DxUi.Grid.cpp",
+      "source": "Common/DxUi/DxUi.Grid.cpp",
       "originalSha256": "807cc2c0e992c048860663a29626319ee62143ecb3afe21d2fc486249f606a90",
       "originalBytes": 164648,
       "currentPath": "src/Controls/DxUi.Grid.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.h",
+      "source": "Common/DxUi/DxUi.h",
       "originalSha256": "7c7f64a074b99195cf18c3dec2e5e2aa6feeab621ed477ab74144689a426415c",
       "originalBytes": 191369,
       "currentPath": "include/DxUi/DxUi.h",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.Internal.h",
+      "source": "Common/DxUi/DxUi.Internal.h",
       "originalSha256": "25a0e92348ee407bc9dad45c26c9a751be84cb799dc7b1cbf041fd4cddb2376e",
       "originalBytes": 25278,
       "currentPath": "src/Controls/DxUi.Internal.h",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.Menu.cpp",
+      "source": "Common/DxUi/DxUi.Menu.cpp",
       "originalSha256": "f198b843b6b26a81d12cbb57665a74ab4cacf8c51ceafb0bb63f488e47135ce5",
       "originalBytes": 262072,
       "currentPath": "src/Controls/DxUi.Menu.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.NativeTextInput.cpp",
+      "source": "Common/DxUi/DxUi.NativeTextInput.cpp",
       "originalSha256": "541f2fe7396bb7acbada264ccfb3900510ceb62088067a1af4262024505810ff",
       "originalBytes": 58947,
       "currentPath": "src/Controls/DxUi.NativeTextInput.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.PointerInput.cpp",
+      "source": "Common/DxUi/DxUi.PointerInput.cpp",
       "originalSha256": "1945cb4c87e27b2bba58420af6e03dcab631de211de077026559f16b52f7a266",
       "originalBytes": 3050,
       "currentPath": "src/Controls/DxUi.PointerInput.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.PointerInput.h",
+      "source": "Common/DxUi/DxUi.PointerInput.h",
       "originalSha256": "d355a31824df8d81da54de451d89b144a2756b2918d2d4996e92eee09874ae4e",
       "originalBytes": 1108,
       "currentPath": "src/Controls/DxUi.PointerInput.h",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.Scrollbar.cpp",
+      "source": "Common/DxUi/DxUi.Scrollbar.cpp",
       "originalSha256": "e5f57eeddf767cc052867cf387c6a0ae81259587dee9f01027ad1947dd886bfe",
       "originalBytes": 11722,
       "currentPath": "src/Controls/DxUi.Scrollbar.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.SingleLineTextEditing.cpp",
+      "source": "Common/DxUi/DxUi.SingleLineTextEditing.cpp",
       "originalSha256": "b6fa647674f69903cf63902a5317023965d17d1dcfa669f18e3b8915eff7f8d5",
       "originalBytes": 43980,
       "currentPath": "src/Controls/DxUi.SingleLineTextEditing.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.TextInput.cpp",
+      "source": "Common/DxUi/DxUi.TextInput.cpp",
       "originalSha256": "2f8cf9b3ec32364c1539bf78a9a2aada4cd9c589181a3ebb2103951f3f7f7a83",
       "originalBytes": 131306,
       "currentPath": "src/Controls/DxUi.TextInput.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.TextStoreACP.cpp",
+      "source": "Common/DxUi/DxUi.TextStoreACP.cpp",
       "originalSha256": "53ce7a1cb15409fd037b5e2840174d7ff2f5b8d094dcec83553727123b4e9e3f",
       "originalBytes": 39028,
       "currentPath": "src/Controls/DxUi.TextStoreACP.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.Theme.cpp",
+      "source": "Common/DxUi/DxUi.Theme.cpp",
       "originalSha256": "7e22459200f9bdb77783ccad5fcd146d2ba96ef6a4aeaaecca87c1a95dc7dd8a",
       "originalBytes": 49020,
       "currentPath": "src/Controls/DxUi.Theme.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.Tree.cpp",
+      "source": "Common/DxUi/DxUi.Tree.cpp",
       "originalSha256": "3c711f156e11bec0360dc2419de4e751f4c644bc268105b565e239078e0042a9",
       "originalBytes": 61903,
       "currentPath": "src/Controls/DxUi.Tree.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.Typeahead.cpp",
+      "source": "Common/DxUi/DxUi.Typeahead.cpp",
       "originalSha256": "7498fb7636b169b69cfab787a258b97f27720ff1689faefbcb6feee69d991ce4",
       "originalBytes": 534,
       "currentPath": "src/Controls/DxUi.Typeahead.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.Typography.h",
+      "source": "Common/DxUi/DxUi.Typography.h",
       "originalSha256": "efbf5b3fe497e31673739ffa8b30e7875f43141b5d061acc8a87d0069998faa6",
       "originalBytes": 19977,
       "currentPath": "src/Controls/DxUi.Typography.h",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.vcxproj",
+      "source": "Common/DxUi/DxUi.vcxproj",
       "originalSha256": "03477da8c5382339994f0827116e94b489e17b4fbea04b0c5487dbcecb58cc26",
       "originalBytes": 11702,
       "disposition": "retired",
-      "reason": "Application-bound project replaced by DxUI-owned solution and target projects."
+      "reason": "Application-bound project replaced by DxUi-owned solution and target projects."
     },
     {
-      "source": "Common/DxUI/DxUi.Win32Hooks.h",
+      "source": "Common/DxUi/DxUi.Win32Hooks.h",
       "originalSha256": "71c9b7a6720b3643241a8bd81e6daa0c314fbfac0bbdcb2464cdaa2204ae9158",
       "originalBytes": 887,
       "currentPath": "src/Controls/DxUi.Win32Hooks.h",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUi.WindowHost.cpp",
+      "source": "Common/DxUi/DxUi.WindowHost.cpp",
       "originalSha256": "2c5284bee5864b680ea519607246324f44c0018b77b5273287acfbf3abfe1ad6",
       "originalBytes": 158236,
       "currentPath": "src/Controls/DxUi.WindowHost.cpp",
       "disposition": "owned"
     },
     {
-      "source": "Common/DxUI/DxUiNativeMenuInterop.h",
+      "source": "Common/DxUi/DxUiNativeMenuInterop.h",
       "originalSha256": "76c87565a3841e8a1f7df9816ffb6088d6b148c20796ef8fa34e12e9175f84bb",
       "originalBytes": 29515,
       "currentPath": "src/Controls/DxUiNativeMenuInterop.h",
@@ -381,7 +381,7 @@
       "originalSha256": "dad06855f449338cd074dfe28d92ac416bc4541857215ff2361422fe3c23bcff",
       "originalBytes": 8588,
       "disposition": "retired",
-      "reason": "Application-bound project replaced by DxUI-owned solution and target projects."
+      "reason": "Application-bound project replaced by DxUi-owned solution and target projects."
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.WindowHost.cpp",
@@ -412,5 +412,5 @@
       "originalBytes": 4371
     }
   ],
-  "policy": "Historical source identity only. DxUI owns and edits current source; original hashes do not constrain current bytes."
+  "policy": "Historical source identity only. DxUi owns and edits current source; original hashes do not constrain current bytes."
 }

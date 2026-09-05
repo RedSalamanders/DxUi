@@ -14,7 +14,8 @@
     "win32-host",
     "native-text-input",
     "native-accessibility",
-    "control-gallery"
+    "control-gallery",
+    "embedded-text-state"
   ],
   "pending": [
     "redxe-adapter",

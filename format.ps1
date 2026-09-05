@@ -12,7 +12,7 @@ if (-not $FormatterPath) {
 if (-not (Test-Path -LiteralPath $FormatterPath -PathType Leaf)) { throw 'clang-format not found; see CONTRIBUTING.md for the pinned formatter.' }
 $formatterVersion = & $FormatterPath --version
 if ($LASTEXITCODE -ne 0 -or $formatterVersion -notmatch '^clang-format version 22\.1\.3(?:\s|$)') {
-    throw "DxUI requires clang-format 22.1.3; found '$formatterVersion'. Use -FormatterPath or DXUI_CLANG_FORMAT; see CONTRIBUTING.md."
+    throw "DxUi requires clang-format 22.1.3; found '$formatterVersion'. Use -FormatterPath or DXUI_CLANG_FORMAT; see CONTRIBUTING.md."
 }
 Write-Host "Formatter: $formatterVersion"
 $files = @('src','include','Tests','Samples') | ForEach-Object {

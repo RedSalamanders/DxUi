@@ -1380,19 +1380,19 @@
       "file": "Tests/Controls/DxUiTests.Menu.cpp",
       "test": "TestFolderViewIncrementalSearchKeepsContainsHighlightButUsesPrefixFocus",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Menu.cpp",
       "test": "TestFolderViewInactiveVisualStateDimsNormalTextAndIcons",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Menu.cpp",
       "test": "TestFolderViewEmptyPlaceholderMetricsUseCurrentEmptyLayout",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Menu.cpp",
@@ -4326,7 +4326,7 @@
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestSharedColorRefArgbAndTruncatingBlendGoldenValues",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
@@ -4338,13 +4338,13 @@
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestHsvColorRefNegativeHuePoliciesRemainExplicitAndDistinct",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestSharedLuminanceMathSeparatesLinearizedAndEncodedPolicies",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
@@ -4356,19 +4356,19 @@
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestWindowSizingDpiRoundingAndPopupGeometryGoldenValues",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestViewerFileComboPopupInputAndHeightGoldenValues",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestViewerTitleBarThemeGoldenValues",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
@@ -4380,49 +4380,49 @@
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestUtfConversionPoliciesRemainExplicitAndPreserveEmbeddedNulls",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestOrdinalTrimAndEnvironmentPoliciesRemainExplicit",
       "status": "excluded",
-      "reason": "Utility belongs to the RedSalamander test/application infrastructure and is not used by DxUI."
+      "reason": "Utility belongs to the RedSalamander test/application infrastructure and is not used by DxUi."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestWindowsPathClassesKeepDriveRelativeAndFullyAbsolutePoliciesDistinct",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestBinaryThroughputGrammarPreservesBoundaryPoliciesAndRoundTrips",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestCompactFileMetadataFormattingPreservesTimeAndAttributePolicies",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestPercentEncodingAndHandleIoPoliciesCoverForwardProgressAndAtomicSiblings",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestCloudPaginationGuardBoundsProgressAndCancellation",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestYyjsonMemberPoliciesDistinguishPresenceTypeRangeAndCoercion",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
@@ -4875,19 +4875,19 @@
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestAppThemeDxPaletteRefreshesAccentVariantsAfterAssigningAccent",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestFolderContentDxPalettePreservesItsNamedProfile",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
       "test": "TestAppThemeSelectionResolutionIsSharedAndDeterministic",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.Theme.cpp",
@@ -5278,19 +5278,19 @@
       "file": "Tests/Controls/DxUiTests.WindowHost.cpp",
       "test": "TestContiguousPostedPayloadCoalescingPreservesQueueOrderAndOperationKeys",
       "status": "excluded",
-      "reason": "Utility belongs to the RedSalamander test/application infrastructure and is not used by DxUI."
+      "reason": "Utility belongs to the RedSalamander test/application infrastructure and is not used by DxUi."
     },
     {
       "file": "Tests/Controls/DxUiTests.WindowHost.cpp",
       "test": "TestSharedTestSupportPreservesSandboxAndEnvironmentPolicies",
       "status": "excluded",
-      "reason": "RedSalamander application or non-DxUI utility contract; remains owned and tested by that application."
+      "reason": "RedSalamander application or non-DxUi utility contract; remains owned and tested by that application."
     },
     {
       "file": "Tests/Controls/DxUiTests.WindowHost.cpp",
       "test": "TestSharedTestSupportPumpsMessagesAndBoundsSnapshotPolling",
       "status": "excluded",
-      "reason": "Utility belongs to the RedSalamander test/application infrastructure and is not used by DxUI."
+      "reason": "Utility belongs to the RedSalamander test/application infrastructure and is not used by DxUi."
     },
     {
       "file": "Tests/Controls/DxUiTests.WindowHost.cpp",

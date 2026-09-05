@@ -27,11 +27,11 @@ Pin a tested full Git commit, API revision **2** and target `["DxUi"]` in the co
 From the consumer directory, create the minimal implemented lock against a clean, validated library checkout:
 
 ```powershell
-$libraryRoot = (Resolve-Path ..\DxUI).Path
+$libraryRoot = (Resolve-Path ..\DxUi).Path
 $revision = (git -C $libraryRoot rev-parse HEAD).Trim()
 New-Item -ItemType Directory -Path Dependencies -Force | Out-Null
 @{
-    repository = 'https://github.com/RedSalamanders/DxUI'
+    repository = 'https://github.com/RedSalamanders/DxUi'
     commit = $revision
     apiRevision = 2
     targets = @('DxUi')

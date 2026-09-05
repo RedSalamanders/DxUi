@@ -7,6 +7,10 @@ Last reviewed: 2026-09-05
 exact-pin consumption, both hosting modes, ownership, input, layout/DPI, themes, recovery, every public control,
 performance measurements and testing. Public examples must use supported headers and accurate API names.
 Clearly distinguish implemented library behavior from pending consumer integration and manual validation.
+Samples MUST run independently of application repositories, settings and services, using library-owned synthetic
+models. Application-specific measurement archives belong in their application's repository. DxUi docs describe
+its independent workloads and link to reviewed library receipts under `Measurements/`; never present consumer
+integration evidence as standalone library acceptance. Scenario inspiration does not create a runtime dependency.
 
 Every code change MUST review affected docs and gallery. Update docs in the same change whenever public API,
 observable behavior, defaults, requirements, build/consumption or performance/test workflow changes. Update and
@@ -21,6 +25,6 @@ review all sheets for clipping/overlap/missing content, and publish PNGs, Markdo
 receipt in `docs/gallery`. Native tests/baselines remain distinct; never rebaseline tests merely to match a changed
 documentation screenshot.
 
-Intermediate outputs/logs stay in `.build`. The published docs gallery is the deliberate exception for generated
-reviewable documentation assets. Validate all local links, catalog documentation coverage and image hashes with
+Intermediate outputs/logs stay in `.build`. Published gallery assets and explicitly reviewed independent receipts
+under `Measurements/` are the deliberate exceptions. Validate all local links, catalog documentation coverage and image hashes with
 `validate-specs.ps1`. A change is incomplete until required docs and gallery updates are present and checked.

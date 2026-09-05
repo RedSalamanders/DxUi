@@ -53,7 +53,7 @@ def main():
             failures.append(f'Duplicate current source path: {relative}')
         destinations.add(relative)
     if (ROOT / 'upstream').exists():
-        failures.append('DxUI owns its source; remove the duplicate upstream tree')
+        failures.append('DxUi owns its source; remove the duplicate upstream tree')
 
     debt = json.loads((ROOT / 'Specs/Done/SourceImport/pending-dependencies.json').read_text(encoding='utf-8'))
     allowed = {}
@@ -112,7 +112,7 @@ def main():
                 if not path.is_relative_to(ROOT.resolve()) or not path.is_file():
                     failures.append(f'Invalid build source: {project.relative_to(ROOT)}: {item.attrib["Include"]}')
     if len(libraries) > 1:
-        failures.append('DxUI ships one static library; split targets are not supported')
+        failures.append('DxUi ships one static library; split targets are not supported')
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         return 1

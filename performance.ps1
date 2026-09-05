@@ -49,7 +49,15 @@ try {
     try { $receipt.sourceFingerprint = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($hashes -join "`n")))) }
     finally { $sha.Dispose() }
     $receipt.executableSha256 = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
-    $receipt.benchmarkSha256 = (Get-FileHash -LiteralPath Tests/Embedded/ComplexUiBenchmark.h -Algorithm SHA256).Hash
+    $receipt.workloadOwner = 'DxUi'
+    $receipt.benchmarkInputs = [ordered]@{}
+    foreach ($inputPath in @('Tests/Embedded/BenchmarkMain.h', 'Tests/Embedded/ComplexUiBenchmark.h', 'Samples/ComplexUi/ComplexUiScene.h', 'Samples/EmbeddedControls/GraphicsFixture.h')) {
+        $receipt.benchmarkInputs[$inputPath] = (Get-FileHash -LiteralPath $inputPath -Algorithm SHA256).Hash
+    }
+    $fixtureIdentity = ($receipt.benchmarkInputs.GetEnumerator() | ForEach-Object { "$($_.Key) $($_.Value)" }) -join "`n"
+    $fixtureHasher = [Security.Cryptography.SHA256]::Create()
+    try { $receipt.benchmarkSha256 = [Convert]::ToHexString($fixtureHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($fixtureIdentity))) }
+    finally { $fixtureHasher.Dispose() }
     $receipt.measurement = 'Completed offscreen WARP frames, including clear and blocking one-pixel readback; no swap-chain presentation or vsync.'
     $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $OutputPath -Encoding utf8
     $comparison = $OutputPath + '.comparison.json'

@@ -73,7 +73,7 @@ Grid and Tree borrow model/delegate pointers; retain these until the controls ar
 Grid models provide row/column counts, column descriptors, cell data and stable-row lookup. Tree models provide
 the visible item sequence with IDs, depth and expansion state. Supply actual populated data, stable identity and
 notifications; a factory-created empty control does not demonstrate interaction.
-See [the benchmark model](../Tests/Embedded/ComplexUiBenchmark.h),
+See [the benchmark model](../Samples/ComplexUi/ComplexUiScene.h),
 [grid tests](../Tests/Controls/DxUiTests.Grid.cpp), [tree tests](../Tests/Controls/DxUiTests.Tree.cpp), and
 [gallery construction](../Tests/Controls/DxUiTests.Gallery.cpp) for concrete configurations and variants.
 
@@ -92,4 +92,4 @@ states. Disabled Buttons retain a border with the disabled text color; focus is 
 Embedded surfaces are transparent by default: consumers needing an opaque application background must paint it
 from their theme in their root panel before painting the child controls.
 
-[Primary-button contrast validation](measurements/primary-high-contrast-2026-09-05/README.md) records the native suites, gallery and matched performance evidence.
+[Primary-button contrast validation](https://github.com/RedSalamanders/DxUi/blob/1947a5b91beb029e9b99d71e0893c6075bbb29ca/docs/measurements/primary-high-contrast-2026-09-05/README.md) records the native suites, gallery and matched performance evidence.

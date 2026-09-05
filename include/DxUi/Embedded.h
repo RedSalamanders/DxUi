@@ -44,6 +44,21 @@ struct PointerEvent
     UINT modifiers       = 0;
     float wheelDelta     = 0;
 };
+// Owned snapshot for an application-side text service; never pass this C++ record across a plugin ABI.
+// The revision belongs to this EmbeddedHost instance and is invalidated by any view change.
+struct EmbeddedTextInputSnapshot
+{
+    uint64_t revision = 0;
+    NativeTextInputState state;
+    std::optional<D2D1_RECT_F> caretBoundsDip;
+    std::optional<D2D1_RECT_F> viewportBoundsDip;
+};
+enum class EmbeddedTextInputAction : uint8_t
+{
+    Preview,
+    Commit,
+    Cancel
+};
 struct EmbeddedStatistics
 {
     uint64_t preparations         = 0;
@@ -90,12 +105,24 @@ public:
     bool DispatchPointer(const PointerEvent& event) noexcept;
     bool DispatchKey(UINT virtualKey, bool down, UINT modifiers = 0) noexcept;
     bool DispatchCharacter(wchar_t character, UINT modifiers = 0) noexcept;
+    // S_FALSE means no available focused text control. Bounds are view-local DIPs, not screen pixels.
+    HRESULT ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcept;
+    // Read a fresh snapshot after every accepted change. A stale revision returns ERROR_REVISION_MISMATCH.
+    // Preview changes displayed text/composition without notifying the model. Commit notifies once relative
+    // to the pre-composition text. Cancel restores that text without notification and ignores the supplied state.
+    // Text is bounded to 65,536 UTF-16 units and clauses to 256. Ranges must fit; control policy is never imported.
+    HRESULT ApplyTextInput(uint64_t revision, const NativeTextInputState& state, EmbeddedTextInputAction action) noexcept;
+    // Cancel composition and release logical text focus on OS focus loss; no HWND/OS service is owned here.
+    void CancelTextInput() noexcept;
     [[nodiscard]] EmbeddedStatistics GetStatistics() const noexcept;
 
 private:
     struct State;
     std::unique_ptr<State> _state;
     ControlHost _host;
+    // Attachment epoch plus the existing dirty revision forms the text token. Ordinary invalidation adds no
+    // new hot-path work; the epoch advances at detach so old services cannot address a new tree.
+    uint64_t _textInputRevision = 1;
     static void InvalidateThunk(void* context) noexcept;
     void CancelPointer() noexcept;
     [[nodiscard]] bool InputIsCoherent(bool allowDirty) noexcept;

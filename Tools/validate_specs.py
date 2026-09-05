@@ -18,7 +18,7 @@ def main():
         'Specs/UI/UI_InputAndAccessibility.md', 'Specs/Rendering/Rendering_EmbeddedD3D11.md',
         'Specs/Rendering/Rendering_Win32Host.md', 'Specs/Testing/Testing_Validation.md',
         'Specs/Core/Core_Documentation.md', 'docs/README.md', 'docs/controls.md', 'docs/getting-started.md',
-        'docs/hosting.md', 'docs/performance.md', 'docs/gallery/README.md',
+        'docs/hosting.md', 'docs/performance.md', 'docs/gallery/README.md', 'docs/samples.md', 'Measurements/README.md',
     ]
     for name in required:
         path = ROOT / name
@@ -40,6 +40,7 @@ def main():
     if set(indexed) != expected or len(indexed) != len(set(indexed)):
         failures.append('Every direct WIP plan must appear exactly once in its index')
     failures.extend(validate_docs(ROOT))
+    failures.extend(validate_measurements(ROOT))
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         return 1
@@ -50,6 +51,27 @@ def main():
 def markdown_prose(content):
     # C++ lambdas such as [](bool checked) are code, not Markdown links.
     return re.sub(r'^(`{3,}|~{3,})[^\n]*\n.*?^\1[ \t]*$', '', content, flags=re.MULTILINE | re.DOTALL)
+
+
+def validate_measurements(root):
+    failures = []
+    if any((root / 'docs/measurements').rglob('*.json')):
+        failures.append('Raw measurements belong in Measurements or their consumer repository, not docs')
+    for path in (root / 'Measurements').rglob('*.json'):
+        if path.name.endswith('.comparison.json'):
+            continue
+        try:
+            receipt = json.loads(path.read_text(encoding='utf-8-sig'))
+            if receipt.get('workloadOwner') != 'DxUi' or not receipt.get('fixture', '').startswith('dxui-'):
+                failures.append(f'Non-library measurement: {path.relative_to(root)}')
+            inputs = receipt.get('benchmarkInputs', {})
+            if not inputs or any(not re.fullmatch(r'[0-9a-fA-F]{64}', value) for value in inputs.values()):
+                failures.append(f'Missing fixture input hashes: {path.relative_to(root)}')
+            if not (path.parent / 'README.md').is_file():
+                failures.append(f'Missing measurement explanation: {path.relative_to(root)}')
+        except (OSError, ValueError, TypeError, AttributeError) as error:
+            failures.append(f'Invalid measurement {path.relative_to(root)}: {error}')
+    return failures
 
 
 def validate_docs(root):

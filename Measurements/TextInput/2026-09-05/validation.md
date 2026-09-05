@@ -1,0 +1,57 @@
+# Native x64 suite receipts
+
+These values are copied from the root test entrypoint receipts. Source/fixture fingerprints and complete benchmark rounds are in the linked final-suite files.
+
+| Configuration | Suite | Exit | Skips | Executable SHA-256 |
+| --- | --- | --- | --- | --- |
+| Debug | Foundation | 0 | 0 | `A11F8D1A03ADED88B2E4409460C30AD136A6AFD5738A4676602708C8E2A9B98F` |
+| Debug | Embedded | 0 | 0 | `578D82F0F67CC7EDF6C1C6E10C7132EF914175C5C391927345553A62B754497D` |
+| Debug | Grid | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | Theme | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | Control | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | Menu | 0 | 6 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | NewControls | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | TextField | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | NativeTextInput | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | MultilineText | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | ReadOnly | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | ComboBox | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | Tree | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | Tooltip | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | Rendering | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | Animation | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | Accessibility | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Debug | WindowHost | 0 | 0 | `2E85103EEE93D622E58D1BD914A68E2F02BF624BD930D8F05A0445E066195F26` |
+| Release | Foundation | 0 | 0 | `8659EBEF5D732635D8075AF69F8E55F98D57D6A8DD91E9B222DC25675F310CC1` |
+| Release | Embedded | 0 | 0 | `B77BAC41CB35846DE2DE300539B0C9071D1AE491E218A9F33A227FB08A5F6E2C` |
+| Release | Grid | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | Theme | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | Control | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | Menu | 0 | 6 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | NewControls | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | TextField | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | NativeTextInput | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | MultilineText | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | ReadOnly | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | ComboBox | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | Tree | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | Tooltip | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | Rendering | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | Animation | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | Accessibility | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+| Release | WindowHost | 0 | 0 | `A6C29352B5C2178B77C7C4F665843DABFE6CB4AA3098CADA0E3FC2DD20B24632` |
+
+## Recorded skips
+
+- Debug/Menu: SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal
+- Debug/Menu: SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal
+- Debug/Menu: SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal
+- Debug/Menu: SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration
+- Debug/Menu: SKIPPED: DxUi native menu destruction proof requires an interactive desktop
+- Debug/Menu: SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing
+- Release/Menu: SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal
+- Release/Menu: SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal
+- Release/Menu: SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal
+- Release/Menu: SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration
+- Release/Menu: SKIPPED: DxUi native menu destruction proof requires an interactive desktop
+- Release/Menu: SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing

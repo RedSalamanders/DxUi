@@ -1,3 +1,4 @@
+#include "../ComplexUi/ComplexUiScene.h"
 #include "EmbeddedScene.h"
 #include "GraphicsFixture.h"
 #include <iostream>
@@ -10,6 +11,11 @@ struct App
 {
     GraphicsFixture gpu;
     EmbeddedScene scene;
+    std::unique_ptr<ComplexUiScene> complex;
+    DxUi::EmbeddedHost& View() noexcept
+    {
+        return complex ? complex->view : scene.view;
+    }
     wil::com_ptr_nothrow<IDXGISwapChain> swapChain;
     wil::unique_hwnd window;
     bool queued = false;
@@ -24,9 +30,9 @@ struct App
     HRESULT Render()
     {
         queued = false;
-        RETURN_IF_FAILED(scene.view.Prepare(gpu.width, gpu.height, dpi));
+        RETURN_IF_FAILED(View().Prepare(gpu.width, gpu.height, dpi));
         gpu.Bind();
-        RETURN_IF_FAILED(scene.view.Composite(gpu.context.get(), gpu.Viewport()));
+        RETURN_IF_FAILED(View().Composite(gpu.context.get(), gpu.Viewport()));
         if (swapChain)
         {
             wil::com_ptr_nothrow<ID3D11Texture2D> back;
@@ -65,27 +71,35 @@ struct App
                 case WM_LBUTTONDOWN:
                     SetFocus(hwnd);
                     SetCapture(hwnd);
-                    app->scene.view.DispatchPointer({DxUi::PointerAction::Down, float(GET_X_LPARAM(lp)), float(GET_Y_LPARAM(lp)), UINT(wp)});
+                    app->View().DispatchPointer({DxUi::PointerAction::Down, float(GET_X_LPARAM(lp)), float(GET_Y_LPARAM(lp)), UINT(wp)});
                     return 0;
                 case WM_MOUSEMOVE:
-                    app->scene.view.DispatchPointer({DxUi::PointerAction::Move, float(GET_X_LPARAM(lp)), float(GET_Y_LPARAM(lp)), UINT(wp)});
+                    app->View().DispatchPointer({DxUi::PointerAction::Move, float(GET_X_LPARAM(lp)), float(GET_Y_LPARAM(lp)), UINT(wp)});
                     return 0;
+                case WM_MOUSEWHEEL:
+                {
+                    POINT point{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
+                    if (ScreenToClient(hwnd, &point))
+                        app->View().DispatchPointer(
+                            {DxUi::PointerAction::Wheel, float(point.x), float(point.y), GET_KEYSTATE_WPARAM(wp), float(GET_WHEEL_DELTA_WPARAM(wp))});
+                    return 0;
+                }
                 case WM_LBUTTONUP:
-                    app->scene.view.DispatchPointer({DxUi::PointerAction::Up, float(GET_X_LPARAM(lp)), float(GET_Y_LPARAM(lp)), UINT(wp)});
+                    app->View().DispatchPointer({DxUi::PointerAction::Up, float(GET_X_LPARAM(lp)), float(GET_Y_LPARAM(lp)), UINT(wp)});
                     if (GetCapture() == hwnd)
                         ReleaseCapture();
                     return 0;
-                case WM_CAPTURECHANGED: app->scene.view.DispatchPointer({DxUi::PointerAction::Cancel}); return 0;
-                case WM_KEYDOWN: app->scene.view.DispatchKey(UINT(wp), true, (GetKeyState(VK_SHIFT) & 0x8000) ? MK_SHIFT : 0); return 0;
-                case WM_KEYUP: app->scene.view.DispatchKey(UINT(wp), false); return 0;
-                case WM_CHAR: app->scene.view.DispatchCharacter(wchar_t(wp)); return 0;
-                case WM_SHOWWINDOW: app->scene.view.SetVisible(wp != 0); break;
+                case WM_CAPTURECHANGED: app->View().DispatchPointer({DxUi::PointerAction::Cancel}); return 0;
+                case WM_KEYDOWN: app->View().DispatchKey(UINT(wp), true, (GetKeyState(VK_SHIFT) & 0x8000) ? MK_SHIFT : 0); return 0;
+                case WM_KEYUP: app->View().DispatchKey(UINT(wp), false); return 0;
+                case WM_CHAR: app->View().DispatchCharacter(wchar_t(wp)); return 0;
+                case WM_SHOWWINDOW: app->View().SetVisible(wp != 0); break;
                 case WM_SIZE:
                     if (wp == SIZE_MINIMIZED)
-                        app->scene.view.SetVisible(false);
+                        app->View().SetVisible(false);
                     else
                     {
-                        app->scene.view.SetVisible(true);
+                        app->View().SetVisible(true);
                         app->Request();
                     }
                     return 0;
@@ -112,11 +126,11 @@ struct App
         if (! RegisterClassW(&wc) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
             return HRESULT_FROM_WIN32(GetLastError());
         constexpr DWORD style = WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
-        RECT bounds{0, 0, 480, 240};
+        RECT bounds{0, 0, static_cast<LONG>(gpu.width), static_cast<LONG>(gpu.height)};
         AdjustWindowRectEx(&bounds, style, FALSE, 0);
         window.reset(CreateWindowExW(0,
                                      wc.lpszClassName,
-                                     L"DxUI - supplied Direct3D device",
+                                     L"DxUi - supplied Direct3D device",
                                      style,
                                      CW_USEDEFAULT,
                                      CW_USEDEFAULT,
@@ -135,8 +149,8 @@ struct App
         wil::com_ptr_nothrow<IDXGIFactory> factory;
         RETURN_IF_FAILED(adapter->GetParent(IID_PPV_ARGS(factory.put())));
         DXGI_SWAP_CHAIN_DESC desc{};
-        desc.BufferDesc.Width  = 480;
-        desc.BufferDesc.Height = 240;
+        desc.BufferDesc.Width  = gpu.width;
+        desc.BufferDesc.Height = gpu.height;
         desc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         desc.SampleDesc.Count  = 1;
         desc.BufferUsage       = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -167,22 +181,38 @@ int wmain(int argc, wchar_t** argv)
     const auto com = wil::scope_exit([] { CoUninitialize(); });
     try
     {
+        bool complex          = false;
+        const wchar_t* output = nullptr;
+        for (int i = 1; i < argc; ++i)
+        {
+            if (std::wstring_view(argv[i]) == L"--complex-ui" && ! complex)
+                complex = true;
+            else if (std::wstring_view(argv[i]) == L"--output" && ! output && i + 1 < argc)
+                output = argv[++i];
+            else
+            {
+                std::wcerr << L"Usage: DxUi.EmbeddedControls [--complex-ui] [--output image.png]\n";
+                return 2;
+            }
+        }
         App app;
+        if (complex)
+        {
+            app.complex    = std::make_unique<ComplexUiScene>();
+            app.gpu.width  = 1280;
+            app.gpu.height = 720;
+        }
         if (FAILED(app.gpu.Create()))
             return 1;
-        if (FAILED(app.scene.Initialize(app.gpu.device.get(), {&app, [](void* context) noexcept { static_cast<App*>(context)->Request(); }})))
+        const DxUi::EmbeddedCallbacks callbacks{&app, [](void* context) noexcept { static_cast<App*>(context)->Request(); }};
+        if (FAILED(complex ? app.complex->Initialize(app.gpu.device.get(), callbacks) : app.scene.Initialize(app.gpu.device.get(), callbacks)))
             return 1;
-        if (argc == 3 && std::wstring_view(argv[1]) == L"--output")
+        if (output)
         {
-            if (FAILED(app.Render()) || FAILED(app.gpu.Save(argv[2])))
+            if (FAILED(app.Render()) || FAILED(app.gpu.Save(output)))
                 return 1;
-            std::wcout << L"Rendered public Toggle and Slider to " << argv[2] << L'\n';
+            std::wcout << L"Rendered independent DxUi sample to " << output << L'\n';
             return 0;
-        }
-        if (argc != 1)
-        {
-            std::wcerr << L"Usage: DxUi.EmbeddedControls [--output image.png]\n";
-            return 2;
         }
         return FAILED(app.Run()) ? 1 : 0;
     }

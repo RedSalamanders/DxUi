@@ -20,7 +20,7 @@ Requires Visual Studio 2026/v145, Windows SDK 10.0.26100, x64 or ARM64, and Git 
 .\.build\x64\Debug\DxUi.EmbeddedControls.exe
 ```
 
-The last command opens a live microphone toggle and output slider. Add `--output image.png` for a headless PNG.
+The last command opens a generic effect toggle and intensity slider. Add `--complex-ui` for the independent 83-control workload, or `--output image.png` for a headless PNG. See [samples](docs/samples.md) and [library measurements](Measurements/README.md).
 `gallery.ps1` generates all 26 public controls and variants in five themes plus an HTML index under `.build/gallery`.
 Read [the example](Samples/EmbeddedControls/EmbeddedScene.h) for public-API construction and event handling.
 
@@ -58,4 +58,4 @@ not change either application's runtime. Human touch/IME/screen-reader checks re
 Start with [AGENTS.md](AGENTS.md), [spec authority](Specs/README.md), and [active plans](Specs/Plans/WIP/README.md).
 Python 3.11+ plus `Tools/requirements-validation.txt` runs the skill/spec/dependency validators and tooling tests.
 Historical source attribution is in [the import archive](Specs/Done/SourceImport/README.md); this repository is the root and home
-of DxUI, with no upstream source tree and no dependency on either application checkout.
+of DxUi, with no upstream source tree and no dependency on either application checkout.

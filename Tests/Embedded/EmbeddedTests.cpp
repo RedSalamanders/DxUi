@@ -85,16 +85,11 @@ static void Hr(HRESULT hr, const char* text)
     Check(SUCCEEDED(hr), text);
 }
 #include "ComplexUiBenchmark.h"
+#include "EmbeddedTextInputTests.h"
 
-int wmain(int argc, wchar_t** argv)
+// Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
+__declspec(noinline) static int RunFunctionalTests()
 {
-    Hr(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED), "COM apartment");
-    const auto com = wil::scope_exit([] { CoUninitialize(); });
-    if (argc == 3 && std::wstring_view(argv[1]) == L"--benchmark")
-    {
-        ComplexUiBenchmark::Run(argv[2]);
-        return 0;
-    }
     static size_t diagnosticCalls = 0;
     DxUi::Diagnostics::sink       = [](std::wstring_view, std::wstring_view message) noexcept
     {
@@ -108,6 +103,7 @@ int wmain(int argc, wchar_t** argv)
     Check(! DxUi::IsContextMenuDiagnosticsEnabled(), "clearing sink disables native diagnostics");
     GraphicsFixture gpu;
     Hr(gpu.Create(), "supplied WARP device");
+    TestEmbeddedTextInput(gpu);
     EmbeddedScene scene;
     size_t requests = 0;
     Hr(scene.Initialize(gpu.device.get(), {&requests, [](void* p) noexcept { ++*static_cast<size_t*>(p); }}), "public scene");
@@ -119,7 +115,7 @@ int wmain(int argc, wchar_t** argv)
     Hr(gpu.Read(before), "read initial pixels");
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 45, 84}), "toggle down");
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Up, 45, 84}), "toggle up");
-    Check(! scene.microphoneOn, "toggle changes model once");
+    Check(! scene.enabled, "toggle changes model once");
     Check(scene.view.Controls().GetCapturedControl() == nullptr, "toggle release clears logical capture");
     Check(requests == 1, "dirty notifications coalesce");
     Hr(scene.view.Prepare(480, 240), "prepare changed toggle");
@@ -134,16 +130,16 @@ int wmain(int argc, wchar_t** argv)
     Check(changed > 100, "toggle changes visible pixels");
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 45, 84}), "toggle press before cancel");
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Cancel}), "toggle cancellation");
-    Check(! scene.microphoneOn && scene.view.Controls().GetCapturedControl() == nullptr, "canceled toggle does not activate");
+    Check(! scene.enabled && scene.view.Controls().GetCapturedControl() == nullptr, "canceled toggle does not activate");
     Hr(scene.view.Prepare(480, 240), "prepare after canceled toggle");
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 45, 84}), "toggle press before outside release");
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Up, 470, 230}), "captured toggle release outside");
-    Check(! scene.microphoneOn, "outside release does not toggle");
+    Check(! scene.enabled, "outside release does not toggle");
     Hr(scene.view.Prepare(480, 240), "prepare after outside release");
     size_t preview = 0, commit = 0, cancel = 0;
     scene.slider->SetOnChange([&](DxUi::SliderChange c)
     {
-        scene.volume = c.value;
+        scene.intensity = c.value;
         if (c.phase == DxUi::SliderChangePhase::Preview)
             ++preview;
         else if (c.phase == DxUi::SliderChangePhase::Commit)
@@ -153,15 +149,15 @@ int wmain(int argc, wchar_t** argv)
     });
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 120, 184}), "slider down");
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Move, 340, 184}), "slider preview");
-    Check(preview >= 2 && commit == 0 && scene.volume > 70, "live slider previews");
+    Check(preview >= 2 && commit == 0 && scene.intensity > 70, "live slider previews");
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Cancel}), "capture cancellation");
-    Check(cancel == 1 && scene.volume == 65, "cancel restores initial value");
+    Check(cancel == 1 && scene.intensity == 65, "cancel restores initial value");
     Hr(scene.view.Prepare(480, 240), "prepare between gestures");
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 300, 184}), "second slider down");
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Up, 300, 184}), "slider release");
-    Check(commit == 1 && scene.volume > 60, "exactly one drag commit");
+    Check(commit == 1 && scene.intensity > 60, "exactly one drag commit");
     Check(scene.view.DispatchKey(VK_END, true), "keyboard end");
-    Check(scene.volume == 100 && commit == 2, "keyboard commits");
+    Check(scene.intensity == 100 && commit == 2, "keyboard commits");
     Hr(scene.view.Prepare(480, 240), "prepare after input");
     const auto prepared = scene.view.GetStatistics();
     Check(scene.view.Prepare(480, 240) == S_FALSE, "clean preparation is skipped");
@@ -221,7 +217,7 @@ int wmain(int argc, wchar_t** argv)
     Check(scene.view.GetStatistics().surfaceBytes == 960ull * 480 * 4, "surface budget accounted");
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 90, 168}) && scene.view.DispatchPointer({DxUi::PointerAction::Up, 90, 168}),
           "physical pixel input transforms at 200 percent");
-    Check(scene.microphoneOn, "DPI toggle works");
+    Check(scene.enabled, "DPI toggle works");
     Check(scene.view.Prepare(16384, 16384) == E_OUTOFMEMORY, "over-budget rejected");
     Check(! scene.view.DispatchPointer({DxUi::PointerAction::Down, 90, 168}), "failed preparation disables input");
     Hr(scene.view.Prepare(480, 240), "recover from invalid target");
@@ -335,6 +331,19 @@ int wmain(int argc, wchar_t** argv)
     // A callback may destroy the current tree, including the slider dispatching the event.
     scene.slider->SetOnChange([&](DxUi::SliderChange) { scene.view.Controls().SetRoot(std::make_unique<DxUi::Panel>()); });
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 100, 184}), "root replacement during slider callback");
+    {
+        ComplexUiScene complex;
+        Hr(complex.Initialize(gpu.device.get()), "independent complex sample");
+        Hr(complex.view.Prepare(1280, 720), "prepare independent controls");
+        Check(complex.view.DispatchPointer({DxUi::PointerAction::Down, 240, 52}), "complex sample slider input");
+        Check(complex.progress[0]->GetValue() == complex.sliders[0]->GetValue() && complex.sliders[0]->GetValue() > 50,
+              "independent sample binds slider preview to progress");
+        Check(complex.view.DispatchPointer({DxUi::PointerAction::Cancel}), "complex sample slider cancellation");
+        Check(complex.progress[0]->GetValue() == 0, "complex sample cancellation restores progress");
+    }
     std::cout << "PASS " << checks << " checks; 1000 warm composites " << us << " us; C++ allocations " << allocations << "; changed toggle pixels " << changed
               << '\n';
+    return 0;
 }
+
+#include "BenchmarkMain.h"

@@ -1790,7 +1790,7 @@ void ControlHost::SetFocusControl(Control* control) noexcept
                     renderCount,
                     resizeCount);
     }
-    Debug::Perf::Emit(L"DxUI::FocusChange", L"", 0u, _focusedControl ? 1u : 0u, HasActiveTextInput() ? 1u : 0u);
+    Debug::Perf::Emit(L"DxUi::FocusChange", L"", 0u, _focusedControl ? 1u : 0u, HasActiveTextInput() ? 1u : 0u);
     if (_onFocusChanged)
     {
         _onFocusChanged(_focusedControl);
@@ -3517,7 +3517,7 @@ void ControlHost::Render(const RECT* dirtyRectPx, bool allowHidden) noexcept
     const auto emitFrameMetrics = wil::scope_exit([&]
     { EmitWindowHostFrameMetrics(frameClock.ElapsedUs(frameStartedAt, frameClock.Now()), updateUs, renderUs, presentUs, dirtyRectMetrics); });
 
-    Debug::Perf::Scope paintPerf(L"DxUI::Paint");
+    Debug::Perf::Scope paintPerf(L"DxUi::Paint");
     paintPerf.SetValue0(_widthPx);
     paintPerf.SetValue1(_heightPx);
 
@@ -3717,7 +3717,7 @@ void ControlHost::Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* captu
     const auto emitFrameMetrics = wil::scope_exit([&]
     { EmitWindowHostFrameMetrics(frameClock.ElapsedUs(frameStartedAt, frameClock.Now()), updateUs, renderUs, presentUs, dirtyRectMetrics); });
 
-    Debug::Perf::Scope paintPerf(L"DxUI::Paint");
+    Debug::Perf::Scope paintPerf(L"DxUi::Paint");
     paintPerf.SetValue0(_widthPx);
     paintPerf.SetValue1(_heightPx);
 

@@ -35,7 +35,7 @@ Performance receipts name source/configuration/hardware and include all preparat
 ### Inherited coverage and new evidence
 
 `Specs/Done/SourceImport/test-port.json` accounts for all 941 inherited named test cases: 853 reusable runtime cases retained and
-88 excluded with individual reasons. Exclusions are application/test-infrastructure utilities not used by DxUI or
+88 excluded with individual reasons. Exclusions are application/test-infrastructure utilities not used by DxUi or
 source-text assertions; original cases remain available at the recorded source commit. No failed runtime case may
 be reclassified merely to obtain a green build. The posted-payload stress case now fills the library's 128-entry
 ceiling, with new saturation, wrong-type and stale-token ownership tests in EmbeddedTests.
@@ -62,3 +62,11 @@ remain unchanged across runner environments.
 Native menu input fixtures wait for a visible popup: the hidden measurement HWND is not ready for input.
 Cold creation has a separate five-second setup allowance; owner-message-flood hover and invocation checks
 retain their 800 ms deadlines after setup. Capture readiness similarly waits for the final visible surface.
+
+## Independent library workloads
+
+The complex benchmark uses the same synthetic scene as `DxUi.EmbeddedControls.exe --complex-ui`, with no application
+services, settings or checkout. EmbeddedTests covers the sample's slider/progress preview and cancellation binding.
+Measurements include the scene, benchmark and graphics-helper hashes. Changed fixture identities cannot establish
+before/after library regressions. Consumer adoption evidence is owned by its repository; standalone library receipts
+live under Measurements and are linked from docs. The external-consumer check renders both sample modes.

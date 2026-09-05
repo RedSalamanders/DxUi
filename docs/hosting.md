@@ -17,7 +17,7 @@ device; the application owns immediate-context scheduling and presentation.
    preparation succeeds; handle the failure instead of repeatedly retrying in a tight loop.
 4. Bind the application's render target, then call `view.Composite(context, viewport)`. It binds its required
    pipeline state and draws the prepared texture. It changes D3D state: rebind your state for subsequent drawing.
-5. Present through the application. DxUI embedded mode owns no HWND, swap chain, timer, worker or presentation loop.
+5. Present through the application. DxUi embedded mode owns no HWND, swap chain, timer, worker or presentation loop.
 
 Clean `Composite` does no allocation, layout, shaping or readback. DPI must be 48..768; the per-view surface limit
 is 64 MiB, with a 128 MiB replacement ceiling. Check summed memory before creating many views. If two simultaneous
@@ -57,6 +57,26 @@ Create a new shared pool for the replacement application device, then call `Repl
 This retains the logical tree/model and cancels capture. Prepare successfully before resuming input and composition.
 Release all references to the old generation. Check every HRESULT at these boundaries.
 
-Use WIL for owned COM/Windows resources and `unique_ptr` for the control tree. Do not pass DxUI objects or STL
+Use WIL for owned COM/Windows resources and `unique_ptr` for the control tree. Do not pass DxUi objects or STL
 ownership through a plugin ABI: source, archive, toolchain and runtime must match within the consuming module.
 The [sample host](../Samples/EmbeddedControls/Main.cpp) demonstrates application-owned device/window lifetime.
+
+### Embedded text-state transport
+
+`ReadTextInput` returns an owned snapshot of the available focused control, a view revision and caret/viewport
+bounds in view-local DIPs. It clears its output on failure. No snapshot is available while hidden, suspended,
+detached or incoherently prepared. `ApplyTextInput` accepts only that view's current revision; any intervening
+invalidation, focus/tree replacement or device/attachment lifetime change invalidates the token. Read again after
+an accepted edit. These C++ records stay within a module; a consumer defines its own bounded plugin transport.
+
+Preview imports displayed text, selection and composition markers without a model notification. Commit notifies
+once relative to the pre-composition text, including when the committed text already matches the preview. Cancel,
+focus loss, hiding, zero-size suspension and device replacement discard composition without committing it.
+Externally replaced text survives cancellation. Preview/cancel/selection preserve TextField undo/redo history;
+a committed composition is one undoable edit. Escape cancels composition before ordinary application handling. Read-only policy belongs to the control and cannot be changed by
+an imported snapshot; selection is still available. Validate text/range/clauses before mutation, with a 65,536
+UTF-16-unit text ceiling and 256 clause boundaries. A callback may destroy the edited control; no access follows
+without lifetime/focus revalidation. All APIs are UI-thread operations outside composition/rendering.
+
+This API does not establish an OS text store, IME HWND association, clipboard service or UIA root. Those remain
+application-side adoption gates. Native and embedded controls share the existing text model and rendering.
