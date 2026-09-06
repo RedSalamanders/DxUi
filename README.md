@@ -51,8 +51,9 @@ Debug/Release CI produces per-suite receipts; cross-compilation is not reported 
 visual baselines remain unchanged. Runtime logs and measurements stay in `.build`; `gallery.ps1 -PublishDocs`
 publishes reviewed gallery images to `docs/gallery`.
 
-RedXe preparation/input/text/UIA bridges and the AV backend remain application integration work; the library does
-not change either application's runtime. Human touch/IME/screen-reader checks remain adoption gates.
+RedXe pins a tested DxUi commit and ships synthetic text/UIA adapters (`redxe-adapter`). Real IME/touch/screen-reader
+checks and AV backends remain application gates (`embedded-host-text-uia-bridge`, `av-control`). The library does
+not change either application's runtime.
 [Capabilities](capabilities.json) lists supported library mechanisms separately from those pending integrations.
 
 Start with [AGENTS.md](AGENTS.md), [spec authority](Specs/README.md), and [active plans](Specs/Plans/WIP/README.md).

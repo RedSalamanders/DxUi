@@ -1,7 +1,7 @@
 # Theme and typography
 
 Status: normative intended contract
-Last reviewed: 2026-09-05
+Last reviewed: 2026-09-06
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -15,4 +15,5 @@ control bounds without cutting essential ink. DPI changes rebuild appropriate re
 does not. Transparent-target antialiasing, alpha blending, mixed scripts and narrow bounds require visual tests.
 
 The extracted MotionPolicy resolves immediately to the target when reduced motion is enabled and otherwise keeps
-the caller's animated progress. Theme controls and text rendering remain pending the control/renderer extraction.
+the caller's animated progress. Shared controls paint with consumer-supplied theme tokens; text shaping and control
+rendering are implemented in DxUi.lib. Pending work is consumer integration, not another library extraction.

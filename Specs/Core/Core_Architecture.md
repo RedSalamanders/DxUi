@@ -1,7 +1,7 @@
 # Architecture and ownership
 
 Status: normative intended contract
-Last reviewed: 2026-09-05
+Last reviewed: 2026-09-06
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -28,7 +28,8 @@ Consumers reference this project once. There is no DxUi runtime DLL and no consu
 
 Public headers are under `include/DxUi`: `DxUi.h` exposes all retained controls and `ControlHost`; `Embedded.h`
 exposes supplied-device graphics and scheduling; `ControlCatalog.h` enumerates/constructs all 26 concrete controls;
-`ThemeColors.h`, `Diagnostics.h`, `FrameRuntime.h` and `Configuration.h` complete the neutral supporting API.
+`TextInputServices.h` and `EmbeddedAccessibility.h` expose application-side TSF/clipboard and lazy embedded UIA
+attach; `ThemeColors.h`, `Diagnostics.h`, `FrameRuntime.h` and `Configuration.h` complete the supporting API.
 
 `ControlHost` supplies the shared tree, text, theme, focus and drawing services. Its native mode attaches to a
 caller-owned HWND (`WindowHost` is a source compatibility alias). `EmbeddedHost` contains a ControlHost configured
@@ -50,6 +51,9 @@ application adoption records and budgets stay in their owning repositories.
 Use one independent source repository and compile its single static library with the consumer's supported toolchain.
 A module shares GraphicsDevice pools by device generation and uses an EmbeddedHost for each independent view.
 Application text/UIA bridges and cross-module services remain consumer integration decisions.
+`redxe-adapter` means a consumer restores a pinned commit, links `DxUi.lib` once per module, and keeps DxUi C++
+inside that module. It does not include real IME/assistive-technology (`embedded-host-text-uia-bridge`), AV
+product backends (`av-control`), or RedSalamander in-tree replacement (`redsalamander-migration`).
 
 Pinned source plus a static archive provides an ordinary C++ interface and no extra runtime deployment. A shared DLL
 would introduce a second versioned ABI and loader/lifetime policy; defer it until measurements justify that cost.

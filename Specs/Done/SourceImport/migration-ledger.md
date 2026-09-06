@@ -6,10 +6,10 @@ DxUi owns the library source and tests. Historical source baseline: RedSalamande
 | Slice | Canonical location | State / intentional changes |
 | --- | --- | --- |
 | Frame runtime | include/DxUi/FrameRuntime.h; src/Foundation/FrameRuntime.cpp | Built and tested; one implementation, neutral namespace and injected diagnostics. |
-| Controls, text, accessibility and window host | src/Controls | Owned editable source in namespace DxUi. Remaining application includes are enumerated in pending-dependencies.json; standalone build decoupling is pending. |
-| Control tests and baselines | Tests/Controls | Owned tests with local control-header paths; application-specific fixtures still need separation before standalone execution. Baseline image bytes are preserved. |
+| Controls, text, accessibility and window host | src/Controls | Owned editable source in namespace DxUi. Application includes are gone; pending-dependencies.json is the empty final inventory. |
+| Control tests and baselines | Tests/Controls | Owned standalone suites with local control-header paths. Baseline image bytes are preserved. Application-specific helpers remain historical exclusions in test-port.json. |
 | Original application-bound projects | Git history only | Retired; they referenced RedSalamander build properties and application sources. Supported projects are owned by this repository. |
-| RedXe consumer | Application adapter | First consumer; integration pending. |
+| RedXe consumer | Application adapter | First consumer; pin and synthetic adapters supported (`redxe-adapter`). Real IME/AT and AV backends remain pending. |
 | RedSalamander consumer | Existing in-tree implementation | Later migration on HOLD; this older copy does not own ongoing library development. |
 
 The 2026-09-05 ownership correction moved source into this repository's normal directories, consolidated the

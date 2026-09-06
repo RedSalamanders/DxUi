@@ -1,7 +1,7 @@
 # Toolchain and consumer integration
 
 Status: normative intended contract
-Last reviewed: 2026-09-05
+Last reviewed: 2026-09-06
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -24,7 +24,7 @@ out, cleans or overwrites the developer's existing sibling checkout. A missing r
 with an actionable message. An explicit development override may use edited source, but must record its fingerprint
 and mark the result non-release; clean release validation requires the lock match.
 
-Consumers import `Build/DxUi.Consumer.props` / `.targets` and reference the selected DxUi `.vcxproj` targets. They do
+Consumers import `Build/DxUi.Consumer.props` / `.targets` and reference `src/DxUi.vcxproj`. They do
 not maintain a second list of library `.cpp` files. Public header paths and output paths resolve from the imported
 file/project, never an assumed application `SolutionDir`. Standalone `.build` outputs and consumer dependency outputs
 are separate. Consumer outputs use `.build/dependencies/DxUi/<fingerprint>/<platform>/<configuration>/` beneath that
@@ -36,8 +36,8 @@ developer's machine. Build validation detects conflicting public-header dependen
 Shipping static libraries means there is no `DxUi.dll` to stage; the existing `AVControl.dll` remains dynamically
 loaded by RedXe as a plugin. Windows/system runtime dependencies and notices still require normal packaging checks.
 
-Library CI builds and tests without either application checkout. RedXe CI restores its pinned revision and runs
-its integration tests. A library update changes the consumer lock in a reviewed change with test evidence and a
+Library CI builds and tests without either application checkout. RedXe restores its pinned revision and runs
+its integration tests; `redxe-adapter` records that pin and the synthetic COM/POD adapters, not real IME/AT. A library update changes the consumer lock in a reviewed change with test evidence and a
 rollback to the previous pin. RedSalamander may stay on the old in-tree implementation and later its own pin; shared
 source ownership does not require simultaneous releases of the two applications.
 

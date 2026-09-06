@@ -90,8 +90,8 @@ and no additional rendering resources.
 Clipboard(Copy/Cut/Paste) provides bounded Unicode editing and optionally accepts an application clipboard.
 Normal keyboard shortcuts route through PreTranslate. The automated control tests use an in-memory clipboard.
 The [normative contract](../Specs/UI/UI_InputAndAccessibility.md) defines composition ordering, cancellation,
-deferred locks and lifetime. RedXe transport adoption, UIA attachment and real IME/assistive-technology acceptance
-are still pending; library service tests do not establish them.
+deferred locks and lifetime. Library attach APIs are supported. RedXe tree/event routing, real IME/assistive-technology
+acceptance and matched text/UIA performance remain pending; library service tests do not establish them.
 
 The public [EmbeddedTextClient example](../Samples/EmbeddedControls/EmbeddedTextClient.h) binds an
 EmbeddedHost to the application's TextInputServices using an immutable focusId. Run the independent

@@ -1,7 +1,7 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-09-05
+Last reviewed: 2026-09-06
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -13,18 +13,19 @@ contract to distinguish capture by a control from page-pan arbitration, and forw
 pointer. One accepted slider Down owns the gesture; edge navigation retains its reserved region. Cancel on hide,
 capture loss, detach and invalidating geometry changes; no volume setter on cancellation.
 
-Keyboard, focus, text and UIA are implementation gates, not optional polish. Add generic keyboard/focus/text events
-to the interactive mechanism, including composition and cancellation semantics. The host owns OS focus, message
-routing and any TSF/IME HWND association. Reusable services from `DxUi.lib` executes on the host side; bounded
-COM/POD transport connects it to the plugin's control tree. No top-level HWND, `DxUi::Control*`, `std::function` or
+Keyboard, focus, text and UIA are implementation gates, not optional polish. DxUi.lib supplies embedded text
+snapshots, application-side TSF/clipboard services and lazy embedded UIA attach; those library APIs are supported
+in `capabilities.json`. The host still owns OS focus, message routing and HWND association. Bounded COM/POD
+transport to a plugin tree is a consumer adapter. No top-level HWND, `DxUi::Control*`, `std::function` or
 STL string crosses the RedXe ABI. Clipboard and text-service behavior use explicit host requests.
 
-An optional accessibility mechanism exposes virtual-child providers/immutable snapshots to RedXe's UIA root.
-Record interfaces, ownership, UI-thread marshalling, generation invalidation, screen-coordinate transforms, and
-provider behavior after detach. A surviving assistive-technology reference must never dereference a destroyed
-control or unloaded owner. Hidden controls and background modal contents leave navigation; labels, Toggle,
-RangeValue, selection, text/value and live-state patterns must agree with visible confirmed state. The exact bridge
-records are designed and tested in the RedXe adoption plan before AV is declared complete.
+An optional accessibility mechanism exposes virtual-child providers to the application's UIA root through
+`EmbeddedAccessibilitySite`. Record interfaces, ownership, UI-thread marshalling, generation invalidation,
+screen-coordinate transforms, and provider behavior after detach. A surviving assistive-technology reference must
+never dereference a destroyed control or unloaded owner. Hidden controls and background modal contents leave
+navigation; labels, Toggle, RangeValue, selection, text/value and live-state patterns must agree with visible
+confirmed state. Library synthetic tests cover the attach API. End-to-end RedXe routing, real IME/touch/screen-reader
+acceptance and matched text/UIA performance remain RedXe AV release gates (`embedded-host-text-uia-bridge`).
 
 DxUi must support preview-versus-commit slider events, keyboard steps, cancellation, and externally acknowledged
 values. The old `SetOnValueChanged` alone does not establish AV's commit-on-release behavior. AV commands remain in
@@ -35,9 +36,11 @@ verification supplements synthetic tests.
 
 EmbeddedHost dispatches pointer Down/Move/Up/Wheel/Leave/Cancel, keyboard down/up and character events to its retained
 tree, with stale-focus/capture pruning. ControlHost retains native Win32 TSF/IME and UIA behavior, exercised by the
-ported suites. EmbeddedHost has no OS focus HWND or cross-plugin text/UIA transport: supplying a full RedXe bridge,
-composition/IME routing and assistive-technology attachment remains the adoption gate above. Native popup windows
-are a Win32-host capability; embedded consumers use ComboBox/PopupLayer overlays or host-owned menu services.
+ported suites. EmbeddedHost owns no OS-focus HWND. Application-side `TextInputServices` borrows the caller's HWND;
+`AttachAccessibility` publishes providers without creating one. Cross-plugin COM/POD transport, composition/IME
+routing through a consumer host, and real assistive-technology attachment remain RedXe AV release gates
+(`embedded-host-text-uia-bridge`). Native popup windows are a Win32-host capability; embedded consumers use
+ComboBox/PopupLayer overlays or host-owned menu services.
 
 Slider::SetOnChange reports Preview while dragging and exactly one Commit on accepted release, including an
 unchanged final value. Capture loss, Escape, hiding or detach reports Cancel and restores the initial value. Keyboard
@@ -62,8 +65,9 @@ an imported snapshot; selection is still available. Validate text/range/clauses 
 UTF-16-unit text ceiling and 256 clause boundaries. A callback may destroy the edited control; no access follows
 without lifetime/focus revalidation. All APIs are UI-thread operations outside composition/rendering.
 
-This API does not establish an OS text store, IME HWND association, clipboard service or UIA root. Those remain
-application-side adoption gates. Native and embedded controls share the existing text model and rendering.
+This API does not by itself attach an OS text store. `TextInputServices` is the application-side TSF/clipboard
+adapter in the same archive. Real IME/touch/screen-reader acceptance and RedXe plugin transport remain consumer
+gates. Native and embedded controls share the existing text model and rendering.
 
 Native text-store notification callbacks may destroy or replace their control, change focus, or replace text.
 The store revalidates control lifetime, focus and text before applying selection or notifying TSF. Callback
@@ -105,8 +109,10 @@ line endings and commits once against the captured revision. Embedded controls h
 go through the application service. Automated control suites inject a private clipboard, including their setup/read
 helpers, and never use a desktop clipboard as a test data channel.
 
-This implements a TSF/clipboard service, not the complete RedXe adoption. The generic consumer connection, full
-display-attribute/IME acceptance, UI Automation attachment and real touch/IME/screen-reader checks remain open.
+This implements a TSF/clipboard service, not a real IME/AT product pass. The generic consumer connection, full
+display-attribute/IME acceptance, real touch/IME/screen-reader checks and matched text/UIA performance remain open
+on RedXe AV (`embedded-host-text-uia-bridge`). Library `AttachAccessibility` is a separate supported API; it does
+not close those gates.
 Reference: Microsoft [text stores](https://learn.microsoft.com/en-us/windows/win32/tsf/text-stores) and
 [composition ordering](https://learn.microsoft.com/en-us/windows/win32/tsf/compositions).
 
@@ -170,5 +176,5 @@ revalidate lifetime after callbacks; a callback that destroys its field cannot b
 
 The component's synthetic tests exercise all three AV control kinds, physical geometry at 144 DPI, real COM
 marshaling, text edits, same-path replacement, hidden/detached references and zero allocation in 1,000 clean updates.
-End-to-end application tree/event routing, real screen-reader/IME/touch acceptance, full matrix and resource gates
-remain required before RedXe adoption is complete.
+End-to-end application tree/event routing, real screen-reader/IME/touch acceptance and matched resource gates
+remain required before the RedXe AV text/UIA release gate (`embedded-host-text-uia-bridge`).
