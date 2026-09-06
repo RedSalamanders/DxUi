@@ -1898,6 +1898,43 @@ private:
     uint64_t _lastTickMs                = 0;
 };
 
+class PageIndicator final : public Control
+{
+public:
+    static constexpr uint32_t kMaximumPages      = 16;
+    static constexpr float kStripHeightDip       = 20.0f;
+    static constexpr float kDotRadiusDip         = 3.0f;
+    static constexpr float kSelectedDotRadiusDip = 4.0f;
+    static constexpr float kDotGapDip            = 14.0f;
+
+    PageIndicator();
+
+    void SetPageCount(uint32_t count) noexcept;
+    [[nodiscard]] uint32_t GetPageCount() const noexcept;
+    void SetSelectedIndex(uint32_t index) noexcept;
+    [[nodiscard]] uint32_t GetSelectedIndex() const noexcept;
+    void SetOnSelected(std::function<void(uint32_t)> onSelected);
+    [[nodiscard]] uint32_t HitPageIndex(D2D1_POINT_2F point) const noexcept;
+    [[nodiscard]] D2D1_POINT_2F DotCenter(uint32_t index) const noexcept;
+
+    [[nodiscard]] D2D1_RECT_F GetHitBounds() const noexcept override;
+    void Paint(ControlHost& host) const override;
+    bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
+    bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
+    bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers) override;
+    void OnCaptureLost(ControlHost& host) override;
+
+private:
+    void SelectIndex(ControlHost& host, uint32_t index);
+    void RefreshAccessibleName() noexcept;
+
+    std::function<void(uint32_t)> _onSelected;
+    uint32_t _pageCount     = 0;
+    uint32_t _selectedIndex = 0;
+    uint32_t _pressedIndex  = UINT32_MAX;
+    bool _pressed           = false;
+};
+
 struct ThroughputGraphHueWeight final
 {
     float hueDegrees  = -1.0f;

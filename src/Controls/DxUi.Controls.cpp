@@ -3375,6 +3375,226 @@ bool ProgressBar::Tick(ControlHost& host, uint64_t nowTickMs)
     return true;
 }
 
+PageIndicator::PageIndicator()
+{
+    SetFocusable(true);
+}
+
+void PageIndicator::SetPageCount(uint32_t count) noexcept
+{
+    const uint32_t next = (std::min)(count, kMaximumPages);
+    if (_pageCount == next)
+    {
+        return;
+    }
+    _pageCount = next;
+    if (_pageCount == 0)
+    {
+        _selectedIndex = 0;
+    }
+    else if (_selectedIndex >= _pageCount)
+    {
+        _selectedIndex = _pageCount - 1;
+    }
+    SetFocusable(_pageCount >= 2);
+    RefreshAccessibleName();
+    RequestInvalidate();
+}
+
+uint32_t PageIndicator::GetPageCount() const noexcept
+{
+    return _pageCount;
+}
+
+void PageIndicator::SetSelectedIndex(uint32_t index) noexcept
+{
+    if (_pageCount == 0)
+    {
+        return;
+    }
+    const uint32_t next = (std::min)(index, _pageCount - 1);
+    if (_selectedIndex == next)
+    {
+        return;
+    }
+    _selectedIndex = next;
+    RefreshAccessibleName();
+    RequestInvalidate();
+}
+
+uint32_t PageIndicator::GetSelectedIndex() const noexcept
+{
+    return _selectedIndex;
+}
+
+void PageIndicator::SetOnSelected(std::function<void(uint32_t)> onSelected)
+{
+    _onSelected = std::move(onSelected);
+}
+
+uint32_t PageIndicator::HitPageIndex(D2D1_POINT_2F point) const noexcept
+{
+    if (_pageCount < 2 || ! PointInRect(GetBounds(), point))
+    {
+        return UINT32_MAX;
+    }
+
+    float best        = (std::numeric_limits<float>::max)();
+    uint32_t hit      = UINT32_MAX;
+    const float limit = kDotGapDip * 0.5f;
+    for (uint32_t index = 0; index < _pageCount; ++index)
+    {
+        const D2D1_POINT_2F center = DotCenter(index);
+        const float dx             = point.x - center.x;
+        const float dy             = point.y - center.y;
+        const float distance       = std::sqrt(dx * dx + dy * dy);
+        if (distance <= limit && distance < best)
+        {
+            best = distance;
+            hit  = index;
+        }
+    }
+    return hit;
+}
+
+D2D1_POINT_2F PageIndicator::DotCenter(uint32_t index) const noexcept
+{
+    const D2D1_RECT_F bounds = GetBounds();
+    const float width        = std::max(0.0f, bounds.right - bounds.left);
+    const float total        = _pageCount > 1 ? kDotGapDip * static_cast<float>(_pageCount - 1) : 0.0f;
+    const float originX      = bounds.left + (width - total) * 0.5f;
+    const float originY      = (bounds.top + bounds.bottom) * 0.5f;
+    return D2D1::Point2F(originX + kDotGapDip * static_cast<float>(index), originY);
+}
+
+D2D1_RECT_F PageIndicator::GetHitBounds() const noexcept
+{
+    if (_pageCount < 2)
+    {
+        return D2D1::RectF();
+    }
+    return Control::GetHitBounds();
+}
+
+void PageIndicator::Paint(ControlHost& host) const
+{
+    if (_pageCount < 2)
+    {
+        return;
+    }
+
+    const ThemePalette& theme = host.GetTheme();
+    for (uint32_t index = 0; index < _pageCount; ++index)
+    {
+        const bool selected        = index == _selectedIndex;
+        const float radius         = selected ? kSelectedDotRadiusDip : kDotRadiusDip;
+        const D2D1_POINT_2F center = DotCenter(index);
+        const D2D1_ELLIPSE ellipse = D2D1::Ellipse(center, radius, radius);
+        const D2D1_COLOR_F fill    = selected ? theme.accent : theme.subduedText;
+        FillEllipseWithColor(host, ellipse, fill);
+    }
+
+    if (HasFocus() && host.IsKeyboardFocusVisible())
+    {
+        const D2D1_POINT_2F center = DotCenter(_selectedIndex);
+        const float pad            = kSelectedDotRadiusDip + 3.0f;
+        PaintFocusRing(host, D2D1::RectF(center.x - pad, center.y - pad, center.x + pad, center.y + pad), pad);
+    }
+}
+
+bool PageIndicator::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+{
+    if (rightButton || ! IsEnabled() || _pageCount < 2)
+    {
+        return false;
+    }
+    const uint32_t hit = HitPageIndex(point);
+    if (hit == UINT32_MAX)
+    {
+        return false;
+    }
+    host.SetFocusControl(this);
+    _pressed      = true;
+    _pressedIndex = hit;
+    Invalidate(host);
+    return true;
+}
+
+bool PageIndicator::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+{
+    if (rightButton || ! _pressed)
+    {
+        return false;
+    }
+    const uint32_t pressed = _pressedIndex;
+    _pressed               = false;
+    _pressedIndex          = UINT32_MAX;
+    Invalidate(host);
+    if (HitPageIndex(point) == pressed)
+    {
+        SelectIndex(host, pressed);
+    }
+    return true;
+}
+
+bool PageIndicator::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
+{
+    if (! IsEnabled() || _pageCount < 2)
+    {
+        return false;
+    }
+    switch (virtualKey)
+    {
+        case VK_LEFT: SelectIndex(host, IsRightToLeft() ? _selectedIndex + 1 : (_selectedIndex == 0 ? 0 : _selectedIndex - 1)); return true;
+        case VK_RIGHT: SelectIndex(host, IsRightToLeft() ? (_selectedIndex == 0 ? 0 : _selectedIndex - 1) : _selectedIndex + 1); return true;
+        case VK_HOME: SelectIndex(host, IsRightToLeft() ? _pageCount - 1 : 0); return true;
+        case VK_END: SelectIndex(host, IsRightToLeft() ? 0 : _pageCount - 1); return true;
+        default: return false;
+    }
+}
+
+void PageIndicator::OnCaptureLost(ControlHost& host)
+{
+    if (! _pressed)
+    {
+        return;
+    }
+    _pressed      = false;
+    _pressedIndex = UINT32_MAX;
+    Invalidate(host);
+}
+
+void PageIndicator::SelectIndex(ControlHost& host, uint32_t index)
+{
+    if (_pageCount < 2 || index >= _pageCount || index == _selectedIndex)
+    {
+        return;
+    }
+    _selectedIndex = index;
+    RefreshAccessibleName();
+    Invalidate(host);
+    if (_onSelected)
+    {
+        _onSelected(index);
+    }
+}
+
+void PageIndicator::RefreshAccessibleName() noexcept
+{
+    if (_pageCount < 2)
+    {
+        SetAccessibleName({});
+        return;
+    }
+    try
+    {
+        SetAccessibleName(L"Page " + std::to_wstring(_selectedIndex + 1) + L" of " + std::to_wstring(_pageCount));
+    }
+    catch (...)
+    {
+    }
+}
+
 // --- Slider ---
 
 Slider::Slider()

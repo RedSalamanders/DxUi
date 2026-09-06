@@ -29,7 +29,8 @@ enum class ControlKind : uint8_t
     ScrollPanel,
     TooltipLayer,
     Tree,
-    Grid
+    Grid,
+    PageIndicator
 };
 struct ControlDescriptor
 {

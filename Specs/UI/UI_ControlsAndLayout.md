@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-09-05
+Last reviewed: 2026-09-06
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -22,7 +22,7 @@ separate work as recorded in capabilities.json.
 ### Public catalog and gallery
 
 The public API exposes Panel, PageHost, CardPanel, Label, Button, Toggle, Checkbox, RadioButton, RadioButtons,
-ProgressBar, ThroughputGraph, Slider, Toolbar, MenuBar, TabControl, ColorSwatch, TextField, ComboBox, TagPicker,
+ProgressBar, PageIndicator, ThroughputGraph, Slider, Toolbar, MenuBar, TabControl, ColorSwatch, TextField, ComboBox, TagPicker,
 StatusStrip, PopupLayer, StackPanel, ScrollPanel, TooltipLayer, Tree and Grid. GetControlCatalog returns immutable
 descriptors; CreateControl constructs the selected kind and returns E_INVALIDARG for unknown kinds, leaving the
 existing result intact on failure. Controls with models are configured by the caller; the factory does not invent
@@ -32,6 +32,15 @@ Adding a control requires an aligned public declaration/implementation, catalog 
 behavior tests and a populated gallery tile. `gallery.ps1` generates light, dark, rainbow light/dark and high-contrast
 PNG sheets with interactive-state variants, plus a supplied-device toggle/slider image. Gallery rendering supplements
 runtime tests; empty-control construction alone does not prove selection, keyboard, editing or accessibility behavior.
+
+### Page indicator
+
+`PageIndicator` is a non-scrolling position strip. `SetPageCount` accepts 0 through 16. Fewer than two pages paint
+nothing, report empty hit bounds, and ignore pointer and keyboard input. `SetSelectedIndex` clamps and does not invoke
+`SetOnSelected`. A click on a dot, Left/Right, Home and End change the selected index and notify once. The control
+does not wrap. Idle dots use subdued text; the selected dot uses the theme accent. Preferred strip height is
+`PageIndicator::kStripHeightDip` (20 DIP). Consumers that draw a matching strip without hosting the control MUST use
+the same DIP radius, selected radius and gap constants.
 
 Each control also requires accurate usage documentation in `docs/controls.md`. Code changes review affected docs
 and regenerate changed visuals into `docs/gallery` under [the documentation contract](../Core/Core_Documentation.md).

@@ -2,7 +2,7 @@
 
 [Usage documentation](../README.md) | [Control guide](../controls.md) | [HTML gallery](index.html)
 
-Generated from compiled DxUi controls using gallery.ps1 -PublishDocs. The five theme sheets cover all 26 public controls and populated interaction variants; the sixth image is the supplied-device example. Click a sheet to inspect it at full resolution. Rendering may vary with Windows fonts/DPI. These are documentation snapshots, not replacements for the original test baselines.
+Generated from compiled DxUi controls using gallery.ps1 -PublishDocs. The five theme sheets cover all 27 public controls and populated interaction variants; the sixth image is the supplied-device example. Click a sheet to inspect it at full resolution. Rendering may vary with Windows fonts/DPI. These are documentation snapshots, not replacements for the original test baselines.
 
 ## embedded-controls
 

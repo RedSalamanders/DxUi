@@ -21,7 +21,7 @@ try {
     $images=@(Get-ChildItem -LiteralPath $output -Filter '*.png' | Sort-Object Name)
     if ($images.Count -ne 6) { throw "Expected five themes plus the embedded example; got $($images.Count)." }
     $body=($images | ForEach-Object { $name=[System.Net.WebUtility]::HtmlEncode($_.Name); "<section><h2>$name</h2><a href='$name'><img src='$name' alt='$name'></a></section>" }) -join "`n"
-    "<!doctype html><html lang='en'><meta charset='utf-8'><title>DxUi control gallery</title><style>body{font:16px Segoe UI,sans-serif;background:#11151c;color:#edf2fa;margin:24px}img{max-width:100%;height:auto}section{margin:32px 0}a{color:inherit}</style><h1>DxUi control gallery</h1><p>All 26 public controls and interaction variants. Click an image for full resolution.</p>$body</html>" | Set-Content -LiteralPath (Join-Path $output 'index.html') -Encoding utf8
+    "<!doctype html><html lang='en'><meta charset='utf-8'><title>DxUi control gallery</title><style>body{font:16px Segoe UI,sans-serif;background:#11151c;color:#edf2fa;margin:24px}img{max-width:100%;height:auto}section{margin:32px 0}a{color:inherit}</style><h1>DxUi control gallery</h1><p>All 27 public controls and interaction variants. Click an image for full resolution.</p>$body</html>" | Set-Content -LiteralPath (Join-Path $output 'index.html') -Encoding utf8
     Write-Host "Gallery: $(Join-Path $output 'index.html')"
     if ($PublishDocs) {
         $destination = Join-Path $PSScriptRoot 'docs/gallery'
@@ -30,12 +30,12 @@ try {
             Copy-Item -LiteralPath $file -Destination $destination -Force
         }
         $sections = ($images | ForEach-Object { "## $($_.BaseName)`n`n![$($_.BaseName) control gallery]($($_.Name))" }) -join "`n`n"
-        "# Generated control gallery`n`n[Usage documentation](../README.md) | [Control guide](../controls.md) | [HTML gallery](index.html)`n`nGenerated from compiled DxUi controls using gallery.ps1 -PublishDocs. The five theme sheets cover all 26 public controls and populated interaction variants; the sixth image is the supplied-device example. Click a sheet to inspect it at full resolution. Rendering may vary with Windows fonts/DPI. These are documentation snapshots, not replacements for the original test baselines.`n`n$sections" | Set-Content -LiteralPath (Join-Path $destination 'README.md') -Encoding utf8
+        "# Generated control gallery`n`n[Usage documentation](../README.md) | [Control guide](../controls.md) | [HTML gallery](index.html)`n`nGenerated from compiled DxUi controls using gallery.ps1 -PublishDocs. The five theme sheets cover all 27 public controls and populated interaction variants; the sixth image is the supplied-device example. Click a sheet to inspect it at full resolution. Rendering may vary with Windows fonts/DPI. These are documentation snapshots, not replacements for the original test baselines.`n`n$sections" | Set-Content -LiteralPath (Join-Path $destination 'README.md') -Encoding utf8
         $receipt = [ordered]@{
             command='gallery.ps1 -PublishDocs'; sourceCommit=(& git rev-parse HEAD).Trim()
             sourceDirty=[bool](& git status --porcelain)
             configuration=$Configuration; platform=$Platform; nativeArchitecture=[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-            controlCount=26; images=@($images | ForEach-Object { @{ file=$_.Name; sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash } })
+            controlCount=27; images=@($images | ForEach-Object { @{ file=$_.Name; sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash } })
         }
         $receipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $destination 'generation.json') -Encoding utf8
         Write-Host "Published documentation gallery: $destination"

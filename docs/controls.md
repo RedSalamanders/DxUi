@@ -17,6 +17,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | RadioButton | Configure selection state and `SetOnSelected`; use RadioButtons when selection is mutually exclusive. |
 | RadioButtons | Own a group of choices and handle `SetOnSelectionChanged(int)`. |
 | ProgressBar | Set minimum, maximum and value; `SetIndeterminate(true)` requires host animation ticks. |
+| PageIndicator | Set `SetPageCount` / `SetSelectedIndex` for a bottom strip of dots. `SetOnSelected` reports user clicks and Left/Right/Home/End. Hidden and not hittable when there are fewer than two pages. Strip height is `kStripHeightDip` (20). |
 | ThroughputGraph | Feed timestamped samples through its public sample API; keep history within its configured limits. Use the rendering tests for populated series and bands. |
 | Slider | Set range/value and handle `SetOnChange(SliderChange)` for preview, commit and cancel. |
 | Toolbar | Panel for command controls; populate buttons with labels, bounds and actions. |

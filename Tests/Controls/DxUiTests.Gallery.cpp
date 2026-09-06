@@ -905,6 +905,13 @@ void AddComboItems(ComboBox& combo)
         scene.indeterminateProgress->SetBounds(CenterIn(tile.content, 260.0f, 20.0f));
     }
     {
+        const Tile tile = flow.Next(*scene.root, L"PageIndicator / Pages");
+        auto* indicator = scene.root->AddChild<PageIndicator>();
+        indicator->SetPageCount(5);
+        indicator->SetSelectedIndex(2);
+        indicator->SetBounds(CenterIn(tile.content, 180.0f, PageIndicator::kStripHeightDip));
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"Slider / Horizontal");
         auto* slider    = scene.root->AddChild<Slider>();
         slider->SetValue(68.0);

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add `PageIndicator`: a bottom strip of dots for paged surfaces. Fewer than two pages paint nothing and are not
+  hittable. Click, Left/Right/Home/End and `SetSelectedIndex` share one selected index; only user input fires
+  `SetOnSelected`. Catalog/factory count is 27.
 - Deliver API revision 2 through one DxUi.lib: public controls, a 26-control catalog/factory, neutral themes and
   diagnostics, and native plus supplied-device embedded hosting. Foundation is part of the same archive.
 - Separate dirty preparation from allocation-free D3D11 composition; support logical capture, DPI, visibility,
