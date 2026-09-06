@@ -68,7 +68,12 @@ function Write-DxUiBuildBanner {
     else { Write-Host "╭$border╮" }
 
     foreach ($row in $rows) {
-        $padding = $contentWidth - $row.Text.Length
+        $displayLength = $row.Text.Length
+        # Windows terminals render each ⚡ glyph as two columns, although PowerShell counts it as one character.
+        if ($row.Text.Contains('⚡')) {
+            $displayLength += 2
+        }
+        $padding = $contentWidth - $displayLength
         $leftPadding = [Math]::Floor($padding / 2)
         $rightPadding = $padding - $leftPadding
         $line = '│' + (' ' * $leftPadding) + $row.Text + (' ' * $rightPadding) + '│'
