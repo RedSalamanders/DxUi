@@ -52,4 +52,6 @@ rejection, throwing callbacks and callback-driven tree destruction. No test invo
 ![Composition through the existing TextField renderer](composition.png)
 
 ARM64 cross-builds/native CI and consumer OS-service adoption are recorded separately; no native ARM64 pass is
-claimed by these x64 receipts. The [input plan](../../../Specs/Plans/WIP/EmbeddedTextServices_2026-09-05.md) stays active.
+claimed by these x64 receipts. Library text/UIA APIs are closed in
+[EmbeddedTextServices](../../../Specs/Plans/Done/EmbeddedTextServices_2026-09-05.md); matched performance and real
+IME/AT remain on RedXe AV.

@@ -19,4 +19,5 @@ a regression or claim application-level acceptance from these library measuremen
 
 - [Embedded text state, 2026-09-05](TextInput/2026-09-05/README.md): matched final-driver measurements, earlier investigation runs and complete x64 suite receipts.
 
-- [Native text-store investigation](TextInput/NativeStore-2026-09-05/README.md): callback safety; performance acceptance open.
+- [Native text-store investigation](TextInput/NativeStore-2026-09-05/README.md): callback safety; performance acceptance open, owned by RedXe AV.
+- [Application-side text services](TextInput/HostServices-2026-09-05/README.md): TSF/clipboard component; performance acceptance open, owned by RedXe AV.

@@ -1,6 +1,6 @@
 # RedSalamander migration
 
-Status: HOLD — starts after RedXe adoption; no application changes authorized implicitly by this plan
+Status: HOLD — later consumer; no application changes authorized implicitly by this plan
 
 1. Inventory every current DxUi consumer and relevant tests, themes, services, plugin ownership and packaging.
 2. Select a tested standalone DxUi revision and add a source lock and library project references.

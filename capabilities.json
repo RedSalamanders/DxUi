@@ -16,10 +16,11 @@
     "native-accessibility",
     "control-gallery",
     "embedded-text-state",
-    "application-text-services"
+    "application-text-services",
+    "embedded-accessibility",
+    "redxe-adapter"
   ],
   "pending": [
-    "redxe-adapter",
     "embedded-host-text-uia-bridge",
     "av-control",
     "redsalamander-migration"

@@ -20,7 +20,7 @@ not permission to ignore a conflicting contract. Reconcile disagreements in the 
 
 Every direct WIP plan is indexed once. Before completion, persist enduring discoveries in the owning domain,
 complete implementation and validation, then move the plan to Done and remove its active row. A separate HOLD
-consumer migration does not prevent completing an independently scoped bootstrap plan.
+consumer migration does not prevent completing an independently scoped extraction plan.
 
 Run the three root validation scripts for documentation/dependency changes and the appropriate tests for code.
 Generated measurement reports live under `.build`, never in Specs. Reviewed gallery snapshots live in `docs/gallery`.
