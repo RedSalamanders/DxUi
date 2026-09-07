@@ -44,7 +44,7 @@ the same DIP radius, selected radius and gap constants.
 
 ### Slider
 
-`Slider` uses a 10 DIP capsule track and a 28 DIP thumb (32 DIP hovered, 24 DIP pressed). The track insets 14 DIP from
+`Slider` uses a 12 DIP capsule track and a 48 DIP thumb (52 DIP hovered, 44 DIP pressed). The track insets 24 DIP from
 each end so the thumb stays inside the control. Pointer hit testing uses the full control bounds, not the thin fill,
 so consumers should keep at least a 48 DIP control height for touch. Keyboard steps still use `SetStep` / `SetLargeStep`.
 
