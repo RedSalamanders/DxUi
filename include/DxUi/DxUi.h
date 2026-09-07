@@ -189,9 +189,10 @@ enum class FontRole : uint8_t
     Display,    // 68/92 Semibold
     Header,     // DEPRECATED — use Subtitle for new code; kept for backward compat
     Small,      // maps to Caption in WinUI
-    Icon,
-    HeroIcon,
+    Icon,       // 12 DIP Fluent/MDL2
+    HeroIcon,   // 64 DIP Fluent/MDL2
     Monospace,
+    IconLarge, // 32 DIP Fluent/MDL2; between Icon and HeroIcon
 };
 
 // ---------------------------------------------------------------------------
@@ -3959,6 +3960,7 @@ private:
     mutable wil::com_ptr<IDWriteTextFormat> _smallTextFormat;
     mutable wil::com_ptr<IDWriteTextFormat> _iconTextFormat;
     mutable wil::com_ptr<IDWriteTextFormat> _heroIconTextFormat;
+    mutable wil::com_ptr<IDWriteTextFormat> _iconLargeTextFormat;
     mutable wil::com_ptr<IDWriteTextFormat> _monoTextFormat;
     mutable std::unordered_map<uint64_t, wil::com_ptr<IDWriteTextFormat>> _configuredTextFormats;
     mutable bool _fluentIconFontAvailabilityChecked = false;

@@ -1961,7 +1961,7 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role) const noexcept
 {
     if ((! _dwriteFactory || ! _bodyTextFormat || ! _bodyStrongTextFormat || ! _bodyLargeTextFormat || ! _listItemTextFormat || ! _titleTextFormat ||
          ! _subtitleTextFormat || ! _titleLargeTextFormat || ! _displayTextFormat || ! _headerTextFormat || ! _smallTextFormat || ! _monoTextFormat ||
-         (_fluentIconFontAvailable && (! _iconTextFormat || ! _heroIconTextFormat))))
+         (_fluentIconFontAvailable && (! _iconTextFormat || ! _heroIconTextFormat || ! _iconLargeTextFormat))))
     {
         if (! EnsureDeviceIndependentResources())
         {
@@ -1982,6 +1982,7 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role) const noexcept
         case FontRole::Small: return _smallTextFormat.get();
         case FontRole::Icon: return _iconTextFormat ? _iconTextFormat.get() : _smallTextFormat.get();
         case FontRole::HeroIcon: return _heroIconTextFormat ? _heroIconTextFormat.get() : (_iconTextFormat ? _iconTextFormat.get() : _smallTextFormat.get());
+        case FontRole::IconLarge: return _iconLargeTextFormat ? _iconLargeTextFormat.get() : (_iconTextFormat ? _iconTextFormat.get() : _smallTextFormat.get());
         case FontRole::Monospace: return _monoTextFormat.get();
         case FontRole::Body:
         default: return _bodyTextFormat.get();
@@ -2009,7 +2010,7 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
         return it->second.get();
     }
 
-    if ((role == FontRole::Icon || role == FontRole::HeroIcon) && ! HasFluentIconFont())
+    if ((role == FontRole::Icon || role == FontRole::HeroIcon || role == FontRole::IconLarge) && ! HasFluentIconFont())
     {
         return GetTextFormat(FontRole::Small, alignment, paragraphAlignment, wrap);
     }
@@ -3054,6 +3055,16 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
         {
             Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for fluent hero icon text: 0x{:08X}", hr);
             _heroIconTextFormat.reset();
+        }
+    }
+    if (_fluentIconFontAvailable && ! _iconLargeTextFormat)
+    {
+        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::IconLarge);
+        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _iconLargeTextFormat.addressof());
+        if (FAILED(hr) || ! _iconLargeTextFormat)
+        {
+            Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for fluent large icon text: 0x{:08X}", hr);
+            _iconLargeTextFormat.reset();
         }
     }
     if (! _monoTextFormat)
