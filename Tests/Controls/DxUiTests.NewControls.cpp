@@ -962,9 +962,9 @@ void TestSliderTouchFriendlyGeometry()
     slider.SetValue(50.0);
     const D2D1_RECT_F track = slider.DebugGetTrackRect();
     const D2D1_RECT_F thumb = slider.DebugGetThumbRect();
-    RequireFloatNear(track.bottom - track.top, 10.0f, 0.01f, "slider track is 10 DIP thick for touch");
-    RequireFloatNear(thumb.right - thumb.left, 28.0f, 0.01f, "slider thumb is 28 DIP at rest");
-    Require(track.left >= 13.5f && (220.0f - track.right) >= 13.5f, "slider track insets leave room for the thumb");
+    RequireFloatNear(track.bottom - track.top, 12.0f, 0.01f, "slider track is 12 DIP thick for touch");
+    RequireFloatNear(thumb.right - thumb.left, 48.0f, 0.01f, "slider thumb is 48 DIP at rest");
+    Require(track.left >= 23.5f && (220.0f - track.right) >= 23.5f, "slider track insets leave room for the thumb");
 }
 
 void TestSliderKeyboardAndPointerInputUpdatesValue()
