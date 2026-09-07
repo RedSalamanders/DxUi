@@ -26,6 +26,8 @@ void TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies()
     const TypographySpec titleLargeSpec = GetDxUiTypographySpec(FontRole::TitleLarge);
     const TypographySpec displaySpec    = GetDxUiTypographySpec(FontRole::Display);
     const TypographySpec iconSpec       = GetDxUiTypographySpec(FontRole::Icon);
+    const TypographySpec iconLargeSpec  = GetDxUiTypographySpec(FontRole::IconLarge);
+    const TypographySpec heroIconSpec   = GetDxUiTypographySpec(FontRole::HeroIcon);
     const TypographySpec monoSpec       = GetDxUiTypographySpec(FontRole::Monospace);
 
     Require(bodySpec.familyName == kSegoeUiVariableTextFamily, "body role uses Segoe UI Variable Text");
@@ -35,7 +37,9 @@ void TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies()
     Require(headerSpec.familyName == kSegoeUiVariableSmallFamily, "header role uses Segoe UI Variable Small");
     Require(titleLargeSpec.familyName == kSegoeUiVariableDisplayFamily, "title-large role uses Segoe UI Variable Display");
     Require(displaySpec.familyName == kSegoeUiVariableDisplayFamily, "display role uses Segoe UI Variable Display");
-    Require(iconSpec.familyName == kSegoeFluentIconsFamily, "icon role uses Segoe Fluent Icons");
+    Require(iconSpec.familyName == kSegoeFluentIconsFamily && iconSpec.sizeDip == 12.0f, "icon role uses 12 DIP Segoe Fluent Icons");
+    Require(iconLargeSpec.familyName == kSegoeFluentIconsFamily && iconLargeSpec.sizeDip == 32.0f, "icon-large role uses 32 DIP Segoe Fluent Icons");
+    Require(heroIconSpec.familyName == kSegoeFluentIconsFamily && heroIconSpec.sizeDip == 64.0f, "hero-icon role uses 64 DIP Segoe Fluent Icons");
     Require(monoSpec.familyName == kUiMonospaceFamily, "monospace role uses the shared monospace family");
 }
 

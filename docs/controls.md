@@ -19,7 +19,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | ProgressBar | Set minimum, maximum and value; `SetIndeterminate(true)` requires host animation ticks. |
 | PageIndicator | Set `SetPageCount` / `SetSelectedIndex` for a bottom strip of dots. `SetOnSelected` reports user clicks and Left/Right/Home/End. Hidden and not hittable when there are fewer than two pages. Strip height is `kStripHeightDip` (20). |
 | ThroughputGraph | Feed timestamped samples through its public sample API; keep history within its configured limits. Use the rendering tests for populated series and bands. |
-| Slider | Set range/value and handle `SetOnChange(SliderChange)` for preview, commit and cancel. |
+| Slider | Set range/value and handle `SetOnChange(SliderChange)` for preview, commit and cancel. The track is 10 DIP thick with a 28 DIP thumb; the full control bounds are the hit target, so keep height at least 48 DIP for touch. |
 | Toolbar | Panel for command controls; populate buttons with labels, bounds and actions. |
 | MenuBar | Supply `MenuBarItem` records through `SetItems`; handle `SetOnOpenItem` and hover changes. Native menu operations require the HWND integration. |
 | TabControl | Add populated tab pages with `AddTab`; handle selection, close-request, closed and reorder callbacks as needed. |

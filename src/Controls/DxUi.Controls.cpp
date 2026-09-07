@@ -201,11 +201,11 @@ constexpr float kTooltipCornerRadiusDip          = 4.0f;
 constexpr float kTooltipFallbackLineHeightDip    = 18.0f;
 constexpr float kTooltipPreferredTextHeightDip   = 256.0f;
 constexpr float kMenuBarItemCornerRadiusDip      = 4.0f;
-constexpr float kSliderTrackThicknessDip         = 2.0f;
-constexpr float kSliderThumbDiameterDip          = 20.0f;
-constexpr float kSliderThumbHoverDiameterDip     = 22.0f;
-constexpr float kSliderThumbPressedDiameterDip   = 18.0f;
-constexpr float kSliderTrackInsetDip             = 10.0f;
+constexpr float kSliderTrackThicknessDip         = 10.0f;
+constexpr float kSliderThumbDiameterDip          = 28.0f;
+constexpr float kSliderThumbHoverDiameterDip     = 32.0f;
+constexpr float kSliderThumbPressedDiameterDip   = 24.0f;
+constexpr float kSliderTrackInsetDip             = 14.0f;
 constexpr float kSliderTickLengthDip             = 6.0f;
 constexpr float kTabStripHeightDip               = 32.0f;
 constexpr float kTabCornerRadiusDip              = 5.0f;
@@ -4538,10 +4538,11 @@ void Slider::Paint(ControlHost& host) const
     const D2D1_RECT_F fill        = GetFillRect();
     const D2D1_RECT_F thumb       = GetThumbRect();
     const D2D1_COLOR_F trackColor = BlendColor(theme.border, theme.windowBackground, theme.dark ? 0.40f : 0.55f);
-    DrawRoundedRect(host, track, trackColor, trackColor, 4.0f);
+    const float trackRadius       = kSliderTrackThicknessDip * 0.5f;
+    DrawRoundedRect(host, track, trackColor, trackColor, trackRadius);
     if (fill.right > fill.left && fill.bottom > fill.top)
     {
-        DrawRoundedRect(host, fill, theme.accent, theme.accent, 4.0f);
+        DrawRoundedRect(host, fill, theme.accent, theme.accent, trackRadius);
     }
 
     if (! _tickMarks.empty())

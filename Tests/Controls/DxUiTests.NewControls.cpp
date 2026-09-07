@@ -953,6 +953,20 @@ void TestSliderDefaultState()
     RequireFloatNear(static_cast<float>(slider.GetLargeStep()), 10.0f, 0.0001f, "slider defaults to a page-sized keyboard step");
 }
 
+void TestSliderTouchFriendlyGeometry()
+{
+    using namespace DxUi;
+
+    Slider slider;
+    slider.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 48.0f));
+    slider.SetValue(50.0);
+    const D2D1_RECT_F track = slider.DebugGetTrackRect();
+    const D2D1_RECT_F thumb = slider.DebugGetThumbRect();
+    RequireFloatNear(track.bottom - track.top, 10.0f, 0.01f, "slider track is 10 DIP thick for touch");
+    RequireFloatNear(thumb.right - thumb.left, 28.0f, 0.01f, "slider thumb is 28 DIP at rest");
+    Require(track.left >= 13.5f && (220.0f - track.right) >= 13.5f, "slider track insets leave room for the thumb");
+}
+
 void TestSliderKeyboardAndPointerInputUpdatesValue()
 {
     using namespace DxUi;
@@ -960,7 +974,7 @@ void TestSliderKeyboardAndPointerInputUpdatesValue()
     WindowHost host;
     auto root    = std::make_unique<Panel>();
     auto* slider = root->AddChild<Slider>();
-    slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 32.0f));
+    slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 48.0f));
     slider->SetMinimum(0.0);
     slider->SetMaximum(10.0);
     slider->SetValue(5.0);
@@ -986,8 +1000,8 @@ void TestSliderKeyboardAndPointerInputUpdatesValue()
     RequireFloatNear(static_cast<float>(slider->GetValue()), 10.0f, 0.0001f, "slider page-up clamps to the configured maximum");
     Require(callbackCount == 2u && lastValue == 10.0, "slider page-up fires the value-changed callback");
 
-    Require(slider->OnMouseDown(host, D2D1::Point2F(10.0f, 16.0f), false, 0), "slider handles pointer press");
-    Require(slider->OnMouseUp(host, D2D1::Point2F(10.0f, 16.0f), false, 0), "slider handles pointer release");
+    Require(slider->OnMouseDown(host, D2D1::Point2F(10.0f, 24.0f), false, 0), "slider handles pointer press");
+    Require(slider->OnMouseUp(host, D2D1::Point2F(10.0f, 24.0f), false, 0), "slider handles pointer release");
     RequireFloatNear(static_cast<float>(slider->GetValue()), 0.0f, 0.0001f, "slider pointer input maps the far-left track edge to the minimum value");
     Require(callbackCount >= 3u && lastValue == 0.0, "slider pointer input fires the value-changed callback");
 }
@@ -1899,6 +1913,7 @@ void RunNewControlTests()
 
     // Slider
     TestSliderDefaultState();
+    TestSliderTouchFriendlyGeometry();
     TestSliderKeyboardAndPointerInputUpdatesValue();
     TestSliderVerticalAndRightToLeftGeometryMirrors();
     TestSliderPaintHandlesMissingDeviceContext();

@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-09-06
+Last reviewed: 2026-09-07
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -41,6 +41,12 @@ nothing, report empty hit bounds, and ignore pointer and keyboard input. `SetSel
 does not wrap. Idle dots use subdued text; the selected dot uses the theme accent. Preferred strip height is
 `PageIndicator::kStripHeightDip` (20 DIP). Consumers that draw a matching strip without hosting the control MUST use
 the same DIP radius, selected radius and gap constants.
+
+### Slider
+
+`Slider` uses a 10 DIP capsule track and a 28 DIP thumb (32 DIP hovered, 24 DIP pressed). The track insets 14 DIP from
+each end so the thumb stays inside the control. Pointer hit testing uses the full control bounds, not the thin fill,
+so consumers should keep at least a 48 DIP control height for touch. Keyboard steps still use `SetStep` / `SetLargeStep`.
 
 Each control also requires accurate usage documentation in `docs/controls.md`. Code changes review affected docs
 and regenerate changed visuals into `docs/gallery` under [the documentation contract](../Core/Core_Documentation.md).

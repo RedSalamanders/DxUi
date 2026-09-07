@@ -147,6 +147,7 @@ struct TypographyTextFormatCacheEntry final
         case FontRole::Small: return MakeUiTextSpec(11.0f, DWRITE_FONT_WEIGHT_NORMAL);
         case FontRole::Icon: return MakeUiIconSpec(12.0f);
         case FontRole::HeroIcon: return MakeUiIconSpec(64.0f);
+        case FontRole::IconLarge: return MakeUiIconSpec(32.0f);
         case FontRole::Monospace: return MakeUiMonospaceSpec(12.0f);
         case FontRole::Body:
         default: return MakeUiTextSpec(13.0f, DWRITE_FONT_WEIGHT_NORMAL);
