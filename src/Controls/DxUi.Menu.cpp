@@ -2390,8 +2390,14 @@ public:
 
     bool Tick(ControlHost& host, uint64_t nowTickMs) override
     {
-        static_cast<void>(host);
-        return popup && AdvanceSliderAnimation(*popup, nowTickMs);
+        if (! popup || ! popup->sliderAnimationActive)
+        {
+            return false;
+        }
+        const bool active = AdvanceSliderAnimation(*popup, nowTickMs);
+        // The animated slider position moved this tick, including the tick that settles it on its target.
+        Invalidate(host);
+        return active;
     }
 
     void Paint(ControlHost& host) const override

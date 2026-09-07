@@ -27,7 +27,7 @@ native text/accessibility and Win32 hosting are implementation areas of that tar
 Consumers reference this project once. There is no DxUi runtime DLL and no consumer-maintained source list.
 
 Public headers are under `include/DxUi`: `DxUi.h` exposes all retained controls and `ControlHost`; `Embedded.h`
-exposes supplied-device graphics and scheduling; `ControlCatalog.h` enumerates/constructs all 26 concrete controls;
+exposes supplied-device graphics and scheduling; `ControlCatalog.h` enumerates/constructs all 27 concrete controls;
 `TextInputServices.h` and `EmbeddedAccessibility.h` expose application-side TSF/clipboard and lazy embedded UIA
 attach; `ThemeColors.h`, `Diagnostics.h`, `FrameRuntime.h` and `Configuration.h` complete the supporting API.
 

@@ -1518,8 +1518,13 @@ void ControlHost::RequestAnimation() noexcept
 {
     if (_embedded)
     {
-        _embeddedAnimationRequested = true;
-        Invalidate();
+        // Wake the application only when animation becomes requested, so a control that requests it while
+        // painting (an indeterminate progress bar, a busy grid) does not re-dirty the view inside every preparation.
+        if (! _embeddedAnimationRequested)
+        {
+            _embeddedAnimationRequested = true;
+            Invalidate();
+        }
         return;
     }
     if (_animationSubscriptionId == 0u)
@@ -3365,6 +3370,19 @@ void ControlHost::DiscardDeviceResources() noexcept
     _sharedGraphicsGeneration = 0u;
 }
 
+void ControlHost::TrimCaches() const noexcept
+{
+    // Called only at paint/preparation start, before any brush or format is borrowed for the frame.
+    if (_brushCache.size() > kSolidBrushCacheLimit)
+    {
+        _brushCache.clear();
+    }
+    if (_configuredTextFormats.size() > kConfiguredTextFormatCacheLimit)
+    {
+        _configuredTextFormats.clear();
+    }
+}
+
 void ControlHost::RecreateBrushCache() const
 {
     _brushCache.clear();
@@ -3387,6 +3405,7 @@ void ControlHost::Render(const RECT* dirtyRectPx, bool allowHidden) noexcept
 #if DXUI_ENABLE_DIAGNOSTICS
     Render(dirtyRectPx, nullptr, allowHidden);
 #else
+    TrimCaches();
     FrameClock frameClock;
     FrameStage frameStage       = FrameStage::Idle;
     const auto frameStartedAt   = frameClock.Now();
@@ -3587,6 +3606,8 @@ bool ControlHost::CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcep
 
 void ControlHost::Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture, bool allowHidden) noexcept
 {
+    // Trim over-bound caches before any brush or format is borrowed for this paint.
+    TrimCaches();
     FrameClock frameClock;
     FrameStage frameStage       = FrameStage::Idle;
     const auto frameStartedAt   = frameClock.Now();

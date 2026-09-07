@@ -730,6 +730,147 @@ void TestProgressBarIndeterminateRoundtrips()
     Require(! bar.IsIndeterminate(), "progress bar indeterminate roundtrips back to false");
 }
 
+void TestPageIndicatorDefaultState()
+{
+    using namespace DxUi;
+
+    PageIndicator indicator;
+    Require(indicator.GetPageCount() == 0u, "page indicator defaults to zero pages");
+    Require(indicator.GetSelectedIndex() == 0u, "page indicator defaults to selected index 0");
+    Require(indicator.GetHitBounds().right <= indicator.GetHitBounds().left, "page indicator is not hittable with zero pages");
+}
+
+void TestPageIndicatorPageCountAndSelectionRoundtrip()
+{
+    using namespace DxUi;
+
+    PageIndicator indicator;
+    indicator.SetPageCount(5);
+    Require(indicator.GetPageCount() == 5u, "page indicator page count roundtrips");
+    indicator.SetSelectedIndex(3);
+    Require(indicator.GetSelectedIndex() == 3u, "page indicator selected index roundtrips");
+    indicator.SetSelectedIndex(8);
+    Require(indicator.GetSelectedIndex() == 4u, "page indicator clamps selected index to the last page");
+    indicator.SetPageCount(2);
+    Require(indicator.GetSelectedIndex() == 1u, "page indicator clamps selection when page count shrinks");
+    indicator.SetPageCount(PageIndicator::kMaximumPages + 4);
+    Require(indicator.GetPageCount() == PageIndicator::kMaximumPages, "page indicator caps page count");
+}
+
+void TestPageIndicatorClickSelectsPage()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root       = std::make_unique<Panel>();
+    auto* indicator = root->AddChild<PageIndicator>();
+    indicator->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, PageIndicator::kStripHeightDip));
+    indicator->SetPageCount(4);
+    uint32_t selected = UINT32_MAX;
+    size_t callbacks  = 0u;
+    indicator->SetOnSelected([&](uint32_t index)
+    {
+        selected = index;
+        ++callbacks;
+    });
+    host.SetRoot(std::move(root));
+
+    const D2D1_POINT_2F third = indicator->DotCenter(2);
+    Require(indicator->HitPageIndex(third) == 2u, "page indicator hit-tests the third dot");
+    Require(indicator->OnMouseDown(host, third, false, 0), "page indicator handles mouse-down on a dot");
+    Require(indicator->OnMouseUp(host, third, false, 0), "page indicator handles mouse-up on a dot");
+    Require(indicator->GetSelectedIndex() == 2u, "page indicator selects the clicked page");
+    Require(callbacks == 1u && selected == 2u, "page indicator click fires one selection callback");
+}
+
+void TestPageIndicatorKeyboardNavigatesAndStopsAtEnds()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root       = std::make_unique<Panel>();
+    auto* indicator = root->AddChild<PageIndicator>();
+    indicator->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, PageIndicator::kStripHeightDip));
+    indicator->SetPageCount(3);
+    uint32_t selected = 0;
+    indicator->SetOnSelected([&](uint32_t index) { selected = index; });
+    host.SetRoot(std::move(root));
+
+    Require(indicator->OnKeyDown(host, VK_RIGHT, 0), "page indicator handles Right");
+    Require(indicator->GetSelectedIndex() == 1u && selected == 1u, "page indicator Right advances one page");
+    Require(indicator->OnKeyDown(host, VK_END, 0), "page indicator handles End");
+    Require(indicator->GetSelectedIndex() == 2u, "page indicator End selects the last page");
+    Require(indicator->OnKeyDown(host, VK_RIGHT, 0), "page indicator consumes Right at the last page");
+    Require(indicator->GetSelectedIndex() == 2u, "page indicator does not wrap past the last page");
+    Require(indicator->OnKeyDown(host, VK_HOME, 0), "page indicator handles Home");
+    Require(indicator->GetSelectedIndex() == 0u, "page indicator Home selects the first page");
+    Require(indicator->OnKeyDown(host, VK_LEFT, 0), "page indicator consumes Left at the first page");
+    Require(indicator->GetSelectedIndex() == 0u, "page indicator does not wrap before the first page");
+}
+
+void TestPageIndicatorSetSelectedIndexDoesNotFireCallback()
+{
+    using namespace DxUi;
+
+    PageIndicator indicator;
+    indicator.SetPageCount(4);
+    size_t callbacks = 0u;
+    indicator.SetOnSelected([&](uint32_t) { ++callbacks; });
+    indicator.SetSelectedIndex(2);
+    Require(indicator.GetSelectedIndex() == 2u, "page indicator SetSelectedIndex updates selection");
+    Require(callbacks == 0u, "page indicator SetSelectedIndex does not notify OnSelected");
+}
+
+void TestPageIndicatorSinglePageIsNotHittable()
+{
+    using namespace DxUi;
+
+    PageIndicator indicator;
+    indicator.SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, PageIndicator::kStripHeightDip));
+    indicator.SetPageCount(1);
+    Require(indicator.HitPageIndex(D2D1::Point2F(100.0f, 10.0f)) == UINT32_MAX, "a single page has no hittable dots");
+    Require(indicator.GetHitBounds().right <= indicator.GetHitBounds().left, "a single page is excluded from hit testing");
+}
+
+void TestPageIndicatorPaintHandlesMissingDeviceContext()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root       = std::make_unique<Panel>();
+    auto* indicator = root->AddChild<PageIndicator>();
+    indicator->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, PageIndicator::kStripHeightDip));
+    indicator->SetPageCount(3);
+    indicator->SetSelectedIndex(1);
+    host.SetRoot(std::move(root));
+    indicator->Paint(host);
+    Require(true, "page indicator paint path tolerates a missing device context");
+}
+
+void TestPageIndicatorSelectionCallbackCanReplaceRootSafely()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root       = std::make_unique<Panel>();
+    auto* indicator = root->AddChild<PageIndicator>();
+    indicator->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, PageIndicator::kStripHeightDip));
+    indicator->SetPageCount(3);
+    size_t callbacks = 0u;
+    indicator->SetOnSelected([&](uint32_t)
+    {
+        ++callbacks;
+        host.SetRoot(std::make_unique<Panel>());
+    });
+    host.SetRoot(std::move(root));
+
+    const D2D1_POINT_2F second = indicator->DotCenter(1);
+    Require(indicator->OnMouseDown(host, second, false, 0), "page indicator handles mouse-down before root replacement");
+    Require(indicator->OnMouseUp(host, second, false, 0), "page indicator survives root replacement during selection callback");
+    Require(callbacks == 1u, "page indicator selection callback ran before replacing the root");
+    Require(host.GetRoot() != nullptr, "page indicator selection callback can replace the host root safely");
+}
+
 void TestProgressBarExplicitTrackHeightRoundtrips()
 {
     using namespace DxUi;
@@ -1745,6 +1886,16 @@ void RunNewControlTests()
     TestProgressBarIndeterminateRequestsAnimationWhenAttached();
     TestProgressBarPaintHandlesMissingDeviceContext();
     TestProgressBarDisabledIndeterminateStateDoesNotAnimateUntilReenabled();
+
+    // PageIndicator
+    TestPageIndicatorDefaultState();
+    TestPageIndicatorPageCountAndSelectionRoundtrip();
+    TestPageIndicatorClickSelectsPage();
+    TestPageIndicatorKeyboardNavigatesAndStopsAtEnds();
+    TestPageIndicatorSetSelectedIndexDoesNotFireCallback();
+    TestPageIndicatorSinglePageIsNotHittable();
+    TestPageIndicatorPaintHandlesMissingDeviceContext();
+    TestPageIndicatorSelectionCallbackCanReplaceRootSafely();
 
     // Slider
     TestSliderDefaultState();

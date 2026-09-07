@@ -27,12 +27,14 @@ five rounds of 40 frames for each scenario. Clean frames reuse the prepared surf
 scroll the grid and repaint. A screenshot is recorded outside timing at `.build/test-artifacts/complex-ui.png`.
 
 Receipts record completed offscreen WARP FPS, p50/p95 total frame milliseconds, p95 preparation and CPU composition
-times, C++ allocation counts, exact surface payload and replacement peak, process private bytes and working set
+times, C++ allocation counts with the gated dirty per-frame ceiling (`dirtyAllocationCeilingPerFrame`: 64 in
+Release, 320 in Debug where the debug STL allocates container proxies; clean rounds must allocate nothing), exact
+surface payload and replacement peak, process private bytes and working set
 with sampled peaks and private-byte growth. Source commit/content fingerprint, executable/fixture hashes, compiler,
 machine, CPU, OS, WARP binary version, active power policy, native architecture and configuration make the comparison
 auditable. The fixture fingerprint covers the minimal benchmark entry (`BenchmarkMain.h`), benchmark, shared
 sample scene and graphics helper; receipts declare `workloadOwner: DxUi`. Functional tests run in a separate
-non-inlined function so their stack frame is not part of benchmark entry. Changes to those inputs invalidate earlier fixture comparisons. `-SkipBuild` is recorded; the caller is responsible for matching existing binaries to the recorded sources.
+non-inlined function so their stack frame is not part of benchmark entry. Changes to those inputs invalidate earlier fixture comparisons, so measure a fresh baseline with the final harness on the previous implementation before comparing a candidate. `-SkipBuild` is recorded; the caller is responsible for matching existing binaries to the recorded sources.
 
 FPS includes target clear and a blocking readback of one pixel into a reusable staging texture, ensuring submitted
 work has completed. It excludes PNG encoding, statistics serialization and process-memory sampling. This readback

@@ -6,6 +6,9 @@ Application adoption measurements belong in their application's repository.
 
 - [Complex UI, 2026-09-05](ComplexUi/2026-09-05/README.md): Release baseline and matched repeat, complete raw rounds,
   comparison and rendered scene.
+- [Complex UI, 2026-09-07](ComplexUi/2026-09-07/README.md): surface-lifetime round; Debug/Release baselines measured
+  with the final harness before the implementation, candidate receipts, an environmental probe and alternating
+  same-state runs. The automated comparison stayed `advice-required` on a non-quiet desktop; see its README.
 
 The runnable [complex sample](../Samples/ComplexUi/README.md) and benchmark share one scene. Its `dxui-complex-ui-v2`
 identity distinguishes it from older fixtures; changed fixtures cannot establish before/after implementation results.

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Release the embedded surface on `SetVisible(false)` and zero-extent `Prepare`: `surfaceBytes` reports 0 while
+  hidden or zero-sized, and the next visible sized preparation reallocates exactly one surface with identical pixels.
+  `AdvanceAnimation` no longer marks the view dirty unconditionally; every `Tick` that changes visual state
+  invalidates (caret blink flips, button/page transitions, tooltip show/hide, grid/tree/menu animation), and
+  `ControlHost::RequestAnimation` wakes an embedded view only when animation becomes requested, so paint-time
+  requests (indeterminate progress, busy grids) no longer re-dirty the view inside every preparation. Bound the
+  per-host solid-brush (256) and configured-text-format (96) caches with a trim at preparation/paint start, report
+  `cachedBrushes`/`cachedTextFormats` in `EmbeddedStatistics`, and gate the complex benchmark at zero clean-round and
+  64 (Release) / 320 (Debug) dirty per-frame C++ allocations. API revision stays 2 (additive).
+- Add `PageIndicator`: a bottom strip of dots for paged surfaces. Fewer than two pages paint nothing and are not
+  hittable. Click, Left/Right/Home/End and `SetSelectedIndex` share one selected index; only user input fires
+  `SetOnSelected`. Catalog/factory count is 27.
 - Deliver API revision 2 through one DxUi.lib: public controls, a 26-control catalog/factory, neutral themes and
   diagnostics, and native plus supplied-device embedded hosting. Foundation is part of the same archive.
 - Separate dirty preparation from allocation-free D3D11 composition; support logical capture, DPI, visibility,

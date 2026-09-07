@@ -1898,6 +1898,43 @@ private:
     uint64_t _lastTickMs                = 0;
 };
 
+class PageIndicator final : public Control
+{
+public:
+    static constexpr uint32_t kMaximumPages      = 16;
+    static constexpr float kStripHeightDip       = 20.0f;
+    static constexpr float kDotRadiusDip         = 3.0f;
+    static constexpr float kSelectedDotRadiusDip = 4.0f;
+    static constexpr float kDotGapDip            = 14.0f;
+
+    PageIndicator();
+
+    void SetPageCount(uint32_t count) noexcept;
+    [[nodiscard]] uint32_t GetPageCount() const noexcept;
+    void SetSelectedIndex(uint32_t index) noexcept;
+    [[nodiscard]] uint32_t GetSelectedIndex() const noexcept;
+    void SetOnSelected(std::function<void(uint32_t)> onSelected);
+    [[nodiscard]] uint32_t HitPageIndex(D2D1_POINT_2F point) const noexcept;
+    [[nodiscard]] D2D1_POINT_2F DotCenter(uint32_t index) const noexcept;
+
+    [[nodiscard]] D2D1_RECT_F GetHitBounds() const noexcept override;
+    void Paint(ControlHost& host) const override;
+    bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
+    bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
+    bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers) override;
+    void OnCaptureLost(ControlHost& host) override;
+
+private:
+    void SelectIndex(ControlHost& host, uint32_t index);
+    void RefreshAccessibleName() noexcept;
+
+    std::function<void(uint32_t)> _onSelected;
+    uint32_t _pageCount     = 0;
+    uint32_t _selectedIndex = 0;
+    uint32_t _pressedIndex  = UINT32_MAX;
+    bool _pressed           = false;
+};
+
 struct ThroughputGraphHueWeight final
 {
     float hueDegrees  = -1.0f;
@@ -3749,6 +3786,10 @@ public:
                                                    DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT) const noexcept;
     [[nodiscard]] bool HasFluentIconFont() const noexcept;
     [[nodiscard]] ID2D1SolidColorBrush* GetSolidBrush(const D2D1_COLOR_F& color) const;
+    // Bounds of the per-host solid-brush and configured-text-format caches. A cache beyond its bound is
+    // cleared at the start of the next paint/preparation, never while a borrowed pointer is in use.
+    static constexpr size_t kSolidBrushCacheLimit           = 256;
+    static constexpr size_t kConfiguredTextFormatCacheLimit = 96;
 
     [[nodiscard]] bool CopyTextToClipboard(std::wstring_view text) const noexcept;
     [[nodiscard]] std::optional<std::wstring> ReadTextFromClipboard() const noexcept;
@@ -3815,6 +3856,7 @@ private:
     void DiscardSizeDependentResources(std::wstring_view reason = {}) noexcept;
     void DiscardDeviceResources() noexcept;
     void RecreateBrushCache() const;
+    void TrimCaches() const noexcept;
     void Render(const RECT* dirtyRectPx = nullptr, bool allowHidden = false) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
     void Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture, bool allowHidden = false) noexcept;

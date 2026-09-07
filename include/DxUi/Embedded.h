@@ -64,11 +64,16 @@ enum class EmbeddedTextInputAction : uint8_t
 };
 struct EmbeddedStatistics
 {
-    uint64_t preparations         = 0;
-    uint64_t composites           = 0;
+    uint64_t preparations = 0;
+    uint64_t composites   = 0;
+    // Bytes of the cached surface. A hidden or zero-extent view holds no surface and reports 0.
     uint64_t surfaceBytes         = 0;
     uint64_t replacementPeakBytes = 0;
     uint64_t surfaceAllocations   = 0;
+    // Current sizes of the bounded per-view caches (ControlHost::kSolidBrushCacheLimit and
+    // kConfiguredTextFormatCacheLimit); a cache beyond its bound is cleared at the next preparation start.
+    uint64_t cachedBrushes     = 0;
+    uint64_t cachedTextFormats = 0;
 };
 
 // One retained view and cached surface. Applications with two density variants create two views with one shared pool
@@ -139,6 +144,9 @@ private:
     uint64_t _textInputRevision = 1;
     static void InvalidateThunk(void* context) noexcept;
     void CancelPointer() noexcept;
+    // Drops the cached surface and its D2D target while hidden or zero-sized; the next sized visible
+    // preparation allocates exactly one replacement.
+    void ReleaseSurface() noexcept;
     [[nodiscard]] bool InputIsCoherent(bool allowDirty) noexcept;
 };
 } // namespace DxUi
