@@ -1746,7 +1746,7 @@ bool ComboBox::DebugIsPopupOpen() const noexcept
     return IsPopupOpen();
 }
 
-bool ComboBox::Tick(ControlHost& /*host*/, uint64_t nowTickMs)
+bool ComboBox::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     if (! _editable || ! HasFocus())
     {
@@ -1755,6 +1755,7 @@ bool ComboBox::Tick(ControlHost& /*host*/, uint64_t nowTickMs)
         return _open;
     }
 
+    const bool caretWasVisible = _caretVisible;
     if (_caretBlinkAnchorTickMs == 0u)
     {
         _caretBlinkAnchorTickMs = nowTickMs;
@@ -1763,6 +1764,11 @@ bool ComboBox::Tick(ControlHost& /*host*/, uint64_t nowTickMs)
     else
     {
         _caretVisible = (((nowTickMs - _caretBlinkAnchorTickMs) / kCaretBlinkPeriodMs) % 2u) == 0u;
+    }
+    if (_caretVisible != caretWasVisible)
+    {
+        // Only a blink-phase flip changes pixels; ticks within one phase leave the surface clean.
+        Invalidate(host);
     }
 
     return true;

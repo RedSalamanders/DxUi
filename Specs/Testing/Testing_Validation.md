@@ -1,7 +1,7 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-09-06
+Last reviewed: 2026-09-07
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -28,8 +28,10 @@ VS 2026 images with separate native ARM64 execution. Record image/compiler ident
 real audio/camera defaults, user settings or application data.
 
 Embedded WARP fixtures cover DPI, dirty/clean/hidden behavior, alpha, hostile state, negative origins, device loss,
-multi-instance lifetime and failed preparation. Hardware presentation, consumer UIA/IME bridges and real-touch checks
-remain adoption gates (`embedded-host-text-uia-bridge`).
+multi-instance lifetime, failed preparation, surface release on hide and zero extent (`surfaceBytes` 0, exactly one
+reallocation, pixel-identical restoration, device replacement while hidden), tick-driven dirtying (idle root, caret
+blink phase, indeterminate progress) and brush/text-format cache bounds. Hardware presentation, consumer UIA/IME
+bridges and real-touch checks remain adoption gates (`embedded-host-text-uia-bridge`).
 Preserve imported baselines with their provenance; rebaseline only after reviewing the intended change.
 Performance receipts name source/configuration/hardware and include all preparation, texture/cache and recovery costs.
 
@@ -50,8 +52,10 @@ messages or a green foundation suite.
 EmbeddedTests independently verifies supplied-device rendering and state changes with pixel readback outside the
 rendering path, preview/commit/cancel, scaling and resource limits, pool/view isolation and device replacement.
 A 1,000-call warmed composition loop intercepts C++ allocation operators and verifies no heap calls, surface
-allocations or extra preparations. Its elapsed time is reported, not a machine-independent pass threshold. Readback
-and PNG generation are fixture-only operations. The public standalone consumer must compile without private headers.
+allocations or extra preparations. Its elapsed time is reported, not a machine-independent pass threshold. The complex
+benchmark additionally fails a clean round with any C++ allocation and a dirty round above the configuration's
+per-frame allocation ceiling recorded in its receipt. Readback and PNG generation are fixture-only operations. The
+public standalone consumer must compile without private headers.
 
 `Tools/validate_test_port.py` enforces the original case count, unique origins, explicit exclusion reasons and retained/renamed entrypoints. Tooling regression tests verify that deleting a retained case or its disposition fails.
 

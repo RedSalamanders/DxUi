@@ -1,7 +1,7 @@
 # Embedded D3D11 hosting
 
 Status: normative intended contract
-Last reviewed: 2026-09-05
+Last reviewed: 2026-09-07
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -52,10 +52,23 @@ remain pending after preparation. The caller advances animation only when NeedsA
 request no periodic work; zero-sized targets disable interaction. Prepare returns S_FALSE for a clean or suspended
 view. Failed preparation suppresses composition/input until a successful prepare. No automatic retry loop exists.
 
+AdvanceAnimation marks the view dirty only through control invalidation. Every `Tick` that changes visual state
+invalidates its host: an indeterminate progress bar on every tick, a caret only when its blink phase flips, a
+transition on every tick including the one that settles it, tooltip show/hide, and grid/tree/menu animation. An
+idle tick therefore leaves a clean prepared view clean and causes no raster work. Hosts check NeedsPreparation after
+ticking; an unconditional Prepare of a clean view still returns S_FALSE. `RequestAnimation` wakes the application
+through the preparation callback only when animation becomes requested; a request raised while painting (an
+indeterminate progress bar, a busy grid) does not re-dirty the view inside the preparation that painted it.
+
 Prepare receives width/height in pixels and DPI (48..768), checks D3D dimension limits and a 64 MiB surface ceiling,
-then performs changed layout/raster work. Surface replacement peaks at at most 128 MiB per view. Graphics resources
-are shared at the pool; surface bytes, replacement peak, allocation/preparation/composition counts are queryable.
-Consumers must additionally admit the combined cost of every simultaneous view.
+then performs changed layout/raster work. A resize allocates the replacement surface before releasing the previous
+one, so the single-surface cap bounds the transactional replacement peak to 128 MiB per view by construction;
+`replacementPeakBytes` reports the observed peak. Graphics resources are shared at the pool; surface bytes,
+replacement peak, allocation/preparation/composition counts and the per-view cache sizes (`cachedBrushes`,
+`cachedTextFormats`) are queryable. Solid brushes are bounded to 256 entries and configured text formats to 96
+(`ControlHost::kSolidBrushCacheLimit`, `kConfiguredTextFormatCacheLimit`); a cache beyond its bound is cleared at the
+start of the next preparation, never mid-paint. Consumers must additionally admit the combined cost of every
+simultaneous view.
 
 Composite requires the same device's immediate context and a host-bound render target. It issues one premultiplied
 alpha triangle, sets the viewport and every other state it depends on (including disabled scissor/depth/predication
@@ -66,15 +79,19 @@ text, rerasterizes, reads back, presents or calls user diagnostics. Consumers bi
 ReplaceDevice cancels capture and drops old surface resources while preserving the logical tree/model; a successful
 prepare is required before interaction resumes. Recovery never reapplies application commands. EmbeddedTests checks an actual
 new WARP device generation, foreign-device rejection, dirty/hidden/zero/DPI behavior, pixel changes, hostile state,
-negative origins, all catalog controls and allocation-free warm composition. Injected physical GPU removal remains
-a separate hardware validation case; device-generation replacement is not evidence of a physical fault.
-
+negative origins, all catalog controls, allocation-free warm composition, surface release on hide and zero extent
+with exactly one reallocation and pixel-identical restoration, device replacement while hidden, tick-driven dirtying
+and cache bounds. Injected physical GPU removal remains a separate hardware validation case; device-generation
+replacement is not evidence of a physical fault.
 
 Hit-tested gestures require clean prepared content. Captured continuation can update a live draft before its next
 paint, but any intervening bounds, tree or availability revision cancels capture and disables input until prepare
 succeeds. This prevents new hit rectangles from being used with an old texture. Keyboard continuation uses the
 same prepared interaction revision. A consumer must call Prepare between independent hit-tested gestures.
 
-A zero-sized prepared target suspends both preparation requests and animation ticks. Dirty state and pending motion
-remain retained; the caller resumes them by preparing a nonzero target. Hidden and zero-sized views never request
-background frames for those deferred changes.
+A hidden or zero-extent view holds no surface. SetVisible(false) and a zero-sized Prepare release the texture, shader
+view and D2D target, report `surfaceBytes` 0, cancel pointer/text input and disconnect accessibility. Both states
+suspend preparation requests and animation ticks. Dirty state and pending motion remain retained; the caller resumes
+them by showing the view or preparing a nonzero target, which allocates exactly one surface (one
+`surfaceAllocations` increment) and re-rasterizes the content. Hidden and zero-sized views never request background
+frames for those deferred changes.

@@ -2315,8 +2315,16 @@ bool Grid::Tick(ControlHost& host, uint64_t nowTickMs)
     const bool animatedVisibleCells         = _animatedVisibleCellStateValid ? _lastPaintHadAnimatedVisibleCells : HasAnimatedVisibleCells();
     _lastPaintHadAnimatedVisibleCells       = animatedVisibleCells;
     _animatedVisibleCellStateValid          = true;
-    return ResolveHeaderBusyColumn().has_value() || animatedVisibleCells ||
-           (_sortGlyphTransition.active && ComputeSortGlyphTransitionProgress(nowTickMs) < 1.0f) || verticalScrollbarAnimating || horizontalScrollbarAnimating;
+    const bool sortGlyphAnimating           = _sortGlyphTransition.active && ComputeSortGlyphTransitionProgress(nowTickMs) < 1.0f;
+    const bool ticking =
+        ResolveHeaderBusyColumn().has_value() || animatedVisibleCells || sortGlyphAnimating || verticalScrollbarAnimating || horizontalScrollbarAnimating;
+    // Spinners, busy headers, the sort glyph and scrollbar transitions paint from the tick time. A sort glyph that
+    // settles on this tick still needs its final frame, and this is the last tick the host issues for it.
+    if (ticking || _sortGlyphTransition.active)
+    {
+        Invalidate(host);
+    }
+    return ticking;
 }
 
 bool Grid::HasAnimatedVisibleCells() const

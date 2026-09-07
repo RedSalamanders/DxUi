@@ -1601,6 +1601,7 @@ bool PageHost::Tick(ControlHost& host, uint64_t nowTickMs)
         if (_transition.active)
         {
             FinishTransition();
+            Invalidate(host);
             return true;
         }
         return keepTicking;
@@ -1614,7 +1615,12 @@ bool PageHost::Tick(ControlHost& host, uint64_t nowTickMs)
 #if DXUI_ENABLE_DIAGNOSTICS
     if (_transition.debugFrozen)
     {
-        _transition.linearProgress = ClampUnit(_transition.debugFrozenProgress);
+        const float frozenProgress = ClampUnit(_transition.debugFrozenProgress);
+        if (_transition.linearProgress != frozenProgress)
+        {
+            _transition.linearProgress = frozenProgress;
+            Invalidate(host);
+        }
         return keepTicking;
     }
 #endif
@@ -1624,9 +1630,9 @@ bool PageHost::Tick(ControlHost& host, uint64_t nowTickMs)
     if (_transition.linearProgress >= 1.0f)
     {
         FinishTransition();
-        return true;
     }
-
+    // Every transition tick moves the pages, including the tick that settles them into their final state.
+    Invalidate(host);
     return true;
 }
 
@@ -2357,9 +2363,16 @@ bool Button::DebugIsDisclosureAnimationActive() const noexcept
 
 bool Button::Tick(ControlHost& host, uint64_t nowTickMs)
 {
-    const bool hoverAnimating      = AdvanceInteractionTransition(host, _hoverTransition, nowTickMs);
-    const bool focusAnimating      = AdvanceInteractionTransition(host, _focusTransition, nowTickMs);
-    const bool disclosureAnimating = AdvanceDisclosureTransition(host, nowTickMs);
+    const float hoverProgressBefore = _hoverTransition.progress;
+    const float focusProgressBefore = _focusTransition.progress;
+    const bool hoverAnimating       = AdvanceInteractionTransition(host, _hoverTransition, nowTickMs);
+    const bool focusAnimating       = AdvanceInteractionTransition(host, _focusTransition, nowTickMs);
+    const bool disclosureAnimating  = AdvanceDisclosureTransition(host, nowTickMs);
+    // The disclosure transition invalidates itself; interaction transitions invalidate only when their progress moved.
+    if (_hoverTransition.progress != hoverProgressBefore || _focusTransition.progress != focusProgressBefore)
+    {
+        Invalidate(host);
+    }
     return hoverAnimating || focusAnimating || disclosureAnimating;
 }
 
@@ -8738,7 +8751,6 @@ std::wstring_view TooltipLayer::DebugGetPendingTooltipText() const noexcept
 
 bool TooltipLayer::Tick(ControlHost& host, uint64_t nowTickMs)
 {
-    static_cast<void>(host);
     if (_showScheduled)
     {
         if (nowTickMs < _showTickMs)
@@ -8756,6 +8768,10 @@ bool TooltipLayer::Tick(ControlHost& host, uint64_t nowTickMs)
         _hideScheduled                               = true;
         _hideTickMs = kTooltipDisplayDurationMs > (std::numeric_limits<uint64_t>::max)() - nowTickMs ? (std::numeric_limits<uint64_t>::max)()
                                                                                                      : nowTickMs + kTooltipDisplayDurationMs;
+        if (changed)
+        {
+            Invalidate(host);
+        }
         return changed;
     }
 
@@ -8769,9 +8785,14 @@ bool TooltipLayer::Tick(ControlHost& host, uint64_t nowTickMs)
         return true;
     }
 
-    _hideScheduled = false;
-    _hideTickMs    = 0u;
-    return Clear();
+    _hideScheduled     = false;
+    _hideTickMs        = 0u;
+    const bool cleared = Clear();
+    if (cleared)
+    {
+        Invalidate(host);
+    }
+    return cleared;
 }
 
 void TooltipLayer::OnHostDpiChanged(ControlHost& host) noexcept

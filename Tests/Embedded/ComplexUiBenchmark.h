@@ -10,6 +10,15 @@
 // Fixture-only work: one reusable staging pixel blocks for completed GPU work. Never used in library rendering.
 namespace ComplexUiBenchmark
 {
+// Whole-frame C++ allocation ceilings (Specs/Core/Core_PerformanceAndResources.md). Clean rounds allocate nothing.
+// Debug STL (_ITERATOR_DEBUG_LEVEL 2) allocates one container proxy per std::vector/std::wstring, so the Debug
+// dirty ceiling is separate from the Release ceiling of 64 allocations per dirty frame.
+#if _ITERATOR_DEBUG_LEVEL != 0
+inline constexpr size_t kDirtyAllocationsPerFrameCeiling = 320;
+#else
+inline constexpr size_t kDirtyAllocationsPerFrameCeiling = 64;
+#endif
+
 inline PROCESS_MEMORY_COUNTERS_EX Memory()
 {
     PROCESS_MEMORY_COUNTERS_EX memory{};
@@ -58,7 +67,8 @@ inline void Run(const wchar_t* outputPath)
     Check(bool(output), "benchmark output file");
     output << std::setprecision(10) << "{\"compiler\":" << _MSC_FULL_VER
            << ",\"fixture\":\"dxui-complex-ui-v2\",\"renderer\":\"WARP\",\"width\":1280,\"height\":720,\"dpi\":96,"
-           << "\"controls\":83,\"modelRows\":1000,\"framesPerRound\":40,\"roundCount\":5,\"scenarios\":[";
+           << "\"controls\":83,\"modelRows\":1000,\"framesPerRound\":40,\"roundCount\":5,\"dirtyAllocationCeilingPerFrame\":"
+           << kDirtyAllocationsPerFrameCeiling << ",\"scenarios\":[";
     using Clock        = std::chrono::steady_clock;
     const auto elapsed = [](Clock::time_point start) { return std::chrono::duration<double, std::milli>(Clock::now() - start).count(); };
     for (int dirty = 0; dirty != 2; ++dirty)
@@ -109,6 +119,8 @@ inline void Run(const wchar_t* outputPath)
             Check(composeAllocations == 0, "complex composition has no C++ allocations");
             Check(after.surfaceAllocations == before.surfaceAllocations, "complex updates reuse surface");
             Check(after.preparations - before.preparations == (dirty ? frameMs.size() : 0), "complex preparation count");
+            Check(dirty ? cppAllocations <= kDirtyAllocationsPerFrameCeiling * frameMs.size() : cppAllocations == 0,
+                  dirty ? "complex dirty rounds stay within the C++ allocation ceiling" : "complex clean rounds make no C++ allocations");
             if (round)
                 output << ',';
             output << "{\"fps\":" << 40000 / totalMs << ",\"frameP50Ms\":" << frameMs[19] << ",\"frameP95Ms\":" << frameMs[37]

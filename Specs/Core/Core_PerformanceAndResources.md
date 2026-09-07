@@ -1,7 +1,7 @@
 # Performance and resources
 
 Status: normative current contract
-Last reviewed: 2026-09-05
+Last reviewed: 2026-09-07
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -43,7 +43,12 @@ five 40-frame rounds each for clean and changing content. Dirty work updates sli
 One reusable staging pixel synchronizes GPU completion outside production code; report its cost in total FPS.
 Record p50/p95 frame time, p95 preparation/CPU composition, C++ allocations, exact surface bytes/replacement peak,
 process private bytes/working set and sampled peaks/growth. Composition allocation and extra surface creation are
-hard failures, and hidden preparation/composition must remain zero. The benchmark does not establish displayed FPS.
+hard failures, and hidden preparation/composition must remain zero. Whole-frame C++ allocations are gated as well:
+clean rounds must record zero, and dirty rounds may not exceed 64 allocations per frame in Release (2,560 per
+40-frame round; 54 per frame measured on 2026-09-07) or 320 per frame in Debug (12,800 per round; 257 measured),
+where the Debug STL allocates one container proxy per std::vector/std::wstring. The receipt records
+`dirtyAllocationCeilingPerFrame`. A ceiling is never raised to pass; a failing gate reports the measured count for
+advice. The benchmark does not establish displayed FPS.
 
 Shipping/consumer acceptance additionally requires a named hardware fixture and actual presented complex-UI FPS,
 frame pacing and p50/p95/p99 latency at the target refresh rate (at least 60 FPS / 16.67 ms per frame for a 60 Hz
@@ -68,6 +73,8 @@ this repository, the Windows SDK and pinned library dependencies alone. No consu
 AV endpoint or application service is required. Inspiration from application layouts is allowed; executable fixtures
 and their acceptance criteria remain library-owned. The runnable complex sample and timed benchmark use the same
 `Samples/ComplexUi/ComplexUiScene.h` scene. Every fixture change requires a new identity and matched fixture hashes.
+A harness-only change (assertions or receipt fields) keeps the workload identity but changes the fixture hash, so the
+matched baseline is measured with the final harness on the previous implementation before the candidate is compared.
 
 Application-specific adoption reports, configurations, endpoint workloads and budgets belong in that application's
 repository. Do not store them in DxUi docs or use them as a substitute for independent library evidence. Conversely,
@@ -77,16 +84,24 @@ source identity, all noisy runs and limits. Intermediate runs remain under `.bui
 
 Measure the full sum of simultaneous views at 96/144/192 DPI, including shared-pool and replacement costs. One
 1280x720 BGRA surface is 3,686,400 bytes (3.52 MiB), excluding driver overhead; physical extents determine residency.
+A hidden or zero-extent view holds no surface and reports `surfaceBytes` 0: a consumer reclaims a collapsed view's
+surface by hiding it, and the next visible sized preparation allocates exactly one replacement.
 Applications must admit their aggregate view cost using their own instance bounds. Allocation counters distinguish
 library-controlled work from OS/driver internals; both remain measured. A single composite draw does not make dirty
 preparation free. Never impose one application's module topology, two-view layout or endpoint latency on all consumers.
 
 ### Single-library implementation budgets
 
-EmbeddedHost has one cached surface (64 MiB maximum, 128 MiB transactional replacement peak) and shares immutable
-composition state, D2D device and DWrite factory through GraphicsDevice. A consumer using tile/raised views admits
-their summed surface cost. Composite is a single triangle with shader constants derived from SV_VertexID and needs
-no per-view vertex/index/dynamic constant buffer. Hidden state performs no timer subscription; native WindowHost
-alone uses the event-driven animation dispatcher. Diagnostics are borrowed and optional; composition does not emit
-them. The private window-message payload registry is bounded to 128 windows and 128 queued payloads; saturation
-fails immediately and releases transferred ownership. Teardown invalidates queued tokens and drains outside its lock.
+EmbeddedHost has at most one cached surface (64 MiB maximum) while visible with a nonzero extent, and none while
+hidden or zero-sized. A resize allocates the replacement before releasing the previous surface, so the single-surface
+cap bounds the transactional replacement peak to 128 MiB per view by construction; `replacementPeakBytes` reports it.
+Immutable composition state, the D2D device and the DWrite factory are shared through GraphicsDevice. A consumer
+using tile/raised views admits their summed surface cost. Composite is a single triangle with shader constants
+derived from SV_VertexID and needs no per-view vertex/index/dynamic constant buffer. Hidden state performs no timer
+subscription; native WindowHost alone uses the event-driven animation dispatcher. Animation ticks add no raster work
+by themselves: `AdvanceAnimation` never marks the view dirty, and every `Tick` that changes visual state invalidates.
+Per-host caches are bounded to 256 solid brushes and 96 configured text formats; a cache beyond its bound is cleared
+at the start of the next embedded preparation or native paint, never mid-paint, so steady-state residency stays
+proportional to the painted working set. Diagnostics are borrowed and optional; composition does not emit them.
+The private window-message payload registry is bounded to 128 windows and 128 queued payloads; saturation fails
+immediately and releases transferred ownership. Teardown invalidates queued tokens and drains outside its lock.

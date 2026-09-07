@@ -91,6 +91,150 @@ static void Hr(HRESULT hr, const char* text)
 #include "EmbeddedAccessibilityTests.h"
 #include "EmbeddedTextInputTests.h"
 
+// Hidden and zero-extent views hold no surface; the next visible sized preparation reallocates exactly one and
+// reproduces the previous pixels. Device replacement while hidden keeps working without a surface.
+__declspec(noinline) static void TestSurfaceLifetime(GraphicsFixture& gpu)
+{
+    EmbeddedScene scene;
+    size_t requests = 0;
+    Hr(scene.Initialize(gpu.device.get(), {&requests, [](void* p) noexcept { ++*static_cast<size_t*>(p); }}), "surface lifetime scene");
+    Hr(scene.view.Prepare(480, 240), "prepare surface lifetime scene");
+    gpu.Bind();
+    Hr(scene.view.Composite(gpu.context.get(), gpu.Viewport()), "composite before hide");
+    std::vector<uint8_t> shown;
+    Hr(gpu.Read(shown), "read pixels before hide");
+    const auto visible = scene.view.GetStatistics();
+    Check(visible.surfaceBytes == 480ull * 240 * 4 && visible.surfaceAllocations == 1, "visible view holds exactly one surface");
+    const size_t requestsBeforeHide = requests;
+    scene.view.SetVisible(false);
+    const auto hidden = scene.view.GetStatistics();
+    Check(hidden.surfaceBytes == 0 && hidden.surfaceAllocations == visible.surfaceAllocations, "hiding releases the surface without allocating");
+    Check(! scene.view.NeedsPreparation() && ! scene.view.NeedsAnimation() && requests == requestsBeforeHide,
+          "hidden view requests no preparation or animation");
+    Check(scene.view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "hidden view composites nothing");
+    Check(scene.view.Prepare(480, 240) == S_FALSE && scene.view.GetStatistics().surfaceBytes == 0, "hidden preparation allocates no surface");
+    scene.view.MarkDirty();
+    Check(! scene.view.NeedsPreparation() && requests == requestsBeforeHide, "hidden invalidation stays deferred");
+    scene.view.SetVisible(true);
+    Check(scene.view.NeedsPreparation() && requests == requestsBeforeHide + 1, "showing requests exactly one preparation");
+    Hr(scene.view.Prepare(480, 240), "prepare after show");
+    const auto restored = scene.view.GetStatistics();
+    Check(restored.surfaceBytes == visible.surfaceBytes && restored.surfaceAllocations == visible.surfaceAllocations + 1,
+          "showing reallocates exactly one surface");
+    Check(restored.replacementPeakBytes == visible.replacementPeakBytes, "a released surface does not raise the replacement peak");
+    gpu.Bind();
+    Hr(scene.view.Composite(gpu.context.get(), gpu.Viewport()), "composite after show");
+    std::vector<uint8_t> reshown;
+    Hr(gpu.Read(reshown), "read pixels after show");
+    Check(reshown == shown, "reallocated surface reproduces the pre-hide pixels");
+    Check(scene.view.Prepare(0, 0) == S_FALSE, "zero extent suspends");
+    Check(scene.view.GetStatistics().surfaceBytes == 0 && scene.view.GetStatistics().surfaceAllocations == restored.surfaceAllocations,
+          "zero extent releases the surface");
+    Check(! scene.view.NeedsPreparation() && ! scene.view.NeedsAnimation() && scene.view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE,
+          "zero extent requests no work and composites nothing");
+    Hr(scene.view.Prepare(480, 240), "prepare after zero extent");
+    Check(scene.view.GetStatistics().surfaceBytes == visible.surfaceBytes && scene.view.GetStatistics().surfaceAllocations == restored.surfaceAllocations + 1,
+          "sized preparation after zero extent reallocates exactly one surface");
+    gpu.Bind();
+    Hr(scene.view.Composite(gpu.context.get(), gpu.Viewport()), "composite after zero extent");
+    Hr(gpu.Read(reshown), "read pixels after zero extent");
+    Check(reshown == shown, "surface restored after zero extent reproduces the pixels");
+    std::shared_ptr<DxUi::GraphicsDevice> pool;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "replacement pool for hidden view");
+    scene.view.SetVisible(false);
+    Hr(scene.view.ReplaceDevice(pool), "replace device while hidden");
+    Check(scene.view.GetStatistics().surfaceBytes == 0, "replaced hidden view holds no surface");
+    scene.view.SetVisible(true);
+    Hr(scene.view.Prepare(480, 240), "prepare after hidden replacement");
+    gpu.Bind();
+    Hr(scene.view.Composite(gpu.context.get(), gpu.Viewport()), "composite after hidden replacement");
+    Hr(gpu.Read(reshown), "read pixels after hidden replacement");
+    Check(reshown == shown, "hidden device replacement reproduces the pixels");
+}
+
+// Host ticks dirty a view only through control invalidation: an idle root or an unchanged caret phase leaves a
+// clean prepared view clean; a blink-phase flip prepares exactly once.
+__declspec(noinline) static void TestTickDirtying(GraphicsFixture& gpu)
+{
+    std::shared_ptr<DxUi::GraphicsDevice> pool;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "tick pool");
+    DxUi::EmbeddedHost view;
+    Hr(view.Attach(pool), "tick view");
+    auto root = std::make_unique<DxUi::Panel>();
+    root->AddChild<DxUi::Label>(L"Static content")->SetBounds(D2D1::RectF(8, 8, 300, 40));
+    view.Controls().SetRoot(std::move(root));
+    Hr(view.Prepare(320, 160), "prepare static root");
+    const auto idle = view.GetStatistics();
+    Check(view.NeedsAnimation() && ! view.NeedsPreparation(), "a new root schedules one discovery tick on a clean prepared view");
+    Check(! view.AdvanceAnimation(GetTickCount64()), "static root stops ticking after discovery");
+    Check(! view.NeedsAnimation() && ! view.NeedsPreparation(), "the discovery tick does not dirty a static view");
+    Check(view.Prepare(320, 160) == S_FALSE && view.GetStatistics().preparations == idle.preparations, "the discovery tick causes no preparation");
+    view.Controls().RequestAnimation();
+    Hr(view.Prepare(320, 160), "prepare after an explicit animation request");
+    const auto requested = view.GetStatistics();
+    Check(view.NeedsAnimation() && ! view.NeedsPreparation(), "an explicit animation request leaves a clean prepared view");
+    Check(! view.AdvanceAnimation(GetTickCount64() + 1) && ! view.NeedsPreparation(), "a requested idle tick does not dirty the view");
+    Check(view.Prepare(320, 160) == S_FALSE && view.GetStatistics().preparations == requested.preparations, "a requested idle tick causes no preparation");
+
+    auto field     = std::make_unique<DxUi::TextField>();
+    auto* fieldPtr = field.get();
+    fieldPtr->SetText(L"Caret");
+    fieldPtr->SetBounds(D2D1::RectF(8, 8, 300, 48));
+    view.Controls().SetRoot(std::move(field));
+    Hr(view.Prepare(320, 160), "prepare text field root");
+    view.Controls().SetFocusControl(fieldPtr);
+    const uint64_t focusTick = GetTickCount64();
+    Check(fieldPtr->HasFocus() && view.NeedsAnimation(), "focused text field requests caret ticks");
+    Hr(view.Prepare(320, 160), "prepare focused text field");
+    const auto focused = view.GetStatistics();
+    Check(! view.NeedsPreparation(), "focused text field is clean after preparation");
+    Check(view.AdvanceAnimation(focusTick + 10), "caret keeps ticking");
+    Check(! view.NeedsPreparation(), "a tick inside the blink phase does not dirty");
+    Check(view.AdvanceAnimation(focusTick + 20), "caret keeps ticking within the phase");
+    Check(! view.NeedsPreparation() && view.Prepare(320, 160) == S_FALSE && view.GetStatistics().preparations == focused.preparations,
+          "ticks within the blink period cause no preparation");
+    constexpr uint64_t kCaretBlinkPeriodMs = 530u; // kCaretBlinkPeriodMs in DxUi.TextInput.cpp
+    Check(view.AdvanceAnimation(focusTick + 20 + kCaretBlinkPeriodMs), "caret keeps ticking across the blink");
+    Check(view.NeedsPreparation(), "a blink-phase flip dirties the view");
+    Check(view.Prepare(320, 160) == S_OK && view.GetStatistics().preparations == focused.preparations + 1, "a blink-phase flip prepares exactly once");
+}
+
+// Per-view brush and configured text-format caches stay within their bounds: an over-bound cache is cleared at
+// the next preparation start, never while a paint borrows its entries, and refills with the painted working set.
+__declspec(noinline) static void TestCacheBounds(GraphicsFixture& gpu)
+{
+    std::shared_ptr<DxUi::GraphicsDevice> pool;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "cache pool");
+    DxUi::EmbeddedHost view;
+    Hr(view.Attach(pool), "cache view");
+    auto root = std::make_unique<DxUi::Panel>();
+    root->AddChild<DxUi::Label>(L"Bounded caches")->SetBounds(D2D1::RectF(8, 8, 300, 40));
+    root->AddChild<DxUi::Toggle>(L"Toggle")->SetBounds(D2D1::RectF(8, 48, 300, 88));
+    view.Controls().SetRoot(std::move(root));
+    Hr(view.Prepare(320, 160), "prepare cache view");
+    const auto painted = view.GetStatistics();
+    Check(painted.cachedBrushes > 0 && painted.cachedBrushes <= DxUi::ControlHost::kSolidBrushCacheLimit, "a painted view reports its cached brushes");
+    Check(painted.cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit, "a painted view reports its cached text formats");
+    auto& controls = view.Controls();
+    for (size_t i = 0; i <= DxUi::ControlHost::kSolidBrushCacheLimit; ++i)
+        Check(controls.GetSolidBrush(D2D1::ColorF(float(i % 256) / 255.0f, float(i / 256) / 255.0f, 0.5f)) != nullptr, "distinct solid brush");
+    Check(view.GetStatistics().cachedBrushes > DxUi::ControlHost::kSolidBrushCacheLimit, "distinct colors can exceed the brush bound between paints");
+    for (int role = 0; role <= int(DxUi::FontRole::Small) && view.GetStatistics().cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit;
+         ++role)
+        for (auto alignment : {DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_TEXT_ALIGNMENT_TRAILING, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_JUSTIFIED})
+            for (auto paragraph : {DWRITE_PARAGRAPH_ALIGNMENT_NEAR, DWRITE_PARAGRAPH_ALIGNMENT_FAR, DWRITE_PARAGRAPH_ALIGNMENT_CENTER})
+                for (bool wrap : {false, true})
+                    Check(controls.GetTextFormat(DxUi::FontRole(role), alignment, paragraph, wrap) != nullptr, "distinct configured text format");
+    Check(view.GetStatistics().cachedTextFormats > DxUi::ControlHost::kConfiguredTextFormatCacheLimit,
+          "distinct configurations can exceed the text-format bound between paints");
+    view.MarkDirty();
+    Hr(view.Prepare(320, 160), "prepare trims the caches");
+    const auto trimmed = view.GetStatistics();
+    Check(trimmed.cachedBrushes > 0 && trimmed.cachedBrushes <= DxUi::ControlHost::kSolidBrushCacheLimit, "preparation trims the brush cache to its bound");
+    Check(trimmed.cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit, "preparation trims the text-format cache to its bound");
+    Check(trimmed.cachedBrushes == painted.cachedBrushes, "the trimmed brush cache holds exactly the painted working set");
+}
+
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static int RunFunctionalTests()
 {
@@ -109,6 +253,9 @@ __declspec(noinline) static int RunFunctionalTests()
     Hr(gpu.Create(), "supplied WARP device");
     TestEmbeddedTextInput(gpu);
     TestEmbeddedAccessibility(gpu);
+    TestSurfaceLifetime(gpu);
+    TestTickDirtying(gpu);
+    TestCacheBounds(gpu);
     EmbeddedScene scene;
     size_t requests = 0;
     Hr(scene.Initialize(gpu.device.get(), {&requests, [](void* p) noexcept { ++*static_cast<size_t*>(p); }}), "public scene");
@@ -209,17 +356,25 @@ __declspec(noinline) static int RunFunctionalTests()
     auto invalid     = gpu.Viewport();
     invalid.TopLeftX = std::numeric_limits<float>::quiet_NaN();
     Check(scene.view.Composite(gpu.context.get(), invalid) == E_INVALIDARG, "reject NaN viewport");
+    const auto shownStats = scene.view.GetStatistics();
     scene.view.SetVisible(false);
     Check(! scene.view.NeedsAnimation() && ! scene.view.NeedsPreparation(), "hidden has no scheduled work");
+    Check(scene.view.GetStatistics().surfaceBytes == 0, "hidden view holds no surface");
     Check(scene.view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE && ! scene.view.DispatchPointer({DxUi::PointerAction::Down, 45, 84}),
           "hidden ignores render/input");
     scene.view.SetVisible(true);
     Hr(scene.view.Prepare(480, 240), "resume");
+    Check(scene.view.GetStatistics().surfaceBytes == shownStats.surfaceBytes &&
+              scene.view.GetStatistics().surfaceAllocations == shownStats.surfaceAllocations + 1,
+          "resume reallocates exactly one surface");
     Check(scene.view.Prepare(0, 0) == S_FALSE, "zero target suspends");
+    Check(scene.view.GetStatistics().surfaceBytes == 0, "zero target holds no surface");
     Check(! scene.view.NeedsPreparation() && ! scene.view.NeedsAnimation(), "zero target schedules no work");
     Check(! scene.view.DispatchPointer({DxUi::PointerAction::Down, 45, 84}), "zero target ignores input");
     Hr(scene.view.Prepare(960, 480, 192), "DPI and resize");
-    Check(scene.view.GetStatistics().surfaceBytes == 960ull * 480 * 4, "surface budget accounted");
+    // The surface released by the zero target is replaced by exactly one allocation at the new physical extent.
+    Check(scene.view.GetStatistics().surfaceBytes == 960ull * 480 * 4 && scene.view.GetStatistics().surfaceAllocations == shownStats.surfaceAllocations + 2,
+          "surface budget accounted after the zero-target release");
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 90, 168}) && scene.view.DispatchPointer({DxUi::PointerAction::Up, 90, 168}),
           "physical pixel input transforms at 200 percent");
     Check(scene.enabled, "DPI toggle works");
@@ -274,9 +429,13 @@ __declspec(noinline) static int RunFunctionalTests()
     progressPtr->SetIndeterminate(true);
     b.Controls().SetRoot(std::move(progress));
     Check(b.NeedsAnimation(), "attaching an indeterminate control schedules initial discovery");
+    Hr(b.Prepare(320, 160, 144), "prepare indeterminate progress");
+    Check(! b.NeedsPreparation(), "prepared indeterminate progress is clean until it ticks");
     const auto tick = GetTickCount64();
     Check(b.AdvanceAnimation(tick), "indeterminate progress requests another host tick");
+    Check(b.NeedsPreparation(), "indeterminate progress dirties every tick");
     Check(b.Prepare(0, 0) == S_FALSE, "zero-sized animation suspends");
+    Check(b.GetStatistics().surfaceBytes == 0, "zero-sized view releases its surface");
     Check(! b.NeedsAnimation() && ! b.NeedsPreparation() && ! b.AdvanceAnimation(tick + 8), "zero-sized view has no ticking or preparation");
     b.MarkDirty();
     Check(! b.NeedsPreparation(), "zero-sized invalidation remains deferred");

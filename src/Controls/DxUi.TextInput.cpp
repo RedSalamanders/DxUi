@@ -1636,7 +1636,7 @@ void TextField::Paint(ControlHost& host) const
     }
 }
 
-bool TextField::Tick(ControlHost& /*host*/, uint64_t nowTickMs)
+bool TextField::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     if (! HasFocus())
     {
@@ -1645,6 +1645,7 @@ bool TextField::Tick(ControlHost& /*host*/, uint64_t nowTickMs)
         return false;
     }
 
+    const bool caretWasVisible = _caretVisible;
     if (_caretBlinkAnchorTickMs == 0u)
     {
         _caretBlinkAnchorTickMs = nowTickMs;
@@ -1653,6 +1654,11 @@ bool TextField::Tick(ControlHost& /*host*/, uint64_t nowTickMs)
     else
     {
         _caretVisible = (((nowTickMs - _caretBlinkAnchorTickMs) / kCaretBlinkPeriodMs) % 2u) == 0u;
+    }
+    if (_caretVisible != caretWasVisible)
+    {
+        // Only a blink-phase flip changes pixels; ticks within one phase leave the surface clean.
+        Invalidate(host);
     }
 
     return true;

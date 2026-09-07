@@ -598,6 +598,11 @@ bool Tree::Tick(ControlHost& host, uint64_t nowTickMs)
     }
 
     hasActiveAnimation = AdvanceScrollbarAnimation(host, _verticalScrollbarAnimation, nowTickMs) || hasActiveAnimation;
+    if (hasActiveAnimation)
+    {
+        // Expander, expansion and scrollbar transitions paint from the tick time, including their settling frame.
+        Invalidate(host);
+    }
     return hasActiveAnimation;
 }
 

@@ -20,8 +20,10 @@ device; the application owns immediate-context scheduling and presentation.
 5. Present through the application. DxUi embedded mode owns no HWND, swap chain, timer, worker or presentation loop.
 
 Clean `Composite` does no allocation, layout, shaping or readback. DPI must be 48..768; the per-view surface limit
-is 64 MiB, with a 128 MiB replacement ceiling. Check summed memory before creating many views. If two simultaneous
-layouts need distinct hit rectangles or sizes, create two views sharing the pool and bind both to the same model.
+is 64 MiB, and because a resize allocates the replacement before releasing the old surface the replacement peak is
+at most 128 MiB (`GetStatistics().replacementPeakBytes`). A hidden or zero-sized view holds no surface. Check summed
+memory before creating many views. If two simultaneous layouts need distinct hit rectangles or sizes, create two
+views sharing the pool and bind both to the same model.
 
 ## Input, DPI and animation
 
@@ -34,9 +36,16 @@ Use `DispatchKey` and `DispatchCharacter` for basic keyboard/character input. Th
 embedded IME, text-store or UI Automation bridge: the consumer must supply the integrations described in
 [input and accessibility](../Specs/UI/UI_InputAndAccessibility.md). Native ControlHost has separate HWND services.
 
-Call `AdvanceAnimation(nowTickMs)` only while `NeedsAnimation()` requests host ticks, then prepare when dirty.
-Stop scheduling idle and hidden views. Call `SetVisible(false)` when unavailable, and prepare a nonzero target
-when resuming. Change layout in DIPs and pass the new physical extent/DPI to Prepare; do not rasterize at each
+Call `AdvanceAnimation(nowTickMs)` only while `NeedsAnimation()` requests host ticks. A tick marks the view dirty
+only when a control changes visual state (an indeterminate progress bar on every tick, a caret only when its blink
+phase flips), so check `NeedsPreparation()` after ticking instead of preparing unconditionally; a clean `Prepare`
+returns `S_FALSE`. The `requestPreparation` callback also fires when animation first becomes requested, so a host
+that reacts to it observes `NeedsAnimation()` after preparing; a repeated request changes nothing. Stop scheduling
+idle and hidden views. Call `SetVisible(false)` when a view is unavailable:
+hiding, like preparing a zero extent, releases the cached surface (`GetStatistics().surfaceBytes` becomes 0), and
+the next visible sized `Prepare` allocates one surface and re-rasterizes the content. `cachedBrushes` and
+`cachedTextFormats` report the bounded per-view caches (256 solid brushes, 96 configured text formats, trimmed at
+preparation start). Change layout in DIPs and pass the new physical extent/DPI to Prepare; do not rasterize at each
 intermediate animation scale. Theme and layout changes need refreshed docs/gallery when changing the library.
 
 ## Native HWND host

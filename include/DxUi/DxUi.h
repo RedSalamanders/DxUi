@@ -3786,6 +3786,10 @@ public:
                                                    DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT) const noexcept;
     [[nodiscard]] bool HasFluentIconFont() const noexcept;
     [[nodiscard]] ID2D1SolidColorBrush* GetSolidBrush(const D2D1_COLOR_F& color) const;
+    // Bounds of the per-host solid-brush and configured-text-format caches. A cache beyond its bound is
+    // cleared at the start of the next paint/preparation, never while a borrowed pointer is in use.
+    static constexpr size_t kSolidBrushCacheLimit           = 256;
+    static constexpr size_t kConfiguredTextFormatCacheLimit = 96;
 
     [[nodiscard]] bool CopyTextToClipboard(std::wstring_view text) const noexcept;
     [[nodiscard]] std::optional<std::wstring> ReadTextFromClipboard() const noexcept;
@@ -3852,6 +3856,7 @@ private:
     void DiscardSizeDependentResources(std::wstring_view reason = {}) noexcept;
     void DiscardDeviceResources() noexcept;
     void RecreateBrushCache() const;
+    void TrimCaches() const noexcept;
     void Render(const RECT* dirtyRectPx = nullptr, bool allowHidden = false) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
     void Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture, bool allowHidden = false) noexcept;

@@ -145,18 +145,9 @@ HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) no
 {
     if (! _state || ! graphics || graphics->_state->thread != GetCurrentThreadId())
         return E_INVALIDARG;
-    DisconnectAccessibility();
-    CancelPointer();
-    CancelTextInput();
-    auto& s    = *_state;
-    auto& g    = *graphics->_state;
-    s.coherent = false;
-    s.dirty    = true;
-    s.view.reset();
-    s.bitmap.reset();
-    s.texture.reset();
-    s.width = s.height   = 0;
-    s.stats.surfaceBytes = 0;
+    ReleaseSurface();
+    auto& s = *_state;
+    auto& g = *graphics->_state;
     s.graphics.reset();
     _host.DiscardDeviceResources();
     _host._d3dDevice     = g.device.get();
@@ -188,6 +179,25 @@ void EmbeddedHost::MarkDirty() noexcept
     if (changed && s.visible && ! s.zeroSized && s.callbacks.requestPreparation)
         s.callbacks.requestPreparation(s.callbacks.context);
 }
+void EmbeddedHost::ReleaseSurface() noexcept
+{
+    if (! _state)
+        return;
+    DisconnectAccessibility();
+    CancelPointer();
+    CancelTextInput();
+    auto& s = *_state;
+    // Drop the borrowed D2D target before the bitmap so no context reference keeps the texture alive.
+    if (_host._d2dContext)
+        _host._d2dContext->SetTarget(nullptr);
+    s.bitmap.reset();
+    s.view.reset();
+    s.texture.reset();
+    s.width = s.height   = 0;
+    s.stats.surfaceBytes = 0;
+    s.coherent           = false;
+    s.dirty              = true;
+}
 void EmbeddedHost::SetVisible(bool visible) noexcept
 {
     if (! _state || _state->visible == visible)
@@ -195,9 +205,7 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
     _state->visible = visible;
     if (! visible)
     {
-        DisconnectAccessibility();
-        CancelPointer();
-        CancelTextInput();
+        ReleaseSurface();
         _state->animationSuspended        = _host._embeddedAnimationRequested;
         _host._embeddedAnimationRequested = false;
     }
@@ -226,10 +234,10 @@ bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
     {
         _host._lastAnimationTickMs = tick;
         _host.ValidateSupplementalTooltipTarget();
+        // Ticks dirty the view only through control invalidation; an idle tick leaves a clean surface clean.
         const bool rootTicking            = _host._root && _host._root->Tick(_host, tick);
         const bool tooltipTicking         = _host._tooltipLayer.Tick(_host, tick);
         _host._embeddedAnimationRequested = rootTicking || tooltipTicking;
-        MarkDirty();
         return _host._embeddedAnimationRequested;
     }
     catch (const std::exception&)
@@ -249,10 +257,8 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     s.zeroSized = ! width || ! height;
     if (! s.visible || s.zeroSized)
     {
-        DisconnectAccessibility();
-        CancelPointer();
-        CancelTextInput();
-        s.coherent = false;
+        // Neither state holds a surface; the next visible sized preparation allocates one.
+        ReleaseSurface();
         return S_FALSE;
     }
     if (! std::isfinite(dpi) || dpi < 48 || dpi > 768 || width > D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION || height > D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION)
@@ -325,6 +331,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         const auto revision            = s.revision;
         const auto interactionRevision = _host._interactionRevision;
         auto* dc                       = _host._d2dContext.get();
+        _host.TrimCaches();
         dc->BeginDraw();
         auto finish = wil::scope_exit([&] { dc->EndDraw(); });
         dc->SetTransform(D2D1::Matrix3x2F::Identity());
@@ -808,6 +815,11 @@ void EmbeddedHost::CancelTextInput() noexcept
 }
 EmbeddedStatistics EmbeddedHost::GetStatistics() const noexcept
 {
-    return _state ? _state->stats : EmbeddedStatistics{};
+    if (! _state)
+        return {};
+    auto stats              = _state->stats;
+    stats.cachedBrushes     = _host._brushCache.size();
+    stats.cachedTextFormats = _host._configuredTextFormats.size();
+    return stats;
 }
 } // namespace DxUi
