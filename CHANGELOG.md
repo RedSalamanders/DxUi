@@ -2,10 +2,9 @@
 
 ## Unreleased
 
-- Size `Slider` to Windows 11 metrics: a 4 DIP track, 14 DIP accent-filled thumb with a muted halo (16 DIP hover,
-  20 DIP pressed), and a 48 DIP pointer band centered on the track so a finger can grab the thumb without seeking.
-  Embedded `DispatchPointer` synthesizes control double-click (word selection) using the system interval and a
-  16 DIP slop.
+- Restore `Slider` Fluent paint: a 6 DIP capsule track, 14/16/12 DIP inner thumb, and 20/28/36 DIP translucent halo,
+  independently of the unpainted 48 DIP fat-finger hit band and 24 DIP grab radius. Embedded `DispatchPointer`
+  synthesizes control double-click (word selection) using the system interval and a 16 DIP slop.
 
 - Release the embedded surface on `SetVisible(false)` and zero-extent `Prepare`: `surfaceBytes` reports 0 while
   hidden or zero-sized, and the next visible sized preparation reallocates exactly one surface with identical pixels.

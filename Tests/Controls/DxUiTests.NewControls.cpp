@@ -962,12 +962,15 @@ void TestSliderTouchFriendlyGeometry()
     slider.SetValue(50.0);
     const D2D1_RECT_F track = slider.DebugGetTrackRect();
     const D2D1_RECT_F thumb = slider.DebugGetThumbRect();
+    const D2D1_RECT_F halo  = slider.DebugGetHaloRect();
     const D2D1_RECT_F hit   = slider.GetHitBounds();
-    RequireFloatNear(track.bottom - track.top, 4.0f, 0.01f, "slider track is 4 DIP thick");
-    RequireFloatNear(thumb.right - thumb.left, 14.0f, 0.01f, "slider thumb is 14 DIP at rest");
-    Require(track.left >= 9.5f && (220.0f - track.right) >= 9.5f, "slider track insets leave room for the thumb");
+    RequireFloatNear(track.bottom - track.top, 6.0f, 0.01f, "slider track is 6 DIP thick");
+    RequireFloatNear(thumb.right - thumb.left, 14.0f, 0.01f, "slider inner thumb is 14 DIP at rest");
+    RequireFloatNear(halo.right - halo.left, 20.0f, 0.01f, "slider painted halo is 20 DIP at rest");
+    Require(track.left >= 11.5f && (220.0f - track.right) >= 11.5f, "slider track insets leave room for the inner thumb");
     RequireFloatNear(hit.bottom - hit.top, 48.0f, 0.01f, "slider pointer band is 48 DIP in a 48 DIP control");
     RequireFloatNear((hit.top + hit.bottom) * 0.5f, 24.0f, 0.01f, "slider pointer band stays centered on the track");
+    Require((halo.right - halo.left) + 0.5f < (hit.bottom - hit.top), "painted halo stays smaller than the unpainted fat-finger hit band");
 }
 
 void TestSliderTallControlDoesNotHitFarFromTrack()
@@ -995,7 +998,7 @@ void TestSliderThumbGrabDoesNotSeekWhenContactHitsTouchHalo()
     slider->SetValue(50.0);
     host.SetRoot(std::move(root));
 
-    const D2D1_RECT_F thumb  = slider->DebugGetThumbRect();
+    const D2D1_RECT_F thumb    = slider->DebugGetThumbRect();
     const D2D1_POINT_2F center = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
     Require(slider->OnMouseDown(host, D2D1::Point2F(center.x + 10.0f, center.y), false, 0), "slider accepts a press on the thumb halo");
     RequireFloatNear(
