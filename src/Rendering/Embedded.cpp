@@ -442,16 +442,27 @@ bool EmbeddedHost::InputIsCoherent(bool allowDirty) noexcept
         CancelPointer();
         return false;
     }
+    // Paint-dirty means the cached surface needs another Prepare before Composite.
+    // Hit-testing still uses live control bounds; only a changed interaction revision
+    // (bounds, tree, visibility, enabled) invalidates geometry. Pixel snapshots pass
+    // allowDirty=false so they do not publish a stale surface.
     return allowDirty || ! _state->dirty;
 }
 bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
 {
-    if (! InputIsCoherent(event.action == PointerAction::Cancel || event.action == PointerAction::Leave ||
-                          (event.action != PointerAction::Down && event.action != PointerAction::Wheel && _host._capturedControl)))
+    // Pointer hit-testing is valid on a paint-dirty view. Requiring a clean surface
+    // here dropped the Down that followed a hover/focus Invalidate, so a touch looked
+    // like "first contact focuses, second contact activates."
+    if (! InputIsCoherent(true))
         return false;
     try
     {
         _host.PruneStaleInteractionState();
+        if (event.action == PointerAction::Down || event.action == PointerAction::Move || event.action == PointerAction::Up ||
+            event.action == PointerAction::Wheel)
+        {
+            _host.SetInputModality(InputModality::Pointer);
+        }
         const auto point = D2D1::Point2F(event.xPixels * 96 / _state->dpi, event.yPixels * 96 / _state->dpi);
         if (event.action == PointerAction::Cancel)
         {

@@ -152,6 +152,27 @@ __declspec(noinline) static void TestSurfaceLifetime(GraphicsFixture& gpu)
     Check(reshown == shown, "hidden device replacement reproduces the pixels");
 }
 
+// A hover or focus Invalidate must not swallow the following Down. The host message loop
+// prepares after input, so a paint-dirty view is the normal state at the start of a tap.
+__declspec(noinline) static void TestPointerGesturesOnPaintDirtyView(GraphicsFixture& gpu)
+{
+    EmbeddedScene scene;
+    Hr(scene.Initialize(gpu.device.get()), "paint-dirty pointer scene");
+    Hr(scene.view.Prepare(480, 240), "prepare paint-dirty pointer scene");
+    Check(scene.view.Controls().GetInputModality() == DxUi::InputModality::Pointer, "embedded starts in pointer modality");
+    Check(scene.view.DispatchKey(VK_TAB, true), "tab focuses a control");
+    Check(scene.view.Controls().GetInputModality() == DxUi::InputModality::Keyboard, "key input marks keyboard focus visible");
+    static_cast<void>(scene.view.DispatchPointer({DxUi::PointerAction::Move, 45, 84}));
+    Check(scene.view.NeedsPreparation(), "hover marks the cached surface dirty");
+    Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 45, 84}), "paint-dirty down still begins a gesture");
+    Check(scene.view.Controls().GetInputModality() == DxUi::InputModality::Pointer, "pointer down clears keyboard-only focus visuals");
+    Check(scene.view.DispatchPointer({DxUi::PointerAction::Up, 45, 84}), "paint-dirty up still commits");
+    Check(! scene.enabled, "first contact on a paint-dirty view activates the toggle");
+    Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 45, 84}), "second dirty down still begins a gesture");
+    Check(scene.view.DispatchPointer({DxUi::PointerAction::Up, 45, 84}), "second dirty up still commits");
+    Check(scene.enabled, "a second contact on the still-dirty view activates again");
+}
+
 // Host ticks dirty a view only through control invalidation: an idle root or an unchanged caret phase leaves a
 // clean prepared view clean; a blink-phase flip prepares exactly once.
 __declspec(noinline) static void TestTickDirtying(GraphicsFixture& gpu)
@@ -254,6 +275,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedTextInput(gpu);
     TestEmbeddedAccessibility(gpu);
     TestSurfaceLifetime(gpu);
+    TestPointerGesturesOnPaintDirtyView(gpu);
     TestTickDirtying(gpu);
     TestCacheBounds(gpu);
     EmbeddedScene scene;

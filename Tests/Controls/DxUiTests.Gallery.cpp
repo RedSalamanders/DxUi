@@ -713,6 +713,8 @@ struct GalleryScene
     ExposedButton* selectorHoverButton = nullptr;
     ExposedButton* hoverButton         = nullptr;
     ExposedButton* pressedButton       = nullptr;
+    Slider* hoverSlider                = nullptr;
+    Slider* pressedSlider              = nullptr;
     Control* focusedControl            = nullptr;
     ProgressBar* indeterminateProgress = nullptr;
     Grid* grid                         = nullptr;
@@ -916,7 +918,19 @@ void AddComboItems(ComboBox& combo)
         auto* slider    = scene.root->AddChild<Slider>();
         slider->SetValue(68.0);
         slider->SetTickMarks({0.0, 25.0, 50.0, 75.0, 100.0});
-        slider->SetBounds(CenterIn(tile.content, 270.0f, 32.0f));
+        slider->SetBounds(CenterIn(tile.content, 270.0f, 48.0f));
+    }
+    {
+        const Tile tile   = flow.Next(*scene.root, L"Slider / Hover");
+        scene.hoverSlider = scene.root->AddChild<Slider>();
+        scene.hoverSlider->SetValue(62.0);
+        scene.hoverSlider->SetBounds(CenterIn(tile.content, 270.0f, 48.0f));
+    }
+    {
+        const Tile tile     = flow.Next(*scene.root, L"Slider / Pressed");
+        scene.pressedSlider = scene.root->AddChild<Slider>();
+        scene.pressedSlider->SetValue(54.0);
+        scene.pressedSlider->SetBounds(CenterIn(tile.content, 270.0f, 48.0f));
     }
     {
         const Tile tile = flow.Next(*scene.root, L"Slider / Vertical");
@@ -1183,6 +1197,17 @@ void ResizeClientArea(HWND hwnd, UINT widthPx, UINT heightPx)
     {
         scene.pressedButton->OnHoverChanged(window.Host(), true);
         scene.pressedButton->SetPressed(true);
+    }
+    if (scene.hoverSlider)
+    {
+        scene.hoverSlider->OnHoverChanged(window.Host(), true);
+    }
+    if (scene.pressedSlider)
+    {
+        const D2D1_RECT_F thumb         = scene.pressedSlider->DebugGetThumbRect();
+        const D2D1_POINT_2F thumbCenter = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
+        scene.pressedSlider->OnHoverChanged(window.Host(), true);
+        static_cast<void>(scene.pressedSlider->OnMouseDown(window.Host(), thumbCenter, false, 0));
     }
     if (scene.focusedControl)
     {

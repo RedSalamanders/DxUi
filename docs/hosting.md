@@ -29,7 +29,9 @@ views sharing the pool and bind both to the same model.
 
 Pass view-local physical pixel coordinates to `DispatchPointer`. Convert application screen/client coordinates
 through the actual displayed viewport transform, including animation offsets. Pass Move/Down/Up/Wheel/Leave/Cancel
-and the appropriate modifiers. Prepare changed content before a new hit-tested gesture. Cancel on capture loss.
+and the appropriate modifiers. A paint-dirty view still accepts hit-tested pointer gestures while its geometry is
+coherent; Prepare before composition, and after bounds, tree, visibility or enabled changes that bump the interaction
+revision. Cancel on capture loss.
 Captured drag continuation may update a draft between paints; tree, bounds or availability changes cancel capture.
 
 Use `DispatchKey` and `DispatchCharacter` for basic keyboard/character input. Those methods are not a complete

@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-09-07
+Last reviewed: 2026-09-08
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -44,9 +44,12 @@ the same DIP radius, selected radius and gap constants.
 
 ### Slider
 
-`Slider` uses a 12 DIP capsule track and a 48 DIP thumb (52 DIP hovered, 44 DIP pressed). The track insets 24 DIP from
-each end so the thumb stays inside the control. Pointer hit testing uses the full control bounds, not the thin fill,
-so consumers should keep at least a 48 DIP control height for touch. Keyboard steps still use `SetStep` / `SetLargeStep`.
+`Slider` uses a 4 DIP capsule track and a 14 DIP accent-filled thumb with a muted halo ring (20 DIP at rest, 28 DIP
+hovered, 36 DIP pressed). The inner thumb eases to 16 DIP on hover and 12 DIP while pressed. Keyboard and
+`RequestValue` ease the painted thumb to the new value; pointer drags and `SetValue` snap. Reduced motion snaps every
+visual. The track insets 12 DIP from each end so the thumb stays inside the control. Pointer hit testing uses the
+full control bounds, not the thin fill or visual thumb, so consumers should keep at least a 48 DIP control height for
+touch. Keyboard steps still use `SetStep` / `SetLargeStep`.
 
 Each control also requires accurate usage documentation in `docs/controls.md`. Code changes review affected docs
 and regenerate changed visuals into `docs/gallery` under [the documentation contract](../Core/Core_Documentation.md).

@@ -1,7 +1,7 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-09-07
+Last reviewed: 2026-09-08
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -27,7 +27,8 @@ The required native matrix is x64/ARM64 and Debug/Release. Cross-compilation is 
 VS 2026 images with separate native ARM64 execution. Record image/compiler identity in build logs. No fixture changes
 real audio/camera defaults, user settings or application data.
 
-Embedded WARP fixtures cover DPI, dirty/clean/hidden behavior, alpha, hostile state, negative origins, device loss,
+Embedded WARP fixtures cover DPI, dirty/clean/hidden behavior, paint-dirty pointer Down after hover or keyboard
+focus, alpha, hostile state, negative origins, device loss,
 multi-instance lifetime, failed preparation, surface release on hide and zero extent (`surfaceBytes` 0, exactly one
 reallocation, pixel-identical restoration, device replacement while hidden), tick-driven dirtying (idle root, caret
 blink phase, indeterminate progress) and brush/text-format cache bounds. Hardware presentation, consumer UIA/IME
@@ -44,7 +45,7 @@ be reclassified merely to obtain a green build. The posted-payload stress case n
 ceiling, with new saturation, wrong-type and stale-token ownership tests in EmbeddedTests.
 
 Tests/Controls retains eight original visual baselines. Native suites cover control state/layout, theme, grids/trees,
-animation, native text and IME events, UIA lifetime and menus. Capability skips are emitted in logs and copied into
+animation (including slider hover/press easing and keyboard thumb travel), native text and IME events, UIA lifetime and menus. Capability skips are emitted in logs and copied into
 receipts; a skip is not proof of that capability. The full native matrix executes on x64/ARM64 Debug/Release in CI.
 Physical touch, a human IME session and screen-reader interaction are manual adoption checks, not implied by synthetic
 messages or a green foundation suite.

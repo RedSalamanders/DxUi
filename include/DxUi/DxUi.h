@@ -2111,22 +2111,48 @@ public:
     void SetOnChange(std::function<void(SliderChange)> onChange);
 
     void Paint(ControlHost& host) const override;
+    bool Tick(ControlHost& host, uint64_t nowTickMs) override;
     bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) override;
     bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers) override;
+    void OnHoverChanged(ControlHost& host, bool hovered) override;
+    void OnEnabledChanged(bool enabled) noexcept override;
     void OnCaptureLost(ControlHost& host) override;
 
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] D2D1_RECT_F DebugGetTrackRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F DebugGetThumbRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F DebugGetFillRect() const noexcept;
+    [[nodiscard]] float DebugGetHoverAnimationProgress() const noexcept;
+    [[nodiscard]] float DebugGetPressAnimationProgress() const noexcept;
+    [[nodiscard]] double DebugGetDisplayedValue() const noexcept;
 #endif
 
 private:
+    struct VisualTransitionState final
+    {
+        float progress       = 0.0f;
+        float startProgress  = 0.0f;
+        float target         = 0.0f;
+        uint64_t startTickMs = 0u;
+        bool active          = false;
+    };
+
     [[nodiscard]] double ClampValue(double value) const noexcept;
-    [[nodiscard]] double GetNormalizedValue() const noexcept;
-    void SetValueInternal(ControlHost* host, double value, bool notifyChanged) noexcept;
+    [[nodiscard]] double GetDisplayedNormalizedValue() const noexcept;
+    void SetValueInternal(ControlHost* host, double value, bool notifyChanged, bool animatePosition) noexcept;
+    void SnapDisplayedValue() noexcept;
+    void BeginValueAnimation(ControlHost& host, double fromValue, double toValue) noexcept;
+    [[nodiscard]] bool AdvanceValueAnimation(ControlHost& host, uint64_t nowTickMs) noexcept;
+    void BeginVisualTransition(ControlHost& host, VisualTransitionState& transition, float target) noexcept;
+    [[nodiscard]] bool AdvanceVisualTransition(VisualTransitionState& transition, uint64_t nowTickMs, EasingCurve curve) noexcept;
+    void SnapVisualTransitions() noexcept;
+    void SyncInteractionVisuals(ControlHost& host) noexcept;
+    [[nodiscard]] D2D1_POINT_2F GetThumbCenter() const noexcept;
+    [[nodiscard]] float ResolveInnerThumbDiameter() const noexcept;
+    [[nodiscard]] float ResolveHaloDiameter(const D2D1_RECT_F& bounds) const noexcept;
+    [[nodiscard]] float ResolveHaloOpacity(const ThemePalette& theme) const noexcept;
     [[nodiscard]] D2D1_RECT_F GetTrackRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetThumbRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetFillRect() const noexcept;
@@ -2137,14 +2163,23 @@ private:
     double _dragInitialValue = 0.0;
     std::function<void(double)> _onValueChanged;
     std::vector<double> _tickMarks;
-    double _minimum                  = 0.0;
-    double _maximum                  = 100.0;
-    double _value                    = 0.0;
-    double _step                     = 1.0;
-    double _largeStep                = 10.0;
-    SliderOrientation _orientation   = SliderOrientation::Horizontal;
-    bool _dragging                   = false;
-    float _dragThumbPointerOffsetDip = 0.0f;
+    double _minimum                     = 0.0;
+    double _maximum                     = 100.0;
+    double _value                       = 0.0;
+    double _displayedValue              = 0.0;
+    double _valueAnimationStart         = 0.0;
+    double _valueAnimationTarget        = 0.0;
+    uint64_t _valueAnimationStartTickMs = 0u;
+    double _step                        = 1.0;
+    double _largeStep                   = 10.0;
+    SliderOrientation _orientation      = SliderOrientation::Horizontal;
+    VisualTransitionState _hoverTransition{};
+    VisualTransitionState _pressTransition{};
+    bool _dragging                                            = false;
+    bool _valueAnimationActive                                = false;
+    float _dragThumbPointerOffsetDip                          = 0.0f;
+    static constexpr uint64_t _interactionAnimationDurationMs = 167u;
+    static constexpr uint64_t _valueAnimationDurationMs       = 167u;
 };
 
 class Toolbar final : public Panel
