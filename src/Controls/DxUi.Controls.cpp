@@ -202,17 +202,11 @@ constexpr float kTooltipFallbackLineHeightDip    = 18.0f;
 constexpr float kTooltipPreferredTextHeightDip   = 256.0f;
 constexpr float kMenuBarItemCornerRadiusDip      = 4.0f;
 constexpr float kSliderTrackThicknessDip         = 6.0f;
-constexpr float kSliderThumbDiameterDip          = 14.0f;
+constexpr float kSliderThumbDiameterDip          = 6.0f;
 constexpr float kSliderThumbHoverDiameterDip     = 16.0f;
 constexpr float kSliderThumbPressedDiameterDip   = 12.0f;
-constexpr float kSliderHaloRestDiameterDip       = 20.0f;
-constexpr float kSliderHaloHoverDiameterDip      = 28.0f;
-constexpr float kSliderHaloPressedDiameterDip    = 36.0f;
-constexpr float kSliderHaloRestOpacity           = 0.14f;
-constexpr float kSliderHaloHoverOpacity          = 0.22f;
-constexpr float kSliderHaloPressedOpacity        = 0.32f;
+constexpr float kSliderChromeDiameterDip         = 20.0f;
 constexpr float kSliderTrackInsetDip             = 12.0f;
-constexpr float kSliderThumbStrokeDip            = 1.25f;
 constexpr float kSliderHitExtentDip              = 48.0f;
 constexpr float kSliderTickLengthDip             = 6.0f;
 constexpr float kTabStripHeightDip               = 32.0f;
@@ -565,7 +559,10 @@ void DrawRoundedRect(ControlHost& host, const D2D1_RECT_F& rect, const D2D1_COLO
     const D2D1_RECT_F snappedRect = SnapRectToPixel(host, rect);
     const D2D1_ROUNDED_RECT rounded{snappedRect, radiusDip, radiusDip};
     FillRoundedRectWithColor(host, rounded, fill);
-    DrawRoundedRectWithColor(host, rounded, stroke, 1.0f);
+    if (stroke.a > 0.0f)
+    {
+        DrawRoundedRectWithColor(host, rounded, stroke, 1.0f);
+    }
 }
 
 void DrawTopRoundedAttachedRect(ControlHost& host,
@@ -4615,21 +4612,26 @@ float Slider::ResolveInnerThumbDiameter() const noexcept
 
 float Slider::ResolveHaloDiameter(const D2D1_RECT_F& bounds) const noexcept
 {
-    const float hovered     = std::lerp(kSliderHaloRestDiameterDip, kSliderHaloHoverDiameterDip, _hoverTransition.progress);
-    const float diameter    = std::lerp(hovered, kSliderHaloPressedDiameterDip, _pressTransition.progress);
     const float maxDiameter = (std::max)(0.0f, (std::min)(bounds.right - bounds.left, bounds.bottom - bounds.top) - 2.0f);
-    return (std::min)(diameter, maxDiameter);
+    return (std::min)(kSliderChromeDiameterDip, maxDiameter);
 }
 
-float Slider::ResolveHaloOpacity(const ThemePalette& theme) const noexcept
+D2D1_COLOR_F Slider::ResolveChromeColor(const ThemePalette& theme) const noexcept
 {
-    if (! IsEnabled() || theme.highContrast)
+    if (theme.highContrast)
     {
-        return 0.0f;
+        return IsEnabled() ? theme.borderStrong : theme.disabledText;
     }
 
-    const float hovered = std::lerp(kSliderHaloRestOpacity, kSliderHaloHoverOpacity, _hoverTransition.progress);
-    return std::lerp(hovered, kSliderHaloPressedOpacity, _pressTransition.progress);
+    const float mix        = std::lerp(theme.dark ? 0.32f : 0.10f, theme.dark ? 0.44f : 0.16f, _hoverTransition.progress);
+    const float pressedMix = std::lerp(mix, theme.dark ? 0.52f : 0.22f, _pressTransition.progress);
+    D2D1_COLOR_F chrome    = BlendColor(theme.surfaceBackground, theme.text, pressedMix);
+    if (! IsEnabled())
+    {
+        chrome = BlendColor(chrome, theme.windowBackground, 0.45f);
+    }
+    chrome.a = 1.0f;
+    return chrome;
 }
 
 D2D1_RECT_F Slider::GetTrackRect() const noexcept
@@ -4743,7 +4745,7 @@ void Slider::Paint(ControlHost& host) const
     const D2D1_RECT_F thumb    = GetThumbRect();
     const D2D1_POINT_2F center = GetThumbCenter();
     const D2D1_COLOR_F trackColor =
-        theme.highContrast ? theme.borderDefault : D2D1::ColorF(theme.text.r, theme.text.g, theme.text.b, theme.dark ? 0.22f : 0.18f);
+        theme.highContrast ? theme.borderDefault : D2D1::ColorF(theme.text.r, theme.text.g, theme.text.b, theme.dark ? 0.36f : 0.26f);
     const D2D1_COLOR_F fillColor = enabled ? theme.accent : BlendColor(theme.disabledText, theme.windowBackground, theme.dark ? 0.45f : 0.35f);
     D2D1_COLOR_F thumbFill       = fillColor;
     if (enabled && ! theme.highContrast)
@@ -4751,12 +4753,12 @@ void Slider::Paint(ControlHost& host) const
         thumbFill = BlendColor(theme.accent, theme.accentHover, _hoverTransition.progress);
         thumbFill = BlendColor(thumbFill, theme.accentPressed, _pressTransition.progress);
     }
-    const D2D1_COLOR_F thumbRim = theme.highContrast ? theme.borderStrong : BlendColor(theme.windowBackground, thumbFill, theme.dark ? 0.42f : 0.28f);
     const float trackRadius     = kSliderTrackThicknessDip * 0.5f;
-    DrawRoundedRect(host, track, trackColor, trackColor, trackRadius);
+    const D2D1_COLOR_F noStroke = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+    DrawRoundedRect(host, track, trackColor, noStroke, trackRadius);
     if (fill.right > fill.left && fill.bottom > fill.top)
     {
-        DrawRoundedRect(host, fill, fillColor, fillColor, trackRadius);
+        DrawRoundedRect(host, fill, fillColor, noStroke, trackRadius);
     }
 
     if (! _tickMarks.empty())
@@ -4784,23 +4786,17 @@ void Slider::Paint(ControlHost& host) const
         }
     }
 
-    const float haloOpacity = ResolveHaloOpacity(theme);
-    if (haloOpacity > 0.001f)
-    {
-        const D2D1_RECT_F halo         = GetHaloRect();
-        const float haloRadius         = (halo.right - halo.left) * 0.5f;
-        const D2D1_ELLIPSE haloEllipse = D2D1::Ellipse(center, haloRadius, haloRadius);
-        const D2D1_COLOR_F haloColor   = D2D1::ColorF(theme.text.r, theme.text.g, theme.text.b, haloOpacity);
-        FillEllipseWithColor(host, haloEllipse, haloColor);
-    }
+    const D2D1_RECT_F chrome         = GetHaloRect();
+    const float chromeRadius         = (chrome.right - chrome.left) * 0.5f;
+    const D2D1_ELLIPSE chromeEllipse = D2D1::Ellipse(center, chromeRadius, chromeRadius);
+    FillEllipseWithColor(host, chromeEllipse, ResolveChromeColor(theme));
 
     const float thumbRadius         = (thumb.right - thumb.left) * 0.5f;
     const D2D1_ELLIPSE thumbEllipse = D2D1::Ellipse(center, thumbRadius, thumbRadius);
     FillEllipseWithColor(host, thumbEllipse, thumbFill);
-    DrawEllipseWithColor(host, thumbEllipse, thumbRim, kSliderThumbStrokeDip);
     if (HasFocus() && host.IsKeyboardFocusVisible())
     {
-        PaintFocusRing(host, thumb, thumbRadius);
+        PaintFocusRing(host, chrome, chromeRadius);
     }
 }
 

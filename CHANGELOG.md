@@ -2,9 +2,10 @@
 
 ## Unreleased
 
-- Restore `Slider` Fluent paint: a 6 DIP capsule track, 14/16/12 DIP inner thumb, and 20/28/36 DIP translucent halo,
-  independently of the unpainted 48 DIP fat-finger hit band and 24 DIP grab radius. Embedded `DispatchPointer`
-  synthesizes control double-click (word selection) using the system interval and a 16 DIP slop.
+- Paint `Slider` like the Windows volume flyout: a 6 DIP capsule track (fill and remainder the same thickness), a fixed
+  20 DIP gray chrome disc, and an accent inner thumb that matches the track at rest and grows to 16 DIP on hover
+  (12 DIP pressed). Pointer hit testing stays an unpainted 48 DIP band with a 24 DIP grab radius. Embedded
+  `DispatchPointer` synthesizes control double-click (word selection) using the system interval and a 16 DIP slop.
 
 - Release the embedded surface on `SetVisible(false)` and zero-extent `Prepare`: `surfaceBytes` reports 0 while
   hidden or zero-sized, and the next visible sized preparation reallocates exactly one surface with identical pixels.

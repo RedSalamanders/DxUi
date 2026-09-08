@@ -44,34 +44,31 @@ the same DIP radius, selected radius and gap constants.
 
 ### Slider
 
-Painted chrome and pointer geometry are independent. The halo is ink only. Hit testing may be larger than any
+Painted chrome and pointer geometry are independent. The gray chrome disc is ink only. Hit testing may be larger than any
 painted disc so a fat finger can grab the thumb. Neither layer is sized from the other.
 
 ```
-  cross-axis (horizontal slider, rest, DIP)
+  cross-axis (horizontal slider, DIP)
 
   48  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  hit band (unpainted)
-  36                                           pressed halo (paint)
-  28                                           hovered halo (paint)
-  20  · · · · · · · · · · · · · · · · · · · ·  rest halo (paint)
+  20  ████████ chrome disc (fixed) ████████
   16                                           hovered inner thumb
-  14  ████████ inner thumb (accent fill) ████
   12                                           pressed inner thumb
-   6  ══════════════════════════════════════    capsule track
+   6  ══════════════════════════════════════    track and rest inner thumb
    0
 ```
 
 | Layer | Rest | Hover | Pressed | Role |
 | --- | --- | --- | --- | --- |
-| Track | 6 DIP capsule | — | — | Paint. Inset 12 DIP from each end so the inner thumb stays inside the control. |
-| Inner thumb | 14 DIP | 16 DIP | 12 DIP | Paint. Accent-filled disc with a rim mixed toward the window background. Pressed shrinks. |
-| Halo | 20 DIP at 0.14 | 28 DIP at 0.22 | 36 DIP at 0.32 | Paint only. Translucent disc of theme text color. Hidden when disabled or high contrast. Clamped to the control bounds minus 2 DIP. |
+| Track | 6 DIP capsule | — | — | Paint. Fill and remainder share that thickness with no extra stroke. Inset 12 DIP from each end. |
+| Inner thumb | 6 DIP | 16 DIP | 12 DIP | Paint. Accent fill matching the track. Rest equals the track so the chrome reads as a gray ring; hover grows the inner until a thin chrome rim remains. |
+| Chrome disc | 20 DIP | 20 DIP | 20 DIP | Paint. Opaque gray disc under the inner thumb. It does not scale with hover or press and is not the hit target. |
 | Hit band | 48 DIP | 48 DIP | 48 DIP | Pointer only. Centered on the track. Clipped to control bounds when the control is shorter. Not painted. |
 | Thumb grab | 24 DIP radius from thumb center | same | same | Pointer only. Half the hit band. A contact in this circle drags from the current value; a contact on the track outside it seeks. |
 
 Keyboard and `RequestValue` ease the painted inner thumb to the new value; pointer drags and `SetValue` snap.
 Reduced motion snaps every visual. Keyboard steps still use `SetStep` / `SetLargeStep`. Consumers that need a
-fat-finger target size the control to at least the 48 DIP hit band; they do not enlarge the halo to match.
+fat-finger target size the control to at least the 48 DIP hit band; they do not enlarge the chrome disc to match.
 
 Each control also requires accurate usage documentation in `docs/controls.md`. Code changes review affected docs
 and regenerate changed visuals into `docs/gallery` under [the documentation contract](../Core/Core_Documentation.md).

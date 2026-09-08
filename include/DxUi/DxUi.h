@@ -2155,7 +2155,7 @@ private:
     [[nodiscard]] D2D1_POINT_2F GetThumbCenter() const noexcept;
     [[nodiscard]] float ResolveInnerThumbDiameter() const noexcept;
     [[nodiscard]] float ResolveHaloDiameter(const D2D1_RECT_F& bounds) const noexcept;
-    [[nodiscard]] float ResolveHaloOpacity(const ThemePalette& theme) const noexcept;
+    [[nodiscard]] D2D1_COLOR_F ResolveChromeColor(const ThemePalette& theme) const noexcept;
     [[nodiscard]] D2D1_RECT_F GetTrackRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetThumbRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetInnerThumbRect() const noexcept;
