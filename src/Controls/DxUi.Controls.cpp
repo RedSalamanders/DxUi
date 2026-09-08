@@ -202,17 +202,12 @@ constexpr float kTooltipFallbackLineHeightDip    = 18.0f;
 constexpr float kTooltipPreferredTextHeightDip   = 256.0f;
 constexpr float kMenuBarItemCornerRadiusDip      = 4.0f;
 constexpr float kSliderTrackThicknessDip         = 4.0f;
-constexpr float kSliderThumbDiameterDip          = 14.0f;
+constexpr float kSliderThumbRestDiameterDip      = 14.0f;
 constexpr float kSliderThumbHoverDiameterDip     = 16.0f;
-constexpr float kSliderThumbPressedDiameterDip   = 12.0f;
-constexpr float kSliderHaloRestDiameterDip       = 20.0f;
-constexpr float kSliderHaloHoverDiameterDip      = 28.0f;
-constexpr float kSliderHaloPressedDiameterDip    = 36.0f;
-constexpr float kSliderHaloRestOpacity           = 0.14f;
-constexpr float kSliderHaloHoverOpacity          = 0.22f;
-constexpr float kSliderHaloPressedOpacity        = 0.32f;
-constexpr float kSliderTrackInsetDip             = 12.0f;
-constexpr float kSliderThumbStrokeDip            = 1.25f;
+constexpr float kSliderThumbPressedDiameterDip   = 20.0f;
+constexpr float kSliderTrackInsetDip             = 10.0f;
+constexpr float kSliderThumbStrokeDip            = 1.5f;
+constexpr float kSliderHitExtentDip              = 48.0f;
 constexpr float kSliderTickLengthDip             = 6.0f;
 constexpr float kTabStripHeightDip               = 32.0f;
 constexpr float kTabCornerRadiusDip              = 5.0f;
@@ -4606,29 +4601,10 @@ D2D1_POINT_2F Slider::GetThumbCenter() const noexcept
     return D2D1::Point2F(track.left + (available * progress), (track.top + track.bottom) * 0.5f);
 }
 
-float Slider::ResolveInnerThumbDiameter() const noexcept
+float Slider::ResolveThumbDiameter() const noexcept
 {
-    const float hovered = std::lerp(kSliderThumbDiameterDip, kSliderThumbHoverDiameterDip, _hoverTransition.progress);
+    const float hovered = std::lerp(kSliderThumbRestDiameterDip, kSliderThumbHoverDiameterDip, _hoverTransition.progress);
     return std::lerp(hovered, kSliderThumbPressedDiameterDip, _pressTransition.progress);
-}
-
-float Slider::ResolveHaloDiameter(const D2D1_RECT_F& bounds) const noexcept
-{
-    const float hovered     = std::lerp(kSliderHaloRestDiameterDip, kSliderHaloHoverDiameterDip, _hoverTransition.progress);
-    const float diameter    = std::lerp(hovered, kSliderHaloPressedDiameterDip, _pressTransition.progress);
-    const float maxDiameter = (std::max)(0.0f, (std::min)(bounds.right - bounds.left, bounds.bottom - bounds.top) - 2.0f);
-    return (std::min)(diameter, maxDiameter);
-}
-
-float Slider::ResolveHaloOpacity(const ThemePalette& theme) const noexcept
-{
-    if (! IsEnabled() || theme.highContrast)
-    {
-        return 0.0f;
-    }
-
-    const float hovered = std::lerp(kSliderHaloRestOpacity, kSliderHaloHoverOpacity, _hoverTransition.progress);
-    return std::lerp(hovered, kSliderHaloPressedOpacity, _pressTransition.progress);
 }
 
 D2D1_RECT_F Slider::GetTrackRect() const noexcept
@@ -4653,8 +4629,27 @@ D2D1_RECT_F Slider::GetTrackRect() const noexcept
 D2D1_RECT_F Slider::GetThumbRect() const noexcept
 {
     const D2D1_POINT_2F center = GetThumbCenter();
-    const float radius         = ResolveInnerThumbDiameter() * 0.5f;
+    const float radius         = ResolveThumbDiameter() * 0.5f;
     return D2D1::RectF(center.x - radius, center.y - radius, center.x + radius, center.y + radius);
+}
+
+D2D1_RECT_F Slider::GetInnerThumbRect() const noexcept
+{
+    return GetThumbRect();
+}
+
+D2D1_RECT_F Slider::GetHitBounds() const noexcept
+{
+    const D2D1_RECT_F bounds = Control::GetHitBounds();
+    const float half         = kSliderHitExtentDip * 0.5f;
+    if (_orientation == SliderOrientation::Vertical)
+    {
+        const float centerX = (bounds.left + bounds.right) * 0.5f;
+        return D2D1::RectF((std::max)(bounds.left, centerX - half), bounds.top, (std::min)(bounds.right, centerX + half), bounds.bottom);
+    }
+
+    const float centerY = (bounds.top + bounds.bottom) * 0.5f;
+    return D2D1::RectF(bounds.left, (std::max)(bounds.top, centerY - half), bounds.right, (std::min)(bounds.bottom, centerY + half));
 }
 
 D2D1_RECT_F Slider::GetFillRect() const noexcept
@@ -4711,7 +4706,6 @@ void Slider::Paint(ControlHost& host) const
 
     const auto& theme          = host.GetTheme();
     const bool enabled         = IsEnabled();
-    const D2D1_RECT_F bounds   = GetBounds();
     const D2D1_RECT_F track    = GetTrackRect();
     const D2D1_RECT_F fill     = GetFillRect();
     const D2D1_RECT_F thumb    = GetThumbRect();
@@ -4722,13 +4716,11 @@ void Slider::Paint(ControlHost& host) const
     D2D1_COLOR_F thumbFill       = fillColor;
     if (enabled && ! theme.highContrast)
     {
-        const float hoverMix = _hoverTransition.progress;
-        const float pressMix = _pressTransition.progress;
-        thumbFill            = BlendColor(theme.accent, theme.accentHover, hoverMix);
-        thumbFill            = BlendColor(thumbFill, theme.accentPressed, pressMix);
+        thumbFill = BlendColor(theme.accent, theme.accentHover, _hoverTransition.progress);
+        thumbFill = BlendColor(thumbFill, theme.accentPressed, _pressTransition.progress);
     }
-    const D2D1_COLOR_F thumbRim = theme.highContrast ? theme.borderStrong : BlendColor(theme.windowBackground, thumbFill, theme.dark ? 0.42f : 0.28f);
-    const float trackRadius     = kSliderTrackThicknessDip * 0.5f;
+    const D2D1_COLOR_F thumbStroke = theme.highContrast ? theme.borderStrong : D2D1::ColorF(0.0f, 0.0f, 0.0f, theme.dark ? 0.28f : 0.10f);
+    const float trackRadius        = kSliderTrackThicknessDip * 0.5f;
     DrawRoundedRect(host, track, trackColor, trackColor, trackRadius);
     if (fill.right > fill.left && fill.bottom > fill.top)
     {
@@ -4760,21 +4752,13 @@ void Slider::Paint(ControlHost& host) const
         }
     }
 
-    const float haloOpacity = ResolveHaloOpacity(theme);
-    if (haloOpacity > 0.001f)
-    {
-        const float haloRadius         = ResolveHaloDiameter(bounds) * 0.5f;
-        const D2D1_ELLIPSE haloEllipse = D2D1::Ellipse(center, haloRadius, haloRadius);
-        const D2D1_COLOR_F haloColor   = D2D1::ColorF(theme.text.r, theme.text.g, theme.text.b, haloOpacity);
-        FillEllipseWithColor(host, haloEllipse, haloColor);
-    }
-
-    const D2D1_ELLIPSE thumbEllipse = D2D1::Ellipse(center, (thumb.right - thumb.left) * 0.5f, (thumb.bottom - thumb.top) * 0.5f);
+    const float thumbRadius         = (thumb.right - thumb.left) * 0.5f;
+    const D2D1_ELLIPSE thumbEllipse = D2D1::Ellipse(center, thumbRadius, thumbRadius);
     FillEllipseWithColor(host, thumbEllipse, thumbFill);
-    DrawEllipseWithColor(host, thumbEllipse, thumbRim, kSliderThumbStrokeDip);
+    DrawEllipseWithColor(host, thumbEllipse, thumbStroke, kSliderThumbStrokeDip);
     if (HasFocus() && host.IsKeyboardFocusVisible())
     {
-        PaintFocusRing(host, thumb, (thumb.right - thumb.left) * 0.5f);
+        PaintFocusRing(host, thumb, thumbRadius);
     }
 }
 
@@ -4823,9 +4807,11 @@ bool Slider::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButto
     _dragInitialValue          = _value;
     _dragging                  = true;
     const D2D1_POINT_2F center = GetThumbCenter();
-    const float grabRadius     = kSliderHaloRestDiameterDip * 0.5f;
-    const float deltaX         = point.x - center.x;
-    const float deltaY         = point.y - center.y;
+    // Grab uses the 48 DIP touch band, not the 14 DIP painted thumb: a finger centered on the
+    // thumb still lands several DIPs off the ink and must drag, not seek.
+    const float grabRadius = kSliderHitExtentDip * 0.5f;
+    const float deltaX     = point.x - center.x;
+    const float deltaY     = point.y - center.y;
     if ((deltaX * deltaX) + (deltaY * deltaY) <= (grabRadius * grabRadius))
     {
         _dragThumbPointerOffsetDip = _orientation == SliderOrientation::Vertical ? deltaY : deltaX;
@@ -4961,6 +4947,11 @@ D2D1_RECT_F Slider::DebugGetTrackRect() const noexcept
 D2D1_RECT_F Slider::DebugGetThumbRect() const noexcept
 {
     return GetThumbRect();
+}
+
+D2D1_RECT_F Slider::DebugGetInnerThumbRect() const noexcept
+{
+    return GetInnerThumbRect();
 }
 
 D2D1_RECT_F Slider::DebugGetFillRect() const noexcept

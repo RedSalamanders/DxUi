@@ -1,7 +1,7 @@
 # Embedded D3D11 hosting
 
 Status: normative intended contract
-Last reviewed: 2026-09-07
+Last reviewed: 2026-09-08
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -84,9 +84,10 @@ with exactly one reallocation and pixel-identical restoration, device replacemen
 and cache bounds. Injected physical GPU removal remains a separate hardware validation case; device-generation
 replacement is not evidence of a physical fault.
 
-Hit-tested gestures require clean prepared content. Captured continuation can update a live draft before its next
+Hit-tested gestures require a prepared interaction revision. Captured continuation can update a live draft before its next
 paint, but any intervening bounds, tree or availability revision cancels capture and disables input until prepare
-succeeds. This prevents new hit rectangles from being used with an old texture. Keyboard continuation uses the
+succeeds. A second Down on the same control within the system double-click interval and a 16 DIP slop is
+`OnMouseDoubleClick`. This prevents new hit rectangles from being used with an old texture. Keyboard continuation uses the
 same prepared interaction revision. A consumer must call Prepare between independent hit-tested gestures.
 
 A hidden or zero-extent view holds no surface. SetVisible(false) and a zero-sized Prepare release the texture, shader

@@ -373,23 +373,29 @@ void TestSliderHoverAndPressAnimationRequestsTicksUntilSettled()
     slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 48.0f));
     host.SetRoot(std::move(root));
 
+    const float restThumbWidth = slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left;
+    RequireFloatNear(restThumbWidth, 14.0f, 0.01f, "slider thumb is 14 DIP at rest");
+
     const uint64_t hoverStartTickMs = ::GetTickCount64();
     slider->OnHoverChanged(host, true);
     RequireFloatNear(slider->DebugGetHoverAnimationProgress(), 0.0f, 0.0001f, "slider hover animation starts from the idle progress");
-    Require(slider->Tick(host, hoverStartTickMs + 70u), "slider hover animation advances on the first tick");
+    Require(slider->Tick(host, hoverStartTickMs + 40u), "slider hover animation advances on the first tick");
     Require(slider->DebugGetHoverAnimationProgress() > 0.0f && slider->DebugGetHoverAnimationProgress() < 1.0f,
             "slider hover animation reaches an in-flight progress value");
-    const D2D1_RECT_F midThumb = slider->DebugGetThumbRect();
-    Require(midThumb.right - midThumb.left > 14.0f, "slider inner thumb grows while the hover animation is in flight");
-    Require(slider->Tick(host, hoverStartTickMs + 200u), "slider hover animation requests one final repaint when the transition settles");
+    Require(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left > restThumbWidth, "slider thumb grows while the hover animation is in flight");
+    Require(slider->Tick(host, hoverStartTickMs + 140u), "slider hover animation requests one final repaint when the transition settles");
     RequireFloatNear(slider->DebugGetHoverAnimationProgress(), 1.0f, 0.0001f, "slider hover animation settles at fully hovered progress");
-    Require(! slider->Tick(host, hoverStartTickMs + 260u), "settled slider hover animation stops requesting ticks");
+    RequireFloatNear(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left, 16.0f, 0.01f, "slider thumb settles at 16 DIP when hovered");
+    Require(! slider->Tick(host, hoverStartTickMs + 200u), "settled slider hover animation stops requesting ticks");
 
+    const float hoverThumbWidth     = slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left;
     const uint64_t pressStartTickMs = ::GetTickCount64();
     Require(slider->OnMouseDown(host, D2D1::Point2F(110.0f, 24.0f), false, 0), "slider press starts a pointer gesture");
-    Require(slider->Tick(host, pressStartTickMs + 70u), "slider press animation advances on the first tick");
+    Require(slider->Tick(host, pressStartTickMs + 40u), "slider press animation advances on the first tick");
     Require(slider->DebugGetPressAnimationProgress() > 0.0f && slider->DebugGetPressAnimationProgress() < 1.0f,
             "slider press animation reaches an in-flight progress value");
+    Require(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left > hoverThumbWidth,
+            "slider thumb grows further while the press animation is in flight");
     Require(slider->OnMouseUp(host, D2D1::Point2F(110.0f, 24.0f), false, 0), "slider press ends the pointer gesture");
 }
 

@@ -962,9 +962,50 @@ void TestSliderTouchFriendlyGeometry()
     slider.SetValue(50.0);
     const D2D1_RECT_F track = slider.DebugGetTrackRect();
     const D2D1_RECT_F thumb = slider.DebugGetThumbRect();
+    const D2D1_RECT_F hit   = slider.GetHitBounds();
     RequireFloatNear(track.bottom - track.top, 4.0f, 0.01f, "slider track is 4 DIP thick");
     RequireFloatNear(thumb.right - thumb.left, 14.0f, 0.01f, "slider thumb is 14 DIP at rest");
-    Require(track.left >= 11.5f && (220.0f - track.right) >= 11.5f, "slider track insets leave room for the thumb");
+    Require(track.left >= 9.5f && (220.0f - track.right) >= 9.5f, "slider track insets leave room for the thumb");
+    RequireFloatNear(hit.bottom - hit.top, 48.0f, 0.01f, "slider pointer band is 48 DIP in a 48 DIP control");
+    RequireFloatNear((hit.top + hit.bottom) * 0.5f, 24.0f, 0.01f, "slider pointer band stays centered on the track");
+}
+
+void TestSliderTallControlDoesNotHitFarFromTrack()
+{
+    using namespace DxUi;
+
+    Slider slider;
+    slider.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 120.0f));
+    const D2D1_RECT_F hit = slider.GetHitBounds();
+    RequireFloatNear(hit.bottom - hit.top, 48.0f, 0.01f, "tall slider keeps a 48 DIP pointer band");
+    RequireFloatNear((hit.top + hit.bottom) * 0.5f, 60.0f, 0.01f, "tall slider pointer band stays centered on the track");
+    Require(hit.top > 8.0f && hit.bottom < 112.0f, "tall slider leaves padding outside the pointer band");
+}
+
+void TestSliderThumbGrabDoesNotSeekWhenContactHitsTouchHalo()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* slider = root->AddChild<Slider>();
+    slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 48.0f));
+    slider->SetMinimum(0.0);
+    slider->SetMaximum(100.0);
+    slider->SetValue(50.0);
+    host.SetRoot(std::move(root));
+
+    const D2D1_RECT_F thumb  = slider->DebugGetThumbRect();
+    const D2D1_POINT_2F center = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
+    Require(slider->OnMouseDown(host, D2D1::Point2F(center.x + 10.0f, center.y), false, 0), "slider accepts a press on the thumb halo");
+    RequireFloatNear(
+        static_cast<float>(slider->GetValue()), 50.0f, 0.05f, "a finger-sized contact on the thumb drags from the current value instead of seeking");
+    Require(slider->OnMouseUp(host, D2D1::Point2F(center.x + 10.0f, center.y), false, 0), "slider completes the thumb grab");
+    RequireFloatNear(static_cast<float>(slider->GetValue()), 50.0f, 0.05f, "releasing a thumb grab without travel keeps the value");
+
+    Require(slider->OnMouseDown(host, D2D1::Point2F(20.0f, center.y), false, 0), "slider accepts a track tap away from the thumb");
+    Require(slider->GetValue() < 15.0, "a tap on the track away from the thumb still seeks");
+    Require(slider->OnMouseUp(host, D2D1::Point2F(20.0f, center.y), false, 0), "slider completes the track tap");
 }
 
 void TestSliderKeyboardAndPointerInputUpdatesValue()
@@ -1926,6 +1967,8 @@ void RunNewControlTests()
     // Slider
     TestSliderDefaultState();
     TestSliderTouchFriendlyGeometry();
+    TestSliderTallControlDoesNotHitFarFromTrack();
+    TestSliderThumbGrabDoesNotSeekWhenContactHitsTouchHalo();
     TestSliderKeyboardAndPointerInputUpdatesValue();
     TestSliderVerticalAndRightToLeftGeometryMirrors();
     TestSliderPaintHandlesMissingDeviceContext();

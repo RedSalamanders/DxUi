@@ -1874,6 +1874,45 @@ void ControlHost::RememberPointerButtonDown(Control* target, UINT buttonDownMess
     _pendingPointerDoubleClick.tickMs      = GetTickCount64();
 }
 
+bool ControlHost::ShouldTreatPointerDownAsDoubleClick(Control* target, D2D1_POINT_2F pointDip) const noexcept
+{
+    if (! target)
+    {
+        return false;
+    }
+
+    const auto& candidate = _pendingPointerDoubleClick;
+    if (! candidate.target || candidate.target != target || candidate.tickMs == 0u)
+    {
+        return false;
+    }
+
+    if (GetTickCount64() - candidate.tickMs > static_cast<uint64_t>(GetDoubleClickTime()))
+    {
+        return false;
+    }
+
+    const float slopPx = (std::max)(static_cast<float>(GetSystemMetrics(SM_CXDOUBLECLK) / 2), DipsToPixels(16.0f));
+    const float dx     = DipsToPixels(pointDip.x) - static_cast<float>(candidate.pointPx.x);
+    const float dy     = DipsToPixels(pointDip.y) - static_cast<float>(candidate.pointPx.y);
+    return std::abs(dx) <= slopPx && std::abs(dy) <= slopPx;
+}
+
+void ControlHost::RememberPointerDownDip(Control* target, D2D1_POINT_2F pointDip) noexcept
+{
+    if (! target)
+    {
+        ClearPendingPointerDoubleClick();
+        return;
+    }
+
+    _pendingPointerDoubleClick.target      = target;
+    _pendingPointerDoubleClick.downMessage = WM_LBUTTONDOWN;
+    _pendingPointerDoubleClick.pointPx =
+        POINT{static_cast<LONG>(std::lround(DipsToPixels(pointDip.x))), static_cast<LONG>(std::lround(DipsToPixels(pointDip.y)))};
+    _pendingPointerDoubleClick.tickMs = GetTickCount64();
+}
+
 HWND ControlHost::GetHwnd() const noexcept
 {
     return _hwnd;

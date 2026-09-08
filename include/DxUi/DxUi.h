@@ -2119,10 +2119,12 @@ public:
     void OnHoverChanged(ControlHost& host, bool hovered) override;
     void OnEnabledChanged(bool enabled) noexcept override;
     void OnCaptureLost(ControlHost& host) override;
+    [[nodiscard]] D2D1_RECT_F GetHitBounds() const noexcept override;
 
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] D2D1_RECT_F DebugGetTrackRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F DebugGetThumbRect() const noexcept;
+    [[nodiscard]] D2D1_RECT_F DebugGetInnerThumbRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F DebugGetFillRect() const noexcept;
     [[nodiscard]] float DebugGetHoverAnimationProgress() const noexcept;
     [[nodiscard]] float DebugGetPressAnimationProgress() const noexcept;
@@ -2150,11 +2152,10 @@ private:
     void SnapVisualTransitions() noexcept;
     void SyncInteractionVisuals(ControlHost& host) noexcept;
     [[nodiscard]] D2D1_POINT_2F GetThumbCenter() const noexcept;
-    [[nodiscard]] float ResolveInnerThumbDiameter() const noexcept;
-    [[nodiscard]] float ResolveHaloDiameter(const D2D1_RECT_F& bounds) const noexcept;
-    [[nodiscard]] float ResolveHaloOpacity(const ThemePalette& theme) const noexcept;
+    [[nodiscard]] float ResolveThumbDiameter() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetTrackRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetThumbRect() const noexcept;
+    [[nodiscard]] D2D1_RECT_F GetInnerThumbRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetFillRect() const noexcept;
     void UpdateValueFromPoint(ControlHost& host, D2D1_POINT_2F point) noexcept;
 
@@ -2178,7 +2179,7 @@ private:
     bool _dragging                                            = false;
     bool _valueAnimationActive                                = false;
     float _dragThumbPointerOffsetDip                          = 0.0f;
-    static constexpr uint64_t _interactionAnimationDurationMs = 167u;
+    static constexpr uint64_t _interactionAnimationDurationMs = 100u;
     static constexpr uint64_t _valueAnimationDurationMs       = 167u;
 };
 
@@ -3936,7 +3937,9 @@ private:
     void UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept;
     void ClearPendingPointerDoubleClick() noexcept;
     [[nodiscard]] bool ShouldTreatButtonDownAsDoubleClick(Control* target, UINT buttonDownMessage, LPARAM lp) const noexcept;
+    [[nodiscard]] bool ShouldTreatPointerDownAsDoubleClick(Control* target, D2D1_POINT_2F pointDip) const noexcept;
     void RememberPointerButtonDown(Control* target, UINT buttonDownMessage, LPARAM lp) noexcept;
+    void RememberPointerDownDip(Control* target, D2D1_POINT_2F pointDip) noexcept;
     void UpdateModifierStateForKey(UINT virtualKey, bool keyDown, bool systemKey) noexcept;
     void SetInputModality(InputModality modality) noexcept;
     [[nodiscard]] D2D1_POINT_2F PointFromLParam(LPARAM lp) const noexcept;
