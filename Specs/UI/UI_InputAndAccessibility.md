@@ -35,7 +35,8 @@ verification supplements synthetic tests.
 ### Current library input surface
 
 EmbeddedHost dispatches pointer Down/Move/Up/Wheel/Leave/Cancel, keyboard down/up and character events to its retained
-tree, with stale-focus/capture pruning. Pointer Down/Move/Up/Wheel switch the host to pointer modality so keyboard-only
+tree, with stale-focus/capture pruning. A second Down on the same control within the system double-click interval and a
+16 DIP slop calls `OnMouseDoubleClick` (word selection, row activation) instead of `OnMouseDown`. Pointer Down/Move/Up/Wheel switch the host to pointer modality so keyboard-only
 focus chrome does not appear on a touch. Hit-testing stays valid while the cached surface is paint-dirty; only a
 changed interaction revision (bounds, tree, visibility, enabled) makes geometry incoherent and cancels capture.
 ControlHost retains native Win32 TSF/IME and UIA behavior, exercised by the
@@ -47,9 +48,10 @@ ComboBox/PopupLayer overlays or host-owned menu services.
 
 Slider::SetOnChange reports Preview while dragging and exactly one Commit on accepted release, including an
 unchanged final value. Capture loss, Escape, hiding or detach reports Cancel and restores the initial value. Keyboard
-steps report Commit. Hover and press ease the halo and inner thumb; keyboard steps and RequestValue ease the painted
-thumb to the committed value, then stop requesting ticks. Pointer drags and SetValue snap the painted position so live
-acknowledgement cannot lag. Reduced motion snaps every visual and requests no slider ticks. SetValue updates from
+steps report Commit. Hover and press ease a 14 DIP accent thumb to 16 DIP then 20 DIP; keyboard steps and
+RequestValue ease the painted thumb to the committed value, then stop requesting ticks. Pointer drags and SetValue snap
+the painted position so live acknowledgement cannot lag. Reduced motion snaps every visual and requests no slider ticks.
+SetValue updates from
 externally acknowledged state without firing an input callback. Existing
 SetOnValueChanged remains the legacy live-value observer; AV uses SetOnChange and calls the OS setter only on Commit.
 Callback-driven root replacement is supported and covered by a regression test.

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Size `Slider` to Windows 11 metrics: a 4 DIP track, 14 DIP accent-filled thumb with a muted halo (16 DIP hover,
+  20 DIP pressed), and a 48 DIP pointer band centered on the track so a finger can grab the thumb without seeking.
+  Embedded `DispatchPointer` synthesizes control double-click (word selection) using the system interval and a
+  16 DIP slop.
+
 - Release the embedded surface on `SetVisible(false)` and zero-extent `Prepare`: `surfaceBytes` reports 0 while
   hidden or zero-sized, and the next visible sized preparation reallocates exactly one surface with identical pixels.
   `AdvanceAnimation` no longer marks the view dirty unconditionally; every `Tick` that changes visual state

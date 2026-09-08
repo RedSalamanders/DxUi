@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <thread>
 
 // Application-side composition transport; no HWND, TSF context or real IME is created by this fixture.
@@ -76,6 +77,28 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
     Check(view.GetTextInputRangeBounds(snapshot.revision, 0, 4, range, clipped) == S_OK && range.left >= 8 && range.right < 320,
           "144-DPI geometry remains in DIPs for one application-side conversion");
     Hr(view.Prepare(480, 240), "restore fixture DPI");
+    field->SetText(L"Contact alpha now");
+    Hr(view.Prepare(480, 240), "prepare double-tap text");
+    view.Controls().SetFocusControl(field);
+    DxUi::EmbeddedTextInputSnapshot wordSnap;
+    Check(view.ReadTextInput(wordSnap) == S_OK, "focused field exports state before a double-tap");
+    D2D1_RECT_F wordBounds{};
+    bool wordClipped = true;
+    Check(view.GetTextInputRangeBounds(wordSnap.revision, 8, 13, wordBounds, wordClipped) == S_OK && ! wordClipped && wordBounds.right > wordBounds.left,
+          "alpha word has visible DIP bounds for a double-tap");
+    const float wordX = (wordBounds.left + wordBounds.right) * 0.5f;
+    const float wordY = (wordBounds.top + wordBounds.bottom) * 0.5f;
+    Check(view.DispatchPointer({DxUi::PointerAction::Down, wordX, wordY}), "first tap on a word places the caret");
+    Check(view.DispatchPointer({DxUi::PointerAction::Up, wordX, wordY}), "first tap on a word releases");
+    Check(view.DispatchPointer({DxUi::PointerAction::Down, wordX, wordY}), "second tap synthesizes a control double-click");
+    static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Up, wordX, wordY}));
+    Check(view.ReadTextInput(wordSnap) == S_OK && wordSnap.state.selectionAnchorIndex.has_value(), "embedded double-tap selects a word");
+    const size_t wordStart = (std::min)(*wordSnap.state.selectionAnchorIndex, wordSnap.state.caretIndex);
+    const size_t wordEnd   = (std::max)(*wordSnap.state.selectionAnchorIndex, wordSnap.state.caretIndex);
+    Check(wordStart == 8 && wordEnd == 13, "embedded double-tap selects exactly the punctuation-delimited word");
+    field->SetText(L"Original");
+    view.Controls().SetFocusControl(field);
+    Hr(view.Prepare(480, 240), "restore original text after double-tap");
     state = read();
     Check(state.text == L"Original" && snapshot.caretBoundsDip && snapshot.viewportBoundsDip, "text and DIP geometry exported");
     const auto initialRevision = snapshot.revision;

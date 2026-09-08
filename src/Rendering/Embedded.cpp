@@ -426,6 +426,7 @@ void EmbeddedHost::CancelPointer() noexcept
         // Hidden/disabled controls still need their draft canceled before ordinary interaction pruning.
         if (captured && contains(contains, _host._root.get(), captured))
             captured->OnCaptureLost(_host);
+        _host.ClearPendingPointerDoubleClick();
         _host.PruneStaleInteractionState();
     }
     catch (const std::exception&)
@@ -482,13 +483,28 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
         {
             case PointerAction::Down:
             {
-                const auto lifetime = target->GetLifetimeToken();
-                const bool handled  = target->OnMouseDown(_host, point, false, event.modifiers);
+                const auto lifetime    = target->GetLifetimeToken();
+                const bool doubleClick = _host.ShouldTreatPointerDownAsDoubleClick(target, point);
+                const bool handled =
+                    doubleClick ? target->OnMouseDoubleClick(_host, point, false, event.modifiers) : target->OnMouseDown(_host, point, false, event.modifiers);
+                Control* const live = (! lifetime.expired() && target->GetHost() == &_host) ? target : nullptr;
                 // Like the native host, capture a handled press after the callback; the callback may remove its control.
-                if (handled && ! lifetime.expired() && target->GetHost() == &_host)
+                if (handled && live)
                 {
-                    _host.CaptureMouse(target);
+                    _host.CaptureMouse(live);
+                    if (doubleClick)
+                    {
+                        _host.ClearPendingPointerDoubleClick();
+                    }
+                    else
+                    {
+                        _host.RememberPointerDownDip(live, point);
+                    }
                     _host.PruneStaleInteractionState();
+                }
+                else if (doubleClick)
+                {
+                    _host.ClearPendingPointerDoubleClick();
                 }
                 return handled;
             }
