@@ -201,11 +201,18 @@ constexpr float kTooltipCornerRadiusDip          = 4.0f;
 constexpr float kTooltipFallbackLineHeightDip    = 18.0f;
 constexpr float kTooltipPreferredTextHeightDip   = 256.0f;
 constexpr float kMenuBarItemCornerRadiusDip      = 4.0f;
-constexpr float kSliderTrackThicknessDip         = 12.0f;
-constexpr float kSliderThumbDiameterDip          = 48.0f;
-constexpr float kSliderThumbHoverDiameterDip     = 52.0f;
-constexpr float kSliderThumbPressedDiameterDip   = 44.0f;
-constexpr float kSliderTrackInsetDip             = 24.0f;
+constexpr float kSliderTrackThicknessDip         = 4.0f;
+constexpr float kSliderThumbDiameterDip          = 14.0f;
+constexpr float kSliderThumbHoverDiameterDip     = 16.0f;
+constexpr float kSliderThumbPressedDiameterDip   = 12.0f;
+constexpr float kSliderHaloRestDiameterDip       = 20.0f;
+constexpr float kSliderHaloHoverDiameterDip      = 28.0f;
+constexpr float kSliderHaloPressedDiameterDip    = 36.0f;
+constexpr float kSliderHaloRestOpacity           = 0.14f;
+constexpr float kSliderHaloHoverOpacity          = 0.22f;
+constexpr float kSliderHaloPressedOpacity        = 0.32f;
+constexpr float kSliderTrackInsetDip             = 12.0f;
+constexpr float kSliderThumbStrokeDip            = 1.25f;
 constexpr float kSliderTickLengthDip             = 6.0f;
 constexpr float kTabStripHeightDip               = 32.0f;
 constexpr float kTabCornerRadiusDip              = 5.0f;
@@ -4305,6 +4312,7 @@ void Slider::SetMinimum(double minimum) noexcept
         _maximum = _minimum;
     }
     _value = ClampValue(_value);
+    SnapDisplayedValue();
     RequestInvalidate();
 }
 
@@ -4317,6 +4325,7 @@ void Slider::SetMaximum(double maximum) noexcept
 {
     _maximum = (std::max)(maximum, _minimum);
     _value   = ClampValue(_value);
+    SnapDisplayedValue();
     RequestInvalidate();
 }
 
@@ -4327,14 +4336,14 @@ double Slider::GetMaximum() const noexcept
 
 void Slider::SetValue(double value) noexcept
 {
-    SetValueInternal(nullptr, value, false);
+    SetValueInternal(nullptr, value, false, false);
 }
 
 bool Slider::RequestValue(ControlHost& host, double value) noexcept
 {
     if (! IsEnabled() || _dragging || ! std::isfinite(value) || value < _minimum || value > _maximum)
         return false;
-    SetValueInternal(&host, value, true);
+    SetValueInternal(&host, value, true, true);
     return true;
 }
 
@@ -4418,16 +4427,140 @@ double Slider::ClampValue(double value) const noexcept
     return (std::clamp)(value, _minimum, _maximum);
 }
 
-double Slider::GetNormalizedValue() const noexcept
+double Slider::GetDisplayedNormalizedValue() const noexcept
 {
     if (_maximum <= _minimum)
     {
         return 0.0;
     }
-    return (std::clamp)((_value - _minimum) / (_maximum - _minimum), 0.0, 1.0);
+    return (std::clamp)((_displayedValue - _minimum) / (_maximum - _minimum), 0.0, 1.0);
 }
 
-void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChanged) noexcept
+void Slider::SnapDisplayedValue() noexcept
+{
+    _displayedValue            = _value;
+    _valueAnimationStart       = _value;
+    _valueAnimationTarget      = _value;
+    _valueAnimationStartTickMs = 0u;
+    _valueAnimationActive      = false;
+}
+
+void Slider::BeginValueAnimation(ControlHost& host, double fromValue, double toValue) noexcept
+{
+    if (host.GetTheme().reducedMotion || std::fabs(fromValue - toValue) <= 0.0001)
+    {
+        SnapDisplayedValue();
+        Invalidate(host);
+        return;
+    }
+
+    _displayedValue            = fromValue;
+    _valueAnimationStart       = fromValue;
+    _valueAnimationTarget      = toValue;
+    _valueAnimationStartTickMs = ::GetTickCount64();
+    _valueAnimationActive      = true;
+    host.RequestAnimation();
+    Invalidate(host);
+}
+
+bool Slider::AdvanceValueAnimation(ControlHost& host, uint64_t nowTickMs) noexcept
+{
+    if (! _valueAnimationActive)
+    {
+        return false;
+    }
+    if (host.GetTheme().reducedMotion)
+    {
+        SnapDisplayedValue();
+        Invalidate(host);
+        return false;
+    }
+
+    const uint64_t elapsedMs   = nowTickMs > _valueAnimationStartTickMs ? nowTickMs - _valueAnimationStartTickMs : 0u;
+    const float linearProgress = std::clamp(static_cast<float>(elapsedMs) / static_cast<float>(_valueAnimationDurationMs), 0.0f, 1.0f);
+    const float easedProgress  = EvaluateEasing(EasingCurve::PointToPoint, linearProgress);
+    const double previous      = _displayedValue;
+    _displayedValue            = std::lerp(_valueAnimationStart, _valueAnimationTarget, static_cast<double>(easedProgress));
+    const bool changed         = std::fabs(_displayedValue - previous) > 0.0001;
+    if (linearProgress >= 1.0f)
+    {
+        SnapDisplayedValue();
+    }
+    if (changed)
+    {
+        Invalidate(host);
+    }
+    return _valueAnimationActive || changed;
+}
+
+void Slider::BeginVisualTransition(ControlHost& host, VisualTransitionState& transition, float target) noexcept
+{
+    const float clampedTarget = std::clamp(target, 0.0f, 1.0f);
+    if (host.GetTheme().reducedMotion || ! IsEnabled() || ! IsVisible() || std::fabs(transition.progress - clampedTarget) <= 0.0001f)
+    {
+        transition.progress      = clampedTarget;
+        transition.startProgress = clampedTarget;
+        transition.target        = clampedTarget;
+        transition.startTickMs   = 0u;
+        transition.active        = false;
+        Invalidate(host);
+        return;
+    }
+
+    transition.startProgress = transition.progress;
+    transition.target        = clampedTarget;
+    transition.startTickMs   = ::GetTickCount64();
+    transition.active        = true;
+    host.RequestAnimation();
+    Invalidate(host);
+}
+
+bool Slider::AdvanceVisualTransition(VisualTransitionState& transition, uint64_t nowTickMs, EasingCurve curve) noexcept
+{
+    if (! transition.active)
+    {
+        return false;
+    }
+
+    const uint64_t elapsedMs   = nowTickMs > transition.startTickMs ? nowTickMs - transition.startTickMs : 0u;
+    const float linearProgress = std::clamp(static_cast<float>(elapsedMs) / static_cast<float>(_interactionAnimationDurationMs), 0.0f, 1.0f);
+    const float easedProgress  = EvaluateEasing(curve, linearProgress);
+    const float previous       = transition.progress;
+    transition.progress        = std::lerp(transition.startProgress, transition.target, easedProgress);
+    const bool changed         = std::fabs(transition.progress - previous) > 0.0001f;
+    if (linearProgress >= 1.0f)
+    {
+        transition.progress      = transition.target;
+        transition.startProgress = transition.target;
+        transition.startTickMs   = 0u;
+        transition.active        = false;
+    }
+    return transition.active || changed;
+}
+
+void Slider::SnapVisualTransitions() noexcept
+{
+    const float hoverTarget        = (IsHovered() || _dragging) ? 1.0f : 0.0f;
+    const float pressTarget        = _dragging ? 1.0f : 0.0f;
+    _hoverTransition.progress      = hoverTarget;
+    _hoverTransition.startProgress = hoverTarget;
+    _hoverTransition.target        = hoverTarget;
+    _hoverTransition.startTickMs   = 0u;
+    _hoverTransition.active        = false;
+    _pressTransition.progress      = pressTarget;
+    _pressTransition.startProgress = pressTarget;
+    _pressTransition.target        = pressTarget;
+    _pressTransition.startTickMs   = 0u;
+    _pressTransition.active        = false;
+}
+
+void Slider::SyncInteractionVisuals(ControlHost& host) noexcept
+{
+    BeginVisualTransition(host, _hoverTransition, (IsHovered() || _dragging) ? 1.0f : 0.0f);
+    BeginVisualTransition(host, _pressTransition, _dragging ? 1.0f : 0.0f);
+}
+
+void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChanged, bool animatePosition) noexcept
 {
     const double clamped = ClampValue(value);
     if (std::fabs(clamped - _value) <= 0.0001)
@@ -4435,18 +4568,67 @@ void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChange
         return;
     }
 
-    _value = clamped;
-    if (host)
+    const double previousDisplayed = _displayedValue;
+    _value                         = clamped;
+    if (_dragging || ! animatePosition || ! host || host->GetTheme().reducedMotion)
     {
-        Invalidate(*host);
+        SnapDisplayedValue();
+        if (host)
+        {
+            Invalidate(*host);
+        }
+        else
+        {
+            RequestInvalidate();
+        }
     }
     else
     {
-        RequestInvalidate();
+        BeginValueAnimation(*host, previousDisplayed, _value);
     }
 
     if (notifyChanged)
         NotifyChange(_dragging ? SliderChangePhase::Preview : SliderChangePhase::Commit, true);
+}
+
+D2D1_POINT_2F Slider::GetThumbCenter() const noexcept
+{
+    const D2D1_RECT_F track = GetTrackRect();
+    const double normalized = GetDisplayedNormalizedValue();
+    if (_orientation == SliderOrientation::Vertical)
+    {
+        const float available = (std::max)(0.0f, track.bottom - track.top);
+        return D2D1::Point2F((track.left + track.right) * 0.5f, track.bottom - static_cast<float>(normalized) * available);
+    }
+
+    const float available = (std::max)(0.0f, track.right - track.left);
+    const float progress  = IsRightToLeft() ? static_cast<float>(1.0 - normalized) : static_cast<float>(normalized);
+    return D2D1::Point2F(track.left + (available * progress), (track.top + track.bottom) * 0.5f);
+}
+
+float Slider::ResolveInnerThumbDiameter() const noexcept
+{
+    const float hovered = std::lerp(kSliderThumbDiameterDip, kSliderThumbHoverDiameterDip, _hoverTransition.progress);
+    return std::lerp(hovered, kSliderThumbPressedDiameterDip, _pressTransition.progress);
+}
+
+float Slider::ResolveHaloDiameter(const D2D1_RECT_F& bounds) const noexcept
+{
+    const float hovered     = std::lerp(kSliderHaloRestDiameterDip, kSliderHaloHoverDiameterDip, _hoverTransition.progress);
+    const float diameter    = std::lerp(hovered, kSliderHaloPressedDiameterDip, _pressTransition.progress);
+    const float maxDiameter = (std::max)(0.0f, (std::min)(bounds.right - bounds.left, bounds.bottom - bounds.top) - 2.0f);
+    return (std::min)(diameter, maxDiameter);
+}
+
+float Slider::ResolveHaloOpacity(const ThemePalette& theme) const noexcept
+{
+    if (! IsEnabled() || theme.highContrast)
+    {
+        return 0.0f;
+    }
+
+    const float hovered = std::lerp(kSliderHaloRestOpacity, kSliderHaloHoverOpacity, _hoverTransition.progress);
+    return std::lerp(hovered, kSliderHaloPressedOpacity, _pressTransition.progress);
 }
 
 D2D1_RECT_F Slider::GetTrackRect() const noexcept
@@ -4470,57 +4652,51 @@ D2D1_RECT_F Slider::GetTrackRect() const noexcept
 
 D2D1_RECT_F Slider::GetThumbRect() const noexcept
 {
-    const D2D1_RECT_F track = GetTrackRect();
-    const double normalized = GetNormalizedValue();
-    const float diameter    = _dragging ? kSliderThumbPressedDiameterDip : (IsHovered() ? kSliderThumbHoverDiameterDip : kSliderThumbDiameterDip);
-    const float radius      = diameter * 0.5f;
-    if (_orientation == SliderOrientation::Vertical)
-    {
-        const float available = (std::max)(0.0f, track.bottom - track.top);
-        const float centerY   = track.bottom - static_cast<float>(normalized) * available;
-        const float centerX   = (track.left + track.right) * 0.5f;
-        return D2D1::RectF(centerX - radius, centerY - radius, centerX + radius, centerY + radius);
-    }
-
-    const float available = (std::max)(0.0f, track.right - track.left);
-    const float progress  = IsRightToLeft() ? static_cast<float>(1.0 - normalized) : static_cast<float>(normalized);
-    const float centerX   = track.left + (available * progress);
-    const float centerY   = (track.top + track.bottom) * 0.5f;
-    return D2D1::RectF(centerX - radius, centerY - radius, centerX + radius, centerY + radius);
+    const D2D1_POINT_2F center = GetThumbCenter();
+    const float radius         = ResolveInnerThumbDiameter() * 0.5f;
+    return D2D1::RectF(center.x - radius, center.y - radius, center.x + radius, center.y + radius);
 }
 
 D2D1_RECT_F Slider::GetFillRect() const noexcept
 {
-    const D2D1_RECT_F track = GetTrackRect();
-    const D2D1_RECT_F thumb = GetThumbRect();
+    const D2D1_RECT_F track    = GetTrackRect();
+    const D2D1_POINT_2F center = GetThumbCenter();
     if (_orientation == SliderOrientation::Vertical)
     {
-        const float centerY = (thumb.top + thumb.bottom) * 0.5f;
-        return D2D1::RectF(track.left, centerY, track.right, track.bottom);
+        return D2D1::RectF(track.left, center.y, track.right, track.bottom);
     }
 
-    const float centerX = (thumb.left + thumb.right) * 0.5f;
-    return IsRightToLeft() ? D2D1::RectF(centerX, track.top, track.right, track.bottom) : D2D1::RectF(track.left, track.top, centerX, track.bottom);
+    return IsRightToLeft() ? D2D1::RectF(center.x, track.top, track.right, track.bottom) : D2D1::RectF(track.left, track.top, center.x, track.bottom);
 }
 
 void Slider::UpdateValueFromPoint(ControlHost& host, D2D1_POINT_2F point) noexcept
 {
+    D2D1_POINT_2F mapped = point;
+    if (_orientation == SliderOrientation::Vertical)
+    {
+        mapped.y -= _dragThumbPointerOffsetDip;
+    }
+    else
+    {
+        mapped.x -= _dragThumbPointerOffsetDip;
+    }
+
     const D2D1_RECT_F track = GetTrackRect();
     double normalized       = 0.0;
     if (_orientation == SliderOrientation::Vertical)
     {
         const float extent = (std::max)(1.0f, track.bottom - track.top);
-        normalized         = (track.bottom - point.y) / extent;
+        normalized         = (track.bottom - mapped.y) / extent;
     }
     else
     {
         const float extent = (std::max)(1.0f, track.right - track.left);
-        const double raw   = (point.x - track.left) / extent;
+        const double raw   = (mapped.x - track.left) / extent;
         normalized         = IsRightToLeft() ? (1.0 - raw) : raw;
     }
 
     const double nextValue = _minimum + ((std::clamp)(normalized, 0.0, 1.0) * (_maximum - _minimum));
-    SetValueInternal(&host, nextValue, true);
+    SetValueInternal(&host, nextValue, true, false);
 }
 
 void Slider::Paint(ControlHost& host) const
@@ -4533,16 +4709,30 @@ void Slider::Paint(ControlHost& host) const
         return;
     }
 
-    const auto& theme             = host.GetTheme();
-    const D2D1_RECT_F track       = GetTrackRect();
-    const D2D1_RECT_F fill        = GetFillRect();
-    const D2D1_RECT_F thumb       = GetThumbRect();
-    const D2D1_COLOR_F trackColor = BlendColor(theme.border, theme.windowBackground, theme.dark ? 0.40f : 0.55f);
-    const float trackRadius       = kSliderTrackThicknessDip * 0.5f;
+    const auto& theme          = host.GetTheme();
+    const bool enabled         = IsEnabled();
+    const D2D1_RECT_F bounds   = GetBounds();
+    const D2D1_RECT_F track    = GetTrackRect();
+    const D2D1_RECT_F fill     = GetFillRect();
+    const D2D1_RECT_F thumb    = GetThumbRect();
+    const D2D1_POINT_2F center = GetThumbCenter();
+    const D2D1_COLOR_F trackColor =
+        theme.highContrast ? theme.borderDefault : D2D1::ColorF(theme.text.r, theme.text.g, theme.text.b, theme.dark ? 0.22f : 0.18f);
+    const D2D1_COLOR_F fillColor = enabled ? theme.accent : BlendColor(theme.disabledText, theme.windowBackground, theme.dark ? 0.45f : 0.35f);
+    D2D1_COLOR_F thumbFill       = fillColor;
+    if (enabled && ! theme.highContrast)
+    {
+        const float hoverMix = _hoverTransition.progress;
+        const float pressMix = _pressTransition.progress;
+        thumbFill            = BlendColor(theme.accent, theme.accentHover, hoverMix);
+        thumbFill            = BlendColor(thumbFill, theme.accentPressed, pressMix);
+    }
+    const D2D1_COLOR_F thumbRim = theme.highContrast ? theme.borderStrong : BlendColor(theme.windowBackground, thumbFill, theme.dark ? 0.42f : 0.28f);
+    const float trackRadius     = kSliderTrackThicknessDip * 0.5f;
     DrawRoundedRect(host, track, trackColor, trackColor, trackRadius);
     if (fill.right > fill.left && fill.bottom > fill.top)
     {
-        DrawRoundedRect(host, fill, theme.accent, theme.accent, trackRadius);
+        DrawRoundedRect(host, fill, fillColor, fillColor, trackRadius);
     }
 
     if (! _tickMarks.empty())
@@ -4570,15 +4760,56 @@ void Slider::Paint(ControlHost& host) const
         }
     }
 
-    const D2D1_ELLIPSE thumbEllipse = D2D1::Ellipse(D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f),
-                                                    (thumb.right - thumb.left) * 0.5f,
-                                                    (thumb.bottom - thumb.top) * 0.5f);
-    FillEllipseWithColor(host, thumbEllipse, D2D1::ColorF(D2D1::ColorF::White));
-    DrawEllipseWithColor(host, thumbEllipse, theme.accent, 1.5f);
+    const float haloOpacity = ResolveHaloOpacity(theme);
+    if (haloOpacity > 0.001f)
+    {
+        const float haloRadius         = ResolveHaloDiameter(bounds) * 0.5f;
+        const D2D1_ELLIPSE haloEllipse = D2D1::Ellipse(center, haloRadius, haloRadius);
+        const D2D1_COLOR_F haloColor   = D2D1::ColorF(theme.text.r, theme.text.g, theme.text.b, haloOpacity);
+        FillEllipseWithColor(host, haloEllipse, haloColor);
+    }
+
+    const D2D1_ELLIPSE thumbEllipse = D2D1::Ellipse(center, (thumb.right - thumb.left) * 0.5f, (thumb.bottom - thumb.top) * 0.5f);
+    FillEllipseWithColor(host, thumbEllipse, thumbFill);
+    DrawEllipseWithColor(host, thumbEllipse, thumbRim, kSliderThumbStrokeDip);
     if (HasFocus() && host.IsKeyboardFocusVisible())
     {
         PaintFocusRing(host, thumb, (thumb.right - thumb.left) * 0.5f);
     }
+}
+
+bool Slider::Tick(ControlHost& host, uint64_t nowTickMs)
+{
+    if (! IsEnabled() || ! IsVisible())
+    {
+        SnapVisualTransitions();
+        SnapDisplayedValue();
+        return false;
+    }
+    if (host.GetTheme().reducedMotion)
+    {
+        const bool hoverWasActive = _hoverTransition.active;
+        const bool pressWasActive = _pressTransition.active;
+        const bool valueWasActive = _valueAnimationActive;
+        SnapVisualTransitions();
+        SnapDisplayedValue();
+        if (hoverWasActive || pressWasActive || valueWasActive)
+        {
+            Invalidate(host);
+        }
+        return false;
+    }
+
+    const float hoverBefore   = _hoverTransition.progress;
+    const float pressBefore   = _pressTransition.progress;
+    const bool hoverAnimating = AdvanceVisualTransition(_hoverTransition, nowTickMs, EasingCurve::FastDecelerate);
+    const bool pressAnimating = AdvanceVisualTransition(_pressTransition, nowTickMs, EasingCurve::FastDecelerate);
+    const bool valueAnimating = AdvanceValueAnimation(host, nowTickMs);
+    if (_hoverTransition.progress != hoverBefore || _pressTransition.progress != pressBefore)
+    {
+        Invalidate(host);
+    }
+    return hoverAnimating || pressAnimating || valueAnimating;
 }
 
 bool Slider::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
@@ -4589,9 +4820,22 @@ bool Slider::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButto
     }
 
     host.SetFocusControl(this);
-    _dragInitialValue = _value;
-    _dragging         = true;
+    _dragInitialValue          = _value;
+    _dragging                  = true;
+    const D2D1_POINT_2F center = GetThumbCenter();
+    const float grabRadius     = kSliderHaloRestDiameterDip * 0.5f;
+    const float deltaX         = point.x - center.x;
+    const float deltaY         = point.y - center.y;
+    if ((deltaX * deltaX) + (deltaY * deltaY) <= (grabRadius * grabRadius))
+    {
+        _dragThumbPointerOffsetDip = _orientation == SliderOrientation::Vertical ? deltaY : deltaX;
+    }
+    else
+    {
+        _dragThumbPointerOffsetDip = 0.0f;
+    }
     host.CaptureMouse(this);
+    SyncInteractionVisuals(host);
     UpdateValueFromPoint(host, point);
     return true;
 }
@@ -4618,8 +4862,10 @@ bool Slider::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     UpdateValueFromPoint(host, point);
     if (life.expired())
         return true;
-    _dragging = false;
+    _dragging                  = false;
+    _dragThumbPointerOffsetDip = 0.0f;
     host.ReleaseMouseCapture();
+    SyncInteractionVisuals(host);
     Invalidate(host);
     NotifyChange(SliderChangePhase::Commit, false);
     return true;
@@ -4641,35 +4887,35 @@ bool Slider::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
 
     switch (virtualKey)
     {
-        case VK_HOME: SetValueInternal(&host, _minimum, true); return true;
-        case VK_END: SetValueInternal(&host, _maximum, true); return true;
-        case VK_PRIOR: SetValueInternal(&host, _value + _largeStep, true); return true;
-        case VK_NEXT: SetValueInternal(&host, _value - _largeStep, true); return true;
+        case VK_HOME: SetValueInternal(&host, _minimum, true, true); return true;
+        case VK_END: SetValueInternal(&host, _maximum, true, true); return true;
+        case VK_PRIOR: SetValueInternal(&host, _value + _largeStep, true, true); return true;
+        case VK_NEXT: SetValueInternal(&host, _value - _largeStep, true, true); return true;
         case VK_UP:
             if (_orientation == SliderOrientation::Vertical)
             {
-                SetValueInternal(&host, _value + _step, true);
+                SetValueInternal(&host, _value + _step, true, true);
                 return true;
             }
             break;
         case VK_DOWN:
             if (_orientation == SliderOrientation::Vertical)
             {
-                SetValueInternal(&host, _value - _step, true);
+                SetValueInternal(&host, _value - _step, true, true);
                 return true;
             }
             break;
         case VK_LEFT:
             if (_orientation == SliderOrientation::Horizontal)
             {
-                SetValueInternal(&host, _value + (IsRightToLeft() ? _step : -_step), true);
+                SetValueInternal(&host, _value + (IsRightToLeft() ? _step : -_step), true, true);
                 return true;
             }
             break;
         case VK_RIGHT:
             if (_orientation == SliderOrientation::Horizontal)
             {
-                SetValueInternal(&host, _value + (IsRightToLeft() ? -_step : _step), true);
+                SetValueInternal(&host, _value + (IsRightToLeft() ? -_step : _step), true, true);
                 return true;
             }
             break;
@@ -4679,12 +4925,28 @@ bool Slider::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
     return false;
 }
 
+void Slider::OnHoverChanged(ControlHost& host, bool hovered)
+{
+    Control::OnHoverChanged(host, hovered);
+    SyncInteractionVisuals(host);
+}
+
+void Slider::OnEnabledChanged(bool enabled) noexcept
+{
+    Control::OnEnabledChanged(enabled);
+    SnapVisualTransitions();
+    SnapDisplayedValue();
+}
+
 void Slider::OnCaptureLost(ControlHost& host)
 {
     if (_dragging)
     {
-        _dragging = false;
-        _value    = ClampValue(_dragInitialValue);
+        _dragging                  = false;
+        _dragThumbPointerOffsetDip = 0.0f;
+        _value                     = ClampValue(_dragInitialValue);
+        SnapDisplayedValue();
+        SnapVisualTransitions();
         Invalidate(host);
         NotifyChange(SliderChangePhase::Cancel, true);
     }
@@ -4704,6 +4966,21 @@ D2D1_RECT_F Slider::DebugGetThumbRect() const noexcept
 D2D1_RECT_F Slider::DebugGetFillRect() const noexcept
 {
     return GetFillRect();
+}
+
+float Slider::DebugGetHoverAnimationProgress() const noexcept
+{
+    return _hoverTransition.progress;
+}
+
+float Slider::DebugGetPressAnimationProgress() const noexcept
+{
+    return _pressTransition.progress;
+}
+
+double Slider::DebugGetDisplayedValue() const noexcept
+{
+    return _displayedValue;
 }
 #endif
 

@@ -361,6 +361,99 @@ void TestButtonReducedMotionSnapsInteractionAnimation()
     Require(! button.Tick(host, 80u), "reduced-motion button focus does not request animation ticks");
 }
 
+void TestSliderHoverAndPressAnimationRequestsTicksUntilSettled()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+
+    EnableMotionForTest(host);
+    auto root    = std::make_unique<Panel>();
+    auto* slider = root->AddChild<Slider>();
+    slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 48.0f));
+    host.SetRoot(std::move(root));
+
+    const uint64_t hoverStartTickMs = ::GetTickCount64();
+    slider->OnHoverChanged(host, true);
+    RequireFloatNear(slider->DebugGetHoverAnimationProgress(), 0.0f, 0.0001f, "slider hover animation starts from the idle progress");
+    Require(slider->Tick(host, hoverStartTickMs + 70u), "slider hover animation advances on the first tick");
+    Require(slider->DebugGetHoverAnimationProgress() > 0.0f && slider->DebugGetHoverAnimationProgress() < 1.0f,
+            "slider hover animation reaches an in-flight progress value");
+    const D2D1_RECT_F midThumb = slider->DebugGetThumbRect();
+    Require(midThumb.right - midThumb.left > 14.0f, "slider inner thumb grows while the hover animation is in flight");
+    Require(slider->Tick(host, hoverStartTickMs + 200u), "slider hover animation requests one final repaint when the transition settles");
+    RequireFloatNear(slider->DebugGetHoverAnimationProgress(), 1.0f, 0.0001f, "slider hover animation settles at fully hovered progress");
+    Require(! slider->Tick(host, hoverStartTickMs + 260u), "settled slider hover animation stops requesting ticks");
+
+    const uint64_t pressStartTickMs = ::GetTickCount64();
+    Require(slider->OnMouseDown(host, D2D1::Point2F(110.0f, 24.0f), false, 0), "slider press starts a pointer gesture");
+    Require(slider->Tick(host, pressStartTickMs + 70u), "slider press animation advances on the first tick");
+    Require(slider->DebugGetPressAnimationProgress() > 0.0f && slider->DebugGetPressAnimationProgress() < 1.0f,
+            "slider press animation reaches an in-flight progress value");
+    Require(slider->OnMouseUp(host, D2D1::Point2F(110.0f, 24.0f), false, 0), "slider press ends the pointer gesture");
+}
+
+void TestSliderReducedMotionSnapsInteractionAndValueAnimation()
+{
+    using namespace DxUi;
+
+    ThemePalette theme  = MakeAnimatedTestThemePalette(true);
+    theme.reducedMotion = true;
+
+    WindowHost host;
+
+    EnableMotionForTest(host);
+    host.SetTheme(theme);
+
+    auto root    = std::make_unique<Panel>();
+    auto* slider = root->AddChild<Slider>();
+    slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 48.0f));
+    slider->SetMinimum(0.0);
+    slider->SetMaximum(10.0);
+    slider->SetValue(4.0);
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(slider);
+
+    slider->OnHoverChanged(host, true);
+    RequireFloatNear(slider->DebugGetHoverAnimationProgress(), 1.0f, 0.0001f, "reduced-motion slider hover snaps directly to the target progress");
+    Require(! slider->Tick(host, 0u), "reduced-motion slider hover does not request animation ticks");
+
+    Require(slider->OnKeyDown(host, VK_RIGHT, 0), "reduced-motion slider still accepts keyboard steps");
+    RequireFloatNear(static_cast<float>(slider->GetValue()), 5.0f, 0.0001f, "reduced-motion slider keyboard steps update the model immediately");
+    RequireFloatNear(static_cast<float>(slider->DebugGetDisplayedValue()), 5.0f, 0.0001f, "reduced-motion slider keyboard steps snap the painted thumb");
+    Require(! slider->Tick(host, 80u), "reduced-motion slider keyboard steps do not request animation ticks");
+}
+
+void TestSliderKeyboardStepsAnimateDisplayedThumb()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+
+    EnableMotionForTest(host);
+    auto root    = std::make_unique<Panel>();
+    auto* slider = root->AddChild<Slider>();
+    slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 48.0f));
+    slider->SetMinimum(0.0);
+    slider->SetMaximum(10.0);
+    slider->SetValue(2.0);
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(slider);
+
+    const uint64_t stepStartTickMs = ::GetTickCount64();
+    Require(slider->OnKeyDown(host, VK_RIGHT, 0), "slider keyboard step starts a committed value change");
+    RequireFloatNear(static_cast<float>(slider->GetValue()), 3.0f, 0.0001f, "slider keyboard step updates the model immediately");
+    RequireFloatNear(static_cast<float>(slider->DebugGetDisplayedValue()),
+                     2.0f,
+                     0.0001f,
+                     "slider keyboard step keeps the painted thumb at the previous value until the first tick");
+    Require(slider->Tick(host, stepStartTickMs + 70u), "slider value animation advances on the first tick");
+    Require(slider->DebugGetDisplayedValue() > 2.0 && slider->DebugGetDisplayedValue() < 3.0, "slider value animation exposes an in-flight painted value");
+    Require(slider->Tick(host, stepStartTickMs + 200u), "slider value animation requests one final repaint when it settles");
+    RequireFloatNear(static_cast<float>(slider->DebugGetDisplayedValue()), 3.0f, 0.0001f, "slider value animation settles on the committed value");
+    Require(! slider->Tick(host, stepStartTickMs + 260u), "settled slider value animation stops requesting ticks");
+}
+
 void TestTextFieldTickTracksFocusedCaretAnimation()
 {
     using namespace DxUi;
@@ -1197,6 +1290,9 @@ void RunAnimationTests()
     TestFrameRuntimeReducedMotionPolicy();
     TestButtonHoverAnimationRequestsTicksUntilSettled();
     TestButtonReducedMotionSnapsInteractionAnimation();
+    TestSliderHoverAndPressAnimationRequestsTicksUntilSettled();
+    TestSliderReducedMotionSnapsInteractionAndValueAnimation();
+    TestSliderKeyboardStepsAnimateDisplayedThumb();
     TestTextFieldTickTracksFocusedCaretAnimation();
     TestEditableComboBoxTickTracksFocusedCaretAnimation();
     TestPanelOverlayPaintsComboPopupAfterLaterSiblingContent();

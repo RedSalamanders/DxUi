@@ -962,9 +962,9 @@ void TestSliderTouchFriendlyGeometry()
     slider.SetValue(50.0);
     const D2D1_RECT_F track = slider.DebugGetTrackRect();
     const D2D1_RECT_F thumb = slider.DebugGetThumbRect();
-    RequireFloatNear(track.bottom - track.top, 12.0f, 0.01f, "slider track is 12 DIP thick for touch");
-    RequireFloatNear(thumb.right - thumb.left, 48.0f, 0.01f, "slider thumb is 48 DIP at rest");
-    Require(track.left >= 23.5f && (220.0f - track.right) >= 23.5f, "slider track insets leave room for the thumb");
+    RequireFloatNear(track.bottom - track.top, 4.0f, 0.01f, "slider track is 4 DIP thick");
+    RequireFloatNear(thumb.right - thumb.left, 14.0f, 0.01f, "slider thumb is 14 DIP at rest");
+    Require(track.left >= 11.5f && (220.0f - track.right) >= 11.5f, "slider track insets leave room for the thumb");
 }
 
 void TestSliderKeyboardAndPointerInputUpdatesValue()
@@ -1042,6 +1042,18 @@ void TestSliderPaintHandlesMissingDeviceContext()
 
     slider->Paint(host);
     Require(true, "slider paint path tolerates a missing device context");
+}
+
+void TestSliderSetValueSnapsDisplayedPosition()
+{
+    using namespace DxUi;
+
+    Slider slider;
+    slider.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 48.0f));
+    slider.SetValue(40.0);
+    RequireFloatNear(static_cast<float>(slider.DebugGetDisplayedValue()), 40.0f, 0.0001f, "SetValue snaps the painted thumb to the model value");
+    slider.SetValue(80.0);
+    RequireFloatNear(static_cast<float>(slider.DebugGetDisplayedValue()), 80.0f, 0.0001f, "a later SetValue keeps the painted thumb in lockstep");
 }
 
 // ---------------------------------------------------------------------------
@@ -1917,6 +1929,7 @@ void RunNewControlTests()
     TestSliderKeyboardAndPointerInputUpdatesValue();
     TestSliderVerticalAndRightToLeftGeometryMirrors();
     TestSliderPaintHandlesMissingDeviceContext();
+    TestSliderSetValueSnapsDisplayedPosition();
 
     // Toolbar
     TestToolbarAddButtonCreatesChildren();
