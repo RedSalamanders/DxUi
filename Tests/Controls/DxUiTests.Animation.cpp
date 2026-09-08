@@ -374,7 +374,10 @@ void TestSliderHoverAndPressAnimationRequestsTicksUntilSettled()
     host.SetRoot(std::move(root));
 
     const float restThumbWidth = slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left;
-    RequireFloatNear(restThumbWidth, 14.0f, 0.01f, "slider thumb is 14 DIP at rest");
+    const float restHaloWidth  = slider->DebugGetHaloRect().right - slider->DebugGetHaloRect().left;
+    RequireFloatNear(restThumbWidth, 14.0f, 0.01f, "slider inner thumb is 14 DIP at rest");
+    RequireFloatNear(restHaloWidth, 20.0f, 0.01f, "slider painted halo is 20 DIP at rest");
+    RequireFloatNear(slider->GetHitBounds().bottom - slider->GetHitBounds().top, 48.0f, 0.01f, "slider hit band stays 48 DIP at rest");
 
     const uint64_t hoverStartTickMs = ::GetTickCount64();
     slider->OnHoverChanged(host, true);
@@ -382,20 +385,28 @@ void TestSliderHoverAndPressAnimationRequestsTicksUntilSettled()
     Require(slider->Tick(host, hoverStartTickMs + 40u), "slider hover animation advances on the first tick");
     Require(slider->DebugGetHoverAnimationProgress() > 0.0f && slider->DebugGetHoverAnimationProgress() < 1.0f,
             "slider hover animation reaches an in-flight progress value");
-    Require(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left > restThumbWidth, "slider thumb grows while the hover animation is in flight");
+    Require(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left > restThumbWidth,
+            "slider inner thumb grows while the hover animation is in flight");
+    Require(slider->DebugGetHaloRect().right - slider->DebugGetHaloRect().left > restHaloWidth,
+            "slider painted halo grows while the hover animation is in flight");
     Require(slider->Tick(host, hoverStartTickMs + 140u), "slider hover animation requests one final repaint when the transition settles");
     RequireFloatNear(slider->DebugGetHoverAnimationProgress(), 1.0f, 0.0001f, "slider hover animation settles at fully hovered progress");
-    RequireFloatNear(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left, 16.0f, 0.01f, "slider thumb settles at 16 DIP when hovered");
+    RequireFloatNear(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left, 16.0f, 0.01f, "slider inner thumb settles at 16 DIP when hovered");
+    RequireFloatNear(slider->DebugGetHaloRect().right - slider->DebugGetHaloRect().left, 28.0f, 0.01f, "slider painted halo settles at 28 DIP when hovered");
+    RequireFloatNear(slider->GetHitBounds().bottom - slider->GetHitBounds().top, 48.0f, 0.01f, "slider hit band does not grow with the painted halo");
     Require(! slider->Tick(host, hoverStartTickMs + 200u), "settled slider hover animation stops requesting ticks");
 
     const float hoverThumbWidth     = slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left;
+    const float hoverHaloWidth      = slider->DebugGetHaloRect().right - slider->DebugGetHaloRect().left;
     const uint64_t pressStartTickMs = ::GetTickCount64();
     Require(slider->OnMouseDown(host, D2D1::Point2F(110.0f, 24.0f), false, 0), "slider press starts a pointer gesture");
     Require(slider->Tick(host, pressStartTickMs + 40u), "slider press animation advances on the first tick");
     Require(slider->DebugGetPressAnimationProgress() > 0.0f && slider->DebugGetPressAnimationProgress() < 1.0f,
             "slider press animation reaches an in-flight progress value");
-    Require(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left > hoverThumbWidth,
-            "slider thumb grows further while the press animation is in flight");
+    Require(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left < hoverThumbWidth,
+            "slider inner thumb shrinks while the press animation is in flight");
+    Require(slider->DebugGetHaloRect().right - slider->DebugGetHaloRect().left > hoverHaloWidth,
+            "slider painted halo grows while the press animation is in flight");
     Require(slider->OnMouseUp(host, D2D1::Point2F(110.0f, 24.0f), false, 0), "slider press ends the pointer gesture");
 }
 
