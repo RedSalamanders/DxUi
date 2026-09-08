@@ -48,8 +48,8 @@ ComboBox/PopupLayer overlays or host-owned menu services.
 
 Slider::SetOnChange reports Preview while dragging and exactly one Commit on accepted release, including an
 unchanged final value. Capture loss, Escape, hiding or detach reports Cancel and restores the initial value. Keyboard
-steps report Commit. Hover and press ease painted chrome only: a 6 DIP track, inner thumb 14→16 DIP hover and 16→12 DIP
-pressed, halo 20→28→36 DIP. The 48 DIP hit band and 24 DIP grab radius do not change with hover or press. Keyboard steps and
+steps report Commit. Hover and press ease painted chrome only: a 6 DIP track, inner thumb 6→16 DIP hover and 16→12 DIP
+pressed, inside a fixed 20 DIP gray chrome disc. The 48 DIP hit band and 24 DIP grab radius do not change with hover or press. Keyboard steps and
 RequestValue ease the painted thumb to the committed value, then stop requesting ticks. Pointer drags and SetValue snap
 the painted position so live acknowledgement cannot lag. Reduced motion snaps every visual and requests no slider ticks.
 SetValue updates from
