@@ -19,7 +19,8 @@
 - [x] Menu sent-message fixtures share capture/DPI/cursor setup and retain hover/invoke assertions; all six native CI configurations pass at 52da33d (34363702073). Local desktop skips remain explicitly recorded.
 - [ ] Required standalone regression/build matrix, consumer fixture, specs and paired performance qualified.
 - [x] Reproduce native module collision with one EXE and two DLLs: the EXE passes twice; both DLLs receive zero animation ticks and use foreign dispatcher/popup classes, failing all four probes. Command invocation alone passes and misses the defect. Witness: `.build/logs/I19-native-modules-witness.log` against unchanged production code at c086131.
-- [ ] Qualify module-owned menu and animation window registration, including repeated creation on separate UI threads. The fixture uses only an integer C ABI and joins its UI thread before DLL unload. Module routing is nonvisual; hosting docs are updated and gallery pixels do not change.
+- [x] Module-owned menu and animation window registration qualifies at ecad707 in all six native CI profiles (34371134464). Every external fixture passes all twelve EXE/two-DLL probes on repeated UI threads; both ASAN annotation policies pass. Local x64 Debug/Release/ASan Debug full suites also pass. The fixture joins its UI thread before DLL unload; it does not qualify unloading live UI. Hosting docs are updated; this nonvisual fix does not change gallery pixels.
+- [ ] Paired resource acceptance remains open. All fourteen quiet repeats and 32 CPU-subset repeats are retained under Measurements/SharedLibrary/2026-09-09. Repeated-baseline comparisons still exceed bands; the earlier Debug composition signal does not repeat at its former magnitude. No thresholds or baseline were changed.
 
 ### G4 clipboard slice
 
