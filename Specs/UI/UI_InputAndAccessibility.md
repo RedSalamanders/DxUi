@@ -196,3 +196,11 @@ A Grid row returned by Selection.GetSelection must provide working SelectionItem
 SelectionContainer getters even when it is offscreen or beyond the bounded row-materialization cache.
 These queries use immutable selection IDs and must not materialize every selected row. Removing the
 model/row invalidates retained providers; stale selection containers cannot survive that removal.
+
+Native consumers that know an attached HWND can acquire its canonical root with
+`DxUi::CreateWindowHostAccessibilityProvider(hwnd)` from `<DxUi/DxUi.h>`. Adopt the returned owned COM
+reference with `wil::com_ptr::attach`; null means the window or attachment is unavailable. Call only for a
+window in the same process. A foreign-thread call synchronously dispatches to the owner, which must pump
+messages. Repeated acquisitions share identity during one attachment. Detach invalidates access to the retired
+tree; reattachment creates a distinct identity. Keep the owning module loaded while any provider is retained.
+This API requires neither private implementation headers nor a consumer diagnostics build define.

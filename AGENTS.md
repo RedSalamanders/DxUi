@@ -3,7 +3,7 @@
 DxUi is an independent Windows C++ library. Its first application consumer is RedXe; RedSalamander migration is later.
 This file is the repository-wide instruction source. Start with [Specs/README.md](Specs/README.md) and the owning
 domain contract before changing behavior. Read [README.md](README.md) for actual supported capabilities.
-The repository is private and its default branch is `main`. Use focused feature branches for later changes.
+The repository is public and its default branch is `main`. Use focused feature branches for later changes.
 
 ## Boundaries
 

@@ -2,17 +2,17 @@
 
 ## Progress checklist
 
-- [ ] G8: every standalone project and consumer fixture supports Debug/Release/ASan Debug on x64/ARM64.
-- [ ] G8: ASAN detects an isolated known defect; native ARM64 runtime qualification recorded.
+- [x] G8: every standalone project and consumer fixture supports Debug/Release/ASan Debug on x64/ARM64.
+- [x] G8: ASAN detects an isolated known defect; native ARM64 runtime qualification recorded.
 - [x] G1 implementation and x64 Debug Tooltip/Embedded regressions pass; native deadlines use the current dispatcher clock.
-- [ ] G2: required neutral helpers are public; consumer adapters use no private implementation headers.
+- [ ] G2: neutral helpers and native HWND provider acquisition are public; final external consumer and product qualification pending.
 - [x] G3 native localization implementation and x64 Debug ComboBox/Tree render/geometry tests pass.
 - [x] G7 implementation and x64 Debug Accessibility regressions pass; offscreen selected rows retain usable selection providers.
 - [x] All 18 x64 Debug suites pass (nine Menu desktop capability skips retained); archive-backed public native-menu helper rerun passes.
 - [x] Shared advisory helper and ten deterministic decision/immutable-pin tests pass; consumer wiring remains in I19 C3/C6.
 - [x] Native CI follow-up: retained menu assertions with aligned physical cursor, cleared expected-negative consumer exit status, and staged the ARM64 sanitizer runtime.
 - [x] Native x64/ARM64 Debug and Release suites, consumer fixtures and gallery pass at 8c548fe; all native ASAN suites and both annotation-policy consumer fixtures pass.
-- [ ] Resolve the ASAN gallery queue-settling delay and complete both CI jobs.
+- [x] Resolve the ASAN gallery queue-settling delay; all six native CI jobs pass at ebc3796 (run 34351569531).
 - [ ] Required standalone regression/build matrix, consumer fixture, specs and paired performance qualified.
 
 ### G4 clipboard slice
@@ -120,3 +120,12 @@ budget before the existing explicit redraw and capture. Production scheduling, p
 are unchanged; gallery generation itself is the reproducing validation. Local x64 ASAN generation now passes all five sheets plus the embedded example. Public docs/gallery
 pixels need no publication for this fixture-only timing bound; control styling/layout is unchanged.
 Required skills/specs/dependencies/format checks pass; fresh native CI remains the final matrix gate.
+
+Native qualification: all six jobs at ebc3796 pass, including both ASAN galleries.
+Receipt and all paired local resource results: `Measurements/SharedLibrary/2026-09-09/`.
+Paired resource acceptance remains open; noisy comparisons are retained, not waived.
+
+G2 follow-up: promote the existing native provider acquisition declaration to the public header. The existing
+accessibility suite now exercises it directly, including null/detached HWND rejection and canonical identity
+after reattachment. The relocated consumer compiles the same public entrypoint without diagnostic defines.
+Docs updated; provider implementation and all gallery pixels are unchanged.

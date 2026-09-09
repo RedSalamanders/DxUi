@@ -4150,5 +4150,12 @@ struct TransientSurfaceOptions final
                                                    std::wstring_view componentName) noexcept;
 void PaintTransientSurface(ControlHost& host, const D2D1_RECT_F& surfaceRect, const TransientSurfaceOptions& options = {}) noexcept;
 
+// Acquires the canonical native root for an attached HWND in this process. The returned COM reference
+// belongs to the caller (adopt with wil::com_ptr::attach). Returns null for an invalid/unattached HWND.
+// Foreign-thread calls synchronously marshal to the window owner, which must be pumping messages.
+// Surviving references remain callable after detach without accessing the retired control tree; keep
+// the module containing DxUi mapped for their lifetime. No DxUi C++ object crosses a plugin ABI.
+[[nodiscard]] IRawElementProviderFragmentRoot* CreateWindowHostAccessibilityProvider(HWND hwnd) noexcept;
+
 [[nodiscard]] bool RaiseWindowHostAccessibilityNotification(HWND hwnd, std::wstring_view notification, std::wstring_view activityId) noexcept;
 } // namespace DxUi

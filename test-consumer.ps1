@@ -63,10 +63,12 @@ $project=@"
 </Project>
 "@
 # Compile every supported helper header as the first and only include in its own translation unit.
-$headerUnits = foreach ($header in @('Typography','FocusRestore','PointerInput','AccessibilityTextUnits','NativeMenuInterop')) {
+$headerUnits = foreach ($header in @('DxUi','Typography','FocusRestore','PointerInput','AccessibilityTextUnits','NativeMenuInterop')) {
     "#include <DxUi/$header.h>" | Set-Content -LiteralPath (Join-Path $consumer "$header.cpp") -Encoding utf8
     '<ClCompile Include="' + $header + '.cpp" />'
 }
+# Compile the public native entrypoint without consumer diagnostic defines or private headers.
+Add-Content -LiteralPath (Join-Path $consumer 'DxUi.cpp') -Encoding utf8 -Value 'IRawElementProviderFragmentRoot* AcquirePublicNativeProvider(HWND hwnd) noexcept { return DxUi::CreateWindowHostAccessibilityProvider(hwnd); }'
 $project = $project.Replace('<ClCompile Include="Samples/EmbeddedControls/Main.cpp" />', '<ClCompile Include="Samples/EmbeddedControls/Main.cpp" />' + ($headerUnits -join ''))
 $projectPath=Join-Path $consumer 'ExternalConsumer.vcxproj'
 $project | Set-Content -LiteralPath $projectPath -Encoding utf8

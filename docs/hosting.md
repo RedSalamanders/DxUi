@@ -144,3 +144,11 @@ Native consumers may include `DxUi/NativeMenuInterop.h` to adapt borrowed HMENU 
 `DxUi/FocusRestore.h` for owned-window focus transitions, and `DxUi/PointerInput.h` for pointer
 message decoding. `DxUi/Typography.h` and `DxUi/AccessibilityTextUnits.h` expose the shared font
 and Unicode-unit policies. Keep application resources and command policy in your adapter.
+
+Native consumers that know an attached HWND can acquire its canonical root with
+`DxUi::CreateWindowHostAccessibilityProvider(hwnd)` from `<DxUi/DxUi.h>`. Adopt the returned owned COM
+reference with `wil::com_ptr::attach`; null means the window or attachment is unavailable. Call only for a
+window in the same process. A foreign-thread call synchronously dispatches to the owner, which must pump
+messages. Repeated acquisitions share identity during one attachment. Detach invalidates access to the retired
+tree; reattachment creates a distinct identity. Keep the owning module loaded while any provider is retained.
+This API requires neither private implementation headers nor a consumer diagnostics build define.
