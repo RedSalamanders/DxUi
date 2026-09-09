@@ -265,13 +265,13 @@ LRESULT CALLBACK PostedPayloadDrainStressWndProc(HWND hwnd, UINT message, WPARAM
             const auto* create = reinterpret_cast<const CREATESTRUCTW*>(lParam);
             state              = static_cast<PostedPayloadDrainStressWindowState*>(create ? create->lpCreateParams : nullptr);
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
-            InitPostedPayloadWindow(hwnd);
+            DxUi::InitPostedPayloadWindow(hwnd);
             return TRUE;
         }
 
         case (WM_APP + 0x70u):
         {
-            auto payload = TakeMessagePayload<PostedPayloadDrainStressPayload>(lParam);
+            auto payload = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(lParam);
             if (state && payload)
             {
                 state->deliveredCount.fetch_add(1u, std::memory_order_acq_rel);
@@ -288,7 +288,7 @@ LRESULT CALLBACK PostedPayloadDrainStressWndProc(HWND hwnd, UINT message, WPARAM
                                                       std::memory_order_release);
             }
             const auto drainStarted = std::chrono::steady_clock::now();
-            const size_t drained    = DrainPostedPayloadsForWindow(hwnd);
+            const size_t drained    = DxUi::DrainPostedPayloadsForWindow(hwnd);
             const auto drainDurationUs =
                 static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - drainStarted).count());
             if (state)
@@ -303,7 +303,7 @@ LRESULT CALLBACK PostedPayloadDrainStressWndProc(HWND hwnd, UINT message, WPARAM
                 while (PeekMessageW(&queuedMessage, hwnd, (WM_APP + 0x70u), (WM_APP + 0x70u), PM_REMOVE) != 0)
                 {
                     ++staleTokenCount;
-                    if (! TakeMessagePayload<PostedPayloadDrainStressPayload>(queuedMessage.lParam))
+                    if (! DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(queuedMessage.lParam))
                     {
                         ++staleTokenRejectionCount;
                     }
@@ -848,11 +848,12 @@ void TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads()
     {
         auto payload            = std::make_unique<PostedPayloadDrainStressPayload>();
         payload->destroyedCount = &destroyedCount;
-        Require(PostMessagePayload(hwnd.get(), kPayloadMessage, 0, std::move(payload)), "PostMessagePayload accepts payloads while the target window is alive");
+        Require(DxUi::PostMessagePayload(hwnd.get(), kPayloadMessage, 0, std::move(payload)),
+                "PostMessagePayload accepts payloads while the target window is alive");
     }
     const auto postDurationUs =
         static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - postStarted).count());
-    Debug::Perf::Emit(L"dxui.posted_payload.post_batch_us", L"128 queued payloads", postDurationUs, kPayloadCount, kPayloadCount, S_OK);
+    DxUi::Debug::Perf::Emit(L"dxui.posted_payload.post_batch_us", L"128 queued payloads", postDurationUs, kPayloadCount, kPayloadCount, S_OK);
 
     MSG capturedStaleMessage{};
     Require(PeekMessageW(&capturedStaleMessage, nullptr, kPayloadMessage, kPayloadMessage, PM_NOREMOVE) != 0,
@@ -860,12 +861,12 @@ void TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads()
     const HWND retiredHwnd = hwnd.get();
 
     hwnd.reset();
-    Debug::Perf::Emit(L"dxui.posted_payload.teardown_drain_us",
-                      L"128 queued payloads",
-                      state.drainDurationUs.load(std::memory_order_acquire),
-                      kPayloadCount,
-                      kPayloadCount,
-                      S_OK);
+    DxUi::Debug::Perf::Emit(L"dxui.posted_payload.teardown_drain_us",
+                            L"128 queued payloads",
+                            state.drainDurationUs.load(std::memory_order_acquire),
+                            kPayloadCount,
+                            kPayloadCount,
+                            S_OK);
 
     Require(state.deliveredCount.load(std::memory_order_acquire) == 0u, "stress test destroys the window before delivery");
     Require(state.drainedCount.load(std::memory_order_acquire) == kPayloadCount, "WM_NCDESTROY drains all queued payloads");
@@ -879,16 +880,16 @@ void TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads()
     Require(state.staleTokenRejectionCount.load(std::memory_order_acquire) == kPayloadCount,
             "every stale queued token is rejected after teardown invalidates the registry entries");
 
-    InitPostedPayloadWindow(retiredHwnd);
+    DxUi::InitPostedPayloadWindow(retiredHwnd);
     Require(destroyedCount.load(std::memory_order_acquire) == kPayloadCount, "pumping stale tokens after teardown cannot delete payload storage a second time");
 
-    auto stalePayload = TakeMessagePayload<PostedPayloadDrainStressPayload>(capturedStaleMessage.lParam);
+    auto stalePayload = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(capturedStaleMessage.lParam);
     Require(! stalePayload, "a stale queued lParam is rejected after its registered payload was drained");
 
-    auto staleAfterSimulatedHwndReuse = TakeMessagePayload<PostedPayloadDrainStressPayload>(capturedStaleMessage.lParam);
+    auto staleAfterSimulatedHwndReuse = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(capturedStaleMessage.lParam);
     Require(! staleAfterSimulatedHwndReuse, "clearing the retired-HWND fence never makes a stale lParam ownable again");
 
-    auto unregisteredPayload = TakeMessagePayload<PostedPayloadDrainStressPayload>(static_cast<LPARAM>(0x1234u));
+    auto unregisteredPayload = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(static_cast<LPARAM>(0x1234u));
     Require(! unregisteredPayload, "TakeMessagePayload never adopts an unregistered lParam");
 }
 

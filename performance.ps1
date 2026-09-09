@@ -1,7 +1,7 @@
 <# .SYNOPSIS Measure completed complex-UI WARP frames and resources, optionally comparing a matched baseline. #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Debug','Release')][string] $Configuration = 'Release',
+    [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Release',
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
     [string] $OutputPath = '',
     [string] $Baseline = '',

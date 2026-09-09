@@ -29,7 +29,7 @@ The repository is private and its default branch is `main`. Use focused feature 
 ## Engineering
 
 - Use Unicode, `stdcpplatest`, `/W4`, `/permissive-`, SDL and warnings as errors. Discover Visual Studio; do not
-  hard-code a developer installation. Keep x64/ARM64 Debug/Release buildable.
+  hard-code a developer installation. Keep x64/ARM64 Debug/Release/ASan Debug buildable.
 - Use WIL for owned COM/Windows resources when those targets are extracted. Borrow synchronously and retain only
   with explicit ownership. No manual Release/Destroy of an owned resource. No exceptions through Windows/COM or
   callback boundaries; catch named exceptions only when needed, with a documented fallback.
@@ -48,7 +48,7 @@ support and remaining gates are explicit. When implementation/tests pass, update
 the completed plan to Done. Do not leave a completed plan under WIP or close a deferred consumer migration early.
 
 Run `validate-skills.ps1`, `validate-specs.ps1`, `validate-dependencies.ps1` and `format.ps1 -Check` for relevant changes.
-Code changes require `test.ps1` in x64 Debug and Release and builds in ARM64 Debug and Release. ARM64 runtime support
+Code changes require `test.ps1` in x64 Debug, Release and ASan Debug and builds in all three ARM64 configurations. ARM64 runtime support
 requires native execution. Renderer changes additionally need WARP, device-loss and recorded clean/dirty/hidden
 resource evidence; bootstrap foundation tests cannot satisfy those future gates.
 

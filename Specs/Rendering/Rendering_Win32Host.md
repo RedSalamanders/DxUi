@@ -24,3 +24,7 @@ The native menu modal loop processes pointer/keyboard input and pending paints f
 ordinary posted owner-window traffic. Input feedback cannot depend on the entire owner queue becoming empty.
 An idle menu still blocks on messages; this policy adds no timer, polling or synchronous repaint during dispatch.
 The existing owner-message-flood test retains its hover/invocation deadline and verifies visible feedback.
+
+Native tooltip show/hide deadlines use the current UI-thread dispatcher clock, not the last tick of an idle
+individual host. A resumed host must not show or hide a newly scheduled tooltip immediately because its
+previous tick is stale. Embedded tooltip scheduling retains the application-provided animation epoch.

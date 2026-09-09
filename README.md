@@ -47,7 +47,7 @@ No DxUi DLL or copied/enumerated library sources are required.
 
 Foundation, inherited control suites and supplied-device WARP tests all link the same library. The
 [test-port inventory](Specs/Done/SourceImport/test-port.json) records every inherited case and exclusions. Native x64/ARM64
-Debug/Release CI produces per-suite receipts; cross-compilation is not reported as native execution. Eight original
+Debug/Release/ASan Debug CI produces per-suite receipts; cross-compilation is not reported as native execution. Eight original
 visual baselines remain unchanged. Runtime logs and measurements stay in `.build`; `gallery.ps1 -PublishDocs`
 publishes reviewed gallery images to `docs/gallery`.
 

@@ -9,7 +9,6 @@ namespace DxUi
 {
 namespace
 {
-constexpr UINT kDxUiNoDataStringId              = 1305u;
 constexpr float kTreeBadgeMinWidthDip           = 28.0f;
 constexpr float kTreeBadgeMinHeightDip          = 16.0f;
 constexpr float kTreeBadgeMaxHeightDip          = 18.0f;
@@ -232,6 +231,19 @@ void Tree::InvalidateTreeTextMeasurementCaches() const noexcept
     _tooltipOverflowCache.resolvedTooltipText.clear();
 }
 
+void Tree::SetEmptyStateText(std::wstring text)
+{
+    if (_emptyStateText == text)
+        return;
+    _emptyStateText = std::move(text);
+    RequestInvalidate();
+}
+
+std::wstring_view Tree::GetEmptyStateText() const noexcept
+{
+    return _emptyStateText.empty() ? std::wstring_view(L"No data") : std::wstring_view(_emptyStateText);
+}
+
 void Tree::SetModel(IDxTreeModel* model) noexcept
 {
     // Non-owning pointer assignment. Caller responsible for model lifetime.
@@ -449,7 +461,7 @@ void Tree::Paint(ControlHost& host) const
     if (! _model || _model->GetVisibleItemCount() == 0u)
     {
         DrawCenteredText(host,
-                         LoadDxUiString(kDxUiNoDataStringId, L"No data"),
+                         GetEmptyStateText(),
                          contentRect,
                          FontRole::Small,
                          surfaceStyle.emptyText,

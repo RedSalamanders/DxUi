@@ -1,8 +1,11 @@
 #include <DxUi/FrameRuntime.h>
 #include <cstdio>
 #include <limits>
+#include <memory>
 #include <string_view>
 #include <windows.h>
+
+bool TestPublicHelpers();
 
 namespace
 {
@@ -26,9 +29,31 @@ void Record(void* context, std::wstring_view, uint64_t value) noexcept
     ++metrics.calls;
     metrics.last = value;
 }
-} // namespace
-int main()
+#if defined(__SANITIZE_ADDRESS__)
+// Only the isolated --asan-probe child reaches this deliberate defect. Its parent
+// requires the specific sanitizer diagnosis; a crash alone is not a passing probe.
+__declspec(noinline) int ProbeAddressSanitizer()
 {
+    auto allocation         = std::make_unique<char[]>(8);
+    volatile char* borrowed = allocation.get();
+    allocation.reset();
+    return borrowed[0];
+}
+#endif
+} // namespace
+int main(int argc, char** argv)
+{
+    if (argc == 2 && std::string_view(argv[1]) == "--asan-probe")
+    {
+        SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+#if defined(__SANITIZE_ADDRESS__)
+        return ProbeAddressSanitizer();
+#else
+        std::fprintf(stderr, "AddressSanitizer instrumentation is missing.\n");
+        return 2;
+#endif
+    }
+    Check(TestPublicHelpers(), "public consumer helpers compile, link and retain their policies");
     DxUi::FrameClock clock;
     LARGE_INTEGER frequency{};
     Check(QueryPerformanceFrequency(&frequency) != 0, "QPC frequency available");

@@ -2314,8 +2314,8 @@ void TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup()
 
         pendingMenuBarHoverRootSwitch.store(1, std::memory_order_release);
         pendingMenuBarHoverSequence.store(2u, std::memory_order_release);
-        if (PostMessageW(viewPopupHwnd, WndMsg::kDxUiContextMenuRootHoverChanged, 0u, 1u) == 0 ||
-            PostMessageW(viewPopupHwnd, WndMsg::kDxUiContextMenuRootHoverChanged, 1u, 2u) == 0)
+        if (PostMessageW(viewPopupHwnd, DxUi::WndMsg::kDxUiContextMenuRootHoverChanged, 0u, 1u) == 0 ||
+            PostMessageW(viewPopupHwnd, DxUi::WndMsg::kDxUiContextMenuRootHoverChanged, 1u, 2u) == 0)
         {
             driverFailure = "View popup receives the direct synthetic menu-bar hover switch messages";
             return;
@@ -2482,7 +2482,7 @@ void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
 
         pendingMenuBarHoverRootSwitch.store(1, std::memory_order_release);
         pendingMenuBarHoverSequence.store(1u, std::memory_order_release);
-        if (PostMessageW(viewPopupHwnd, WndMsg::kDxUiContextMenuRootHoverChanged, 1u, 1u) == 0)
+        if (PostMessageW(viewPopupHwnd, DxUi::WndMsg::kDxUiContextMenuRootHoverChanged, 1u, 1u) == 0)
         {
             driverFailure = "overlapping popup can receive the synthetic menu-bar hover switch message";
             return;
@@ -4967,7 +4967,7 @@ void TestMenuAcrylicBackdropScenarioEmitsMetrics()
             return;
         }
 
-        openToCaptureUs = Debug::Perf::ElapsedUs(startedAt);
+        openToCaptureUs = DxUi::Debug::Perf::ElapsedUs(startedAt);
         PostMessageW(popupHwnd, WM_KEYDOWN, VK_ESCAPE, 0);
     });
 
@@ -5011,11 +5011,11 @@ void TestMenuAcrylicBackdropScenarioEmitsMetrics()
         rawAdjacentDelta == 0u ? 0u : static_cast<uint64_t>((popupAdjacentDelta * 1000u + (rawAdjacentDelta / 2u)) / rawAdjacentDelta);
     const uint64_t minStrongBlurDelta = rawAdjacentDelta <= 1u ? 48u : 56u;
 
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_adjacent_rgb_delta", popupAdjacentDelta);
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_raw_adjacent_rgb_delta", rawAdjacentDelta);
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_vs_raw_rgb_delta", popupVsRawDelta);
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_vs_slab_rgb_delta", popupVsSlabDelta);
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_to_raw_delta_permille", popupToRawDeltaPermille);
+    DxUi::Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_adjacent_rgb_delta", popupAdjacentDelta);
+    DxUi::Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_raw_adjacent_rgb_delta", rawAdjacentDelta);
+    DxUi::Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_vs_raw_rgb_delta", popupVsRawDelta);
+    DxUi::Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_vs_slab_rgb_delta", popupVsSlabDelta);
+    DxUi::Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_to_raw_delta_permille", popupToRawDeltaPermille);
 
     Require(rawAdjacentDelta > 0u, "acrylic backdrop metric scenario records non-zero raw backdrop variance");
     Require(popupVsRawDelta > 0u, "acrylic backdrop metric scenario materially changes the captured backdrop sample");
@@ -5025,12 +5025,12 @@ void TestMenuAcrylicBackdropScenarioEmitsMetrics()
     Require(popupVsSlabDelta >= 24u,
             "acrylic backdrop metric scenario stays visually tied to the captured raw backdrop instead of collapsing into an opaque tint");
 
-    Debug::Perf::Emit(L"dxui.menu.selftest.acrylic_open_to_capture_us",
-                      L"",
-                      openToCaptureUs,
-                      static_cast<uint64_t>(popupCapture.widthPx),
-                      static_cast<uint64_t>(popupCapture.heightPx),
-                      S_OK);
+    DxUi::Debug::Perf::Emit(L"dxui.menu.selftest.acrylic_open_to_capture_us",
+                            L"",
+                            openToCaptureUs,
+                            static_cast<uint64_t>(popupCapture.widthPx),
+                            static_cast<uint64_t>(popupCapture.heightPx),
+                            S_OK);
 }
 
 void TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen()
@@ -5126,7 +5126,7 @@ void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()
     const auto openStarted = std::chrono::steady_clock::now();
     const bool shown       = ContextMenu::ShowAsync(
         ownerWindow.Hwnd(), menuPoint, items, ownerWindow.Host().GetTheme(), [&](std::optional<int>) noexcept { callbackInvoked = true; }, callbacks);
-    const uint64_t openToFirstPaintUs = Debug::Perf::ElapsedUs(openStarted);
+    const uint64_t openToFirstPaintUs = DxUi::Debug::Perf::ElapsedUs(openStarted);
     Require(shown, "large async context menu opens");
     Require(openToFirstPaintUs < 5'000'000u, "large context menu open-to-first-paint remains bounded");
 
@@ -5152,7 +5152,7 @@ void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()
     { return state.keyboardIndex == std::optional<size_t>{kItemCount - 1u} && state.scrollOffsetDip > 0.0f; },
                                          endState),
             "large context menu resolves the last row through cached offsets");
-    const uint64_t endToVisibleUs = Debug::Perf::ElapsedUs(endStarted);
+    const uint64_t endToVisibleUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
     Require(endToVisibleUs < 1'000'000u, "large context menu End-to-visible latency remains bounded");
     Require(endState.lastPaintedItemCount <= 32u, "large context menu scrolled paint remains limited to viewport rows");
 
@@ -5161,18 +5161,18 @@ void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()
     Require(lastRowRect.bottom > endState.viewportRectDip.top && lastRowRect.top < endState.viewportRectDip.bottom,
             "large context menu keeps the keyboard-selected last row inside the viewport");
 
-    Debug::Perf::Emit(L"dxui.menu.selftest.large_open_to_first_paint_us",
-                      L"4096-items",
-                      openToFirstPaintUs,
-                      static_cast<uint64_t>(kItemCount),
-                      static_cast<uint64_t>(initialState.lastPaintedItemCount),
-                      S_OK);
-    Debug::Perf::Emit(L"dxui.menu.selftest.large_end_to_visible_us",
-                      L"4096-items",
-                      endToVisibleUs,
-                      static_cast<uint64_t>(kItemCount),
-                      static_cast<uint64_t>(endState.lastPaintedItemCount),
-                      S_OK);
+    DxUi::Debug::Perf::Emit(L"dxui.menu.selftest.large_open_to_first_paint_us",
+                            L"4096-items",
+                            openToFirstPaintUs,
+                            static_cast<uint64_t>(kItemCount),
+                            static_cast<uint64_t>(initialState.lastPaintedItemCount),
+                            S_OK);
+    DxUi::Debug::Perf::Emit(L"dxui.menu.selftest.large_end_to_visible_us",
+                            L"4096-items",
+                            endToVisibleUs,
+                            static_cast<uint64_t>(kItemCount),
+                            static_cast<uint64_t>(endState.lastPaintedItemCount),
+                            S_OK);
 
     PostMessageW(popupHwnd, WM_KEYDOWN, VK_ESCAPE, 0);
     const auto closeDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);

@@ -6,12 +6,17 @@ Last reviewed: 2026-09-06
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
 
-The initial matrix is Windows 10/11 for the embedded baseline, x64 and ARM64, Debug and Release, Unicode, the current
+The required matrix is Windows 10/11 for the embedded baseline, x64 and ARM64, Debug/Release/ASan Debug, Unicode, the current
 shared VS 2026/v145/Windows SDK baseline and `stdcpplatest`. Exact SDK, dependency versions and supported capabilities
 are recorded once in machine-owned build/lock files. Windows-11-only backdrop features remain optional WindowHost
 capabilities; they must not introduce unconditional imports that break the RedXe Windows 10 baseline. OS-specific
-text and accessibility paths require actual verification. Preserve existing ASan configurations where supported as
-additional tests, not replacements for the four required builds.
+text and accessibility paths require actual verification. All library, sample, test and generated consumer projects
+map each of the six configurations explicitly. ASan Debug uses compiler AddressSanitizer instrumentation, the debug
+DLL CRT, non-incremental linking and separate configuration outputs. Every standalone translation unit rejects
+missing instrumentation. `test.ps1` requires a specific heap-use-after-free diagnosis from an isolated intentional
+fault before accepting an ASAN run; ordinary crashes or an unsanitized Debug executable fail that probe. MSBuild
+stages the matching sanitizer runtime next to executables. Native ARM64 execution is required for runtime evidence;
+cross-compilation from x64 is supported by [MSVC ARM64 ASAN](https://devblogs.microsoft.com/cppblog/introducing-msvc-addresssanitizer-for-arm64-targets/).
 
 Each consumer adds a machine-readable `Dependencies/DxUi.lock.json` with source repository identity, exact commit,
 required API revision, enabled targets and dependency/toolchain fingerprint. The repository is
@@ -83,8 +88,47 @@ still applies. Token-created commits require an explicit validation run or subse
 Native CI installs Python for performance receipt validation. Each test invocation includes complex-UI FPS/memory,
 and implementation acceptance requires matched before/after evidence under the performance contract.
 
-RedXe still needs its first release pin and preparation/input/text/UIA bridge. RedSalamander's application migration
-remains on hold. Neither application's runtime changes merely because this library builds.
+RedXe already has an exact pin and synthetic preparation/input/text/UIA adapters; real IME/AT acceptance stays
+with its AV owner. RedSalamander adoption is active under its I19 consumer plan. Neither application's runtime
+changes merely because this library builds.
 
 Managed vcpkg clones enable Git long-path support in their own repository configuration so deeply relocated
 consumer fixtures can check out tool sources. No user/global Git configuration is changed.
+
+Public consumer helper headers are `DxUi/Typography.h`, `DxUi/FocusRestore.h`,
+`DxUi/PointerInput.h`, `DxUi/AccessibilityTextUnits.h`, and `DxUi/NativeMenuInterop.h`.
+They preserve neutral font, focus, pointer, Unicode-unit and HMENU bridging policies. Application
+commands, theme conversion, resource loading and window-subclass policy stay in consumer adapters.
+Private compatibility includes inside src only forward to the canonical public headers. Consumers
+must not include src paths. The relocated fixture compiles each helper header independently.
+Native menu host function bodies remain in `src/Controls/NativeMenuInterop.cpp` and link from the archive;
+the public header contains declarations and layout, with no extra wrapper allocation.
+Private diagnostics, secure wiping, posted payloads and window-message names remain in the DxUi
+namespace so static consumers cannot coalesce their own same-named application helper definitions.
+
+`DxUiDisableStlAnnotations=true` is the explicit ASAN compatibility setting for consumers that
+link ordinary prebuilt C++ dependencies (currently RedSalamander). It defines `_DISABLE_STL_ANNOTATION`
+in both application and archive translation units and disables only STL container-overflow annotations;
+heap/stack instrumentation and the required detection probe remain active. The default is false.
+The consumer output fingerprint includes this setting. The relocated ASAN fixture exercises both
+policies; never mix their artifacts or silently substitute ordinary Debug for ASan Debug.
+`Get-DxUiConsumerBuildIdentity` in `Tools/ConsumerBuild.psm1` evaluates the selected MSBuild toolchain
+before compilation. Its fingerprint includes the exact source/API, target platform, compiler host,
+toolset, compiler/linker/MSBuild hashes, SDK version and Windows/header/import-library hashes, debug/release
+DLL-CRT family and STL annotation policy. Configuration remains a separate output directory below it.
+Consumers record the identity beside their restored props and supply the expected toolset/compiler/SDK/host
+properties; mismatches fail before compilation. A different compiler installation or ASAN container policy
+cannot reuse the same writable archive output directory. Pin validation remains a separate clean-source check.
+
+## Advisory updates
+
+Consumers call `Show-DxUiUpdateNotice -LockFile <exact-lock>` from `Tools/ConsumerUpdate.psm1`
+once in their root restore/build invocation. It reads main, verifies ancestry, and recommends only
+the exact main commit whose latest push run of `ci.yml` completed successfully. Same-pin builds are
+quiet; pending/failed/unavailable validation keeps the pin selected; divergent/ahead pins require review.
+The notice includes the comparison URL and lock to update. It is plain build output, never an MSBuild
+warning, automatic edit, PR comment, push, or scheduling service. Private read access uses existing
+GH_TOKEN/GITHUB_TOKEN or a bounded local gh credential lookup. Each of at most three API requests has
+a two-second timeout; credential lookup has a two-second timeout. Lookup failures are explicitly
+unavailable and cannot fail an otherwise valid fixed-pin build. Authentication details are never logged.
+The consumer still validates/restores its exact source pin independently and fails on a real pin error.

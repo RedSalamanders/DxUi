@@ -1,7 +1,7 @@
 <# .SYNOPSIS Builds and runs Foundation, inherited controls, and supplied-device tests with per-suite receipts. #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Debug','Release')][string] $Configuration = 'Debug',
+    [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Debug',
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
     [switch] $SkipBuild,
     [string] $PerformanceBaseline = '',
@@ -9,17 +9,35 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+& (Join-Path $PSScriptRoot 'Tools/tests/Test-ConsumerUpdate.ps1')
 $nativeArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 if (($Platform -eq 'ARM64') -and ($nativeArchitecture -ne 'Arm64')) { throw 'ARM64 runtime tests require an ARM64 host; use build.ps1 for cross-compilation.' }
 if (-not $SkipBuild) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform }
 $reports = Join-Path $PSScriptRoot '.build/reports'
 $logs = Join-Path $PSScriptRoot '.build/logs'
 New-Item -ItemType Directory -Path $reports,$logs -Force | Out-Null
-$performanceReport = Join-Path $reports "Performance-$Platform-$Configuration.json"
+# Each test invocation retains its own raw rounds, including noisy or failing comparisons.
+$performanceReport = Join-Path $reports "Performance-$Platform-$Configuration-$([guid]::NewGuid().ToString('N')).json"
 & (Join-Path $PSScriptRoot 'performance.ps1') -Configuration $Configuration -Platform $Platform -SkipBuild -OutputPath $performanceReport -Baseline $PerformanceBaseline
 $performance = Get-Content -Raw -LiteralPath $performanceReport | ConvertFrom-Json
 $performanceComparison = Get-Content -Raw -LiteralPath ($performanceReport + '.comparison.json') | ConvertFrom-Json
 $failures = @()
+if ($Configuration -eq 'ASan Debug') {
+    $probe = Join-Path $PSScriptRoot ".build/$Platform/$Configuration/DxUi.FoundationTests.exe"
+    $probeLog = Join-Path $logs "test-AddressSanitizer-$Platform.log"
+    $previousOptions = $env:ASAN_OPTIONS
+    try {
+        $env:ASAN_OPTIONS = 'halt_on_error=1:abort_on_error=0:detect_leaks=0'
+        & $probe --asan-probe *> $probeLog
+        $probeExit = $LASTEXITCODE
+    } finally { $env:ASAN_OPTIONS = $previousOptions }
+    $detected = $probeExit -ne 0 -and [bool](Select-String -LiteralPath $probeLog -SimpleMatch 'AddressSanitizer: heap-use-after-free')
+    [ordered]@{suite='AddressSanitizer';configuration=$Configuration;platform=$Platform;nativeArchitecture=$nativeArchitecture;
+        completedUtc=[DateTime]::UtcNow.ToString('o');executable=$probe;sha256=(Get-FileHash -LiteralPath $probe -Algorithm SHA256).Hash;
+        exitCode=$probeExit;detected=$detected;log=$probeLog} | ConvertTo-Json | Set-Content (Join-Path $reports "AddressSanitizer-$Platform.json")
+    if (-not $detected) { throw "AddressSanitizer did not diagnose the deliberate isolated use-after-free. See $probeLog" }
+    Write-Host 'PASS AddressSanitizer detection probe (isolated expected failure)'
+}
 Push-Location $PSScriptRoot
 try {
     foreach ($suite in $Suites) {

@@ -27,7 +27,6 @@ using unique_safearray = std::unique_ptr<SAFEARRAY, safearray_deleter>;
 
 [[nodiscard]] D2D1_COLOR_F CompositeOverBackground(const D2D1_COLOR_F& overlay, const D2D1_COLOR_F& background) noexcept;
 [[nodiscard]] uint32_t PackColor(const D2D1_COLOR_F& color) noexcept;
-[[nodiscard]] std::wstring_view LoadDxUiString(UINT resourceId, std::wstring_view fallback) noexcept;
 [[nodiscard]] D2D1_COLOR_F RainbowTint(std::wstring_view seed, bool dark) noexcept;
 [[nodiscard]] D2D1_COLOR_F RainbowMenuSelectionTint(std::wstring_view seed, bool dark) noexcept;
 [[nodiscard]] D2D1_COLOR_F RainbowFolderViewSelectionTint(uint32_t stableHash32, bool dark) noexcept;
@@ -44,7 +43,7 @@ void DisconnectNativeTextInputTextStore(IUnknown* textStore) noexcept;
 void EmitDxUiRenderMutationBlockedForDebug() noexcept;
 [[nodiscard]] bool CaptureBackdropScreenRegion(const RECT& screenRect, WindowHostBitmapCapture& outCapture, std::wstring_view componentName) noexcept;
 
-inline constexpr float kMenuItemHeightDip                  = 30.0f;
+inline constexpr float kMenuItemHeightDip                  = MenuBar::kDefaultHeightDip;
 inline constexpr float kMenuCompactItemHeightDip           = 24.0f;
 inline constexpr float kMenuHeaderHeightDip                = 24.0f;
 inline constexpr float kMenuCompactHeaderHeightDip         = 20.0f;

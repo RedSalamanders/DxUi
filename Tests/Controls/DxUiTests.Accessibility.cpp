@@ -3328,6 +3328,59 @@ void TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns(
     Require(expandState == ExpandCollapseState_Collapsed, "tree item expand-collapse pattern reports the collapsed state after Collapse");
 }
 
+void TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable()
+{
+    using namespace DxUi;
+    constexpr size_t rowCount = 1000;
+    MultiRowGridModel model(rowCount);
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* label = root->AddChild<Label>(L"Results");
+    label->SetBounds(D2D1::RectF(0, 0, 120, 24));
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0, 28, 320, 140));
+    grid->SetModel(&model);
+    window.Host().SetRoot(std::move(root));
+    Require(grid->OnSelectAll(window.Host()), "select rows beyond the bounded materialization cache");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    Require(rootProvider != nullptr, "offscreen selection fixture creates a provider");
+    auto labelProvider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 40, 12, "resolve label before grid");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> gridProvider;
+    RequireSucceeded(labelProvider->Navigate(NavigateDirection_NextSibling, gridProvider.put()), "resolve grid sibling");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> gridSimple;
+    RequireSucceeded(gridProvider.query_to(gridSimple.put()), "grid exposes the simple provider");
+    wil::com_ptr_nothrow<IUnknown> selectionUnknown;
+    RequireSucceeded(gridSimple->GetPatternProvider(UIA_SelectionPatternId, selectionUnknown.put()), "get Grid selection pattern");
+    wil::com_ptr_nothrow<ISelectionProvider> selectionProvider;
+    RequireSucceeded(selectionUnknown.query_to(selectionProvider.put()), "query Grid selection interface");
+    unique_safearray selected;
+    RequireSucceeded(selectionProvider->GetSelection(std::out_ptr(selected)), "all selected rows have providers");
+    LONG last = -1;
+    RequireSucceeded(SafeArrayGetUBound(selected.get(), 1, &last), "selected array has an upper bound");
+    Require(last == static_cast<LONG>(rowCount - 1), "selection includes rows beyond the materialization budget");
+    wil::com_ptr_nothrow<IUnknown> rowUnknown;
+    RequireSucceeded(SafeArrayGetElement(selected.get(), &last, rowUnknown.put()), "read last selected row provider");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> rowSimple;
+    RequireSucceeded(rowUnknown.query_to(rowSimple.put()), "offscreen row exposes the simple provider");
+    wil::com_ptr_nothrow<IUnknown> patternUnknown;
+    RequireSucceeded(rowSimple->GetPatternProvider(UIA_SelectionItemPatternId, patternUnknown.put()), "offscreen selected row exposes SelectionItem");
+    Require(patternUnknown != nullptr, "offscreen selected row has a usable pattern");
+    wil::com_ptr_nothrow<ISelectionItemProvider> item;
+    RequireSucceeded(patternUnknown.query_to(item.put()), "query selected row pattern");
+    BOOL isSelected = FALSE;
+    RequireSucceeded(item->get_IsSelected(&isSelected), "offscreen selected row selection getter succeeds");
+    Require(isSelected != FALSE, "offscreen selection getter agrees with GetSelection");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
+    RequireSucceeded(item->get_SelectionContainer(container.put()), "offscreen selection container getter succeeds");
+    Require(container != nullptr, "offscreen selected row retains its Grid container");
+    grid->SetModel(nullptr);
+    isSelected = TRUE;
+    Require(FAILED(item->get_IsSelected(&isSelected)) && isSelected == FALSE, "removed rows invalidate retained selection patterns");
+    container.reset();
+    Require(FAILED(item->get_SelectionContainer(container.put())) && ! container, "removed rows cannot retain a stale selection container");
+}
+
 void TestAccessibilityProviderExposesGridRowSelectionPatterns()
 {
     using namespace DxUi;
@@ -4336,6 +4389,7 @@ void RunAccessibilityTests()
     TestAccessibilityProviderExposesTreeAndGridMetadata();
     TestAccessibilityTreeItemProviderKeepsStableIdentityAcrossReorder();
     TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns();
+    TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable();
     TestAccessibilityProviderExposesGridRowSelectionPatterns();
     TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure();
     TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren();

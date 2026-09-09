@@ -27,7 +27,8 @@ enum class TextClipboardCommand : uint8_t
     Paste
 };
 // Borrowed only during a command. The default uses one nonblocking OpenClipboard attempt and bounded
-// Unicode data. Applications and tests may supply their own clipboard implementation.
+// Unicode data. Native transport accepts large selections; the embedded service independently enforces
+// its 65,536-unit edit/snapshot ceiling. Applications and tests may supply their own implementation.
 class TextClipboard
 {
 public:

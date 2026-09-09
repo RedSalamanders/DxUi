@@ -99,6 +99,10 @@ application-owned and must reflect the actual viewport transform. One service us
 and no additional rendering resources.
 
 Clipboard(Copy/Cut/Paste) provides bounded Unicode editing and optionally accepts an application clipboard.
+The embedded document ceiling is 65,536 UTF-16 units; oversized paste fails without changing the document.
+Native Grid/TextField clipboard transport independently supports larger selections, including 100,000 units.
+It validates allocation bounds and UTF-16 on reads, checks allocation arithmetic on writes, and attempts clipboard
+ownership once. A failed copy leaves cut text intact.
 Normal keyboard shortcuts route through PreTranslate. The automated control tests use an in-memory clipboard.
 The [normative contract](../Specs/UI/UI_InputAndAccessibility.md) defines composition ordering, cancellation,
 deferred locks and lifetime. Library attach APIs are supported. RedXe tree/event routing, real IME/assistive-technology
@@ -135,3 +139,8 @@ Tests/Embedded/EmbeddedAccessibilityTests.h is an executable example using only 
 toggle, slider and Unicode field patterns; negative-origin 144-DPI geometry; COM cross-apartment marshaling; parent
 and focus callbacks; distinct identities after replacement; and cleanup. It is a synthetic component example,
 not a screen-reader acceptance claim or completed RedXe adapter.
+
+Native consumers may include `DxUi/NativeMenuInterop.h` to adapt borrowed HMENU resources,
+`DxUi/FocusRestore.h` for owned-window focus transitions, and `DxUi/PointerInput.h` for pointer
+message decoding. `DxUi/Typography.h` and `DxUi/AccessibilityTextUnits.h` expose the shared font
+and Unicode-unit policies. Keep application resources and command policy in your adapter.

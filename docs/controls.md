@@ -94,3 +94,8 @@ Embedded surfaces are transparent by default: consumers needing an opaque applic
 from their theme in their root panel before painting the child controls.
 
 [Primary-button contrast validation](https://github.com/RedSalamanders/DxUi/blob/1947a5b91beb029e9b99d71e0893c6075bbb29ca/docs/measurements/primary-high-contrast-2026-09-05/README.md) records the native suites, gallery and matched performance evidence.
+
+For localized empty states, call `combo.SetNoMatchesText(L"Aucun résultat")`,
+`tree.SetEmptyStateText(L"Aucune donnée")`, or `grid.SetEmptyStateText(...)` with your product's
+resource strings. The controls own the supplied text. Reapply it when the language changes;
+an empty string restores the English default. An open ComboBox popup updates its width.

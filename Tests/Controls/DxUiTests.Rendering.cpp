@@ -319,12 +319,17 @@ void TestThroughputGraphHueChurnPerformanceScenario()
     {
         const auto startedAt = std::chrono::steady_clock::now();
         static_cast<void>(CaptureAttachedHostWindowBitmap(window, "throughput graph hue-churn measured capture succeeds"));
-        Debug::Perf::Emit(
-            L"dxui.throughput_graph.hue_churn_capture_us", L"180x16", Debug::Perf::ElapsedUs(startedAt), samples.size(), kExpectedLegacyGeometryCount, S_OK);
+        DxUi::Debug::Perf::Emit(L"dxui.throughput_graph.hue_churn_capture_us",
+                                L"180x16",
+                                DxUi::Debug::Perf::ElapsedUs(startedAt),
+                                samples.size(),
+                                kExpectedLegacyGeometryCount,
+                                S_OK);
         const ThroughputGraphDebugState runState = graph->GetDebugState();
-        Debug::Perf::Emit(
+        DxUi::Debug::Perf::Emit(
             L"dxui.throughput_graph.band_render_us", L"180x16", runState.bandRenderDurationUs, runState.sampleCount, runState.renderedQuadCount, S_OK);
-        Debug::Perf::Emit(L"dxui.throughput_graph.band_geometry_count", L"180x16", 0u, runState.renderedGeometryCount, runState.activeColorSlotCount, S_OK);
+        DxUi::Debug::Perf::Emit(
+            L"dxui.throughput_graph.band_geometry_count", L"180x16", 0u, runState.renderedGeometryCount, runState.activeColorSlotCount, S_OK);
     }
     const ThroughputGraphDebugState state = graph->GetDebugState();
     Require(state.bandsActive && state.sampleCount == samples.size() && state.renderedQuadCount == 2864u,

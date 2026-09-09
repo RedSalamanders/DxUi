@@ -1382,8 +1382,11 @@ bool ControlHost::SetTooltip(std::wstring text, const D2D1_POINT_2F& originDip)
 
 bool ControlHost::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& originDip)
 {
-    const uint64_t nowTickMs = _lastAnimationTickMs != 0u ? _lastAnimationTickMs : GetTickCount64();
-    const bool changed       = _tooltipLayer.SetTooltipDelayed(std::move(text), originDip, nowTickMs, ResolveTooltipShowDelayMs());
+    // Native hosts can be idle while the dispatcher continues ticking other hosts.
+    // Embedded deadlines retain the application's animation epoch and scheduling.
+    const uint64_t nowTickMs =
+        _embedded ? (_lastAnimationTickMs != 0u ? _lastAnimationTickMs : GetTickCount64()) : Ui::AnimationDispatcher::GetInstance().GetCurrentTickMs();
+    const bool changed = _tooltipLayer.SetTooltipDelayed(std::move(text), originDip, nowTickMs, ResolveTooltipShowDelayMs());
     if (changed)
     {
         RequestAnimation();
@@ -1394,8 +1397,11 @@ bool ControlHost::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& orig
 
 bool ControlHost::BeginTooltipHideDelay(uint64_t delayMs) noexcept
 {
-    const uint64_t nowTickMs = _lastAnimationTickMs != 0u ? _lastAnimationTickMs : GetTickCount64();
-    const bool changed       = _tooltipLayer.BeginHideDelay(nowTickMs, delayMs);
+    // Native hosts can be idle while the dispatcher continues ticking other hosts.
+    // Embedded deadlines retain the application's animation epoch and scheduling.
+    const uint64_t nowTickMs =
+        _embedded ? (_lastAnimationTickMs != 0u ? _lastAnimationTickMs : GetTickCount64()) : Ui::AnimationDispatcher::GetInstance().GetCurrentTickMs();
+    const bool changed = _tooltipLayer.BeginHideDelay(nowTickMs, delayMs);
     if (changed)
     {
         RequestAnimation();
@@ -1431,8 +1437,11 @@ std::wstring_view ControlHost::DebugGetPendingTooltipText() const noexcept
 
 bool ControlHost::DebugAdvanceTooltipDelayForTest() noexcept
 {
-    const uint64_t nowTickMs = _lastAnimationTickMs != 0u ? _lastAnimationTickMs : GetTickCount64();
-    const bool changed       = _tooltipLayer.Tick(*this, nowTickMs + ResolveTooltipShowDelayMs() + 1u);
+    // Native hosts can be idle while the dispatcher continues ticking other hosts.
+    // Embedded deadlines retain the application's animation epoch and scheduling.
+    const uint64_t nowTickMs =
+        _embedded ? (_lastAnimationTickMs != 0u ? _lastAnimationTickMs : GetTickCount64()) : Ui::AnimationDispatcher::GetInstance().GetCurrentTickMs();
+    const bool changed = _tooltipLayer.Tick(*this, nowTickMs + ResolveTooltipShowDelayMs() + 1u);
     if (changed)
     {
         Invalidate();
