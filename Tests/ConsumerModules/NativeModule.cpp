@@ -31,9 +31,7 @@ bool WindowProcedureBelongsToModule(HWND hwnd, HINSTANCE expected) noexcept
 }
 } // namespace
 
-// The fixture crosses the module boundary using only an integer result. Each copy owns its HWNDs,
-// controls, callbacks and allocations, just as an independently linked product plugin must.
-extern "C" __declspec(dllexport) int DxUiModuleProbe()
+static int RunModuleProbe()
 {
     const HINSTANCE instance = wil::GetModuleInstanceHandle();
     wil::unique_hwnd owner(CreateWindowExW(
@@ -111,4 +109,23 @@ extern "C" __declspec(dllexport) int DxUiModuleProbe()
                 invoked,
                 probePointer->ticks);
     return animationWorks && dispatcherOwned && popupOwned && invoked ? 0 : 5;
+}
+
+// Each module owns its HWNDs, controls and callback storage. Only a POD result crosses the ABI.
+extern "C" __declspec(dllexport) int DxUiModuleProbe() noexcept
+{
+    try
+    {
+        return RunModuleProbe();
+    }
+    catch (const std::bad_alloc&)
+    {
+        std::terminate();
+    }
+    catch (const std::exception& error)
+    {
+        // Report fixture setup failures without allowing an exception through the plugin ABI.
+        std::fprintf(stderr, "Module fixture failed: %s\n", error.what());
+        return 6;
+    }
 }

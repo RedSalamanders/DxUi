@@ -131,7 +131,7 @@ $reports=Join-Path $PSScriptRoot '.build/reports';New-Item -ItemType Directory -
 @{suite='ExternalConsumer';commit=$revision;configuration=$Configuration;platform=$Platform;
     nativeArchitecture=[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();
     disableStlAnnotations=$DisableStlAnnotations.IsPresent;buildIdentity=$buildIdentity;exitCode=0;fixture=$root;negativeChecks=10;
-    nativeModuleChecks=6;executableSha256=(Get-FileHash (Join-Path $consumer 'bin/ExternalConsumer.exe')).Hash;
+    nativeModuleChecks=12;executableSha256=(Get-FileHash (Join-Path $consumer 'bin/ExternalConsumer.exe')).Hash;
     librarySha256=(Get-FileHash (Join-Path $output "$Platform/$Configuration/DxUi.lib")).Hash;
     completedUtc=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $reports "ExternalConsumer-$Platform-$Configuration-annotationsDisabled$annotationsXml.json") -Encoding utf8
 Write-Host "PASS relocated exact-pin consumer, rendering and 10 rejected pin/build mismatches: $root"

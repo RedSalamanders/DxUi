@@ -74,6 +74,8 @@ supplied-device example image and an HTML index. `DxUi.EmbeddedControls.exe` ope
 and renders both modes; neither sample requires an application checkout or application services.
 `test-consumer.ps1 -FixtureRoot <short-directory>` places its unique relocated fixture under a caller-selected base
 when a deeply nested checkout would exceed Windows/vcpkg path limits. It does not replace or clean existing fixtures.
+The same fixture independently links one executable and two DLLs to the pinned archive and verifies native
+animation callbacks, module-owned window procedures and menu invocation without sharing DxUi C++ objects.
 
 `docs/README.md` documents consumption and all controls; root README links it and the published gallery.
 `gallery.ps1 -PublishDocs` publishes reviewed sheets and a generation receipt under `docs/gallery`, leaving runtime

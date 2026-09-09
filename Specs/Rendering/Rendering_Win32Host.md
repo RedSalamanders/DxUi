@@ -14,6 +14,13 @@ Its message/timer/animation resources stop or quiesce when hidden and are destro
 Native ControlHost/WindowHost is supported inside the same DxUi.lib; its messages, animation dispatcher and
 resource helpers are library-owned. RedSalamander's application migration remains a later independent plan.
 
+The native menu and animation-dispatcher window classes use the instance of the module containing their
+window procedure. An executable and independently linked DLLs may each use DxUi.lib in one process;
+they must not route another module's native messages or silently lose its animation subscriptions.
+The external consumer fixture verifies actual animation ticks, both class/procedure module identities,
+menu invocation and repeated use across one executable and two DLLs using only a POD result ABI.
+The fixture joins its UI thread before unloading its DLLs; it does not qualify unload with live native UI.
+
 Debug builds request the optional D3D11 SDK layer. If device creation returns DXGI_ERROR_SDK_COMPONENT_MISSING,
 retry once with only D3D11_CREATE_DEVICE_DEBUG removed, retaining BGRA support and hardware/WARP policy. Other
 errors keep their normal failure behavior. This handles the [documented optional debug-layer failure](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-d3d11createdevice)

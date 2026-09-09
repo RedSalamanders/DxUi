@@ -24,6 +24,7 @@
 // WIL: C4625 (copy ctor deleted), C4626 (copy assign deleted), C5026 (move ctor deleted), C5027 (move assign deleted)
 #pragma warning(disable : 4625 4626 5026 5027 28182)
 #include <wil/resource.h>
+#include <wil/win32_helpers.h>
 #pragma warning(pop)
 
 namespace DxUi::Ui
@@ -284,23 +285,20 @@ private:
             return;
         }
 
-        static ATOM atom = 0;
-        if (atom == 0)
-        {
-            WNDCLASSEXW wc{};
-            wc.cbSize        = sizeof(wc);
-            wc.lpfnWndProc   = &AnimationDispatcher::WndProcThunk;
-            wc.hInstance     = GetModuleHandleW(nullptr);
-            wc.lpszClassName = kWindowClassName;
-            atom             = RegisterClassExW(&wc);
-        }
-
-        if (atom == 0)
+        const HINSTANCE instance = wil::GetModuleInstanceHandle();
+        WNDCLASSEXW wc{};
+        wc.cbSize        = sizeof(wc);
+        wc.lpfnWndProc   = &AnimationDispatcher::WndProcThunk;
+        wc.hInstance     = instance;
+        wc.lpszClassName = kWindowClassName;
+        // The class belongs to this archive's consuming module. Multiple UI threads may
+        // register it concurrently; an existing registration needs no shared atom cache.
+        if (RegisterClassExW(&wc) == 0 && GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
         {
             return;
         }
 
-        HWND hwnd = CreateWindowExW(0, kWindowClassName, L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, GetModuleHandleW(nullptr), this);
+        HWND hwnd = CreateWindowExW(0, kWindowClassName, L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, instance, this);
 
         if (! hwnd)
         {

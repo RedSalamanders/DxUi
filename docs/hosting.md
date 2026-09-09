@@ -57,6 +57,8 @@ call `Attach(hwnd)` and check its boolean result, then install the tree and them
 messages through `HandleMessage(hwnd, message, wParam, lParam, handled)`; return that result when handled and
 otherwise continue normal window dispatch. This mode owns native graphics, text/accessibility and presentation
 services. The application still owns the top-level window and event-blocked message loop.
+When the archive is linked into several modules, each module owns its native menu and animation window classes.
+Keep each module loaded while its hosts, windows, callbacks or UI-thread resources remain alive.
 
 Call `Detach()` before the caller-owned HWND and borrowed application state are destroyed. Do not call native
 `Attach(HWND)` on `EmbeddedHost::Controls()`. The

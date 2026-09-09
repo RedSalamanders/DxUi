@@ -13,6 +13,7 @@
 #include <shellscalingapi.h>
 #include <system_error>
 #include <utility>
+#include <wil/win32_helpers.h>
 #include <wincodec.h>
 #include <windowsx.h>
 
@@ -3111,7 +3112,7 @@ bool CreateMenuPopupWindow(MenuController& controller,
         }
     }
 
-    HINSTANCE hInstance = GetModuleHandleW(nullptr);
+    const HINSTANCE hInstance = wil::GetModuleInstanceHandle();
     EnsureMenuWindowClass(hInstance);
 
     // DPI from target monitor
