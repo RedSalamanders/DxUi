@@ -1,11 +1,15 @@
 # Shared-library I19 qualification, 2026-09-09
 
-The [native CI receipt](../../../Specs/Plans/WIP/SharedLibraryReadiness/native-ci.json) records all six passing profiles at
-`ebc37965d624febd42f41ef777b0e5363a7a3a8b`:
-[run 34351569531](https://github.com/RedSalamanders/DxUi/actions/runs/34351569531).
+The [latest native CI receipt](../../../Specs/Plans/WIP/SharedLibraryReadiness/native-ci-52da33d.json)
+records all six passing profiles at `52da33d8152a737d698d5362308cd16a34491f42`:
+[run 34363702073](https://github.com/RedSalamanders/DxUi/actions/runs/34363702073).
 Every profile ran the complete control/embedded suites, external pinned consumer
 fixture and gallery. Both ASAN architectures passed the deliberate defect probe
 and both consumer STL annotation policies. Native ARM64 execution is established.
+This includes the public native provider, four restored callback-lifetime cases and
+three interactive menu fixtures with aligned cursor/capture setup. The
+[earlier receipt](../../../Specs/Plans/WIP/SharedLibraryReadiness/native-ci.json)
+at ebc3796 is preserved; these test results do not substitute for paired performance.
 
 ## Paired resource evidence remains open
 

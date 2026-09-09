@@ -15,9 +15,10 @@
 - [x] Resolve the ASAN gallery queue-settling delay; all six native CI jobs pass at ebc3796 (run 34351569531).
 - [x] Public provider entrypoint and all six native suites/consumer fixtures qualify at 3dae073 (CI 34355763655).
 - [x] All 65 historical source-policy exclusions have explicit current dispositions; four product guards are rehomed and four mixed runtime cases are restored.
-- [ ] Qualify the four restored runtime cases in the native matrix; 40 Python validator tests pass.
-- [ ] Resolve the remaining sent-message menu fixture race found in 76e3d48 CI. Reuse capture/DPI/cursor setup from the flood fixture and retain hover/invoke assertions; local interactive skips are not a native CI pass.
+- [x] Four restored runtime cases qualify in all six native configurations at 52da33d (CI 34363702073); 40 Python validator tests pass.
+- [x] Menu sent-message fixtures share capture/DPI/cursor setup and retain hover/invoke assertions; all six native CI configurations pass at 52da33d (34363702073). Local desktop skips remain explicitly recorded.
 - [ ] Required standalone regression/build matrix, consumer fixture, specs and paired performance qualified.
+- [ ] Verify native module isolation with one EXE and two DLLs independently linked to DxUi.lib: animation callbacks, dispatcher/popup class ownership, command invocation and repeated use. The fixture uses only an integer C ABI and joins its UI thread before DLL unload. Current menu/dispatcher registration uses the executable instance; reproduction and correction are in progress.
 
 ### G4 clipboard slice
 

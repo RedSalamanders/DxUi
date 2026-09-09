@@ -80,6 +80,33 @@ if ($LASTEXITCODE -ne 0) { throw 'The relocated public consumer failed to render
 if ($LASTEXITCODE -ne 0) { throw 'The relocated independent complex sample failed to render.' }
 & (Join-Path $consumer 'bin/ExternalConsumer.exe') --text-input --output (Join-Path $consumer 'text-consumer.png')
 if ($LASTEXITCODE -ne 0) { throw 'The relocated text-service consumer failed.' }
+# Independently link the same archive into an executable and two plugin-like DLLs. No DxUi C++
+# state crosses their C ABI; native class dispatch and animation must remain in the owning module.
+Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/NativeModule.cpp') -Destination $consumer
+Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/Driver.cpp') -Destination $consumer
+foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver')) {
+    $moduleProject = [xml]$project
+    $ns = [Xml.XmlNamespaceManager]::new($moduleProject.NameTable)
+    $ns.AddNamespace('m','http://schemas.microsoft.com/developer/msbuild/2003')
+    $moduleProject.SelectSingleNode('//m:ConfigurationType',$ns).InnerText = $(if ($moduleName -eq 'NativeModuleDriver') { 'Application' } else { 'DynamicLibrary' })
+    $moduleProject.SelectSingleNode('//m:ProjectGuid',$ns).InnerText = '{' + [guid]::NewGuid().ToString().ToUpperInvariant() + '}'
+    $moduleProject.SelectSingleNode('//m:IntDir',$ns).InnerText = '$(MSBuildProjectDirectory)\obj\' + $moduleName + '\'
+    $compileItems = $moduleProject.SelectSingleNode('//m:ItemGroup[m:ClCompile]',$ns)
+    $compileItems.RemoveAll()
+    $sources = @('NativeModule.cpp')
+    if ($moduleName -eq 'NativeModuleDriver') { $sources += 'Driver.cpp' }
+    foreach ($source in $sources) {
+        $item = $moduleProject.CreateElement('ClCompile',$ns.LookupNamespace('m'))
+        $item.SetAttribute('Include',$source)
+        [void]$compileItems.AppendChild($item)
+    }
+    $modulePath = Join-Path $consumer "$moduleName.vcxproj"
+    $moduleProject.Save($modulePath)
+    & $msbuild $modulePath /nologo /m /verbosity:minimal "/p:Configuration=$Configuration" "/p:Platform=$Platform"
+    if ($LASTEXITCODE -ne 0) { throw "The native module consumer $moduleName failed to build." }
+}
+& (Join-Path $consumer 'bin/NativeModuleDriver.exe')
+if ($LASTEXITCODE -ne 0) { throw 'Native DxUi dispatch or animation crossed static module ownership.' }
 if (-not (Test-Path (Join-Path $output "$Platform/$Configuration/DxUi.lib")) -or (Test-Path (Join-Path $checkout ".build/$Platform/$Configuration/DxUi.lib"))) { throw 'Consumer outputs are not isolated.' }
 $validator=Join-Path $checkout 'Tools/validate_consumer.ps1'
 function Require-Rejection([string] $scenario) {
@@ -104,7 +131,7 @@ $reports=Join-Path $PSScriptRoot '.build/reports';New-Item -ItemType Directory -
 @{suite='ExternalConsumer';commit=$revision;configuration=$Configuration;platform=$Platform;
     nativeArchitecture=[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();
     disableStlAnnotations=$DisableStlAnnotations.IsPresent;buildIdentity=$buildIdentity;exitCode=0;fixture=$root;negativeChecks=10;
-    executableSha256=(Get-FileHash (Join-Path $consumer 'bin/ExternalConsumer.exe')).Hash;
+    nativeModuleChecks=6;executableSha256=(Get-FileHash (Join-Path $consumer 'bin/ExternalConsumer.exe')).Hash;
     librarySha256=(Get-FileHash (Join-Path $output "$Platform/$Configuration/DxUi.lib")).Hash;
     completedUtc=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $reports "ExternalConsumer-$Platform-$Configuration-annotationsDisabled$annotationsXml.json") -Encoding utf8
 Write-Host "PASS relocated exact-pin consumer, rendering and 10 rejected pin/build mismatches: $root"
