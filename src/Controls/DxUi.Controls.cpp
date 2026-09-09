@@ -202,10 +202,10 @@ constexpr float kTooltipFallbackLineHeightDip    = 18.0f;
 constexpr float kTooltipPreferredTextHeightDip   = 256.0f;
 constexpr float kMenuBarItemCornerRadiusDip      = 4.0f;
 constexpr float kSliderTrackThicknessDip         = 6.0f;
-constexpr float kSliderThumbDiameterDip          = 6.0f;
-constexpr float kSliderThumbHoverDiameterDip     = 16.0f;
-constexpr float kSliderThumbPressedDiameterDip   = 12.0f;
-constexpr float kSliderChromeDiameterDip         = 20.0f;
+constexpr float kSliderThumbDiameterDip          = 14.0f;
+constexpr float kSliderThumbHoverDiameterDip     = 20.0f;
+constexpr float kSliderThumbPressedDiameterDip   = 16.0f;
+constexpr float kSliderChromeDiameterDip         = 24.0f;
 constexpr float kSliderTrackInsetDip             = 12.0f;
 constexpr float kSliderHitExtentDip              = 48.0f;
 constexpr float kSliderTickLengthDip             = 6.0f;
@@ -4304,6 +4304,8 @@ SliderOrientation Slider::GetOrientation() const noexcept
 
 void Slider::SetMinimum(double minimum) noexcept
 {
+    if (! std::isfinite(minimum) || ! std::isfinite((std::max)(_maximum, minimum) - minimum))
+        return;
     _minimum = minimum;
     if (_maximum < _minimum)
     {
@@ -4321,6 +4323,8 @@ double Slider::GetMinimum() const noexcept
 
 void Slider::SetMaximum(double maximum) noexcept
 {
+    if (! std::isfinite(maximum) || ! std::isfinite((std::max)(maximum, _minimum) - _minimum))
+        return;
     _maximum = (std::max)(maximum, _minimum);
     _value   = ClampValue(_value);
     SnapDisplayedValue();
@@ -4352,6 +4356,8 @@ double Slider::GetValue() const noexcept
 
 void Slider::SetStep(double step) noexcept
 {
+    if (! std::isfinite(step))
+        return;
     _step = (std::max)(step, 0.0001);
 }
 
@@ -4362,6 +4368,8 @@ double Slider::GetStep() const noexcept
 
 void Slider::SetLargeStep(double step) noexcept
 {
+    if (! std::isfinite(step))
+        return;
     _largeStep = (std::max)(step, _step);
 }
 
@@ -4560,9 +4568,18 @@ void Slider::SyncInteractionVisuals(ControlHost& host) noexcept
 
 void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChanged, bool animatePosition) noexcept
 {
+    if (! std::isfinite(value))
+        return;
     const double clamped = ClampValue(value);
     if (std::fabs(clamped - _value) <= 0.0001)
     {
+        // A model acknowledgement can match the accepted target while the painted thumb is still easing.
+        // SetValue is silent and immediate even for that same target; it must also retire animation work.
+        if (! animatePosition && _valueAnimationActive)
+        {
+            SnapDisplayedValue();
+            RequestInvalidate();
+        }
         return;
     }
 

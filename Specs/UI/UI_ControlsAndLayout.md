@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-09-08
+Last reviewed: 2026-09-09
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -51,24 +51,29 @@ painted disc so a fat finger can grab the thumb. Neither layer is sized from the
   cross-axis (horizontal slider, DIP)
 
   48  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  hit band (unpainted)
-  20  ████████ chrome disc (fixed) ████████
-  16                                           hovered inner thumb
-  12                                           pressed inner thumb
-   6  ══════════════════════════════════════    track and rest inner thumb
+  24  ████████ chrome disc (fixed) ████████
+  20                                           hovered inner thumb
+  16                                           pressed inner thumb
+  14                                           resting inner thumb
+   6  ══════════════════════════════════════    track
    0
 ```
 
 | Layer | Rest | Hover | Pressed | Role |
 | --- | --- | --- | --- | --- |
 | Track | 6 DIP capsule | — | — | Paint. Fill and remainder share that thickness with no extra stroke. Inset 12 DIP from each end. |
-| Inner thumb | 6 DIP | 16 DIP | 12 DIP | Paint. Accent fill matching the track. Rest equals the track so the chrome reads as a gray ring; hover grows the inner until a thin chrome rim remains. |
-| Chrome disc | 20 DIP | 20 DIP | 20 DIP | Paint. Opaque gray disc under the inner thumb. It does not scale with hover or press and is not the hit target. |
+| Inner thumb | 14 DIP | 20 DIP | 16 DIP | Paint. Accent fill matching the track; visible at rest, with a thinner chrome rim on hover and clear pressed feedback. |
+| Chrome disc | 24 DIP | 24 DIP | 24 DIP | Paint. Opaque gray disc under the inner thumb. It does not scale with hover or press and is not the hit target. |
 | Hit band | 48 DIP | 48 DIP | 48 DIP | Pointer only. Centered on the track. Clipped to control bounds when the control is shorter. Not painted. |
 | Thumb grab | 24 DIP radius from thumb center | same | same | Pointer only. Half the hit band. A contact in this circle drags from the current value; a contact on the track outside it seeks. |
 
 Keyboard and `RequestValue` ease the painted inner thumb to the new value; pointer drags and `SetValue` snap.
 Reduced motion snaps every visual. Keyboard steps still use `SetStep` / `SetLargeStep`. Consumers that need a
 fat-finger target size the control to at least the 48 DIP hit band; they do not enlarge the chrome disc to match.
+An acknowledgement through `SetValue` snaps and stops position animation even when it equals the accepted target.
+Non-finite values, range limits and steps leave the previous valid state unchanged. A range whose span overflows
+also leaves the prior range intact. Off-center thumb grabs retain the pointer offset, continue outside bounds under
+capture, and restore the initial value on cancellation without a later release committing it.
 
 Each control also requires accurate usage documentation in `docs/controls.md`. Code changes review affected docs
 and regenerate changed visuals into `docs/gallery` under [the documentation contract](../Core/Core_Documentation.md).

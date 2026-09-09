@@ -1,7 +1,7 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-09-08
+Last reviewed: 2026-09-09
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -48,12 +48,12 @@ ComboBox/PopupLayer overlays or host-owned menu services.
 
 Slider::SetOnChange reports Preview while dragging and exactly one Commit on accepted release, including an
 unchanged final value. Capture loss, Escape, hiding or detach reports Cancel and restores the initial value. Keyboard
-steps report Commit. Hover and press ease painted chrome only: a 6 DIP track, inner thumb 6→16 DIP hover and 16→12 DIP
-pressed, inside a fixed 20 DIP gray chrome disc. The 48 DIP hit band and 24 DIP grab radius do not change with hover or press. Keyboard steps and
+steps report Commit. Hover and press ease painted chrome only: a 6 DIP track, inner thumb 14→20 DIP hover and 20→16 DIP
+pressed, inside a fixed 24 DIP gray chrome disc. The 48 DIP hit band and 24 DIP grab radius do not change with hover or press. Keyboard steps and
 RequestValue ease the painted thumb to the committed value, then stop requesting ticks. Pointer drags and SetValue snap
 the painted position so live acknowledgement cannot lag. Reduced motion snaps every visual and requests no slider ticks.
-SetValue updates from
-externally acknowledged state without firing an input callback. Existing
+SetValue updates from externally acknowledged state without firing an input callback, including snapping a pending
+animation when the acknowledged value equals its accepted target. Existing
 SetOnValueChanged remains the legacy live-value observer; AV uses SetOnChange and calls the OS setter only on Commit.
 Callback-driven root replacement is supported and covered by a regression test.
 

@@ -375,8 +375,8 @@ void TestSliderHoverAndPressAnimationRequestsTicksUntilSettled()
 
     const float restThumbWidth = slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left;
     const float restHaloWidth  = slider->DebugGetHaloRect().right - slider->DebugGetHaloRect().left;
-    RequireFloatNear(restThumbWidth, 6.0f, 0.01f, "slider inner thumb matches the 6 DIP track at rest");
-    RequireFloatNear(restHaloWidth, 20.0f, 0.01f, "slider chrome disc is 20 DIP at rest");
+    RequireFloatNear(restThumbWidth, 14.0f, 0.01f, "slider accent thumb is visible at rest");
+    RequireFloatNear(restHaloWidth, 24.0f, 0.01f, "slider chrome disc is 24 DIP at rest");
     RequireFloatNear(slider->GetHitBounds().bottom - slider->GetHitBounds().top, 48.0f, 0.01f, "slider hit band stays 48 DIP at rest");
 
     const uint64_t hoverStartTickMs = ::GetTickCount64();
@@ -393,8 +393,8 @@ void TestSliderHoverAndPressAnimationRequestsTicksUntilSettled()
                      "slider chrome disc does not scale while the inner thumb grows");
     Require(slider->Tick(host, hoverStartTickMs + 140u), "slider hover animation requests one final repaint when the transition settles");
     RequireFloatNear(slider->DebugGetHoverAnimationProgress(), 1.0f, 0.0001f, "slider hover animation settles at fully hovered progress");
-    RequireFloatNear(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left, 16.0f, 0.01f, "slider inner thumb settles at 16 DIP when hovered");
-    RequireFloatNear(slider->DebugGetHaloRect().right - slider->DebugGetHaloRect().left, 20.0f, 0.01f, "slider chrome disc stays 20 DIP when hovered");
+    RequireFloatNear(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left, 20.0f, 0.01f, "slider inner thumb settles at 20 DIP when hovered");
+    RequireFloatNear(slider->DebugGetHaloRect().right - slider->DebugGetHaloRect().left, 24.0f, 0.01f, "slider chrome disc stays 24 DIP when hovered");
     RequireFloatNear(slider->GetHitBounds().bottom - slider->GetHitBounds().top, 48.0f, 0.01f, "slider hit band does not grow with the painted thumb");
     Require(! slider->Tick(host, hoverStartTickMs + 200u), "settled slider hover animation stops requesting ticks");
 
@@ -407,9 +407,9 @@ void TestSliderHoverAndPressAnimationRequestsTicksUntilSettled()
     Require(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left < hoverThumbWidth,
             "slider inner thumb shrinks while the press animation is in flight");
     RequireFloatNear(slider->DebugGetHaloRect().right - slider->DebugGetHaloRect().left,
-                     20.0f,
+                     24.0f,
                      0.01f,
-                     "slider chrome disc stays 20 DIP while pressed so it does not read as the 48 DIP hit band");
+                     "slider chrome disc stays 24 DIP while pressed so it does not read as the 48 DIP hit band");
     Require(slider->OnMouseUp(host, D2D1::Point2F(110.0f, 24.0f), false, 0), "slider press ends the pointer gesture");
 }
 

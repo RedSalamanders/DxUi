@@ -1,7 +1,7 @@
 # Performance and resources
 
 Status: normative current contract
-Last reviewed: 2026-09-07
+Last reviewed: 2026-09-09
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -33,6 +33,16 @@ On confirmed degradation, stop accepting/merging the affected development, prese
 cause, ask the developer for advice, and propose options with quantified costs: optimize the affected path/caches,
 reduce optional scope, or defer/revert the change. Any explicitly approved tradeoff needs durable rationale and the
 chosen resource budget in this contract or its owning domain; a WIP note alone cannot waive a requirement.
+
+The 2026-09-09 slider appearance change has an explicitly approved process-memory caveat: on the same Release
+complex-UI fixture, five alternating before/after runs measured a median clean private-byte increase of 503,808
+bytes (1.865%). The user chose to retain the clearer resting thumb with that measured cost. This accepts the
+observed approximately 0.5 MiB median increase for this change, not a general increase in resource budgets or a
+waiver of other performance gates. Surface bytes remain 3,686,400; clean and composition allocations remain zero;
+dirty allocations remain 2,160 per 40-frame Release round. Process-private memory includes graphics/runtime heaps;
+the source of the small increase was not isolated, and individual runs vary substantially. Keep raw measurements
+and continue to investigate sustained growth or repeatable timing degradation. No extra timer, worker, surface,
+draw operation or C++ allocation is introduced by the slider styling.
 
 Every `test.ps1` invocation MUST report complex-UI FPS and memory, including filtered suites, and each suite receipt
 must include the measurement or its linked receipt. A failing/missing benchmark fails the test entrypoint. Unit-test
