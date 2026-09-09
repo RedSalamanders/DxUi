@@ -13,6 +13,7 @@ the pinned dependency in requirements-validation.txt. `DXUI_PYTHON` may select a
 | ConsumerUpdate.psm1 | Shared bounded, read-only advisory about a newer validated main commit; never changes a pin or fails a build |
 | ConsumerBuild.psm1 | Evaluate actual MSBuild/compiler/linker/SDK identities and produce an isolated consumer output fingerprint |
 | tests/Test-ConsumerUpdate.ps1 | Same/new/pending/failed/divergent/offline advisory decisions and immutable-pin checks, without network access |
+| tests/Test-AsanRuntime.ps1 | Actual MSBuild ARM64 runtime staging and fail-closed missing-runtime regression |
 | validate_build_matrix.py | Every live native project and solution has six configurations; --root also audits a consumer |
 | tests/test_build_matrix.py | Missing configurations, duplicate entries, silent Debug fallback and missing solution build mappings |
 | validate_test_port.py | Every inherited test has a retained entrypoint or an explicit exclusion reason |

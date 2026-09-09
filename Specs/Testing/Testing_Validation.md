@@ -72,6 +72,10 @@ remain unchanged across runner environments.
 Native menu input fixtures wait for a visible popup: the hidden measurement HWND is not ready for input.
 Cold creation has a separate five-second setup allowance; owner-message-flood hover and invocation checks
 retain their 800 ms deadlines after setup. Capture readiness similarly waits for the final visible surface.
+The interactive owner-message-flood fixture aligns the physical cursor with its posted pointer target:
+Windows-generated capture moves must describe the same position. It restores the original position only
+if the pointer remains at the fixture target, preserving intervening human movement. The 2,000-message
+flood, hover/paint assertions and 800 ms hover/invocation bounds remain unchanged.
 
 ## Independent library workloads
 

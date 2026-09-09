@@ -26,7 +26,7 @@ $exe = Join-Path $PSScriptRoot ".build/$Platform/$Configuration/DxUi.EmbeddedTes
 Push-Location $PSScriptRoot
 try {
     & $exe --benchmark $OutputPath
-    if ($LASTEXITCODE -ne 0) { throw 'Complex-UI benchmark failed.' }
+    if ($LASTEXITCODE -ne 0) { throw "Complex-UI benchmark failed with exit code $LASTEXITCODE. Executable: $exe" }
     $receipt = Get-Content -Raw -LiteralPath $OutputPath | ConvertFrom-Json -AsHashtable
     $receipt.platform = $Platform
     $receipt.configuration = $Configuration

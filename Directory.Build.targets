@@ -1,4 +1,5 @@
 <Project>
+  <Import Project="$(MSBuildThisFileDirectory)Build/DxUi.AddressSanitizer.targets" />
   <ItemDefinitionGroup Condition="'$(Configuration)'=='ASan Debug'">
     <ClCompile>
       <EnableASAN>true</EnableASAN>

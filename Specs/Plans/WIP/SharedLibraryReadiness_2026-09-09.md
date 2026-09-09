@@ -10,6 +10,7 @@
 - [x] G7 implementation and x64 Debug Accessibility regressions pass; offscreen selected rows retain usable selection providers.
 - [x] All 18 x64 Debug suites pass (nine Menu desktop capability skips retained); archive-backed public native-menu helper rerun passes.
 - [x] Shared advisory helper and ten deterministic decision/immutable-pin tests pass; consumer wiring remains in I19 C3/C6.
+- [ ] Native CI follow-up: retain menu assertions with aligned physical cursor, clear expected-negative consumer exit status, and stage the ARM64 sanitizer runtime.
 - [ ] Required standalone regression/build matrix, consumer fixture, specs and paired performance qualified.
 
 ### G4 clipboard slice
@@ -91,3 +92,20 @@ The shared update helper checks canonical main ancestry and successful push vali
 read-only requests and at most one advisory. Ten synthetic cases pass, including unavailable/pending/
 failed/divergent status and byte-identical pins. It is not wired into a consumer until that product's
 unchanged baseline is retained. RedSalamander Full/Fresh Debug baseline capture is currently running.
+
+Checkpoint 91ba363 passed the relocated x64 Debug consumer: five independent public-header translation
+units, three sample render modes and ten rejected pin/build mismatches. Native CI run 34347089905 started
+all six jobs. Its x64 Debug Menu failure retained a trace showing the posted hover succeeded, then a
+Windows-generated move for the stationary physical cursor cleared it. The interactive fixture now aligns
+and conditionally restores that cursor; assertions and deadlines are unchanged. Native qualification of
+that correction remains pending. Product baselines and migration continue under I19.
+
+CI x64 Release and ASan Debug passed all 18 runtime suites and the external-consumer assertions,
+but the consumer script leaked its final expected-negative exit code to the Actions wrapper.
+The script now reports its successful outcome explicitly. ARM64 ASan Debug compiled all targets,
+then failed before benchmark startup: MSBuild's built-in runtime staging contains only x86/x64
+branches. The canonical ARM64 staging target now copies the matching selected-toolset DLL and
+rejects a missing runtime; its actual MSBuild positive/negative staging test passes locally.
+The corrected Menu fixture rebuild passes locally with the same nine desktop capability skips;
+native CI remains the interactive acceptance gate. Specs, dependencies, formatting and all 36
+Python tooling regressions pass after these corrections.

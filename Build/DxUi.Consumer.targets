@@ -1,4 +1,5 @@
 <Project>
+  <Import Project="$(MSBuildThisFileDirectory)DxUi.AddressSanitizer.targets" />
   <PropertyGroup><ShouldUnsetParentConfigurationAndPlatform>false</ShouldUnsetParentConfigurationAndPlatform></PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='ASan Debug'">
     <ClCompile>

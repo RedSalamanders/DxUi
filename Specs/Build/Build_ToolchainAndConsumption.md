@@ -120,6 +120,12 @@ Consumers record the identity beside their restored props and supply the expecte
 properties; mismatches fail before compilation. A different compiler installation or ASAN container policy
 cannot reuse the same writable archive output directory. Pin validation remains a separate clean-source check.
 
+ASAN outputs stage the selected MSVC toolset's architecture-matching runtime beside the executable.
+`Build/DxUi.AddressSanitizer.targets` supplies ARM64 staging omitted by MSBuild's built-in x86/x64
+copy target and fails if that runtime is missing. The standalone archive stages once for its common
+output directory; external consumers stage for their own output. Synthetic MSBuild staging tests
+do not replace the required native sanitizer detection probe and regression suite.
+
 ## Advisory updates
 
 Consumers call `Show-DxUiUpdateNotice -LockFile <exact-lock>` from `Tools/ConsumerUpdate.psm1`

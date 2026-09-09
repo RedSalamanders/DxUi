@@ -106,3 +106,6 @@ $reports=Join-Path $PSScriptRoot '.build/reports';New-Item -ItemType Directory -
     librarySha256=(Get-FileHash (Join-Path $output "$Platform/$Configuration/DxUi.lib")).Hash;
     completedUtc=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $reports "ExternalConsumer-$Platform-$Configuration-annotationsDisabled$annotationsXml.json") -Encoding utf8
 Write-Host "PASS relocated exact-pin consumer, rendering and 10 rejected pin/build mismatches: $root"
+# The final native invocation deliberately failed; report this test's actual outcome
+# to callers (including the GitHub Actions pwsh wrapper).
+$global:LASTEXITCODE = 0

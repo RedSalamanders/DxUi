@@ -1335,6 +1335,22 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
             driverFailure = "owner-message-flood split-button Refine row converts to screen coordinates";
             return;
         }
+        // Windows can synthesize a captured WM_MOUSEMOVE for the stationary physical cursor after
+        // our posted move. Align this interactive fixture's cursor so that real and posted input agree;
+        // otherwise a correctly processed hover is immediately cleared before its paint is observed.
+        POINT originalCursor{};
+        if (GetCursorPos(&originalCursor) == FALSE || SetCursorPos(refineCenter.x, refineCenter.y) == FALSE)
+        {
+            driverFailure = "owner-message-flood interactive fixture aligns the physical cursor";
+            return;
+        }
+        const auto restoreCursor                = wil::scope_exit([&]() noexcept
+        {
+            POINT currentCursor{};
+            // Do not overwrite a person moving the pointer while a test is running.
+            if (GetCursorPos(&currentCursor) && currentCursor.x == refineCenter.x && currentCursor.y == refineCenter.y)
+                SetCursorPos(originalCursor.x, originalCursor.y);
+        });
         static constexpr int kFloodMessageCount = 2000;
         for (int i = 0; i < kFloodMessageCount; ++i)
         {
