@@ -1,3 +1,4 @@
+#include "../../src/Support/AnimationDispatcher.h"
 #include "DxUiTestHelpers.h"
 
 #include <chrono>
@@ -153,6 +154,32 @@ void TestTooltipLayerHideDelayExpiresAfterTimerTicks()
 
     PumpMessagesForDuration(window, std::chrono::milliseconds(120));
     Require(! window.Host().HasTooltip(), "tracking tooltip clears after the hide delay elapses");
+}
+
+void TestTooltipDeadlinesUseCurrentDispatcherClockAfterIdleHostTick()
+{
+    using namespace DxUi;
+
+    constexpr uint64_t staleTickGapMs = 3'000u;
+    constexpr uint64_t hideDelayMs    = 1'000u;
+    const uint64_t currentTickMs      = DxUi::Ui::AnimationDispatcher::GetInstance().GetCurrentTickMs();
+    Require(currentTickMs > staleTickGapMs, "tooltip stale-tick regression requires a valid dispatcher clock epoch");
+    const uint64_t staleTickMs = currentTickMs - staleTickGapMs;
+
+    WindowHost host;
+    static_cast<void>(host.DebugAnimationTickForTest(staleTickMs));
+    Require(host.SetTooltip(L"Tracking tooltip", D2D1::Point2F(24.0f, 24.0f)), "tooltip stale-tick regression starts with a visible tracking tooltip");
+    Require(host.BeginTooltipHideDelay(hideDelayMs), "tooltip stale-tick regression schedules a long hide delay");
+    static_cast<void>(host.DebugAnimationTickForTest(currentTickMs));
+    Require(host.HasTooltip(), "tracking tooltip hide delay is based on the current dispatcher clock instead of the host's stale last tick");
+
+    static_cast<void>(host.ClearTooltip());
+    static_cast<void>(host.DebugAnimationTickForTest(staleTickMs));
+    Require(host.SetTooltipDelayed(L"Supplemental tooltip", D2D1::Point2F(48.0f, 36.0f)),
+            "tooltip stale-tick regression schedules a delayed supplemental tooltip");
+    static_cast<void>(host.DebugAnimationTickForTest(currentTickMs));
+    Require(! host.HasTooltip(), "supplemental tooltip show delay does not expire from the host's stale last tick");
+    Require(host.DebugGetPendingTooltipText() == L"Supplemental tooltip", "supplemental tooltip remains pending until the current dispatcher-clock deadline");
 }
 
 void TestTooltipLayerTrackingMoveCancelsPendingHideDelay()
@@ -379,6 +406,7 @@ void RunTooltipTests()
     TestTooltipLayerFlipsLeftNearRightEdge();
     TestTooltipLayerWrapsLongTextAndStaysClamped();
     TestTooltipLayerHideDelayExpiresAfterTimerTicks();
+    TestTooltipDeadlinesUseCurrentDispatcherClockAfterIdleHostTick();
     TestTooltipLayerTrackingMoveCancelsPendingHideDelay();
     TestGridTooltipTracksPointerWithinSameCell();
     TestInteractiveTooltipSurvivesEmptySupplementalTargetPass();

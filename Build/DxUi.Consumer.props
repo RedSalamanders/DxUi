@@ -3,6 +3,7 @@
     <DxUiRoot Condition="'$(DxUiRoot)'==''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\'))</DxUiRoot>
     <DxUiResolvedRoot>$([MSBuild]::EnsureTrailingSlash('$(DxUiRoot)'))</DxUiResolvedRoot>
     <DxUiConsumerLockFile Condition="'$(DxUiConsumerLockFile)'==''">$(MSBuildProjectDirectory)\Dependencies\DxUi.lock.json</DxUiConsumerLockFile>
+    <DxUiDisableStlAnnotations Condition="'$(DxUiDisableStlAnnotations)'==''">false</DxUiDisableStlAnnotations>
   </PropertyGroup>
   <PropertyGroup>
     <DxUiConsumerTriplet Condition="'$(Platform)'=='x64'">x64-windows</DxUiConsumerTriplet>
@@ -10,5 +11,8 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile><AdditionalIncludeDirectories>$(DxUiResolvedRoot)include;$(DxUiConsumerOutputRoot)vcpkg_installed\$(Platform)\$(DxUiConsumerTriplet)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='ASan Debug' and '$(DxUiDisableStlAnnotations)'=='true'">
+    <ClCompile><PreprocessorDefinitions>_DISABLE_STL_ANNOTATION;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
   </ItemDefinitionGroup>
 </Project>

@@ -499,21 +499,21 @@ __declspec(noinline) static int RunFunctionalTests()
     };
     wil::unique_hwnd payloadWindow(CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, GetModuleHandleW(nullptr), nullptr));
     Check(bool(payloadWindow), "payload fixture window");
-    InitPostedPayloadWindow(payloadWindow.get());
+    DxUi::InitPostedPayloadWindow(payloadWindow.get());
     size_t destroyed = 0;
     for (size_t i = 0; i < 128; ++i)
-        Check(PostMessagePayload(payloadWindow.get(), WM_APP + 77, 0, std::make_unique<Payload>(&destroyed)), "bounded payload accepted");
-    Check(! PostMessagePayload(payloadWindow.get(), WM_APP + 77, 0, std::make_unique<Payload>(&destroyed)) && destroyed == 1,
+        Check(DxUi::PostMessagePayload(payloadWindow.get(), WM_APP + 77, 0, std::make_unique<Payload>(&destroyed)), "bounded payload accepted");
+    Check(! DxUi::PostMessagePayload(payloadWindow.get(), WM_APP + 77, 0, std::make_unique<Payload>(&destroyed)) && destroyed == 1,
           "saturation rejects and releases ownership");
-    Check(DrainPostedPayloadsForWindow(payloadWindow.get()) == 128 && destroyed == 129, "drain releases each payload once");
+    Check(DxUi::DrainPostedPayloadsForWindow(payloadWindow.get()) == 128 && destroyed == 129, "drain releases each payload once");
     MSG stale{};
     while (PeekMessageW(&stale, payloadWindow.get(), WM_APP + 77, WM_APP + 77, PM_REMOVE))
-        Check(! TakeMessagePayload<Payload>(stale.lParam), "drained tokens cannot resurrect payload");
-    InitPostedPayloadWindow(payloadWindow.get());
-    Check(PostMessagePayload(payloadWindow.get(), WM_APP + 77, 0, std::make_unique<Payload>(&destroyed)), "reinitialize window generation");
+        Check(! DxUi::TakeMessagePayload<Payload>(stale.lParam), "drained tokens cannot resurrect payload");
+    DxUi::InitPostedPayloadWindow(payloadWindow.get());
+    Check(DxUi::PostMessagePayload(payloadWindow.get(), WM_APP + 77, 0, std::make_unique<Payload>(&destroyed)), "reinitialize window generation");
     Check(PeekMessageW(&stale, payloadWindow.get(), WM_APP + 77, WM_APP + 77, PM_REMOVE) != FALSE, "take new token");
-    Check(! TakeMessagePayload<int>(stale.lParam) && destroyed == 130, "wrong payload type rejected and released");
-    DrainPostedPayloadsForWindow(payloadWindow.get());
+    Check(! DxUi::TakeMessagePayload<int>(stale.lParam) && destroyed == 130, "wrong payload type rejected and released");
+    DxUi::DrainPostedPayloadsForWindow(payloadWindow.get());
     // A callback may destroy the current tree, including the slider dispatching the event.
     scene.slider->SetOnChange([&](DxUi::SliderChange) { scene.view.Controls().SetRoot(std::make_unique<DxUi::Panel>()); });
     Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 100, 184}), "root replacement during slider callback");

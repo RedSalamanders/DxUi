@@ -1,13 +1,17 @@
 #include "TextClipboard.h"
-#include <algorithm>
 #include <cstring>
 #include <cwchar>
+#include <limits>
 
 namespace DxUi
 {
 namespace
 {
-constexpr size_t kLimit = 65536;
+const ClipboardSystemCalls& ClipboardCalls() noexcept
+{
+    static const ClipboardSystemCalls calls;
+    return testClipboardSystemCalls ? *testClipboardSystemCalls : calls;
+}
 HRESULT LastClipboardError() noexcept
 {
     const DWORD error = GetLastError();
@@ -21,10 +25,11 @@ public:
         text.clear();
         if (! owner)
             return E_INVALIDARG;
-        if (! OpenClipboard(owner))
+        const auto& calls = ClipboardCalls();
+        if (! calls.open(owner))
             return LastClipboardError();
-        const auto close  = wil::scope_exit([]() noexcept { CloseClipboard(); });
-        const HANDLE data = GetClipboardData(CF_UNICODETEXT);
+        const auto close  = wil::scope_exit([&calls]() noexcept { calls.close(); });
+        const HANDLE data = calls.getData(CF_UNICODETEXT);
         if (! data)
             return S_FALSE;
         const SIZE_T bytes = GlobalSize(data);
@@ -40,11 +45,12 @@ public:
     {
         if (! owner)
             return E_INVALIDARG;
-        if (text.size() > kLimit)
-            return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
+        size_t bytes = 0;
+        RETURN_IF_FAILED(ClipboardAllocationSize(text.size(), bytes));
         if (text.find(L'\0') != std::wstring_view::npos)
             return E_INVALIDARG;
-        wil::unique_hglobal memory(GlobalAlloc(GMEM_MOVEABLE, (text.size() + 1) * sizeof(wchar_t)));
+        const auto& calls = ClipboardCalls();
+        wil::unique_hglobal memory(calls.allocate(GMEM_MOVEABLE, bytes));
         if (! memory)
             return E_OUTOFMEMORY;
         auto* value = static_cast<wchar_t*>(GlobalLock(memory.get()));
@@ -56,10 +62,10 @@ public:
                 std::memcpy(value, text.data(), text.size() * sizeof(wchar_t));
             value[text.size()] = 0;
         }
-        if (! OpenClipboard(owner))
+        if (! calls.open(owner))
             return LastClipboardError();
-        const auto close = wil::scope_exit([]() noexcept { CloseClipboard(); });
-        if (! EmptyClipboard() || ! SetClipboardData(CF_UNICODETEXT, memory.get()))
+        const auto close = wil::scope_exit([&calls]() noexcept { calls.close(); });
+        if (! calls.empty() || ! calls.setData(CF_UNICODETEXT, memory.get()))
             return LastClipboardError();
         static_cast<void>(memory.release());
         return S_OK;
@@ -67,17 +73,28 @@ public:
 };
 } // namespace
 #if DXUI_ENABLE_DIAGNOSTICS
-thread_local TextClipboard* testTextClipboard = nullptr;
+thread_local TextClipboard* testTextClipboard                     = nullptr;
+thread_local const ClipboardSystemCalls* testClipboardSystemCalls = nullptr;
 #endif
+HRESULT ClipboardAllocationSize(size_t textUnits, size_t& bytes) noexcept
+{
+    bytes = 0;
+    // Include the terminator before multiplying; reject overflow before scanning or allocating.
+    if (textUnits > (std::numeric_limits<size_t>::max)() / sizeof(wchar_t) - 1)
+        return HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW);
+    bytes = (textUnits + 1) * sizeof(wchar_t);
+    return S_OK;
+}
 HRESULT DecodeClipboardText(std::span<const wchar_t> buffer, std::wstring& text) noexcept
 {
     text.clear();
-    const size_t capacity = (std::min)(buffer.size(), kLimit + 1);
-    if (! capacity)
+    if (buffer.empty())
         return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-    const wchar_t* end = std::wmemchr(buffer.data(), L'\0', capacity);
+    const wchar_t* end = std::wmemchr(buffer.data(), L'\0', buffer.size());
     if (! end)
-        return HRESULT_FROM_WIN32(buffer.size() > kLimit ? ERROR_BUFFER_OVERFLOW : ERROR_INVALID_DATA);
+        return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+    if (static_cast<size_t>(end - buffer.data()) > text.max_size())
+        return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
     // Clipboard contents are external data; reject malformed UTF-16 instead of creating broken caret boundaries.
     for (const wchar_t* cursor = buffer.data(); cursor != end; ++cursor)
     {

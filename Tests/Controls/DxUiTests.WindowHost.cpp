@@ -265,13 +265,13 @@ LRESULT CALLBACK PostedPayloadDrainStressWndProc(HWND hwnd, UINT message, WPARAM
             const auto* create = reinterpret_cast<const CREATESTRUCTW*>(lParam);
             state              = static_cast<PostedPayloadDrainStressWindowState*>(create ? create->lpCreateParams : nullptr);
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
-            InitPostedPayloadWindow(hwnd);
+            DxUi::InitPostedPayloadWindow(hwnd);
             return TRUE;
         }
 
         case (WM_APP + 0x70u):
         {
-            auto payload = TakeMessagePayload<PostedPayloadDrainStressPayload>(lParam);
+            auto payload = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(lParam);
             if (state && payload)
             {
                 state->deliveredCount.fetch_add(1u, std::memory_order_acq_rel);
@@ -288,7 +288,7 @@ LRESULT CALLBACK PostedPayloadDrainStressWndProc(HWND hwnd, UINT message, WPARAM
                                                       std::memory_order_release);
             }
             const auto drainStarted = std::chrono::steady_clock::now();
-            const size_t drained    = DrainPostedPayloadsForWindow(hwnd);
+            const size_t drained    = DxUi::DrainPostedPayloadsForWindow(hwnd);
             const auto drainDurationUs =
                 static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - drainStarted).count());
             if (state)
@@ -303,7 +303,7 @@ LRESULT CALLBACK PostedPayloadDrainStressWndProc(HWND hwnd, UINT message, WPARAM
                 while (PeekMessageW(&queuedMessage, hwnd, (WM_APP + 0x70u), (WM_APP + 0x70u), PM_REMOVE) != 0)
                 {
                     ++staleTokenCount;
-                    if (! TakeMessagePayload<PostedPayloadDrainStressPayload>(queuedMessage.lParam))
+                    if (! DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(queuedMessage.lParam))
                     {
                         ++staleTokenRejectionCount;
                     }
@@ -848,11 +848,12 @@ void TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads()
     {
         auto payload            = std::make_unique<PostedPayloadDrainStressPayload>();
         payload->destroyedCount = &destroyedCount;
-        Require(PostMessagePayload(hwnd.get(), kPayloadMessage, 0, std::move(payload)), "PostMessagePayload accepts payloads while the target window is alive");
+        Require(DxUi::PostMessagePayload(hwnd.get(), kPayloadMessage, 0, std::move(payload)),
+                "PostMessagePayload accepts payloads while the target window is alive");
     }
     const auto postDurationUs =
         static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - postStarted).count());
-    Debug::Perf::Emit(L"dxui.posted_payload.post_batch_us", L"128 queued payloads", postDurationUs, kPayloadCount, kPayloadCount, S_OK);
+    DxUi::Debug::Perf::Emit(L"dxui.posted_payload.post_batch_us", L"128 queued payloads", postDurationUs, kPayloadCount, kPayloadCount, S_OK);
 
     MSG capturedStaleMessage{};
     Require(PeekMessageW(&capturedStaleMessage, nullptr, kPayloadMessage, kPayloadMessage, PM_NOREMOVE) != 0,
@@ -860,12 +861,12 @@ void TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads()
     const HWND retiredHwnd = hwnd.get();
 
     hwnd.reset();
-    Debug::Perf::Emit(L"dxui.posted_payload.teardown_drain_us",
-                      L"128 queued payloads",
-                      state.drainDurationUs.load(std::memory_order_acquire),
-                      kPayloadCount,
-                      kPayloadCount,
-                      S_OK);
+    DxUi::Debug::Perf::Emit(L"dxui.posted_payload.teardown_drain_us",
+                            L"128 queued payloads",
+                            state.drainDurationUs.load(std::memory_order_acquire),
+                            kPayloadCount,
+                            kPayloadCount,
+                            S_OK);
 
     Require(state.deliveredCount.load(std::memory_order_acquire) == 0u, "stress test destroys the window before delivery");
     Require(state.drainedCount.load(std::memory_order_acquire) == kPayloadCount, "WM_NCDESTROY drains all queued payloads");
@@ -879,16 +880,16 @@ void TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads()
     Require(state.staleTokenRejectionCount.load(std::memory_order_acquire) == kPayloadCount,
             "every stale queued token is rejected after teardown invalidates the registry entries");
 
-    InitPostedPayloadWindow(retiredHwnd);
+    DxUi::InitPostedPayloadWindow(retiredHwnd);
     Require(destroyedCount.load(std::memory_order_acquire) == kPayloadCount, "pumping stale tokens after teardown cannot delete payload storage a second time");
 
-    auto stalePayload = TakeMessagePayload<PostedPayloadDrainStressPayload>(capturedStaleMessage.lParam);
+    auto stalePayload = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(capturedStaleMessage.lParam);
     Require(! stalePayload, "a stale queued lParam is rejected after its registered payload was drained");
 
-    auto staleAfterSimulatedHwndReuse = TakeMessagePayload<PostedPayloadDrainStressPayload>(capturedStaleMessage.lParam);
+    auto staleAfterSimulatedHwndReuse = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(capturedStaleMessage.lParam);
     Require(! staleAfterSimulatedHwndReuse, "clearing the retired-HWND fence never makes a stale lParam ownable again");
 
-    auto unregisteredPayload = TakeMessagePayload<PostedPayloadDrainStressPayload>(static_cast<LPARAM>(0x1234u));
+    auto unregisteredPayload = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(static_cast<LPARAM>(0x1234u));
     Require(! unregisteredPayload, "TakeMessagePayload never adopts an unregistered lParam");
 }
 
@@ -2999,6 +3000,55 @@ void TestNoninteractiveWindowActivationBlockerRejectsFocusStealing()
     }
 }
 
+void TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    RootReplacingPointerControlState state;
+    auto root     = std::make_unique<Panel>();
+    auto* control = root->AddChild<RootReplacingPointerControl>(state);
+    control->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 80.0f));
+    host.SetRoot(std::move(root));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 120.0f));
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(24, 16), handled));
+    Require(handled, "root-replacing pointer-down is handled");
+    Require(state.mouseDownCount == 1u, "root-replacing control receives one mouse-down");
+    Require(host.GetFocusControl() == nullptr, "root-replacing pointer-down leaves no stale focus target");
+
+    auto secondRoot     = std::make_unique<Panel>();
+    auto* secondControl = secondRoot->AddChild<RootReplacingPointerControl>(state);
+    secondControl->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 80.0f));
+    host.SetRoot(std::move(secondRoot));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 120.0f));
+
+    handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(24, 16), handled));
+    Require(handled, "root-replacing pointer-up is handled");
+    Require(state.mouseUpCount == 1u, "root-replacing control receives one mouse-up");
+}
+
+void TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    RootReplacingHoverControlState state;
+    auto root     = std::make_unique<Panel>();
+    auto* control = root->AddChild<RootReplacingHoverControl>(state);
+    control->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 80.0f));
+    host.SetRoot(std::move(root));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 120.0f));
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(24, 16), handled));
+    Require(handled, "root-replacing hover-enter mouse move is handled");
+    Require(state.hoverEnterCount == 1u, "root-replacing hover control receives hover enter");
+    Require(state.mouseMoveCount == 0u, "root-replacing hover control is not reused for mouse move after replacing the root");
+}
+
 } // namespace
 
 void TestWindowHostWorksWithoutOptionalSdkDebugLayer()
@@ -3055,6 +3105,8 @@ void RunWindowHostTests()
     runTest("TestButtonKeyboardActivationCanReplaceRootSafely", TestButtonKeyboardActivationCanReplaceRootSafely);
     runTest("TestWindowHostSpaceAndReturnInvokeFocusedButtonWithoutDefaultButtonFallback",
             TestWindowHostSpaceAndReturnInvokeFocusedButtonWithoutDefaultButtonFallback);
+    runTest("TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement", TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement);
+    runTest("TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement", TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement);
     runTest("TestWindowHostDpiChangedIsHandled", TestWindowHostDpiChangedIsHandled);
     runTest("TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow",
             TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow);

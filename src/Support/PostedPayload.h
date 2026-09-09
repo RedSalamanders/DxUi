@@ -36,6 +36,8 @@ template <class T> void DestroyPayload(void* value) noexcept
     delete static_cast<T*>(value);
 }
 } // namespace DxUi::Detail
+namespace DxUi
+{
 inline void InitPostedPayloadWindow(HWND hwnd) noexcept
 {
     if (! hwnd)
@@ -120,3 +122,5 @@ template <class T> std::unique_ptr<T> TakeMessagePayload(LPARAM token) noexcept
     }
     return std::unique_ptr<T>(static_cast<T*>(taken.value));
 }
+
+} // namespace DxUi

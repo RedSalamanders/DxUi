@@ -201,13 +201,13 @@ template <typename Predicate> [[nodiscard]] bool PumpComboSuiteMessagesUntil(Att
 
 void EmitColorGlyphPixelCountForTest(std::wstring_view detail, const WindowHostBitmapCapture& capture, size_t warmPixelCount) noexcept
 {
-    if (! Debug::Perf::IsCaptureEnabled())
+    if (! DxUi::Debug::Perf::IsCaptureEnabled())
     {
         return;
     }
 
     const size_t pixelCount = static_cast<size_t>(capture.widthPx) * static_cast<size_t>(capture.heightPx);
-    Debug::Perf::Emit(L"dxui.textinput.color_glyph_pixel_count", detail, 0, warmPixelCount, pixelCount, S_OK);
+    DxUi::Debug::Perf::Emit(L"dxui.textinput.color_glyph_pixel_count", detail, 0, warmPixelCount, pixelCount, S_OK);
 }
 
 void TestComboRightClickInvokesContextMenuWithoutOpeningPopup()
@@ -933,6 +933,45 @@ void TestComboBoxTouchRowsKeepGeometryAndSelectionCoherent()
     }
 }
 
+void TestComboBoxLocalizedNoMatchesRefreshesOpenPopup()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto theme          = MakeDefaultThemePalette(false);
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    auto root   = std::make_unique<Panel>();
+    auto* combo = root->AddChild<ComboBox>();
+    combo->SetBounds(D2D1::RectF(8, 8, 108, 36));
+    combo->SetEditable(true);
+    combo->SetItems({{L"alpha", L"Alpha"}});
+    combo->SetText(L"zzzz");
+    size_t changed = 0;
+    combo->SetOnTextChanged([&](std::wstring_view) { ++changed; });
+    combo->SetOnSelectionChanged([&](size_t) { ++changed; });
+    window.Host().SetRoot(std::move(root));
+    Require(combo->OnMouseDown(window.Host(), D2D1::Point2F(102, 22), false, 0), "open unmatched editable popup");
+    const auto english       = CaptureAttachedHostWindowBitmapForComboSuite(window, "capture default no-match text");
+    const auto before        = combo->DebugGetPopupBounds();
+    const auto selection     = combo->GetSelectedIndex();
+    std::wstring translation = L"Aucun résultat correspondant à la recherche";
+    combo->SetNoMatchesText(translation);
+    translation.clear();
+    Require(combo->GetNoMatchesText() == L"Aucun résultat correspondant à la recherche", "translation is owned by the control");
+    WindowHostBitmapCapture french;
+    Require(window.Host().DebugCaptureBitmap(french), "capture translated no-match text");
+    const auto after = combo->DebugGetPopupBounds();
+    Require(after.right - after.left > before.right - before.left, "open popup width is remeasured for the translated text");
+    Require(CompareWindowHostBitmapCapturesForTest(french, english).differingPixels > 10, "translated no-match text reaches the rendered popup");
+    Require(combo->IsPopupOpen() && combo->GetText() == L"zzzz" && combo->GetSelectedIndex() == selection && changed == 0,
+            "language change preserves query, selection, popup and callbacks");
+    combo->SetNoMatchesText({});
+    WindowHostBitmapCapture restored;
+    Require(window.Host().DebugCaptureBitmap(restored), "capture restored default no-match text");
+    Require(combo->GetNoMatchesText() == L"No matches" && CompareWindowHostBitmapCapturesForTest(restored, english).differingPixels == 0,
+            "empty override restores the default text and popup geometry");
+}
+
 void TestComboBoxCompactEditableTextRectPreservesInsetAndWidth()
 {
     using namespace DxUi;
@@ -1139,6 +1178,7 @@ void RunComboBoxTests()
     runTest("TestComboBoxEightItemsAllFitInDefaultPopup", TestComboBoxEightItemsAllFitInDefaultPopup);
     runTest("TestComboBoxSetMaxVisibleItemsAllowsLargerPopup", TestComboBoxSetMaxVisibleItemsAllowsLargerPopup);
     runTest("TestComboBoxTouchRowsKeepGeometryAndSelectionCoherent", TestComboBoxTouchRowsKeepGeometryAndSelectionCoherent);
+    runTest("TestComboBoxLocalizedNoMatchesRefreshesOpenPopup", TestComboBoxLocalizedNoMatchesRefreshesOpenPopup);
     runTest("TestComboBoxCompactEditableTextRectPreservesInsetAndWidth", TestComboBoxCompactEditableTextRectPreservesInsetAndWidth);
     runTest("TestNativeEditableComboBoxEmojiUsesColorFontRendering", TestNativeEditableComboBoxEmojiUsesColorFontRendering);
     runTest("TestComboBoxCompactPopupItemTextRectPreservesInsetAndWidth", TestComboBoxCompactPopupItemTextRectPreservesInsetAndWidth);

@@ -2202,6 +2202,8 @@ public:
 class MenuBar final : public Control
 {
 public:
+    static constexpr float kDefaultHeightDip = 30.0f;
+
     using OpenItemCallback     = std::function<void(size_t index, POINT screenPoint, bool keyboardInvocation)>;
     using HoverChangedCallback = std::function<void(std::optional<size_t> hoveredIndex)>;
 
@@ -2664,6 +2666,9 @@ public:
     // Override the default kComboBoxMaxVisibleItems cap for this instance.
     // Pass 0 to restore the default.
     void SetMaxVisibleItems(size_t maxItems) noexcept;
+    // Owned per-instance translation; empty restores the English default. Open popup layout is refreshed.
+    void SetNoMatchesText(std::wstring text);
+    [[nodiscard]] std::wstring_view GetNoMatchesText() const noexcept;
     // Per-instance row minimum in DIPs, including paint, hit testing and scrolling. Zero restores the theme default.
     // Finite values in [0, 4096] are accepted; invalid values leave the current setting unchanged.
     void SetMinimumPopupItemHeight(float heightDip) noexcept;
@@ -2795,6 +2800,7 @@ private:
     std::vector<size_t> _popupItemIndices;
     std::wstring _text;
     std::wstring _placeholder;
+    std::wstring _noMatchesText;
     std::function<void(std::wstring_view)> _onTextChanged;
     std::function<void(size_t)> _onSelectionChanged;
     std::function<void()> _onSubmitted;
@@ -3162,6 +3168,9 @@ public:
     // Non-owning model pointer. Caller manages model lifetime from SetModel() until Tree destruction.
     // Model state accessed only on UI thread — no synchronization needed.
     void SetModel(IDxTreeModel* model) noexcept;
+    // Owned per-instance translation; empty restores the English default.
+    void SetEmptyStateText(std::wstring text);
+    [[nodiscard]] std::wstring_view GetEmptyStateText() const noexcept;
     void SetDelegate(IDxTreeDelegate* delegate) noexcept;
     void SetRowHeightDip(float rowHeightDip) noexcept;
     void SetIndentDip(float indentDip) noexcept;
@@ -3279,6 +3288,7 @@ private:
     [[nodiscard]] bool HasActiveTreeExpansionAnimation(uint64_t nowTickMs) const noexcept;
     [[nodiscard]] float GetTreeExpansionProgress(uint64_t nowTickMs) const noexcept;
 
+    std::wstring _emptyStateText;
     // Non-owning. Caller manages model lifetime. Valid from SetModel() until Tree destruction.
     // Invalidation validated at message entry by PruneStaleInteractionState().
     IDxTreeModel* _model       = nullptr;
@@ -4139,6 +4149,13 @@ struct TransientSurfaceOptions final
                                                    TransientSurfaceBackdrop& outBackdrop,
                                                    std::wstring_view componentName) noexcept;
 void PaintTransientSurface(ControlHost& host, const D2D1_RECT_F& surfaceRect, const TransientSurfaceOptions& options = {}) noexcept;
+
+// Acquires the canonical native root for an attached HWND in this process. The returned COM reference
+// belongs to the caller (adopt with wil::com_ptr::attach). Returns null for an invalid/unattached HWND.
+// Foreign-thread calls synchronously marshal to the window owner, which must be pumping messages.
+// Surviving references remain callable after detach without accessing the retired control tree; keep
+// the module containing DxUi mapped for their lifetime. No DxUi C++ object crosses a plugin ABI.
+[[nodiscard]] IRawElementProviderFragmentRoot* CreateWindowHostAccessibilityProvider(HWND hwnd) noexcept;
 
 [[nodiscard]] bool RaiseWindowHostAccessibilityNotification(HWND hwnd, std::wstring_view notification, std::wstring_view activityId) noexcept;
 } // namespace DxUi

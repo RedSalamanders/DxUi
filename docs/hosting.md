@@ -57,6 +57,8 @@ call `Attach(hwnd)` and check its boolean result, then install the tree and them
 messages through `HandleMessage(hwnd, message, wParam, lParam, handled)`; return that result when handled and
 otherwise continue normal window dispatch. This mode owns native graphics, text/accessibility and presentation
 services. The application still owns the top-level window and event-blocked message loop.
+When the archive is linked into several modules, each module owns its native menu and animation window classes.
+Keep each module loaded while its hosts, windows, callbacks or UI-thread resources remain alive.
 
 Call `Detach()` before the caller-owned HWND and borrowed application state are destroyed. Do not call native
 `Attach(HWND)` on `EmbeddedHost::Controls()`. The
@@ -99,6 +101,10 @@ application-owned and must reflect the actual viewport transform. One service us
 and no additional rendering resources.
 
 Clipboard(Copy/Cut/Paste) provides bounded Unicode editing and optionally accepts an application clipboard.
+The embedded document ceiling is 65,536 UTF-16 units; oversized paste fails without changing the document.
+Native Grid/TextField clipboard transport independently supports larger selections, including 100,000 units.
+It validates allocation bounds and UTF-16 on reads, checks allocation arithmetic on writes, and attempts clipboard
+ownership once. A failed copy leaves cut text intact.
 Normal keyboard shortcuts route through PreTranslate. The automated control tests use an in-memory clipboard.
 The [normative contract](../Specs/UI/UI_InputAndAccessibility.md) defines composition ordering, cancellation,
 deferred locks and lifetime. Library attach APIs are supported. RedXe tree/event routing, real IME/assistive-technology
@@ -135,3 +141,16 @@ Tests/Embedded/EmbeddedAccessibilityTests.h is an executable example using only 
 toggle, slider and Unicode field patterns; negative-origin 144-DPI geometry; COM cross-apartment marshaling; parent
 and focus callbacks; distinct identities after replacement; and cleanup. It is a synthetic component example,
 not a screen-reader acceptance claim or completed RedXe adapter.
+
+Native consumers may include `DxUi/NativeMenuInterop.h` to adapt borrowed HMENU resources,
+`DxUi/FocusRestore.h` for owned-window focus transitions, and `DxUi/PointerInput.h` for pointer
+message decoding. `DxUi/Typography.h` and `DxUi/AccessibilityTextUnits.h` expose the shared font
+and Unicode-unit policies. Keep application resources and command policy in your adapter.
+
+Native consumers that know an attached HWND can acquire its canonical root with
+`DxUi::CreateWindowHostAccessibilityProvider(hwnd)` from `<DxUi/DxUi.h>`. Adopt the returned owned COM
+reference with `wil::com_ptr::attach`; null means the window or attachment is unavailable. Call only for a
+window in the same process. A foreign-thread call synchronously dispatches to the owner, which must pump
+messages. Repeated acquisitions share identity during one attachment. Detach invalidates access to the retired
+tree; reattachment creates a distinct identity. Keep the owning module loaded while any provider is retained.
+This API requires neither private implementation headers nor a consumer diagnostics build define.

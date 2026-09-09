@@ -8,7 +8,18 @@
     <VcpkgEnabled>false</VcpkgEnabled>
     <DxUiTriplet Condition="'$(Platform)'=='x64'">x64-windows</DxUiTriplet>
     <DxUiTriplet Condition="'$(Platform)'=='ARM64'">arm64-windows</DxUiTriplet>
+    <DxUiDisableStlAnnotations Condition="'$(DxUiDisableStlAnnotations)'==''">false</DxUiDisableStlAnnotations>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='ASan Debug'">
+    <EnableASAN>true</EnableASAN>
+    <!-- All standalone outputs share one directory; the archive dependency stages once before consumers. -->
+    <CopyAsanBinariesToOutDir Condition="'$(MSBuildProjectName)'=='DxUi'">true</CopyAsanBinariesToOutDir>
+    <CopyAsanBinariesToOutDir Condition="'$(MSBuildProjectName)'!='DxUi'">false</CopyAsanBinariesToOutDir>
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='ASan Debug' and '$(DxUiDisableStlAnnotations)'=='true'">
+    <ClCompile><PreprocessorDefinitions>_DISABLE_STL_ANNOTATION;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <LanguageStandard>stdcpplatest</LanguageStandard><ExceptionHandling>Sync</ExceptionHandling><WarningLevel>Level4</WarningLevel>
@@ -17,7 +28,7 @@
       <PreprocessorDefinitions>UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(DxUiRepositoryRoot)include;$(DxUiOutputRoot)vcpkg_installed\$(Platform)\$(DxUiTriplet)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <RuntimeLibrary Condition="'$(Configuration)'=='Debug'">MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary Condition="'$(Configuration)'=='Debug' or '$(Configuration)'=='ASan Debug'">MultiThreadedDebugDLL</RuntimeLibrary>
       <RuntimeLibrary Condition="'$(Configuration)'=='Release'">MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
   </ItemDefinitionGroup>

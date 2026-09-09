@@ -21,6 +21,7 @@ jobs:
       - run: python Tools/validate_specs.py
       - run: python Tools/validate_dependencies.py
       - run: python Tools/validate_test_port.py
+      - run: python Tools/validate_build_matrix.py
       - run: python -m unittest discover -s Tools/tests -v
   native:
     strategy:
@@ -39,6 +40,12 @@ jobs:
           - platform: ARM64
             runner: windows-11-vs2026-arm
             configuration: Release
+          - platform: x64
+            runner: windows-2025-vs2026
+            configuration: ASan Debug
+          - platform: ARM64
+            runner: windows-11-vs2026-arm
+            configuration: ASan Debug
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 40
     steps:
@@ -49,12 +56,14 @@ jobs:
         with:
           python-version: '3.14'
       - shell: pwsh
-        run: ./test.ps1 -Configuration ${{ matrix.configuration }} -Platform ${{ matrix.platform }}
+        run: ./test.ps1 -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
       - shell: pwsh
-        if: matrix.platform == 'x64' && matrix.configuration == 'Debug'
-        run: ./test-consumer.ps1
+        run: ./test-consumer.ps1 -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
       - shell: pwsh
-        run: ./gallery.ps1 -SkipBuild -Configuration ${{ matrix.configuration }} -Platform ${{ matrix.platform }}
+        if: matrix.configuration == 'ASan Debug'
+        run: ./test-consumer.ps1 -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }} -DisableStlAnnotations
+      - shell: pwsh
+        run: ./gallery.ps1 -SkipBuild -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

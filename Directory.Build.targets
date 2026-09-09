@@ -1,6 +1,18 @@
 <Project>
+  <Import Project="$(MSBuildThisFileDirectory)Build/DxUi.AddressSanitizer.targets" />
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='ASan Debug'">
+    <ClCompile>
+      <EnableASAN>true</EnableASAN>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <ForcedIncludeFiles>$(DxUiRepositoryRoot)src/Support/RequireAddressSanitizer.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <Target Name="ValidateDxUiBuildConfiguration" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(DxUiDisableStlAnnotations)'!='true' and '$(DxUiDisableStlAnnotations)'!='false'" Text="DxUiDisableStlAnnotations must be true or false and match the consumer." />
     <Error Condition="'$(Platform)'!='x64' and '$(Platform)'!='ARM64'" Text="DxUi supports x64 and ARM64." />
-    <Error Condition="'$(Configuration)'!='Debug' and '$(Configuration)'!='Release'" Text="DxUi supports Debug and Release." />
+    <Error Condition="'$(Configuration)'!='Debug' and '$(Configuration)'!='Release' and '$(Configuration)'!='ASan Debug'" Text="DxUi supports Debug, Release and ASan Debug." />
   </Target>
 </Project>

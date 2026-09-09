@@ -1,7 +1,7 @@
 <# .SYNOPSIS Generate all controls and variants in five themes, plus the standalone embedded example. #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Debug','Release')][string] $Configuration='Debug',
+    [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration='Debug',
     [ValidateSet('x64','ARM64')][string] $Platform='x64',
     [string] $OutputDirectory='',
     [switch] $SkipBuild,

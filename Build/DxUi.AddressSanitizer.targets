@@ -1,0 +1,12 @@
+<Project>
+  <!-- MSVC's AddAsanBinariesToCopy currently handles x86/x64 only. The ARM64
+       runtime ships with the same selected toolset under its native compiler. -->
+  <Target Name="AddDxUiArm64AsanRuntime" BeforeTargets="AddAsanBinariesToCopy"
+          Condition="'$(EnableASAN)'=='true' and '$(CopyAsanBinariesToOutDir)'=='true' and '$(Platform)'=='ARM64'">
+    <PropertyGroup>
+      <DxUiArm64AsanRuntime>$(VCToolsInstallDir)bin\HostArm64\arm64\clang_rt.asan_dynamic-aarch64.dll</DxUiArm64AsanRuntime>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(DxUiArm64AsanRuntime)')" Text="The selected MSVC toolset is missing its ARM64 AddressSanitizer runtime: $(DxUiArm64AsanRuntime)" />
+    <ItemGroup><CopyFileToFolders Include="$(DxUiArm64AsanRuntime)" /></ItemGroup>
+  </Target>
+</Project>

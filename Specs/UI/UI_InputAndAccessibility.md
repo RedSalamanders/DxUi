@@ -112,7 +112,11 @@ Clear/detach invalidates queued messages. NotifyChanged publishes external edits
 Escape clears a composition before ordinary editor handling; the application refreshes its focused client afterward.
 
 The shared clipboard backend opens the clipboard once, without retry sleeps. Reads honor the allocation extent,
-require a terminator, reject malformed UTF-16 and cap text at 65,536 units. Copy requires a selection; masked copy/cut
+require a terminator and reject malformed UTF-16. Native transport has no embedded-editor size ceiling: valid
+selections of 100,000 UTF-16 units and larger are supported subject to representable allocation size and available
+memory. Writes check terminator/byte arithmetic before allocation and reject embedded NUL; allocation and ownership
+failures are explicit. The application-side embedded edit/snapshot ceiling remains 65,536 units: an oversized paste
+fails without truncation or document mutation. Copy requires a selection; masked copy/cut
 and read-only cut/paste fail before clipboard access. A failed copy cannot delete selected text. Paste normalizes
 line endings and commits once against the captured revision. Embedded controls have no clipboard HWND: commands
 go through the application service. Automated control suites inject a private clipboard, including their setup/read
@@ -187,3 +191,16 @@ The component's synthetic tests exercise all three AV control kinds, physical ge
 marshaling, text edits, same-path replacement, hidden/detached references and zero allocation in 1,000 clean updates.
 End-to-end application tree/event routing, real screen-reader/IME/touch acceptance and matched resource gates
 remain required before the RedXe AV text/UIA release gate (`embedded-host-text-uia-bridge`).
+
+A Grid row returned by Selection.GetSelection must provide working SelectionItem IsSelected and
+SelectionContainer getters even when it is offscreen or beyond the bounded row-materialization cache.
+These queries use immutable selection IDs and must not materialize every selected row. Removing the
+model/row invalidates retained providers; stale selection containers cannot survive that removal.
+
+Native consumers that know an attached HWND can acquire its canonical root with
+`DxUi::CreateWindowHostAccessibilityProvider(hwnd)` from `<DxUi/DxUi.h>`. Adopt the returned owned COM
+reference with `wil::com_ptr::attach`; null means the window or attachment is unavailable. Call only for a
+window in the same process. A foreign-thread call synchronously dispatches to the owner, which must pump
+messages. Repeated acquisitions share identity during one attachment. Detach invalidates access to the retired
+tree; reattachment creates a distinct identity. Keep the owning module loaded while any provider is retained.
+This API requires neither private implementation headers nor a consumer diagnostics build define.

@@ -9,4 +9,4 @@ Status: HOLD — later consumer; no application changes authorized implicitly by
 5. Remove the old in-tree implementation only after all consumers use the library and full application validation passes.
 6. Update RedSalamander normative contracts, close the migration ledger and archive this plan.
 
-Current RedSalamander source and build remain unchanged. This plan does not block independent DxUi/RedXe progress.
+Consumer adoption requires its own exact pin and fresh product validation. Library builds alone do not change a consumer.

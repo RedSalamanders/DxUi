@@ -10,7 +10,7 @@
 #include <windows.h>
 
 #include <DxUi/Diagnostics.h>
-namespace SecureWipe
+namespace DxUi::SecureWipe
 {
 inline void SecureClear(std::wstring& value) noexcept
 {
@@ -18,8 +18,8 @@ inline void SecureClear(std::wstring& value) noexcept
         SecureZeroMemory(value.data(), value.size() * sizeof(wchar_t));
     value.clear();
 }
-} // namespace SecureWipe
-namespace Debug
+} // namespace DxUi::SecureWipe
+namespace DxUi::Debug
 {
 template <class... Args> void Write(std::wstring_view level, std::wformat_string<Args...> format, Args&&... args) noexcept
 {
@@ -112,4 +112,4 @@ public:
     }
 };
 } // namespace Perf
-} // namespace Debug
+} // namespace DxUi::Debug

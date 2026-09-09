@@ -1232,7 +1232,7 @@ void TestPageHostConnectedOverlayAnimationEmitsCompositionGateMetrics()
 
         const uintmax_t metricOffset = GetAnimationFileSizeOrZero(perfJsonl.Path());
         pageHost->SetPage(MakeAnimatedPage(L"Second", targetHeroBounds, L"hero"), L"hero");
-        Debug::Perf::Emit(L"dxui.animation.allowed_surface", L"lightweight_overlay_transform", 0u, 1u, 0u, S_OK);
+        DxUi::Debug::Perf::Emit(L"dxui.animation.allowed_surface", L"lightweight_overlay_transform", 0u, 1u, 0u, S_OK);
 
         Require(pageHost->HasActiveTransition(), "connected overlay animation gate starts a transition");
         Require(pageHost->DebugGetTransitionState(0u).hasConnectedAnimation, "connected overlay animation gate uses connected overlay surface");
