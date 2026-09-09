@@ -26,6 +26,10 @@ into a consumer. Validators need no personal Codex installation.
 The required native matrix is x64/ARM64 and Debug/Release/ASan Debug. Cross-compilation is not a runtime pass. CI uses explicit
 VS 2026 images with separate native ARM64 execution. Record image/compiler identity in build logs. No fixture changes
 real audio/camera defaults, user settings or application data.
+Interactive menu drivers wait for the popup's modal capture after visibility and use its DPI context. When
+asserting a retained painted hover, their physical cursor agrees with the delivered point so OS-generated moves
+cannot undo the fixture's input. Restore that cursor only while it still has the test's position; do not overwrite
+human movement. Failed hover assertions must report a failure, including outside-dismiss tests.
 
 Embedded WARP fixtures cover DPI, dirty/clean/hidden behavior, paint-dirty pointer Down after hover or keyboard
 focus, alpha, hostile state, negative origins, device loss,

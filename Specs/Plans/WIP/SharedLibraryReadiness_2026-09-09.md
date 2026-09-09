@@ -16,6 +16,7 @@
 - [x] Public provider entrypoint and all six native suites/consumer fixtures qualify at 3dae073 (CI 34355763655).
 - [x] All 65 historical source-policy exclusions have explicit current dispositions; four product guards are rehomed and four mixed runtime cases are restored.
 - [ ] Qualify the four restored runtime cases in the native matrix; 40 Python validator tests pass.
+- [ ] Resolve the remaining sent-message menu fixture race found in 76e3d48 CI. Reuse capture/DPI/cursor setup from the flood fixture and retain hover/invoke assertions; local interactive skips are not a native CI pass.
 - [ ] Required standalone regression/build matrix, consumer fixture, specs and paired performance qualified.
 
 ### G4 clipboard slice

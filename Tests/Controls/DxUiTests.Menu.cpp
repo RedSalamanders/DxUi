@@ -337,6 +337,62 @@ bool WaitForContextMenuPopupBitmapCapture(HWND popupHwnd,
     return MAKELPARAM(static_cast<WORD>(static_cast<SHORT>(x)), static_cast<WORD>(static_cast<SHORT>(y)));
 }
 
+// The modal loop captures/activates after ShowWindow. A visible HWND alone is not
+// ready for input, and Windows can synthesize a move for the physical cursor.
+class ScopedMenuPointerFixture final
+{
+public:
+    explicit ScopedMenuPointerFixture(HWND popup) noexcept : _popup(popup), _previousDpi(SetThreadDpiAwarenessContext(GetWindowDpiAwarenessContext(popup)))
+    {
+    }
+    ScopedMenuPointerFixture(const ScopedMenuPointerFixture&)            = delete;
+    ScopedMenuPointerFixture& operator=(const ScopedMenuPointerFixture&) = delete;
+    ~ScopedMenuPointerFixture() noexcept
+    {
+        if (_cursorAligned)
+        {
+            POINT current{};
+            // Preserve a person's pointer movement during this interactive test.
+            if (GetCursorPos(&current) && current.x == _alignedCursor.x && current.y == _alignedCursor.y)
+                SetCursorPos(_originalCursor.x, _originalCursor.y);
+        }
+        if (_previousDpi)
+            SetThreadDpiAwarenessContext(_previousDpi);
+    }
+    [[nodiscard]] bool HasCapture() const noexcept
+    {
+        GUITHREADINFO gui{sizeof(GUITHREADINFO)};
+        const DWORD threadId = GetWindowThreadProcessId(_popup, nullptr);
+        return threadId != 0u && GetGUIThreadInfo(threadId, &gui) && gui.hwndCapture == _popup;
+    }
+    [[nodiscard]] bool WaitForCapture() const noexcept
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
+        do
+        {
+            if (HasCapture())
+                return true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        } while (std::chrono::steady_clock::now() < deadline);
+        return false;
+    }
+    [[nodiscard]] bool AlignCursor(POINT point) noexcept
+    {
+        if (GetCursorPos(&_originalCursor) == FALSE || SetCursorPos(point.x, point.y) == FALSE)
+            return false;
+        _alignedCursor = point;
+        _cursorAligned = true;
+        return true;
+    }
+
+private:
+    HWND _popup;
+    DPI_AWARENESS_CONTEXT _previousDpi;
+    POINT _originalCursor{};
+    POINT _alignedCursor{};
+    bool _cursorAligned = false;
+};
+
 [[nodiscard]] LRESULT SendCapturedMouseMessageForMenuSuite(HWND hwnd, UINT message, WPARAM wParam, POINT screenPoint) noexcept
 {
     RECT windowRect{};
@@ -1008,6 +1064,13 @@ void TestSplitButtonContextMenuSentMouseMessagesHoverAndOutsideDismiss()
             return;
         }
 
+        ScopedMenuPointerFixture pointerFixture(popupHwnd);
+        if (! pointerFixture.WaitForCapture())
+        {
+            driverFailure = "sent-message popup establishes modal input capture before interaction";
+            return;
+        }
+
         ContextMenuPopupDebugState popupState{};
         if (! WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f;
@@ -1036,8 +1099,13 @@ void TestSplitButtonContextMenuSentMouseMessagesHoverAndOutsideDismiss()
             return;
         }
 
-        // Deliver the hover via the popup's window proc (the production routing input);
-        // no live cursor traversal is needed because routing reads the delivered point.
+        // Match real and sent points so a later OS-generated move cannot undo the
+        // hover before its paint is observed. The sent down/up still prove invocation.
+        if (! pointerFixture.AlignCursor(refineCenter))
+        {
+            driverFailure = "sent-message interactive fixture aligns the physical cursor";
+            return;
+        }
         static_cast<void>(SendCapturedMouseMessageForMenuSuite(popupHwnd, WM_MOUSEMOVE, 0, refineCenter));
 
         ContextMenuPopupItemPaintDebugState paintState{};
@@ -1061,6 +1129,7 @@ void TestSplitButtonContextMenuSentMouseMessagesHoverAndOutsideDismiss()
         } while (std::chrono::steady_clock::now() < hoverDeadline);
         if (! hoverObserved)
         {
+            driverFailure = "sent-message outside-dismiss fixture paints the Refine hover before dismissal";
             return;
         }
 
@@ -1117,6 +1186,13 @@ void TestSplitButtonContextMenuSentMouseMessagesHoverAndInvokeImmediately()
             return;
         }
 
+        ScopedMenuPointerFixture pointerFixture(popupHwnd);
+        if (! pointerFixture.WaitForCapture())
+        {
+            driverFailure = "sent-message popup establishes modal input capture before interaction";
+            return;
+        }
+
         ContextMenuPopupDebugState popupState{};
         D2D1_RECT_F refineRectDip{};
         if (! WaitForContextMenuPopupState(popupHwnd,
@@ -1141,6 +1217,13 @@ void TestSplitButtonContextMenuSentMouseMessagesHoverAndInvokeImmediately()
             return;
         }
 
+        // Match real and sent points so a later OS-generated move cannot undo the
+        // hover before its paint is observed. The sent down/up still prove invocation.
+        if (! pointerFixture.AlignCursor(refineCenter))
+        {
+            driverFailure = "sent-message interactive fixture aligns the physical cursor";
+            return;
+        }
         static_cast<void>(SendCapturedMouseMessageForMenuSuite(popupHwnd, WM_MOUSEMOVE, 0, refineCenter));
 
         ContextMenuPopupItemPaintDebugState paintState{};
@@ -1289,24 +1372,8 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
             return;
         }
 
-        // Visibility precedes SetCapture in the modal-loop setup. Start the flood only after the input owner
-        // is established, and use the popup's DPI context for all physical/client coordinate conversions.
-        const auto previousDpi = SetThreadDpiAwarenessContext(GetWindowDpiAwarenessContext(popupHwnd));
-        const auto restoreDpi  = wil::scope_exit([&]() noexcept
-        {
-            if (previousDpi)
-                SetThreadDpiAwarenessContext(previousDpi);
-        });
-        GUITHREADINFO gui{sizeof(GUITHREADINFO)};
-        const DWORD uiThread       = GetWindowThreadProcessId(popupHwnd, nullptr);
-        const auto captureDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
-        while (std::chrono::steady_clock::now() < captureDeadline)
-        {
-            if (GetGUIThreadInfo(uiThread, &gui) && gui.hwndCapture == popupHwnd)
-                break;
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-        if (gui.hwndCapture != popupHwnd)
+        ScopedMenuPointerFixture pointerFixture(popupHwnd);
+        if (! pointerFixture.WaitForCapture())
         {
             driverFailure = "owner-message-flood popup establishes modal input capture before traffic starts";
             return;
@@ -1335,22 +1402,11 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
             driverFailure = "owner-message-flood split-button Refine row converts to screen coordinates";
             return;
         }
-        // Windows can synthesize a captured WM_MOUSEMOVE for the stationary physical cursor after
-        // our posted move. Align this interactive fixture's cursor so that real and posted input agree;
-        // otherwise a correctly processed hover is immediately cleared before its paint is observed.
-        POINT originalCursor{};
-        if (GetCursorPos(&originalCursor) == FALSE || SetCursorPos(refineCenter.x, refineCenter.y) == FALSE)
+        if (! pointerFixture.AlignCursor(refineCenter))
         {
             driverFailure = "owner-message-flood interactive fixture aligns the physical cursor";
             return;
         }
-        const auto restoreCursor                = wil::scope_exit([&]() noexcept
-        {
-            POINT currentCursor{};
-            // Do not overwrite a person moving the pointer while a test is running.
-            if (GetCursorPos(&currentCursor) && currentCursor.x == refineCenter.x && currentCursor.y == refineCenter.y)
-                SetCursorPos(originalCursor.x, originalCursor.y);
-        });
         static constexpr int kFloodMessageCount = 2000;
         for (int i = 0; i < kFloodMessageCount; ++i)
         {
@@ -1389,12 +1445,11 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
         {
             ContextMenuPopupDebugState finalState{};
             const bool stateRead = DebugGetContextMenuPopupState(popupHwnd, finalState);
-            GetGUIThreadInfo(uiThread, &gui);
             driverFailure = std::format("owner-window message flood does not starve popup hover highlight: state={} visible={} capture={} dpi={} hover={} "
                                         "fill={} renders={} point=({}, {})",
                                         stateRead,
                                         IsWindowVisible(popupHwnd) != FALSE,
-                                        gui.hwndCapture == popupHwnd,
+                                        pointerFixture.HasCapture(),
                                         finalState.dpi,
                                         finalState.hoveredIndex.has_value() ? static_cast<int>(finalState.hoveredIndex.value()) : -1,
                                         paintState.usesHighlightFill,
