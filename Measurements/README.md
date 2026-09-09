@@ -4,6 +4,9 @@ This directory retains reviewed evidence from DxUi's own samples and benchmarks.
 interfaces, but use synthetic data and require no RedXe or RedSalamander checkout, plugin, settings or services.
 Application adoption measurements belong in their application's repository.
 
+- [Slider appearance, 2026-09-09](ComplexUi/2026-09-09/README.md): original and candidate receipts, alternating
+  Release runs, full Debug investigation, and the explicitly accepted approximately 0.5 MiB clean-memory caveat.
+
 - [Complex UI, 2026-09-05](ComplexUi/2026-09-05/README.md): Release baseline and matched repeat, complete raw rounds,
   comparison and rendered scene.
 - [Complex UI, 2026-09-07](ComplexUi/2026-09-07/README.md): surface-lifetime round; Debug/Release baselines measured
