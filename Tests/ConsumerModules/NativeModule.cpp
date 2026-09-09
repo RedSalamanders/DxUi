@@ -10,6 +10,9 @@ class AnimationProbe final : public DxUi::Control
 {
 public:
     unsigned ticks = 0u;
+    void Paint(DxUi::ControlHost&) const override
+    {
+    }
     bool Tick(DxUi::ControlHost&, uint64_t) override
     {
         ++ticks;
