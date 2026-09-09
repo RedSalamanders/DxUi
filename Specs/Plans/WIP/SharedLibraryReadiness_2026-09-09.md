@@ -10,7 +10,9 @@
 - [x] G7 implementation and x64 Debug Accessibility regressions pass; offscreen selected rows retain usable selection providers.
 - [x] All 18 x64 Debug suites pass (nine Menu desktop capability skips retained); archive-backed public native-menu helper rerun passes.
 - [x] Shared advisory helper and ten deterministic decision/immutable-pin tests pass; consumer wiring remains in I19 C3/C6.
-- [ ] Native CI follow-up: retain menu assertions with aligned physical cursor, clear expected-negative consumer exit status, and stage the ARM64 sanitizer runtime.
+- [x] Native CI follow-up: retained menu assertions with aligned physical cursor, cleared expected-negative consumer exit status, and staged the ARM64 sanitizer runtime.
+- [x] Native x64/ARM64 Debug and Release suites, consumer fixtures and gallery pass at 8c548fe; all native ASAN suites and both annotation-policy consumer fixtures pass.
+- [ ] Resolve the ASAN gallery queue-settling delay and complete both CI jobs.
 - [ ] Required standalone regression/build matrix, consumer fixture, specs and paired performance qualified.
 
 ### G4 clipboard slice
@@ -109,3 +111,12 @@ rejects a missing runtime; its actual MSBuild positive/negative staging test pas
 The corrected Menu fixture rebuild passes locally with the same nine desktop capability skips;
 native CI remains the interactive acceptance gate. Specs, dependencies, formatting and all 36
 Python tooling regressions pass after these corrections.
+
+Native run 34348758964 passes all 18 suites on each of the six configurations; both ASAN probes and both
+external STL annotation policies pass on x64 and ARM64. Debug/Release jobs complete. ASAN gallery
+generation exposed a fixture settling problem: 4,096 queued animation/paint messages on a large
+sheet can take many minutes under instrumentation. CaptureThemeSection now uses a 100-ms settling
+budget before the existing explicit redraw and capture. Production scheduling, pixels and assertions
+are unchanged; gallery generation itself is the reproducing validation. Local x64 ASAN generation now passes all five sheets plus the embedded example. Public docs/gallery
+pixels need no publication for this fixture-only timing bound; control styling/layout is unchanged.
+Required skills/specs/dependencies/format checks pass; fresh native CI remains the final matrix gate.
