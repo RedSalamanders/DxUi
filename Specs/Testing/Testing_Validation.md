@@ -44,6 +44,15 @@ source-text assertions; original cases remain available at the recorded source c
 be reclassified merely to obtain a green build. The posted-payload stress case now fills the library's 128-entry
 ceiling, with new saturation, wrong-type and stale-token ownership tests in EmbeddedTests.
 
+[Current source-policy dispositions](SourcePolicyDispositions.json) reconcile all 65 historical source-text
+exclusions without rewriting the sealed import record. Four mixed cases regain their runtime portions: ScrollPanel
+child removal, TabControl close callbacks, and host pointer/hover callbacks that replace the root. Native ASAN
+execution covers stale-pointer use. Each other row names runtime replacements, an explicit retirement of helper
+spelling/legacy diagnostics, a reviewed ownership policy, or the consumer-owned guard. A code review is not automated
+proof of every allocation/API failure or secure wipe; performance, native and manual gates remain separate.
+The validator rejects missing/duplicate dispositions and deleted runtime replacements. Future behavior changes
+must update the owning runtime contract and its tests; helper names and statement ordering are not public APIs.
+
 Tests/Controls retains eight original visual baselines. Native suites cover control state/layout, theme, grids/trees,
 animation (including slider hover/press easing and keyboard thumb travel), native text and IME events, UIA lifetime and menus. Capability skips are emitted in logs and copied into
 receipts; a skip is not proof of that capability. CI defines all six native jobs; their fresh receipts establish execution results.

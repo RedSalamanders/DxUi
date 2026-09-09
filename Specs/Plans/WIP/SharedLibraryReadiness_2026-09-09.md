@@ -13,6 +13,9 @@
 - [x] Native CI follow-up: retained menu assertions with aligned physical cursor, cleared expected-negative consumer exit status, and staged the ARM64 sanitizer runtime.
 - [x] Native x64/ARM64 Debug and Release suites, consumer fixtures and gallery pass at 8c548fe; all native ASAN suites and both annotation-policy consumer fixtures pass.
 - [x] Resolve the ASAN gallery queue-settling delay; all six native CI jobs pass at ebc3796 (run 34351569531).
+- [x] Public provider entrypoint and all six native suites/consumer fixtures qualify at 3dae073 (CI 34355763655).
+- [x] All 65 historical source-policy exclusions have explicit current dispositions; four product guards are rehomed and four mixed runtime cases are restored.
+- [ ] Qualify the four restored runtime cases in the native matrix; 40 Python validator tests pass.
 - [ ] Required standalone regression/build matrix, consumer fixture, specs and paired performance qualified.
 
 ### G4 clipboard slice
@@ -129,3 +132,5 @@ G2 follow-up: promote the existing native provider acquisition declaration to th
 accessibility suite now exercises it directly, including null/detached HWND rejection and canonical identity
 after reattachment. The relocated consumer compiles the same public entrypoint without diagnostic defines.
 Docs updated; provider implementation and all gallery pixels are unchanged.
+
+Source-policy reconciliation: `Specs/Testing/SourcePolicyDispositions.json` accounts for each excluded origin. The original 941-case import record remains sealed. Four callback lifetime cases regain executable coverage without source-string assertions. Reviewed ownership policies explicitly distinguish code review from runtime fault injection and secure-memory proof. The change touches test/validator inputs only; compiled library inputs, workload and gallery pixels are unchanged. Native qualification remains pending for these restored cases.

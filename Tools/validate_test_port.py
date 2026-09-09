@@ -7,6 +7,42 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def validate_source_policies(cases):
+    origins = {(c['file'], c['test']) for c in cases if c['status'] == 'excluded' and c.get('reason', '').startswith('Source-text')}
+    if not origins:
+        return []
+    manifest = ROOT / 'Specs/Testing/SourcePolicyDispositions.json'
+    if not manifest.is_file():
+        return ['Missing current source-policy dispositions']
+    data = json.loads(manifest.read_text(encoding='utf-8'))
+    errors, seen = [], set()
+    if data.get('schemaVersion') != 1:
+        errors.append('Unsupported source-policy disposition schema')
+    for row in data.get('dispositions', []):
+        identity = (row.get('originFile'), row.get('originTest'))
+        if identity not in origins or identity in seen:
+            errors.append(f'Duplicate or unknown source-policy origin: {identity}')
+        seen.add(identity)
+        decision = row.get('decision')
+        if decision not in ('runtime', 'runtime-restored', 'retired-spelling', 'retired-diagnostics', 'reviewed-policy', 'product-owned') or not row.get('rationale', '').strip():
+            errors.append(f'Missing source-policy decision/rationale: {identity}')
+        replacements = row.get('runtimeCases', [])
+        if decision in ('runtime', 'runtime-restored') and not replacements:
+            errors.append(f'Runtime disposition has no replacement: {identity}')
+        for replacement in replacements:
+            path = (ROOT / replacement['file']).resolve()
+            name = replacement['test']
+            if not path.is_relative_to((ROOT / 'Tests/Controls').resolve()) or not path.is_file():
+                errors.append(f'Invalid source-policy replacement path: {path}')
+                continue
+            source = path.read_text(encoding='utf-8-sig')
+            if not re.search(r'\bvoid\s+' + re.escape(name) + r'\s*\(\s*\)', source):
+                errors.append(f'Missing source-policy replacement case: {name}')
+    if seen != origins:
+        errors.append('Every historical source-policy exclusion requires exactly one current disposition')
+    return errors
+
+
 def main():
     data = json.loads((ROOT / 'Specs/Done/SourceImport/test-port.json').read_text(encoding='utf-8'))
     errors, seen = [], set()
@@ -31,6 +67,7 @@ def main():
             name = case.get('currentTest', case['test'])
             if not re.search(r'\bvoid\s+' + re.escape(name) + r'\s*\(\s*\)', path.read_text(encoding='utf-8-sig')):
                 errors.append(f'Retained case is missing: {identity} -> {name}')
+    errors.extend(validate_source_policies(cases))
     if errors:
         print('\n'.join(errors), file=sys.stderr)
         return 1

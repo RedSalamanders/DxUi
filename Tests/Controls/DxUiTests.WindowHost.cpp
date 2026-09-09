@@ -3000,6 +3000,55 @@ void TestNoninteractiveWindowActivationBlockerRejectsFocusStealing()
     }
 }
 
+void TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    RootReplacingPointerControlState state;
+    auto root     = std::make_unique<Panel>();
+    auto* control = root->AddChild<RootReplacingPointerControl>(state);
+    control->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 80.0f));
+    host.SetRoot(std::move(root));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 120.0f));
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(24, 16), handled));
+    Require(handled, "root-replacing pointer-down is handled");
+    Require(state.mouseDownCount == 1u, "root-replacing control receives one mouse-down");
+    Require(host.GetFocusControl() == nullptr, "root-replacing pointer-down leaves no stale focus target");
+
+    auto secondRoot     = std::make_unique<Panel>();
+    auto* secondControl = secondRoot->AddChild<RootReplacingPointerControl>(state);
+    secondControl->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 80.0f));
+    host.SetRoot(std::move(secondRoot));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 120.0f));
+
+    handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(24, 16), handled));
+    Require(handled, "root-replacing pointer-up is handled");
+    Require(state.mouseUpCount == 1u, "root-replacing control receives one mouse-up");
+}
+
+void TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    RootReplacingHoverControlState state;
+    auto root     = std::make_unique<Panel>();
+    auto* control = root->AddChild<RootReplacingHoverControl>(state);
+    control->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 80.0f));
+    host.SetRoot(std::move(root));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 120.0f));
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0, MAKELPARAM(24, 16), handled));
+    Require(handled, "root-replacing hover-enter mouse move is handled");
+    Require(state.hoverEnterCount == 1u, "root-replacing hover control receives hover enter");
+    Require(state.mouseMoveCount == 0u, "root-replacing hover control is not reused for mouse move after replacing the root");
+}
+
 } // namespace
 
 void TestWindowHostWorksWithoutOptionalSdkDebugLayer()
@@ -3056,6 +3105,8 @@ void RunWindowHostTests()
     runTest("TestButtonKeyboardActivationCanReplaceRootSafely", TestButtonKeyboardActivationCanReplaceRootSafely);
     runTest("TestWindowHostSpaceAndReturnInvokeFocusedButtonWithoutDefaultButtonFallback",
             TestWindowHostSpaceAndReturnInvokeFocusedButtonWithoutDefaultButtonFallback);
+    runTest("TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement", TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement);
+    runTest("TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement", TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement);
     runTest("TestWindowHostDpiChangedIsHandled", TestWindowHostDpiChangedIsHandled);
     runTest("TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow",
             TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow);

@@ -44,3 +44,37 @@ class TestPortTests(unittest.TestCase):
         self.manifest['tests'][0].update(status='excluded', reason='')
         self.save()
         self.assertEqual(self.run_tool('validate_test_port'), 1)
+
+    def policy_fixture(self):
+        self.fixture()
+        self.manifest['tests'][0].update(status='excluded', reason='Source-text implementation assertion')
+        self.save()
+        self.policy = {'schemaVersion': 1, 'dispositions': [{
+            'originFile': 'Tests/Controls/Example.cpp', 'originTest': 'TestToggle',
+            'decision': 'runtime-restored', 'rationale': 'Behavior replaces spelling',
+            'runtimeCases': [{'file': 'Tests/Controls/Example.cpp', 'test': 'TestToggle'}]}]}
+        self.save_policy()
+
+    def save_policy(self):
+        self.put('Specs/Testing/SourcePolicyDispositions.json', json.dumps(self.policy))
+
+    def test_current_runtime_replacement_passes(self):
+        self.policy_fixture()
+        self.assertEqual(self.run_tool('validate_test_port'), 0)
+
+    def test_missing_current_policy_fails(self):
+        self.policy_fixture()
+        self.policy['dispositions'] = []
+        self.save_policy()
+        self.assertEqual(self.run_tool('validate_test_port'), 1)
+
+    def test_deleted_replacement_fails(self):
+        self.policy_fixture()
+        self.put('Tests/Controls/Example.cpp', '')
+        self.assertEqual(self.run_tool('validate_test_port'), 1)
+
+    def test_duplicate_policy_fails(self):
+        self.policy_fixture()
+        self.policy['dispositions'] *= 2
+        self.save_policy()
+        self.assertEqual(self.run_tool('validate_test_port'), 1)
