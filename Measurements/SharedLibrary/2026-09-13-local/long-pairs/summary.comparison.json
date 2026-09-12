@@ -1,0 +1,1006 @@
+{
+  "acceptance": "open",
+  "method": "Descriptive medians across four paired runs; original per-pair comparator thresholds and results remain authoritative and unchanged.",
+  "profiles": {
+    "Debug": {
+      "pairsOutsideBands": 4,
+      "baselineRepeatsOutsideBands": 3,
+      "metrics": [
+        {
+          "scenario": "clean",
+          "metric": "fps",
+          "beforeMedian": 1166.009707,
+          "afterMedian": 1160.9542700000002,
+          "changePercent": -0.4335673167770393,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            -0.9716789176611118,
+            0.44778947551791237,
+            -0.7402549678912407,
+            -0.37976903519901795
+          ],
+          "baselineRepeatChangesPercent": [
+            -0.8628119583207305,
+            0.10481821672412295,
+            -0.7439826228257451
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "frameP50Ms",
+          "beforeMedian": 0.8446,
+          "afterMedian": 0.8473,
+          "changePercent": 0.3196779540610928,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.6876111440426769,
+            -0.07093037002008362,
+            0.011855364552459946,
+            0.6030507272082319
+          ],
+          "baselineRepeatChangesPercent": [
+            0.2845287492590387,
+            0.0,
+            0.2608180201541188
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "frameP95Ms",
+          "beforeMedian": 0.90345,
+          "afterMedian": 0.9226000000000001,
+          "changePercent": 2.1196524434113906,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            3.190306803023568,
+            -0.440577156074462,
+            4.539355992844385,
+            1.0580844263198497
+          ],
+          "baselineRepeatChangesPercent": [
+            0.922632281013791,
+            -0.578034682080919,
+            0.8559359715429204
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "prepareP95Ms",
+          "beforeMedian": 0.00035,
+          "afterMedian": 0.00039999999999999996,
+          "changePercent": 14.28571428571428,
+          "pairsRegressed": 2,
+          "pairChangesPercent": [
+            200.0,
+            -25.00000000000001,
+            -25.00000000000001,
+            66.66666666666667
+          ],
+          "baselineRepeatChangesPercent": [
+            33.33333333333335,
+            33.33333333333335,
+            0.0
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "composeCpuP95Ms",
+          "beforeMedian": 0.006750000000000001,
+          "afterMedian": 0.0067,
+          "changePercent": -0.7407407407407529,
+          "pairsRegressed": 2,
+          "pairChangesPercent": [
+            46.875,
+            -18.918918918918926,
+            -15.492957746478876,
+            15.625
+          ],
+          "baselineRepeatChangesPercent": [
+            15.625,
+            10.9375,
+            0.0
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "privateBytes",
+          "beforeMedian": 24432640.0,
+          "afterMedian": 24928256.0,
+          "changePercent": 2.02849958088851,
+          "pairsRegressed": 2,
+          "pairChangesPercent": [
+            1.9148233740508447,
+            2.2103148024112507,
+            3.568989071038242,
+            1.8462571332662048
+          ],
+          "baselineRepeatChangesPercent": [
+            -1.4196104324859737,
+            -3.3344338065368073,
+            -1.6507098052162439
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "privatePeakBytes",
+          "beforeMedian": 25460736.0,
+          "afterMedian": 25788416.0,
+          "changePercent": 1.287001287001277,
+          "pairsRegressed": 2,
+          "pairChangesPercent": [
+            2.2083533365338415,
+            1.9569788128739996,
+            -0.0798212005108545,
+            2.7450980392156765
+          ],
+          "baselineRepeatChangesPercent": [
+            -1.056168987037931,
+            0.2400384061449934,
+            -2.064330292846861
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "workingSetBytes",
+          "beforeMedian": 39055360.0,
+          "afterMedian": 39729152.0,
+          "changePercent": 1.7252228631358113,
+          "pairsRegressed": 1,
+          "pairChangesPercent": [
+            1.1213137912767124,
+            1.7297410630044974,
+            2.7517064846416472,
+            1.7207008708425064
+          ],
+          "baselineRepeatChangesPercent": [
+            -15.777856259932898,
+            -17.21702277944552,
+            -15.848490199540876
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "workingSetPeakBytes",
+          "beforeMedian": 39741440.0,
+          "afterMedian": 40359936.0,
+          "changePercent": 1.5562999227003438,
+          "pairsRegressed": 1,
+          "pairChangesPercent": [
+            1.4030501089324687,
+            1.7045454545454586,
+            0.6992287917737761,
+            2.143966856551005
+          ],
+          "baselineRepeatChangesPercent": [
+            -15.64270152505447,
+            -15.250544662309373,
+            -15.860566448801737
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "surfaceBytes",
+          "beforeMedian": 3686400.0,
+          "afterMedian": 3686400.0,
+          "changePercent": 0.0,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "baselineRepeatChangesPercent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "replacementPeakBytes",
+          "beforeMedian": 3686400.0,
+          "afterMedian": 3686400.0,
+          "changePercent": 0.0,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "baselineRepeatChangesPercent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "cppAllocations",
+          "beforeMedian": 0.0,
+          "afterMedian": 0.0,
+          "changePercent": null,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "baselineRepeatChangesPercent": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "composeAllocations",
+          "beforeMedian": 0.0,
+          "afterMedian": 0.0,
+          "changePercent": null,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "baselineRepeatChangesPercent": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "fps",
+          "beforeMedian": 366.0383914,
+          "afterMedian": 359.9949676,
+          "changePercent": -1.6510355039222935,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            -1.5951379492656015,
+            -1.2690952381831488,
+            0.9742112258315894,
+            -2.734105633976547
+          ],
+          "baselineRepeatChangesPercent": [
+            0.16924401721714055,
+            1.1585087217658163,
+            1.8915826525953916
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "frameP50Ms",
+          "beforeMedian": 2.6774,
+          "afterMedian": 2.71425,
+          "changePercent": 1.3763352506162674,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            1.6254100805249028,
+            0.7866419294990878,
+            -0.10509721492381052,
+            1.4930399640772363
+          ],
+          "baselineRepeatChangesPercent": [
+            0.46972860125260585,
+            -0.6784968684759862,
+            -0.3728004771845983
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "frameP95Ms",
+          "beforeMedian": 3.2991,
+          "afterMedian": 3.3714500000000003,
+          "changePercent": 2.1930223394259096,
+          "pairsRegressed": 1,
+          "pairChangesPercent": [
+            2.36887642460768,
+            1.9770660340055368,
+            -6.37063887630267,
+            6.60000628871491
+          ],
+          "baselineRepeatChangesPercent": [
+            -1.9124052747777287,
+            -1.2321737573840807,
+            -5.1166537382898785
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "prepareP95Ms",
+          "beforeMedian": 2.0067,
+          "afterMedian": 2.0275,
+          "changePercent": 1.036527632431361,
+          "pairsRegressed": 1,
+          "pairChangesPercent": [
+            0.41095212160222605,
+            0.23240864362359392,
+            -6.154386316898231,
+            10.147325717945987
+          ],
+          "baselineRepeatChangesPercent": [
+            0.12873198989948875,
+            -1.2873198989948875,
+            -7.243650047036687
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "composeCpuP95Ms",
+          "beforeMedian": 0.00825,
+          "afterMedian": 0.0084,
+          "changePercent": 1.8181818181818077,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            2.4390243902438824,
+            0.0,
+            0.0,
+            4.878048780487787
+          ],
+          "baselineRepeatChangesPercent": [
+            2.4390243902438824,
+            1.2195121951219523,
+            0.0
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "privateBytes",
+          "beforeMedian": 23658496.0,
+          "afterMedian": 23961600.0,
+          "changePercent": 1.2811634349030543,
+          "pairsRegressed": 1,
+          "pairChangesPercent": [
+            1.196670135275757,
+            1.4172139647424808,
+            2.696550516547025,
+            -1.007341642479087
+          ],
+          "baselineRepeatChangesPercent": [
+            0.3468609087755814,
+            -0.9538674991328433,
+            1.5782171349288943
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "privatePeakBytes",
+          "beforeMedian": 24487936.0,
+          "afterMedian": 24541184.0,
+          "changePercent": 0.21744584762064534,
+          "pairsRegressed": 1,
+          "pairChangesPercent": [
+            1.185235353877423,
+            -1.7343904856293335,
+            5.270362765229297,
+            -0.727152536770781
+          ],
+          "baselineRepeatChangesPercent": [
+            2.505926176769391,
+            -1.049779884862856,
+            2.4551303758889365
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "workingSetBytes",
+          "beforeMedian": 37963776.0,
+          "afterMedian": 38180864.0,
+          "changePercent": 0.5718293143442743,
+          "pairsRegressed": 1,
+          "pairChangesPercent": [
+            1.360044109538694,
+            0.6715771230502598,
+            2.356680916365228,
+            0.0
+          ],
+          "baselineRepeatChangesPercent": [
+            -15.16265392391104,
+            -16.16430803161184,
+            -14.491821356368318
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "workingSetPeakBytes",
+          "beforeMedian": 38234112.0,
+          "afterMedian": 38385664.0,
+          "changePercent": 0.3963790240505638,
+          "pairsRegressed": 1,
+          "pairChangesPercent": [
+            1.5297242832279956,
+            0.5375766046661568,
+            2.2933275090095018,
+            0.0853970964987294
+          ],
+          "baselineRepeatChangesPercent": [
+            -14.802601447284047,
+            -16.12164514060639,
+            -14.188879728863245
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "surfaceBytes",
+          "beforeMedian": 3686400.0,
+          "afterMedian": 3686400.0,
+          "changePercent": 0.0,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "baselineRepeatChangesPercent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "replacementPeakBytes",
+          "beforeMedian": 3686400.0,
+          "afterMedian": 3686400.0,
+          "changePercent": 0.0,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "baselineRepeatChangesPercent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "cppAllocations",
+          "beforeMedian": 154125.0,
+          "afterMedian": 154125.0,
+          "changePercent": 0.0,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "baselineRepeatChangesPercent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "composeAllocations",
+          "beforeMedian": 0.0,
+          "afterMedian": 0.0,
+          "changePercent": null,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "baselineRepeatChangesPercent": [
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    "Release": {
+      "pairsOutsideBands": 3,
+      "baselineRepeatsOutsideBands": 3,
+      "metrics": [
+        {
+          "scenario": "clean",
+          "metric": "fps",
+          "beforeMedian": 1167.1845785,
+          "afterMedian": 1170.945248,
+          "changePercent": 0.32220006751912944,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            -0.22131339939681638,
+            1.8197879870124556,
+            -0.2586848548528198,
+            0.1965236067236198
+          ],
+          "baselineRepeatChangesPercent": [
+            -1.8579437574614999,
+            -0.6195754976923928,
+            -1.1171997502893438
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "frameP50Ms",
+          "beforeMedian": 0.8441,
+          "afterMedian": 0.843,
+          "changePercent": -0.1303163132330254,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.0,
+            -1.346446551925995,
+            0.04744958481615047,
+            0.07098911500236227
+          ],
+          "baselineRepeatChangesPercent": [
+            1.4129660413203515,
+            0.09498931370222063,
+            0.3562099263832774
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "frameP95Ms",
+          "beforeMedian": 0.9046000000000001,
+          "afterMedian": 0.8947,
+          "changePercent": -1.0944063674552362,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.28105677346825786,
+            -4.756814537680388,
+            2.3266219239373553,
+            -1.9449300699300731
+          ],
+          "baselineRepeatChangesPercent": [
+            5.171444631815625,
+            0.5059021922428464,
+            2.8892636312535247
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "prepareP95Ms",
+          "beforeMedian": 0.0002,
+          "afterMedian": 0.0002,
+          "changePercent": 0.0,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.0,
+            -33.33333333333333,
+            0.0,
+            0.0
+          ],
+          "baselineRepeatChangesPercent": [
+            49.99999999999998,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "composeCpuP95Ms",
+          "beforeMedian": 0.0067,
+          "afterMedian": 0.00595,
+          "changePercent": -11.194029850746269,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            1.7857142857142794,
+            -22.988505747126432,
+            -16.43835616438356,
+            -4.918032786885263
+          ],
+          "baselineRepeatChangesPercent": [
+            55.35714285714284,
+            30.35714285714286,
+            8.928571428571441
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "privateBytes",
+          "beforeMedian": 21737472.0,
+          "afterMedian": 22028288.0,
+          "changePercent": 1.3378556623327764,
+          "pairsRegressed": 1,
+          "pairChangesPercent": [
+            0.9442870632672351,
+            1.3865467491099848,
+            4.351145038167936,
+            0.48881368678324044
+          ],
+          "baselineRepeatChangesPercent": [
+            0.7932011331444722,
+            -1.0387157695939564,
+            0.45325779036826663
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "privatePeakBytes",
+          "beforeMedian": 22528000.0,
+          "afterMedian": 23259136.0,
+          "changePercent": 3.2454545454545514,
+          "pairsRegressed": 3,
+          "pairChangesPercent": [
+            2.9657933042212425,
+            1.8168604651162878,
+            4.897285399853257,
+            3.374455732946302
+          ],
+          "baselineRepeatChangesPercent": [
+            0.14556040756914523,
+            -0.8005822416302766,
+            0.29112081513829047
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "workingSetBytes",
+          "beforeMedian": 36384768.0,
+          "afterMedian": 36947968.0,
+          "changePercent": 1.5479004840706967,
+          "pairsRegressed": 1,
+          "pairChangesPercent": [
+            0.05506607929515184,
+            1.0572489033854549,
+            2.6291931097008225,
+            0.41690140845069834
+          ],
+          "baselineRepeatChangesPercent": [
+            -2.081497797356824,
+            -2.8193832599118895,
+            -2.2577092511013253
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "workingSetPeakBytes",
+          "beforeMedian": 36927488.0,
+          "afterMedian": 37767168.0,
+          "changePercent": 2.2738616826576408,
+          "pairsRegressed": 2,
+          "pairChangesPercent": [
+            1.5341400172860897,
+            1.09658839167035,
+            2.784274418086641,
+            2.3214484060868568
+          ],
+          "baselineRepeatChangesPercent": [
+            -2.4632670700086456,
+            -2.9926534140017336,
+            -2.733362143474505
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "surfaceBytes",
+          "beforeMedian": 3686400.0,
+          "afterMedian": 3686400.0,
+          "changePercent": 0.0,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "baselineRepeatChangesPercent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "replacementPeakBytes",
+          "beforeMedian": 3686400.0,
+          "afterMedian": 3686400.0,
+          "changePercent": 0.0,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "baselineRepeatChangesPercent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "cppAllocations",
+          "beforeMedian": 0.0,
+          "afterMedian": 0.0,
+          "changePercent": null,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "baselineRepeatChangesPercent": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "scenario": "clean",
+          "metric": "composeAllocations",
+          "beforeMedian": 0.0,
+          "afterMedian": 0.0,
+          "changePercent": null,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "baselineRepeatChangesPercent": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "fps",
+          "beforeMedian": 449.6749697,
+          "afterMedian": 449.78272945000003,
+          "changePercent": 0.023963920000236172,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            -1.3379654591124224,
+            1.3887039605088747,
+            -2.863876565768886,
+            2.459873430754689
+          ],
+          "baselineRepeatChangesPercent": [
+            -0.2059484819481483,
+            1.5655019413709503,
+            -0.9942444904829983
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "frameP50Ms",
+          "beforeMedian": 2.134,
+          "afterMedian": 2.1398,
+          "changePercent": 0.2717900656045158,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.0698519139424203,
+            -0.0422416220782762,
+            1.0079125847776815,
+            -0.11228595489848336
+          ],
+          "baselineRepeatChangesPercent": [
+            -0.7823414361553649,
+            -1.1269442116047301,
+            -0.4656794262829611
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "frameP95Ms",
+          "beforeMedian": 2.66295,
+          "afterMedian": 2.63355,
+          "changePercent": -1.1040387540134033,
+          "pairsRegressed": 1,
+          "pairChangesPercent": [
+            3.634483550993828,
+            -5.661558862531302,
+            9.452577975811582,
+            -8.2847611715972
+          ],
+          "baselineRepeatChangesPercent": [
+            3.9715062617287744,
+            -3.734058442801891,
+            4.4732105243000975
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "prepareP95Ms",
+          "beforeMedian": 1.4217,
+          "afterMedian": 1.4287999999999998,
+          "changePercent": 0.4994021242174851,
+          "pairsRegressed": 1,
+          "pairChangesPercent": [
+            2.317717506164141,
+            -2.2469565217391296,
+            5.548740890396142,
+            -5.899290680525304
+          ],
+          "baselineRepeatChangesPercent": [
+            1.2680521310320492,
+            -2.367030644593171,
+            0.3099682986967167
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "composeCpuP95Ms",
+          "beforeMedian": 0.0068,
+          "afterMedian": 0.00685,
+          "changePercent": 0.7352941176470562,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            1.4705882352941124,
+            0.0,
+            1.4705882352941124,
+            -4.285714285714281
+          ],
+          "baselineRepeatChangesPercent": [
+            0.0,
+            0.0,
+            2.941176470588247
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "privateBytes",
+          "beforeMedian": 20959232.0,
+          "afterMedian": 21456896.0,
+          "changePercent": 2.374438147351965,
+          "pairsRegressed": 2,
+          "pairChangesPercent": [
+            0.1543507621068807,
+            1.23671497584541,
+            4.321848237402914,
+            3.7359161889701564
+          ],
+          "baselineRepeatChangesPercent": [
+            -0.1543507621068918,
+            -3.125602932664484,
+            -2.392436812656762
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "privatePeakBytes",
+          "beforeMedian": 21243904.0,
+          "afterMedian": 21794816.0,
+          "changePercent": 2.5932709919984642,
+          "pairsRegressed": 2,
+          "pairChangesPercent": [
+            1.4857142857142902,
+            1.78092684795097,
+            4.6017699115044275,
+            3.339157445156271
+          ],
+          "baselineRepeatChangesPercent": [
+            -0.5333333333333301,
+            -3.1428571428571472,
+            -1.8857142857142906
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "workingSetBytes",
+          "beforeMedian": 35117056.0,
+          "afterMedian": 35631104.0,
+          "changePercent": 1.463812911879625,
+          "pairsRegressed": 2,
+          "pairChangesPercent": [
+            1.0538243626062371,
+            0.7087254560241618,
+            2.7807360075730703,
+            2.0140515222482502
+          ],
+          "baselineRepeatChangesPercent": [
+            -2.4702549575070787,
+            -4.237960339943347,
+            -3.2294617563739414
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "workingSetPeakBytes",
+          "beforeMedian": 35266560.0,
+          "afterMedian": 35901440.0,
+          "changePercent": 1.8002322880371624,
+          "pairsRegressed": 2,
+          "pairChangesPercent": [
+            1.342509025270755,
+            1.1008111239861007,
+            3.457227138643071,
+            2.0023282887077887
+          ],
+          "baselineRepeatChangesPercent": [
+            -2.6398916967509067,
+            -4.38853790613718,
+            -3.0911552346570392
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "surfaceBytes",
+          "beforeMedian": 3686400.0,
+          "afterMedian": 3686400.0,
+          "changePercent": 0.0,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "baselineRepeatChangesPercent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "replacementPeakBytes",
+          "beforeMedian": 3686400.0,
+          "afterMedian": 3686400.0,
+          "changePercent": 0.0,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "baselineRepeatChangesPercent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "cppAllocations",
+          "beforeMedian": 32338.0,
+          "afterMedian": 32338.0,
+          "changePercent": 0.0,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "baselineRepeatChangesPercent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "scenario": "dirty",
+          "metric": "composeAllocations",
+          "beforeMedian": 0.0,
+          "afterMedian": 0.0,
+          "changePercent": null,
+          "pairsRegressed": 0,
+          "pairChangesPercent": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "baselineRepeatChangesPercent": [
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    }
+  }
+}

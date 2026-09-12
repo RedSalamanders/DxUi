@@ -2,6 +2,18 @@
 
 ## Progress checklist
 
+- [x] September 13 local Release follow-up: all 18 suites exit successfully, with nine Menu
+  interactive-desktop capability skips and no skips in the other 17 suites. Retain reports/logs;
+  skipped paths are not qualified by this run.
+- [x] Complete 16 matched longer complex-UI runs at `d192e474` and `13788e95` with the same
+  240-warmup/5-by-600-frame fixture and unchanged thresholds. Surface/allocation counts and hidden
+  work remain unchanged. Seven of eight paired comparisons and all six baseline-repeat comparisons
+  exceed a band; timing/process-memory acceptance remains open. See the
+  [local evidence](../../../Measurements/SharedLibrary/2026-09-13-local/README.md).
+- [x] RedSalamander source checkpoint `f12acdba` contains master `0dd0bd6d` and uses `13788e95`.
+  The last Full Debug run has 18/20 passing entries; both retained failures now pass isolated
+  repetitions after the viewer fixture correction. Final Fresh Full runs remain required.
+
 - [x] Consumer ownership closeout is implemented on the RedSalamander branch: `e7244091` removes the
   duplicate implementation/tests after every production project moved to the public archive. The
   rebased Debug build passes with zero warnings/errors; 261 retirement policy checks and 88 follow-up

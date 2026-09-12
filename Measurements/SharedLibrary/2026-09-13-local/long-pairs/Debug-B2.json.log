@@ -1,0 +1,12 @@
+Complex UI clean round 1: 1171.84 completed offscreen FPS; p95 0.8942 ms; private 26484736 bytes
+Complex UI clean round 2: 1167.15 completed offscreen FPS; p95 0.9039 ms; private 24788992 bytes
+Complex UI clean round 3: 1165.46 completed offscreen FPS; p95 0.916 ms; private 25001984 bytes
+Complex UI clean round 4: 1160.71 completed offscreen FPS; p95 0.9285 ms; private 25001984 bytes
+Complex UI clean round 5: 1152.55 completed offscreen FPS; p95 0.8993 ms; private 24973312 bytes
+Complex UI dirty round 1: 367.993 completed offscreen FPS; p95 3.3527 ms; private 22970368 bytes
+Complex UI dirty round 2: 359.617 completed offscreen FPS; p95 3.3959 ms; private 24064000 bytes
+Complex UI dirty round 3: 371.11 completed offscreen FPS; p95 3.1228 ms; private 24035328 bytes
+Complex UI dirty round 4: 353.882 completed offscreen FPS; p95 3.3184 ms; private 24326144 bytes
+Complex UI dirty round 5: 328.961 completed offscreen FPS; p95 3.4904 ms; private 23420928 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\RedSalamander.Perf\evidence\I19-20260909\dxui-long-pairs\Debug-B2.json

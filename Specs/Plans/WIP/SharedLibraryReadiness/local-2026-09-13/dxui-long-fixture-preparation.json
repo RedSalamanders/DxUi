@@ -1,0 +1,66 @@
+{
+  "status": "built-not-measured",
+  "baseline": "d192e474e540adc2656e69b8e8150b0f7a05d63f",
+  "candidate": "13788e95f1c9a16210a87988d742d9dfc6f66eef",
+  "fixture": "dxui-complex-ui-v3-long",
+  "warmupFrames": 240,
+  "framesPerRound": 600,
+  "roundCount": 5,
+  "patchSha256": "6ad4c1b99f16971f5c6da32c5b4fabf31476dc4f036f45a6b6b812820f70c161",
+  "validation": "10 existing comparator checks plus 4 focused long-fixture checks pass; thresholds unchanged. Matching benchmark headers and comparator bytes in both isolated worktrees. No canonical library source changed.",
+  "buildScheduling": "Two MSBuild nodes, compiler multiprocess compilation disabled in both isolated fixture checkouts; no optimization/CRT changes.",
+  "builds": [
+    {
+      "log": "dxui-long-baseline-Release-build.log",
+      "configuration": "Release",
+      "commit": "d192e474e540adc2656e69b8e8150b0f7a05d63f",
+      "sha256": "0BE89348BE62D2467146EA4EFC5A35F9053027F444E2B9251EF1EF6B62089D40",
+      "kind": "baseline",
+      "fixtureChanges": [
+        "Tests/Embedded/ComplexUiBenchmark.h",
+        "Tools/compare_performance.py",
+        "build.ps1"
+      ],
+      "executable": "Z:\\src\\DxUi-worktrees\\i19-long-baseline\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe"
+    },
+    {
+      "log": "dxui-long-baseline-Debug-build.log",
+      "configuration": "Debug",
+      "commit": "d192e474e540adc2656e69b8e8150b0f7a05d63f",
+      "sha256": "8B8C056C26EA7B2FCB75E3781C886FCDB3711BE9375889A6061BAFC761702D89",
+      "kind": "baseline",
+      "fixtureChanges": [
+        "Tests/Embedded/ComplexUiBenchmark.h",
+        "Tools/compare_performance.py",
+        "build.ps1"
+      ],
+      "executable": "Z:\\src\\DxUi-worktrees\\i19-long-baseline\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe"
+    },
+    {
+      "log": "dxui-long-candidate-Release-build.log",
+      "configuration": "Release",
+      "commit": "13788e95f1c9a16210a87988d742d9dfc6f66eef",
+      "sha256": "4F22A7B67AE458ADCB9723C1B1545E3232F92AB7111529BD89DAD8E24A56E155",
+      "kind": "candidate",
+      "fixtureChanges": [
+        "Tests/Embedded/ComplexUiBenchmark.h",
+        "Tools/compare_performance.py",
+        "build.ps1"
+      ],
+      "executable": "Z:\\src\\DxUi-worktrees\\i19-long-candidate\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe"
+    },
+    {
+      "log": "dxui-long-candidate-Debug-build.log",
+      "configuration": "Debug",
+      "commit": "13788e95f1c9a16210a87988d742d9dfc6f66eef",
+      "sha256": "A8996240C50BF9F025EC55A44D11E5298F3C0739DC5FB94964B53A3BAE36367E",
+      "kind": "candidate",
+      "fixtureChanges": [
+        "Tests/Embedded/ComplexUiBenchmark.h",
+        "Tools/compare_performance.py",
+        "build.ps1"
+      ],
+      "executable": "Z:\\src\\DxUi-worktrees\\i19-long-candidate\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe"
+    }
+  ]
+}

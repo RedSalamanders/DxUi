@@ -1,0 +1,14 @@
+{
+  "fixture": "dxui-complex-ui-v3-long",
+  "affinityMask": 255,
+  "sequence": "A1 B1 B2 A2 A3 B3 B4 A4",
+  "profiles": [
+    "Debug",
+    "Release"
+  ],
+  "baseline": "d192e474e540adc2656e69b8e8150b0f7a05d63f",
+  "candidate": "13788e95f1c9a16210a87988d742d9dfc6f66eef",
+  "startedUtc": "2026-09-12T22:30:50.0438162Z",
+  "status": "collected-review-required",
+  "completedUtc": "2026-09-12T22:34:35.1357367Z"
+}
