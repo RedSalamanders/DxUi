@@ -1,5 +1,5 @@
 {
-  "recordedUtc": "2026-09-12T08:53:18.441352+00:00",
+  "recordedUtc": "2026-09-12T10:53:18.441352+02:00",
   "sourceBaseCommit": "e67bd1be7d87de5bba8deae01802a1c49d9f4ef0",
   "sourceDirty": true,
   "evidenceDirectory": "Measurements/SharedLibrary/2026-09-12-font-refresh",
@@ -145,7 +145,7 @@
           "configuration": "Debug",
           "platform": "x64",
           "nativeArchitecture": "X64",
-          "completedUtc": "2026-09-12T08:36:09.3126900Z",
+          "completedUtc": "2026-09-12T08:36:09.31269Z",
           "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
           "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
           "exitCode": 0,
@@ -747,7 +747,7 @@
           "configuration": "ASan Debug",
           "platform": "x64",
           "nativeArchitecture": "X64",
-          "completedUtc": "2026-09-12T08:41:20.8617230Z",
+          "completedUtc": "2026-09-12T08:41:20.861723Z",
           "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
           "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
           "exitCode": 0,
@@ -919,6 +919,41 @@
       "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\I19-font-invalidation-gallery.log",
       "originalSha256": "8925971138D3E3650B93715BC5CCCD78AA4BC0FF8D6DED2EDD02A06F6FD2563A",
       "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "Release-Menu-local-repeat-1.log",
+      "sha256": "C6B04458CC129088420F977A2D608902EF9DBABC3EC155180C741EA433F14C7F",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\Release-Menu-local-repeat-1.log",
+      "originalSha256": "9BE201F809D1258734EC071C9A9C856E626C46FE9015E1963370440C22E44C23",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "Release-Menu-local-repeat-2.log",
+      "sha256": "7AF9D3790A574C9177FD3B43BD552226EEEB4D1D450D249D1539DAD3F8C80DF5",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\Release-Menu-local-repeat-2.log",
+      "originalSha256": "470BB2F864C4F47993ECA6E7B5E95293ABCA3DF83DF89FE21A6D8CEE31296ADE",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "Release-Menu-local-repeat-3.log",
+      "sha256": "7AF9D3790A574C9177FD3B43BD552226EEEB4D1D450D249D1539DAD3F8C80DF5",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\Release-Menu-local-repeat-3.log",
+      "originalSha256": "470BB2F864C4F47993ECA6E7B5E95293ABCA3DF83DF89FE21A6D8CEE31296ADE",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "Release-Menu-local-repeat-4.log",
+      "sha256": "7AF9D3790A574C9177FD3B43BD552226EEEB4D1D450D249D1539DAD3F8C80DF5",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\Release-Menu-local-repeat-4.log",
+      "originalSha256": "470BB2F864C4F47993ECA6E7B5E95293ABCA3DF83DF89FE21A6D8CEE31296ADE",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "Release-Menu-local-repeat-5.log",
+      "sha256": "7AF9D3790A574C9177FD3B43BD552226EEEB4D1D450D249D1539DAD3F8C80DF5",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\Release-Menu-local-repeat-5.log",
+      "originalSha256": "470BB2F864C4F47993ECA6E7B5E95293ABCA3DF83DF89FE21A6D8CEE31296ADE",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
     }
   ],
   "performance": [
@@ -1048,7 +1083,7 @@
     "performanceComparison": "unpaired",
     "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
   },
-  "releaseMenuConclusion": "Initial Right-arrow submenu focus failure; retained d192e47 baseline and separate candidate retry pass. Cause remains unclassified; no assertion changed.",
+  "releaseMenuConclusion": "The initial Release Menu focus failure remains unclassified. The retained baseline, first candidate retry and five additional consecutive candidate attempts pass, including the original failing case. No assertions or baselines changed; capability skips remain recorded in each log.",
   "releaseMenuRetry": {
     "baselineCommit": "d192e474e540adc2656e69b8e8150b0f7a05d63f",
     "baselineExecutable": "Z:\\src\\DxUi\\.build\\before\\.build\\x64\\Release\\DxUi.ControlTests.exe",
@@ -1071,5 +1106,42 @@
     "log": "Z:\\src\\DxUi\\.build\\logs\\test-AddressSanitizer-x64.log"
   },
   "performanceConclusion": "Unpaired automatic test measurements only; no non-regression claim.",
-  "galleryReview": "All six images reviewed. Four differences are confined to the indeterminate progress animation at y=508..513; typography/layout unchanged. Test baselines unchanged."
+  "galleryReview": "All six images reviewed. Four differences are confined to the indeterminate progress animation at y=508..513; typography/layout unchanged. Test baselines unchanged.",
+  "releaseMenuLocalRepeats": [
+    {
+      "attempt": 1,
+      "exitCode": 0,
+      "log": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\Release-Menu-local-repeat-1.log",
+      "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+      "completedUtc": "2026-09-12T18:34:53.2637456Z"
+    },
+    {
+      "attempt": 2,
+      "exitCode": 0,
+      "log": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\Release-Menu-local-repeat-2.log",
+      "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+      "completedUtc": "2026-09-12T18:35:20.6307662Z"
+    },
+    {
+      "attempt": 3,
+      "exitCode": 0,
+      "log": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\Release-Menu-local-repeat-3.log",
+      "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+      "completedUtc": "2026-09-12T18:35:44.1361104Z"
+    },
+    {
+      "attempt": 4,
+      "exitCode": 0,
+      "log": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\Release-Menu-local-repeat-4.log",
+      "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+      "completedUtc": "2026-09-12T18:36:06.5617065Z"
+    },
+    {
+      "attempt": 5,
+      "exitCode": 0,
+      "log": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\Release-Menu-local-repeat-5.log",
+      "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+      "completedUtc": "2026-09-12T18:36:29.2519111Z"
+    }
+  ]
 }

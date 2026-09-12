@@ -6,16 +6,19 @@
   is implemented in canonical Typography.h, with stale-negative, per-factory and all-factory tests.
   All 18 x64 Debug and ASan Debug suites pass, including sanitizer detection. Release passes 17 suites;
   its Menu focus assertion fails initially, then passes on a separate retry. The retained d192e47 Menu
-  baseline also passes. Preserve the initial failure; the cause remains unclassified.
+  baseline also passes. Five further consecutive Menu attempts pass with the same executable hash,
+  including the original failing case. Preserve the initial failure; the cause remains unclassified.
 - [x] Regenerate and review all six gallery images after the typography update. Typography/layout pixels
   are unchanged; four sheets differ only inside the animated indeterminate progress bar. No test baseline changed.
 - [x] Font-refresh ARM64 Debug/Release/ASan Debug cross-builds pass with zero warnings/errors. Source hashes,
   54 suite receipts, the initial Release failure, retry, sanitizer detection and gallery review are retained
   in [the September 12 evidence](../../../Measurements/SharedLibrary/2026-09-12-font-refresh/README.md).
-- [ ] Fresh native ARM64 qualification and Release Menu follow-up remain pending. Consumer pins and paired
-  performance acceptance remain unchanged/open.
-- [ ] [blocked] Final consumer rebase/qualification waits for the upstream CI compilation fixes the user
-  reports are still in progress. Keep the prepared RedSalamander master reconciliation uncommitted/unpushed.
+- [ ] Fresh native ARM64 qualification and paired performance acceptance remain open.
+- [x] RedSalamander migration is rebased onto master `0dd0bd6d`; candidate `ba72f601` pins the local clean
+  library commit `13788e9`. Prior reconciliation is preserved at `2d68f526`. DxUi and RedXe contain main.
+- [ ] Complete consumer qualification locally, as requested by the user. Do not launch or depend on
+  hosted CI for this pass; earlier native CI receipts remain historical evidence. Publication of the
+  local font-refresh commit, native ARM64 runtime evidence and consumer closeout remain open.
 
 - [x] G8: every standalone project and consumer fixture supports Debug/Release/ASan Debug on x64/ARM64.
 - [x] G8: ASAN detects an isolated known defect; native ARM64 runtime qualification recorded.
