@@ -1,0 +1,2 @@
+# Keep reviewed evidence hashes stable across Windows and Unix checkouts.
+*.log text eol=lf

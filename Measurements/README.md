@@ -28,3 +28,4 @@ a regression or claim application-level acceptance from these library measuremen
 - [Native clipboard capacity, 2026-09-09](Clipboard/2026-09-09/README.md): retained pre-fix failure, candidate Debug regression pass and raw benchmark rounds; performance acceptance in progress.
 
 - [Shared-library I19, 2026-09-09](SharedLibrary/2026-09-09/README.md): native CI qualification and all paired resource comparisons; resource acceptance remains open.
+- [Font availability refresh, 2026-09-12](SharedLibrary/2026-09-12-font-refresh/README.md): local library validation, the retained Release Menu failure/retry, gallery review and unpaired resource reports; native and consumer qualification remain open.

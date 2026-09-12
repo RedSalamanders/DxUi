@@ -1,0 +1,1075 @@
+{
+  "recordedUtc": "2026-09-12T08:53:18.441352+00:00",
+  "sourceBaseCommit": "e67bd1be7d87de5bba8deae01802a1c49d9f4ef0",
+  "sourceDirty": true,
+  "evidenceDirectory": "Measurements/SharedLibrary/2026-09-12-font-refresh",
+  "scope": "Local font-refresh API validation; consumer pins unchanged. No native ARM64 or paired performance acceptance.",
+  "sourceFiles": {
+    "include/DxUi/Typography.h": "9D151DE8815A8CD37D774E4D87A850EB45C2CFA8A765B1B957D883A3BAF01F70",
+    "Tests/Foundation/PublicHelpersTests.cpp": "A152B7EDD50659CA667EDCFB9FECBCE4DA77AC6A87EEB9051E494791D6BDDC5A",
+    "Tests/Foundation/FoundationTests.cpp": "D4CAA4B9C4C70A9A93F7CFFA91005966D2F75D2BC539F3D25C6FBD5D93A41652"
+  },
+  "nativeX64": [
+    {
+      "configuration": "Debug",
+      "suiteReceipts": [
+        {
+          "suite": "Foundation",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:35:15.4301633Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.FoundationTests.exe",
+          "sha256": "6B2C06FF877A18EA0486747F419CED9DBBFFAAFD7692370674A780CCD5F72A53",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "Embedded",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:35:15.6875193Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe",
+          "sha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "Grid",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:35:16.1627528Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "Theme",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:35:16.2045191Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "Control",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:35:16.4828251Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "Menu",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:35:37.4664333Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [
+            "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+            "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+          ],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "NewControls",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:35:38.3132307Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "TextField",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:35:41.3812513Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "NativeTextInput",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:05.1646883Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "MultilineText",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:09.3126900Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "ReadOnly",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:11.7848123Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "ComboBox",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:12.8248061Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "Tree",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:13.2637918Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "Tooltip",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:14.2879767Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "Rendering",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:19.8522177Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "Animation",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:20.8808419Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "Accessibility",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:27.1768051Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        },
+        {
+          "suite": "WindowHost",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:28.9314771Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe",
+          "sha256": "F2B4ECC8EF5E1B59EBB373866DF51B880A3AE61D8948BA9114113735B3FEB319",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "100745EF6EB7A17887376E12199B64231172F2A6AEE86CDFC3FCBF624F6E5CC6"
+        }
+      ]
+    },
+    {
+      "configuration": "Release",
+      "suiteReceipts": [
+        {
+          "suite": "Foundation",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:41.1211367Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.FoundationTests.exe",
+          "sha256": "D8272EB624C87E1A0BFD5F6347DE3FBE32CD16A5B3C38EAA497DCF87B9F9C384",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "Embedded",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:41.4028783Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe",
+          "sha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "Grid",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:41.8962764Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "Theme",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:41.9320187Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "Control",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:42.2753329Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "Menu",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:42:49.9304821Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [
+            "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+            "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+          ],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "NewControls",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:50.6115532Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "TextField",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:36:54.1006166Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "NativeTextInput",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:37:16.9954596Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "MultilineText",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:37:20.9336018Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "ReadOnly",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:37:23.2992546Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "ComboBox",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:37:24.3648824Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "Tree",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:37:24.8137662Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "Tooltip",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:37:25.8366058Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "Rendering",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:37:30.4732287Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "Animation",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:37:31.4811265Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "Accessibility",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:37:37.1066863Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        },
+        {
+          "suite": "WindowHost",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:37:38.7371058Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+          "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+        }
+      ]
+    },
+    {
+      "configuration": "ASan Debug",
+      "suiteReceipts": [
+        {
+          "suite": "Foundation",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:38:48.2617916Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.FoundationTests.exe",
+          "sha256": "8128AF5246EC783BD685A3E119FB468D93048EB9D76763163A22567D83793399",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "Embedded",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:38:49.0888595Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.EmbeddedTests.exe",
+          "sha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "Grid",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:38:50.3752241Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "Theme",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:38:50.4335261Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "Control",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:38:51.3029695Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "Menu",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:39:24.9942258Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [
+            "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+            "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+          ],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "NewControls",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:39:27.0970344Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "TextField",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:39:35.0432156Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "NativeTextInput",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:40:25.5431517Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "MultilineText",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:40:35.5989164Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "ReadOnly",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:40:41.5478569Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "ComboBox",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:40:44.2019779Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "Tree",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:40:45.5607693Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "Tooltip",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:40:47.5971782Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "Rendering",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:41:04.6293002Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "Animation",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:41:06.4702694Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "Accessibility",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:41:17.3216823Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        },
+        {
+          "suite": "WindowHost",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "completedUtc": "2026-09-12T08:41:20.8617230Z",
+          "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe",
+          "sha256": "3E44888366885F22C4674353345284C26ADAD61BCF9FC85759044C3225E62A1F",
+          "exitCode": 0,
+          "skips": [],
+          "performanceComparison": "unpaired",
+          "performanceExecutableSha256": "8F7BB149FA8209AF131469D6DEF19F00E81F24BF60DB6FE7165C1F45912BC7AA"
+        }
+      ]
+    }
+  ],
+  "arm64CrossBuilds": [
+    {
+      "configuration": "Debug",
+      "nativeExecution": false,
+      "log": {
+        "file": "I19-font-invalidation-ARM64-Debug.log",
+        "sha256": "50E787454FF6B41128B257C9470E25810BA9259AA5D5ED417E95777A7CE01456",
+        "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\I19-font-invalidation-ARM64-Debug.log",
+        "originalSha256": "78F43F9133C35AD2FD1B67D8E5E981CF8334EAA1FC74D3253494D979968D6EEF",
+        "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+      },
+      "msbuildLog": {
+        "file": "build-ARM64-Debug-714d958b3af341bdaefe67eff24c19b4.log",
+        "sha256": "D8B6796A1E803E2C149DCDD139F0FBD6B14BF2B3436CFD73B9F8342E167FA907",
+        "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\build-ARM64-Debug-714d958b3af341bdaefe67eff24c19b4.log",
+        "originalSha256": "E8216D52F1D146ADDEDBD8C3D024EDDBF19ABB0DD8455D7594FAE696CDD0BFF3",
+        "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+      },
+      "outputs": {
+        "DxUi.lib": "AC604671CA0CA2F0944379DF586F86E78592152EF90FD6A18046ED21061C0869",
+        "DxUi.FoundationTests.exe": "E0496F5CED92B0BF6D9E4D92CDB252E9D3758EF92F9C3E4F5200258B3C0FFE01",
+        "DxUi.ControlTests.exe": "CF70C9187EA86C1A54458349C12FEF352CEF7B8E46778FFC21ABC4548DDACB53",
+        "DxUi.EmbeddedTests.exe": "8D9E05E55769E39143F914B4999CE60165405738F6BADDFD61EF58F2FF975447",
+        "DxUi.EmbeddedControls.exe": "B2263C014965ED911BE7989F0A0D19ABE1E856831AF581EFB590EA8AEE1D8E45"
+      }
+    },
+    {
+      "configuration": "Release",
+      "nativeExecution": false,
+      "log": {
+        "file": "I19-font-invalidation-ARM64-Release.log",
+        "sha256": "4350810409FD739547F24F6AE1215174FDF768F1A077B35F98F4CE91649BE0D5",
+        "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\I19-font-invalidation-ARM64-Release.log",
+        "originalSha256": "CCBAD1ABEAE0AF83FC7FD0A96252AE9470C99CB3B46CA54C04849999532A3FBC",
+        "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+      },
+      "msbuildLog": {
+        "file": "build-ARM64-Release-bb83bfd7302a4c79983ecc1877b29a0c.log",
+        "sha256": "D4AD5F35F752C30FF3E9ABF408050F597CE490E29525BB179C28F4864B476D52",
+        "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\build-ARM64-Release-bb83bfd7302a4c79983ecc1877b29a0c.log",
+        "originalSha256": "50A0368731C39ACADC17704E4362AFA9C58AAFA63E8D0D74AE056A7E9CE6E041",
+        "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+      },
+      "outputs": {
+        "DxUi.lib": "08B40602DA13CB59CCF711183E4D0CABC463660ED3C964584314C28821059942",
+        "DxUi.FoundationTests.exe": "DA0C49F757EF0A50C87989CA59CF55981497853CDF981CE6E592B7D5201EA958",
+        "DxUi.ControlTests.exe": "1F0983D7923B84F7E30EBFEC33E88B4BC332C0FAA6D0BB892701AB844D99C067",
+        "DxUi.EmbeddedTests.exe": "C046F0EEDF6FF10C016E2FF81B77901C5ECEDD55F6CA81EF999F8CDA6C7395A6",
+        "DxUi.EmbeddedControls.exe": "F5ED233663C14DDD2DA1FC9079C9A488BCC203E2A0773DEA4A50E7481ABED149"
+      }
+    },
+    {
+      "configuration": "ASan Debug",
+      "nativeExecution": false,
+      "log": {
+        "file": "I19-font-invalidation-ARM64-ASanDebug.log",
+        "sha256": "3F5DA4F0E3BB1E22FEA7089635ED630BBE898C9B2E897E82EB62125B25C1BAF0",
+        "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\I19-font-invalidation-ARM64-ASanDebug.log",
+        "originalSha256": "AAEA2DDF733AAE3EDFA12F9E60ADD240C6713271789FE9CC6CB8BCFFAE6995B7",
+        "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+      },
+      "msbuildLog": {
+        "file": "build-ARM64-ASan Debug-8103478dc9514cbba0215759a820d46a.log",
+        "sha256": "521EAD7BBDB04D113507AD9156F313C7BC34AF52BC3C5D97D825C7456B7A3673",
+        "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\build-ARM64-ASan Debug-8103478dc9514cbba0215759a820d46a.log",
+        "originalSha256": "E0B0C3C4F32A124512409B1C695F3620D1F97B3F69AEB571BB108DA2B2051342",
+        "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+      },
+      "outputs": {
+        "DxUi.lib": "F35ABA307BDDB75445198C9928CCE88E91437E2D2D48D068171B1DE67E87BC99",
+        "DxUi.FoundationTests.exe": "E426C24401B4207BB0427550A62E9BF888397C6DCC25D9A42AABE8BD7ED7EDF5",
+        "DxUi.ControlTests.exe": "98B7FACD51F4A34C8F26C1715F22850803AAA44D5F4BB9C8ED36EC1390CBBFF6",
+        "DxUi.EmbeddedTests.exe": "B7ED7340916F59E060BF61C8B6B4989BF676956F48776E85610AE6CEE89AD205",
+        "DxUi.EmbeddedControls.exe": "780DBA43675893F16402676F17E7703CDC673827DDB1F71C7E8163D81BB6C2BE"
+      }
+    }
+  ],
+  "logs": [
+    {
+      "file": "I19-font-invalidation-full-Debug.log",
+      "sha256": "B811784E46942855FB31AB641D2CCC453581EDBCBCBBE50E0742A75AC0D5ADDB",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\I19-font-invalidation-full-Debug.log",
+      "originalSha256": "A17C24E2D52B84401371536A6AEC39E860600F34B85A08001A38AD247872CC88",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "I19-font-invalidation-full-Release.log",
+      "sha256": "7AF5EC4BB6E106963FB9A81ABA16C139614482003F484D5C5FE822BDF2385154",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\I19-font-invalidation-full-Release.log",
+      "originalSha256": "374F91232B8A91EA16BA855B05B47BA06E55595738B616BB831508F1645B9A90",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "I19-font-invalidation-full-ASanDebug.log",
+      "sha256": "88CAD2CEAD9E41F9A1DC1E81CC835F84A0D103E9E815FC7CDFF6A34FFB269B0B",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\I19-font-invalidation-full-ASanDebug.log",
+      "originalSha256": "390743E18EE4B3EE64DDB93D6363F7425D2D52B0FA6556478FD2EDC78C04C60D",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "Release-Menu-first.log",
+      "sha256": "BF8258455314636B4E48369113214DCCB16389B2D5E547BE99D7A71106FFD7D3",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\Release-Menu-first.log",
+      "originalSha256": "C9334D037AB5C72A1EC8CD35DCE8053F3A42EB92BEE250F3C3774D6580DE97FD",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "Release-Menu-baseline-d192.log",
+      "sha256": "7AF9D3790A574C9177FD3B43BD552226EEEB4D1D450D249D1539DAD3F8C80DF5",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\Release-Menu-baseline-d192.log",
+      "originalSha256": "470BB2F864C4F47993ECA6E7B5E95293ABCA3DF83DF89FE21A6D8CEE31296ADE",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "I19-font-invalidation-Release-Menu-retry.log",
+      "sha256": "C16E6201F80A83EAC13DBEB1398E095868328E361D7886CABFC624C08B07CD67",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\I19-font-invalidation-Release-Menu-retry.log",
+      "originalSha256": "E7299AC6A7F7B3DF00E88193016878DEDD25C01AA27EB82C7491481FC3F59131",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "test-Menu-x64-Release.log",
+      "sha256": "7AF9D3790A574C9177FD3B43BD552226EEEB4D1D450D249D1539DAD3F8C80DF5",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\test-Menu-x64-Release.log",
+      "originalSha256": "470BB2F864C4F47993ECA6E7B5E95293ABCA3DF83DF89FE21A6D8CEE31296ADE",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "I19-font-invalidation-skills.log",
+      "sha256": "004397331768456B8CFD003B044C43BE554935EB20DFBC27DB746613F5998F61",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\I19-font-invalidation-skills.log",
+      "originalSha256": "5B3F8F0D19AC78D111973206D219668DA634EF8E7E9C4703A89F21C2AA31CC0B",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "I19-font-invalidation-specs.log",
+      "sha256": "B8E82A0231CB311CB06FFF5735D3F1559C7D6C587BD3F50FC97B3FFFC977CED7",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\I19-font-invalidation-specs.log",
+      "originalSha256": "CBDC84083924148A90A4A1585B499EA83F5C78E9A050DCE85D21BAEC5384EC83",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "I19-font-invalidation-dependencies.log",
+      "sha256": "EC282E9B8F5363138D12BD4F09101B5DBD5503CB601889736296E27867CAA0FF",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\I19-font-invalidation-dependencies.log",
+      "originalSha256": "09905665F8CCC3FE429DC332F13F2926F05059E3F2002B7CDD1C0CBDACB2D686",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "I19-font-invalidation-format.log",
+      "sha256": "3C130270DE4C17D606E9932999F8FEA3B26160A160D716E6E2CA584F1657A7D1",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\I19-font-invalidation-format.log",
+      "originalSha256": "444BEC9F0DEA809335BE8497FBB7277928576B58E0EFD75F2958BA93537694D7",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "I19-font-invalidation-gallery.log",
+      "sha256": "55F66874A691BDB990E1F2A49BD66CCCFA948105B2F4B756E2212711A61D22D8",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\I19-font-invalidation-gallery.log",
+      "originalSha256": "8925971138D3E3650B93715BC5CCCD78AA4BC0FF8D6DED2EDD02A06F6FD2563A",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    }
+  ],
+  "performance": [
+    {
+      "file": "Performance-x64-ASan Debug-e49ea221f84d46f8bbf5fcfd8eca2db4.json",
+      "sha256": "DC3ABA579C995C6301326ADB97C67D4F21DF2AB896FEA2DAC47E77CE69EEE322",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\Performance-x64-ASan Debug-e49ea221f84d46f8bbf5fcfd8eca2db4.json",
+      "originalSha256": "91C08638052564B50D4D9CCCAA12FE46E40F71B0EC367DEB0854E91A337E7DA9",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "Performance-x64-ASan Debug-e49ea221f84d46f8bbf5fcfd8eca2db4.json.comparison.json",
+      "sha256": "0369AD76DB86D2234F684EFCFFC831FD565B6D95F182ACA3FB7D9D49028E3342",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\Performance-x64-ASan Debug-e49ea221f84d46f8bbf5fcfd8eca2db4.json.comparison.json",
+      "originalSha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "Performance-x64-Debug-d61156bb7c784568b95ffe25cbf4d7db.json",
+      "sha256": "777956107DA502C5C1DD8EB28C12F465AF1B487534A03E443EFA717FA1F7214E",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\Performance-x64-Debug-d61156bb7c784568b95ffe25cbf4d7db.json",
+      "originalSha256": "EBF3B48C54B56F18E74BAD042BE823E9F061CA90269C23B025E43E0F548EBAFA",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "Performance-x64-Debug-d61156bb7c784568b95ffe25cbf4d7db.json.comparison.json",
+      "sha256": "0369AD76DB86D2234F684EFCFFC831FD565B6D95F182ACA3FB7D9D49028E3342",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\Performance-x64-Debug-d61156bb7c784568b95ffe25cbf4d7db.json.comparison.json",
+      "originalSha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "Performance-x64-Release-1f35ade518cb44caa944bae998a5e16c.json",
+      "sha256": "C43B2761A2C989BAD341B07BAA7FBB67FD72F61563E5C3EE0FB988C236D57103",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\Performance-x64-Release-1f35ade518cb44caa944bae998a5e16c.json",
+      "originalSha256": "A17B0CB6288EEE921ACA1D3656AA061E9B1EE68687CB74EF3013DDE2E538AAB2",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "Performance-x64-Release-1f35ade518cb44caa944bae998a5e16c.json.comparison.json",
+      "sha256": "0369AD76DB86D2234F684EFCFFC831FD565B6D95F182ACA3FB7D9D49028E3342",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\Performance-x64-Release-1f35ade518cb44caa944bae998a5e16c.json.comparison.json",
+      "originalSha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "Performance-x64-Release-d53ac253e9b740dcad29ef90d43147e6.json",
+      "sha256": "7203C7DBF6D766D96AC682FBAE1ECA17C9425A2A9AE0E4F8D95CD6F3ED5364AB",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\Performance-x64-Release-d53ac253e9b740dcad29ef90d43147e6.json",
+      "originalSha256": "318947A923C95565E6B3D06A13F3BE8128BEAE77B9D470A0FD2982D3603308C5",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    },
+    {
+      "file": "Performance-x64-Release-d53ac253e9b740dcad29ef90d43147e6.json.comparison.json",
+      "sha256": "0369AD76DB86D2234F684EFCFFC831FD565B6D95F182ACA3FB7D9D49028E3342",
+      "original": "Z:\\RedSalamander.Perf\\evidence\\I19-20260909\\font-20260912\\raw\\Performance-x64-Release-d53ac253e9b740dcad29ef90d43147e6.json.comparison.json",
+      "originalSha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+      "normalization": "UTF-8, LF line endings and trailing horizontal whitespace removed; original bytes retained separately."
+    }
+  ],
+  "gallery": [
+    {
+      "file": "docs/gallery/embedded-controls.png",
+      "sha256": "566E96606C40388F2B6795DEEFD0C590515CB6F65A0ED3C723D12DF063D3E4EC",
+      "changedBounds": null
+    },
+    {
+      "file": "docs/gallery/theme-controls-dark.png",
+      "sha256": "5A0B70712B59A38156086D5C7BA48F6CD0659EEB2CC5418A5BE13871EC3A2C69",
+      "changedBounds": [
+        928,
+        508,
+        1119,
+        514
+      ]
+    },
+    {
+      "file": "docs/gallery/theme-controls-high-contrast.png",
+      "sha256": "EFBE193F91F0123F1E4530E9A914D3D27AC28ACA1983998A093C070DD6F41A0A",
+      "changedBounds": [
+        1062,
+        508,
+        1093,
+        514
+      ]
+    },
+    {
+      "file": "docs/gallery/theme-controls-light.png",
+      "sha256": "3E8EE66F5000E4EB4DFF5EAE4A25A19EB1ADA032E48C061C61BE99847047AB2E",
+      "changedBounds": null
+    },
+    {
+      "file": "docs/gallery/theme-controls-rainbow-dark.png",
+      "sha256": "6447236EB880AED1571E27F18E80DBA39C1B15B97E0A212B3F6F44898AC11E0E",
+      "changedBounds": [
+        1016,
+        508,
+        1094,
+        514
+      ]
+    },
+    {
+      "file": "docs/gallery/theme-controls-rainbow-light.png",
+      "sha256": "69F85763033BBE1AA38B16960B9236E98BF88492E5739C45C4131BF5B32E5E7C",
+      "changedBounds": [
+        928,
+        508,
+        982,
+        514
+      ]
+    }
+  ],
+  "releaseMenuFirstAttempt": {
+    "suite": "Menu",
+    "configuration": "Release",
+    "platform": "x64",
+    "nativeArchitecture": "X64",
+    "completedUtc": "2026-09-12T08:36:49.6067285Z",
+    "executable": "Z:\\src\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+    "sha256": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+    "exitCode": 1,
+    "skips": [
+      "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing"
+    ],
+    "performanceComparison": "unpaired",
+    "performanceExecutableSha256": "283016E1490C19A6291218E863666FB515D54796238F628AE29803461244BA43"
+  },
+  "releaseMenuConclusion": "Initial Right-arrow submenu focus failure; retained d192e47 baseline and separate candidate retry pass. Cause remains unclassified; no assertion changed.",
+  "releaseMenuRetry": {
+    "baselineCommit": "d192e474e540adc2656e69b8e8150b0f7a05d63f",
+    "baselineExecutable": "Z:\\src\\DxUi\\.build\\before\\.build\\x64\\Release\\DxUi.ControlTests.exe",
+    "baselineHash": "A1FEADA6B53E23BC3ABD444B80BC69907A76C1FA3D511B63D55143967D1DAD4E",
+    "baselineExit": 0,
+    "candidateHash": "51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0",
+    "candidateExit": 0,
+    "completedUtc": "2026-09-12T08:42:49.9854461Z"
+  },
+  "asanDetection": {
+    "suite": "AddressSanitizer",
+    "configuration": "ASan Debug",
+    "platform": "x64",
+    "nativeArchitecture": "X64",
+    "completedUtc": "2026-09-12T08:38:47.4638043Z",
+    "executable": "Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.FoundationTests.exe",
+    "sha256": "8128AF5246EC783BD685A3E119FB468D93048EB9D76763163A22567D83793399",
+    "exitCode": 1,
+    "detected": true,
+    "log": "Z:\\src\\DxUi\\.build\\logs\\test-AddressSanitizer-x64.log"
+  },
+  "performanceConclusion": "Unpaired automatic test measurements only; no non-regression claim.",
+  "galleryReview": "All six images reviewed. Four differences are confined to the indeterminate progress animation at y=508..513; typography/layout unchanged. Test baselines unchanged."
+}

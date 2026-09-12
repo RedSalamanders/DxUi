@@ -6,6 +6,7 @@
 #include <windows.h>
 
 bool TestPublicHelpers();
+bool TestFontAvailabilityInvalidation();
 
 namespace
 {
@@ -54,6 +55,7 @@ int main(int argc, char** argv)
 #endif
     }
     Check(TestPublicHelpers(), "public consumer helpers compile, link and retain their policies");
+    Check(TestFontAvailabilityInvalidation(), "font availability invalidation refreshes one factory or all factories without stale negative answers");
     DxUi::FrameClock clock;
     LARGE_INTEGER frequency{};
     Check(QueryPerformanceFrequency(&frequency) != 0, "QPC frequency available");

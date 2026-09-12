@@ -146,6 +146,10 @@ Native consumers may include `DxUi/NativeMenuInterop.h` to adapt borrowed HMENU 
 `DxUi/FocusRestore.h` for owned-window focus transitions, and `DxUi/PointerInput.h` for pointer
 message decoding. `DxUi/Typography.h` and `DxUi/AccessibilityTextUnits.h` expose the shared font
 and Unicode-unit policies. Keep application resources and command policy in your adapter.
+After a font-selection change, call `DxUi::Typography::InvalidateFontFamilyAvailability(factory)` before
+checking available families and rebuilding affected formats. Passing null clears every factory's availability
+answers. Serialize this with the host's font queries; cached checks remain cheap and misses refresh installed
+fonts. Do not invalidate per frame.
 
 Native consumers that know an attached HWND can acquire its canonical root with
 `DxUi::CreateWindowHostAccessibilityProvider(hwnd)` from `<DxUi/DxUi.h>`. Adopt the returned owned COM

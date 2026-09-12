@@ -1,0 +1,26 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+Complex UI clean round 1: 2326.68 completed offscreen FPS; p95 0.5558 ms; private 25911296 bytes
+Complex UI clean round 2: 2236.39 completed offscreen FPS; p95 0.5743 ms; private 25640960 bytes
+Complex UI clean round 3: 2333.25 completed offscreen FPS; p95 0.515 ms; private 25972736 bytes
+Complex UI clean round 4: 2391.54 completed offscreen FPS; p95 0.5037 ms; private 26472448 bytes
+Complex UI clean round 5: 2438.95 completed offscreen FPS; p95 0.547 ms; private 26161152 bytes
+Complex UI dirty round 1: 512.697 completed offscreen FPS; p95 2.3184 ms; private 27750400 bytes
+Complex UI dirty round 2: 499.573 completed offscreen FPS; p95 2.3569 ms; private 28020736 bytes
+Complex UI dirty round 3: 510.918 completed offscreen FPS; p95 2.3158 ms; private 28155904 bytes
+Complex UI dirty round 4: 513.071 completed offscreen FPS; p95 2.1799 ms; private 28200960 bytes
+Complex UI dirty round 5: 525.255 completed offscreen FPS; p95 2.1616 ms; private 28135424 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\reports\Performance-x64-Release-1f35ade518cb44caa944bae998a5e16c.json
+Running Menu (x64 Release)
+PASS Menu (9 capability skips recorded)
+All 1 requested suites passed.

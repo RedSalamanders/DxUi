@@ -219,7 +219,8 @@ template <size_t Capacity> [[nodiscard]] inline bool CopyNullTerminated(std::wst
     }
 
     wil::com_ptr<IDWriteFontCollection> fontCollection;
-    if (FAILED(dwriteFactory->GetSystemFontCollection(fontCollection.put())))
+    // Cache misses refresh installed fonts; warm availability checks stay cached.
+    if (FAILED(dwriteFactory->GetSystemFontCollection(fontCollection.put(), TRUE)))
     {
         return false;
     }
@@ -267,6 +268,20 @@ template <size_t Capacity> [[nodiscard]] inline bool CopyNullTerminated(std::wst
     entry.available  = available;
     GetTypographyFontFamilyCache().push_back(std::move(entry));
     return available;
+}
+
+// Hosts serialize invalidation with their font selection/availability queries.
+// Use on a font-selection change, never from preparation or composition per frame.
+inline void InvalidateFontFamilyAvailability(IDWriteFactory* dwriteFactory) noexcept
+{
+    std::scoped_lock lock(GetTypographyMeasurementCacheMutex());
+    auto& cache = GetTypographyFontFamilyCache();
+    if (dwriteFactory == nullptr)
+    {
+        cache.clear();
+        return;
+    }
+    std::erase_if(cache, [dwriteFactory](const TypographyFontFamilyCacheEntry& entry) noexcept { return entry.factoryKey == dwriteFactory; });
 }
 
 [[nodiscard]] inline std::wstring ResolveCachedFontFamilyName(IDWriteFactory* dwriteFactory, PCWSTR preferredFamilyName) noexcept
