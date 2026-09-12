@@ -2,6 +2,12 @@
 
 ## Progress checklist
 
+- [x] Consumer ownership closeout is implemented on the RedSalamander branch: `e7244091` removes the
+  duplicate implementation/tests after every production project moved to the public archive. The
+  rebased Debug build passes with zero warnings/errors; 261 retirement policy checks and 88 follow-up
+  runner/fingerprint/impact checks pass. Candidate `f7b2bce5` is undergoing fresh local product validation.
+  This does not qualify the remaining resource, package/rollback or native-platform gates.
+
 - [x] September 12 base reconciliation: the newly merged RedSalamander font-availability refresh helper
   is implemented in canonical Typography.h, with stale-negative, per-factory and all-factory tests.
   All 18 x64 Debug and ASan Debug suites pass, including sanitizer detection. Release passes 17 suites;
