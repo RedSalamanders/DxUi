@@ -125,7 +125,7 @@ private:
     std::atomic<ULONG> _referenceCount{1u};
 };
 
-#include "TextInputServicesTests.h"
+#include "ClipboardTransportTests.h"
 
 void SendNativeKey(HWND hwnd, UINT virtualKey)
 {
@@ -6332,6 +6332,10 @@ void TestNativeTextInputBackendKeyToPaintMetricScenario()
 
 void RunNativeTextInputTests()
 {
+    TestNativeClipboardTransportBenchmark();
+    TestNativeClipboardLargeSelections();
+    TestNativeClipboardFailuresPreserveText();
+    TestEmbeddedClipboardRejectsLargeNativePayload();
     TestApplicationTextStoreInsertionAndLayout();
     TestApplicationTextStoreTransactions();
     TestApplicationTextStoreDeferredLocks();

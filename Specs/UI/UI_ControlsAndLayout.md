@@ -89,3 +89,12 @@ pressed and focused states. Decorative blends, animation strength and heuristic 
 dilute that pair. Disabled primary buttons use the button surface and disabled text, retain an opaque border and
 hide focus. Enabled focus remains visible for pointer and keyboard and uses the undiluted palette focus color.
 The normal light/dark appearance keeps its existing visual treatment.
+
+### Localized built-in text
+
+Consumers supply owned per-instance strings through `ComboBox::SetNoMatchesText`,
+`Tree::SetEmptyStateText`, and the existing `Grid::SetEmptyStateText`. Empty overrides restore
+English defaults (No matches / No data). ComboBox remeasures an open empty-result popup when
+its string changes; Tree/Grid invalidate their empty view. String updates do not alter selection,
+query text, focus or callbacks. DxUi does not load consumer numeric resource IDs or cache a
+process-global language. Each product/module provides its current translated strings.

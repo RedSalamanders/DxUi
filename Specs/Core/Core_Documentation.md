@@ -28,3 +28,8 @@ documentation screenshot.
 Intermediate outputs/logs stay in `.build`. Published gallery assets and explicitly reviewed independent receipts
 under `Measurements/` are the deliberate exceptions. Validate all local links, catalog documentation coverage and image hashes with
 `validate-specs.ps1`. A change is incomplete until required docs and gallery updates are present and checked.
+
+Gallery fixtures must bound message settling by elapsed time as well as message count. Animated
+full-control sheets can continuously refill the queue under sanitizer instrumentation. An explicit
+synchronous redraw establishes each captured frame after settling; waiting for an empty queue is
+not a prerequisite for a snapshot. This does not change the production host scheduling contract.

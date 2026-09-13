@@ -18,11 +18,11 @@
     "embedded-text-state",
     "application-text-services",
     "embedded-accessibility",
-    "redxe-adapter"
+    "redxe-adapter",
+    "redsalamander-migration"
   ],
   "pending": [
     "embedded-host-text-uia-bridge",
-    "av-control",
-    "redsalamander-migration"
+    "av-control"
   ]
 }

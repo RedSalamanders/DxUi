@@ -1,12 +1,17 @@
 # Theme and typography
 
 Status: normative intended contract
-Last reviewed: 2026-09-07
+Last reviewed: 2026-09-12
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
 
 Consumers provide colors and style tokens. Shared controls support light, dark, high contrast and reduced motion.
+`Typography::IsFontFamilyAvailable` caches answers per DirectWrite factory and family. Cache misses request an
+updated system font collection. `InvalidateFontFamilyAvailability(factory)` drops that factory's answers;
+null drops all answers. Hosts serialize invalidation with their font-selection queries and call it when the
+selection changes, never per frame. This refreshes availability without changing retained formats or layout
+automatically; the host recreates affected formats through its existing font-change path.
 Retain Segoe UI typography and Fluent/MDL2/Unicode icon fallback where supported. `FontRole::Icon` is 12 DIP,
 `FontRole::IconLarge` is 32 DIP, and `FontRole::HeroIcon` is 64 DIP, all on Segoe Fluent Icons with MDL2 fallback.
 Do not add a dependency on either

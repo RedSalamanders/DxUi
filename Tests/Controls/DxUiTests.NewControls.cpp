@@ -1912,10 +1912,67 @@ void TestSetSystemBackdropReturnsFalseWithoutHwnd()
     Require(! result, "set-system-backdrop returns false when no HWND is attached");
 }
 
+void TestTabControlCloseCallbacksCanReplaceRootSafely()
+{
+    using namespace DxUi;
+
+    {
+        WindowHost host;
+        auto root        = std::make_unique<Panel>();
+        auto* tabControl = root->AddChild<TabControl>();
+        tabControl->SetBounds(D2D1::RectF(0.0f, 0.0f, 360.0f, 200.0f));
+        tabControl->AddTab<Label>(L"Home", L"Page 0");
+        tabControl->AddTab<Label>(L"View", L"Page 1");
+        tabControl->SetTabClosable(1u, true);
+        tabControl->SetSelectedIndex(1u);
+
+        size_t closeRequestCount = 0u;
+        tabControl->SetOnTabCloseRequested([&](size_t index)
+        {
+            Require(index == 1u, "tab close request callback receives the requested tab index");
+            ++closeRequestCount;
+            host.SetRoot(std::make_unique<Panel>());
+            return true;
+        });
+
+        host.SetRoot(std::move(root));
+        const D2D1_POINT_2F closePoint = RectCenter(tabControl->DebugGetCloseButtonRect(1u));
+        Require(tabControl->OnMouseDown(host, closePoint, false, 0), "tab control handles close-request replacement press");
+        Require(tabControl->OnMouseUp(host, closePoint, false, 0), "tab control handles close-request replacement release");
+        Require(closeRequestCount == 1u, "tab close request callback runs once before replacing the root");
+    }
+
+    {
+        WindowHost host;
+        auto root        = std::make_unique<Panel>();
+        auto* tabControl = root->AddChild<TabControl>();
+        tabControl->SetBounds(D2D1::RectF(0.0f, 0.0f, 360.0f, 200.0f));
+        tabControl->AddTab<Label>(L"Home", L"Page 0");
+        tabControl->AddTab<Label>(L"View", L"Page 1");
+        tabControl->SetTabClosable(1u, true);
+        tabControl->SetSelectedIndex(1u);
+
+        size_t closeCount = 0u;
+        tabControl->SetOnTabClosed([&](size_t index)
+        {
+            Require(index == 1u, "tab closed callback receives the closed tab index");
+            ++closeCount;
+            host.SetRoot(std::make_unique<Panel>());
+        });
+
+        host.SetRoot(std::move(root));
+        const D2D1_POINT_2F closePoint = RectCenter(tabControl->DebugGetCloseButtonRect(1u));
+        Require(tabControl->OnMouseDown(host, closePoint, false, 0), "tab control handles close replacement press");
+        Require(tabControl->OnMouseUp(host, closePoint, false, 0), "tab control handles close replacement release");
+        Require(closeCount == 1u, "tab closed callback runs once before replacing the root");
+    }
+}
+
 } // namespace
 
 void RunNewControlTests()
 {
+    TestTabControlCloseCallbacksCanReplaceRootSafely();
     // Button variant
     TestButtonVariantDefaultIsStandard();
     TestButtonVariantRoundtripsAllValues();

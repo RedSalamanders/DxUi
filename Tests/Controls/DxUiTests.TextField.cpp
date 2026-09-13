@@ -64,13 +64,13 @@ WindowHostBitmapCapture CaptureAttachedTextFieldHostWindowBitmap(AttachedHostWin
 
 void EmitColorGlyphPixelCountForTest(std::wstring_view detail, const WindowHostBitmapCapture& capture, size_t warmPixelCount) noexcept
 {
-    if (! Debug::Perf::IsCaptureEnabled())
+    if (! DxUi::Debug::Perf::IsCaptureEnabled())
     {
         return;
     }
 
     const size_t pixelCount = static_cast<size_t>(capture.widthPx) * static_cast<size_t>(capture.heightPx);
-    Debug::Perf::Emit(L"dxui.textinput.color_glyph_pixel_count", detail, 0, warmPixelCount, pixelCount, S_OK);
+    DxUi::Debug::Perf::Emit(L"dxui.textinput.color_glyph_pixel_count", detail, 0, warmPixelCount, pixelCount, S_OK);
 }
 
 [[nodiscard]] std::wstring MakeWomanTechnologistTextElement()

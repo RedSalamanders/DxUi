@@ -8,6 +8,33 @@
 namespace
 {
 
+void TestTreeLocalizedEmptyStateRepaintsWithoutSelectionChange()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0, 0, 300, 140));
+    window.Host().SetRoot(std::move(root));
+    WindowHostBitmapCapture english;
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.PumpMessages();
+    Require(window.Host().DebugCaptureBitmap(english), "capture default empty Tree");
+    std::wstring translation = L"Aucune donnée";
+    tree->SetEmptyStateText(translation);
+    translation.clear();
+    WindowHostBitmapCapture french;
+    Require(window.Host().DebugCaptureBitmap(french), "capture translated empty Tree");
+    Require(tree->GetEmptyStateText() == L"Aucune donnée", "Tree owns its translated empty-state text");
+    Require(CompareWindowHostBitmapCapturesForTest(french, english).differingPixels > 10, "empty-state translation reaches Tree painting");
+    Require(! tree->GetSelectedItemId().has_value(), "language change does not synthesize a Tree selection");
+    tree->SetEmptyStateText({});
+    WindowHostBitmapCapture restored;
+    Require(window.Host().DebugCaptureBitmap(restored), "capture restored default empty Tree");
+    Require(tree->GetEmptyStateText() == L"No data" && CompareWindowHostBitmapCapturesForTest(restored, english).differingPixels == 0,
+            "clearing the override restores default Tree text and layout");
+}
+
 void TestTreePointerSelectionNotifiesDelegate()
 {
     using namespace DxUi;
@@ -1175,6 +1202,7 @@ void TestTreeHoveredClippedTextShowsFullTextTooltip()
 
 void RunTreeTests()
 {
+    TestTreeLocalizedEmptyStateRepaintsWithoutSelectionChange();
     TestTreePointerSelectionNotifiesDelegate();
     TestTreeExpanderClickRequestsToggle();
     TestTreeExpanderReResolvesStableItemAfterSelectionReorder();

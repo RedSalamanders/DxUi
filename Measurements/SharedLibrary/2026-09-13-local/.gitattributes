@@ -1,0 +1,4 @@
+# Raw measurement and patch hashes must survive checkout unchanged.
+*.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+*.log -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+dxui-long-fixture.patch -text -whitespace

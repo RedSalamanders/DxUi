@@ -6,7 +6,7 @@ The user approved the independent private DxUi project. This plan owned library 
 Owning library contracts remain under `Specs/` in this repository. RedXe consumer behavior is
 `Specs/Core/Core_DxUiIntegration.md` in the RedXe checkout (sibling path
 `Z:/src/RedXe/Specs/Core/Core_DxUiIntegration.md`). AV release gates stay on RedXe
-`Specs/Plans/WIP/RFC_Plugins_AVControl.md`. RedSalamander remains [HOLD](../WIP/RedSalamanderMigration.md).
+`Specs/Plans/WIP/RFC_Plugins_AVControl.md`. RedSalamander remains [HOLD](RedSalamanderMigration.md).
 
 - [x] Create private `RedSalamanders/DxUi` and sibling checkout.
 - [x] Bootstrap AGENTS, nine skills, normative contracts, validators, build/test scripts, source provenance and CI.
@@ -35,7 +35,7 @@ Owning library contracts remain under `Specs/` in this repository. RedXe consume
 | Matched text/UIA performance (NativeStore/HostServices open; EmbeddedUIA receipts uncommitted) | RedXe AV RFC; do not waive failures |
 | Intermittent Menu flood / split-button CI on non-pin commits | Preserve failures; pin `3208083` had a full five-job pass ([33991645881](https://github.com/RedSalamanders/DxUi/actions/runs/33991645881)) |
 | AV G1 audio policy and G2 camera | RedXe AV RFC |
-| RedSalamander in-tree replacement | [RedSalamanderMigration](../WIP/RedSalamanderMigration.md) |
+| RedSalamander in-tree replacement | [RedSalamanderMigration](RedSalamanderMigration.md) |
 
 `capabilities.json` records `redxe-adapter` as supported for the pin and synthetic adapters.
 `embedded-host-text-uia-bridge` stays pending for real AT/IME. `av-control` stays pending for product backends.

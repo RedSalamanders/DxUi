@@ -1078,10 +1078,38 @@ void TestThroughputGraphHonorsMotionRainbowAndHighContrastContracts()
     Require(state.displayedCurrentValue == state.targetCurrentValue, "reduced motion snaps the current-bandwidth marker while keeping it visible");
 }
 
+void TestScrollPanelChildCallbacksCanClearChildrenSafely()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* scroll = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 140.0f, 100.0f));
+    scroll->SetContentHeight(100.0f);
+    ScrollPanelReentrancyProbeState captureState;
+    auto* captureChild = scroll->AddChild<ScrollPanelClearingChild>(*scroll, captureState);
+    captureChild->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 40.0f));
+    host.SetRoot(std::move(root));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 140.0f, 100.0f));
+
+    Require(scroll->OnMouseDown(host, D2D1::Point2F(12.0f, 12.0f), false, 0), "scroll panel forwards mouse-down to clearing child");
+    Require(captureState.mouseDownCount == 1u, "clearing child receives one mouse-down before clearing children");
+    Require(! scroll->OnMouseUp(host, D2D1::Point2F(12.0f, 12.0f), false, 0), "scroll panel does not reuse a cleared captured child on mouse-up");
+    Require(captureState.mouseMoveCount == 0u, "cleared captured child is not reused after mouse-down");
+
+    auto* hoverChild = scroll->AddChild<ScrollPanelClearingChild>(*scroll, captureState);
+    hoverChild->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 40.0f));
+    Require(scroll->OnMouseMove(host, D2D1::Point2F(12.0f, 12.0f), 0), "scroll panel forwards hover-enter to clearing child");
+    Require(captureState.hoverEnterCount == 1u, "clearing child receives one hover-enter before clearing children");
+    Require(captureState.mouseMoveCount == 0u, "cleared hovered child is not reused for mouse-move");
+}
+
 } // namespace
 
 void RunControlTests()
 {
+    TestScrollPanelChildCallbacksCanClearChildrenSafely();
     TestGroupedGridHeaderClickTogglesCollapsedStateAndRehomesSelection();
     TestToggleLayoutMetricsReserveTextLaneWhenLabelIsPresent();
     TestToggleStateLabelsReserveTextLaneWithoutPrimaryLabel();

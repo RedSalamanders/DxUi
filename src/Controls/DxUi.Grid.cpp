@@ -24,7 +24,6 @@ constexpr uint64_t kSpinnerFrameDurationMs   = 120u;
 constexpr uint64_t kMarqueeCycleDurationMs   = 1400u;
 constexpr float kMarqueeBandFraction         = 0.32f;
 constexpr std::wstring_view kSpinnerFrames[] = {L"|", L"/", L"-", L"\\"};
-constexpr UINT kDxUiNoDataStringId           = 1305u;
 
 void ResetGridCellData(GridCellData& cellData) noexcept
 {
@@ -1895,8 +1894,7 @@ void Grid::Paint(ControlHost& host) const
 
     if (! _model)
     {
-        const std::wstring_view emptyText =
-            _emptyStateText.empty() ? std::wstring_view(LoadDxUiString(kDxUiNoDataStringId, L"No data")) : std::wstring_view(_emptyStateText);
+        const std::wstring_view emptyText = _emptyStateText.empty() ? std::wstring_view(L"No data") : std::wstring_view(_emptyStateText);
         DrawCenteredText(host, emptyText, bounds, FontRole::Body, surfaceStyle.emptyText);
         return;
     }

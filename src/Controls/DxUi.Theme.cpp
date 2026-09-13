@@ -9,9 +9,6 @@ namespace DxUi
 {
 namespace
 {
-constexpr UINT kDxUiNoMatchesStringId = 1304u;
-constexpr UINT kDxUiNoDataStringId    = 1305u;
-
 [[nodiscard]] bool SystemPrefersReducedMotion() noexcept
 {
     BOOL clientAreaAnimation = TRUE;
@@ -172,31 +169,6 @@ uint32_t PackColor(const D2D1_COLOR_F& color) noexcept
     const auto toByte = [](float value) noexcept -> uint32_t { return static_cast<uint32_t>(std::clamp(std::lround(value * 255.0f), 0l, 255l)); };
 
     return (toByte(color.a) << 24u) | (toByte(color.r) << 16u) | (toByte(color.g) << 8u) | toByte(color.b);
-}
-
-std::wstring_view LoadDxUiString(UINT resourceId, std::wstring_view fallback) noexcept
-{
-    static std::wstring noMatchesText;
-    static std::wstring noDataText;
-
-    std::wstring* target = nullptr;
-    switch (resourceId)
-    {
-        case kDxUiNoMatchesStringId: target = &noMatchesText; break;
-        case kDxUiNoDataStringId: target = &noDataText; break;
-        default: return fallback;
-    }
-
-    if (target->empty())
-    {
-        *target = std::wstring(fallback);
-        if (target->empty())
-        {
-            *target = std::wstring(fallback);
-        }
-    }
-
-    return *target;
 }
 
 D2D1_COLOR_F RainbowTint(std::wstring_view seed, bool dark) noexcept

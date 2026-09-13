@@ -1182,8 +1182,10 @@ void ResizeClientArea(HWND hwnd, UINT widthPx, UINT heightPx)
     window.Host().SetTheme(theme.palette);
     window.Host().SetRoot(std::move(scene.root));
 
+    // A full sheet can take longer than an animation tick under ASAN. Bound queue
+    // settling by time; the explicit redraw below establishes the captured frame.
     ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
-    window.PumpMessages();
+    window.PumpMessages(100u);
 
     if (scene.hoverButton)
     {
@@ -1227,7 +1229,7 @@ void ResizeClientArea(HWND hwnd, UINT widthPx, UINT heightPx)
     }
 
     RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
-    window.PumpMessages();
+    window.PumpMessages(100u);
 
     WindowHostBitmapCapture capture;
     Require(window.Host().DebugCaptureBitmap(capture), "gallery section bitmap capture succeeds");

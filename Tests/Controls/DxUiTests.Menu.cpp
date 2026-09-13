@@ -337,6 +337,62 @@ bool WaitForContextMenuPopupBitmapCapture(HWND popupHwnd,
     return MAKELPARAM(static_cast<WORD>(static_cast<SHORT>(x)), static_cast<WORD>(static_cast<SHORT>(y)));
 }
 
+// The modal loop captures/activates after ShowWindow. A visible HWND alone is not
+// ready for input, and Windows can synthesize a move for the physical cursor.
+class ScopedMenuPointerFixture final
+{
+public:
+    explicit ScopedMenuPointerFixture(HWND popup) noexcept : _popup(popup), _previousDpi(SetThreadDpiAwarenessContext(GetWindowDpiAwarenessContext(popup)))
+    {
+    }
+    ScopedMenuPointerFixture(const ScopedMenuPointerFixture&)            = delete;
+    ScopedMenuPointerFixture& operator=(const ScopedMenuPointerFixture&) = delete;
+    ~ScopedMenuPointerFixture() noexcept
+    {
+        if (_cursorAligned)
+        {
+            POINT current{};
+            // Preserve a person's pointer movement during this interactive test.
+            if (GetCursorPos(&current) && current.x == _alignedCursor.x && current.y == _alignedCursor.y)
+                SetCursorPos(_originalCursor.x, _originalCursor.y);
+        }
+        if (_previousDpi)
+            SetThreadDpiAwarenessContext(_previousDpi);
+    }
+    [[nodiscard]] bool HasCapture() const noexcept
+    {
+        GUITHREADINFO gui{sizeof(GUITHREADINFO)};
+        const DWORD threadId = GetWindowThreadProcessId(_popup, nullptr);
+        return threadId != 0u && GetGUIThreadInfo(threadId, &gui) && gui.hwndCapture == _popup;
+    }
+    [[nodiscard]] bool WaitForCapture() const noexcept
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
+        do
+        {
+            if (HasCapture())
+                return true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        } while (std::chrono::steady_clock::now() < deadline);
+        return false;
+    }
+    [[nodiscard]] bool AlignCursor(POINT point) noexcept
+    {
+        if (GetCursorPos(&_originalCursor) == FALSE || SetCursorPos(point.x, point.y) == FALSE)
+            return false;
+        _alignedCursor = point;
+        _cursorAligned = true;
+        return true;
+    }
+
+private:
+    HWND _popup;
+    DPI_AWARENESS_CONTEXT _previousDpi;
+    POINT _originalCursor{};
+    POINT _alignedCursor{};
+    bool _cursorAligned = false;
+};
+
 [[nodiscard]] LRESULT SendCapturedMouseMessageForMenuSuite(HWND hwnd, UINT message, WPARAM wParam, POINT screenPoint) noexcept
 {
     RECT windowRect{};
@@ -1008,6 +1064,13 @@ void TestSplitButtonContextMenuSentMouseMessagesHoverAndOutsideDismiss()
             return;
         }
 
+        ScopedMenuPointerFixture pointerFixture(popupHwnd);
+        if (! pointerFixture.WaitForCapture())
+        {
+            driverFailure = "sent-message popup establishes modal input capture before interaction";
+            return;
+        }
+
         ContextMenuPopupDebugState popupState{};
         if (! WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
             return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f;
@@ -1036,8 +1099,13 @@ void TestSplitButtonContextMenuSentMouseMessagesHoverAndOutsideDismiss()
             return;
         }
 
-        // Deliver the hover via the popup's window proc (the production routing input);
-        // no live cursor traversal is needed because routing reads the delivered point.
+        // Match real and sent points so a later OS-generated move cannot undo the
+        // hover before its paint is observed. The sent down/up still prove invocation.
+        if (! pointerFixture.AlignCursor(refineCenter))
+        {
+            driverFailure = "sent-message interactive fixture aligns the physical cursor";
+            return;
+        }
         static_cast<void>(SendCapturedMouseMessageForMenuSuite(popupHwnd, WM_MOUSEMOVE, 0, refineCenter));
 
         ContextMenuPopupItemPaintDebugState paintState{};
@@ -1061,6 +1129,7 @@ void TestSplitButtonContextMenuSentMouseMessagesHoverAndOutsideDismiss()
         } while (std::chrono::steady_clock::now() < hoverDeadline);
         if (! hoverObserved)
         {
+            driverFailure = "sent-message outside-dismiss fixture paints the Refine hover before dismissal";
             return;
         }
 
@@ -1117,6 +1186,13 @@ void TestSplitButtonContextMenuSentMouseMessagesHoverAndInvokeImmediately()
             return;
         }
 
+        ScopedMenuPointerFixture pointerFixture(popupHwnd);
+        if (! pointerFixture.WaitForCapture())
+        {
+            driverFailure = "sent-message popup establishes modal input capture before interaction";
+            return;
+        }
+
         ContextMenuPopupDebugState popupState{};
         D2D1_RECT_F refineRectDip{};
         if (! WaitForContextMenuPopupState(popupHwnd,
@@ -1141,6 +1217,13 @@ void TestSplitButtonContextMenuSentMouseMessagesHoverAndInvokeImmediately()
             return;
         }
 
+        // Match real and sent points so a later OS-generated move cannot undo the
+        // hover before its paint is observed. The sent down/up still prove invocation.
+        if (! pointerFixture.AlignCursor(refineCenter))
+        {
+            driverFailure = "sent-message interactive fixture aligns the physical cursor";
+            return;
+        }
         static_cast<void>(SendCapturedMouseMessageForMenuSuite(popupHwnd, WM_MOUSEMOVE, 0, refineCenter));
 
         ContextMenuPopupItemPaintDebugState paintState{};
@@ -1289,24 +1372,8 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
             return;
         }
 
-        // Visibility precedes SetCapture in the modal-loop setup. Start the flood only after the input owner
-        // is established, and use the popup's DPI context for all physical/client coordinate conversions.
-        const auto previousDpi = SetThreadDpiAwarenessContext(GetWindowDpiAwarenessContext(popupHwnd));
-        const auto restoreDpi  = wil::scope_exit([&]() noexcept
-        {
-            if (previousDpi)
-                SetThreadDpiAwarenessContext(previousDpi);
-        });
-        GUITHREADINFO gui{sizeof(GUITHREADINFO)};
-        const DWORD uiThread       = GetWindowThreadProcessId(popupHwnd, nullptr);
-        const auto captureDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
-        while (std::chrono::steady_clock::now() < captureDeadline)
-        {
-            if (GetGUIThreadInfo(uiThread, &gui) && gui.hwndCapture == popupHwnd)
-                break;
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-        if (gui.hwndCapture != popupHwnd)
+        ScopedMenuPointerFixture pointerFixture(popupHwnd);
+        if (! pointerFixture.WaitForCapture())
         {
             driverFailure = "owner-message-flood popup establishes modal input capture before traffic starts";
             return;
@@ -1333,6 +1400,11 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
         if (ClientToScreen(popupHwnd, &refineCenter) == FALSE)
         {
             driverFailure = "owner-message-flood split-button Refine row converts to screen coordinates";
+            return;
+        }
+        if (! pointerFixture.AlignCursor(refineCenter))
+        {
+            driverFailure = "owner-message-flood interactive fixture aligns the physical cursor";
             return;
         }
         static constexpr int kFloodMessageCount = 2000;
@@ -1373,12 +1445,11 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
         {
             ContextMenuPopupDebugState finalState{};
             const bool stateRead = DebugGetContextMenuPopupState(popupHwnd, finalState);
-            GetGUIThreadInfo(uiThread, &gui);
             driverFailure = std::format("owner-window message flood does not starve popup hover highlight: state={} visible={} capture={} dpi={} hover={} "
                                         "fill={} renders={} point=({}, {})",
                                         stateRead,
                                         IsWindowVisible(popupHwnd) != FALSE,
-                                        gui.hwndCapture == popupHwnd,
+                                        pointerFixture.HasCapture(),
                                         finalState.dpi,
                                         finalState.hoveredIndex.has_value() ? static_cast<int>(finalState.hoveredIndex.value()) : -1,
                                         paintState.usesHighlightFill,
@@ -2314,8 +2385,8 @@ void TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup()
 
         pendingMenuBarHoverRootSwitch.store(1, std::memory_order_release);
         pendingMenuBarHoverSequence.store(2u, std::memory_order_release);
-        if (PostMessageW(viewPopupHwnd, WndMsg::kDxUiContextMenuRootHoverChanged, 0u, 1u) == 0 ||
-            PostMessageW(viewPopupHwnd, WndMsg::kDxUiContextMenuRootHoverChanged, 1u, 2u) == 0)
+        if (PostMessageW(viewPopupHwnd, DxUi::WndMsg::kDxUiContextMenuRootHoverChanged, 0u, 1u) == 0 ||
+            PostMessageW(viewPopupHwnd, DxUi::WndMsg::kDxUiContextMenuRootHoverChanged, 1u, 2u) == 0)
         {
             driverFailure = "View popup receives the direct synthetic menu-bar hover switch messages";
             return;
@@ -2482,7 +2553,7 @@ void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
 
         pendingMenuBarHoverRootSwitch.store(1, std::memory_order_release);
         pendingMenuBarHoverSequence.store(1u, std::memory_order_release);
-        if (PostMessageW(viewPopupHwnd, WndMsg::kDxUiContextMenuRootHoverChanged, 1u, 1u) == 0)
+        if (PostMessageW(viewPopupHwnd, DxUi::WndMsg::kDxUiContextMenuRootHoverChanged, 1u, 1u) == 0)
         {
             driverFailure = "overlapping popup can receive the synthetic menu-bar hover switch message";
             return;
@@ -4967,7 +5038,7 @@ void TestMenuAcrylicBackdropScenarioEmitsMetrics()
             return;
         }
 
-        openToCaptureUs = Debug::Perf::ElapsedUs(startedAt);
+        openToCaptureUs = DxUi::Debug::Perf::ElapsedUs(startedAt);
         PostMessageW(popupHwnd, WM_KEYDOWN, VK_ESCAPE, 0);
     });
 
@@ -5011,11 +5082,11 @@ void TestMenuAcrylicBackdropScenarioEmitsMetrics()
         rawAdjacentDelta == 0u ? 0u : static_cast<uint64_t>((popupAdjacentDelta * 1000u + (rawAdjacentDelta / 2u)) / rawAdjacentDelta);
     const uint64_t minStrongBlurDelta = rawAdjacentDelta <= 1u ? 48u : 56u;
 
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_adjacent_rgb_delta", popupAdjacentDelta);
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_raw_adjacent_rgb_delta", rawAdjacentDelta);
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_vs_raw_rgb_delta", popupVsRawDelta);
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_vs_slab_rgb_delta", popupVsSlabDelta);
-    Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_to_raw_delta_permille", popupToRawDeltaPermille);
+    DxUi::Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_adjacent_rgb_delta", popupAdjacentDelta);
+    DxUi::Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_raw_adjacent_rgb_delta", rawAdjacentDelta);
+    DxUi::Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_vs_raw_rgb_delta", popupVsRawDelta);
+    DxUi::Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_vs_slab_rgb_delta", popupVsSlabDelta);
+    DxUi::Debug::Perf::EmitValue(L"dxui.menu.selftest.acrylic_popup_to_raw_delta_permille", popupToRawDeltaPermille);
 
     Require(rawAdjacentDelta > 0u, "acrylic backdrop metric scenario records non-zero raw backdrop variance");
     Require(popupVsRawDelta > 0u, "acrylic backdrop metric scenario materially changes the captured backdrop sample");
@@ -5025,12 +5096,12 @@ void TestMenuAcrylicBackdropScenarioEmitsMetrics()
     Require(popupVsSlabDelta >= 24u,
             "acrylic backdrop metric scenario stays visually tied to the captured raw backdrop instead of collapsing into an opaque tint");
 
-    Debug::Perf::Emit(L"dxui.menu.selftest.acrylic_open_to_capture_us",
-                      L"",
-                      openToCaptureUs,
-                      static_cast<uint64_t>(popupCapture.widthPx),
-                      static_cast<uint64_t>(popupCapture.heightPx),
-                      S_OK);
+    DxUi::Debug::Perf::Emit(L"dxui.menu.selftest.acrylic_open_to_capture_us",
+                            L"",
+                            openToCaptureUs,
+                            static_cast<uint64_t>(popupCapture.widthPx),
+                            static_cast<uint64_t>(popupCapture.heightPx),
+                            S_OK);
 }
 
 void TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen()
@@ -5126,7 +5197,7 @@ void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()
     const auto openStarted = std::chrono::steady_clock::now();
     const bool shown       = ContextMenu::ShowAsync(
         ownerWindow.Hwnd(), menuPoint, items, ownerWindow.Host().GetTheme(), [&](std::optional<int>) noexcept { callbackInvoked = true; }, callbacks);
-    const uint64_t openToFirstPaintUs = Debug::Perf::ElapsedUs(openStarted);
+    const uint64_t openToFirstPaintUs = DxUi::Debug::Perf::ElapsedUs(openStarted);
     Require(shown, "large async context menu opens");
     Require(openToFirstPaintUs < 5'000'000u, "large context menu open-to-first-paint remains bounded");
 
@@ -5152,7 +5223,7 @@ void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()
     { return state.keyboardIndex == std::optional<size_t>{kItemCount - 1u} && state.scrollOffsetDip > 0.0f; },
                                          endState),
             "large context menu resolves the last row through cached offsets");
-    const uint64_t endToVisibleUs = Debug::Perf::ElapsedUs(endStarted);
+    const uint64_t endToVisibleUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
     Require(endToVisibleUs < 1'000'000u, "large context menu End-to-visible latency remains bounded");
     Require(endState.lastPaintedItemCount <= 32u, "large context menu scrolled paint remains limited to viewport rows");
 
@@ -5161,18 +5232,18 @@ void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()
     Require(lastRowRect.bottom > endState.viewportRectDip.top && lastRowRect.top < endState.viewportRectDip.bottom,
             "large context menu keeps the keyboard-selected last row inside the viewport");
 
-    Debug::Perf::Emit(L"dxui.menu.selftest.large_open_to_first_paint_us",
-                      L"4096-items",
-                      openToFirstPaintUs,
-                      static_cast<uint64_t>(kItemCount),
-                      static_cast<uint64_t>(initialState.lastPaintedItemCount),
-                      S_OK);
-    Debug::Perf::Emit(L"dxui.menu.selftest.large_end_to_visible_us",
-                      L"4096-items",
-                      endToVisibleUs,
-                      static_cast<uint64_t>(kItemCount),
-                      static_cast<uint64_t>(endState.lastPaintedItemCount),
-                      S_OK);
+    DxUi::Debug::Perf::Emit(L"dxui.menu.selftest.large_open_to_first_paint_us",
+                            L"4096-items",
+                            openToFirstPaintUs,
+                            static_cast<uint64_t>(kItemCount),
+                            static_cast<uint64_t>(initialState.lastPaintedItemCount),
+                            S_OK);
+    DxUi::Debug::Perf::Emit(L"dxui.menu.selftest.large_end_to_visible_us",
+                            L"4096-items",
+                            endToVisibleUs,
+                            static_cast<uint64_t>(kItemCount),
+                            static_cast<uint64_t>(endState.lastPaintedItemCount),
+                            S_OK);
 
     PostMessageW(popupHwnd, WM_KEYDOWN, VK_ESCAPE, 0);
     const auto closeDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);

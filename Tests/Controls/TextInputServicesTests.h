@@ -545,11 +545,28 @@ void TestBoundedClipboardDecode()
     Require(text == L"\u6771\U0001f600", "decoding stops at the first terminator, ignoring allocation padding");
     std::vector<wchar_t> maximum(65537, L'x');
     maximum.back() = 0;
-    RequireSucceeded(DecodeClipboardText(maximum, text), "clipboard decoder accepts exactly its documented text capacity");
-    Require(text.size() == 65536, "maximum clipboard text is not truncated");
+    RequireSucceeded(DecodeClipboardText(maximum, text), "clipboard decoder accepts the embedded editor boundary");
+    Require(text.size() == 65536, "clipboard text at the embedded boundary is not truncated");
     maximum.back() = L'x';
-    Require(DecodeClipboardText(maximum, text) == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) && text.empty(),
+    Require(DecodeClipboardText(maximum, text) == HRESULT_FROM_WIN32(ERROR_INVALID_DATA) && text.empty(),
             "clipboard decoder rejects an unterminated oversized document");
+    maximum.resize(100001, L'x');
+    maximum.back() = 0;
+    RequireSucceeded(DecodeClipboardText(maximum, text), "native clipboard decoding is independent of the embedded edit budget");
+    Require(text.size() == 100000, "native clipboard decoding retains all large-selection text");
+    maximum[99999] = wchar_t(0xd800);
+    Require(DecodeClipboardText(maximum, text) == HRESULT_FROM_WIN32(ERROR_INVALID_DATA) && text.empty(),
+            "malformed UTF-16 above the former ceiling is rejected without partial output");
+    size_t bytes         = 99;
+    const size_t largest = (std::numeric_limits<size_t>::max)() / sizeof(wchar_t) - 1;
+    RequireSucceeded(ClipboardAllocationSize(largest, bytes), "largest representable clipboard allocation includes its terminator");
+    Require(bytes == (largest + 1) * sizeof(wchar_t), "clipboard byte calculation does not wrap");
+    Require(ClipboardAllocationSize(largest + 1, bytes) == HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW) && bytes == 0,
+            "clipboard multiplication overflow is rejected");
+    Require(ClipboardAllocationSize((std::numeric_limits<size_t>::max)(), bytes) == HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW) && bytes == 0,
+            "clipboard terminator addition cannot wrap");
+    RequireSucceeded(ClipboardAllocationSize(0, bytes), "empty clipboard text still allocates a terminator");
+    Require(bytes == sizeof(wchar_t), "empty clipboard allocation contains one UTF-16 terminator");
 }
 
 void TestApplicationTextStoreDeferredLocks()

@@ -47,13 +47,15 @@ No DxUi DLL or copied/enumerated library sources are required.
 
 Foundation, inherited control suites and supplied-device WARP tests all link the same library. The
 [test-port inventory](Specs/Done/SourceImport/test-port.json) records every inherited case and exclusions. Native x64/ARM64
-Debug/Release CI produces per-suite receipts; cross-compilation is not reported as native execution. Eight original
+Debug/Release/ASan Debug CI produces per-suite receipts; cross-compilation is not reported as native execution. Eight original
 visual baselines remain unchanged. Runtime logs and measurements stay in `.build`; `gallery.ps1 -PublishDocs`
 publishes reviewed gallery images to `docs/gallery`.
 
 RedXe pins a tested DxUi commit and ships synthetic text/UIA adapters (`redxe-adapter`). Real IME/touch/screen-reader
 checks and AV backends remain application gates (`embedded-host-text-uia-bridge`, `av-control`). The library does
-not change either application's runtime.
+not change either application's runtime. RedSalamander's I19 consumer branch has completed local x64
+Debug/Release adoption with the duplicate implementation removed; ARM64/ASan qualification and publication/merge
+remain separate. See [the adoption record](Specs/Plans/Done/RedSalamanderMigration.md).
 [Capabilities](capabilities.json) lists supported library mechanisms separately from those pending integrations.
 
 Start with [AGENTS.md](AGENTS.md), [spec authority](Specs/README.md), and [active plans](Specs/Plans/WIP/README.md).

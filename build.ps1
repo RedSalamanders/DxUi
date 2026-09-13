@@ -1,12 +1,12 @@
 <#
 .SYNOPSIS Builds the currently supported DxUi static targets and tests.
-.PARAMETER Configuration Debug or Release.
+.PARAMETER Configuration Debug, Release or ASan Debug.
 .PARAMETER Platform x64 or ARM64.
 .PARAMETER OutputRoot Optional isolated output root; defaults to this checkout's .build directory.
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Debug','Release')][string] $Configuration = 'Debug',
+    [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Debug',
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
     [string] $OutputRoot = '',
     [switch] $Rebuild

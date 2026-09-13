@@ -1,0 +1,93 @@
+diff --git a/Tests/Embedded/ComplexUiBenchmark.h b/Tests/Embedded/ComplexUiBenchmark.h
+index 3f2c758..00fa0b9 100644
+--- a/Tests/Embedded/ComplexUiBenchmark.h
++++ b/Tests/Embedded/ComplexUiBenchmark.h
+@@ -53,7 +53,7 @@ inline void Run(const wchar_t* outputPath)
+         gpu.context->Unmap(completion.get(), 0);
+     };
+     const auto update = [&](size_t frame) { scene.Update(frame); };
+-    for (size_t frame = 0; frame < 20; ++frame)
++    for (size_t frame = 0; frame < 240; ++frame)
+     {
+         update(frame);
+         Hr(view.Prepare(1280, 720), "benchmark warm preparation");
+@@ -66,8 +66,8 @@ inline void Run(const wchar_t* outputPath)
+     std::ofstream output{std::filesystem::path(outputPath)};
+     Check(bool(output), "benchmark output file");
+     output << std::setprecision(10) << "{\"compiler\":" << _MSC_FULL_VER
+-           << ",\"fixture\":\"dxui-complex-ui-v2\",\"renderer\":\"WARP\",\"width\":1280,\"height\":720,\"dpi\":96,"
+-           << "\"controls\":83,\"modelRows\":1000,\"framesPerRound\":40,\"roundCount\":5,\"dirtyAllocationCeilingPerFrame\":"
++           << ",\"fixture\":\"dxui-complex-ui-v3-long\",\"renderer\":\"WARP\",\"width\":1280,\"height\":720,\"dpi\":96,"
++           << "\"controls\":83,\"modelRows\":1000,\"warmupFrames\":240,\"framesPerRound\":600,\"roundCount\":5,\"dirtyAllocationCeilingPerFrame\":"
+            << kDirtyAllocationsPerFrameCeiling << ",\"scenarios\":[";
+     using Clock        = std::chrono::steady_clock;
+     const auto elapsed = [](Clock::time_point start) { return std::chrono::duration<double, std::milli>(Clock::now() - start).count(); };
+@@ -81,7 +81,7 @@ inline void Run(const wchar_t* outputPath)
+             const auto before       = view.GetStatistics();
+             const auto memoryBefore = Memory();
+             auto memoryPeak         = memoryBefore;
+-            std::array<double, 40> frameMs{}, prepareMs{}, composeMs{};
++            std::array<double, 600> frameMs{}, prepareMs{}, composeMs{};
+             size_t cppAllocations     = 0;
+             size_t composeAllocations = 0;
+             for (size_t frame = 0; frame < frameMs.size(); ++frame)
+@@ -90,7 +90,7 @@ inline void Run(const wchar_t* outputPath)
+                 countAllocations = true;
+                 const auto start = Clock::now();
+                 if (dirty)
+-                    update(20 + round * frameMs.size() + frame);
++                    update(240 + round * frameMs.size() + frame);
+                 const auto preparationStart = Clock::now();
+                 Hr(view.Prepare(1280, 720), "benchmark preparation");
+                 prepareMs[frame] = elapsed(preparationStart);
+@@ -123,15 +123,15 @@ inline void Run(const wchar_t* outputPath)
+                   dirty ? "complex dirty rounds stay within the C++ allocation ceiling" : "complex clean rounds make no C++ allocations");
+             if (round)
+                 output << ',';
+-            output << "{\"fps\":" << 40000 / totalMs << ",\"frameP50Ms\":" << frameMs[19] << ",\"frameP95Ms\":" << frameMs[37]
+-                   << ",\"prepareP95Ms\":" << prepareMs[37] << ",\"composeCpuP95Ms\":" << composeMs[37] << ",\"cppAllocations\":" << cppAllocations
++            output << "{\"fps\":" << 600000 / totalMs << ",\"frameP50Ms\":" << frameMs[299] << ",\"frameP95Ms\":" << frameMs[569]
++                   << ",\"prepareP95Ms\":" << prepareMs[569] << ",\"composeCpuP95Ms\":" << composeMs[569] << ",\"cppAllocations\":" << cppAllocations
+                    << ",\"composeAllocations\":" << composeAllocations << ",\"surfaceBytes\":" << after.surfaceBytes
+                    << ",\"replacementPeakBytes\":" << after.replacementPeakBytes << ",\"privateBytes\":" << memoryAfter.PrivateUsage
+                    << ",\"privatePeakBytes\":" << memoryPeak.PrivateUsage
+                    << ",\"privateGrowthBytes\":" << static_cast<int64_t>(memoryAfter.PrivateUsage) - static_cast<int64_t>(memoryBefore.PrivateUsage)
+                    << ",\"workingSetBytes\":" << memoryAfter.WorkingSetSize << ",\"workingSetPeakBytes\":" << memoryPeak.WorkingSetSize << '}';
+-            std::cout << "Complex UI " << (dirty ? "dirty" : "clean") << " round " << round + 1 << ": " << 40000 / totalMs << " completed offscreen FPS; p95 "
+-                      << frameMs[37] << " ms; private " << memoryAfter.PrivateUsage << " bytes\n";
++            std::cout << "Complex UI " << (dirty ? "dirty" : "clean") << " round " << round + 1 << ": " << 600000 / totalMs << " completed offscreen FPS; p95 "
++                      << frameMs[569] << " ms; private " << memoryAfter.PrivateUsage << " bytes\n";
+         }
+         output << "]}";
+     }
+diff --git a/Tools/compare_performance.py b/Tools/compare_performance.py
+index 2a37fa2..4b9b1ed 100644
+--- a/Tools/compare_performance.py
++++ b/Tools/compare_performance.py
+@@ -19,8 +19,11 @@ def validate(receipt):
+     for key in IDENTITY + ('sourceCommit', 'sourceFingerprint', 'executableSha256', 'benchmarkSha256'):
+         if key not in receipt or receipt[key] is None or receipt[key] == '':
+             raise ValueError(f'Missing identity/evidence: {key}')
+-    if receipt['roundCount'] != 5 or receipt['framesPerRound'] != 40:
+-        raise ValueError('Expected five rounds of forty frames')
++    expected_frames = 600 if receipt['fixture'] == 'dxui-complex-ui-v3-long' else 40
++    if receipt['roundCount'] != 5 or receipt['framesPerRound'] != expected_frames:
++        raise ValueError('Unexpected round count or frame count for the named fixture')
++    if expected_frames == 600 and receipt.get('warmupFrames') != 240:
++        raise ValueError('Long fixture requires 240 warm-up frames')
+     scenarios = receipt.get('scenarios', [])
+     if len(scenarios) != 2 or {s['name'] for s in scenarios} != {'clean', 'dirty'}:
+         raise ValueError('Exactly clean and dirty scenarios are required')
+diff --git a/build.ps1 b/build.ps1
+index 8d192cb..bc7086f 100644
+--- a/build.ps1
++++ b/build.ps1
+@@ -142,7 +142,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $output "vcpkg_installed/$Platform/$
+ $logDirectory = Join-Path $output 'logs'
+ New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
+ $log = Join-Path $logDirectory ("build-$Platform-$Configuration-" + [guid]::NewGuid().ToString('N') + '.log')
+-$arguments = @((Join-Path $PSScriptRoot 'DxUi.sln'), '/m', '/nologo', '/verbosity:minimal', "/t:$target",
++$arguments = @((Join-Path $PSScriptRoot 'DxUi.sln'), '/m:2', '/p:MultiProcessorCompilation=false', '/nologo', '/verbosity:minimal', "/t:$target",
+     "/p:Configuration=$Configuration", "/p:Platform=$Platform", "/p:DxUiOutputRoot=$output",
+     "/flp:logfile=$log;verbosity=normal;encoding=UTF-8")
+ Write-Host 'Build configuration:' -ForegroundColor Cyan

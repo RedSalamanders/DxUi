@@ -707,8 +707,9 @@ public:
         return _hwnd.get();
     }
 
-    void PumpMessages() const
+    void PumpMessages(DWORD maximumDurationMs = INFINITE) const
     {
+        const ULONGLONG started = GetTickCount64();
         MSG msg{};
         size_t processedCount = 0u;
         while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE) != FALSE)
@@ -717,7 +718,7 @@ public:
             ++processedCount;
             // Keep a transient animation/timer burst from turning a test helper
             // pump into an unbounded loop.
-            if (processedCount >= 4096u)
+            if (processedCount >= 4096u || (maximumDurationMs != INFINITE && GetTickCount64() - started >= maximumDurationMs))
             {
                 break;
             }

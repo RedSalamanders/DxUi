@@ -1,0 +1,1017 @@
+{
+  "schemaVersion": 1,
+  "historicalOriginCommit": "f28f55d0b4648bdec131f506c017dabc797131af",
+  "reviewedLibraryBase": "3dae0730bfd899fae0b5d6aedd97dd2afff57950",
+  "scope": "Current disposition of the 65 historical source-text exclusions. This record does not alter sealed import history or waive product/native/manual/resource qualification.",
+  "dispositions": [
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityTargetPublishesImmutableSnapshotBeforeTreeTeardown",
+      "decision": "runtime",
+      "rationale": "Retire snapshot helper spelling. Concurrent foreign-thread traversal during 80 root replacements and retained-provider retirement check the lifetime contract; pattern-specific semantics have separate cases.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityTextRangeFromPointDispatchesToWindowThread"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityLiveHostResolutionIsWindowThreadOnly",
+      "decision": "runtime",
+      "rationale": "Retire snapshot helper spelling. Concurrent foreign-thread traversal during 80 root replacements and retained-provider retirement check the lifetime contract; pattern-specific semantics have separate cases.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityTextRangeFromPointDispatchesToWindowThread"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityTreeHitTestUsesCheapVisibleIndexLookup",
+      "decision": "runtime",
+      "rationale": "Replace visible-index implementation spelling with hit geometry, clipped scrolling and large-model bounded-work coverage. Exact cache/data-structure choice is not a public contract.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Tree.cpp",
+          "test": "TestTreeMouseWheelScrollAffectsLaterHitTesting"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityGridSnapshotRebuildMeetsTenThousandRowSelectionBudget"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityProviderFactoriesUseSharedMakeProviderHelper",
+      "decision": "retired-spelling",
+      "rationale": "Factory/builder/dispatch helper names and duplication counts are implementation choices. COM identity, supported patterns and runtime IDs remain observable contracts.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityRootRuntimeIdIncludesProviderSpecificValues"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityRuntimeIdsUseSharedBuilder",
+      "decision": "retired-spelling",
+      "rationale": "Factory/builder/dispatch helper names and duplication counts are implementation choices. COM identity, supported patterns and runtime IDs remain observable contracts.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityRootRuntimeIdIncludesProviderSpecificValues"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityPatternDispatchUsesSharedQueryPattern",
+      "decision": "retired-spelling",
+      "rationale": "Factory/builder/dispatch helper names and duplication counts are implementation choices. COM identity, supported patterns and runtime IDs remain observable contracts.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityRootRuntimeIdIncludesProviderSpecificValues"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityElementProviderFromPointUsesSnapshot",
+      "decision": "runtime",
+      "rationale": "Retire snapshot helper spelling. Concurrent foreign-thread traversal during 80 root replacements and retained-provider retirement check the lifetime contract; pattern-specific semantics have separate cases.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityTextRangeFromPointDispatchesToWindowThread"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityBoundingRectangleUsesSnapshot",
+      "decision": "runtime",
+      "rationale": "Retire snapshot helper spelling. Concurrent foreign-thread traversal during 80 root replacements and retained-provider retirement check the lifetime contract; pattern-specific semantics have separate cases.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityTextRangeFromPointDispatchesToWindowThread"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityGridPatternReadsUseSnapshots",
+      "decision": "runtime",
+      "rationale": "Grid/selection behavior is exercised through retained providers, offscreen selection, row structure and cell patterns; helper-name assertions are retired.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesGridRowSelectionPatterns"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesGridCellToggleAndRangePatterns"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityControlStateReadsUseSnapshots",
+      "decision": "runtime",
+      "rationale": "Retire snapshot helper spelling. Concurrent foreign-thread traversal during 80 root replacements and retained-provider retirement check the lifetime contract; pattern-specific semantics have separate cases.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityTextRangeFromPointDispatchesToWindowThread"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityGridCellValueReadsUseSnapshots",
+      "decision": "runtime",
+      "rationale": "Grid/selection behavior is exercised through retained providers, offscreen selection, row structure and cell patterns; helper-name assertions are retired.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesGridRowSelectionPatterns"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesGridCellToggleAndRangePatterns"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityGridRowPropertyReadsUseSnapshots",
+      "decision": "runtime",
+      "rationale": "Grid/selection behavior is exercised through retained providers, offscreen selection, row structure and cell patterns; helper-name assertions are retired.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesGridRowSelectionPatterns"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesGridCellToggleAndRangePatterns"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityTreeGridSelectionReadsUseSnapshots",
+      "decision": "runtime",
+      "rationale": "Grid/selection behavior is exercised through retained providers, offscreen selection, row structure and cell patterns; helper-name assertions are retired.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesGridRowSelectionPatterns"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesGridCellToggleAndRangePatterns"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityTreeItemStateReadsUseSnapshots",
+      "decision": "runtime",
+      "rationale": "Stable tree item identity and selection/expansion are tested through provider interfaces across reorder.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityTreeItemProviderKeepsStableIdentityAcrossReorder"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityTextPatternDocumentAndSelectionReadsUseSnapshots",
+      "decision": "runtime",
+      "rationale": "Retain text/document/selection, native IME ranges and masked-reveal provider behavior without prescribing snapshot helper calls.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesTextPatternForTextField"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesNativeImeTextEditRanges"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesMaskedRevealButton"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityTextEditCompositionReadsUseSnapshots",
+      "decision": "runtime",
+      "rationale": "Retain text/document/selection, native IME ranges and masked-reveal provider behavior without prescribing snapshot helper calls.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesTextPatternForTextField"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesNativeImeTextEditRanges"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesMaskedRevealButton"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityNavigateUsesSnapshot",
+      "decision": "runtime",
+      "rationale": "Retire snapshot helper spelling. Concurrent foreign-thread traversal during 80 root replacements and retained-provider retirement check the lifetime contract; pattern-specific semantics have separate cases.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityTextRangeFromPointDispatchesToWindowThread"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityTreeSnapshotHitRecordsUseVisibleGeometryOnly",
+      "decision": "runtime",
+      "rationale": "Replace visible-index implementation spelling with hit geometry, clipped scrolling and large-model bounded-work coverage. Exact cache/data-structure choice is not a public contract.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Tree.cpp",
+          "test": "TestTreeMouseWheelScrollAffectsLaterHitTesting"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityGridSnapshotRebuildMeetsTenThousandRowSelectionBudget"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "originTest": "TestAccessibilityPasswordRevealButtonReadsUseSnapshots",
+      "decision": "runtime",
+      "rationale": "Retain text/document/selection, native IME ranges and masked-reveal provider behavior without prescribing snapshot helper calls.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesTextPatternForTextField"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesNativeImeTextEditRanges"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Accessibility.cpp",
+          "test": "TestAccessibilityProviderExposesMaskedRevealButton"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.ComboBox.cpp",
+      "originTest": "TestEditableComboBoxPaintReusesSingleLineLayoutAndCaretOffset",
+      "decision": "retired-spelling",
+      "rationale": "Retire exact layout/caret helper call counts. Selection clipping, bidi geometry and moved-caret synchronization remain runtime contracts; allocation/timing acceptance remains the paired performance gate, not a claim from these geometry tests.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestTextFieldLongSelectionPaintStaysInsideTextViewport"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestTextFieldBidiSelectionPaintUsesDirectWriteRangeBounds"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputBackendUpdatesCaretWhenFocusedFieldMoves"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.ComboBox.cpp",
+      "originTest": "TestPopupBackdropCaptureUsesSharedBoundedHelper",
+      "decision": "retired-spelling",
+      "rationale": "Shared-helper factoring, overload delegation and precise internal helper names do not define consumer behavior. Existing retained control/menu interaction suites remain authoritative; resource acceptance is separately measured.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Controls.cpp",
+      "originTest": "TestChevronGlyphRenderingIsSharedAcrossComboBoxAndGrid",
+      "decision": "retired-spelling",
+      "rationale": "Shared-helper factoring, overload delegation and precise internal helper names do not define consumer behavior. Existing retained control/menu interaction suites remain authoritative; resource acceptance is separately measured.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Controls.cpp",
+      "originTest": "TestScrollPanelChildCallbacksCanClearChildrenSafely",
+      "decision": "runtime-restored",
+      "rationale": "Restore the original executable callback-destroys-control regression; remove only source-text assertions. Run under ASAN as well as ordinary native configurations.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Controls.cpp",
+          "test": "TestScrollPanelChildCallbacksCanClearChildrenSafely"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Controls.cpp",
+      "originTest": "TestScrollbarVisualStrengthOverloadReusesResolvedTargets",
+      "decision": "retired-spelling",
+      "rationale": "Shared-helper factoring, overload delegation and precise internal helper names do not define consumer behavior. Existing retained control/menu interaction suites remain authoritative; resource acceptance is separately measured.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Controls.cpp",
+      "originTest": "TestScrollbarTrackPagingUsesSharedPageStepHelper",
+      "decision": "retired-spelling",
+      "rationale": "Shared-helper factoring, overload delegation and precise internal helper names do not define consumer behavior. Existing retained control/menu interaction suites remain authoritative; resource acceptance is separately measured.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Controls.cpp",
+      "originTest": "TestToggleAndRadioActivationUseSharedHelpers",
+      "decision": "retired-spelling",
+      "rationale": "Shared-helper factoring, overload delegation and precise internal helper names do not define consumer behavior. Existing retained control/menu interaction suites remain authoritative; resource acceptance is separately measured.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Controls.cpp",
+      "originTest": "TestConstHitTestOverloadsDelegateToMutableImplementations",
+      "decision": "retired-spelling",
+      "rationale": "Shared-helper factoring, overload delegation and precise internal helper names do not define consumer behavior. Existing retained control/menu interaction suites remain authoritative; resource acceptance is separately measured.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Controls.cpp",
+      "originTest": "TestMenuBarCachesItemLayoutRectsAndWidths",
+      "decision": "runtime",
+      "rationale": "Cache invalidation must recompute hit rectangles after layout changes; internal cache member names are not prescribed.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Controls.cpp",
+          "test": "TestMenuBarLayoutCacheRecomputesHitRectsAfterLayoutInvalidations"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Controls.cpp",
+      "originTest": "TestTabControlCachesHeaderLayoutRectsAndWidths",
+      "decision": "runtime",
+      "rationale": "Header cache invalidation must recompute tab hit rectangles after changes.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Controls.cpp",
+          "test": "TestTabControlHeaderCacheRecomputesRectsAfterLayoutInvalidations"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Grid.cpp",
+      "originTest": "TestGridPaintReusesCollectedGroupsForContentAndVisibleRows",
+      "decision": "runtime",
+      "rationale": "Large-grid model-read and visible-work budgets exercise bounded painting; busy headers alone must not keep animation active. Do not enforce a particular scratch-vector or collection helper spelling.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Grid.cpp",
+          "test": "TestGridVisibleWorkMetricsStayBoundedForLargeDatasets"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Grid.cpp",
+          "test": "TestGridHeaderBusyColumnAloneDoesNotAnimate"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Grid.cpp",
+      "originTest": "TestGridTickUsesPaintDiscoveredAnimatedCellState",
+      "decision": "runtime",
+      "rationale": "Large-grid model-read and visible-work budgets exercise bounded painting; busy headers alone must not keep animation active. Do not enforce a particular scratch-vector or collection helper spelling.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Grid.cpp",
+          "test": "TestGridVisibleWorkMetricsStayBoundedForLargeDatasets"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Grid.cpp",
+          "test": "TestGridHeaderBusyColumnAloneDoesNotAnimate"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Grid.cpp",
+      "originTest": "TestGridPaintReusesCellDataScratchStorage",
+      "decision": "runtime",
+      "rationale": "Large-grid model-read and visible-work budgets exercise bounded painting; busy headers alone must not keep animation active. Do not enforce a particular scratch-vector or collection helper spelling.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Grid.cpp",
+          "test": "TestGridVisibleWorkMetricsStayBoundedForLargeDatasets"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Grid.cpp",
+          "test": "TestGridHeaderBusyColumnAloneDoesNotAnimate"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Grid.cpp",
+      "originTest": "TestGridPaintEmitsCellDataReadMetric",
+      "decision": "retired-diagnostics",
+      "rationale": "G5 explicitly permits the standalone diagnostics adapter. The old RedSalamander GridCellDataRead event spelling is retired; the product FrameMetricSink adapter and bounded model-read tests own current diagnostics/performance.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Menu.cpp",
+      "originTest": "TestPointerInputEventHasNoLiveCursorState",
+      "decision": "runtime",
+      "rationale": "Delivered mouse/wheel coordinates and flags are authoritative and idle menus do not poll the live cursor; retire internal origin abstraction names.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Menu.cpp",
+          "test": "TestPointerInputEventMouseMoveUsesDeliveredPoint"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Menu.cpp",
+          "test": "TestPointerInputEventButtonUsesDeliveredPointAndFlags"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Menu.cpp",
+          "test": "TestPointerInputEventWheelUsesDeliveredScreenPoint"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Menu.cpp",
+          "test": "TestMenuRootSwitchDoesNotPollCursorWhileIdle"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Menu.cpp",
+      "originTest": "TestPointerInputOriginAbstractionIsRemoved",
+      "decision": "runtime",
+      "rationale": "Delivered mouse/wheel coordinates and flags are authoritative and idle menus do not poll the live cursor; retire internal origin abstraction names.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Menu.cpp",
+          "test": "TestPointerInputEventMouseMoveUsesDeliveredPoint"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Menu.cpp",
+          "test": "TestPointerInputEventButtonUsesDeliveredPointAndFlags"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Menu.cpp",
+          "test": "TestPointerInputEventWheelUsesDeliveredScreenPoint"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Menu.cpp",
+          "test": "TestMenuRootSwitchDoesNotPollCursorWhileIdle"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Menu.cpp",
+      "originTest": "TestNavigationViewPointerRoutingHasNoSyntheticGenerationGate",
+      "decision": "product-owned",
+      "rationale": "Rehomed unchanged product policy to RedSalamander Tools/Tests/TestHarnessSourceContracts.Tests.ps1 under the original case name. DxUi neither imports nor validates consumer files.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Menu.cpp",
+      "originTest": "TestMenuWindowClassRegistrationCachesOnlySuccess",
+      "decision": "reviewed-policy",
+      "rationale": "Reviewed canonical DxUi.Menu.cpp: class registration caches success, a WIL-owned region is released only after SetWindowRgn succeeds, and the modal loop dismisses a missing root before waiting. Retire source-substring ordering assertions; the native destruction test covers host teardown but does not inject every Windows API failure.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Menu.cpp",
+          "test": "TestNativeMenuBarNestedPopupCanDestroyHostSafely"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Menu.cpp",
+      "originTest": "TestMenuPopupWindowRegionTransfersOwnershipOnlyAfterSuccess",
+      "decision": "reviewed-policy",
+      "rationale": "Reviewed canonical DxUi.Menu.cpp: class registration caches success, a WIL-owned region is released only after SetWindowRgn succeeds, and the modal loop dismisses a missing root before waiting. Retire source-substring ordering assertions; the native destruction test covers host teardown but does not inject every Windows API failure.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Menu.cpp",
+          "test": "TestNativeMenuBarNestedPopupCanDestroyHostSafely"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Menu.cpp",
+      "originTest": "TestContextMenuModalLoopDismissesWhenRootPopupDisappearsBeforeWaiting",
+      "decision": "reviewed-policy",
+      "rationale": "Reviewed canonical DxUi.Menu.cpp: class registration caches success, a WIL-owned region is released only after SetWindowRgn succeeds, and the modal loop dismisses a missing root before waiting. Retire source-substring ordering assertions; the native destruction test covers host teardown but does not inject every Windows API failure.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Menu.cpp",
+          "test": "TestNativeMenuBarNestedPopupCanDestroyHostSafely"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+      "originTest": "TestNativeTextInputTextStoreGetTextExtUsesRangeRectsBeforeCaretWalk",
+      "decision": "runtime",
+      "rationale": "Text extent must preserve range and caret geometry for wrapped/multiline and mixed-bidi input; traversal helper ordering is not prescribed.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputTextStoreMixedBiDiGeometryUsesTextViewport"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputTextStoreMultilineTextExtUsesCaretLineGeometry"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputTextStoreWrappedTextExtSpansVisualLineGeometry"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+      "originTest": "TestNativeTextInputTsfDeactivateRestoresFocusAssociationBeforePoppingDocument",
+      "decision": "reviewed-policy",
+      "rationale": "Reviewed NativeTextInput/TextStoreACP/TextInput teardown: TSF restores the prior focus association, disconnects raw callbacks and securely clears observed/native/text/undo/redo/layout buffers; the TextField destructor does not notify a dying host. No public live secure-clear teardown API is added. Runtime detach/destroyed-control cases establish lifecycle safety, not forensic proof that every freed byte was wiped.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputBackendActivatesTsfDocumentOnFocus"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputTextStoreRejectsDestroyedControlDuringTeardown"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.WindowHost.cpp",
+          "test": "TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+      "originTest": "TestNativeTextInputDeactivateSecureClearsCachedText",
+      "decision": "reviewed-policy",
+      "rationale": "Reviewed NativeTextInput/TextStoreACP/TextInput teardown: TSF restores the prior focus association, disconnects raw callbacks and securely clears observed/native/text/undo/redo/layout buffers; the TextField destructor does not notify a dying host. No public live secure-clear teardown API is added. Runtime detach/destroyed-control cases establish lifecycle safety, not forensic proof that every freed byte was wiped.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputBackendActivatesTsfDocumentOnFocus"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputTextStoreRejectsDestroyedControlDuringTeardown"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.WindowHost.cpp",
+          "test": "TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.NewControls.cpp",
+      "originTest": "TestTabControlCloseCallbacksCanReplaceRootSafely",
+      "decision": "runtime-restored",
+      "rationale": "Restore the original executable callback-destroys-control regression; remove only source-text assertions. Run under ASAN as well as ordinary native configurations.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.NewControls.cpp",
+          "test": "TestTabControlCloseCallbacksCanReplaceRootSafely"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.TextField.cpp",
+      "originTest": "TestTextFieldCoalescedDirectEditsCaptureHistoryOnlyOnce",
+      "decision": "runtime",
+      "rationale": "Undo behavior must coalesce edits and split after caret movement. Retire CaptureEditHistoryState call-count assertions; copying/allocation cost remains in performance qualification.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestTextFieldUndoCoalescesTypingRun"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestTextFieldUndoCoalescesBackspaceRun"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestTextFieldUndoCoalescesDeleteRun"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestTextFieldUndoSplitsTypingRunsAfterCaretMove"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.TextField.cpp",
+      "originTest": "TestTextFieldDoesNotExposeLiveSecureClearTeardownApi",
+      "decision": "reviewed-policy",
+      "rationale": "Reviewed NativeTextInput/TextStoreACP/TextInput teardown: TSF restores the prior focus association, disconnects raw callbacks and securely clears observed/native/text/undo/redo/layout buffers; the TextField destructor does not notify a dying host. No public live secure-clear teardown API is added. Runtime detach/destroyed-control cases establish lifecycle safety, not forensic proof that every freed byte was wiped.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputBackendActivatesTsfDocumentOnFocus"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputTextStoreRejectsDestroyedControlDuringTeardown"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.WindowHost.cpp",
+          "test": "TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.TextField.cpp",
+      "originTest": "TestTextFieldDestructorOwnsSecureStorageWipe",
+      "decision": "reviewed-policy",
+      "rationale": "Reviewed NativeTextInput/TextStoreACP/TextInput teardown: TSF restores the prior focus association, disconnects raw callbacks and securely clears observed/native/text/undo/redo/layout buffers; the TextField destructor does not notify a dying host. No public live secure-clear teardown API is added. Runtime detach/destroyed-control cases establish lifecycle safety, not forensic proof that every freed byte was wiped.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputBackendActivatesTsfDocumentOnFocus"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputTextStoreRejectsDestroyedControlDuringTeardown"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.WindowHost.cpp",
+          "test": "TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.TextField.cpp",
+      "originTest": "TestSingleLineSelectionPaintReusesOneTextLayout",
+      "decision": "retired-spelling",
+      "rationale": "Retire exact layout/caret helper call counts. Selection clipping, bidi geometry and moved-caret synchronization remain runtime contracts; allocation/timing acceptance remains the paired performance gate, not a claim from these geometry tests.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestTextFieldLongSelectionPaintStaysInsideTextViewport"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestTextFieldBidiSelectionPaintUsesDirectWriteRangeBounds"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputBackendUpdatesCaretWhenFocusedFieldMoves"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.TextField.cpp",
+      "originTest": "TestSingleLineTextClippedReusesOneTextLayout",
+      "decision": "retired-spelling",
+      "rationale": "Retire exact layout/caret helper call counts. Selection clipping, bidi geometry and moved-caret synchronization remain runtime contracts; allocation/timing acceptance remains the paired performance gate, not a claim from these geometry tests.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestTextFieldLongSelectionPaintStaysInsideTextViewport"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestTextFieldBidiSelectionPaintUsesDirectWriteRangeBounds"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputBackendUpdatesCaretWhenFocusedFieldMoves"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.TextField.cpp",
+      "originTest": "TestTextFieldPaintEnsuresSingleLineCaretVisibleOncePerFrame",
+      "decision": "retired-spelling",
+      "rationale": "Retire exact layout/caret helper call counts. Selection clipping, bidi geometry and moved-caret synchronization remain runtime contracts; allocation/timing acceptance remains the paired performance gate, not a claim from these geometry tests.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestTextFieldLongSelectionPaintStaysInsideTextViewport"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestTextFieldBidiSelectionPaintUsesDirectWriteRangeBounds"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputBackendUpdatesCaretWhenFocusedFieldMoves"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.TextField.cpp",
+      "originTest": "TestTextFieldSingleLineLayoutCacheInvalidatesAndFeedsHotPaths",
+      "decision": "retired-spelling",
+      "rationale": "Retire exact layout/caret helper call counts. Selection clipping, bidi geometry and moved-caret synchronization remain runtime contracts; allocation/timing acceptance remains the paired performance gate, not a claim from these geometry tests.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestTextFieldLongSelectionPaintStaysInsideTextViewport"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestTextFieldBidiSelectionPaintUsesDirectWriteRangeBounds"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputBackendUpdatesCaretWhenFocusedFieldMoves"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.TextField.cpp",
+      "originTest": "TestTextFieldMaskedDotCountStaysBounded",
+      "decision": "runtime",
+      "rationale": "Exact Unicode text-element masks and concealed stable buckets are runtime contracts; cache member names are not.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.TextField.cpp",
+          "test": "TestMaskedTextFieldExactMaskUsesTextElementCount"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputBackendMaskedConcealedPolicyUsesStableBuckets"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+          "test": "TestNativeTextInputBackendMaskedConcealedPolicyRegeneratesEpochs"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Tree.cpp",
+      "originTest": "TestTreeCachesBadgeWidthAndHoveredTooltipOverflow",
+      "decision": "runtime",
+      "rationale": "Badge geometry and hovered clipped-text tooltips remain tested; cache naming is retired and timing acceptance is separate.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Tree.cpp",
+          "test": "TestTreeLayoutMetricsReserveSpaceForIconAndBadge"
+        },
+        {
+          "file": "Tests/Controls/DxUiTests.Tree.cpp",
+          "test": "TestTreeHoveredClippedTextShowsFullTextTooltip"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Tree.cpp",
+      "originTest": "TestTreeExpansionAnimationMovesCapturedItems",
+      "decision": "retired-spelling",
+      "rationale": "Move-expression spelling, absence of unused private probes and typography cache member names are implementation details. Retained Tree/Rendering suites establish behavior; paired performance and bounded resources remain required.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Tree.cpp",
+      "originTest": "TestTreeRemovesUnusedExpanderAnimationProbe",
+      "decision": "retired-spelling",
+      "rationale": "Move-expression spelling, absence of unused private probes and typography cache member names are implementation details. Retained Tree/Rendering suites establish behavior; paired performance and bounded resources remain required.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.Tree.cpp",
+      "originTest": "TestTreeRemovesUnusedTypeaheadNormalizationProbe",
+      "decision": "retired-spelling",
+      "rationale": "Move-expression spelling, absence of unused private probes and typography cache member names are implementation details. Retained Tree/Rendering suites establish behavior; paired performance and bounded resources remain required.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.WindowHost.cpp",
+      "originTest": "TestDxUiTypographyMeasurementCachesFormatsAndFamilyResolution",
+      "decision": "retired-spelling",
+      "rationale": "Move-expression spelling, absence of unused private probes and typography cache member names are implementation details. Retained Tree/Rendering suites establish behavior; paired performance and bounded resources remain required.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.WindowHost.cpp",
+      "originTest": "TestConnectionCredentialPromptDestroysWindowOnModalQuit",
+      "decision": "product-owned",
+      "rationale": "Rehomed unchanged product policy to RedSalamander Tools/Tests/TestHarnessSourceContracts.Tests.ps1 under the original case name. DxUi neither imports nor validates consumer files.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.WindowHost.cpp",
+      "originTest": "TestConnectionCredentialPromptTeardownDoesNotWipeThroughRawTextFieldPointers",
+      "decision": "product-owned",
+      "rationale": "Rehomed unchanged product policy to RedSalamander Tools/Tests/TestHarnessSourceContracts.Tests.ps1 under the original case name. DxUi neither imports nor validates consumer files.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.WindowHost.cpp",
+      "originTest": "TestConnectionCredentialPromptUiaPumpDoesNotDetachTimedOutWorkers",
+      "decision": "product-owned",
+      "rationale": "Rehomed unchanged product policy to RedSalamander Tools/Tests/TestHarnessSourceContracts.Tests.ps1 under the original case name. DxUi neither imports nor validates consumer files.",
+      "runtimeCases": []
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.WindowHost.cpp",
+      "originTest": "TestWindowHostPaintUsesWilBeginPaintRaii",
+      "decision": "reviewed-policy",
+      "rationale": "Reviewed WindowHost paint ownership uses WIL BeginPaint cleanup and ControlHost destructor calls Detach before member teardown. Runtime secure-input and shared-resource detach cases exercise teardown; source helper-name assertions are retired.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.WindowHost.cpp",
+          "test": "TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.WindowHost.cpp",
+      "originTest": "TestWindowHostDestructorDetachesBeforeMemberTeardown",
+      "decision": "reviewed-policy",
+      "rationale": "Reviewed WindowHost paint ownership uses WIL BeginPaint cleanup and ControlHost destructor calls Detach before member teardown. Runtime secure-input and shared-resource detach cases exercise teardown; source helper-name assertions are retired.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.WindowHost.cpp",
+          "test": "TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.WindowHost.cpp",
+      "originTest": "TestWindowHostDpiChangedRecreatesTargetBitmapWhenSizeIsUnchanged",
+      "decision": "runtime",
+      "rationale": "DPI updates must refresh layout/target geometry and remain renderable; retire exact internal resize-helper call ordering.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.WindowHost.cpp",
+          "test": "TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.WindowHost.cpp",
+      "originTest": "TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement",
+      "decision": "runtime-restored",
+      "rationale": "Restore the original executable callback-destroys-control regression; remove only source-text assertions. Run under ASAN as well as ordinary native configurations.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.WindowHost.cpp",
+          "test": "TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.WindowHost.cpp",
+      "originTest": "TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement",
+      "decision": "runtime-restored",
+      "rationale": "Restore the original executable callback-destroys-control regression; remove only source-text assertions. Run under ASAN as well as ordinary native configurations.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.WindowHost.cpp",
+          "test": "TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement"
+        }
+      ]
+    },
+    {
+      "originFile": "Tests/Controls/DxUiTests.WindowHost.cpp",
+      "originTest": "TestWindowHostDeviceLossSchedulesRepaintAndForcesFullPresent",
+      "decision": "runtime",
+      "rationale": "Device-loss recovery must produce pixels with recreated resources. The internal full-present flag name is not a public contract.",
+      "runtimeCases": [
+        {
+          "file": "Tests/Controls/DxUiTests.Rendering.cpp",
+          "test": "TestAttachedHostRecoversAfterSimulatedDeviceLoss"
+        }
+      ]
+    }
+  ]
+}

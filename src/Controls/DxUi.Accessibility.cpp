@@ -1637,6 +1637,12 @@ bool SnapshotGridRowIsSelected(const AccessibilityControlNavigationSnapshot& rec
     return FindU64ValueIndex(record.selectedGridRowIds, rowId).has_value();
 }
 
+bool SnapshotSupportsGridSelectionItem(const AccessibilityControlNavigationSnapshot& record, uint64_t rowId) noexcept
+{
+    // GetSelection can return selected rows beyond the bounded visible/materialized row cache.
+    return record.isGrid && (SnapshotContainsGridRow(record, rowId) || SnapshotGridRowIsSelected(record, rowId));
+}
+
 std::optional<AccessibilityGridCellSnapshotRecord> FindSnapshotGridCellRecord(const AccessibilitySnapshot& snapshot,
                                                                               const ControlPath& path,
                                                                               uint64_t rowId,
@@ -4973,9 +4979,8 @@ AccessibilityPatternQueryResult AccessibilityProvider::QueryPattern(Accessibilit
         const std::shared_ptr<const AccessibilitySnapshot> snapshot = CaptureSnapshot();
         const AccessibilityControlNavigationSnapshot* record =
             (snapshot && snapshot->alive && snapshot->hasRetainedRoot) ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
-        return (record && (SnapshotContainsGridRow(*record, _gridRowId) || SnapshotGridRowIsSelected(*record, _gridRowId)))
-                   ? makeResult(static_cast<ISelectionItemProvider*>(this))
-                   : AccessibilityPatternQueryResult{};
+        return (record && SnapshotSupportsGridSelectionItem(*record, _gridRowId)) ? makeResult(static_cast<ISelectionItemProvider*>(this))
+                                                                                  : AccessibilityPatternQueryResult{};
     }
 
     if (_kind == AccessibilityFragmentKind::GridCell)
@@ -5231,7 +5236,7 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
             return S_OK;
         }
 
-        if (record && (SnapshotContainsGridRow(*record, _gridRowId) || SnapshotGridRowIsSelected(*record, _gridRowId)))
+        if (record && SnapshotSupportsGridSelectionItem(*record, _gridRowId))
         {
             *outValue = VariantFromBool(SnapshotGridRowIsSelected(*record, _gridRowId));
         }
@@ -6932,7 +6937,7 @@ HRESULT AccessibilityProvider::get_IsSelected(BOOL* outSelected) noexcept
 
     if (_kind == AccessibilityFragmentKind::GridRow)
     {
-        if (! record || ! record->isGrid || ! SnapshotContainsGridRow(*record, _gridRowId))
+        if (! record || ! SnapshotSupportsGridSelectionItem(*record, _gridRowId))
         {
             return UIA_E_NOTSUPPORTED;
         }
@@ -6961,7 +6966,7 @@ HRESULT AccessibilityProvider::get_SelectionContainer(IRawElementProviderSimple*
     const AccessibilityControlNavigationSnapshot* record =
         (snapshot && snapshot->alive && snapshot->hasRetainedRoot) ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
     const bool treeItemSupported = _kind == AccessibilityFragmentKind::TreeItem && record && SnapshotContainsTreeItem(*record, _treeItemId);
-    const bool gridRowSupported  = _kind == AccessibilityFragmentKind::GridRow && record && record->isGrid && SnapshotContainsGridRow(*record, _gridRowId);
+    const bool gridRowSupported  = _kind == AccessibilityFragmentKind::GridRow && record && SnapshotSupportsGridSelectionItem(*record, _gridRowId);
     if (! treeItemSupported && ! gridRowSupported)
     {
         if (_kind == AccessibilityFragmentKind::TreeItem)

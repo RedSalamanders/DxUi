@@ -1,5 +1,21 @@
 <Project>
+  <Import Project="$(MSBuildThisFileDirectory)DxUi.AddressSanitizer.targets" />
+  <PropertyGroup><ShouldUnsetParentConfigurationAndPlatform>false</ShouldUnsetParentConfigurationAndPlatform></PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='ASan Debug'">
+    <ClCompile>
+      <EnableASAN>true</EnableASAN>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ForcedIncludeFiles>$(DxUiResolvedRoot)src/Support/RequireAddressSanitizer.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <Target Name="ValidateDxUiConsumerPin" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(Configuration)'!='Debug' and '$(Configuration)'!='Release' and '$(Configuration)'!='ASan Debug'" Text="DxUi consumers support Debug, Release and ASan Debug." />
+    <Error Condition="'$(DxUiDisableStlAnnotations)'!='true' and '$(DxUiDisableStlAnnotations)'!='false'" Text="DxUiDisableStlAnnotations must be true or false and match the archive." />
+    <Error Condition="'$(DxUiConsumerToolset)'!='' and '$(PlatformToolset)'!='$(DxUiConsumerToolset)'" Text="Consumer and pinned DxUi toolsets differ. Restore with this build's toolchain." />
+    <Error Condition="'$(DxUiConsumerVCToolsVersion)'!='' and '$(VCToolsVersion)'!='$(DxUiConsumerVCToolsVersion)'" Text="Consumer and pinned DxUi compiler versions differ. Restore with this build's toolchain." />
+    <Error Condition="'$(DxUiConsumerSdkVersion)'!='' and '$(WindowsTargetPlatformVersion)'!='$(DxUiConsumerSdkVersion)'" Text="Consumer and pinned DxUi Windows SDK versions differ. Restore with this build's toolchain." />
+    <Error Condition="'$(DxUiConsumerPreferredToolArchitecture)'!='' and '$(PreferredToolArchitecture)'!='$(DxUiConsumerPreferredToolArchitecture)'" Text="Consumer and pinned DxUi compiler host architectures differ. Restore with this build's toolchain." />
     <Error Condition="!Exists('$(DxUiConsumerLockFile)')" Text="Missing exact DxUi consumer lock: $(DxUiConsumerLockFile)" />
     <Error Condition="'$(DxUiConsumerOutputRoot)'==''" Text="Set DxUiConsumerOutputRoot to a consumer-owned isolated fingerprint directory." />
     <Error Condition="!Exists('$(DxUiConsumerOutputRoot)vcpkg_installed\$(Platform)\$(DxUiConsumerTriplet)\include\wil\resource.h')" Text="Restore DxUi dependencies with vcpkg-install.ps1 -Platform $(Platform) -OutputRoot your DxUiConsumerOutputRoot." />
@@ -7,7 +23,9 @@
   </Target>
   <ItemGroup>
     <ProjectReference Include="$(DxUiResolvedRoot)src\DxUi.vcxproj">
-      <AdditionalProperties>DxUiOutputRoot=$(DxUiConsumerOutputRoot)</AdditionalProperties>
+      <SetPlatform>Platform=$(Platform)</SetPlatform>
+      <SetConfiguration>Configuration=$(Configuration)</SetConfiguration>
+      <AdditionalProperties>DxUiOutputRoot=$(DxUiConsumerOutputRoot);Platform=$(Platform);Configuration=$(Configuration);DxUiDisableStlAnnotations=$(DxUiDisableStlAnnotations)</AdditionalProperties>
       <Project>{F6272096-E42A-56E7-9CCB-A8E08093E2BC}</Project>
     </ProjectReference>
   </ItemGroup>

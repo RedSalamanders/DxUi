@@ -95,7 +95,7 @@ void TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement()
     window.Host().SetFocusControl(firstFocus);
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "concurrent accessibility traversal creates a root provider");
     wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
     RequireSucceeded(rootProvider.query_to(rootFragment.put()), "concurrent accessibility traversal root supports fragment navigation");
@@ -237,7 +237,7 @@ void TestAccessibilityRootRuntimeIdIncludesProviderSpecificValues()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "runtime-id test creates a root accessibility provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
@@ -389,7 +389,7 @@ void TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "debug accessibility provider is created for attached DX host");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> buttonProvider =
@@ -484,7 +484,7 @@ void TestAccessibilityProviderRefreshesButtonSemanticProperties()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "button semantic refresh test creates an accessibility provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> buttonProvider =
@@ -523,7 +523,7 @@ void TestAccessibilityProviderRefreshesLabelAssociations()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "label association refresh test creates an accessibility provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -556,7 +556,7 @@ void TestAccessibilityProviderExposesDirectSemanticRootControls()
     window.Host().SetFocusControl(comboRaw);
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "direct-root accessibility test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
@@ -601,7 +601,7 @@ void TestAccessibilityProviderExposesDirectSemanticRootControls()
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> fragmentRoot;
     RequireSucceeded(hitProvider->get_FragmentRoot(fragmentRoot.put()), "direct-root child FragmentRoot lookup succeeds");
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> secondFactoryRoot;
-    secondFactoryRoot.attach(window.Host().DebugCreateAccessibilityProvider());
+    secondFactoryRoot.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(secondFactoryRoot != nullptr, "direct-root repeated factory lookup returns a provider");
 
     wil::com_ptr_nothrow<IUnknown> rootIdentity;
@@ -631,16 +631,18 @@ void TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach()
     window.Host().SetFocusControl(oldButton);
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> oldProvider;
-    oldProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    oldProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(oldProvider != nullptr, "same-HWND lifecycle test creates the old root provider");
     wil::com_ptr_nothrow<IUnknown> oldIdentity;
     RequireSucceeded(oldProvider.query_to(oldIdentity.put()), "same-HWND lifecycle old provider exposes IUnknown identity");
 
+    Require(CreateWindowHostAccessibilityProvider(nullptr) == nullptr, "public native provider acquisition rejects a null window");
     const HWND reusedHwnd = window.Hwnd();
     POINT oldHitPoint{40, 16};
     Require(ClientToScreen(reusedHwnd, &oldHitPoint) != FALSE, "same-HWND lifecycle converts the old hit point to screen coordinates");
 
     window.Host().Detach();
+    Require(CreateWindowHostAccessibilityProvider(reusedHwnd) == nullptr, "public native provider acquisition rejects a detached host");
     Require(window.Host().Attach(reusedHwnd), "same-HWND lifecycle reattaches the host to the exact saved HWND");
 
     auto newRoot    = std::make_unique<Button>(L"New action");
@@ -650,14 +652,14 @@ void TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach()
     window.Host().SetFocusControl(newButton);
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> newProvider;
-    newProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    newProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(newProvider != nullptr, "same-HWND lifecycle creates the new root provider after reattach");
     wil::com_ptr_nothrow<IUnknown> newIdentity;
     RequireSucceeded(newProvider.query_to(newIdentity.put()), "same-HWND lifecycle new provider exposes IUnknown identity");
     Require(oldIdentity.get() != newIdentity.get(), "same-HWND lifecycle reattach creates a distinct canonical provider identity");
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> repeatedNewProvider;
-    repeatedNewProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    repeatedNewProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     wil::com_ptr_nothrow<IUnknown> repeatedNewIdentity;
     Require(repeatedNewProvider != nullptr, "same-HWND lifecycle repeated new-provider acquisition succeeds");
     RequireSucceeded(repeatedNewProvider.query_to(repeatedNewIdentity.put()), "same-HWND lifecycle repeated new provider exposes IUnknown identity");
@@ -690,7 +692,7 @@ void TestAccessibilityLabelOnlyRootDoesNotUseDirectSemanticRootCollapse()
     window.Host().SetRoot(std::move(label));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "label-only accessibility test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
@@ -870,7 +872,7 @@ void TestAccessibilityProviderReportsFocusedControl()
     window.Host().SetFocusControl(field);
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "focused-control accessibility test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> focusedProvider;
@@ -896,7 +898,7 @@ void TestAccessibilityProviderMasksPasswordTextFieldValue()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "masked text field accessibility test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -927,7 +929,7 @@ void TestAccessibilityProviderExposesMaskedRevealButton()
     window.Host().SetFocusControl(field);
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "masked reveal accessibility test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> revealProvider =
@@ -999,7 +1001,7 @@ void TestAccessibilityProviderExposesTextPatternForTextField()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "text pattern accessibility test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -1263,7 +1265,7 @@ void TestAccessibilityTextFieldSimpleRangeBoundingRectanglesUseCaretGeometry()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "simple range rectangle test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -1327,7 +1329,7 @@ void TestAccessibilityTextFieldMultilineRangeFromPointUsesNativeHitTest()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "multiline RangeFromPoint test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -1371,7 +1373,7 @@ void TestAccessibilityTextRangeFromPointDispatchesToWindowThread()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "cross-thread RangeFromPoint test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider = GetProviderAtDipPoint(
@@ -1453,7 +1455,7 @@ void TestAccessibilityTextFieldMultilineSameLineRangeBoundingRectanglesUseCaretG
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "multiline same-line rectangle test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -1521,7 +1523,7 @@ void TestAccessibilityTextFieldMultilineRangeBoundingRectanglesUseLineCaretGeome
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "multiline cross-line rectangle test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -1606,7 +1608,7 @@ void TestAccessibilityTextFieldWrappedRangeBoundingRectanglesUseVisualLineGeomet
     Require(multilineState.totalLineCount > 1u, "wrapped selected range fixture wraps onto multiple visual lines");
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "wrapped rectangle test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -1673,7 +1675,7 @@ void TestAccessibilityTextFieldWrappedCrossLineRangeBoundingRectanglesUseVisualL
     Require(multilineState.totalLineCount > 2u, "wrapped cross-line range fixture wraps one logical line and includes a newline");
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "wrapped cross-line rectangle test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -1745,7 +1747,7 @@ void TestAccessibilityTextFieldWrappedLineMovementUsesVisualLines()
             "wrapped line movement fixture exposes stable wrapped visual-line boundaries");
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "wrapped line movement test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -1802,7 +1804,7 @@ void TestAccessibilityTextRangeEndpointLineMovementDispatchesToWindowThread()
     const size_t secondLineStart = visualLineStarts[1];
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "cross-thread endpoint line movement creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider = GetProviderAtDipPoint(
@@ -1929,7 +1931,7 @@ void TestAccessibilityTextRangeSpanLineMovementDispatchesToWindowThread()
     const size_t thirdLineStart  = visualLineStarts[2];
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "cross-thread span line movement creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider = GetProviderAtDipPoint(
@@ -2013,7 +2015,7 @@ void TestAccessibilityTextFieldSingleLineMixedBiDiRangeBoundingRectanglesUseDire
     Require(expectedRectsDip.has_value() && ! expectedRectsDip->empty(), "single-line mixed-BiDi selected range has retained DirectWrite range geometry");
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "single-line mixed-BiDi range rectangle test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider = GetProviderAtDipPoint(
@@ -2085,7 +2087,7 @@ void TestAccessibilityTextFieldMultilineMixedBiDiRangeBoundingRectanglesUseDirec
     Require(expectedRectsDip.has_value() && ! expectedRectsDip->empty(), "multiline mixed-BiDi selected range has retained DirectWrite range geometry");
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "multiline mixed-BiDi range rectangle test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -2160,7 +2162,7 @@ void TestAccessibilityEditableComboBoxSingleLineMixedBiDiRangeBoundingRectangles
             "editable combo single-line mixed-BiDi selected range has retained DirectWrite range geometry");
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "editable combo mixed-BiDi range rectangle test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> comboProvider =
@@ -2229,7 +2231,7 @@ void TestAccessibilityProviderExposesTextPatternForEditableComboBox()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "editable combo text pattern test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> comboProvider =
@@ -2310,7 +2312,7 @@ void TestAccessibilityTextRangeSelectDispatchesToWindowThread()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "cross-thread text range test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -2384,7 +2386,7 @@ struct AccessibilityTextRangeSelectFixture
         field->SetSelectionRange(0u, 5u);
         window.Host().SetRoot(std::move(root));
 
-        rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
         Require(rootProvider != nullptr, "UIA Select dispatch fixture creates a root provider");
         fieldProvider = GetProviderAtDipPoint(
             window.Hwnd(), window.Host(), *rootProvider.get(), 40.0f, 44.0f, "UIA Select dispatch fixture resolves the text field provider");
@@ -2557,7 +2559,7 @@ void TestAccessibilityTextRangeBoundingRectanglesDispatchesToWindowThread()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "cross-thread text range bounds test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -2645,7 +2647,7 @@ void TestAccessibilityTextRangeBoundingRectanglesTimeoutKeepsLateHandlerStorageA
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "late-handler text range bounds test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -2776,7 +2778,7 @@ void TestAccessibilityProviderExposesNativeImeTextEditRanges()
     static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR | GCS_COMPATTR | GCS_CURSORPOS));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "native ime TextEditPattern test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
@@ -2874,7 +2876,7 @@ void TestAccessibilityGridSnapshotRebuildMeetsTenThousandRowSelectionBudget()
     window.Host().SetRoot(std::move(grid));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "10k-row grid snapshot test creates an accessibility provider");
 
     std::vector<uint64_t> selectedRowIds(kRowCount);
@@ -2929,7 +2931,7 @@ void TestAccessibilityProviderExposesTreeAndGridMetadata()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "tree/grid accessibility test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> treeLabelProvider =
@@ -3037,7 +3039,7 @@ void TestAccessibilityTreeItemProviderKeepsStableIdentityAcrossReorder()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "stable tree-item identity test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> treeLabelProvider =
@@ -3216,7 +3218,7 @@ void TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns(
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "tree-item pattern accessibility test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> treeLabelProvider =
@@ -3326,6 +3328,59 @@ void TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns(
     Require(! tree->GetSelectedItemId().has_value(), "tree collapse clears a selection that is no longer visible");
     RequireSucceeded(expandPattern->get_ExpandCollapseState(&expandState), "collapsed tree item state query succeeds after Collapse");
     Require(expandState == ExpandCollapseState_Collapsed, "tree item expand-collapse pattern reports the collapsed state after Collapse");
+}
+
+void TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable()
+{
+    using namespace DxUi;
+    constexpr size_t rowCount = 1000;
+    MultiRowGridModel model(rowCount);
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* label = root->AddChild<Label>(L"Results");
+    label->SetBounds(D2D1::RectF(0, 0, 120, 24));
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0, 28, 320, 140));
+    grid->SetModel(&model);
+    window.Host().SetRoot(std::move(root));
+    Require(grid->OnSelectAll(window.Host()), "select rows beyond the bounded materialization cache");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "offscreen selection fixture creates a provider");
+    auto labelProvider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 40, 12, "resolve label before grid");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> gridProvider;
+    RequireSucceeded(labelProvider->Navigate(NavigateDirection_NextSibling, gridProvider.put()), "resolve grid sibling");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> gridSimple;
+    RequireSucceeded(gridProvider.query_to(gridSimple.put()), "grid exposes the simple provider");
+    wil::com_ptr_nothrow<IUnknown> selectionUnknown;
+    RequireSucceeded(gridSimple->GetPatternProvider(UIA_SelectionPatternId, selectionUnknown.put()), "get Grid selection pattern");
+    wil::com_ptr_nothrow<ISelectionProvider> selectionProvider;
+    RequireSucceeded(selectionUnknown.query_to(selectionProvider.put()), "query Grid selection interface");
+    unique_safearray selected;
+    RequireSucceeded(selectionProvider->GetSelection(std::out_ptr(selected)), "all selected rows have providers");
+    LONG last = -1;
+    RequireSucceeded(SafeArrayGetUBound(selected.get(), 1, &last), "selected array has an upper bound");
+    Require(last == static_cast<LONG>(rowCount - 1), "selection includes rows beyond the materialization budget");
+    wil::com_ptr_nothrow<IUnknown> rowUnknown;
+    RequireSucceeded(SafeArrayGetElement(selected.get(), &last, rowUnknown.put()), "read last selected row provider");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> rowSimple;
+    RequireSucceeded(rowUnknown.query_to(rowSimple.put()), "offscreen row exposes the simple provider");
+    wil::com_ptr_nothrow<IUnknown> patternUnknown;
+    RequireSucceeded(rowSimple->GetPatternProvider(UIA_SelectionItemPatternId, patternUnknown.put()), "offscreen selected row exposes SelectionItem");
+    Require(patternUnknown != nullptr, "offscreen selected row has a usable pattern");
+    wil::com_ptr_nothrow<ISelectionItemProvider> item;
+    RequireSucceeded(patternUnknown.query_to(item.put()), "query selected row pattern");
+    BOOL isSelected = FALSE;
+    RequireSucceeded(item->get_IsSelected(&isSelected), "offscreen selected row selection getter succeeds");
+    Require(isSelected != FALSE, "offscreen selection getter agrees with GetSelection");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
+    RequireSucceeded(item->get_SelectionContainer(container.put()), "offscreen selection container getter succeeds");
+    Require(container != nullptr, "offscreen selected row retains its Grid container");
+    grid->SetModel(nullptr);
+    isSelected = TRUE;
+    Require(FAILED(item->get_IsSelected(&isSelected)) && isSelected == FALSE, "removed rows invalidate retained selection patterns");
+    container.reset();
+    Require(FAILED(item->get_SelectionContainer(container.put())) && ! container, "removed rows cannot retain a stale selection container");
 }
 
 void TestAccessibilityProviderExposesGridRowSelectionPatterns()
@@ -3438,7 +3493,7 @@ void TestAccessibilityProviderExposesGridRowSelectionPatterns()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "grid-row accessibility test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> gridLabelProvider =
@@ -3799,7 +3854,7 @@ void TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "horizontally scrolled grid accessibility test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> gridLabelProvider =
@@ -3878,7 +3933,7 @@ void TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "scrolled panel point-hit test creates a root provider");
 
     const POINT rawContentSpacePointPx = window.Host().DipPointToScreenPoint(D2D1::Point2F(24.0f, 24.0f));
@@ -3922,7 +3977,7 @@ void TestAccessibilityProviderExposesGridCellToggleAndRangePatterns()
         window.Host().SetRoot(std::move(root));
 
         wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-        rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
         Require(rootProvider != nullptr, "grid checkbox accessibility test creates a root provider");
 
         const std::optional<D2D1_RECT_F> checkboxCellRect = grid->GetVisibleCellRect(0u, 0u);
@@ -3986,7 +4041,7 @@ void TestAccessibilityProviderExposesGridCellToggleAndRangePatterns()
         window.Host().SetRoot(std::move(root));
 
         wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-        rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
         Require(rootProvider != nullptr, "disabled grid checkbox accessibility test creates a root provider");
 
         const std::optional<D2D1_RECT_F> checkboxCellRect = grid->GetVisibleCellRect(0u, 0u);
@@ -4041,7 +4096,7 @@ void TestAccessibilityProviderExposesGridCellToggleAndRangePatterns()
         window.Host().SetRoot(std::move(root));
 
         wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-        rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
         Require(rootProvider != nullptr, "grid infotip accessibility test creates a root provider");
 
         const std::optional<D2D1_RECT_F> pluginCellRect = grid->GetVisibleCellRect(0u, 0u);
@@ -4079,7 +4134,7 @@ void TestAccessibilityProviderExposesGridCellToggleAndRangePatterns()
         window.Host().SetRoot(std::move(root));
 
         wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-        rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
         Require(rootProvider != nullptr, "grid state-image accessibility test creates a root provider");
 
         const std::optional<D2D1_RECT_F> stateImageCellRect = grid->GetVisibleCellRect(0u, 0u);
@@ -4127,7 +4182,7 @@ void TestAccessibilityProviderExposesGridCellToggleAndRangePatterns()
         window.Host().SetRoot(std::move(root));
 
         wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-        rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
         Require(rootProvider != nullptr, "grid progress accessibility test creates a root provider");
 
         const std::optional<D2D1_RECT_F> progressCellRect = grid->GetVisibleCellRect(0u, 0u);
@@ -4197,7 +4252,7 @@ void TestAccessibilityProviderExposesSliderRangeValuePattern()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "slider accessibility test creates a root provider");
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> sliderProvider =
@@ -4258,7 +4313,7 @@ void TestAccessibilityStatusRootExposesChildrenAndNonFocusingInvoke()
     window.Host().SetRoot(std::move(root));
 
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(window.Host().DebugCreateAccessibilityProvider());
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     Require(rootProvider != nullptr, "status-root test creates a root provider");
     wil::com_ptr_nothrow<IRawElementProviderSimple> rootSimple;
     RequireSucceeded(rootProvider.query_to(rootSimple.put()), "status root exposes provider-simple");
@@ -4336,6 +4391,7 @@ void RunAccessibilityTests()
     TestAccessibilityProviderExposesTreeAndGridMetadata();
     TestAccessibilityTreeItemProviderKeepsStableIdentityAcrossReorder();
     TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns();
+    TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable();
     TestAccessibilityProviderExposesGridRowSelectionPatterns();
     TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure();
     TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren();

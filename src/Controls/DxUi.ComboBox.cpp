@@ -21,7 +21,6 @@ constexpr float kComboBoxPopupPaddingDip      = 4.0f;
 constexpr float kComboBoxPopupCornerRadiusDip = kPopupRoundSmallCornerRadiusDip;
 constexpr size_t kComboBoxMaxVisibleItems     = 8u;
 constexpr uint64_t kCaretBlinkPeriodMs        = 530u;
-constexpr UINT kDxUiNoMatchesStringId         = 1304u;
 constexpr GUID kComboBoxGaussianBlurEffectId  = {0x1feb6d69, 0x2fe6, 0x4ac9, {0x8c, 0x58, 0x1d, 0x7f, 0x93, 0xe7, 0xa6, 0xa5}};
 
 struct ComboBoxPopupMaterialStyle
@@ -506,6 +505,20 @@ void ComboBox::SetMaxVisibleItems(size_t maxItems) noexcept
     ResetPopupLayout();
 }
 
+void ComboBox::SetNoMatchesText(std::wstring text)
+{
+    if (_noMatchesText == text)
+        return;
+    _noMatchesText = std::move(text);
+    ResetPopupLayout();
+    RequestInvalidate();
+}
+
+std::wstring_view ComboBox::GetNoMatchesText() const noexcept
+{
+    return _noMatchesText.empty() ? std::wstring_view(L"No matches") : std::wstring_view(_noMatchesText);
+}
+
 void ComboBox::SetMinimumPopupItemHeight(float heightDip) noexcept
 {
     if (! std::isfinite(heightDip) || heightDip < 0.0f || heightDip > 4096.0f || heightDip == _minimumPopupItemHeightDip)
@@ -879,13 +892,8 @@ void ComboBox::PaintOverlay(ControlHost& host) const
     if (_editable && GetPopupItemCount() == 0u && ! _items.empty())
     {
         const D2D1_RECT_F emptyRect = D2D1::RectF(popup.left + kComboBoxPopupPaddingDip, y, contentRight, y + itemHeightDip);
-        DrawCenteredText(host,
-                         LoadDxUiString(kDxUiNoMatchesStringId, L"No matches"),
-                         emptyRect,
-                         FontRole::Small,
-                         style.popupEmptyText,
-                         DWRITE_TEXT_ALIGNMENT_LEADING,
-                         DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+        DrawCenteredText(
+            host, GetNoMatchesText(), emptyRect, FontRole::Small, style.popupEmptyText, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
     }
 
     if (drawScrollbar)
@@ -2530,9 +2538,8 @@ float ComboBox::ComputePopupWidthDip(const ControlHost* host) const noexcept
 
     if (_editable && GetPopupItemCount() == 0u && ! _items.empty())
     {
-        popupWidthDip = std::max(popupWidthDip,
-                                 MeasureSingleLineTextWidthDip(host, LoadDxUiString(kDxUiNoMatchesStringId, L"No matches"), FontRole::Small) +
-                                     (kComboBoxPopupPaddingDip * 2.0f) + 12.0f);
+        popupWidthDip =
+            std::max(popupWidthDip, MeasureSingleLineTextWidthDip(host, GetNoMatchesText(), FontRole::Small) + (kComboBoxPopupPaddingDip * 2.0f) + 12.0f);
     }
 
     if (HasPopupScrollbar())

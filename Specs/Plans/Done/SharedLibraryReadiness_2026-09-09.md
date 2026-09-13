@@ -1,0 +1,237 @@
+# Shared-library readiness (I19/C1-C2)
+
+## Completion checklist
+
+Status: **DONE, 2026-09-13**, for the implemented library slice and accepted local
+qualification scope. The user deferred further ARM64 and ASan qualification and
+accepted the measured resource trade-off. Consumer release decisions remain with
+RedXe and RedSalamander; this does not close their hardware or publication gates.
+
+- [x] Implement the shared control, public helper, clipboard, accessibility, module-ownership
+  and font-refresh corrections with their regression coverage in canonical DxUi.
+- [x] Keep native clipboard transport checked and large-selection capable, with one
+  clipboard-open attempt; retain the embedded 65,536-unit boundary and failed-cut behavior.
+- [x] Retain the chosen Slider behavior and library-owned diagnostics/scheduling contracts.
+- [x] Supply the single `DxUi.lib`, exact-pin public consumer imports and all six build profiles.
+- [x] Qualify local x64 library/control/embedded suites and retain historical native matrix receipts.
+  The latest Release run completes all 18 suites; nine Menu capability skips remain unqualified.
+- [x] Exercise EXE/two-DLL consumer ownership and mismatched/dirty/relocated dependency cases.
+- [x] Retain paired independent resource evidence, including band failures and baseline variation.
+- [x] Record the user's accepted I19 resource envelope in the normative resource contract;
+  preserve deterministic surface/allocation/hidden-work budgets and all investigation thresholds.
+- [x] Review gallery/doc impacts; the typography update's six images are reviewed, with
+  only animated progress differences. This final documentation change alters no native inputs.
+- [x] Transfer further ARM64 and ASan qualification to the user-owned cross-product follow-up,
+  `Specs/Plans/WIP/DxUi_DeferredPlatformQualification_2026-09-13.md` in RedSalamander.
+- [x] Retain consumer migration and publication as separate lifecycle actions. Publish the
+  tested library commit before merging/releasing a consumer pin that requires it.
+
+The canonical native revision is `13788e95`. The accepted resource measurements and
+limitations are linked from the current resource contract. No hosted CI is used for
+this closeout; historical CI receipts keep their original revisions and scope.
+RedSalamander owns the remaining x64 Full and package checks for its final candidate.
+
+## Historical implementation and qualification record
+
+The dated progress below is preserved as history. Former open wording is superseded
+by the completed library scope above and the current domain contracts.
+
+## Progress checklist
+
+Current closeout scope (2026-09-13): the user deferred ARM64 and ASan to later
+personal qualification and requested completion of the remaining I19 work.
+RedSalamander owns that deferral in
+`Specs/Plans/WIP/DxUi_DeferredPlatformQualification_2026-09-13.md`.
+Its corrected `f06f779f` x64 Debug/Release and package qualification is running locally.
+Earlier platform receipts remain historical; no final ARM64 or ASan pass is inferred.
+The resource trade-off has been presented for the remaining developer decision.
+
+- [x] September 13 local Release follow-up: all 18 suites exit successfully, with nine Menu
+  interactive-desktop capability skips and no skips in the other 17 suites. Retain reports/logs;
+  skipped paths are not qualified by this run.
+- [x] Complete 16 matched longer complex-UI runs at `d192e474` and `13788e95` with the same
+  240-warmup/5-by-600-frame fixture and unchanged thresholds. Surface/allocation counts and hidden
+  work remain unchanged. Seven of eight paired comparisons and all six baseline-repeat comparisons
+  exceed a band; timing/process-memory acceptance remains open. See the
+  [local evidence](../../../Measurements/SharedLibrary/2026-09-13-local/README.md).
+- [x] RedSalamander source checkpoint `f12acdba` contains master `0dd0bd6d` and uses `13788e95`.
+  Its completed Full Debug run has 19/20 passing entries: 2,115 cases pass, one fails and 52 skip.
+  The earlier menu-hover and ViewerImgRaw failures pass in Full. ViewerWeb's close-time assertion
+  fails once; the diagnostic-only `cc7595de` follow-up passes ten isolated repetitions and the
+  complete noninteractive viewer group, without explaining the original failure. Final Fresh Full
+  runs remain required. The product owns the detailed receipts and diagnosis.
+- [x] Retained consumer cross-builds pass locally: RedSalamander `ad7f7735` and RedXe `f727932`
+  each build ARM64 Debug, Release and ASan Debug. Their actual module hashes match retained
+  provenance. RedSalamander's subsequent `b2be60e4` changes only specs/evidence; it is undergoing
+  final x64 qualification. These cross-builds do not establish native ARM64 runtime acceptance.
+- [x] RedSalamander's completed `b2be60e4` Full Debug run passes 19/20 entries: 2,116 cases pass,
+  one fails and 52 skip. ViewerWeb close and persistent menu hover pass inside Full. The one
+  failure is a long-path Git fixture, corrected in product `3a43186a` with all eight dependency
+  tests passing. Fresh final product runs and portable rollback are continuing locally.
+- [x] Retain consumer `3a43186a` Release Full: 19/20 entries pass; 2,108 cases pass, five fail and
+  56 skip. The five missing ViewerText snapshots reproduce in isolation because test-enabled
+  Release compiled out `_DEBUG` diagnostics. Product correction `836f4f97` passes the same five
+  cases, a zero-warning/error Release root build and all 14 module identities. Frozen `a20f6680`
+  is requalifying the consumer's final builds, Full runs and packaging locally. This changes no
+  DxUi code or pin and does not close native ARM64, resource acceptance or publication gates.
+
+- [x] Consumer ownership closeout is implemented on the RedSalamander branch: `e7244091` removes the
+  duplicate implementation/tests after every production project moved to the public archive. The
+  rebased Debug build passes with zero warnings/errors; 261 retirement policy checks and 88 follow-up
+  runner/fingerprint/impact checks pass. Candidate `f7b2bce5` is undergoing fresh local product validation.
+  This does not qualify the remaining resource, package/rollback or native-platform gates.
+
+- [x] September 12 base reconciliation: the newly merged RedSalamander font-availability refresh helper
+  is implemented in canonical Typography.h, with stale-negative, per-factory and all-factory tests.
+  All 18 x64 Debug and ASan Debug suites pass, including sanitizer detection. Release passes 17 suites;
+  its Menu focus assertion fails initially, then passes on a separate retry. The retained d192e47 Menu
+  baseline also passes. Five further consecutive Menu attempts pass with the same executable hash,
+  including the original failing case. Preserve the initial failure; the cause remains unclassified.
+- [x] Regenerate and review all six gallery images after the typography update. Typography/layout pixels
+  are unchanged; four sheets differ only inside the animated indeterminate progress bar. No test baseline changed.
+- [x] Font-refresh ARM64 Debug/Release/ASan Debug cross-builds pass with zero warnings/errors. Source hashes,
+  54 suite receipts, the initial Release failure, retry, sanitizer detection and gallery review are retained
+  in [the September 12 evidence](../../../Measurements/SharedLibrary/2026-09-12-font-refresh/README.md).
+- [ ] Fresh native ARM64 qualification and paired performance acceptance remain open.
+- [x] RedSalamander migration is rebased onto master `0dd0bd6d`; candidate `ba72f601` pins the local clean
+  library commit `13788e9`. Prior reconciliation is preserved at `2d68f526`. DxUi and RedXe contain main.
+- [ ] Complete consumer qualification locally, as requested by the user. Do not launch or depend on
+  hosted CI for this pass; earlier native CI receipts remain historical evidence. Publication of the
+  local font-refresh commit, native ARM64 runtime evidence and consumer closeout remain open.
+
+- [x] G8: every standalone project and consumer fixture supports Debug/Release/ASan Debug on x64/ARM64.
+- [x] G8: ASAN detects an isolated known defect; native ARM64 runtime qualification recorded.
+- [x] G1 implementation and x64 Debug Tooltip/Embedded regressions pass; native deadlines use the current dispatcher clock.
+- [ ] G2: neutral helpers and native HWND provider acquisition are public; final external consumer and product qualification pending.
+- [x] G3 native localization implementation and x64 Debug ComboBox/Tree render/geometry tests pass.
+- [x] G7 implementation and x64 Debug Accessibility regressions pass; offscreen selected rows retain usable selection providers.
+- [x] All 18 x64 Debug suites pass (nine Menu desktop capability skips retained); archive-backed public native-menu helper rerun passes.
+- [x] Shared advisory helper and ten deterministic decision/immutable-pin tests pass; consumer wiring remains in I19 C3/C6.
+- [x] Native CI follow-up: retained menu assertions with aligned physical cursor, cleared expected-negative consumer exit status, and staged the ARM64 sanitizer runtime.
+- [x] Native x64/ARM64 Debug and Release suites, consumer fixtures and gallery pass at 8c548fe; all native ASAN suites and both annotation-policy consumer fixtures pass.
+- [x] Resolve the ASAN gallery queue-settling delay; all six native CI jobs pass at ebc3796 (run 34351569531).
+- [x] Public provider entrypoint and all six native suites/consumer fixtures qualify at 3dae073 (CI 34355763655).
+- [x] All 65 historical source-policy exclusions have explicit current dispositions; four product guards are rehomed and four mixed runtime cases are restored.
+- [x] Four restored runtime cases qualify in all six native configurations at 52da33d (CI 34363702073); 40 Python validator tests pass.
+- [x] Menu sent-message fixtures share capture/DPI/cursor setup and retain hover/invoke assertions; all six native CI configurations pass at 52da33d (34363702073). Local desktop skips remain explicitly recorded.
+- [ ] Required standalone regression/build matrix, consumer fixture, specs and paired performance qualified.
+- [x] Reproduce native module collision with one EXE and two DLLs: the EXE passes twice; both DLLs receive zero animation ticks and use foreign dispatcher/popup classes, failing all four probes. Command invocation alone passes and misses the defect. Witness: `.build/logs/I19-native-modules-witness.log` against unchanged production code at c086131.
+- [x] Module-owned menu and animation window registration qualifies at ecad707 in all six native CI profiles (34371134464). Every external fixture passes all twelve EXE/two-DLL probes on repeated UI threads; both ASAN annotation policies pass. Local x64 Debug/Release/ASan Debug full suites also pass. The fixture joins its UI thread before DLL unload; it does not qualify unloading live UI. Hosting docs are updated; this nonvisual fix does not change gallery pixels.
+- [ ] Paired resource acceptance remains open. All fourteen quiet repeats and 32 CPU-subset repeats are retained under Measurements/SharedLibrary/2026-09-09. Repeated-baseline comparisons still exceed bands; the earlier Debug composition signal does not repeat at its former magnitude. No thresholds or baseline were changed.
+
+### G4 clipboard slice
+
+- [x] Accepted policy and current native/embedded paths inspected.
+- [x] Retain Debug/Release baseline performance before implementation.
+- [x] Reproduce the native 65,536-unit ceiling with a failing regression.
+- [x] Separate native transport capacity with checked allocation/Unicode handling.
+- [x] Cover native large selections, failures and unchanged embedded ceiling (x64 Debug NativeTextInput passes; broader matrix remains open).
+- [x] Update input/testing contracts and hosting documentation; review gallery impact.
+- [ ] Run required builds, tests, validators and paired performance comparisons.
+- [ ] Record evidence and remaining environment gates; close this library slice when qualified.
+
+Historical status: ACTIVE. Authorized 2026-09-09. Library implementation owner for I19 C1–C2, starting with G4, in
+RedSalamander's `Specs/Plans/WIP/DxUi_SharedLibraryAdoptionAndReleasePlan_2026-09-09.md`.
+The cross-repository consumer migration and adoption matrix remain owned by I19;
+this library plan does not mark consumer gates complete or update consumer pins.
+
+## Accepted behavior
+
+Native Grid/TextField clipboard transport supports valid selections above 65,536
+UTF-16 units, including 100,000 units. Reads stay within the supplied allocation;
+validate termination/Unicode, check size arithmetic, and report allocation failures.
+Keep one clipboard-open attempt without retry sleeps. Failed cut leaves text intact.
+The embedded snapshot/edit ceiling stays 65,536 units and must still reject overflow.
+
+## Implementation and validation
+
+Exercise the production transport through a private test seam, without accessing the
+desktop clipboard. Preserve existing test overrides and case identities. Retain
+Debug/Release common-fixture baselines before library changes and compare the final
+candidate with the same fixture. Add focused native-boundary, 100,000-unit, malformed,
+overflow, allocation-failure and contention coverage plus embedded overflow rejection.
+Update the owning input/testing contracts and usage docs; no visual change is intended.
+
+Build/test results and limitations will be recorded here as they become available.
+
+Baseline receipts: `.build/reports/G4-baseline-x64-Debug.json`,
+`.build/reports/G4-baseline-x64-Release.json`, and
+`.build/reports/G4-baseline-x64-Release-repeat.json`. The first Release run was
+strongly disturbed (clean rounds 33–1,113 FPS); the repeat before code edits
+was stable (2,443–2,551 FPS). Preserve both runs and compare against the repeat.
+The regression failed against the old cap after its 65,535/65,536-unit native round trips.
+The production transport now uses allocation-bounded capacity and checked byte arithmetic.
+Input/testing contracts and hosting usage are updated. Gallery review: no visual or layout
+change, so no baseline regeneration is needed. Validation remains in progress.
+
+G8 implementation in progress: all five standalone projects and solution mappings now
+include ASan Debug on both architectures, with compiler enforcement in every translation
+unit, matching debug CRT, isolated outputs, and an isolated sanitizer detection child.
+The first x64 sanitizer build passed and its intentional use-after-free probe was diagnosed correctly.
+A concurrent runtime-copy warning was found; staging now has one producer (the archive dependency). This host is x64; native ARM64 execution remains
+a required environment gate.
+
+G1 implementation: ported the missing native dispatcher-clock correction and its named idle-host regression
+from RedSalamander. Embedded scheduling remains on the existing application clock path. Debug Tooltip/Embedded suites pass.
+
+G7 implementation: aligned offscreen Grid selection getters with pattern availability, using existing
+immutable selection IDs without expanding the row cache. Added a 1,000-row case beyond the materialization
+budget plus stale-provider rejection after model removal. Debug Accessibility suite passes.
+
+G3 implementation: added owned per-control translations for ComboBox/Tree, retained Grid overrides,
+and removed the private numeric-resource fallback cache. Render/geometry regressions cover live
+French updates and restoration of default English text without selection/query changes. Existing
+English gallery appearance is unchanged; documentation usage is updated. Debug ComboBox/Tree suites pass.
+
+G2 implementation: published the five neutral helper headers with one canonical body, removed
+their private-header dependency, added public compilation/link checks, and isolated library helper
+symbols from same-named consumer diagnostics/payload/window-message utilities. Consumer adapter
+migration and qualification remain open.
+
+Validation update: all 18 x64 Debug suites pass. Menu retains nine unavailable interactive-desktop
+cases; these are not runtime qualification. After moving the native-menu host bodies into the archive,
+Foundation/public helpers and Menu were rebuilt and rerun successfully. G4 also passes x64 ASan Debug
+NativeTextInput with zero capability skips and a verified sanitizer detection probe. The full final
+six-configuration matrix and matched performance acceptance remain open.
+
+The shared update helper checks canonical main ancestry and successful push validation, with bounded
+read-only requests and at most one advisory. Ten synthetic cases pass, including unavailable/pending/
+failed/divergent status and byte-identical pins. It is not wired into a consumer until that product's
+unchanged baseline is retained. RedSalamander Full/Fresh Debug baseline capture is currently running.
+
+Checkpoint 91ba363 passed the relocated x64 Debug consumer: five independent public-header translation
+units, three sample render modes and ten rejected pin/build mismatches. Native CI run 34347089905 started
+all six jobs. Its x64 Debug Menu failure retained a trace showing the posted hover succeeded, then a
+Windows-generated move for the stationary physical cursor cleared it. The interactive fixture now aligns
+and conditionally restores that cursor; assertions and deadlines are unchanged. Native qualification of
+that correction remains pending. Product baselines and migration continue under I19.
+
+CI x64 Release and ASan Debug passed all 18 runtime suites and the external-consumer assertions,
+but the consumer script leaked its final expected-negative exit code to the Actions wrapper.
+The script now reports its successful outcome explicitly. ARM64 ASan Debug compiled all targets,
+then failed before benchmark startup: MSBuild's built-in runtime staging contains only x86/x64
+branches. The canonical ARM64 staging target now copies the matching selected-toolset DLL and
+rejects a missing runtime; its actual MSBuild positive/negative staging test passes locally.
+The corrected Menu fixture rebuild passes locally with the same nine desktop capability skips;
+native CI remains the interactive acceptance gate. Specs, dependencies, formatting and all 36
+Python tooling regressions pass after these corrections.
+
+Native run 34348758964 passes all 18 suites on each of the six configurations; both ASAN probes and both
+external STL annotation policies pass on x64 and ARM64. Debug/Release jobs complete. ASAN gallery
+generation exposed a fixture settling problem: 4,096 queued animation/paint messages on a large
+sheet can take many minutes under instrumentation. CaptureThemeSection now uses a 100-ms settling
+budget before the existing explicit redraw and capture. Production scheduling, pixels and assertions
+are unchanged; gallery generation itself is the reproducing validation. Local x64 ASAN generation now passes all five sheets plus the embedded example. Public docs/gallery
+pixels need no publication for this fixture-only timing bound; control styling/layout is unchanged.
+Required skills/specs/dependencies/format checks pass; fresh native CI remains the final matrix gate.
+
+Native qualification: all six jobs at ebc3796 pass, including both ASAN galleries.
+Receipt and all paired local resource results: `Measurements/SharedLibrary/2026-09-09/`.
+Paired resource acceptance remains open; noisy comparisons are retained, not waived.
+
+G2 follow-up: promote the existing native provider acquisition declaration to the public header. The existing
+accessibility suite now exercises it directly, including null/detached HWND rejection and canonical identity
+after reattachment. The relocated consumer compiles the same public entrypoint without diagnostic defines.
+Docs updated; provider implementation and all gallery pixels are unchanged.
+
+Source-policy reconciliation: `Specs/Testing/SourcePolicyDispositions.json` accounts for each excluded origin. The original 941-case import record remains sealed. Four callback lifetime cases regain executable coverage without source-string assertions. Reviewed ownership policies explicitly distinguish code review from runtime fault injection and secure-memory proof. The change touches test/validator inputs only; compiled library inputs, workload and gallery pixels are unchanged. Native qualification remains pending for these restored cases.
