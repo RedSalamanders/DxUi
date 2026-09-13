@@ -8,16 +8,17 @@ At `e7244091`, all 27 legacy implementation files and 28 old test/project/baseli
 from the consumer branch. Product tests and adapters remain with the application; shared control
 tests remain here. The feature branch has not been merged into RedSalamander master.
 
-Current consumer code at `ad7f7735` passes all three ARM64 cross-builds, with all 14 archive-consumer
-identities per profile matching their module bytes and pin. The consumer corrected compiler-host
-propagation in restore and its project reference; the library pin is unchanged. Later `b2be60e4`
-changes only documentation and retained evidence, including reconciliation of the accepted G4/G6
-contracts. Its completed Full Debug attempt passes 19/20 entries: 2,116 cases pass, one fails and
-52 skip. ViewerWeb close and persistent menu hover now pass inside Full. The sole failure is a
-tooling fixture's Git clone exceeding MAX_PATH; `3a43186a` corrects that test, with all eight
-dependency tests passing, and is undergoing the final Release/ASan Debug/Debug sequence.
-The user requested local validation without hosted CI. Native ARM64 runtime, resource acceptance,
-final package/rollback and publication remain open in the product checklist.
+Retained consumer `ad7f7735` passes all three ARM64 cross-builds, including compiler-host
+propagation and all 14 module identities per profile. Later `3a43186a` Release Full passes 19/20
+entries: 2,108 cases pass, five fail and 56 skip. All five failures reproduce in isolation and
+concern ViewerText snapshots incorrectly gated by `_DEBUG` in test-enabled Release. Consumer
+correction `836f4f97` uses `ENABLE_TESTS`: the unchanged five cases pass, its Release root build
+has zero warnings/errors, and all 14 module identities match. No library code or pin changed.
+
+Frozen consumer `a20f6680` is running the final ARM64 build and x64 build/Full/package sequence.
+The earlier portable A/B/A rehearsal passes, but final packaging follows the diagnostic correction.
+The user requested local validation without hosted CI. Native ARM64 runtime, resource acceptance
+and publication remain open in the product checklist; prior passes do not qualify later changes.
 
 The authoritative checklist is `Specs/Plans/WIP/DxUi_SharedLibraryAdoptionAndReleasePlan_2026-09-09.md`
 in the RedSalamander repository. This file only routes ownership; it is not a second execution plan.

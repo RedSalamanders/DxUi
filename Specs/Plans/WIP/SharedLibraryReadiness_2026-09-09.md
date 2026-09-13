@@ -16,7 +16,7 @@
   fails once; the diagnostic-only `cc7595de` follow-up passes ten isolated repetitions and the
   complete noninteractive viewer group, without explaining the original failure. Final Fresh Full
   runs remain required. The product owns the detailed receipts and diagnosis.
-- [x] Final consumer cross-builds pass locally: RedSalamander `ad7f7735` and RedXe `f727932`
+- [x] Retained consumer cross-builds pass locally: RedSalamander `ad7f7735` and RedXe `f727932`
   each build ARM64 Debug, Release and ASan Debug. Their actual module hashes match retained
   provenance. RedSalamander's subsequent `b2be60e4` changes only specs/evidence; it is undergoing
   final x64 qualification. These cross-builds do not establish native ARM64 runtime acceptance.
@@ -24,6 +24,12 @@
   one fails and 52 skip. ViewerWeb close and persistent menu hover pass inside Full. The one
   failure is a long-path Git fixture, corrected in product `3a43186a` with all eight dependency
   tests passing. Fresh final product runs and portable rollback are continuing locally.
+- [x] Retain consumer `3a43186a` Release Full: 19/20 entries pass; 2,108 cases pass, five fail and
+  56 skip. The five missing ViewerText snapshots reproduce in isolation because test-enabled
+  Release compiled out `_DEBUG` diagnostics. Product correction `836f4f97` passes the same five
+  cases, a zero-warning/error Release root build and all 14 module identities. Frozen `a20f6680`
+  is requalifying the consumer's final builds, Full runs and packaging locally. This changes no
+  DxUi code or pin and does not close native ARM64, resource acceptance or publication gates.
 
 - [x] Consumer ownership closeout is implemented on the RedSalamander branch: `e7244091` removes the
   duplicate implementation/tests after every production project moved to the public archive. The
