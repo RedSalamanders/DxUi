@@ -11,8 +11,11 @@
   exceed a band; timing/process-memory acceptance remains open. See the
   [local evidence](../../../Measurements/SharedLibrary/2026-09-13-local/README.md).
 - [x] RedSalamander source checkpoint `f12acdba` contains master `0dd0bd6d` and uses `13788e95`.
-  The last Full Debug run has 18/20 passing entries; both retained failures now pass isolated
-  repetitions after the viewer fixture correction. Final Fresh Full runs remain required.
+  Its completed Full Debug run has 19/20 passing entries: 2,115 cases pass, one fails and 52 skip.
+  The earlier menu-hover and ViewerImgRaw failures pass in Full. ViewerWeb's close-time assertion
+  fails once; the diagnostic-only `cc7595de` follow-up passes ten isolated repetitions and the
+  complete noninteractive viewer group, without explaining the original failure. Final Fresh Full
+  runs remain required. The product owns the detailed receipts and diagnosis.
 
 - [x] Consumer ownership closeout is implemented on the RedSalamander branch: `e7244091` removes the
   duplicate implementation/tests after every production project moved to the public archive. The
