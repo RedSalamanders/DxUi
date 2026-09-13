@@ -8,11 +8,14 @@ At `e7244091`, all 27 legacy implementation files and 28 old test/project/baseli
 from the consumer branch. Product tests and adapters remain with the application; shared control
 tests remain here. The feature branch has not been merged into RedSalamander master.
 
-The current local candidate `f7b2bce5` also isolates FileOperations recovery journals in each test
-child's governed scratch directory. The preceding rebased Debug build passes with zero warnings/errors;
-261 retirement policy checks and 88 runner/fingerprint/impact checks pass. Fresh final-tree product
-qualification is in progress. The user requested local validation without hosted CI for this pass.
-Native ARM64 runtime, product/resource, package/rollback and publication gates remain explicit.
+Current consumer code at `ad7f7735` passes all three ARM64 cross-builds, with all 14 archive-consumer
+identities per profile matching their module bytes and pin. The consumer corrected compiler-host
+propagation in restore and its project reference; the library pin is unchanged. Later `b2be60e4`
+changes only documentation and retained evidence, including reconciliation of the accepted G4/G6
+contracts. The latest completed Full Debug attempt passes 19/20 entries; its ViewerWeb close-time
+failure has a diagnostic-only follow-up and remains under investigation through fresh product runs.
+The user requested local validation without hosted CI. Native ARM64 runtime, resource acceptance,
+final package/rollback and publication remain open in the product checklist.
 
 The authoritative checklist is `Specs/Plans/WIP/DxUi_SharedLibraryAdoptionAndReleasePlan_2026-09-09.md`
 in the RedSalamander repository. This file only routes ownership; it is not a second execution plan.

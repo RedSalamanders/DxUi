@@ -16,6 +16,10 @@
   fails once; the diagnostic-only `cc7595de` follow-up passes ten isolated repetitions and the
   complete noninteractive viewer group, without explaining the original failure. Final Fresh Full
   runs remain required. The product owns the detailed receipts and diagnosis.
+- [x] Final consumer cross-builds pass locally: RedSalamander `ad7f7735` and RedXe `f727932`
+  each build ARM64 Debug, Release and ASan Debug. Their actual module hashes match retained
+  provenance. RedSalamander's subsequent `b2be60e4` changes only specs/evidence; it is undergoing
+  final x64 qualification. These cross-builds do not establish native ARM64 runtime acceptance.
 
 - [x] Consumer ownership closeout is implemented on the RedSalamander branch: `e7244091` removes the
   duplicate implementation/tests after every production project moved to the public archive. The
