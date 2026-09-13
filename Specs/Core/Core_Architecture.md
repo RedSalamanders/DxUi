@@ -53,7 +53,10 @@ A module shares GraphicsDevice pools by device generation and uses an EmbeddedHo
 Application text/UIA bridges and cross-module services remain consumer integration decisions.
 `redxe-adapter` means a consumer restores a pinned commit, links `DxUi.lib` once per module, and keeps DxUi C++
 inside that module. It does not include real IME/assistive-technology (`embedded-host-text-uia-bridge`), AV
-product backends (`av-control`), or RedSalamander in-tree replacement (`redsalamander-migration`).
+product backends (`av-control`), or another consumer's qualification. `redsalamander-migration` records
+implemented replacement of the in-tree library on the I19 consumer branch, qualified locally in x64 Debug/Release.
+It does not claim consumer master deployment, deferred ARM64/ASan passes or unavailable hardware coverage.
+[The completed routing record](../Plans/Done/RedSalamanderMigration.md) points to the consumer evidence.
 
 Pinned source plus a static archive provides an ordinary C++ interface and no extra runtime deployment. A shared DLL
 would introduce a second versioned ABI and loader/lifetime policy; defer it until measurements justify that cost.

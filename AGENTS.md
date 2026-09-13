@@ -1,7 +1,7 @@
 # DxUi development guidance
 
-DxUi is an independent Windows C++ library. RedXe consumes it; RedSalamander's I19 migration is implemented on its
-consumer branch and remains under product qualification. A library change never implicitly updates either consumer.
+DxUi is an independent Windows C++ library. RedXe consumes it; RedSalamander's I19 consumer branch has completed local
+x64 Debug/Release adoption. ARM64/ASan qualification and release handoff remain explicitly separate. A library change never implicitly updates either consumer.
 This file is the repository-wide instruction source. Start with [Specs/README.md](Specs/README.md) and the owning
 domain contract before changing behavior. Read [README.md](README.md) for actual supported capabilities.
 The repository is public and its default branch is `main`. Use focused feature branches for later changes.

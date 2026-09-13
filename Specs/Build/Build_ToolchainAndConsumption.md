@@ -43,8 +43,8 @@ loaded by RedXe as a plugin. Windows/system runtime dependencies and notices sti
 
 Library CI builds and tests without either application checkout. RedXe restores its pinned revision and runs
 its integration tests; `redxe-adapter` records that pin and the synthetic COM/POD adapters, not real IME/AT. A library update changes the consumer lock in a reviewed change with test evidence and a
-rollback to the previous pin. RedSalamander may stay on the old in-tree implementation and later its own pin; shared
-source ownership does not require simultaneous releases of the two applications.
+rollback to the previous pin. Each consumer owns its tested pin; shared source ownership does not require
+simultaneous releases of the two applications.
 
 ## Implemented build and consumption
 
@@ -91,8 +91,10 @@ Native CI installs Python for performance receipt validation. Each test invocati
 and implementation acceptance requires matched before/after evidence under the performance contract.
 
 RedXe already has an exact pin and synthetic preparation/input/text/UIA adapters; real IME/AT acceptance stays
-with its AV owner. RedSalamander adoption is active under its I19 consumer plan. Neither application's runtime
-changes merely because this library builds.
+with its AV owner. RedSalamander I19 has completed local x64 Debug/Release adoption on its consumer branch;
+its master merge/publication handoff and user-deferred ARM64/ASan qualification remain separate. See
+[the completed routing record](../Plans/Done/RedSalamanderMigration.md). Neither application's runtime changes
+merely because this library builds.
 
 Managed vcpkg clones enable Git long-path support in their own repository configuration so deeply relocated
 consumer fixtures can check out tool sources. No user/global Git configuration is changed.

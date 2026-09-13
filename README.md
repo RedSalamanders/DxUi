@@ -53,7 +53,9 @@ publishes reviewed gallery images to `docs/gallery`.
 
 RedXe pins a tested DxUi commit and ships synthetic text/UIA adapters (`redxe-adapter`). Real IME/touch/screen-reader
 checks and AV backends remain application gates (`embedded-host-text-uia-bridge`, `av-control`). The library does
-not change either application's runtime.
+not change either application's runtime. RedSalamander's I19 consumer branch has completed local x64
+Debug/Release adoption with the duplicate implementation removed; ARM64/ASan qualification and publication/merge
+remain separate. See [the adoption record](Specs/Plans/Done/RedSalamanderMigration.md).
 [Capabilities](capabilities.json) lists supported library mechanisms separately from those pending integrations.
 
 Start with [AGENTS.md](AGENTS.md), [spec authority](Specs/README.md), and [active plans](Specs/Plans/WIP/README.md).

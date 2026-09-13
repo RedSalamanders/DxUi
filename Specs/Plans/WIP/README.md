@@ -1,11 +1,11 @@
 # Active plans
 
-| Plan | Status | Owner |
-| --- | --- | --- |
-| [RedSalamander migration](RedSalamanderMigration.md) | ACTIVE routing | RedSalamander I19 |
+No active library implementation plans remain for this adoption scope.
 
-Plans never override normative contracts. Completed plans move to Done after validation and normative closeout.
+Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md` and
+`../Done/RedSalamanderMigration.md`. Further ARM64 and ASan qualification is
+user-deferred to RedSalamander's `DxUi_DeferredPlatformQualification_2026-09-13.md`.
+RedXe retains its separately owned hardware, real IME and assistive-technology gates.
 
-Shared-library readiness is complete under `../Done/SharedLibraryReadiness_2026-09-09.md`
-for the accepted local scope. Further ARM64 and ASan qualification is user-deferred
-and owned by RedSalamander's `DxUi_DeferredPlatformQualification_2026-09-13.md`.
+Plans never override normative contracts. Completed plans move to Done after
+validation and normative closeout.
