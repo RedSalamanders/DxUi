@@ -12,8 +12,10 @@ Current consumer code at `ad7f7735` passes all three ARM64 cross-builds, with al
 identities per profile matching their module bytes and pin. The consumer corrected compiler-host
 propagation in restore and its project reference; the library pin is unchanged. Later `b2be60e4`
 changes only documentation and retained evidence, including reconciliation of the accepted G4/G6
-contracts. The latest completed Full Debug attempt passes 19/20 entries; its ViewerWeb close-time
-failure has a diagnostic-only follow-up and remains under investigation through fresh product runs.
+contracts. Its completed Full Debug attempt passes 19/20 entries: 2,116 cases pass, one fails and
+52 skip. ViewerWeb close and persistent menu hover now pass inside Full. The sole failure is a
+tooling fixture's Git clone exceeding MAX_PATH; `3a43186a` corrects that test, with all eight
+dependency tests passing, and is undergoing the final Release/ASan Debug/Debug sequence.
 The user requested local validation without hosted CI. Native ARM64 runtime, resource acceptance,
 final package/rollback and publication remain open in the product checklist.
 

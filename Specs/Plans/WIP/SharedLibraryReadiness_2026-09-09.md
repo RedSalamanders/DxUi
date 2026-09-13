@@ -20,6 +20,10 @@
   each build ARM64 Debug, Release and ASan Debug. Their actual module hashes match retained
   provenance. RedSalamander's subsequent `b2be60e4` changes only specs/evidence; it is undergoing
   final x64 qualification. These cross-builds do not establish native ARM64 runtime acceptance.
+- [x] RedSalamander's completed `b2be60e4` Full Debug run passes 19/20 entries: 2,116 cases pass,
+  one fails and 52 skip. ViewerWeb close and persistent menu hover pass inside Full. The one
+  failure is a long-path Git fixture, corrected in product `3a43186a` with all eight dependency
+  tests passing. Fresh final product runs and portable rollback are continuing locally.
 
 - [x] Consumer ownership closeout is implemented on the RedSalamander branch: `e7244091` removes the
   duplicate implementation/tests after every production project moved to the public archive. The
