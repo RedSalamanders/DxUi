@@ -7,4 +7,4 @@ Candidate/baseline and repeated-baseline comparator results retain the unchanged
 thresholds. `summary.comparison.json` contains descriptive cross-run medians only.
 
 Collection metadata and functional-suite reports live with the
-[active qualification evidence](../../../../Specs/Plans/WIP/SharedLibraryReadiness/local-2026-09-13/README.md).
+[active qualification evidence](../../../../Specs/Plans/Done/SharedLibraryReadiness/local-2026-09-13/README.md).

@@ -1,6 +1,6 @@
 # Native clipboard capacity evidence
 
-Work in progress under [I19 library readiness](../../../Specs/Plans/WIP/SharedLibraryReadiness_2026-09-09.md).
+Work in progress under [I19 library readiness](../../../Specs/Plans/Done/SharedLibraryReadiness_2026-09-09.md).
 Baseline source: d192e474e540adc2656e69b8e8150b0f7a05d63f before the native clipboard capacity fix.
 The targeted fixture uses the production transport with private clipboard ownership callbacks and real
 HGLOBAL storage; it never changes the desktop clipboard. Each round performs 50 writes and reads of

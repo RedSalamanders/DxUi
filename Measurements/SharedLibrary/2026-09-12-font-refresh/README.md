@@ -8,7 +8,7 @@ invalidation with their font queries and keep it out of per-frame rendering.
 
 Foundation coverage uses two isolated DirectWrite factories, seeds stale negative cache answers,
 and verifies selective refresh and all-factory refresh. No font is installed or removed by the test.
-The source hashes and executable identities in the [validation receipt](../../../Specs/Plans/WIP/SharedLibraryReadiness/font-refresh-local-validation.json) identify the local
+The source hashes and executable identities in the [validation receipt](../../../Specs/Plans/Done/SharedLibraryReadiness/font-refresh-local-validation.json) identify the local
 candidate based on e67bd1b. The implementation is committed at `13788e9`; RedSalamander's rebased
 local candidate pins it, while RedXe retains the previously qualified ecad707.
 Reviewed text copies use UTF-8/LF and omit trailing whitespace. The receipt records both copy and

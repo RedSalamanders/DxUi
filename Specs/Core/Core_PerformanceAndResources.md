@@ -34,6 +34,26 @@ cause, ask the developer for advice, and propose options with quantified costs: 
 reduce optional scope, or defer/revert the change. Any explicitly approved tradeoff needs durable rationale and the
 chosen resource budget in this contract or its owning domain; a WIP note alone cannot waive a requirement.
 
+### I19 accepted resource trade-off
+
+On 2026-09-13 the user accepted the measured static-library adoption trade-off and
+requested closeout. The [matched library record](../../Measurements/SharedLibrary/2026-09-13-local/README.md)
+retains all original comparisons, including investigation-band failures and baseline variation.
+The accepted envelope is the observed I19 result on that fixed fixture: Release clean peak
+private memory increases by a median 731,136 bytes, while surface storage, composition
+allocations and hidden work remain unchanged. Release dirty completed throughput changes
+by +0.02%; Debug dirty throughput changes by -1.65%. This is an explicit acceptance of
+the recorded costs for canonical source ownership and the clipboard, module-lifetime and
+font-refresh corrections, not a claim that every metric is unchanged.
+
+The existing deterministic budgets and investigation bands remain in force. This decision
+does not admit additional growth in later revisions or replace the retained baseline.
+It covers the named offscreen fixture only; hardware presentation and long-run retention
+still require their own evidence. Consumer measurements and their accepted costs remain
+in the corresponding product repositories.
+
+### Ongoing validation and resource budgets
+
 Every `test.ps1` invocation MUST report complex-UI FPS and memory, including filtered suites, and each suite receipt
 must include the measurement or its linked receipt. A failing/missing benchmark fails the test entrypoint. Unit-test
 execution rate and CPU command-submission rate must never be labeled rendered FPS. Hidden/static idle views have no

@@ -1,12 +1,12 @@
 # Shared-library I19 qualification, 2026-09-09
 
-The [current native CI receipt](../../../Specs/Plans/WIP/SharedLibraryReadiness/native-ci-ecad707.json)
+The [current native CI receipt](../../../Specs/Plans/Done/SharedLibraryReadiness/native-ci-ecad707.json)
 qualifies ecad707 in all six native profiles: [run 34371134464](https://github.com/RedSalamanders/DxUi/actions/runs/34371134464).
 It adds repeated EXE/two-DLL animation and native-menu ownership probes to the
 complete suites, public consumer builds and galleries; both ASAN annotation policies pass.
 Local x64 Debug, Release and ASan Debug full suites also pass.
 
-The [previous native CI receipt](../../../Specs/Plans/WIP/SharedLibraryReadiness/native-ci-52da33d.json)
+The [previous native CI receipt](../../../Specs/Plans/Done/SharedLibraryReadiness/native-ci-52da33d.json)
 records all six passing profiles at `52da33d8152a737d698d5362308cd16a34491f42`:
 [run 34363702073](https://github.com/RedSalamanders/DxUi/actions/runs/34363702073).
 Every profile ran the complete control/embedded suites, external pinned consumer
@@ -14,7 +14,7 @@ fixture and gallery. Both ASAN architectures passed the deliberate defect probe
 and both consumer STL annotation policies. Native ARM64 execution is established.
 This includes the public native provider, four restored callback-lifetime cases and
 three interactive menu fixtures with aligned cursor/capture setup. The
-[earlier receipt](../../../Specs/Plans/WIP/SharedLibraryReadiness/native-ci.json)
+[earlier receipt](../../../Specs/Plans/Done/SharedLibraryReadiness/native-ci.json)
 at ebc3796 is preserved; these test results do not substitute for paired performance.
 
 ## Paired resource evidence remains open

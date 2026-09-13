@@ -6,7 +6,7 @@ measurements remain in RedSalamander and RedXe.
 The quiet x64 Release run completed all 18 suites with exit code zero. Menu records
 nine interactive-desktop capability skips; the other 17 suites record none. Each
 suite report and log is retained in the
-[qualification evidence](../../../Specs/Plans/WIP/SharedLibraryReadiness/local-2026-09-13/README.md).
+[qualification evidence](../../../Specs/Plans/Done/SharedLibraryReadiness/local-2026-09-13/README.md).
 Successful exit does not qualify skipped paths
 or erase the earlier Release Menu failure. The tested control executable hash is
 `51AC2C57629289AD65772E9D37A56F92569ACD47CDC08858C88619C0BA1058C0`.

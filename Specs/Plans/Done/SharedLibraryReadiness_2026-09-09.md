@@ -1,6 +1,50 @@
-# Shared-library readiness (I19/C1–C2)
+# Shared-library readiness (I19/C1-C2)
+
+## Completion checklist
+
+Status: **DONE, 2026-09-13**, for the implemented library slice and accepted local
+qualification scope. The user deferred further ARM64 and ASan qualification and
+accepted the measured resource trade-off. Consumer release decisions remain with
+RedXe and RedSalamander; this does not close their hardware or publication gates.
+
+- [x] Implement the shared control, public helper, clipboard, accessibility, module-ownership
+  and font-refresh corrections with their regression coverage in canonical DxUi.
+- [x] Keep native clipboard transport checked and large-selection capable, with one
+  clipboard-open attempt; retain the embedded 65,536-unit boundary and failed-cut behavior.
+- [x] Retain the chosen Slider behavior and library-owned diagnostics/scheduling contracts.
+- [x] Supply the single `DxUi.lib`, exact-pin public consumer imports and all six build profiles.
+- [x] Qualify local x64 library/control/embedded suites and retain historical native matrix receipts.
+  The latest Release run completes all 18 suites; nine Menu capability skips remain unqualified.
+- [x] Exercise EXE/two-DLL consumer ownership and mismatched/dirty/relocated dependency cases.
+- [x] Retain paired independent resource evidence, including band failures and baseline variation.
+- [x] Record the user's accepted I19 resource envelope in the normative resource contract;
+  preserve deterministic surface/allocation/hidden-work budgets and all investigation thresholds.
+- [x] Review gallery/doc impacts; the typography update's six images are reviewed, with
+  only animated progress differences. This final documentation change alters no native inputs.
+- [x] Transfer further ARM64 and ASan qualification to the user-owned cross-product follow-up,
+  `Specs/Plans/WIP/DxUi_DeferredPlatformQualification_2026-09-13.md` in RedSalamander.
+- [x] Retain consumer migration and publication as separate lifecycle actions. Publish the
+  tested library commit before merging/releasing a consumer pin that requires it.
+
+The canonical native revision is `13788e95`. The accepted resource measurements and
+limitations are linked from the current resource contract. No hosted CI is used for
+this closeout; historical CI receipts keep their original revisions and scope.
+RedSalamander owns the remaining x64 Full and package checks for its final candidate.
+
+## Historical implementation and qualification record
+
+The dated progress below is preserved as history. Former open wording is superseded
+by the completed library scope above and the current domain contracts.
 
 ## Progress checklist
+
+Current closeout scope (2026-09-13): the user deferred ARM64 and ASan to later
+personal qualification and requested completion of the remaining I19 work.
+RedSalamander owns that deferral in
+`Specs/Plans/WIP/DxUi_DeferredPlatformQualification_2026-09-13.md`.
+Its corrected `f06f779f` x64 Debug/Release and package qualification is running locally.
+Earlier platform receipts remain historical; no final ARM64 or ASan pass is inferred.
+The resource trade-off has been presented for the remaining developer decision.
 
 - [x] September 13 local Release follow-up: all 18 suites exit successfully, with nine Menu
   interactive-desktop capability skips and no skips in the other 17 suites. Retain reports/logs;
@@ -86,7 +130,7 @@
 - [ ] Run required builds, tests, validators and paired performance comparisons.
 - [ ] Record evidence and remaining environment gates; close this library slice when qualified.
 
-Status: ACTIVE. Authorized 2026-09-09. Library implementation owner for I19 C1–C2, starting with G4, in
+Historical status: ACTIVE. Authorized 2026-09-09. Library implementation owner for I19 C1–C2, starting with G4, in
 RedSalamander's `Specs/Plans/WIP/DxUi_SharedLibraryAdoptionAndReleasePlan_2026-09-09.md`.
 The cross-repository consumer migration and adoption matrix remain owned by I19;
 this library plan does not mark consumer gates complete or update consumer pins.
