@@ -27,9 +27,9 @@ constexpr GUID kTransientSurfaceGaussianBlurEffectId = {0x1feb6d69, 0x2fe6, 0x4a
 }
 } // namespace
 
-DxUiModalLoopResult RunDxUiModalLoop(HWND hwnd, const DxUiModalLoopOptions& options) noexcept
+ModalLoopResult RunDxUiModalLoop(HWND hwnd, const ModalLoopOptions& options) noexcept
 {
-    const DxUiModalLoopContinueCallback shouldContinue = options.shouldContinue ? options.shouldContinue : ContinueModalLoopByDefault;
+    const ModalLoopContinueCallback shouldContinue = options.shouldContinue ? options.shouldContinue : ContinueModalLoopByDefault;
     const std::wstring_view diagnosticName             = options.diagnosticName.empty() ? std::wstring_view(L"modal") : options.diagnosticName;
 
     MSG msg{};
@@ -44,7 +44,7 @@ DxUiModalLoopResult RunDxUiModalLoop(HWND hwnd, const DxUiModalLoopOptions& opti
                            reinterpret_cast<uintptr_t>(hwnd),
                            lastError);
             SetLastError(lastError);
-            return DxUiModalLoopResult::GetMessageFailed;
+            return ModalLoopResult::GetMessageFailed;
         }
 
         if (getMessageResult == 0)
@@ -54,14 +54,14 @@ DxUiModalLoopResult RunDxUiModalLoop(HWND hwnd, const DxUiModalLoopOptions& opti
                 options.onQuit(msg.wParam, options.context);
             }
             PostQuitMessage(static_cast<int>(msg.wParam));
-            return DxUiModalLoopResult::Quit;
+            return ModalLoopResult::Quit;
         }
 
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
 
-    return DxUiModalLoopResult::Completed;
+    return ModalLoopResult::Completed;
 }
 
 void TransientSurfaceBackdrop::SetCapture(WindowHostBitmapCapture value) noexcept

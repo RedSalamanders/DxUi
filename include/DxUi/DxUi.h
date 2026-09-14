@@ -90,25 +90,25 @@ inline constexpr UINT kModifierAlt = 0x0100u;
                                                         ID3D11DeviceContext** context,
                                                         D3D_DRIVER_TYPE* driverType = nullptr) noexcept;
 
-enum class DxUiModalLoopResult : uint8_t
+enum class ModalLoopResult : uint8_t
 {
     Completed,
     Quit,
     GetMessageFailed,
 };
 
-using DxUiModalLoopContinueCallback = bool (*)(void* context) noexcept;
-using DxUiModalLoopQuitCallback     = void (*)(WPARAM quitCode, void* context) noexcept;
+using ModalLoopContinueCallback = bool (*)(void* context) noexcept;
+using ModalLoopQuitCallback     = void (*)(WPARAM quitCode, void* context) noexcept;
 
-struct DxUiModalLoopOptions final
+struct ModalLoopOptions final
 {
     std::wstring_view diagnosticName;
-    DxUiModalLoopContinueCallback shouldContinue = nullptr;
+    ModalLoopContinueCallback shouldContinue = nullptr;
     void* context                                = nullptr;
-    DxUiModalLoopQuitCallback onQuit             = nullptr;
+    ModalLoopQuitCallback onQuit             = nullptr;
 };
 
-[[nodiscard]] DxUiModalLoopResult RunDxUiModalLoop(HWND hwnd, const DxUiModalLoopOptions& options) noexcept;
+[[nodiscard]] ModalLoopResult RunDxUiModalLoop(HWND hwnd, const ModalLoopOptions& options) noexcept;
 
 enum class SortDirection : uint8_t
 {
