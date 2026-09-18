@@ -21,6 +21,10 @@ The repository is public and its default branch is `main`. Use focused feature b
   renderer HWND, worker or periodic timer. Preparation and composition are separate contracts.
 - Validate the control and embedded suites for UI changes; Foundation alone cannot establish their correctness.
 - New controls require a catalog/factory entry, meaningful interaction tests and a populated gallery tile.
+- Application screenshots for specifications, documentation, and UI reviews must be generated through the
+  application's test harness with deterministic scenarios and no desktop takeover. Reuse or extend harness
+  capture support rather than using Computer Use or manual desktop screenshots. Preserve scenario/build
+  provenance and label proposal mockups separately from actual application captures.
 - Every code change reviews docs/gallery under Specs/Core/Core_Documentation.md; update affected usage docs and
   regenerate visual changes with gallery.ps1 -PublishDocs. docs/README.md remains linked from README.
 - Samples and benchmarks use library-owned synthetic models and run without consumer repositories or services.
@@ -62,3 +66,7 @@ of an unrelated checkout. Do not change repository visibility without explicit u
 Read a focused skill under `.agents/skills/` for the affected work: build-dxui, control-development,
 embedded-rendering, win32-host, input-accessibility, performance-resources, modern-cpp-wil,
 spec-workflow, or consumer-integration. These are repository-local skills and their referenced files must exist.
+
+Application documentation screenshots use the consumer test harness. Explicitly authorized brief focus
+for hover/keyboard captures uses its existing warning and interactive desktop lease, with cursor/focus
+restoration; static captures remain non-activating. Never substitute desktop screenshots.
