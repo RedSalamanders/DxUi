@@ -65,6 +65,20 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+Latest consumer follow-up: ordinary running/Delete/completed paths now expose exact French/Unicode
+values on existing tooltip/UIA regions, including bounded in-flight rows and live replacement/removal.
+The unchanged baseline lacks those values; two candidate Debug runs each pass 3/3 with real raw-provider
+name/help/ID/bounds assertions. No library source/API/pin/gallery pixel changed. The repeated baseline
+lost its legacy text/background while hosted controls remained, despite S_OK legacy EndDraw; the
+consumer harness correctly rejected all three repetitions. A final unchanged candidate recovered.
+All timing flags, compact digest-bound rows and a rejected screenshot are retained in I26's
+`2026-09-19-path-access` gallery and four TestRuns archives. This intermittent composition/capture
+failure remains unattributed; diagnose the existing boundary before another controlled comparison,
+without weakening probes. Keyboard copy, visible full detail, hover/AT, graph-label separation,
+Release/native DPI and final performance remain open. Publication/main CI and explicit pin adoption
+are still pending. Both plans remain ACTIVE; library gallery regeneration is unnecessary for this
+consumer-only semantic change.
+
 Latest consumer follow-up: the custom-speed dialog now creates on its owner's monitor and measures
 wrapped label/help/error height using existing hosted font APIs and the consumer's canonical helper.
 Resize/validation reflow grows the client without shrinking on correction; minimized/empty sizes
