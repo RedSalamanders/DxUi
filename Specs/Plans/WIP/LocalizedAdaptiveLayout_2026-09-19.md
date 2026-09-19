@@ -211,16 +211,21 @@ runtime remain separate evidence, never inferred from simulation.
 
 ## L3 — Qualification and consumer handoff
 
-- [ ] Run x64 Debug, Release and ASan Debug suites, including controls and embedded, and build all
+- [x] Run x64 Debug, Release and ASan Debug suites, including controls and embedded, and build all
   three ARM64 configurations. Record native runtime gaps honestly.
+  Receipts: `final-debug`, `final-release`, `full-asan` and `arm64-builds` in
+  `Measurements/LocalizedAdaptiveLayout/2026-09-19`. Interrupted same-binary suite continuations
+  and Menu capability skips remain explicit in the checkpoint; no native ARM64 runtime claim.
 - [ ] Renderer changes require WARP, device loss, clean/dirty/hidden and bounded resource/lifetime
   evidence. No hidden painting/ticks, clean-composition heap/layout work or unexplained growth.
 - [ ] Compare paired common and targeted fixtures serially with matching compiler/config/device/DPI;
   retain five-round medians and raw samples, frame/input/preparation costs, allocations, surfaces,
   private bytes and working set. Follow current ceilings/investigation bands. Confirmed degradation
   needs measured optimization/scope/deferral advice, never silent rebaselining or relaxed budgets.
-- [ ] Update docs and publish/review gallery sheets with `gallery.ps1 -PublishDocs`; validate skills,
+- [x] Update docs and publish/review gallery sheets with `gallery.ps1 -PublishDocs`; validate skills,
   specs, dependencies and formatting. Public examples use supported headers.
+  The five-theme sheets and clean-checkout validation qualify implementation commit `26a3d044`;
+  the clean-checkout path and retained personal-file boundary are recorded above.
 - [ ] Hand I26 the exact validated immutable revision, receipts, migration notes and remaining gates.
   Its explicit pin update and Full product validation use the existing integration workflow. Never
   edit a second library copy inside the consumer.
