@@ -65,6 +65,17 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+Latest consumer follow-up: the custom-speed dialog now creates on its owner's monitor and measures
+wrapped label/help/error height using existing hosted font APIs and the consumer's canonical helper.
+Resize/validation reflow grows the client without shrinking on correction; minimized/empty sizes
+cannot trigger growth. The French constrained-client witness fails before and passes in three final
+Debug repetitions, including existing UIA/modal-shutdown checks. Five harness captures are reviewed.
+An initial p95 increase is retained alongside paired repetitions where it did not repeat; no broad
+performance or native mixed-DPI claim is made. No library API/source/pin/gallery pixels changed, so
+library gallery regeneration is unnecessary. Short-work-area fallback, full locale/keyboard and
+native transitions remain open, as do publication/current-main CI and explicit adoption. Both plans
+remain ACTIVE; next consumer work concerns exact long paths or graph-label separation.
+
 Latest consumer follow-up: narrow French footer actions now use cached measurements of the existing
 hosted Body font instead of shrinking to 72 DIP. Pause/Resume reserves the larger label width.
 Retained unchanged-fixture Debug evidence fails before and passes after at 480/640/760/480 DIP,
