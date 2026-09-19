@@ -65,6 +65,16 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+Consumer throughput follow-up: RedSalamander now wires the existing pinned disclosure chrome and
+per-card persistence, with focused Debug/Release state passes. Its screenshot review rejects Debug
+legacy text/background loss while Release remains readable; investigate in the consumer/harness
+before attributing it to this library. No library pin changes implicitly. The consumer also confirms
+two remaining generic questions for L1/L2: Disclosure paints only its chevron (a labelled header
+currently requires an adjacent consumer label), and ThroughputGraph current text is painted only
+with a positive visible marker, suppressing zero/unknown labels. Reuse or extend the canonical
+controls with independent tests if the consumer cannot meet its contract using supported primitives.
+Do not treat the current state tests as full disclosure UIA, visual or mixed-DPI acceptance.
+
 Latest continuation: final x64 Debug and Release each cover all 18 suites after the disclosure-event
 correction; Menu has nine/eight foreground capability skips respectively, others zero. Release resumed
 eight unfinished suites against the same binary after an interrupted execution session. Final ASan
