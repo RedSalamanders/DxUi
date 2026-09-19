@@ -100,6 +100,10 @@ See [the benchmark model](../Samples/ComplexUi/ComplexUiScene.h),
 [grid tests](../Tests/Controls/DxUiTests.Grid.cpp), [tree tests](../Tests/Controls/DxUiTests.Tree.cpp), and
 [gallery construction](../Tests/Controls/DxUiTests.Gallery.cpp) for concrete configurations and variants.
 
+When overriding `OnFocusChanged` in a derived control, call the base implementation before
+handling application-specific detail. It acknowledges `HasFocus`, which drives visible focus and
+UIA keyboard-focus properties. Test both the provider state and the painted focus outline.
+
 Use keyboard/focus, cancellation, disabled and hidden states alongside pointer input. Verify high contrast,
 Unicode, DPI and minimum layout bounds. Consult [hosting](hosting.md) for the embedded text/UIA limitations.
 

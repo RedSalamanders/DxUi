@@ -1,7 +1,7 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-09-19
+Last reviewed: 2026-09-20
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -14,6 +14,10 @@ Toggle, full text and selection semantics must match the confirmed displayed sta
 chrome and checked state are distinct; status meaning also has text and an icon. Qualify pointer,
 Tab/Shift+Tab, Space, Enter/Escape dispatch and UIA bounds in both hosting modes under the
 [localized adaptive layout plan](../Plans/WIP/LocalizedAdaptiveLayout_2026-09-19.md).
+
+Custom controls overriding `OnFocusChanged` MUST invoke their base implementation so `HasFocus`,
+focus chrome and UIA keyboard-focus properties acknowledge the host transition. A stored host
+focus pointer alone is insufficient. Consumers qualify both visible focus and raw provider state.
 
 Buttons with acknowledged disclosure state expose ExpandCollapse, consistent state properties and
 state-change notifications. Expand/Collapse requests are idempotent against current acknowledged state,

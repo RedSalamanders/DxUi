@@ -65,7 +65,25 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
-Latest consumer slice separates measured rate/ETA labels from the history plot using cached
+Latest consumer slice adds exact-path keyboard access through an application-owned Label adapter,
+existing focus chrome/tooltip and the canonical consumer clipboard helper. The base focus callback
+must be acknowledged: an initial missing-outline capture is retained and the corrected raw UIA
+focus plus pixel witness passes all three repetitions. Final eight-case Debug checks pass 24/24;
+the unchanged resource fixture passes 3/3 with 75 lifetimes, 4,800 redraws, balanced host/device
+attachments and no hidden frames. I26 retains every failed attempt, both images and matched
+resource/timing records under its `2026-09-19-path-keyboard` gallery and TestRuns. No library
+source/API/pin/gallery pixels changed; no library gallery regeneration is required. Input authoring
+guidance now records the existing base-callback requirement. General long-detail selection/scroll,
+remaining consumer layout/Issues, Release/Full/native DPI/AT and publication/main CI/pin adoption
+remain open. Before repeating library work, reconcile the already-retained full-scene/matrix/
+interleaved receipts and successful clean-checkout dependency validation below. The unrelated
+personal project file stays untouched. Both plans remain ACTIVE.
+This documentation closeout passes all nine skills, spec/link validation and pinned formatting.
+The consumer's fresh resource comparison reports baseline 32-redraw medians about 254 ms and
+candidate medians about 253 ms; the initial roughly 4% increase does not reproduce. All four runs
+remain retained, without claiming final performance acceptance or a new library runtime pass.
+
+Previous consumer slice separates measured rate/ETA labels from the history plot using cached
 DirectWrite layouts and existing semantic Label regions; the pinned ThroughputGraph still owns
 the plot/current-rate marker. Normal French 480/640/760-DIP and synthetic long French 480-DIP
 WGC captures are reviewed in I26's `2026-09-19-graph-labels` gallery. Native Debug normal UI checks
