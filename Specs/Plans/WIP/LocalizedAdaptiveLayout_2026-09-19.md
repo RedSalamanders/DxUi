@@ -65,6 +65,19 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+Consumer recovery qualification now reuses `DebugSimulateDeviceLoss` from its unchanged pin.
+Test-only hooks leave old consumer resources intact so ordinary rendering must reject the old
+frame and replace the context. Initial Debug evidence passes 3/3; final recovery/hidden/progress
+evidence passes 6/6 with no skips, zero-warning/error builds and clean runner audits. Nine final
+losses recover readable French harness captures and disclosure actions; nine 359–375-ms hidden
+message-pump intervals add zero hosted frames, then showing resumes normal rendering. I26 retains
+both receipts, every recovery/hidden sample and digest-linked gallery provenance. No canonical
+library source/API/pin or gallery pixels changed. This is bounded transition qualification, not
+hardware removal, memory retention, CPU/wake-up, native DPI or full paired-performance acceptance.
+Next consumer work measures resource/idle retention, then graph labels and exact-path keyboard
+access. Publication/current-main CI/explicit adoption and the preserved developer-local-settings
+dependency-validator blocker remain open. Both plans remain ACTIVE.
+
 Latest consumer follow-up: the recurring missing legacy client layer now has a reproduced boundary
 signature: S_OK legacy draws with post-draw occlusion and matching sizes while hosted painting
 continues. RedSalamander replaced that independent HWND target with a prepared Direct2D command list
