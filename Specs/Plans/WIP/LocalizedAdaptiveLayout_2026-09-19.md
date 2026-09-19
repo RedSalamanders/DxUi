@@ -65,6 +65,23 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+Latest consumer follow-up: the recurring missing legacy client layer now has a reproduced boundary
+signature: S_OK legacy draws with post-draw occlusion and matching sizes while hosted painting
+continues. RedSalamander replaced that independent HWND target with a prepared Direct2D command list
+on the existing pinned WindowHost device and a consumer root that replays it beneath its controls.
+No canonical library code/API/pin changed; no library gallery pixels require regeneration. The final
+eight-case Debug set passes 24/24 with French covered/uncovered WGC witnesses, zero-size recovery,
+paths/UIA, both native failure surfaces, conflict and completed navigation checks. Seven images and
+all failures are retained in I26's `2026-09-19-single-surface` gallery/TestRuns. Obsolete consumer
+three-action fixtures were aligned with its approved four-action contract, without policy changes.
+The original sandbox advisory remains recorded alongside a clean post-archive audit. Prepared-frame
+device-loss/hidden-idle resource qualification, matched performance, Release/native DPI, remaining
+layout/input work and publication/current-main CI/explicit pin adoption stay open. Continue those
+consumer gates with Astra High; both plans remain ACTIVE.
+Documentation closeout passes skills/specs/format checks. `validate-dependencies.ps1` rejects the
+pre-existing ignored `src/DxUi.vcxproj.user` (September 13 timestamp) as developer-local settings
+in owned source. That unrelated file is preserved; dependency validation remains explicitly blocked.
+
 Latest consumer follow-up: ordinary running/Delete/completed paths now expose exact French/Unicode
 values on existing tooltip/UIA regions, including bounded in-flight rows and live replacement/removal.
 The unchanged baseline lacks those values; two candidate Debug runs each pass 3/3 with real raw-provider
