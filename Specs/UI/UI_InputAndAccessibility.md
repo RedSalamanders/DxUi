@@ -1,10 +1,19 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-09-08
+Last reviewed: 2026-09-19
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
+
+Localized adaptive layout must preserve the focused control's stable identity through wrapping,
+disclosure and DPI changes, and publish matching visible/hit/UIA rectangles. If a focused child is
+collapsed, return focus to the disclosure header; if an application removes an action, the caller
+chooses its safe focus successor. Layout never chooses a destructive default. ExpandCollapse,
+Toggle, full text and selection semantics must match the confirmed displayed state. Color, focus
+chrome and checked state are distinct; status meaning also has text and an icon. Qualify pointer,
+Tab/Shift+Tab, Space, Enter/Escape dispatch and UIA bounds in both hosting modes under the
+[localized adaptive layout plan](../Plans/WIP/LocalizedAdaptiveLayout_2026-09-19.md).
 
 
 
