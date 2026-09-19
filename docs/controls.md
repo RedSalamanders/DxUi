@@ -58,6 +58,28 @@ The [embedded scene](../Samples/EmbeddedControls/EmbeddedScene.h) is a complete 
 
 ## Layout and data-backed controls
 
+For a localized action group, measure each label with the current host font, add the desired padding
+and minimum target size, then call `ArrangeMeasuredActions` with those sizes, available DIP width,
+horizontal/vertical gaps and caller-owned output rectangles. The helper allocates nothing, preserves
+input order, wraps whole actions and returns total height/row count. It supports right-to-left flow.
+An omitted `{0,0}` size produces an empty rectangle without changing indices. Invalid inputs,
+insufficient output space and arithmetic overflow leave all outputs unchanged.
+
+An individual size must fit the available width. Measure overlong text wrapped first; standard
+`Button::SetMultiline(true)` enables matching wrapped paint with 12 DIP horizontal and 8 DIP vertical
+padding on each side. Its default is false, preserving existing single-line behavior. Other button
+variants retain their existing text/chrome policy. The helper does not choose actions, mutate focus,
+activate a host or cache application state. Cache measurements in your layout owner and recompute on
+text/font/DPI/width/visibility changes; apply the returned rectangles consistently to paint/input/UIA.
+At short height, reserve the action group's measured height and scroll the remaining body separately.
+
+A Button with `SetDisclosureExpanded(bool)` exposes UIA ExpandCollapse as well as Invoke. Repeated
+requests for the already acknowledged state do nothing. A changed request invokes the normal click
+callback; the application updates the state, content visibility and focus. `GetDisclosureExpanded()`
+returns that acknowledged optional state; `ClearDisclosureState()` removes the pattern. Disabled
+buttons reject UIA state changes. Embedded hosts publish the new snapshot after preparation, using
+their existing accessibility update path. Retained providers disconnect when their control is removed.
+
 ```cpp
 auto* stack = root->AddChild<DxUi::StackPanel>();
 stack->SetBounds(D2D1::RectF(16, 16, 320, 160));

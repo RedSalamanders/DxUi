@@ -7,9 +7,95 @@
 #include <iterator>
 #include <numeric>
 #include <thread>
+#include <wrl/implements.h>
 
 namespace
 {
+
+class DisclosureChangeObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+                                                                           IUIAutomationPropertyChangedEventHandler,
+                                                                           Microsoft::WRL::FtmBase>
+{
+public:
+    std::atomic<unsigned int> changes{0};
+    std::atomic<LONG> state{ExpandCollapseState_LeafNode};
+    HRESULT STDMETHODCALLTYPE HandlePropertyChangedEvent(IUIAutomationElement*, PROPERTYID property, VARIANT newValue) noexcept override
+    {
+        if (property == UIA_ExpandCollapseExpandCollapseStatePropertyId && newValue.vt == VT_I4)
+        {
+            state.store(newValue.lVal);
+            changes.fetch_add(1);
+        }
+        return S_OK;
+    }
+};
+
+void TestDisclosureNotifiesNativeAutomationClient()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Button>(L"Afficher les détails");
+    auto* button = root.get();
+    button->SetBounds(D2D1::RectF(0, 0, 280, 40));
+    button->SetDisclosureExpanded(false);
+    window.Host().SetRoot(std::move(root));
+    wil::com_ptr_nothrow<DisclosureChangeObserver> observer;
+    observer.attach(Microsoft::WRL::Make<DisclosureChangeObserver>().Detach());
+    Require(observer != nullptr, "allocate disclosure event observer");
+    wil::unique_event stop(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(bool(stop), "create UIA client stop event");
+    std::atomic<bool> ready{false};
+    std::atomic<bool> finished{false};
+    std::atomic<HRESULT> setup{E_PENDING};
+    const HWND hwnd = window.Hwnd();
+    std::jthread client([&]
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        const auto uninitialize   = wil::scope_exit([&]
+        {
+            if (SUCCEEDED(initialized))
+                CoUninitialize();
+        });
+        wil::com_ptr_nothrow<IUIAutomation> automation;
+        wil::com_ptr_nothrow<IUIAutomationElement> element;
+        HRESULT hr = initialized;
+        if (SUCCEEDED(hr))
+            hr = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(automation.put()));
+        if (SUCCEEDED(hr))
+            hr = automation->ElementFromHandle(hwnd, element.put());
+        PROPERTYID property = UIA_ExpandCollapseExpandCollapseStatePropertyId;
+        if (SUCCEEDED(hr))
+            hr = automation->AddPropertyChangedEventHandlerNativeArray(element.get(), TreeScope_Element, nullptr, observer.get(), &property, 1);
+        setup.store(hr);
+        ready.store(true);
+        if (SUCCEEDED(hr))
+        {
+            static_cast<void>(WaitForSingleObject(stop.get(), 10000));
+            static_cast<void>(automation->RemovePropertyChangedEventHandler(element.get(), observer.get()));
+        }
+        finished.store(true);
+    });
+    const auto waitUntil = [&](const auto& predicate)
+    {
+        const auto deadline = GetTickCount64() + 3000;
+        while (! predicate() && GetTickCount64() < deadline)
+        {
+            window.PumpMessages();
+            Sleep(1);
+        }
+        return predicate();
+    };
+    Require(waitUntil([&] { return ready.load(); }) && SUCCEEDED(setup.load()), "subscribe native disclosure property events");
+    button->SetDisclosureExpanded(true);
+    Require(waitUntil([&] { return observer->changes.load() >= 1; }) && observer->state.load() == ExpandCollapseState_Expanded,
+            "native automation client receives acknowledged expansion");
+    button->SetDisclosureExpanded(false);
+    Require(waitUntil([&] { return observer->changes.load() >= 2; }) && observer->state.load() == ExpandCollapseState_Collapsed,
+            "native automation client receives acknowledged collapse");
+    SetEvent(stop.get());
+    Require(waitUntil([&] { return finished.load(); }), "unsubscribe native disclosure property events");
+    client.join();
+}
 
 void TestAccessibilityTextUnitHelperSharesGraphemeWordLineAndFallbackPolicy()
 {
@@ -356,6 +442,65 @@ std::vector<size_t> ResolveVisualLineStarts(const DxUi::WindowHost& host, const 
 {
     return D2D1::RectF(
         (std::min)(first.left, second.left), (std::min)(first.top, second.top), (std::max)(first.right, second.right), (std::max)(first.bottom, second.bottom));
+}
+
+void TestDisclosureButtonExpandCollapsePreservesAcknowledgedState()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(L"Afficher les informations détaillées");
+    button->SetBounds(D2D1::RectF(0.0f, 0.0f, 280.0f, 40.0f));
+    button->SetDisclosureExpanded(false);
+    bool expanded        = false;
+    unsigned int invoked = 0;
+    button->SetOnClick([&]()
+    {
+        ++invoked;
+        expanded = ! expanded;
+        button->SetDisclosureExpanded(expanded);
+    });
+    window.Host().SetRoot(std::move(root));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "disclosure root provider exists");
+    auto provider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 20.0f, 20.0f, "disclosure provider by point");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(provider.query_to(simple.put()), "disclosure simple provider");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(simple->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put()), "disclosure ExpandCollapse lookup");
+    Require(pattern != nullptr, "disclosure publishes ExpandCollapse pattern");
+    wil::com_ptr_nothrow<IExpandCollapseProvider> disclosure;
+    RequireSucceeded(pattern.query_to(disclosure.put()), "disclosure pattern interface");
+    ExpandCollapseState state{};
+    RequireSucceeded(disclosure->get_ExpandCollapseState(&state), "read collapsed disclosure");
+    Require(state == ExpandCollapseState_Collapsed, "disclosure starts collapsed");
+    RequireSucceeded(disclosure->Expand(), "request disclosure expansion");
+    RequireSucceeded(disclosure->Expand(), "repeat expansion is idempotent");
+    Require(invoked == 1 && expanded, "same requested state never toggles twice");
+    RequireSucceeded(disclosure->get_ExpandCollapseState(&state), "read acknowledged expanded state");
+    Require(state == ExpandCollapseState_Expanded, "provider follows acknowledged state");
+    Require(ReadProviderLongProperty(*simple.get(), UIA_ExpandCollapseExpandCollapseStatePropertyId, "disclosure state property") ==
+                ExpandCollapseState_Expanded,
+            "disclosure property and pattern agree");
+    button->SetEnabled(false);
+    Require(disclosure->Collapse() == UIA_E_ELEMENTNOTENABLED && invoked == 1, "disabled disclosure rejects a state change");
+    button->SetEnabled(true);
+    RequireSucceeded(disclosure->Collapse(), "collapse disclosure");
+    Require(invoked == 2 && ! expanded, "collapse invokes once");
+    button->ClearDisclosureState();
+    pattern.reset();
+    RequireSucceeded(simple->GetPatternProvider(UIA_ExpandCollapsePatternId, pattern.put()), "cleared disclosure lookup");
+    Require(! pattern, "ordinary button has no disclosure pattern");
+    button->SetDisclosureExpanded(false);
+    button->SetOnClick([&]()
+    {
+        ++invoked;
+        window.Host().SetRoot(std::make_unique<Panel>());
+    });
+    RequireSucceeded(disclosure->Expand(), "disclosure callback may replace the entire root");
+    Require(invoked == 3, "root replacement callback invokes once");
+    Require(FAILED(disclosure->get_ExpandCollapseState(&state)), "retained disclosure provider disconnects after root replacement");
 }
 
 void TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns()
@@ -4349,6 +4494,8 @@ void TestAccessibilityStatusRootExposesChildrenAndNonFocusingInvoke()
 
 void RunAccessibilityTests()
 {
+    TestDisclosureButtonExpandCollapsePreservesAcknowledgedState();
+    TestDisclosureNotifiesNativeAutomationClient();
     TestAccessibilityTextUnitHelperSharesGraphemeWordLineAndFallbackPolicy();
     TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement();
     TestAttachedWindowHostWmGetObjectReturnsAccessibilityProvider();

@@ -1,4 +1,5 @@
 #include "DxUiTestHelpers.h"
+#include "LocalizedLayoutFixture.h"
 
 #include <cctype>
 #include <fstream>
@@ -6,6 +7,75 @@
 
 namespace
 {
+
+void TestLocalizedActionLayout()
+{
+    RunLocalizedActionFixture([](const auto& sizes, float width, float gap, auto& bounds)
+    {
+        DxUi::MeasuredActionLayout result{};
+        Require(SUCCEEDED(DxUi::ArrangeMeasuredActions(sizes, width, D2D1::SizeF(gap, gap), bounds, result)), "localized action layout succeeds");
+        return result.heightDip;
+    });
+}
+
+void TestMeasuredActionsFailureAndDirectionContracts()
+{
+    using namespace DxUi;
+    std::array<D2D1_SIZE_F, 4> sizes{{{100.0f, 32.0f}, {}, {140.0f, 48.0f}, {240.0f, 40.0f}}};
+    std::array<D2D1_RECT_F, 5> bounds{};
+    bounds.back() = D2D1::RectF(9.0f, 9.0f, 9.0f, 9.0f);
+    MeasuredActionLayout result{};
+    Require(SUCCEEDED(ArrangeMeasuredActions(sizes, 248.0f, D2D1::SizeF(8.0f, 6.0f), bounds, result)), "measured actions fit exact-width row");
+    Require(result.rowCount == 2 && result.heightDip == 94.0f, "rows use their tallest child, with no trailing gap");
+    Require(bounds[0].left == 0.0f && bounds[2].left == 108.0f && bounds[2].right == 248.0f && bounds[3].top == 54.0f,
+            "hidden action creates no gap and next row follows tallest action");
+    Require(bounds[1].right == 0.0f && bounds.back().left == 9.0f, "hidden output empty and unused output tail untouched");
+    Require(SUCCEEDED(ArrangeMeasuredActions(sizes, 248.0f, D2D1::SizeF(8.0f, 6.0f), bounds, result, FlowDirection::RightToLeft)),
+            "right-to-left action flow succeeds");
+    Require(bounds[0].right == 248.0f && bounds[2].left == 0.0f && bounds[3].right == 248.0f, "RTL mirrors geometry without reordering indices");
+    const auto saved     = bounds;
+    const auto unchanged = [&]()
+    {
+        return std::equal(bounds.begin(),
+                          bounds.end(),
+                          saved.begin(),
+                          [](const auto& a, const auto& b) { return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom; }) &&
+               result.rowCount == 2 && result.heightDip == 94.0f;
+    };
+    for (const float invalid : {0.0f, -1.0f, (std::numeric_limits<float>::infinity)(), (std::numeric_limits<float>::quiet_NaN)(), 80.0f})
+    {
+        Require(FAILED(ArrangeMeasuredActions(sizes, invalid, D2D1::SizeF(8.0f, 6.0f), bounds, result)) && unchanged(),
+                "invalid or narrower-than-measured viewport publishes nothing");
+    }
+    Require(FAILED(ArrangeMeasuredActions(sizes, 248.0f, D2D1::SizeF(8.0f, 6.0f), std::span(bounds).first(3), result)) && unchanged(),
+            "insufficient capacity preserves all outputs");
+    sizes[0].height = (std::numeric_limits<float>::max)();
+    sizes[2].height = (std::numeric_limits<float>::max)();
+    sizes[3].height = (std::numeric_limits<float>::max)();
+    Require(ArrangeMeasuredActions(sizes, 248.0f, D2D1::SizeF(8.0f, 6.0f), bounds, result) == HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW) && unchanged(),
+            "height overflow publishes nothing");
+    Require(SUCCEEDED(ArrangeMeasuredActions({}, 248.0f, {}, bounds, result)) && result.rowCount == 0 && result.heightDip == 0.0f,
+            "empty group has no rows or height");
+    const std::array<D2D1_SIZE_F, 2> hidden{};
+    Require(SUCCEEDED(ArrangeMeasuredActions(hidden, 248.0f, {}, bounds, result)) && result.rowCount == 0 && bounds[0].right == 0.0f,
+            "all-hidden group has empty geometry");
+
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(L"Conserver les deux versions du document");
+    button->SetBounds(D2D1::RectF(10.0f, 20.0f, 200.0f, 100.0f));
+    Require(! button->IsMultiline(), "single-line buttons remain the default");
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(button);
+    unsigned int clicks = 0;
+    button->SetOnClick([&]() { ++clicks; });
+    button->SetMultiline(true);
+    button->SetMultiline(true);
+    Require(button->IsMultiline() && button->HasFocus() && clicks == 0, "wrapping acknowledgement preserves focus and never invokes action");
+    Require(button->OnKeyDown(host, VK_SPACE, 0) && clicks == 1, "wrapped button preserves keyboard invocation");
+    button->SetEnabled(false);
+    Require(! button->Invoke(host, false) && clicks == 1, "disabled wrapped action cannot invoke");
+}
 
 std::string RemoveAsciiWhitespace(const std::string& text)
 {
@@ -1109,6 +1179,8 @@ void TestScrollPanelChildCallbacksCanClearChildrenSafely()
 
 void RunControlTests()
 {
+    TestLocalizedActionLayout();
+    TestMeasuredActionsFailureAndDirectionContracts();
     TestScrollPanelChildCallbacksCanClearChildrenSafely();
     TestGroupedGridHeaderClickTogglesCollapsedStateAndRehomesSelection();
     TestToggleLayoutMetricsReserveTextLaneWhenLabelIsPresent();

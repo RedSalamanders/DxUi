@@ -15,6 +15,15 @@ chrome and checked state are distinct; status meaning also has text and an icon.
 Tab/Shift+Tab, Space, Enter/Escape dispatch and UIA bounds in both hosting modes under the
 [localized adaptive layout plan](../Plans/WIP/LocalizedAdaptiveLayout_2026-09-19.md).
 
+Buttons with acknowledged disclosure state expose ExpandCollapse, consistent state properties and
+state-change notifications. Expand/Collapse requests are idempotent against current acknowledged state,
+reject disabled controls and invoke caller behavior only when a change is requested. Caller callbacks
+run outside the accessibility snapshot mutex and may replace the tree. They own content visibility
+and focus recovery; the provider does not invent a body subtree or directly change application state.
+Clearing disclosure removes the pattern; removed/hidden controls cannot be activated through old
+providers. Native and embedded lifetime/acknowledgement tests qualify this implementation under the
+active plan; it is not a claim of consumer screen-reader acceptance.
+
 
 
 RedXe's adapter supplies widget-local physical coordinates; EmbeddedHost converts them to DIPs exactly once. It extends the generic input

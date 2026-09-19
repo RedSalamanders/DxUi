@@ -36,6 +36,7 @@ using unique_safearray = std::unique_ptr<SAFEARRAY, safearray_deleter>;
 [[nodiscard]] DWRITE_READING_DIRECTION ResolveReadingDirection(FlowDirection flowDirection) noexcept;
 void ResolveAdornmentColors(const ThemePalette& theme, AdornmentTone tone, D2D1_COLOR_F& fill, D2D1_COLOR_F& text) noexcept;
 [[nodiscard]] bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, TextInputAutomationEventKind kind) noexcept;
+void RaiseWindowHostDisclosureChanged(HWND hwnd, const Control* control, bool expanded) noexcept;
 [[nodiscard]] ITextStoreACP* CreateNativeTextInputTextStore(ControlHost& host, Control& control) noexcept;
 void DetachNativeTextInputTextStore(IUnknown* store) noexcept;
 void DisconnectNativeTextInputTextStore(IUnknown* textStore) noexcept;

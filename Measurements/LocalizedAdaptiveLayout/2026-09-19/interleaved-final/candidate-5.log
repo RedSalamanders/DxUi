@@ -1,0 +1,12 @@
+Complex UI clean round 1: 2530.08 completed offscreen FPS; p95 0.5791 ms; private 25714688 bytes
+Complex UI clean round 2: 2632.03 completed offscreen FPS; p95 0.4887 ms; private 25505792 bytes
+Complex UI clean round 3: 2758.79 completed offscreen FPS; p95 0.424 ms; private 25456640 bytes
+Complex UI clean round 4: 2770.87 completed offscreen FPS; p95 0.4072 ms; private 26148864 bytes
+Complex UI clean round 5: 2626.29 completed offscreen FPS; p95 0.4262 ms; private 27164672 bytes
+Complex UI dirty round 1: 571.689 completed offscreen FPS; p95 1.8954 ms; private 27897856 bytes
+Complex UI dirty round 2: 573.248 completed offscreen FPS; p95 2.0696 ms; private 29016064 bytes
+Complex UI dirty round 3: 593.71 completed offscreen FPS; p95 1.8864 ms; private 29175808 bytes
+Complex UI dirty round 4: 586.689 completed offscreen FPS; p95 1.8624 ms; private 29237248 bytes
+Complex UI dirty round 5: 579.871 completed offscreen FPS; p95 1.8751 ms; private 29290496 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\Measurements\LocalizedAdaptiveLayout\2026-09-19\interleaved-final\candidate-5.json

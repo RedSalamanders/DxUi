@@ -45,6 +45,14 @@ remain bounded; hidden content requests no repaint/tick solely to maintain a vis
 French long-sentence fixtures at 96/144/192 DPI and constrained width/height qualify these contracts
 in both native and supplied-device hosts. Library fixtures are synthetic and consumer-independent.
 
+Implementation in progress, 2026-09-19: `ArrangeMeasuredActions` provides ordered, allocation-free
+geometry from already measured sizes, with unchanged outputs on invalid/capacity/overflow failure.
+Hidden `{0,0}` entries retain their index and receive empty bounds. The caller measures overlong
+labels at the available width and reserves the returned action height before laying out body content.
+`Button::SetMultiline` is opt-in for Standard text buttons, with 12/8 DIP per-side text padding.
+The L0/L1 fixture and required configuration, visual and consumer gates remain tracked in the plan;
+these APIs do not claim completion of disclosure/UIA or application adoption.
+
 DxUi owns the implemented controls in `src/Controls` and their standalone tests in `Tests/Controls`.
 Source is edited in place here; historical import records do not freeze it. Consumer-specific bridges remain
 separate work as recorded in capabilities.json.

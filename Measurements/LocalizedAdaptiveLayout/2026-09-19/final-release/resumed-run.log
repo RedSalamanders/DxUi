@@ -1,0 +1,40 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+Complex UI clean round 1: 2232.04 completed offscreen FPS; p95 0.508 ms; private 26828800 bytes
+Complex UI clean round 2: 2331.99 completed offscreen FPS; p95 0.4664 ms; private 26451968 bytes
+Complex UI clean round 3: 2293.16 completed offscreen FPS; p95 0.5092 ms; private 27996160 bytes
+Complex UI clean round 4: 2321.59 completed offscreen FPS; p95 0.4994 ms; private 28295168 bytes
+Complex UI clean round 5: 2315.16 completed offscreen FPS; p95 0.4655 ms; private 28332032 bytes
+Complex UI dirty round 1: 516.406 completed offscreen FPS; p95 2.3209 ms; private 28868608 bytes
+Complex UI dirty round 2: 543.209 completed offscreen FPS; p95 2.0492 ms; private 28942336 bytes
+Complex UI dirty round 3: 565.923 completed offscreen FPS; p95 1.9552 ms; private 29122560 bytes
+Complex UI dirty round 4: 566.6 completed offscreen FPS; p95 1.9225 ms; private 29200384 bytes
+Complex UI dirty round 5: 562.556 completed offscreen FPS; p95 2.1048 ms; private 29126656 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\reports\Performance-x64-Release-dfd580cb00764f1981484fb8b0a42e59.json
+Running ReadOnly (x64 Release)
+PASS ReadOnly (0 capability skips recorded)
+Running ComboBox (x64 Release)
+PASS ComboBox (0 capability skips recorded)
+Running Tree (x64 Release)
+PASS Tree (0 capability skips recorded)
+Running Tooltip (x64 Release)
+PASS Tooltip (0 capability skips recorded)
+Running Rendering (x64 Release)
+PASS Rendering (0 capability skips recorded)
+Running Animation (x64 Release)
+PASS Animation (0 capability skips recorded)
+Running Accessibility (x64 Release)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 Release)
+PASS WindowHost (0 capability skips recorded)
+All 8 requested suites passed.

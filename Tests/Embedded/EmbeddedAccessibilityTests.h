@@ -32,8 +32,64 @@ struct TestEmbeddedAccessibilitySite final : DxUi::EmbeddedAccessibilitySite
     }
 };
 
+static void TestEmbeddedDisclosureAccessibility(GraphicsFixture& gpu)
+{
+    EmbeddedScene scene;
+    Hr(scene.Initialize(gpu.device.get()), "disclosure supplied-device scene");
+    auto& view    = scene.view;
+    auto controls = std::make_unique<DxUi::Panel>();
+    auto* header  = controls->AddChild<DxUi::Button>(L"Afficher les détails du traitement");
+    header->SetBounds(D2D1::RectF(12, 12, 300, 48));
+    header->SetDisclosureExpanded(false);
+    auto* body = controls->AddChild<DxUi::Checkbox>(L"Appliquer aux éléments similaires");
+    body->SetBounds(D2D1::RectF(12, 60, 320, 96));
+    body->SetVisible(false);
+    unsigned int clicks = 0;
+    header->SetOnClick([&]()
+    {
+        ++clicks;
+        const bool expanded = ! header->GetDisclosureExpanded().value();
+        if (! expanded && body->HasFocus())
+            view.Controls().SetFocusControl(header);
+        body->SetVisible(expanded);
+        header->SetDisclosureExpanded(expanded);
+    });
+    view.Controls().SetRoot(std::move(controls));
+    Hr(view.Prepare(720, 510, 144), "prepare disclosure");
+    auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
+    DxUi::EmbeddedAccessibilityPlacement placement{{0, 0, 720, 510}, true};
+    Hr(view.AttachAccessibility(site, 0x2222, placement), "attach disclosure accessibility");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    Hr(view.GetAccessibilityProvider(root.put()), "disclosure provider root");
+    site->root = root.get();
+    wil::com_ptr_nothrow<IRawElementProviderFragment> headerProvider;
+    Hr(root->ElementProviderFromPoint(36, 36, headerProvider.put()), "hit disclosure");
+    Check(bool(headerProvider), "disclosure header is present");
+    wil::com_ptr_nothrow<IExpandCollapseProvider> pattern;
+    Hr(headerProvider.query_to(pattern.put()), "embedded disclosure pattern");
+    Hr(pattern->Expand(), "expand embedded disclosure");
+    Check(clicks == 1 && body->IsVisible(), "embedded action invokes caller once");
+    Hr(view.Prepare(720, 510, 144), "prepare expanded body");
+    Hr(view.UpdateAccessibility(placement), "publish expanded disclosure");
+    ExpandCollapseState state{};
+    Hr(pattern->get_ExpandCollapseState(&state), "read published expanded state");
+    Check(state == ExpandCollapseState_Expanded, "embedded state follows coherent snapshot");
+    Hr(pattern->Expand(), "idempotent embedded expand");
+    Check(clicks == 1, "expanded embedded action does not toggle again");
+    view.Controls().SetFocusControl(body);
+    Hr(pattern->Collapse(), "collapse embedded disclosure");
+    Check(clicks == 2 && header->HasFocus() && ! body->IsVisible(), "caller restores focus before hiding body");
+    Hr(view.Prepare(720, 510, 144), "prepare collapsed body");
+    Hr(view.UpdateAccessibility(placement), "publish collapsed disclosure");
+    Hr(pattern->get_ExpandCollapseState(&state), "read published collapsed state");
+    Check(state == ExpandCollapseState_Collapsed, "embedded collapsed state agrees");
+    view.Detach();
+    Check(pattern->Expand() == UIA_E_ELEMENTNOTAVAILABLE, "retained disclosure provider disconnects on detach");
+}
+
 static void TestEmbeddedAccessibility(GraphicsFixture& gpu)
 {
+    TestEmbeddedDisclosureAccessibility(gpu);
     EmbeddedScene scene;
     Hr(scene.Initialize(gpu.device.get(), {}, true), "UIA supplied-device scene");
     auto& view = scene.view;

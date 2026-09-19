@@ -1,7 +1,7 @@
 # Localized adaptive layout and interaction readiness
 
 Status: **ACTIVE**. Planned 2026-09-19 at `b125edbf4cdd639d1cabd686f9dc3fe8aab1f374`.
-Implementation has not started. This plan owns generic capability work; RedSalamander I26 owns
+Implementation is in progress. This plan owns generic capability work; RedSalamander I26 owns
 application presentation, conflict policy, settings, localization and product screenshots.
 
 ## Authority and boundary
@@ -53,16 +53,95 @@ until its separate product gates pass, then disables the shared recurring contin
 - [ ] Add a bounded synthetic fixture with long French actions/paragraphs, Unicode values, checkbox,
   expandable graph, fixed actions and selected grid detail at 480/640/760 DIP and short height.
   Give it an identity/hash and run the same fixture against the unchanged library before implementation.
+- [x] Retain the first independent French action-layout witness at 480/640/760 DIP, using 96/144/192/96
+  pixel-rounding scales. Existing StackPanel overflows; measured action flow passes. This partial
+  fixture does not complete the full scene or physical DPI qualification above.
 - [ ] Retain correctness failures and common complex-UI plus targeted performance receipts, exact
   source/config/compiler/device identity, raw repetitions and allocation/resource counts.
-- [ ] Record the existing APIs and smallest generic extensions chosen. This is an engineering
+- [x] Record the existing APIs and smallest generic extensions chosen. This is an engineering
   decision, not an unresolved product question. Do not add a control merely to match a mockup.
 
 Exit: library-independent witnesses, a retained matched baseline and explicit implementation map.
 
 ### L0 checkpoint, 2026-09-19
 
-Source remains `b125edbf4cdd639d1cabd686f9dc3fe8aab1f374`, with planning-only changes. The common
+Latest continuation: final x64 Debug and Release each cover all 18 suites after the disclosure-event
+correction; Menu has nine/eight foreground capability skips respectively, others zero. Release resumed
+eight unfinished suites against the same binary after an interrupted execution session. Final ASan
+and all three ARM64 cross-builds are already retained. See `final-debug`, `final-release`, `full-asan`
+and `arm64-builds` under the measurement date. Final five-theme gallery was published and visually
+reviewed: the French multiline tile now fits its 128-DIP tile without caption overlap.
+
+The [ten alternating paired processes](../../../Measurements/LocalizedAdaptiveLayout/2026-09-19/interleaved-final/README.md)
+retain every flag and do not confirm a systematic common-fixture regression; all deterministic
+resource budgets are unchanged. Clean process-memory variation remains explicitly documented, not
+converted to a threshold waiver or equivalence claim. Next: validate a clean immutable revision,
+then explicitly adopt that pin and measure the consumer; native/product and long-run gates stay open.
+The ignored personal `src/DxUi.vcxproj.user` remains untouched and requires clean-checkout dependency
+validation. The consumer Checkbox implementation is committed as `df8fbc81`.
+
+Current continuation after commits `f7fe1e4` (library plan) and consumer `9d3318382`:
+
+- Added `ArrangeMeasuredActions` in canonical public header/controls: allocation-free ordered geometry,
+  whole-control wrapping, RTL, hidden entries, and atomic invalid/capacity/overflow failure.
+- Standard Buttons gain opt-in multiline paint with 12/8-DIP per-side padding; existing default/other
+  variants remain unchanged. Application policy and text-measurement invalidation remain caller-owned.
+- [Baseline](../../../Measurements/LocalizedAdaptiveLayout/2026-09-19/action-flow-baseline/README.md)
+  retains the expected failure, unchanged library input, raw common benchmark, fixture and suite receipt.
+  The fixture changed only by clang-format whitespace afterward; both fingerprints are retained.
+- [Candidate evidence](../../../Measurements/LocalizedAdaptiveLayout/2026-09-19/action-flow-first-candidate/README.md):
+  Release Control, Rendering and Embedded passed with zero skips. Assertions cover fit, order,
+  RTL/hidden/empty actions, unchanged outputs on error, overflow, focus/keyboard/disabled behavior,
+  and actual multiple-line text pixels. Targeted median: 847 -> 426 us per 24,000 layouts.
+- Common performance acceptance is OPEN: first and third comparisons flagged process memory;
+  the intervening repeat passed. Raw runs are retained; no rebaseline or waiver. The expanded-suite
+  run records an unpaired common benchmark and establishes correctness only. Investigate variability
+  using isolated retained baseline/candidate executables before pin adoption.
+- Added usage/contract docs and regenerated the five-theme gallery with a French multiline tile.
+  Review revealed the new 72-DIP button needs a taller gallery tile; correct that before final publish.
+- Debug Control/Rendering/Embedded/Foundation/Accessibility/Animation/WindowHost passed with zero skips.
+  Added disclosure ExpandCollapse state/property/events and native snapshot refresh on acknowledged
+  state changes/clear. Requests are idempotent and invoke outside the snapshot mutex; callback root
+  replacement is safe. Native and embedded disclosure tests pass, including caller-owned body hiding
+  and focus recovery. Failed intermediate root-alias/stale-snapshot cases remain in the task logs.
+- The corrected taller multiline gallery tile is built in Debug; final Release publish remains due.
+  An isolated baseline worktree at `f7fe1e4` was created at
+  `C:/Users/eric/.codex/worktrees/layout-performance-baseline/DxUi` to resolve the memory variability
+  without changing either active checkout. Its independent Release build completed and five serial
+  fresh-process measurements preserve the original compiled source/fixture identities. Unchanged
+  baseline dirty private-byte medians range 28,921,856–30,588,928, exceeding the comparison's 2% band.
+  Original and flagged receipts remain retained; candidate process analysis is pending.
+  Logs: `C:/RedSalamander.Perf/evidence/i26-ui/dxui-layout-*` and `dxui-localized-*`.
+- Skills/spec validation passes. Dependency validation still rejects personal `src/DxUi.vcxproj.user`;
+  preserve it. The pre-existing `DxUi.cpp:33` alignment is corrected and the full formatting check
+  passed before the latest fixture addition. Full configuration matrix remains open.
+- Added an independent short-viewport scene containing French/unbroken Unicode text, a checked
+  control, graph, selected Grid/detail and fixed measured actions. It exercises 480/640/760 DIP and
+  logical 96/144/192/96 DPI, body scrolling, hit targets, focus/state retention and allocation-free
+  clean composition. Release checks pass after servicing the documented initial discovery tick
+  before asserting hidden-graph idle. This is not native mixed-DPI consumer evidence.
+- Full Release and Debug runs each passed all 18 suites, with nine Menu foreground-capability skips
+  and zero skips in the other suites. Their receipts are retained under `full-release`/`full-debug`.
+  An additional review fixed missing native disclosure notifications and a state-only early-out in
+  embedded notification detection. A real native UIA subscriber now verifies both transitions;
+  targeted Debug Accessibility/Embedded pass zero skips in `disclosure-events`. Full configuration
+  receipts before that correction do not qualify it. ASan Debug passed its detection probe and
+  16 suites before the execution session disappeared during Accessibility at 12:18 UTC. Its partial
+  log and completed receipts are retained in `full-asan`; Accessibility/WindowHost resumed against
+  the same binaries and passed with zero skips. All 18 ASan suites are covered across these two
+  invocations. ARM64 Debug/Release/ASan cross-builds passed (retained in `arm64-builds`); no native
+  ARM64 runtime claim is made. Final Release rebuilding/tests are now running serially.
+- The full scene now takes only control-configuration/layout adapters; its identical fixture hash
+  is `25F4A6935D39F605D0BC2E6B589DF46E4AC158392951D5B81D12B1CD598C4C6F`. The unchanged library
+  fails measured action bounds in the isolated worktree (`short-viewport-baseline`); the candidate
+  passes in full Debug. This later baseline does not replace the original pre-implementation fixture.
+- Five fresh candidate processes do not consistently reproduce the memory flag (+0.65% median
+  dirty private bytes across process medians, overlapping ranges). Clean frame p95 and dirty CPU
+  composition p95 still need interleaved timing investigation; no performance acceptance is claimed.
+  Next: finish the matrix, paired analysis and gallery, then explicitly adopt a qualified immutable
+  commit. Consumer Checkbox wiring uses its existing pin and passes native Toggle/Space/pointer tests.
+
+Initial characterization used `b125edbf4cdd639d1cabd686f9dc3fe8aab1f374`, with planning-only changes. The common
 Release fixture was freshly rebuilt and its five raw rounds retained in
 [the baseline record](../../../Measurements/LocalizedAdaptiveLayout/2026-09-19/README.md).
 This is unpaired and does not complete the targeted-fixture or candidate validation gates.
@@ -148,5 +227,5 @@ configuration. Run `validate-skills.ps1`, `validate-specs.ps1`, `validate-depend
 stop unrelated applications. Application screenshots exclusively use the consumer scenario harness;
 notified focus is limited to its authorized interaction lane.
 
-This planning change is documentation-only: no compiled inputs, implemented API claims, gallery
-pixels or performance baseline changed. Baseline collection precedes L1, not this update.
+The initial planning change was documentation-only. Current implementation and its incomplete
+qualification are recorded in the checkpoint above; baseline collection preceded shared code edits.

@@ -1,0 +1,37 @@
+Ten predeclared alternating AB/BA pairs; all processes and flags retained.
+Each process: five clean and five dirty rounds of forty frames.
+Exploratory paired bootstrap percentile interval: 10000 resamples, seed 20260919.
+This interval is not an equivalence test or a replacement for the existing investigation bands.
+scenario/metric | baseline median | candidate median | median paired delta % | interval % | flags/10
+clean/fps | 2537.793708 | 2589.394343 | -2.520 | [-6.234, 7.170] | 3
+clean/frameP50Ms | 0.376500 | 0.362650 | 0.653 | [-6.682, 7.690] | 3
+clean/frameP95Ms | 0.461850 | 0.458050 | 2.508 | [-9.742, 12.555] | 5
+clean/prepareP95Ms | 0.000300 | 0.000300 | 0.000 | [-33.333, 0.000] | 1
+clean/composeCpuP95Ms | 0.011300 | 0.011500 | 2.662 | [-7.507, 11.966] | 4
+clean/privateBytes | 26761216.000000 | 27267072.000000 | 3.343 | [-2.902, 4.169] | 6
+clean/privatePeakBytes | 26923008.000000 | 27291648.000000 | 1.388 | [-2.187, 3.595] | 4
+clean/workingSetBytes | 40220672.000000 | 40923136.000000 | 1.841 | [-1.781, 2.732] | 5
+clean/workingSetPeakBytes | 40595456.000000 | 40927232.000000 | 0.712 | [-1.363, 2.431] | 4
+clean/surfaceBytes | 3686400.000000 | 3686400.000000 | 0.000 | [0.000, 0.000] | 0
+clean/replacementPeakBytes | 3686400.000000 | 3686400.000000 | 0.000 | [0.000, 0.000] | 0
+clean/cppAllocations | 0.000000 | 0.000000 | 0.000 | zero in every round | 0
+clean/composeAllocations | 0.000000 | 0.000000 | 0.000 | zero in every round | 0
+dirty/fps | 581.708328 | 580.052769 | -0.930 | [-1.376, 1.249] | 0
+dirty/frameP50Ms | 1.686800 | 1.694700 | 0.412 | [-0.555, 1.147] | 0
+dirty/frameP95Ms | 1.951800 | 1.915500 | -0.550 | [-4.011, 1.505] | 0
+dirty/prepareP95Ms | 1.247700 | 1.260850 | 1.483 | [-1.860, 2.679] | 0
+dirty/composeCpuP95Ms | 0.017200 | 0.017300 | -1.114 | [-5.031, 6.587] | 3
+dirty/privateBytes | 28999680.000000 | 28917760.000000 | -0.423 | [-2.333, 1.133] | 1
+dirty/privatePeakBytes | 29034496.000000 | 29083648.000000 | -0.979 | [-2.002, 1.134] | 1
+dirty/workingSetBytes | 42588160.000000 | 42442752.000000 | -0.768 | [-1.626, 0.982] | 0
+dirty/workingSetPeakBytes | 42633216.000000 | 42479616.000000 | -0.875 | [-1.720, 0.894] | 0
+dirty/surfaceBytes | 3686400.000000 | 3686400.000000 | 0.000 | [0.000, 0.000] | 0
+dirty/replacementPeakBytes | 3686400.000000 | 3686400.000000 | 0.000 | [0.000, 0.000] | 0
+dirty/cppAllocations | 2160.000000 | 2160.000000 | 0.000 | [0.000, 0.000] | 0
+dirty/composeAllocations | 0.000000 | 0.000000 | 0.000 | zero in every round | 0
+baseline/sourceFingerprint: 70A68A2DBCDBD6B4D5B5FF93AAE537F1176AB5530F618DD98E678A65D60F4A40
+baseline/executableSha256: FCBB6D44025141D71C6D2F3BB21E3934B666DADB9AF949D7CDFA01FC491EEAFF
+baseline/benchmarkSha256: 9DCFBC39C2F57B76F9106D268FD5B9F382E5A7950E85EE33BC4069DF9C64D461
+candidate/sourceFingerprint: 3F1044731A810BD9AD4C55FD1034A52CADDEC4605DC14BE22D4720F4968884B9
+candidate/executableSha256: F87B7EA01FFC9686DC018E285625F3B86CFA91A579C8A13A69EDC0DD87D1B1D4
+candidate/benchmarkSha256: 9DCFBC39C2F57B76F9106D268FD5B9F382E5A7950E85EE33BC4069DF9C64D461

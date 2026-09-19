@@ -1949,6 +1949,20 @@ Button::Button(std::wstring text) : _text(std::move(text))
     SetFocusable(true);
 }
 
+void Button::SetMultiline(bool multiline) noexcept
+{
+    if (_multiline != multiline)
+    {
+        _multiline = multiline;
+        RequestInvalidate();
+    }
+}
+
+bool Button::IsMultiline() const noexcept
+{
+    return _multiline;
+}
+
 void Button::SetText(std::wstring text)
 {
     if (_text != text)
@@ -2007,6 +2021,10 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
         _disclosureTransition.initialized   = true;
         _disclosureTransition.active        = false;
         RequestInvalidate();
+        if (ControlHost* const host = GetHost())
+        {
+            host->RefreshAccessibilitySnapshot();
+        }
         return;
     }
 
@@ -2031,6 +2049,16 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
         _disclosureTransition.progress = target;
     }
     RequestInvalidate();
+    if (host)
+    {
+        host->RefreshAccessibilitySnapshot();
+        RaiseWindowHostDisclosureChanged(host->GetHwnd(), this, expanded);
+    }
+}
+
+std::optional<bool> Button::GetDisclosureExpanded() const noexcept
+{
+    return _disclosureExpanded;
 }
 
 void Button::ClearDisclosureState() noexcept
@@ -2040,6 +2068,10 @@ void Button::ClearDisclosureState() noexcept
         _disclosureExpanded.reset();
         _disclosureTransition = {};
         RequestInvalidate();
+        if (ControlHost* const host = GetHost())
+        {
+            host->RefreshAccessibilitySnapshot();
+        }
     }
 }
 
@@ -2213,12 +2245,14 @@ void Button::Paint(ControlHost& host) const
     }
     else
     {
-        const D2D1_RECT_F textRect = D2D1::RectF(GetBounds().left + style.textOffsetXDip,
-                                                 GetBounds().top + style.textOffsetYDip,
-                                                 GetBounds().right + style.textOffsetXDip,
-                                                 GetBounds().bottom + style.textOffsetYDip);
+        const float padX           = _multiline ? 12.0f : 0.0f;
+        const float padY           = _multiline ? 8.0f : 0.0f;
+        const D2D1_RECT_F textRect = D2D1::RectF(GetBounds().left + style.textOffsetXDip + padX,
+                                                 GetBounds().top + style.textOffsetYDip + padY,
+                                                 (std::max)(GetBounds().left + padX, GetBounds().right + style.textOffsetXDip - padX),
+                                                 (std::max)(GetBounds().top + padY, GetBounds().bottom + style.textOffsetYDip - padY));
         DrawCenteredText(
-            host, _text, textRect, FontRole::Body, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, flowDirection);
+            host, _text, textRect, FontRole::Body, style.text, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, _multiline, flowDirection);
     }
 }
 
@@ -8140,6 +8174,88 @@ void StackPanel::ApplyLayout()
         mainCursor += rightToLeft ? -childExtent : childExtent;
         first = false;
     }
+}
+
+HRESULT ArrangeMeasuredActions(std::span<const D2D1_SIZE_F> sizes,
+                               float availableWidthDip,
+                               D2D1_SIZE_F gapsDip,
+                               std::span<D2D1_RECT_F> bounds,
+                               MeasuredActionLayout& result,
+                               FlowDirection direction) noexcept
+{
+    if (! std::isfinite(availableWidthDip) || availableWidthDip <= 0.0f || ! std::isfinite(gapsDip.width) || gapsDip.width < 0.0f ||
+        ! std::isfinite(gapsDip.height) || gapsDip.height < 0.0f || bounds.size() < sizes.size() ||
+        (direction != FlowDirection::LeftToRight && direction != FlowDirection::RightToLeft))
+    {
+        return E_INVALIDARG;
+    }
+    for (const auto size : sizes)
+    {
+        if (! std::isfinite(size.width) || ! std::isfinite(size.height) || size.width < 0.0f || size.height < 0.0f || size.width > availableWidthDip ||
+            ((size.width == 0.0f) != (size.height == 0.0f)))
+        {
+            return E_INVALIDARG;
+        }
+    }
+    // First pass validates the total height. No partial bounds can escape on overflow.
+    const auto arrange = [&](bool publish, MeasuredActionLayout& measured) noexcept
+    {
+        double x         = 0.0;
+        double y         = 0.0;
+        double rowHeight = 0.0;
+        size_t rows      = 0;
+        for (size_t index = 0; index < sizes.size(); ++index)
+        {
+            const auto size = sizes[index];
+            if (size.width == 0.0f)
+            {
+                if (publish)
+                {
+                    bounds[index] = {};
+                }
+                continue;
+            }
+            if (rows == 0)
+            {
+                rows = 1;
+            }
+            if (x > 0.0)
+            {
+                if (x + gapsDip.width + size.width > availableWidthDip)
+                {
+                    y += rowHeight + gapsDip.height;
+                    x         = 0.0;
+                    rowHeight = 0.0;
+                    ++rows;
+                }
+                else
+                {
+                    x += gapsDip.width;
+                }
+            }
+            rowHeight = (std::max)(rowHeight, static_cast<double>(size.height));
+            if (y + rowHeight > (std::numeric_limits<float>::max)())
+            {
+                return HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW);
+            }
+            if (publish)
+            {
+                const double left = direction == FlowDirection::RightToLeft ? availableWidthDip - x - size.width : x;
+                bounds[index] =
+                    D2D1::RectF(static_cast<float>(left), static_cast<float>(y), static_cast<float>(left + size.width), static_cast<float>(y + size.height));
+            }
+            x += size.width;
+        }
+        measured = {static_cast<float>(y + rowHeight), rows};
+        return S_OK;
+    };
+    MeasuredActionLayout measured{};
+    const HRESULT hr = arrange(false, measured);
+    if (FAILED(hr))
+    {
+        return hr;
+    }
+    return arrange(true, result);
 }
 
 // --- ScrollPanel ---

@@ -1,0 +1,35 @@
+{
+  "platform": "ARM64",
+  "configuration": "ASan Debug",
+  "execution": "cross-build only; not executed",
+  "sourceHead": "f7fe1e43a87f5cc434e8b73847c2ece3122ab566",
+  "sourceDirty": true,
+  "sourceFingerprint": "3F1044731A810BD9AD4C55FD1034A52CADDEC4605DC14BE22D4720F4968884B9",
+  "outputs": [
+    {
+      "file": "DxUi.lib",
+      "sha256": "955FE1D6C0255FB41F264B283C4B34D054833C859199AD7F4F379E9EBF06A7EF",
+      "bytes": 64296890
+    },
+    {
+      "file": "DxUi.FoundationTests.exe",
+      "sha256": "522E094108597226AED00A61C282F27F00A4E26924FAC48B2541DF1309A7AEB8",
+      "bytes": 6858752
+    },
+    {
+      "file": "DxUi.ControlTests.exe",
+      "sha256": "E1AF591F250A5DCA869880D10B6A46397E9F0B4BC25C3376AC156F3D925238BA",
+      "bytes": 15756288
+    },
+    {
+      "file": "DxUi.EmbeddedTests.exe",
+      "sha256": "F12014DBB2121D69923070168971AF7C9031AE70BACE1A2697BB03774E6A69AB",
+      "bytes": 7371264
+    },
+    {
+      "file": "DxUi.EmbeddedControls.exe",
+      "sha256": "A8332EC5AA29B79015D557103B34B23C8A05C290F43CAB4356690809F099DD28",
+      "bytes": 7036928
+    }
+  ]
+}
