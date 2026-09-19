@@ -65,6 +65,15 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+Latest consumer follow-up: its shared screenshot harness now requires foreground/background pixel
+witnesses for the throughput fixture, retries rejected content with bounded non-activating repaint,
+and verifies absent-color rejection. Final native Debug passes three repetitions and Release one;
+eight current French images are visually reviewed with readable legacy and hosted layers. Earlier
+loss proved intermittent because probes alone also passed before retries. Its original cause is
+unattributed; this is capture integrity qualification, not a DxUi renderer repair or full visual/UIA
+acceptance. No library code/pin changed. Consumer checkpoint routes the next bounded discovery
+localization repair to Sol High; shared layout/publication and physical DPI gates stay open.
+
 Consumer throughput follow-up: RedSalamander now wires the existing pinned disclosure chrome and
 per-card persistence, with focused Debug/Release state passes. Its screenshot review rejects Debug
 legacy text/background loss while Release remains readable; investigate in the consumer/harness
