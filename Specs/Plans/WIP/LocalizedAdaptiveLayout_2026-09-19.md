@@ -65,6 +65,16 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+Latest consumer follow-up: narrow French footer actions now use cached measurements of the existing
+hosted Body font instead of shrinking to 72 DIP. Pause/Resume reserves the larger label width.
+Retained unchanged-fixture Debug evidence fails before and passes after at 480/640/760/480 DIP,
+with active footer targets and reviewed harness captures. Both builds are warning-free; both sandbox
+audits are clean. Eight-redraw medians are 66,405.5/66,561 us; native/Release/resource acceptance is
+still open. This is application layout using the unchanged pin: no shared API/control or gallery
+pixels changed and library gallery regeneration is unnecessary. Next consumer slice is the speed
+dialog help/error overlap. General wrapping, publication/current-main CI, explicit adoption and
+native mixed-DPI gates remain open. Both plans remain ACTIVE.
+
 Latest consumer follow-up: the French discovery action now measures its hosted Body typography
 instead of forcing an 84-DIP slot, with a single retained label/format cache. Independent live bounds
 and text-width assertions fail before and pass after at 480/640/760/480 DIP; reviewed French harness
