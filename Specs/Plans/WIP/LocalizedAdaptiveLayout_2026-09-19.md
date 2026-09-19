@@ -80,6 +80,15 @@ then explicitly adopt that pin and measure the consumer; native/product and long
 The ignored personal `src/DxUi.vcxproj.user` remains untouched and requires clean-checkout dependency
 validation. The consumer Checkbox implementation is committed as `df8fbc81`.
 
+Implementation/evidence commit: `26a3d044843396ce77c347593c04fe0a6016c00f`. The managed clean checkout
+`C:/Users/eric/.codex/worktrees/localized-layout-qualified/DxUi` passed dependency validation (58
+historical origins, 56 owned paths, zero pending records), all nine skills and spec validation
+(81 Markdown files, 20 authority files, one active plan). Original-checkout formatting also passed.
+The personal project file remains intact. RedSalamander's standard updater requires green main CI;
+publication of this tested branch/draft PR has been put to the user as the explicit lifecycle step.
+Do not bypass the updater or claim remote restore/pin adoption before that step. Independent consumer
+settings work can proceed on its existing pin while publication is pending. Both plans remain ACTIVE.
+
 Current continuation after commits `f7fe1e4` (library plan) and consumer `9d3318382`:
 
 - Added `ArrangeMeasuredActions` in canonical public header/controls: allocation-free ordered geometry,
