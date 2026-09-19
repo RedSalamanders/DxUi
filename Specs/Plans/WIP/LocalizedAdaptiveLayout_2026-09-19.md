@@ -65,6 +65,31 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+Latest consumer slice separates measured rate/ETA labels from the history plot using cached
+DirectWrite layouts and existing semantic Label regions; the pinned ThroughputGraph still owns
+the plot/current-rate marker. Normal French 480/640/760-DIP and synthetic long French 480-DIP
+WGC captures are reviewed in I26's `2026-09-19-graph-labels` gallery. Native Debug normal UI checks
+pass 24/24; corrected long-French pixels/bounds/UIA checks pass 3/3. An invisible-label candidate
+and a trailing-whitespace bounds false positive remain explicitly rejected/retained. The final
+build removes one test initializer warning and is clean; no canonical library code/API/pin or
+library gallery pixels changed, so no library gallery regeneration is required for this slice.
+
+I26 now retains a paired resource fixture: 75 popup lifetimes and 4,800 synchronous redraws per
+run, real hidden message pumping, private/working-set/GUI/process handles/CPU totals, and host/device
+attachment return on each close. All four baseline/candidate runs pass 3/3. Actual geometry is
+760 x 384 DIP at native 144 DPI. First-pair 32-redraw medians are about 244 ms versus 253–256 ms;
+repeat medians are 243–245 ms versus 245–246 ms on unchanged candidate source. All samples and
+fixture identity are retained; the larger slowdown did not reproduce and final performance
+qualification remains open. Bounded lifetimes do not qualify GPU/allocations/long soak or zero
+CPU/wakeups. Consumer evidence stays in its repository and does not replace standalone L3 gates.
+Next consumer work is exact-path keyboard/full detail and remaining adaptive/Issues presentation;
+an isolated Release checkout may avoid the independently launched app's exact-output lock.
+Both plans remain ACTIVE. Native mixed-DPI, Full, publication/main CI/explicit pin adoption and
+the unchanged developer-local-settings dependency-validator blocker remain open.
+Documentation closeout passes skills/specs/format. Consumer closeout passes pinned formatting,
+spec inventory, all source/metric/capture identity checks, eight explicit archives (86 files)
+and whole archive inventory (5,049 files). No new library performance or runtime pass is inferred.
+
 Consumer recovery qualification now reuses `DebugSimulateDeviceLoss` from its unchanged pin.
 Test-only hooks leave old consumer resources intact so ordinary rendering must reject the old
 frame and replace the context. Initial Debug evidence passes 3/3; final recovery/hidden/progress
