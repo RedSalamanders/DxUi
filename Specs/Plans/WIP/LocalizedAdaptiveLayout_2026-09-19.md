@@ -65,6 +65,17 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+Latest consumer follow-up: the French discovery action now measures its hosted Body typography
+instead of forcing an 84-DIP slot, with a single retained label/format cache. Independent live bounds
+and text-width assertions fail before and pass after at 480/640/760/480 DIP; reviewed French harness
+images show the complete label. Paired Debug eight-redraw medians are 66,430/66,422.5 us, with one
+14-us cache miss. This is consumer-only geometry repair using the existing pin, not shared action-flow
+adoption or Release/FPS/resource qualification. Narrow footer and long-path defects remain. The
+consumer archives preserve the original sandbox advisory plus a clean post-archive audit. No DxUi
+code/API/gallery pixels changed, so library gallery regeneration is unnecessary for this checkpoint.
+Next consumer work is footer/path and speed-dialog witnesses; library publication/main-CI permission,
+explicit pin adoption and native mixed-DPI gates remain open. Keep both plans ACTIVE.
+
 Consumer discovery-localization follow-up: RedSalamander now loads the open-discovery counter
 sentence from the active satellite and retains a failing English-under-French baseline plus passing
 semantic and harness evidence. Its reviewed 480/760-DIP French captures make the remaining consumer
