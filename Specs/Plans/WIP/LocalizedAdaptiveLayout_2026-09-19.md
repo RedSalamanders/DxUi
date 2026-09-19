@@ -65,6 +65,15 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+Consumer discovery-localization follow-up: RedSalamander now loads the open-discovery counter
+sentence from the active satellite and retains a failing English-under-French baseline plus passing
+semantic and harness evidence. Its reviewed 480/760-DIP French captures make the remaining consumer
+geometry failure more concrete: long task actions clip off the left edge and long source paths lose
+substantial context. No DxUi code or consumer pin changed in that bounded repair. The next Astra High
+slice should convert those observations into measured consumer assertions and adopt this plan's
+qualified action-flow revision only through the supported immutable-pin workflow; publication/main-CI
+permission remains pending and must not be bypassed.
+
 Latest consumer follow-up: its shared screenshot harness now requires foreground/background pixel
 witnesses for the throughput fixture, retries rejected content with bounded non-activating repaint,
 and verifies absent-color rejection. Final native Debug passes three repetitions and Release one;
