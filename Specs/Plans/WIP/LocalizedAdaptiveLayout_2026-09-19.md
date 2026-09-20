@@ -65,6 +65,17 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+Latest consumer step (2026-09-20) moves conflict metadata from a restricted heading-side column
+to a complete measured row below each exact path, with stable separate UIA roles. A retained clean
+old-renderer fixture fails 0/3 as expected; the focused candidate passes 3/3 and final nine-case
+Debug set passes 27/27, zero skips/warnings/errors/audit issues. I26 retains all failed attempts,
+same-fixture timings (about 66.5 ms per eight redraws) and six reviewed French native-144-DPI
+before/after captures. French actions still clip at 480 DIP; complete conflict/Issues presentation,
+short scrolling and final native/AT/Full/Release/performance gates remain open. No library code/API,
+pin or gallery pixels changed, so no library gallery regeneration is needed for this step.
+Next shared dependency is the already-qualified action-flow revision's publication/main CI and
+explicit consumer pin adoption; preserve the original qualification evidence and ownership boundary.
+
 The consumer has committed keyboard-path implementation/evidence as `b859cbc3` and qualified
 the eight-case Release set in a separate short checkout, `C:/RsI26Release`, against the unchanged pin.
 The first longer checkout failed Git path-length restoration; shortening the workspace resolves
