@@ -65,11 +65,13 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
-The consumer has committed keyboard-path implementation/evidence as `b859cbc3` and is qualifying
+The consumer has committed keyboard-path implementation/evidence as `b859cbc3` and qualified
 the eight-case Release set in a separate short checkout, `C:/RsI26Release`, against the unchanged pin.
 The first longer checkout failed Git path-length restoration; shortening the workspace resolves
-that setup failure without editing generated dependency source. The current Release lane remains
-pending. Resume it through I26 before another build; no application was stopped to free an output.
+that setup failure without editing generated dependency source. Release passes 24/24 with zero skips
+and compiler warnings/errors. Four native-144-DPI French captures are reviewed; its original sandbox
+advisory and clean post-archive audit are both retained in I26. No application was stopped to free an
+output. These consumer results do not replace Full, final performance, native mixed-DPI or AT gates.
 
 Latest consumer slice adds exact-path keyboard access through an application-owned Label adapter,
 existing focus chrome/tooltip and the canonical consumer clipboard helper. The base focus callback
