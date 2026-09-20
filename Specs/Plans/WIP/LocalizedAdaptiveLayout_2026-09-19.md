@@ -65,6 +65,20 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+**Consumer enumeration settlement hook, 2026-09-20:** I26 now exposes pane-scoped UI-thread success
+and failure receipts after queued work, exact attempted folder/status, reentrant stale suppression
+and safe self-unsubscription. Reused 18/18 baseline, two retained 15/18 failed iterations (moved-from
+success path, then absent early-failure path) and final verified 18/18 matrix. The consumer also fixes
+two C4242 initializer sites and corrects its previous zero-warning claim; this build has zero warnings.
+Paired existing renderer common median/p95: 66584/66851 -> 66601/719862 us;
+differing: 66590/66863 -> 66594/66799 us. The common p95 spike is retained without an assumed cause.
+An unchanged-C++ confirmation also passes 18/18 and returns to common 66539/66835, differing
+66548/66834 us; all six consumer code-file hashes match. This is focused Debug evidence, not final
+resource/native/configuration acceptance. The full FileOperationState owner transaction, visible
+inspection controls and return remain open. No library source/API/pin/visual changes; docs/gallery
+review requires no regenerated images. Shared-layout publication approval, exact-main qualification
+and explicit consumer adoption remain separate gates. Both plans remain ACTIVE.
+
 **Consumer pane-selection component, 2026-09-20:** I26 adds view-lifetime/visit/generation validation
 and provider-rule-aware unique item selection, including truthful pending/failed enumeration and
 reentrant-owner protection. Baseline 12/12, initial 9/12 and final 18/18 native Debug receipts are
