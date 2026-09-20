@@ -47,9 +47,12 @@ void TestDisclosureNotifiesNativeAutomationClient()
     std::atomic<bool> ready{false};
     std::atomic<bool> finished{false};
     std::atomic<HRESULT> setup{E_PENDING};
-    const HWND hwnd = window.Hwnd();
+    std::atomic<const char*> setupStage{"thread start"};
+    const ULONGLONG setupStarted = GetTickCount64();
+    const HWND hwnd              = window.Hwnd();
     std::jthread client([&]
     {
+        setupStage.store("CoInitializeEx");
         const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
         const auto uninitialize   = wil::scope_exit([&]
         {
@@ -60,12 +63,21 @@ void TestDisclosureNotifiesNativeAutomationClient()
         wil::com_ptr_nothrow<IUIAutomationElement> element;
         HRESULT hr = initialized;
         if (SUCCEEDED(hr))
+        {
+            setupStage.store("CoCreateInstance(CUIAutomation)");
             hr = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(automation.put()));
+        }
         if (SUCCEEDED(hr))
+        {
+            setupStage.store("ElementFromHandle");
             hr = automation->ElementFromHandle(hwnd, element.put());
+        }
         PROPERTYID property = UIA_ExpandCollapseExpandCollapseStatePropertyId;
         if (SUCCEEDED(hr))
+        {
+            setupStage.store("AddPropertyChangedEventHandlerNativeArray");
             hr = automation->AddPropertyChangedEventHandlerNativeArray(element.get(), TreeScope_Element, nullptr, observer.get(), &property, 1);
+        }
         setup.store(hr);
         ready.store(true);
         if (SUCCEEDED(hr))
@@ -85,7 +97,10 @@ void TestDisclosureNotifiesNativeAutomationClient()
         }
         return predicate();
     };
-    Require(waitUntil([&] { return ready.load(); }) && SUCCEEDED(setup.load()), "subscribe native disclosure property events");
+    const bool subscribed = waitUntil([&] { return ready.load(); });
+    std::cerr << "    [UIA] disclosure subscription stage=" << setupStage.load() << " ready=" << subscribed << " hr=0x" << std::hex
+              << static_cast<unsigned long>(setup.load()) << std::dec << " elapsedMs=" << GetTickCount64() - setupStarted << '\n';
+    Require(subscribed && SUCCEEDED(setup.load()), "subscribe native disclosure property events");
     button->SetDisclosureExpanded(true);
     Require(waitUntil([&] { return observer->changes.load() >= 1; }) && observer->state.load() == ExpandCollapseState_Expanded,
             "native automation client receives acknowledged expansion");

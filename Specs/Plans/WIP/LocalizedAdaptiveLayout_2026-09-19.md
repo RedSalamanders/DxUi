@@ -65,6 +65,16 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+**CI subscription diagnostic, 2026-09-20:** PR #18's pull-request run `35521096235` passed all
+six native configurations and external-consumer integration, including native ARM64 ASan. Its
+duplicate push run `35521088120` failed x64 Release at `subscribe native disclosure property events`;
+the existing three-second setup check printed neither HRESULT nor COM stage. The PR remains draft
+and this failure is retained at `C:/RedSalamander.Perf/evidence/i26-ui/dxui-pr18-push-ci-failure.log`.
+The test now records stage, ready flag, HRESULT and elapsed setup time on every run. No timeout,
+assertion or production behavior is changed; a green duplicate does not explain the failed run.
+Local and CI diagnostic validation follow before qualification. This test-only diagnostic changes
+no public API or pixels, so existing usage documentation and gallery remain applicable.
+
 **Handoff and checklist reconciliation, 2026-09-20:** qualified implementation `26a3d044` is
 unchanged in the published branch `codex/localized-adaptive-layout`; [draft PR #18](https://github.com/RedSalamanders/DxUi/pull/18)
 is now concrete and CI is running. This supersedes the old unpublished-branch blocker. Exact-main
