@@ -65,6 +65,14 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+The consumer clipboard gate is now repaired: snapshots retain the returned storage-medium type
+instead of an enumerated acceptable-media mask. An owned-object probe reproduces the original
+type mismatch; native tests verify exact rich-format bytes and three guarded OLE flush/readback
+cycles. Focused checks pass 6/6; the final ten-case Debug set passes 30/30, no skips/warnings/errors
+or audit issues. I26 retains the original 25/27 and two test-authoring failures with full provenance.
+Only consumer test code changed; library source/API/pin/gallery pixels are untouched. Qualified
+publication/main-CI approval and explicit adoption remain pending; all other final gates stay open.
+
 Latest consumer follow-up removes stale ordinary transfer paths, mini-progress and concurrency
 text from active conflicts, and measures the card from its decision content/actions. The prior
 policy-only progress flag did not detect the painted mini-bar. I26 now retains actual hosted-tree
