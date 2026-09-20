@@ -50,13 +50,13 @@ until its separate product gates pass, then disables the shared recurring contin
 - [x] Check drift and map each need to an existing API or demonstrated generic gap: measured wrapping
   actions, Unicode labels, checkbox/disclosure state, constrained body/actions, Grid/detail layout,
   font/DPI/validation invalidation and coherent UIA/input bounds.
-- [ ] Add a bounded synthetic fixture with long French actions/paragraphs, Unicode values, checkbox,
+- [x] Add a bounded synthetic fixture with long French actions/paragraphs, Unicode values, checkbox,
   expandable graph, fixed actions and selected grid detail at 480/640/760 DIP and short height.
   Give it an identity/hash and run the same fixture against the unchanged library before implementation.
 - [x] Retain the first independent French action-layout witness at 480/640/760 DIP, using 96/144/192/96
   pixel-rounding scales. Existing StackPanel overflows; measured action flow passes. This partial
   fixture does not complete the full scene or physical DPI qualification above.
-- [ ] Retain correctness failures and common complex-UI plus targeted performance receipts, exact
+- [x] Retain correctness failures and common complex-UI plus targeted performance receipts, exact
   source/config/compiler/device identity, raw repetitions and allocation/resource counts.
 - [x] Record the existing APIs and smallest generic extensions chosen. This is an engineering
   decision, not an unresolved product question. Do not add a control merely to match a mockup.
@@ -64,6 +64,21 @@ until its separate product gates pass, then disables the shared recurring contin
 Exit: library-independent witnesses, a retained matched baseline and explicit implementation map.
 
 ### L0 checkpoint, 2026-09-19
+
+**Handoff and checklist reconciliation, 2026-09-20:** qualified implementation `26a3d044` is
+unchanged in the published branch `codex/localized-adaptive-layout`; [draft PR #18](https://github.com/RedSalamanders/DxUi/pull/18)
+is now concrete and CI is running. This supersedes the old unpublished-branch blocker. Exact-main
+validation and explicit consumer adoption remain required; a draft PR is not a qualified main pin.
+Completed fixture/API/state items below now point to existing source and retained receipts rather
+than remaining unchecked behind historical prose. `Tests/Controls/LocalizedLayoutFixture.h`,
+`TestMeasuredActionsFailureAndDirectionContracts`, `Tests/Embedded/LocalizedLayoutTests.h`,
+`TestMultilineButtonPaintUsesMultipleTextRows` and disclosure native/embedded tests establish these
+bounded claims. The full scene baseline was collected later with identical fixture adapters, as
+recorded below; it does not replace the original pre-implementation baseline. Checkbox was an
+application wiring defect repaired on the existing pin; no duplicate shared control was needed.
+No new concrete control was added. Broad native interaction, cache invalidation, Grid-specific and
+final resource/consumer gates remain unchecked; no product acceptance follows from this reconciliation.
+
 
 **Consumer inspection controls/outcomes, 2026-09-20:** I26 now exposes full-width French source/
 destination inspection controls bound to the painted immutable prompt, localized measured result rows
@@ -493,14 +508,14 @@ unchanged shared code before introducing reusable measured wrapping.
 
 ## L1 — Measured adaptive layout
 
-- [ ] Implement demonstrated gaps. Input is ordered children, available bounds, typography and
+- [x] Implement demonstrated gaps. Input is ordered children, available bounds, typography and
   spacing; output is desired height and coherent child/clip/scroll rectangles. Wrap whole actions,
   then overlong individual labels; preserve caller-owned order/defaults.
 - [ ] Invalidate on text/font/DPI/bounds/visibility/error changes and retain measurements between
   unchanged frames. Text shaping/layout stays outside clean composition.
-- [ ] Support complete Unicode text and short body viewports with separate actions; preserve scroll
+- [x] Support complete Unicode text and short body viewports with separate actions; preserve scroll
   anchors and visible focus. No host activation, new worker or autonomous timer.
-- [ ] Test empty/one/many actions, a label wider than its viewport, unbroken Unicode values,
+- [x] Test empty/one/many actions, a label wider than its viewport, unbroken Unicode values,
   repeated 96->144->96 DPI, 192-DPI logical layout, hide/removal and allocation/capacity failure.
 
 Exit: labels fit, required controls retain positive hit targets, and paint/input/UIA geometry agrees
@@ -513,15 +528,15 @@ in native and embedded hosts.
   acknowledged focus/state after success, failure, removal and reflow. Do not import file-operation
   policy or pane navigation into library fixtures. Existing API passes are not product journey passes.
 
-- [ ] Correct demonstrated Checkbox paint/Toggle mismatches; distinguish checked/focused/hovered/
+- [x] Correct demonstrated Checkbox paint/Toggle mismatches; distinguish checked/focused/hovered/
   pressed/disabled. Model acknowledgement emits no additional user callback.
-- [ ] Reuse or extend disclosure with keyboard activation and UIA ExpandCollapse; collapse removes
+- [x] Reuse or extend disclosure with keyboard activation and UIA ExpandCollapse; collapse removes
   child navigation/render work and returns child focus to the header.
 - [ ] Qualify Grid row geometry with external wrapped detail, stable selection/identity and bounded
   virtualization. The application owns record meaning and recovery actions.
 - [ ] Test Tab/Shift+Tab, Space, Enter/Escape forwarding, pointer release/capture loss, root replacement,
   hidden-focus pruning and focus after resize/DPI. Include high contrast and reduced motion.
-- [ ] New concrete controls require catalog/factory, populated gallery and behavior tests together;
+- [x] New concrete controls require catalog/factory, populated gallery and behavior tests together;
   extend existing controls/examples where sufficient, without duplicate implementations.
 
 Exit: state/input/UIA coherence is proven; real consumer screen-reader, IME/touch and native ARM64
