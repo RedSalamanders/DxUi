@@ -65,6 +65,17 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+**Consumer pane-selection component, 2026-09-20:** I26 adds view-lifetime/visit/generation validation
+and provider-rule-aware unique item selection, including truthful pending/failed enumeration and
+reentrant-owner protection. Baseline 12/12, initial 9/12 and final 18/18 native Debug receipts are
+retained. The initial failure was a test read sharing conflict with the pending destination binding;
+compatible native read verifies the unchanged bytes without relaxing the engine. Paired existing
+renderer medians change less than 0.15%, with lower p95; added selection work is candidate-only.
+No DxUi source/API/pin or rendered pixels changed; docs/gallery need no regeneration. Owner
+completion/failure, live endpoint/foreground checks, visible controls and popup return remain R3's
+next work. Shared action adoption still awaits publication approval and exact-main qualification.
+Both plans remain ACTIVE with their remaining native/configuration/resource/AT gates unchanged.
+
 **Consumer inspection prerequisite, 2026-09-20:** I26 now carries immutable admitted source/destination
 inspection facts and checks prompt freshness on the UI thread. Baseline, candidate and a variance-driven
 unchanged-source confirmation each pass 12/12 focused native Debug checks. Candidate differing-name
