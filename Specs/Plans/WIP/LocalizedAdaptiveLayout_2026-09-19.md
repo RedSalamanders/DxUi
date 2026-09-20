@@ -65,6 +65,17 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+**Current consumer checkpoint, 2026-09-20:** I26 implements the identical-admitted-leaf common
+heading and expanded waiting-state deduplication using the existing consumer renderer. Its focused
+French UIA/count/order/pixel fixture passes 3/3; the independent regenerated 300-frame static gallery
+passes 1/1 at native 144/96 DPI. The broader consumer run is 34/36: PNG clipboard snapshot retention
+fails in throughput repetitions 2/3 before mutation and remains an owned-harness investigation.
+Narrow actions still clip; one-item/differing-name polish and pending inspection/return remain open.
+These changes do not alter DxUi source/API/capabilities/gallery or the consumer pin. Reuse library
+qualification; do not repeat unchanged builds. Publication/main-CI approval and qualified adoption
+remain pending, so L0/L1/L2/L3 and final consumer gates are not closed. The consumer checkpoint owns
+exact raw logs, paired Debug timings, 311 captures and the next Astra High work slice.
+
 **Consumer interaction review, 2026-09-20:** the user rejected clipped buttons/badges, repeated
 waiting/name text and missing pending-item inspection. I26's normative spec now requires one common
 filename heading, one state indicator, stacked folder/metadata sections, and inspect/return in the
