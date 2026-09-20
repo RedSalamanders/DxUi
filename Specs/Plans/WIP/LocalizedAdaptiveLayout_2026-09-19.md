@@ -65,6 +65,14 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+The consumer now publishes qualified transfer/delete filename and parent-location facts and renders
+separate full-width rows, Incoming above Existing. The question respects each provider's filename;
+unknown profiles/item identities/roots and rename schedules retain exact paths. I26 retains an
+unchanged-renderer 0/3 baseline, 6/6 focused and 33/33 final Debug checks with native-144-DPI French
+captures. This is consumer adapter/presentation work only; no library source/API/gallery or pin
+changed. Shared measured-action adoption still awaits the pending publication/main-CI permission;
+standalone qualification was not repeated. Both plans retain their remaining acceptance gates.
+
 The consumer clipboard gate is now repaired: snapshots retain the returned storage-medium type
 instead of an enumerated acceptable-media mask. An owned-object probe reproduces the original
 type mismatch; native tests verify exact rich-format bytes and three guarded OLE flush/readback
