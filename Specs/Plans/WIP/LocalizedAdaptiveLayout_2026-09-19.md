@@ -65,6 +65,16 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+**Consumer inspection prerequisite, 2026-09-20:** I26 now carries immutable admitted source/destination
+inspection facts and checks prompt freshness on the UI thread. Baseline, candidate and a variance-driven
+unchanged-source confirmation each pass 12/12 focused native Debug checks. Candidate differing-name
+redraw p95 outliers are retained; confirmation returns near baseline, without claiming final performance
+or resource qualification. Pane navigation, inspection actions and return-to-control are not implemented
+by this slice. Consumer domain spec records that distinction. No DxUi code/API/pin or rendered pixels
+changed; docs/gallery need no regeneration. The next work is the consumer completion transaction;
+measured action adoption still requires publication approval, exact-main CI and explicit qualified pin.
+Both plans remain ACTIVE and all remaining native/configuration/AT/resource gates remain open.
+
 **Consumer harness follow-up, 2026-09-20:** I26 repairs the reproduced OLE stream-format persistence
 failure. It retains 0/3 baseline and 0/1 diagnostic receipts, passes 6/6 focused checks and reruns the
 previous twelve-case matrix at **36/36**, zero skips. A subsequent pre-replacement verification
