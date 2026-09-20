@@ -65,6 +65,29 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+**Consumer interaction review, 2026-09-20:** the user rejected clipped buttons/badges, repeated
+waiting/name text and missing pending-item inspection. I26's normative spec now requires one common
+filename heading, one state indicator, stacked folder/metadata sections, and inspect/return in the
+last-active pane. All file identity, navigation, decision and persistence behavior stays in the
+consumer. Its current audit inventories 26 action kinds plus menus/dialogs/window routes in 32
+journeys. It retains 309 fresh French harness captures at native 144/96 DPI (48 directly reviewed),
+two passing 1/1 gallery cases, and an explicitly separate HTML proposal. The broad catalog's synthetic
+conflict seeds exercise unqualified fallback; they do not qualify the admitted-name design.
+
+Generic acceptance is clarified in controls/layout and input/accessibility: measure status text
+with icons/padding as well as actions; reserve sibling footer/fixed-action space before scrolling;
+support one semantic heading and complete values without duplicate hidden labels; validate actual
+transitions and focus recovery rather than capture/Invoke success alone. Source/API/capabilities,
+consumer pin and library gallery pixels are unchanged, so no library performance or rendered pass
+is inferred. Reuse retained standalone qualification. Publication/main-CI approval and explicit pin
+adoption remain pending. Consumer R1 single-name/status work and R3 qualified inspection can proceed
+independently; R2 shared action-flow adoption follows the normal qualified dependency route. Both
+plans remain ACTIVE and retain all final native/input/AT/resource gates.
+Review closeout passes all nine skills, spec/link validation and pinned formatting. Dependency
+validation passes on a tracked-source export of `5537a1e` with these three document updates at
+`C:/RedSalamander.Perf/evidence/i26-ui/dxui-interaction-review-export`; the ignored personal project
+file is preserved. This validates source independence, not a new runtime or consumer adoption gate.
+
 The consumer now publishes qualified transfer/delete filename and parent-location facts and renders
 separate full-width rows, Incoming above Existing. The question respects each provider's filename;
 unknown profiles/item identities/roots and rename schedules retain exact paths. I26 retains an
@@ -392,6 +415,11 @@ Exit: labels fit, required controls retain positive hit targets, and paint/input
 in native and embedded hosts.
 
 ## L2 — State and accessible interaction
+
+- [ ] Reconcile the September 20 consumer audit with generic synthetic acceptance: complete long
+  French status/action text, multi-card body/action/footer clipping, one-heading reading order and
+  acknowledged focus/state after success, failure, removal and reflow. Do not import file-operation
+  policy or pane navigation into library fixtures. Existing API passes are not product journey passes.
 
 - [ ] Correct demonstrated Checkbox paint/Toggle mismatches; distinguish checked/focused/hovered/
   pressed/disabled. Model acknowledgement emits no additional user callback.

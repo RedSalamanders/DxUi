@@ -15,6 +15,13 @@ chrome and checked state are distinct; status meaning also has text and an icon.
 Tab/Shift+Tab, Space, Enter/Escape dispatch and UIA bounds in both hosting modes under the
 [localized adaptive layout plan](../Plans/WIP/LocalizedAdaptiveLayout_2026-09-19.md).
 
+Qualification exercises complete transitions: initial state, input, callback effect, acknowledged
+state, removal/failure, focus recovery and teardown. A screenshot of hover or a successful Invoke
+return does not prove the requested state change. Semantic headings/labels follow visual reading
+order; full-value access must not require duplicate hidden announcements. Repeated unchanged status
+does not produce repeated notifications. Application navigation supplies its own stable target and
+stale-completion policy; the library does not choose the destination or steal focus on completion.
+
 Custom controls overriding `OnFocusChanged` MUST invoke their base implementation so `HasFocus`,
 focus chrome and UIA keyboard-focus properties acknowledge the host transition. A stored host
 focus pointer alone is insufficient. Consumers qualify both visible focus and raw provider state.

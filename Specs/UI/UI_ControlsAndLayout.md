@@ -28,6 +28,12 @@ an implemented control to the catalog. Reuse existing controls and measurement s
 - Recompute desired size after text, font, DPI, visibility, validation and available-width changes.
   Prepare one coherent layout for paint, hit testing, tooltip and UIA bounds before publishing it.
   Fixed-control counts and equal-width slots are not valid substitutes for text measurement.
+- Measure status/badge text with its icon and padding, as well as action text. An application-owned
+  header may reflow its regions, but a status container must not crop a complete localized label.
+  Shorter translations alone do not qualify layout: include deliberately long French labels.
+- In a constrained composition, reserve measured fixed-region space before arranging scrollable
+  content. No child action may paint or receive input through a sibling footer. Qualify several
+  stacked cards and variable-height action groups, not only an isolated group on an empty canvas.
 - Wrapped Unicode labels/values expose complete text, preserve underlying values and respect text
   boundaries. Applications choose path separator preferences and own copy commands. Filename,
   filesystem metadata and operation policy do not belong in shared controls.
@@ -39,6 +45,12 @@ an implemented control to the catalog. Reuse existing controls and measurement s
   focus/hover/pressed/disabled; checked paint and UIA Toggle always agree.
 - Grid summary rows are bounded and match hit/selection geometry. Complete selected-item text can
   be arranged in a separate wrapped detail view without duplicating the grid's data authority.
+
+The consumer chooses information hierarchy and whether repeated text is useful. Shared controls
+must support a single semantic heading with associated labelled values and complete exact-value
+detail, without requiring hidden duplicate labels or repeated names to obtain full UIA text.
+Filesystem name deduplication, pane navigation, operation decisions and recovery remain consumer
+responsibilities. A pixel/bounds pass does not establish readable content or complete interaction.
 
 Layout/measurement runs on invalidation outside clean composition. Cached resources and history
 remain bounded; hidden content requests no repaint/tick solely to maintain a visual animation.
