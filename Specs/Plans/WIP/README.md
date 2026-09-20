@@ -2,7 +2,6 @@
 
 | Status | Plan | Next action |
 |---|---|---|
-| ACTIVE | [Localized adaptive layout and interaction readiness](LocalizedAdaptiveLayout_2026-09-19.md) | L0: characterize existing primitives and retain paired baselines; then qualify generic improvements for explicit consumer adoption. |
 
 Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md` and
 `../Done/RedSalamanderMigration.md`. Further ARM64 and ASan qualification is
