@@ -1,5 +1,6 @@
 # Completed plans
 
+- [Editor-consumer controls for RedPrism](EditorConsumerControls_2026-09-20.md) — completed 2026-09-21 (Splitter, NumericStepper and ColorPicker with preview/commit/cancel, keyboard and RTL contracts; catalog 30; consumer pin adoption remains RedPrism's own step).
 - [Localized adaptive layout and interaction readiness](LocalizedAdaptiveLayout_2026-09-19.md) — completed 2026-09-20 (measured actions, wrapped captions, disclosure/input/UIA and resources; six native configurations; qualified main explicitly adopted by RedSalamander, whose Full product and final UI acceptance remain in I26).
 - [Embedded surface lifetime, tick-driven dirtying and bounded caches](EmbeddedSurfaceLifetime_2026-09-07.md) — completed 2026-09-07 (hidden/zero-extent views hold no surface, ticks dirty only through invalidation, bounded brush/text-format caches, benchmark allocation ceilings; per-tick delay hints and consumer scheduling remain later work).
 - [Bootstrap and RedXe-first adoption](BootstrapAndRedXeAdoption_2026-09-05.md) — completed 2026-09-06 (extraction, pin, synthetic adapters; real IME/AT and matched performance remain on RedXe AV).

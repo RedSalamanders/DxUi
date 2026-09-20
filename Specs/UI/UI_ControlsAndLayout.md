@@ -80,7 +80,8 @@ separate work as recorded in capabilities.json.
 
 The public API exposes Panel, PageHost, CardPanel, Label, Button, Toggle, Checkbox, RadioButton, RadioButtons,
 ProgressBar, PageIndicator, ThroughputGraph, Slider, Toolbar, MenuBar, TabControl, ColorSwatch, TextField, ComboBox, TagPicker,
-StatusStrip, PopupLayer, StackPanel, ScrollPanel, TooltipLayer, Tree and Grid. GetControlCatalog returns immutable
+StatusStrip, PopupLayer, StackPanel, ScrollPanel, TooltipLayer, Tree, Grid, Splitter, NumericStepper and ColorPicker.
+GetControlCatalog returns immutable
 descriptors; CreateControl constructs the selected kind and returns E_INVALIDARG for unknown kinds, leaving the
 existing result intact on failure. Controls with models are configured by the caller; the factory does not invent
 application data. Constructors and examples are ordinary code, with no source-code generator or second control copy.
@@ -129,6 +130,49 @@ fat-finger target size the control to at least the 48 DIP hit band; they do not 
 
 Each control also requires accurate usage documentation in `docs/controls.md`. Code changes review affected docs
 and regenerate changed visuals into `docs/gallery` under [the documentation contract](../Core/Core_Documentation.md).
+
+### Splitter
+
+`Splitter` is a two-pane separator whose panes the consumer positions from `GetFirstPaneBounds` and
+`GetSecondPaneBounds`; the control owns no children. `SetOrientation` selects a vertical bar (first pane leading,
+mirrored in right-to-left flow) or a horizontal bar (first pane above). The position is the DIP offset of the
+separator's leading edge from the control's leading edge. `SetPosition` clamps between `SetMinimumFirstPane` and the
+extent minus the thickness and `SetMinimumSecondPane`, repaints and does not notify; a position set before the first
+layout keeps its value until bounds arrive. Only the separator plus `kHitSlopDip` (2 DIP) on each side is hittable;
+the pane areas fall through to the controls beneath. Dragging previews (`SplitterChangePhase::Preview`), release
+commits, Escape while dragging and capture loss restore the drag-start position and notify `Cancel`. Left/Right
+(vertical bar) or Up/Down (horizontal bar) move `kKeyboardStepDip` (8 DIP), Shift moves `kKeyboardLargeStepDip`
+(32 DIP), Home and End go to the limits; keyboard moves and `RequestPosition` notify `Commit` once. The separator
+paints the theme border at rest, a border/accent blend when hovered and the accent while dragging, with a three-dot
+grip; the horizontal or vertical resize cursor applies over the hit band and during a drag. The persisted position is
+consumer state.
+
+### Numeric stepper
+
+`NumericStepper` is a Panel that owns a `TextField`, an increment and a decrement icon button, an optional leading
+label (`SetLabel(text, widthDip)`) and an optional trailing unit (`SetUnit(text, widthDip)`); label and unit are
+painted, not child controls. Values clamp to `SetMinimum` / `SetMaximum` (default ±1e9) and format with
+`SetDecimals` (0–6) using `.` as the separator; `ParseValue` accepts an optional sign, digits and one `.` or `,`
+fraction with surrounding whitespace. Text that parses previews immediately (`NumericStepperChangePhase::Preview`)
+and opens an edit whose start value Escape restores (`Cancel`). Enter, focus loss, the buttons, Up/Down (Shift:
+`SetLargeStep`), `RequestValue` and `Nudge` commit once; text that does not parse reverts to the committed value.
+`SetValue` clamps, rewrites the text and never notifies. Disabling the stepper disables its three children.
+Right-to-left flow mirrors label, field, unit and buttons.
+
+### Color picker
+
+`ColorPicker` is a Panel with a saturation/value field (`kFieldDip` square), a vertical hue strip, new and current
+swatches, R/G/B `NumericStepper`s (0–255), a hex `TextField` (`#RRGGBB`, `RRGGBB`, `#RGB`, `RGB`) and OK/Cancel
+buttons whose captions come from `SetLabels`; the library ships no localized strings for it. `SetColor` sets the
+editing and current colors without notifying; `SetCurrentColor` changes the reference swatch only. Pointer drags on
+the field or strip, typed component values, hex text and `SampleColor` (host eyedropper) preview
+(`ColorPickerChangePhase::Preview`); OK, Enter and `Commit` copy the editing color into the current swatch and
+notify `Commit`; Cancel, Escape, `Cancel` and capture loss during a drag restore the current color and notify
+`Cancel`. Left/Right step saturation (mirrored in right-to-left flow) and Up/Down step value by 1/255, Page Up/Down
+step hue by one degree; Shift multiplies by ten. Grays keep the last hue and black keeps the last saturation so the
+field marker does not jump. `HsvFromArgb`, `ArgbFromHsv`, `ParseHexColor` and `FormatHexColor` are public helpers.
+Gradient brushes are created on the first paint per device context and reused until the hue or geometry changes.
+Alpha is always opaque.
 
 ### Consumer-selected popup row minimum
 
