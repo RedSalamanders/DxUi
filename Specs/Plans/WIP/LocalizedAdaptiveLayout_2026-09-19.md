@@ -65,6 +65,19 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+**Consumer inspection controls/outcomes, 2026-09-20:** I26 now exposes full-width French source/
+destination inspection controls bound to the painted immutable prompt, localized measured result rows
+and current-prompt UIA announcements. Native correctness is 18/18, zero warnings/errors/skips/audit
+issues, plus an unchanged renderer confirmation 3/3. New result/scope overlap found by visual review
+is repaired by snapping expanded decision height. Ten current consumer harness frames, two before
+frames and one rejected frame are published; four current frames directly inspected. Guarded popup
+foreground focus/hide/return remains unfinished; pinned UIA invocation itself still establishes focus.
+Consumer tail-latency qualification is OPEN: differing redraw p95 66755 -> 88361 us; unchanged-source
+confirmation common/differing p95 79436/81740, while medians stay near 66500. Do not claim a tail
+pass or rebaseline; profile CPU/layout versus presentation waits with matched baseline evidence.
+No DxUi code/API/pin changed, and library gallery pixels are unchanged. Publication/exact-main/adoption,
+native DPI/AT and final configuration/resource gates remain open. Both plans remain ACTIVE.
+
 **Consumer inspection navigation component, 2026-09-20:** I26 now dispatches qualified parent
 navigation, consumes settlement, rechecks live adapter/prompt/visit and selects the exact item in
 the captured active pane. Native cases cover both pane/role combinations without OS focus change,
