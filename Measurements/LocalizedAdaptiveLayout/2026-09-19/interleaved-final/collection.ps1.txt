@@ -1,0 +1,26 @@
+$ErrorActionPreference = 'Stop'
+$candidate = 'Z:/src/DxUi'
+$baseline = 'C:/Users/eric/.codex/worktrees/layout-performance-baseline/DxUi'
+$output = "$candidate/Measurements/LocalizedAdaptiveLayout/2026-09-19/interleaved-final"
+New-Item -ItemType Directory -Path $output -Force | Out-Null
+# Predeclared ten pairs, alternating AB/BA, with every sample and flag retained.
+foreach ($pair in 1..10) {
+    $order = if (($pair % 2) -eq 1) { @('baseline','candidate') } else { @('candidate','baseline') }
+    foreach ($kind in $order) {
+        $busy = @(Get-CimInstance Win32_Process | Where-Object {
+            ($_.Name -eq 'MSBuild.exe' -and $_.CommandLine -notmatch 'nodemode') -or
+            $_.Name -in @('cl.exe','clang-cl.exe','link.exe','DxUi.ControlTests.exe','DxUi.EmbeddedTests.exe')
+        })
+        if ($busy.Count) { throw "Independent build/test activity detected before $kind pair $pair; preserve samples and pause." }
+        $root = if ($kind -eq 'baseline') { $baseline } else { $candidate }
+        & "$root/performance.ps1" -Configuration Release -Platform x64 -SkipBuild -OutputPath "$output/$kind-$pair.json" *> "$output/$kind-$pair.log"
+    }
+    # The comparison can flag investigation; retain it and finish the declared repetitions.
+    try {
+        & "$candidate/Tools/Invoke-Python.ps1" -Script "$candidate/Tools/compare_performance.py" -Arguments @("$output/candidate-$pair.json", '--baseline', "$output/baseline-$pair.json", '--output', "$output/pair-$pair.comparison.json") *> "$output/pair-$pair.log"
+    } catch [System.Management.Automation.RuntimeException] {
+        $comparison = Get-Content -LiteralPath "$output/pair-$pair.comparison.json" -Raw | ConvertFrom-Json
+        if ($comparison.status -ne 'advice-required') { throw }
+    }
+    Write-Output "Retained paired process $pair of 10"
+}

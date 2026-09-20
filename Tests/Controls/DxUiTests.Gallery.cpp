@@ -812,6 +812,12 @@ void AddComboItems(ComboBox& combo)
 
     AddButtonTile(scene, flow, L"Button / Standard", L"Standard", ButtonVariant::Standard);
     AddButtonTile(scene, flow, L"Button / Primary", L"Primary", ButtonVariant::Standard, true);
+    {
+        const Tile tile = flow.Next(*scene.root, L"Button / French multiline", 1u, 128.0f);
+        auto* button    = scene.root->AddChild<Button>(L"Conserver les deux versions");
+        button->SetMultiline(true);
+        button->SetBounds(CenterIn(tile.content, 164.0f, 72.0f));
+    }
     AddButtonTile(scene, flow, L"Button / DropDown", L"Options", ButtonVariant::DropDown);
     AddButtonTile(scene, flow, L"Button / Selector", L"Parallel", ButtonVariant::Selector);
     {
@@ -876,6 +882,13 @@ void AddComboItems(ComboBox& combo)
         auto* checkbox  = scene.root->AddChild<Checkbox>(L"Mixed plugins");
         checkbox->SetIndeterminate(true);
         checkbox->SetBounds(CenterIn(tile.content, 230.0f, 32.0f));
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"Checkbox / Wrapped French");
+        auto* checkbox  = scene.root->AddChild<Checkbox>(L"Appliquer ce choix aux éléments similaires restants");
+        checkbox->SetMultiline(true);
+        checkbox->SetChecked(true);
+        checkbox->SetBounds(CenterIn(tile.content, 250.0f, 72.0f));
     }
     {
         const Tile tile = flow.Next(*scene.root, L"RadioButton / Selected");

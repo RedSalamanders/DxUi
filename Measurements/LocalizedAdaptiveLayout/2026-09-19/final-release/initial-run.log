@@ -1,0 +1,118 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  DxUi.cpp
+  NativeMenuInterop.cpp
+  TextInputServices.cpp
+  Embedded.cpp
+  Generating Code...
+  DxUi.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.lib
+  EmbeddedTests.cpp
+  DxUiTests.Accessibility.cpp
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUiTests.Animation.cpp
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.EmbeddedTests.exe
+  DxUiTests.ComboBox.cpp
+  DxUiTests.Controls.cpp
+  DxUiTests.Gallery.cpp
+  DxUiTests.Grid.cpp
+  DxUiTests.Menu.cpp
+  DxUiTests.MultilineText.cpp
+  DxUiTests.NativeTextInput.cpp
+  DxUiTests.NewControls.cpp
+  DxUiTests.ReadOnly.cpp
+  DxUiTests.Rendering.cpp
+  DxUiTests.TextField.cpp
+  DxUiTests.Theme.cpp
+  DxUiTests.Tooltip.cpp
+  DxUiTests.Tree.cpp
+  DxUiTests.WindowHost.cpp
+  DxUiTests.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 02:22
+Output: Z:\src\DxUi\.build\
+Log: Z:\src\DxUi\.build\logs\build-x64-Release-8d175e74fec740bea04f9b4cec954a87.log
+========================================
+Complex UI clean round 1: 2468.28 completed offscreen FPS; p95 0.5597 ms; private 26832896 bytes
+Complex UI clean round 2: 2513.78 completed offscreen FPS; p95 0.48 ms; private 27000832 bytes
+Complex UI clean round 3: 2555.98 completed offscreen FPS; p95 0.5092 ms; private 27316224 bytes
+Complex UI clean round 4: 2362.45 completed offscreen FPS; p95 0.618 ms; private 28053504 bytes
+Complex UI clean round 5: 2566.14 completed offscreen FPS; p95 0.5771 ms; private 28098560 bytes
+Complex UI dirty round 1: 538.322 completed offscreen FPS; p95 2.0347 ms; private 28585984 bytes
+Complex UI dirty round 2: 527.31 completed offscreen FPS; p95 2.1178 ms; private 28667904 bytes
+Complex UI dirty round 3: 540.095 completed offscreen FPS; p95 2.2101 ms; private 28741632 bytes
+Complex UI dirty round 4: 547.283 completed offscreen FPS; p95 1.9898 ms; private 28905472 bytes
+Complex UI dirty round 5: 540.948 completed offscreen FPS; p95 2.11 ms; private 28954624 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\reports\Performance-x64-Release-d923a81dc24249b5a0c94c93c8a12360.json
+Running Foundation (x64 Release)
+PASS Foundation (0 capability skips recorded)
+Running Embedded (x64 Release)
+PASS Embedded (0 capability skips recorded)
+Running Grid (x64 Release)
+PASS Grid (0 capability skips recorded)
+Running Theme (x64 Release)
+PASS Theme (0 capability skips recorded)
+Running Control (x64 Release)
+PASS Control (0 capability skips recorded)
+Running Menu (x64 Release)
+PASS Menu (8 capability skips recorded)
+Running NewControls (x64 Release)
+PASS NewControls (0 capability skips recorded)
+Running TextField (x64 Release)
+PASS TextField (0 capability skips recorded)
+Running NativeTextInput (x64 Release)
+PASS NativeTextInput (0 capability skips recorded)
+Running MultilineText (x64 Release)
+PASS MultilineText (0 capability skips recorded)
+Running ReadOnly (x64 Release)

@@ -1,0 +1,167 @@
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	﻿2026-09-20T15:57:23.2489294Z ##[group]Run ./test.ps1 -Configuration "Release" -Platform x64
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.2489922Z ^[[36;1m./test.ps1 -Configuration "Release" -Platform x64^[[0m
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.2618902Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.2619459Z env:
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.2619907Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.7\x64
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.2620652Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.7\x64/lib/pkgconfig
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.2621378Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.7\x64
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.2622011Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.7\x64
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.2622573Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.7\x64
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.2623096Z ##[endgroup]
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.8567903Z PASS DxUi update advisory: same
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.8719564Z PASS DxUi update advisory: green
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.8739431Z PASS DxUi update advisory: pending
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.8763211Z PASS DxUi update advisory: failed
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.8785975Z PASS DxUi update advisory: absent
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.8812876Z PASS DxUi update advisory: divergent
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.8837699Z PASS DxUi update advisory: ahead
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.9167081Z PASS DxUi update advisory: offline
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.9191886Z PASS DxUi update advisory: wrong-run
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:23.9215647Z PASS DxUi update advisory: malformed
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4306413Z PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4716522Z ╭────────────────────────────────────────────────────────────────────────╮
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4836123Z │                                                                        │
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4844562Z │                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4852479Z │                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4864043Z │                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4869301Z │                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4877941Z │                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4884460Z │                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4890615Z │                                                                        │
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4897313Z │      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4938578Z │                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4945467Z │                                                                        │
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4952105Z ╰────────────────────────────────────────────────────────────────────────╯
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4958437Z 
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.4970770Z Locating Visual Studio and MSBuild...
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.6970715Z Build configuration:
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.6976791Z   Configuration: Release
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.6982511Z   Platform:      x64
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.6988346Z   Target:        Build
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.6997228Z   Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Enterprise
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.7003604Z   Output:        D:\a\DxUi\DxUi\.build\
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.7009792Z 
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.7016201Z Compiling DxUi...
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:39.8810803Z 
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:48.3137566Z   compilation header save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.h
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:48.3145947Z   compilation object save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.cso
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:48.4632229Z   compilation header save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.h
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:48.4640741Z   compilation object save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.cso
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:57:49.7193036Z   ControlCatalog.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:02.5829514Z   NativeMenuInterop.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:05.8618147Z   Embedded.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:09.2761526Z   FrameRuntime.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:09.8236955Z   DxUi.Accessibility.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:14.2306779Z   DxUi.ComboBox.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:17.7108425Z   DxUi.Controls.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:21.9885328Z   DxUi.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:25.4815978Z   DxUi.Grid.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:29.9789756Z   DxUi.Menu.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:35.0276447Z   DxUi.NativeTextInput.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:38.4960541Z   DxUi.PointerInput.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:39.0395871Z   DxUi.Scrollbar.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:42.0518533Z   DxUi.SingleLineTextEditing.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:45.2865465Z   DxUi.TextInput.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:48.5808063Z   DxUi.TextStoreACP.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:51.7922859Z   TextInputServices.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:54.9473320Z   TextClipboard.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:58:57.8642149Z   DxUi.Theme.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:59:00.9491540Z   DxUi.Tree.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:59:04.1352597Z   Generating Code...
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:59:40.5147276Z   Compiling...
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:59:40.5156439Z   DxUi.Typeahead.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:59:43.4221854Z   DxUi.WindowHost.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:59:48.3892668Z   Generating Code...
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:59:54.9018368Z   DxUi.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Release\DxUi.lib
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:59:56.0956617Z   FoundationTests.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:59:56.1021049Z   Main.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:59:56.2355122Z   DxUiTests.Accessibility.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:59:56.3371724Z   EmbeddedTests.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T15:59:57.2947551Z   PublicHelpersTests.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:02.7126197Z   Generating Code...
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:07.1021977Z   DxUiTests.Animation.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:09.2941122Z   DxUi.FoundationTests.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Release\DxUi.FoundationTests.exe
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:09.3193698Z   DxUi.EmbeddedControls.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Release\DxUi.EmbeddedControls.exe
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:10.9731651Z   DxUi.EmbeddedTests.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Release\DxUi.EmbeddedTests.exe
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:12.5481409Z   DxUiTests.ComboBox.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:16.6040316Z   DxUiTests.Controls.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:21.3955315Z   DxUiTests.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:25.5674223Z   DxUiTests.Gallery.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:30.8515001Z   DxUiTests.Grid.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:35.4987748Z   DxUiTests.Menu.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:42.1851805Z   DxUiTests.MultilineText.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:46.6048472Z   DxUiTests.NativeTextInput.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:51.6941013Z   DxUiTests.NewControls.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:00:56.7670340Z   DxUiTests.ReadOnly.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:01:01.1669489Z   DxUiTests.Rendering.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:01:05.9680063Z   DxUiTests.TextField.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:01:10.3503751Z   DxUiTests.Theme.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:01:14.7444856Z   DxUiTests.Tooltip.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:01:19.0894989Z   DxUiTests.Tree.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:01:23.7666007Z   DxUiTests.WindowHost.cpp
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:01:33.3467010Z   Generating Code...
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:37.8353204Z   DxUi.ControlTests.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Release\DxUi.ControlTests.exe
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:37.9819131Z 
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:37.9825476Z ========================================
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:37.9860703Z DxUi build passed in 04:58
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:37.9866321Z Output: D:\a\DxUi\DxUi\.build\
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:37.9874072Z Log: D:\a\DxUi\DxUi\.build\logs\build-x64-Release-55d45290f2d84fd784798b2c3256cff2.log
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:37.9878784Z ========================================
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:40.7252425Z Complex UI clean round 1: 236.532 completed offscreen FPS; p95 4.6012 ms; private 23228416 bytes
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:40.7253192Z Complex UI clean round 2: 237.951 completed offscreen FPS; p95 4.4457 ms; private 23187456 bytes
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:40.7253848Z Complex UI clean round 3: 210.828 completed offscreen FPS; p95 6.5125 ms; private 23154688 bytes
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:40.7254539Z Complex UI clean round 4: 237.514 completed offscreen FPS; p95 4.4168 ms; private 23162880 bytes
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:40.7255189Z Complex UI clean round 5: 248.271 completed offscreen FPS; p95 4.4625 ms; private 23134208 bytes
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:40.7256948Z Complex UI dirty round 1: 138.277 completed offscreen FPS; p95 8.7619 ms; private 23760896 bytes
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:40.7257570Z Complex UI dirty round 2: 145.517 completed offscreen FPS; p95 7.0039 ms; private 23773184 bytes
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:40.7258175Z Complex UI dirty round 3: 139.5 completed offscreen FPS; p95 9.3365 ms; private 23744512 bytes
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:40.7258808Z Complex UI dirty round 4: 145.112 completed offscreen FPS; p95 7.2413 ms; private 23851008 bytes
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:40.7259428Z Complex UI dirty round 5: 140.167 completed offscreen FPS; p95 8.6902 ms; private 23797760 bytes
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:44.7207270Z Performance comparison: unpaired
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:44.7358572Z Performance receipt: D:\a\DxUi\DxUi\.build\reports\Performance-x64-Release-219d871a37a14fbba8a7df1553218678.json
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:44.7431410Z Running Foundation (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:44.8740858Z PASS Foundation (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:44.8749046Z Running Embedded (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:46.0738651Z PASS Embedded (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:46.0746162Z Running Grid (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:46.1975539Z PASS Grid (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:46.1982659Z Running Theme (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:46.2300035Z PASS Theme (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:46.2308542Z Running Control (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:46.3392209Z PASS Control (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:02:46.3401181Z Running Menu (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:06.8643937Z PASS Menu (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:06.8652104Z Running NewControls (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:07.1513273Z PASS NewControls (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:07.1520493Z Running TextField (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:08.6268657Z PASS TextField (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:08.6278364Z Running NativeTextInput (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:10.8010181Z PASS NativeTextInput (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:10.8018147Z Running MultilineText (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:11.0904759Z PASS MultilineText (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:11.0912258Z Running ReadOnly (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:11.3314200Z PASS ReadOnly (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:11.3320441Z Running ComboBox (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:12.0993562Z PASS ComboBox (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:12.1001665Z Running Tree (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:12.3051881Z PASS Tree (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:12.3060601Z Running Tooltip (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:12.7958727Z PASS Tooltip (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:12.7966162Z Running Rendering (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:15.3188145Z PASS Rendering (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:15.3198466Z Running Animation (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:16.1921872Z PASS Animation (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:16.1931148Z Running Accessibility (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:20.1724103Z [START] Accessibility
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:20.1725199Z     [TRACE] attached host dtor: begin
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:20.1726260Z     [TRACE] attached host dtor: host detached
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:20.1727151Z     [TRACE] attached host dtor: hwnd reset
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:20.1727828Z FAILED: subscribe native disclosure property events
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:20.1736078Z Running WindowHost (x64 Release)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:21.3683200Z PASS WindowHost (0 capability skips recorded)
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:21.4345097Z ^[[31;1mException: ^[[0mD:\a\DxUi\DxUi\test.ps1:66^[[0m
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:21.4346023Z ^[[31;1m^[[0m^[[36;1mLine |^[[0m
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:21.4346916Z ^[[31;1m^[[0m^[[36;1m^[[36;1m  66 | ^[[0m … es.Count) { ^[[36;1mthrow "DxUi failed suites: $($failures -join ', '). See .^[[0m …^[[0m
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:21.4347928Z ^[[31;1m^[[0m^[[36;1m^[[36;1m^[[0m^[[36;1m^[[0m^[[36;1m     | ^[[31;1m               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^[[0m
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:21.4349729Z ^[[31;1m^[[0m^[[36;1m^[[36;1m^[[0m^[[36;1m^[[0m^[[36;1m^[[31;1m^[[31;1m^[[36;1m     | ^[[31;1mDxUi failed suites: Accessibility. See .build/logs and .build/reports.^[[0m
+native (x64, windows-2025-vs2026, Release)	Run ./test.ps1 -Configuration "Release" -Platform x64	2026-09-20T16:03:21.4736400Z ##[error]Process completed with exit code 1.

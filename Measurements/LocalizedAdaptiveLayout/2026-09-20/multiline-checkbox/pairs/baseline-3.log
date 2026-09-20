@@ -1,0 +1,48 @@
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.Controls.cpp
+  DxUi.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.lib
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.EmbeddedTests.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:04
+Output: Z:\src\DxUi\.build\
+Log: Z:\src\DxUi\.build\logs\build-x64-Release-0389f0bd491644e9bb499ab2ac48f756.log
+========================================
+Complex UI clean round 1: 2088.41 completed offscreen FPS; p95 0.5819 ms; private 27004928 bytes
+Complex UI clean round 2: 2294.63 completed offscreen FPS; p95 0.5474 ms; private 27254784 bytes
+Complex UI clean round 3: 2494.67 completed offscreen FPS; p95 0.4408 ms; private 27291648 bytes
+Complex UI clean round 4: 2516.2 completed offscreen FPS; p95 0.445 ms; private 27811840 bytes
+Complex UI clean round 5: 2669.8 completed offscreen FPS; p95 0.4104 ms; private 27435008 bytes
+Complex UI dirty round 1: 566.543 completed offscreen FPS; p95 1.9135 ms; private 27955200 bytes
+Complex UI dirty round 2: 536.349 completed offscreen FPS; p95 2.3204 ms; private 28082176 bytes
+Complex UI dirty round 3: 542.705 completed offscreen FPS; p95 2.1115 ms; private 28119040 bytes
+Complex UI dirty round 4: 543.064 completed offscreen FPS; p95 2.035 ms; private 29257728 bytes
+Complex UI dirty round 5: 525.516 completed offscreen FPS; p95 2.1421 ms; private 28876800 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\Measurements\LocalizedAdaptiveLayout\2026-09-20\multiline-checkbox\pairs\baseline-3.json

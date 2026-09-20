@@ -1,0 +1,56 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.lib
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.ControlTests.exe
+  EmbeddedTests.cpp
+Z:\src\DxUi\Tests\Embedded\LocalizedLayoutTests.h(157,32): error C2664: 'std::optional<size_t> DxUi::Grid::FindRowAtPoint(DxUi::PointDip) noexcept const': cannot convert argument 1 from 'D2D1_POINT_2F' to 'DxUi::PointDip' [Z:\src\DxUi\Tests\Embedded\DxUi.EmbeddedTests.vcxproj]
+  (compiling source file 'EmbeddedTests.cpp')
+      Z:\src\DxUi\Tests\Embedded\LocalizedLayoutTests.h(157,60):
+      No user-defined-conversion operator available that can perform this conversion, or the operator cannot be called
+      Z:\src\DxUi\include\DxUi\DxUi.h(3421,41):
+      see declaration of 'DxUi::Grid::FindRowAtPoint'
+      Z:\src\DxUi\Tests\Embedded\LocalizedLayoutTests.h(157,32):
+      while trying to match the argument list '(D2D1_POINT_2F)'
+  
+
+========================================
+DxUi build failed
+Exit code: 1
+Build time: 00:12
+Log: Z:\src\DxUi\.build\logs\build-x64-Release-9622650839dc4d7592c60e863be81e78.log
+========================================

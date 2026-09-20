@@ -1,0 +1,3 @@
+# Full local caption-fix qualification
+
+All 18 suites pass in x64 Debug, Release and ASan Debug. The ASan expected-failure probe reports the required use-after-free diagnosis. Per-suite receipts retain executable hashes and nine Menu capability skips per configuration; the remaining suites have none. Source hashes identify the uncommitted caption correction and test inputs against base 54e956e. The five regenerated theme sheets were reviewed: the complete French checkbox caption is visible in three lines beside its checked indicator. Native ARM64 CI for this new production revision and explicit consumer adoption remain required.

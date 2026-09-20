@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-09-08
+Last reviewed: 2026-09-19
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -14,6 +14,58 @@ Layout accepts explicit bounds/DPI, reports usable minimums and prepares coheren
 Do not reduce a touch target below the consumer's minimum to hide an overflow. Labels and state values may not clip
 or overlap. Optional content is removed before required controls. Geometry is recomputed on relevant changes only.
 Consumers own density tiers and responsive policy; DxUi contains no AV profile or XENEON dimension rules.
+
+### Localized adaptive layout acceptance
+
+The following requirements are pending qualification under the
+[localized adaptive layout plan](../Plans/WIP/LocalizedAdaptiveLayout_2026-09-19.md); they do not add
+an implemented control to the catalog. Reuse existing controls and measurement services first.
+
+- A measured action group accepts caller-owned ordered controls, current typography, available DIP
+  width and spacing. Wrap whole controls to further rows; a single overlong label may wrap and grow
+  its control. Preserve model, visual, keyboard and accessibility order. Never silently shorten an
+  action label, reduce font size, or move a caller-required action into an overflow menu.
+- Recompute desired size after text, font, DPI, visibility, validation and available-width changes.
+  Prepare one coherent layout for paint, hit testing, tooltip and UIA bounds before publishing it.
+  Fixed-control counts and equal-width slots are not valid substitutes for text measurement.
+- Measure status/badge text with its icon and padding, as well as action text. An application-owned
+  header may reflow its regions, but a status container must not crop a complete localized label.
+  Shorter translations alone do not qualify layout: include deliberately long French labels.
+- In a constrained composition, reserve measured fixed-region space before arranging scrollable
+  content. No child action may paint or receive input through a sibling footer. Qualify several
+  stacked cards and variable-height action groups, not only an isolated group on an empty canvas.
+- Wrapped Unicode labels/values expose complete text, preserve underlying values and respect text
+  boundaries. Applications choose path separator preferences and own copy commands. Filename,
+  filesystem metadata and operation policy do not belong in shared controls.
+- A scrolling body with separately arranged actions supports short viewports. Reflow preserves a
+  stable scroll/focus anchor, clamps offsets and makes the focused control reachable. The consumer
+  supplies work-area constraints; a child control does not move or activate the host window.
+- Disclosure preserves caller-owned state, exposes expanded/collapsed semantics and removes hidden
+  children from navigation, input and rendering work. Checkbox checked state remains distinct from
+  focus/hover/pressed/disabled; checked paint and UIA Toggle always agree. Checkbox honors opt-in
+  `SetMultiline(true)` for its complete caption. Measure Body text within the control width minus
+  36 DIP and reserve 6 DIP of vertical padding; its default remains single-line.
+- Grid summary rows are bounded and match hit/selection geometry. Complete selected-item text can
+  be arranged in a separate wrapped detail view without duplicating the grid's data authority.
+
+The consumer chooses information hierarchy and whether repeated text is useful. Shared controls
+must support a single semantic heading with associated labelled values and complete exact-value
+detail, without requiring hidden duplicate labels or repeated names to obtain full UIA text.
+Filesystem name deduplication, pane navigation, operation decisions and recovery remain consumer
+responsibilities. A pixel/bounds pass does not establish readable content or complete interaction.
+
+Layout/measurement runs on invalidation outside clean composition. Cached resources and history
+remain bounded; hidden content requests no repaint/tick solely to maintain a visual animation.
+French long-sentence fixtures at 96/144/192 DPI and constrained width/height qualify these contracts
+in both native and supplied-device hosts. Library fixtures are synthetic and consumer-independent.
+
+Implementation in progress, 2026-09-19: `ArrangeMeasuredActions` provides ordered, allocation-free
+geometry from already measured sizes, with unchanged outputs on invalid/capacity/overflow failure.
+Hidden `{0,0}` entries retain their index and receive empty bounds. The caller measures overlong
+labels at the available width and reserves the returned action height before laying out body content.
+`Button::SetMultiline` is opt-in for Standard text buttons, with 12/8 DIP per-side text padding.
+The L0/L1 fixture and required configuration, visual and consumer gates remain tracked in the plan;
+these APIs do not claim completion of disclosure/UIA or application adoption.
 
 DxUi owns the implemented controls in `src/Controls` and their standalone tests in `Tests/Controls`.
 Source is edited in place here; historical import records do not freeze it. Consumer-specific bridges remain

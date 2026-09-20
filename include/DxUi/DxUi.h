@@ -104,7 +104,7 @@ struct ModalLoopOptions final
 {
     std::wstring_view diagnosticName;
     ModalLoopContinueCallback shouldContinue = nullptr;
-    void* context                                = nullptr;
+    void* context                            = nullptr;
     ModalLoopQuitCallback onQuit             = nullptr;
 };
 
@@ -1690,12 +1690,16 @@ public:
 
     void SetText(std::wstring text);
     [[nodiscard]] std::wstring_view GetText() const noexcept;
+    // Opt-in wrapping for Standard button text. The caller measures and supplies sufficient bounds.
+    void SetMultiline(bool multiline) noexcept;
+    [[nodiscard]] bool IsMultiline() const noexcept;
     void SetPrimary(bool primary) noexcept;
     [[nodiscard]] bool IsPrimary() const noexcept;
     void SetVariant(ButtonVariant variant) noexcept;
     [[nodiscard]] ButtonVariant GetVariant() const noexcept;
     void SetDisclosureCollapsedDirection(ChevronDirection direction) noexcept;
     void SetDisclosureExpanded(bool expanded) noexcept;
+    [[nodiscard]] std::optional<bool> GetDisclosureExpanded() const noexcept;
     void ClearDisclosureState() noexcept;
     void SetOnClick(std::function<void()> onClick);
     void SetOnDropDownClick(std::function<void()> onDropDownClick);
@@ -1769,6 +1773,7 @@ private:
     bool _pressedDropDown                          = false;
     bool _dropDownOpen                             = false;
     bool _primary                                  = false;
+    bool _multiline                                = false;
     ButtonVariant _variant                         = ButtonVariant::Standard;
 };
 
@@ -3021,6 +3026,24 @@ private:
     float _padBottom              = 0.0f;
     std::vector<std::pair<const Control*, float>> _childExtents;
 };
+
+struct MeasuredActionLayout
+{
+    float heightDip = 0.0f;
+    size_t rowCount = 0;
+};
+
+// Allocation-free ordered flow, in local DIPs. Call on layout invalidation, then apply the same
+// rectangles to the controls. Text measurement and minimum target sizes belong to the caller.
+// Sizes must fit availableWidthDip; measure an overlong label wrapped before arranging it.
+// {0,0} omits a hidden action without changing its array index. Rows are top-aligned.
+// Invalid/nonfinite sizes, overflow or insufficient output capacity leave ALL outputs unchanged.
+[[nodiscard]] HRESULT ArrangeMeasuredActions(std::span<const D2D1_SIZE_F> sizes,
+                                             float availableWidthDip,
+                                             D2D1_SIZE_F gapsDip,
+                                             std::span<D2D1_RECT_F> bounds,
+                                             MeasuredActionLayout& result,
+                                             FlowDirection direction = FlowDirection::LeftToRight) noexcept;
 
 // Scrollable container with a vertical scrollbar. Children are positioned in "content space"
 // starting at the panel's top. When content exceeds the viewport, a scrollbar appears and the

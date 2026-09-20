@@ -13,7 +13,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | Label | Construct with text or call `SetText`; choose a font role for headings/body text. |
 | Button | Construct with its caption; `SetOnClick` handles activation and `SetOnDropDownClick` handles split-button actions. |
 | Toggle | Set initial state with `SetChecked`; handle user intent with `SetOnToggled(bool)`. |
-| Checkbox | Uses toggle checked-state/event semantics with checkbox visuals. |
+| Checkbox | Uses toggle checked-state/event semantics with checkbox visuals. `SetMultiline(true)` wraps long captions; reserve 36 DIP horizontally for indicator/gaps and 6 DIP vertically around measured Body text. |
 | RadioButton | Configure selection state and `SetOnSelected`; use RadioButtons when selection is mutually exclusive. |
 | RadioButtons | Own a group of choices and handle `SetOnSelectionChanged(int)`. |
 | ProgressBar | Set minimum, maximum and value; `SetIndeterminate(true)` requires host animation ticks. |
@@ -58,6 +58,28 @@ The [embedded scene](../Samples/EmbeddedControls/EmbeddedScene.h) is a complete 
 
 ## Layout and data-backed controls
 
+For a localized action group, measure each label with the current host font, add the desired padding
+and minimum target size, then call `ArrangeMeasuredActions` with those sizes, available DIP width,
+horizontal/vertical gaps and caller-owned output rectangles. The helper allocates nothing, preserves
+input order, wraps whole actions and returns total height/row count. It supports right-to-left flow.
+An omitted `{0,0}` size produces an empty rectangle without changing indices. Invalid inputs,
+insufficient output space and arithmetic overflow leave all outputs unchanged.
+
+An individual size must fit the available width. Measure overlong text wrapped first; standard
+`Button::SetMultiline(true)` enables matching wrapped paint with 12 DIP horizontal and 8 DIP vertical
+padding on each side. Checkbox also honors this inherited option, using its own indicator/text geometry described above. The default is false, preserving existing single-line behavior. Other button
+variants retain their existing text/chrome policy. The helper does not choose actions, mutate focus,
+activate a host or cache application state. Cache measurements in your layout owner and recompute on
+text/font/DPI/width/visibility changes; apply the returned rectangles consistently to paint/input/UIA.
+At short height, reserve the action group's measured height and scroll the remaining body separately.
+
+A Button with `SetDisclosureExpanded(bool)` exposes UIA ExpandCollapse as well as Invoke. Repeated
+requests for the already acknowledged state do nothing. A changed request invokes the normal click
+callback; the application updates the state, content visibility and focus. `GetDisclosureExpanded()`
+returns that acknowledged optional state; `ClearDisclosureState()` removes the pattern. Disabled
+buttons reject UIA state changes. Embedded hosts publish the new snapshot after preparation, using
+their existing accessibility update path. Retained providers disconnect when their control is removed.
+
 ```cpp
 auto* stack = root->AddChild<DxUi::StackPanel>();
 stack->SetBounds(D2D1::RectF(16, 16, 320, 160));
@@ -77,6 +99,10 @@ notifications; a factory-created empty control does not demonstrate interaction.
 See [the benchmark model](../Samples/ComplexUi/ComplexUiScene.h),
 [grid tests](../Tests/Controls/DxUiTests.Grid.cpp), [tree tests](../Tests/Controls/DxUiTests.Tree.cpp), and
 [gallery construction](../Tests/Controls/DxUiTests.Gallery.cpp) for concrete configurations and variants.
+
+When overriding `OnFocusChanged` in a derived control, call the base implementation before
+handling application-specific detail. It acknowledges `HasFocus`, which drives visible focus and
+UIA keyboard-focus properties. Test both the provider state and the painted focus outline.
 
 Use keyboard/focus, cancellation, disabled and hidden states alongside pointer input. Verify high contrast,
 Unicode, DPI and minimum layout bounds. Consult [hosting](hosting.md) for the embedded text/UIA limitations.

@@ -1,10 +1,39 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-09-08
+Last reviewed: 2026-09-20
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
+
+Localized adaptive layout must preserve the focused control's stable identity through wrapping,
+disclosure and DPI changes, and publish matching visible/hit/UIA rectangles. If a focused child is
+collapsed, return focus to the disclosure header; if an application removes an action, the caller
+chooses its safe focus successor. Layout never chooses a destructive default. ExpandCollapse,
+Toggle, full text and selection semantics must match the confirmed displayed state. Color, focus
+chrome and checked state are distinct; status meaning also has text and an icon. Qualify pointer,
+Tab/Shift+Tab, Space, Enter/Escape dispatch and UIA bounds in both hosting modes under the
+[localized adaptive layout plan](../Plans/WIP/LocalizedAdaptiveLayout_2026-09-19.md).
+
+Qualification exercises complete transitions: initial state, input, callback effect, acknowledged
+state, removal/failure, focus recovery and teardown. A screenshot of hover or a successful Invoke
+return does not prove the requested state change. Semantic headings/labels follow visual reading
+order; full-value access must not require duplicate hidden announcements. Repeated unchanged status
+does not produce repeated notifications. Application navigation supplies its own stable target and
+stale-completion policy; the library does not choose the destination or steal focus on completion.
+
+Custom controls overriding `OnFocusChanged` MUST invoke their base implementation so `HasFocus`,
+focus chrome and UIA keyboard-focus properties acknowledge the host transition. A stored host
+focus pointer alone is insufficient. Consumers qualify both visible focus and raw provider state.
+
+Buttons with acknowledged disclosure state expose ExpandCollapse, consistent state properties and
+state-change notifications. Expand/Collapse requests are idempotent against current acknowledged state,
+reject disabled controls and invoke caller behavior only when a change is requested. Caller callbacks
+run outside the accessibility snapshot mutex and may replace the tree. They own content visibility
+and focus recovery; the provider does not invent a body subtree or directly change application state.
+Clearing disclosure removes the pattern; removed/hidden controls cannot be activated through old
+providers. Native and embedded lifetime/acknowledgement tests qualify this implementation under the
+active plan; it is not a claim of consumer screen-reader acceptance.
 
 
 

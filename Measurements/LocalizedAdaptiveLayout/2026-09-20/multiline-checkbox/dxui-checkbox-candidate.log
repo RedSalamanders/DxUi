@@ -1,0 +1,62 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.Controls.cpp
+  DxUi.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.lib
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.EmbeddedTests.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:04
+Output: Z:\src\DxUi\.build\
+Log: Z:\src\DxUi\.build\logs\build-x64-Release-290ffdbd289841fd8f4fa305d009e0b8.log
+========================================
+Complex UI clean round 1: 2102.67 completed offscreen FPS; p95 0.5743 ms; private 25894912 bytes
+Complex UI clean round 2: 2486.42 completed offscreen FPS; p95 0.4688 ms; private 26083328 bytes
+Complex UI clean round 3: 2188.51 completed offscreen FPS; p95 0.6176 ms; private 26779648 bytes
+Complex UI clean round 4: 2323.12 completed offscreen FPS; p95 0.4965 ms; private 26914816 bytes
+Complex UI clean round 5: 2166.65 completed offscreen FPS; p95 0.6078 ms; private 26882048 bytes
+Complex UI dirty round 1: 526.316 completed offscreen FPS; p95 2.1922 ms; private 27869184 bytes
+Complex UI dirty round 2: 556.061 completed offscreen FPS; p95 1.9442 ms; private 28798976 bytes
+Complex UI dirty round 3: 572.478 completed offscreen FPS; p95 1.8525 ms; private 28839936 bytes
+Complex UI dirty round 4: 559.613 completed offscreen FPS; p95 1.9862 ms; private 28876800 bytes
+Complex UI dirty round 5: 550.039 completed offscreen FPS; p95 2.1529 ms; private 28811264 bytes
+Performance comparison: advice-required
+REGRESSION clean/fps: 2357.823 -> 2188.507
+REGRESSION clean/frameP95Ms: 0.467 -> 0.574
+REGRESSION clean/composeCpuP95Ms: 0.013 -> 0.015
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.

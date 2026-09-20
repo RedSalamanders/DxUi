@@ -1,0 +1,3 @@
+# Native CI qualification at 54e956e
+
+[CI run 35524270794](https://github.com/RedSalamanders/DxUi/actions/runs/35524270794) passes all six native x64/ARM64 Debug, Release and ASan Debug jobs, including external-consumer integration and gallery generation. Raw per-suite reports retain architecture, executable hashes and explicit capability skips. Full downloaded logs/gallery artifacts are also retained in `C:/RedSalamander.Perf/evidence/i26-ui/ci-54e956e-complete`. This qualifies the earlier action/disclosure implementation and generic transition tests; the subsequent multiline Checkbox correction requires its own final CI run before adoption. It does not establish native RedSalamander or real assistive-technology acceptance.

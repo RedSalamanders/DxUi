@@ -1,0 +1,61 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.lib
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.ControlTests.exe
+  EmbeddedTests.cpp
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.EmbeddedTests.exe
+
+========================================
+DxUi build passed in 00:05
+Output: Z:\src\DxUi\.build\
+Log: Z:\src\DxUi\.build\logs\build-x64-Release-ddcc60745ae040449fc03566e45d26ef.log
+========================================
+Complex UI clean round 1: 2206.2 completed offscreen FPS; p95 0.5061 ms; private 28123136 bytes
+Complex UI clean round 2: 2384.36 completed offscreen FPS; p95 0.4669 ms; private 28123136 bytes
+Complex UI clean round 3: 2357.82 completed offscreen FPS; p95 0.467 ms; private 28086272 bytes
+Complex UI clean round 4: 2254.18 completed offscreen FPS; p95 0.4866 ms; private 28065792 bytes
+Complex UI clean round 5: 2487.53 completed offscreen FPS; p95 0.4475 ms; private 28049408 bytes
+Complex UI dirty round 1: 531.381 completed offscreen FPS; p95 2.2098 ms; private 28643328 bytes
+Complex UI dirty round 2: 512.562 completed offscreen FPS; p95 2.1258 ms; private 28733440 bytes
+Complex UI dirty round 3: 458.728 completed offscreen FPS; p95 2.4643 ms; private 28737536 bytes
+Complex UI dirty round 4: 521.957 completed offscreen FPS; p95 2.3802 ms; private 28860416 bytes
+Complex UI dirty round 5: 516.308 completed offscreen FPS; p95 2.3664 ms; private 28893184 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\reports\Performance-x64-Release-34c9c47b30e24ba1abb2564dcc3cd948.json
+Running Embedded (x64 Release)
+FAIL: long French checkbox paints additional complete lines

@@ -1,0 +1,366 @@
+{
+  "base_commit": "54e956eafa9ab0feeecefa40ba67a9f12b7439a3",
+  "source_hash_scope": "Original working-file SHA256 before Git line-ending normalization",
+  "sources": {
+    "src/Controls/DxUi.Controls.cpp": "34dd4ad3f18eac9fcaea7c9c72ea3cd8dc9334db0eab73ef5cc497ec028fd1c5",
+    "Tests/Embedded/LocalizedLayoutTests.h": "9af0fe622abb67960a59f8428c222a360b278f7ccc0a3d08c2e339f1150a175f",
+    "Tests/Embedded/EmbeddedTests.cpp": "ac72ec954a39378b899708e04d46895b752406a72c282d507260519965b61543",
+    "Tests/Controls/DxUiTests.Gallery.cpp": "2bc00438a5eaf7cd21d383ce5f4bad0d97e35d672a042d446f57615eb4e826eb"
+  },
+  "suites": [
+    {
+      "configuration": "Debug",
+      "suite": "Foundation",
+      "completedUtc": "2026-09-20T17:27:28.8914960Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "Embedded",
+      "completedUtc": "2026-09-20T17:27:29.2479886Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "Grid",
+      "completedUtc": "2026-09-20T17:27:29.7674380Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "Theme",
+      "completedUtc": "2026-09-20T17:27:29.8007889Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "Control",
+      "completedUtc": "2026-09-20T17:27:30.1281543Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "Menu",
+      "completedUtc": "2026-09-20T17:27:51.4123686Z",
+      "skips": [
+        "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+        "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+      ]
+    },
+    {
+      "configuration": "Debug",
+      "suite": "NewControls",
+      "completedUtc": "2026-09-20T17:27:52.2517627Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "TextField",
+      "completedUtc": "2026-09-20T17:27:55.0740823Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "NativeTextInput",
+      "completedUtc": "2026-09-20T17:28:17.1621141Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "MultilineText",
+      "completedUtc": "2026-09-20T17:28:21.1130250Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "ReadOnly",
+      "completedUtc": "2026-09-20T17:28:23.6648990Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "ComboBox",
+      "completedUtc": "2026-09-20T17:28:24.5736722Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "Tree",
+      "completedUtc": "2026-09-20T17:28:24.9915806Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "Tooltip",
+      "completedUtc": "2026-09-20T17:28:25.9707321Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "Rendering",
+      "completedUtc": "2026-09-20T17:28:31.3579890Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "Animation",
+      "completedUtc": "2026-09-20T17:28:32.3626520Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "Accessibility",
+      "completedUtc": "2026-09-20T17:28:38.3257956Z",
+      "skips": []
+    },
+    {
+      "configuration": "Debug",
+      "suite": "WindowHost",
+      "completedUtc": "2026-09-20T17:28:39.9155295Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "Foundation",
+      "completedUtc": "2026-09-20T17:28:56.6488512Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "Embedded",
+      "completedUtc": "2026-09-20T17:28:56.9040007Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "Grid",
+      "completedUtc": "2026-09-20T17:28:57.3590582Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "Theme",
+      "completedUtc": "2026-09-20T17:28:57.3838191Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "Control",
+      "completedUtc": "2026-09-20T17:28:57.6551142Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "Menu",
+      "completedUtc": "2026-09-20T17:29:18.8360845Z",
+      "skips": [
+        "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+        "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+      ]
+    },
+    {
+      "configuration": "Release",
+      "suite": "NewControls",
+      "completedUtc": "2026-09-20T17:29:19.6735276Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "TextField",
+      "completedUtc": "2026-09-20T17:29:22.5208617Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "NativeTextInput",
+      "completedUtc": "2026-09-20T17:29:53.6666677Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "MultilineText",
+      "completedUtc": "2026-09-20T17:29:57.4623265Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "ReadOnly",
+      "completedUtc": "2026-09-20T17:30:00.0295371Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "ComboBox",
+      "completedUtc": "2026-09-20T17:30:01.5032343Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "Tree",
+      "completedUtc": "2026-09-20T17:30:01.8971861Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "Tooltip",
+      "completedUtc": "2026-09-20T17:30:02.8797708Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "Rendering",
+      "completedUtc": "2026-09-20T17:30:07.0463730Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "Animation",
+      "completedUtc": "2026-09-20T17:30:08.0323320Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "Accessibility",
+      "completedUtc": "2026-09-20T17:30:13.4379162Z",
+      "skips": []
+    },
+    {
+      "configuration": "Release",
+      "suite": "WindowHost",
+      "completedUtc": "2026-09-20T17:30:14.8804266Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "Foundation",
+      "completedUtc": "2026-09-20T17:30:48.7732506Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "Embedded",
+      "completedUtc": "2026-09-20T17:30:49.7671001Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "Grid",
+      "completedUtc": "2026-09-20T17:30:51.0085344Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "Theme",
+      "completedUtc": "2026-09-20T17:30:51.0664390Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "Control",
+      "completedUtc": "2026-09-20T17:30:52.0224861Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "Menu",
+      "completedUtc": "2026-09-20T17:31:26.1240741Z",
+      "skips": [
+        "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+        "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+      ]
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "NewControls",
+      "completedUtc": "2026-09-20T17:31:28.2182192Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "TextField",
+      "completedUtc": "2026-09-20T17:31:36.1717127Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "NativeTextInput",
+      "completedUtc": "2026-09-20T17:32:23.2454577Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "MultilineText",
+      "completedUtc": "2026-09-20T17:32:32.5142253Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "ReadOnly",
+      "completedUtc": "2026-09-20T17:32:38.2813109Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "ComboBox",
+      "completedUtc": "2026-09-20T17:32:40.7528420Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "Tree",
+      "completedUtc": "2026-09-20T17:32:42.0317064Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "Tooltip",
+      "completedUtc": "2026-09-20T17:32:44.0116881Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "Rendering",
+      "completedUtc": "2026-09-20T17:32:58.6275760Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "Animation",
+      "completedUtc": "2026-09-20T17:33:00.4340880Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "Accessibility",
+      "completedUtc": "2026-09-20T17:33:10.6264428Z",
+      "skips": []
+    },
+    {
+      "configuration": "ASan Debug",
+      "suite": "WindowHost",
+      "completedUtc": "2026-09-20T17:33:13.7934905Z",
+      "skips": []
+    }
+  ]
+}

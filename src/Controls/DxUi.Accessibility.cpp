@@ -341,20 +341,21 @@ struct AccessibilityControlNavigationSnapshot
     std::wstring controlAutomationId;
     std::wstring controlAccessibleValue;
     std::wstring controlAccessibleText;
-    bool controlVisible              = false;
-    bool controlEnabled              = false;
-    bool controlFocusable            = false;
-    bool controlHasFocus             = false;
-    bool controlIsPassword           = false;
-    bool controlSupportsInvoke       = false;
-    bool controlSupportsToggle       = false;
-    bool controlSupportsValue        = false;
-    bool controlSupportsText         = false;
-    bool controlSupportsRangeValue   = false;
-    bool controlSupportsSelection    = false;
-    bool controlSupportsTable        = false;
-    bool controlValueReadOnly        = true;
-    bool controlToggleChecked        = false;
+    bool controlVisible            = false;
+    bool controlEnabled            = false;
+    bool controlFocusable          = false;
+    bool controlHasFocus           = false;
+    bool controlIsPassword         = false;
+    bool controlSupportsInvoke     = false;
+    bool controlSupportsToggle     = false;
+    bool controlSupportsValue      = false;
+    bool controlSupportsText       = false;
+    bool controlSupportsRangeValue = false;
+    bool controlSupportsSelection  = false;
+    bool controlSupportsTable      = false;
+    bool controlValueReadOnly      = true;
+    bool controlToggleChecked      = false;
+    std::optional<bool> controlDisclosureExpanded;
     size_t controlTextSelectionStart = 0u;
     size_t controlTextSelectionEnd   = 0u;
     std::vector<D2D1_RECT_F> controlTextSelectionBoundsDip;
@@ -1211,8 +1212,12 @@ void AppendAccessibilitySnapshotNavigation(
         {
             record.controlIsPassword = textField->IsMasked();
         }
-        record.controlSupportsInvoke     = SupportsInvokePattern(current);
-        record.controlSupportsToggle     = SupportsTogglePattern(current);
+        record.controlSupportsInvoke = SupportsInvokePattern(current);
+        record.controlSupportsToggle = SupportsTogglePattern(current);
+        if (const auto* button = dynamic_cast<const Button*>(current))
+        {
+            record.controlDisclosureExpanded = button->GetDisclosureExpanded();
+        }
         record.controlSupportsValue      = SupportsValuePattern(current);
         record.controlSupportsText       = SupportsTextPattern(current);
         record.controlSupportsRangeValue = SupportsRangeValuePattern(current);
@@ -5065,9 +5070,10 @@ AccessibilityPatternQueryResult AccessibilityProvider::QueryPattern(Accessibilit
         case AccessibilityPatternKind::Table:
             return record->controlSupportsTable ? makeResult(static_cast<ITableProvider*>(this)) : AccessibilityPatternQueryResult{};
         case AccessibilityPatternKind::SelectionItem:
-        case AccessibilityPatternKind::ExpandCollapse:
         case AccessibilityPatternKind::GridItem:
         case AccessibilityPatternKind::TableItem: return {};
+        case AccessibilityPatternKind::ExpandCollapse:
+            return record->controlDisclosureExpanded.has_value() ? makeResult(static_cast<IExpandCollapseProvider*>(this)) : AccessibilityPatternQueryResult{};
     }
     return {};
 }
@@ -5457,6 +5463,12 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
         case UIA_NamePropertyId: return SetVariantFromString(outValue, record->controlAccessibleName);
         case UIA_HelpTextPropertyId: return SetVariantFromString(outValue, record->controlAccessibleHelpText);
         case UIA_AutomationIdPropertyId: return SetVariantFromString(outValue, record->controlAutomationId);
+        case UIA_ExpandCollapseExpandCollapseStatePropertyId:
+            if (record->controlVisible && record->controlDisclosureExpanded.has_value())
+            {
+                *outValue = VariantFromInt(record->controlDisclosureExpanded.value() ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed);
+            }
+            return S_OK;
         case UIA_IsControlElementPropertyId:
         case UIA_IsContentElementPropertyId: *outValue = VariantFromBool(record->controlVisible); return S_OK;
         case UIA_IsEnabledPropertyId: *outValue = VariantFromBool(record->controlVisible && record->controlEnabled); return S_OK;
@@ -7035,6 +7047,8 @@ HRESULT AccessibilityProvider::Collapse() noexcept
 
 HRESULT AccessibilityProvider::get_ExpandCollapseState(ExpandCollapseState* outState) noexcept
 {
+    if (outState)
+        *outState = ExpandCollapseState_LeafNode;
     if (_target && _target->embedded && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outState)
@@ -7044,7 +7058,23 @@ HRESULT AccessibilityProvider::get_ExpandCollapseState(ExpandCollapseState* outS
 
     const std::shared_ptr<const AccessibilitySnapshot> snapshot = CaptureSnapshot();
     const AccessibilityControlNavigationSnapshot* record =
-        (snapshot && snapshot->alive && snapshot->hasRetainedRoot) ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
+        (snapshot && snapshot->alive && snapshot->hasRetainedRoot)
+            ? ((_kind == AccessibilityFragmentKind::Control || _kind == AccessibilityFragmentKind::Root) ? ResolveSnapshotControlRecord(*snapshot, _kind, _path)
+                                                                                                         : FindControlNavigationRecord(*snapshot, _path))
+            : nullptr;
+    if (_kind == AccessibilityFragmentKind::Control || _kind == AccessibilityFragmentKind::Root)
+    {
+        if (! record)
+        {
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+        if (! record->controlDisclosureExpanded.has_value())
+        {
+            return UIA_E_NOTSUPPORTED;
+        }
+        *outState = record->controlDisclosureExpanded.value() ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed;
+        return S_OK;
+    }
     const AccessibilityTreeItemSnapshotRecord* item = record ? FindSnapshotTreeItemRecord(*record, _treeItemId) : nullptr;
     if (! item)
     {
@@ -7890,6 +7920,36 @@ HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded) noexce
 {
     if (_target && _target->embedded && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
+    if (_kind == AccessibilityFragmentKind::Control || _kind == AccessibilityFragmentKind::Root)
+    {
+        ControlHost* host = nullptr;
+        Button* button    = nullptr;
+        {
+            const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+            host   = ResolveHost();
+            button = dynamic_cast<Button*>(ResolveMutableControl());
+            if (! host || ! button)
+            {
+                return UIA_E_ELEMENTNOTAVAILABLE;
+            }
+            const auto acknowledged = button->GetDisclosureExpanded();
+            if (! acknowledged.has_value())
+            {
+                return UIA_E_NOTSUPPORTED;
+            }
+            if (! button->IsEnabled())
+            {
+                return UIA_E_ELEMENTNOTENABLED;
+            }
+            if (acknowledged.value() == expanded)
+            {
+                return S_OK;
+            }
+        }
+        // Like Invoke, release the snapshot lock before a callback which may destroy the tree.
+        // The application acknowledges state and owns content visibility; do not retain/touch button afterward.
+        return button->Invoke(*host, true) ? S_OK : UIA_E_NOTSUPPORTED;
+    }
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     ControlHost* host = ResolveHost();
     Tree* tree        = ResolveMutableTreeControl();
@@ -8120,6 +8180,43 @@ AccessibilityTextUnitSpan GetEnclosingAccessibilityTextUnitSpan(std::wstring_vie
         span = TextRangeSpan{0u, text.size()};
     }
     return AccessibilityTextUnitSpan{span.start, span.end};
+}
+
+void RaiseWindowHostDisclosureChanged(HWND hwnd, const Control* control, bool expanded) noexcept
+{
+    if (! hwnd || ! control || ! UiaClientsAreListening())
+        return;
+    // This internal intrusive target is not IUnknown (its Release result is nodiscard).
+    // Give WIL an explicit close policy instead of imposing COM pointer semantics on it.
+    constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
+    wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> target(AcquireWindowHostAccessibilityTarget(hwnd));
+    if (! target)
+        return;
+    ControlHost* const host = target.get()->ResolveHost();
+    ControlPath path{};
+    if (! host || ! FindAccessibilityPathForTarget(host->GetRoot(), ControlPath{}, control, path))
+        return;
+    wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
+    const auto snapshot = target.get()->snapshot.load(std::memory_order_acquire);
+    if (snapshot && SnapshotHasCollapsedSemanticRoot(*snapshot))
+    {
+        const auto root = AcquireCanonicalRootProvider(target.get());
+        if (! root || FAILED(root.query_to(provider.put())))
+            return;
+    }
+    else
+    {
+        auto* raw = new (std::nothrow) AccessibilityProvider(target.get(), hwnd, path);
+        if (! raw)
+            return;
+        // The provider adopts the retained target and survives UIA reentrancy without borrowing the control.
+        static_cast<void>(target.release());
+        provider.attach(raw);
+    }
+    static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(),
+                                                             UIA_ExpandCollapseExpandCollapseStatePropertyId,
+                                                             VariantFromInt(expanded ? ExpandCollapseState_Collapsed : ExpandCollapseState_Expanded),
+                                                             VariantFromInt(expanded ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed)));
 }
 
 bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, TextInputAutomationEventKind kind) noexcept
@@ -8473,7 +8570,8 @@ void RaiseEmbeddedAccessibilityChanges(WindowHostAccessibilityTarget& target, co
             before->controlTextCompositionStart != record.controlTextCompositionStart || before->controlTextCompositionEnd != record.controlTextCompositionEnd;
         if (! nameChanged && ! helpChanged && ! textChanged && ! valueChanged && ! selectionChanged && ! compositionChanged &&
             before->controlEnabled == record.controlEnabled && before->controlToggleChecked == record.controlToggleChecked &&
-            before->controlRangeValue == record.controlRangeValue && before->controlHasFocus == record.controlHasFocus)
+            before->controlDisclosureExpanded == record.controlDisclosureExpanded && before->controlRangeValue == record.controlRangeValue &&
+            before->controlHasFocus == record.controlHasFocus)
             continue;
         static_cast<void>(target.AddRef());
         auto* raw = new (std::nothrow) AccessibilityProvider(&target, nullptr, record.path);
@@ -8513,6 +8611,11 @@ void RaiseEmbeddedAccessibilityChanges(WindowHostAccessibilityTarget& target, co
             property(UIA_ToggleToggleStatePropertyId,
                      VariantFromInt(before->controlToggleChecked ? ToggleState_On : ToggleState_Off),
                      VariantFromInt(record.controlToggleChecked ? ToggleState_On : ToggleState_Off));
+        if (record.controlDisclosureExpanded.has_value() && before->controlDisclosureExpanded.has_value() &&
+            record.controlDisclosureExpanded != before->controlDisclosureExpanded)
+            property(UIA_ExpandCollapseExpandCollapseStatePropertyId,
+                     VariantFromInt(before->controlDisclosureExpanded.value() ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed),
+                     VariantFromInt(record.controlDisclosureExpanded.value() ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed));
         if (record.controlSupportsRangeValue && before->controlRangeValue != record.controlRangeValue)
             property(UIA_RangeValueValuePropertyId, VariantFromDouble(before->controlRangeValue), VariantFromDouble(record.controlRangeValue));
         if (before->controlHasFocus != record.controlHasFocus)

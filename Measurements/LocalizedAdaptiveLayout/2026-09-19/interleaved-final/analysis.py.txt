@@ -1,0 +1,37 @@
+import json
+import random
+from pathlib import Path
+from statistics import median
+
+root = Path('Z:/src/DxUi/Measurements/LocalizedAdaptiveLayout/2026-09-19/interleaved-final')
+pairs = [json.loads((root / f'pair-{i}.comparison.json').read_text(encoding='utf-8-sig')) for i in range(1, 11)]
+receipts = {kind: [json.loads((root / f'{kind}-{i}.json').read_text(encoding='utf-8-sig')) for i in range(1, 11)] for kind in ('baseline', 'candidate')}
+for key in ('benchmarkSha256', 'compiler', 'renderer', 'width', 'height', 'dpi', 'machine', 'cpu', 'warpVersion', 'powerPolicy'):
+    assert len({str(r[key]) for group in receipts.values() for r in group}) == 1, key
+lines = ['Ten predeclared alternating AB/BA pairs; all processes and flags retained.',
+         'Each process: five clean and five dirty rounds of forty frames.',
+         'Exploratory paired bootstrap percentile interval: 10000 resamples, seed 20260919.',
+         'This interval is not an equivalence test or a replacement for the existing investigation bands.',
+         'scenario/metric | baseline median | candidate median | median paired delta % | interval % | flags/10']
+rng = random.Random(20260919)
+for offset, first in enumerate(pairs[0]['changes']):
+    samples = [p['changes'][offset] for p in pairs]
+    before, after = median(s['before'] for s in samples), median(s['after'] for s in samples)
+    deltas = [s['changePercent'] for s in samples]
+    if all(d is None for d in deltas):
+        interval = 'zero in every round'
+        delta = 0
+    else:
+        assert all(d is not None for d in deltas)
+        boot = sorted(median(rng.choices(deltas, k=len(deltas))) for _ in range(10000))
+        interval = f'[{boot[249]:.3f}, {boot[9749]:.3f}]'
+        delta = median(deltas)
+    lines.append(f"{first['scenario']}/{first['metric']} | {before:.6f} | {after:.6f} | {delta:.3f} | {interval} | {sum(s['regressed'] for s in samples)}")
+for kind, group in receipts.items():
+    for key in ('sourceFingerprint', 'executableSha256', 'benchmarkSha256'):
+        values = {r[key] for r in group}
+        assert len(values) == 1
+        lines.append(f'{kind}/{key}: {values.pop()}')
+result = '\n'.join(lines) + '\n'
+(root / 'analysis.txt').write_text(result, encoding='utf-8')
+print(result)

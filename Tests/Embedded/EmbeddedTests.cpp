@@ -90,6 +90,7 @@ static void Hr(HRESULT hr, const char* text)
 #include "ComplexUiBenchmark.h"
 #include "EmbeddedAccessibilityTests.h"
 #include "EmbeddedTextInputTests.h"
+#include "LocalizedLayoutTests.h"
 
 // Hidden and zero-extent views hold no surface; the next visible sized preparation reallocates exactly one and
 // reproduces the previous pixels. Device replacement while hidden keeps working without a surface.
@@ -274,6 +275,18 @@ __declspec(noinline) static int RunFunctionalTests()
     Hr(gpu.Create(), "supplied WARP device");
     TestEmbeddedTextInput(gpu);
     TestEmbeddedAccessibility(gpu);
+    TestLocalizedShortViewport(gpu,
+                               [](DxUi::Button& action) { action.SetMultiline(true); },
+                               [](const auto& sizes, float width, auto& bounds, float& height)
+    {
+        DxUi::MeasuredActionLayout layout{};
+        const HRESULT result = DxUi::ArrangeMeasuredActions(sizes, width, D2D1::SizeF(8, 8), bounds, layout);
+        height               = layout.heightDip;
+        return result;
+    });
+    TestLocalizedInvalidationAndSelectedDetail(gpu);
+    TestLocalizedStackedBodyClipping(gpu);
+    TestLocalizedCheckboxCaption(gpu);
     TestSurfaceLifetime(gpu);
     TestPointerGesturesOnPaintDirtyView(gpu);
     TestTickDirtying(gpu);

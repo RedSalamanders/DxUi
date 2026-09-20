@@ -30,7 +30,7 @@ constexpr GUID kTransientSurfaceGaussianBlurEffectId = {0x1feb6d69, 0x2fe6, 0x4a
 ModalLoopResult RunDxUiModalLoop(HWND hwnd, const ModalLoopOptions& options) noexcept
 {
     const ModalLoopContinueCallback shouldContinue = options.shouldContinue ? options.shouldContinue : ContinueModalLoopByDefault;
-    const std::wstring_view diagnosticName             = options.diagnosticName.empty() ? std::wstring_view(L"modal") : options.diagnosticName;
+    const std::wstring_view diagnosticName         = options.diagnosticName.empty() ? std::wstring_view(L"modal") : options.diagnosticName;
 
     MSG msg{};
     while (shouldContinue(options.context))

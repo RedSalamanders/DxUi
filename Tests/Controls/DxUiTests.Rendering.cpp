@@ -90,6 +90,48 @@ WindowHostBitmapCapture CaptureAttachedHostWindowBitmap(AttachedHostWindow& wind
     return capture;
 }
 
+void TestMultilineButtonPaintUsesMultipleTextRows()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(), nullptr, 0, 0, 480, 360, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>();
+    button->SetBounds(D2D1::RectF(20.0f, 20.0f, 180.0f, 180.0f));
+    window.Host().SetRoot(std::move(root));
+    const auto empty = CaptureAttachedHostWindowBitmap(window, "empty button reference capture");
+    button->SetText(L"Conserver les deux versions du document et poursuivre cette opération");
+    const auto single = CaptureAttachedHostWindowBitmap(window, "single-line button capture");
+    button->SetMultiline(true);
+    const auto wrapped  = CaptureAttachedHostWindowBitmap(window, "wrapped French button capture");
+    const auto textRows = [&](const auto& capture)
+    {
+        UINT rows         = 0;
+        const auto left   = static_cast<UINT>(window.Host().DipsToPixels(34.0f));
+        const auto right  = static_cast<UINT>(window.Host().DipsToPixels(166.0f));
+        const auto top    = static_cast<UINT>(window.Host().DipsToPixels(30.0f));
+        const auto bottom = static_cast<UINT>(window.Host().DipsToPixels(170.0f));
+        for (UINT y = top; y < bottom; ++y)
+        {
+            for (UINT x = left; x < right; ++x)
+            {
+                if (CaptureBgra(capture, x, y) != CaptureBgra(empty, x, y))
+                {
+                    ++rows;
+                    break;
+                }
+            }
+        }
+        return rows;
+    };
+    const UINT singleRows = textRows(single);
+    Require(singleRows > 0 && textRows(wrapped) > singleRows * 2, "wrapped French button paints more than two single-line text heights");
+}
+
 void TestSharedTransientSurfaceRendersOrdinaryPressedAndHighContrastPolicies()
 {
     using namespace DxUi;
@@ -1661,6 +1703,7 @@ void TestAttachedHostRecoversAfterSimulatedDeviceLoss()
 
 void RunRenderingTests()
 {
+    TestMultilineButtonPaintUsesMultipleTextRows();
     const auto runTest = [](const char* name, void (*fn)())
     {
         std::cerr << "  [START] " << name << '\n' << std::flush;
