@@ -65,7 +65,18 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
-**Current consumer checkpoint, 2026-09-20:** I26 implements the identical-admitted-leaf common
+**Consumer harness follow-up, 2026-09-20:** I26 repairs the reproduced OLE stream-format persistence
+failure. It retains 0/3 baseline and 0/1 diagnostic receipts, passes 6/6 focused checks and reruns the
+previous twelve-case matrix at **36/36**, zero skips. A subsequent pre-replacement verification
+guard and truthful failure-count metric pass all six affected checks on their final source.
+Every directed repetition verifies all seven
+saved byte-format clipboard contents after restoration. Unsupported media/descriptors fail before
+mutation. The original 34/36 receipt is retained. Only consumer test code changed: no library code,
+gallery pixels, API or pin changes. R3 pending inspection/return is the next independent slice;
+measured action adoption still awaits publication approval and exact-main qualification. This is
+focused Debug evidence, not final redesign/Release/Full/native-DPI/AT/resource acceptance.
+
+**Previous consumer checkpoint, 2026-09-20:** I26 implements the identical-admitted-leaf common
 heading and expanded waiting-state deduplication using the existing consumer renderer. Its focused
 French UIA/count/order/pixel fixture passes 3/3; the independent regenerated 300-frame static gallery
 passes 1/1 at native 144/96 DPI. The broader consumer run is 34/36: PNG clipboard snapshot retention
