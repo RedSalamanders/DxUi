@@ -1,17 +1,35 @@
 # Localized adaptive layout and interaction readiness
 
-Status: **ACTIVE**. Planned 2026-09-19 at `b125edbf4cdd639d1cabd686f9dc3fe8aab1f374`.
-Implementation is in progress. This plan owns generic capability work; RedSalamander I26 owns
+Status: **DONE**. Completed 2026-09-20. Planned at `b125edbf4cdd639d1cabd686f9dc3fe8aab1f374`.
+Generic implementation, qualification and explicit handoff are complete. RedSalamander I26 owns
 application presentation, conflict policy, settings, localization and product screenshots.
+
+## Closeout
+
+Qualified implementation `b9c9390732c2b586d55b6089f190fda097cec4d2` was merged in PR #18 as
+`78b3de389a189c7f86f611787e0489fb6d474218` with an identical tree. Main push CI `35531706045`
+passes all six native configurations, eighteen suites per profile, external consumers and gallery.
+The initial x64 ASan UIA subscription timeout and unchanged successful retry remain explicit;
+no root-cause fix for that intermittent initialization delay is claimed. See
+[main receipts and migration notes](../../../Measurements/LocalizedAdaptiveLayout/2026-09-20/native-ci-main-78b3/README.md).
+
+The consumer's standard updater accepted that exact successful main and changed its lock. Its
+fresh Debug builds pass with zero warnings/errors. Full product validation was started by that
+same workflow and has consumer source-guard/search-fixture failures under investigation; it is
+not a product pass. I26 retains those failures, all remaining presentation work, final French/native
+mixed-DPI and keyboard/UIA/AT qualification, and paired application resource/performance evidence.
+H4, I18, I25, RedXe and the separate editor-control owner remain separate. This closes the library's
+own implementation and handoff, not their work. Historical checkpoints below are superseded by
+this closeout where they describe pending merge approval, native qualification or pin adoption.
 
 ## Authority and boundary
 
 Read [controls/layout](../../UI/UI_ControlsAndLayout.md), [input/accessibility](../../UI/UI_InputAndAccessibility.md),
 [window hosting](../../Rendering/Rendering_Win32Host.md), [performance](../../Core/Core_PerformanceAndResources.md),
 [validation](../../Testing/Testing_Validation.md) and [documentation/gallery](../../Core/Core_Documentation.md).
-Requirements are intended acceptance, not new implemented capabilities. Keep `capabilities.json`
-truthful. The consumer pins `f5c7fc7403e352425b8e82b7a4da1c042d942ede`, a different input from this
-checkout. Library completion never implicitly changes its pin or qualifies product behavior.
+Normative contracts and `capabilities.json` describe the implemented generic surface. The consumer
+started at `f5c7fc7403e352425b8e82b7a4da1c042d942ede` and explicitly adopted qualified main
+`78b3de389a189c7f86f611787e0489fb6d474218`. Library completion does not qualify product behavior.
 
 Use existing Button, Checkbox, Label, StackPanel, ScrollPanel, Grid, ThroughputGraph and host services
 first. Extend canonical shared code when a generic gap is demonstrated. Do not add file-operation
@@ -64,6 +82,59 @@ until its separate product gates pass, then disables the shared recurring contin
 Exit: library-independent witnesses, a retained matched baseline and explicit implementation map.
 
 ### L0 checkpoint, 2026-09-19
+
+**Active handoff checkpoint, 2026-09-20 20:25 UTC:** main CI `35531706045` attempt 2 is
+successful on `78b3de389a189c7f86f611787e0489fb6d474218`. The standard consumer updater
+accepted it and changed `Dependencies/DxUi.lock.json`; fresh Full validation is still running
+in root tool session `44346`, PowerShell PID `8452`. Do not start a competing build or rerun the
+updater (an already-current pin would not rerun validation). Log:
+`C:/RedSalamander.Perf/evidence/i26-ui/dxui-main-adoption-full.log`. Both Debug builds report
+zero warnings/errors; tooling deployment tests pass 12/12. The broader Pester suite is 811/812:
+`TestHarnessSourceContracts.Tests.ps1:3705` rejects `_conflictActionLayouts` because its name
+matches the forbidden legacy `ConflictActionLayout` pattern. After Full finishes, rename this
+consumer-only measurement cache to `_conflictActionMeasurements` in Popup.cpp/.h, retain the
+policy-authority guard, format and rerun it plus the prepared UI matrix. No policy behavior change
+is needed. Do not mutate consumer source while its Full evidence is still being collected.
+Main CI receipts and migration notes: `Measurements/LocalizedAdaptiveLayout/2026-09-20/native-ci-main-78b3`.
+The initial UIA timeout, the unchanged successful retry (125 ms subscription), and ten local
+passes remain retained. Consumer Full is not yet a pass; the original failing receipt must remain.
+
+**Main CI diagnostic, 2026-09-20:** initial main job `106133346270` failed Accessibility in
+x64 ASan while `ElementFromHandle` was still pending at the unchanged 3000 ms deadline. No
+notification assertion was reached. Retain the failure (DxUi `Measurements/LocalizedAdaptiveLayout/
+2026-09-20/main-78b3-first-asan`). All other jobs passed, including all three ARM64 profiles.
+One diagnostic retry is now running as attempt 2, job `106137812800`; ten unchanged local ASan
+Accessibility runs passed (93–109 ms subscription). Do not claim a root-cause fix or adopt before
+current-main CI succeeds. Consumer resource validation also
+exposed 11 missing inspection-action/outcome IDs in each Czech, Slovak and Japanese satellite.
+The 33 translations were added; the same ResourceLocalizationContracts suite now passes 9/9,
+zero skips (previous 8/9 failure retained). Log: `C:/RedSalamander.Perf/evidence/i26-ui/
+conflict-inspection-resource-tests.log`. The prepared UI implementation still awaits pin adoption.
+
+**Approved handoff in progress, 2026-09-20 19:15 UTC:** the user explicitly approved step 1
+("1. go"). PR #18 was merged normally, matching tested head `b9c9390732c2b586d55b6089f190fda097cec4d2`,
+as main commit `78b3de389a189c7f86f611787e0489fb6d474218`. The merge tree is identical to the
+qualified PR tree. The previous pending-approval statements below are historical and superseded;
+no further merge approval is needed. Main push CI `35531706045` is running. After it passes, run the
+standard RedSalamander updater and its Full validation, then the focused prepared UI matrix.
+Preserve rollback pin `f5c7fc7403e352425b8e82b7a4da1c042d942ede`, all unrelated edits and independently
+launched applications. No plan closeout is claimed by merging alone.
+
+
+**Final native matrix, 2026-09-20 18:39 UTC:** exact revision
+`b9c9390732c2b586d55b6089f190fda097cec4d2` passes both push `35526329502` and PR
+`35526332077` CI, including all six native x64/ARM64 configurations, external-consumer integration
+and gallery generation. All eighteen suite receipts are present per profile; exit codes, native
+architecture and ASan probe detection were checked. x64 records zero capability skips; ARM64 records
+nine Menu foreground capability skips per profile and none elsewhere. Raw receipts and explanation:
+[final native evidence](../../../Measurements/LocalizedAdaptiveLayout/2026-09-20/native-ci-b9c9390/README.md).
+This closes the new revision's native library matrix, not consumer mixed-DPI/AT or product acceptance.
+PR #18 remains open at the tested revision and awaits the already requested shared-main merge
+approval. Retain these receipt/checkpoint-only local additions without pushing a new PR revision
+while that handoff is pending. Next: after approval, merge the tested PR normally, wait for successful
+main CI, then use the consumer's standard updater and required application validation. Do not move
+this plan to Done before the explicit handoff and normative closeout are complete.
+
 
 **Full scope caption follow-up, 2026-09-20:** commit `54e956e` passed all six native CI
 configurations, external-consumer checks and gallery generation in run `35524270794`.
@@ -599,9 +670,11 @@ runtime remain separate evidence, never inferred from simulation.
 
 - [x] Run x64 Debug, Release and ASan Debug suites, including controls and embedded, and build all
   three ARM64 configurations. Record native runtime gaps honestly.
-  Receipts: `final-debug`, `final-release`, `full-asan` and `arm64-builds` in
-  `Measurements/LocalizedAdaptiveLayout/2026-09-19`. Interrupted same-binary suite continuations
-  and Menu capability skips remain explicit in the checkpoint; no native ARM64 runtime claim.
+  Original local receipts: `final-debug`, `final-release`, `full-asan` and `arm64-builds` in
+  `Measurements/LocalizedAdaptiveLayout/2026-09-19`. Final `b9c9390` native receipts in
+  `Measurements/LocalizedAdaptiveLayout/2026-09-20/native-ci-b9c9390` qualify x64 and ARM64 runtime
+  across all three configurations. ARM64 Menu retains nine foreground capability skips per profile;
+  the original local continuations/skips remain historical evidence. Consumer platform gates stay separate.
 - [x] Renderer changes require WARP, device loss, clean/dirty/hidden and bounded resource/lifetime
   evidence. No hidden painting/ticks, clean-composition heap/layout work or unexplained growth.
 - [x] Compare paired common and targeted fixtures serially with matching compiler/config/device/DPI;
@@ -610,12 +683,14 @@ runtime remain separate evidence, never inferred from simulation.
   needs measured optimization/scope/deferral advice, never silent rebaselining or relaxed budgets.
 - [x] Update docs and publish/review gallery sheets with `gallery.ps1 -PublishDocs`; validate skills,
   specs, dependencies and formatting. Public examples use supported headers.
-  The five-theme sheets and clean-checkout validation qualify implementation commit `26a3d044`;
-  the clean-checkout path and retained personal-file boundary are recorded above.
-- [ ] Hand I26 the exact validated immutable revision, receipts, migration notes and remaining gates.
+  The final five-theme sheets include the complete wrapped French Checkbox at `b9c9390`.
+  Specs/skills/format pass; dependency validation passes from the tracked clean export at
+  `C:/RedSalamander.Perf/evidence/i26-ui/dxui-checkbox-clean-export`. The ignored developer `.user`
+  file remains untouched in the working checkout. Earlier gallery/validation receipts remain retained.
+- [x] Hand I26 the exact validated immutable revision, receipts, migration notes and remaining gates.
   Its explicit pin update and Full product validation use the existing integration workflow. Never
   edit a second library copy inside the consumer.
-- [ ] Reconcile normative/capability status, move this plan to Done and remove its active index entry
+- [x] Reconcile normative/capability status, move this plan to Done and remove its active index entry
   only after its work/gates pass. Consumer I26 may remain ACTIVE; its evidence stays in its repository.
 
 ## Command routing
@@ -627,5 +702,7 @@ configuration. Run `validate-skills.ps1`, `validate-specs.ps1`, `validate-depend
 stop unrelated applications. Application screenshots exclusively use the consumer scenario harness;
 notified focus is limited to its authorized interaction lane.
 
-The initial planning change was documentation-only. Current implementation and its incomplete
-qualification are recorded in the checkpoint above; baseline collection preceded shared code edits.
+The initial planning change was documentation-only. Baseline collection preceded shared code edits.
+Library implementation and native qualification are complete at the exact revision recorded above;
+main-commit qualification, explicit consumer handoff and normative/index closeout are complete.
+The consumer's Full product validation and remaining I26 acceptance remain independently owned.

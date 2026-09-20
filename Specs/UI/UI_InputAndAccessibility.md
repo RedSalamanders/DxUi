@@ -13,7 +13,7 @@ chooses its safe focus successor. Layout never chooses a destructive default. Ex
 Toggle, full text and selection semantics must match the confirmed displayed state. Color, focus
 chrome and checked state are distinct; status meaning also has text and an icon. Qualify pointer,
 Tab/Shift+Tab, Space, Enter/Escape dispatch and UIA bounds in both hosting modes under the
-[localized adaptive layout plan](../Plans/WIP/LocalizedAdaptiveLayout_2026-09-19.md).
+[localized adaptive layout plan](../Plans/Done/LocalizedAdaptiveLayout_2026-09-19.md).
 
 Qualification exercises complete transitions: initial state, input, callback effect, acknowledged
 state, removal/failure, focus recovery and teardown. A screenshot of hover or a successful Invoke
@@ -43,8 +43,10 @@ reject disabled controls and invoke caller behavior only when a change is reques
 run outside the accessibility snapshot mutex and may replace the tree. They own content visibility
 and focus recovery; the provider does not invent a body subtree or directly change application state.
 Clearing disclosure removes the pattern; removed/hidden controls cannot be activated through old
-providers. Native and embedded lifetime/acknowledgement tests qualify this implementation under the
-active plan; it is not a claim of consumer screen-reader acceptance.
+providers. Native and embedded lifetime/acknowledgement tests qualify this implementation, with
+[final native receipts](../../Measurements/LocalizedAdaptiveLayout/2026-09-20/native-ci-main-78b3/README.md)
+for all six x64/ARM64 configurations. ARM64 Menu foreground capability skips remain explicit.
+This is not a claim of consumer screen-reader acceptance.
 
 
 

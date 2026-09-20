@@ -26,9 +26,11 @@ rows may exceed the viewport: keyboard navigation reveals their beginning and wh
 interaction exposes the remainder. Preserve existing one-line behavior when secondary text is absent.
 Qualification is still in progress; this is not a consumer or native-platform acceptance claim.
 
-The following requirements are pending qualification under the
-[localized adaptive layout plan](../Plans/WIP/LocalizedAdaptiveLayout_2026-09-19.md); they do not add
-an implemented control to the catalog. Reuse existing controls and measurement services first.
+The shared implementation and synthetic acceptance below are qualified by the
+[localized adaptive layout plan](../Plans/Done/LocalizedAdaptiveLayout_2026-09-19.md) and its
+[final native receipts](../../Measurements/LocalizedAdaptiveLayout/2026-09-20/native-ci-main-78b3/README.md).
+They extend existing controls and add no new control kind to the catalog. Consumer adoption,
+physical application DPI presentation and real assistive-technology journeys require separate evidence.
 
 - A measured action group accepts caller-owned ordered controls, current typography, available DIP
   width and spacing. Wrap whole controls to further rows; a single overlong label may wrap and grow
@@ -68,13 +70,16 @@ remain bounded; hidden content requests no repaint/tick solely to maintain a vis
 French long-sentence fixtures at 96/144/192 DPI and constrained width/height qualify these contracts
 in both native and supplied-device hosts. Library fixtures are synthetic and consumer-independent.
 
-Implementation in progress, 2026-09-19: `ArrangeMeasuredActions` provides ordered, allocation-free
+Implemented and qualified, 2026-09-20: `ArrangeMeasuredActions` provides ordered, allocation-free
 geometry from already measured sizes, with unchanged outputs on invalid/capacity/overflow failure.
 Hidden `{0,0}` entries retain their index and receive empty bounds. The caller measures overlong
 labels at the available width and reserves the returned action height before laying out body content.
 `Button::SetMultiline` is opt-in for Standard text buttons, with 12/8 DIP per-side text padding.
-The L0/L1 fixture and required configuration, visual and consumer gates remain tracked in the plan;
-these APIs do not claim completion of disclosure/UIA or application adoption.
+Checkbox honors the inherited multiline option with the indicator/text geometry above. Disclosure
+uses acknowledged state and exposes the ExpandCollapse contract in the input/accessibility domain.
+Native x64/ARM64 Debug, Release and ASan suites, WARP scenes and reviewed five-theme gallery sheets
+qualify these library capabilities. ARM64 Menu records nine foreground capability skips per profile;
+real consumer screen-reader, physical mixed-DPI and application adoption remain separate gates.
 
 DxUi owns the implemented controls in `src/Controls` and their standalone tests in `Tests/Controls`.
 Source is edited in place here; historical import records do not freeze it. Consumer-specific bridges remain
