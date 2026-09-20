@@ -65,6 +65,17 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+**Consumer inspection navigation component, 2026-09-20:** I26 now dispatches qualified parent
+navigation, consumes settlement, rechecks live adapter/prompt/visit and selects the exact item in
+the captured active pane. Native cases cover both pane/role combinations without OS focus change,
+duplicate/cancel, superseding navigation, missing item, failed-folder rollback and callback reentry.
+Baseline/candidate/final each pass 18/18; final has zero warnings/errors/skips/audit issues. Same renderer
+common median/p95 66561/66843 -> 66496/66865 us; differing 66564/66846 ->
+66547/66755 us. Navigation costs are candidate-only, not final resource acceptance.
+Visible controls/result text, guarded popup focus/return and broad provider/native/UIA acceptance
+remain open. No DxUi code/API/pin/pixels changed; docs/gallery need no regeneration. Publication/
+exact-main/adoption and remaining configuration/resource gates stay open. Both plans remain ACTIVE.
+
 **Consumer owner-target qualification, 2026-09-20:** I26 retains the requested task role adapter and
 raw context, verifies typed item/parent endpoint facts using canonical identity helpers, clears failed
 output and rechecks prompt freshness after provider calls. Initial candidate retained at 17/18 (existing select-next baseline capture failure, cause unproven);
