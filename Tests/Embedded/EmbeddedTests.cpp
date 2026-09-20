@@ -284,6 +284,8 @@ __declspec(noinline) static int RunFunctionalTests()
         height               = layout.heightDip;
         return result;
     });
+    TestLocalizedInvalidationAndSelectedDetail(gpu);
+    TestLocalizedStackedBodyClipping(gpu);
     TestSurfaceLifetime(gpu);
     TestPointerGesturesOnPaintDirtyView(gpu);
     TestTickDirtying(gpu);

@@ -65,6 +65,28 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+**Generic transition qualification, 2026-09-20:** the new library-owned WARP tests in
+`Tests/Embedded/LocalizedLayoutTests.h` pass Release Embedded/Control/Accessibility with zero skips.
+[Retained receipts](../../../Measurements/LocalizedAdaptiveLayout/2026-09-20/localized-transitions/README.md)
+cover French text/font/validation invalidation, unchanged preparation reuse, selected ID 507 across
+1000 Grid rows and logical DPI changes, bounded work/hit geometry, high contrast/reduced motion,
+Tab/Shift+Tab/Space/Enter/Escape forwarding, release outside, capture loss on reflow, hidden-focus
+pruning, replacement and clean/hidden resources. A second scene has two stacked panels above a
+separate footer: pointer and raw UIA Invoke cannot reach the body through it, scrolled bounds match,
+and retained providers disconnect. Existing native `TestWindowHostMixedDialogKeyboardFlowKeepsCommandsOnFocusedControls`,
+`TestButtonKeyboardActivationCanReplaceRootSafely`, disclosure acknowledgement/notifications and
+Grid selection/model-replacement suites supply complementary host coverage. The original localized
+fixture and production sources remain unchanged; no new API/control or gallery pixels were added.
+The original CI setup failure remains unexplained; local full Release and updated remote x64/ARM64
+Debug runs succeed with stage/HRESULT diagnostics. Final published full native matrix and exact-main
+consumer handoff remain required. Application hierarchy, physical DPI and full journeys stay in I26.
+
+The generic L1/L2 and deterministic resource checkboxes now reference executable evidence rather
+than stale unfinished prose. `TestSurfaceLifetime`, `TestCacheBounds`, the original WARP/device-loss
+suite and localized scenes retain clean/dirty/hidden lifetime coverage. The existing ten alternating
+pairs complete the required library performance investigation with its uncertainty and original
+flags preserved; they do not prove equivalence or waive later confirmed product degradation.
+
 **CI subscription diagnostic, 2026-09-20:** PR #18's pull-request run `35521096235` passed all
 six native configurations and external-consumer integration, including native ARM64 ASan. Its
 duplicate push run `35521088120` failed x64 Release at `subscribe native disclosure property events`;
@@ -521,7 +543,7 @@ unchanged shared code before introducing reusable measured wrapping.
 - [x] Implement demonstrated gaps. Input is ordered children, available bounds, typography and
   spacing; output is desired height and coherent child/clip/scroll rectangles. Wrap whole actions,
   then overlong individual labels; preserve caller-owned order/defaults.
-- [ ] Invalidate on text/font/DPI/bounds/visibility/error changes and retain measurements between
+- [x] Invalidate on text/font/DPI/bounds/visibility/error changes and retain measurements between
   unchanged frames. Text shaping/layout stays outside clean composition.
 - [x] Support complete Unicode text and short body viewports with separate actions; preserve scroll
   anchors and visible focus. No host activation, new worker or autonomous timer.
@@ -533,7 +555,7 @@ in native and embedded hosts.
 
 ## L2 — State and accessible interaction
 
-- [ ] Reconcile the September 20 consumer audit with generic synthetic acceptance: complete long
+- [x] Reconcile the September 20 consumer audit with generic synthetic acceptance: complete long
   French status/action text, multi-card body/action/footer clipping, one-heading reading order and
   acknowledged focus/state after success, failure, removal and reflow. Do not import file-operation
   policy or pane navigation into library fixtures. Existing API passes are not product journey passes.
@@ -542,9 +564,9 @@ in native and embedded hosts.
   pressed/disabled. Model acknowledgement emits no additional user callback.
 - [x] Reuse or extend disclosure with keyboard activation and UIA ExpandCollapse; collapse removes
   child navigation/render work and returns child focus to the header.
-- [ ] Qualify Grid row geometry with external wrapped detail, stable selection/identity and bounded
+- [x] Qualify Grid row geometry with external wrapped detail, stable selection/identity and bounded
   virtualization. The application owns record meaning and recovery actions.
-- [ ] Test Tab/Shift+Tab, Space, Enter/Escape forwarding, pointer release/capture loss, root replacement,
+- [x] Test Tab/Shift+Tab, Space, Enter/Escape forwarding, pointer release/capture loss, root replacement,
   hidden-focus pruning and focus after resize/DPI. Include high contrast and reduced motion.
 - [x] New concrete controls require catalog/factory, populated gallery and behavior tests together;
   extend existing controls/examples where sufficient, without duplicate implementations.
@@ -559,9 +581,9 @@ runtime remain separate evidence, never inferred from simulation.
   Receipts: `final-debug`, `final-release`, `full-asan` and `arm64-builds` in
   `Measurements/LocalizedAdaptiveLayout/2026-09-19`. Interrupted same-binary suite continuations
   and Menu capability skips remain explicit in the checkpoint; no native ARM64 runtime claim.
-- [ ] Renderer changes require WARP, device loss, clean/dirty/hidden and bounded resource/lifetime
+- [x] Renderer changes require WARP, device loss, clean/dirty/hidden and bounded resource/lifetime
   evidence. No hidden painting/ticks, clean-composition heap/layout work or unexplained growth.
-- [ ] Compare paired common and targeted fixtures serially with matching compiler/config/device/DPI;
+- [x] Compare paired common and targeted fixtures serially with matching compiler/config/device/DPI;
   retain five-round medians and raw samples, frame/input/preparation costs, allocations, surfaces,
   private bytes and working set. Follow current ceilings/investigation bands. Confirmed degradation
   needs measured optimization/scope/deferral advice, never silent rebaselining or relaxed budgets.

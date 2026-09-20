@@ -1,0 +1,66 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.lib
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.ControlTests.exe
+  EmbeddedTests.cpp
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi\.build\x64\Release\DxUi.EmbeddedTests.exe
+
+========================================
+DxUi build passed in 00:28
+Output: Z:\src\DxUi\.build\
+Log: Z:\src\DxUi\.build\logs\build-x64-Release-2f353e080b1c4ca6b77703a9d627b9e7.log
+========================================
+Complex UI clean round 1: 248.785 completed offscreen FPS; p95 7.9748 ms; private 26263552 bytes
+Complex UI clean round 2: 435.283 completed offscreen FPS; p95 3.4184 ms; private 26546176 bytes
+Complex UI clean round 3: 316.142 completed offscreen FPS; p95 7.0362 ms; private 26603520 bytes
+Complex UI clean round 4: 285.991 completed offscreen FPS; p95 6.024 ms; private 26755072 bytes
+Complex UI clean round 5: 327.477 completed offscreen FPS; p95 5.3154 ms; private 26767360 bytes
+Complex UI dirty round 1: 80.5353 completed offscreen FPS; p95 20.9344 ms; private 29331456 bytes
+Complex UI dirty round 2: 58.363 completed offscreen FPS; p95 42.7228 ms; private 29339648 bytes
+Complex UI dirty round 3: 106.709 completed offscreen FPS; p95 16.5787 ms; private 29360128 bytes
+Complex UI dirty round 4: 89.0975 completed offscreen FPS; p95 15.3419 ms; private 29356032 bytes
+Complex UI dirty round 5: 73.9388 completed offscreen FPS; p95 29.6369 ms; private 24985600 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\reports\Performance-x64-Release-5fb098fce4944ea29177ba17aa12ce2f.json
+Running Embedded (x64 Release)
+PASS Embedded (0 capability skips recorded)
+Running Control (x64 Release)
+PASS Control (0 capability skips recorded)
+Running Accessibility (x64 Release)
+PASS Accessibility (0 capability skips recorded)
+All 3 requested suites passed.

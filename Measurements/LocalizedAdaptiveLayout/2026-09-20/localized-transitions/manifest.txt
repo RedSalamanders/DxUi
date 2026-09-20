@@ -1,0 +1,22 @@
+{
+  "base_commit": "1ea876fc5a432c2c667bd8d9b90a0104475decae",
+  "test_sources": {
+    "Tests/Embedded/EmbeddedTests.cpp": "b08b6b777754cdfc2ff75929a127cc9f5e946617739e40684acf23af4414b0b9",
+    "Tests/Embedded/LocalizedLayoutTests.h": "b0c89b967e7959fbc3f6123b3ae24957966a3bb3830a1b6b50d9a8bb03a195fe"
+  },
+  "production_diff_from_qualified_26a3d044": "",
+  "files": {
+    "Accessibility-x64-Release-receipt.txt": "9e48432aaa3f87bde1c07b69d9d2e272623cb2e459b34bde9262bbf854bc2d68",
+    "Accessibility.log": "962a2ea27172aa304fe848195b076723f2ba8b63b246c32529a6de1ab01863fd",
+    "Control-x64-Release-receipt.txt": "ddd8ca5795e131ee8c8b86cceb9044a03abc0b00d10b6871c7d62162efc712ff",
+    "Control.log": "3679fb45f2835c0f46e30d8ea1375142a872ba28bf507d080f62609b8967c8a9",
+    "dxui-localized-invalidation-final-release.log": "ba0e4d2cbe95a2fef19b0701da871179accddf0f5a98c55055fe0916298b5dae",
+    "dxui-localized-invalidation-release.log": "8a167afaca379a8c05335836caa2efbaff267eae9f8061036e44bcf9b44b5935",
+    "dxui-localized-stack-release.log": "0bf1219eb26d212efba37d5b4cd50a34656b95e4cac4f97ca452f9bf79c51da0",
+    "dxui-localized-transitions-release.log": "e40aa30738b1451b5139bf029a0231ba94263c1e9c57f74714ff6c26bf03f1fa",
+    "Embedded-x64-Release-receipt.txt": "8bd370a3f3313caec59978ff04cdaed7dd3ba1f458fc979fd52b3355ba517d28",
+    "Embedded.log": "2b15642bb924c42435510a8a56197af24a074f5ca3aa8b71ee1a25cbbf5f3d39",
+    "Performance-x64-Release-7b06f1a1ad0a4a8d8326f374190bab6f.json": "4fbe63e6cea6387cb1cbd574721b02ac24650af92bf62c15bb3ca7b86eb4ff00",
+    "Performance-x64-Release-7b06f1a1ad0a4a8d8326f374190bab6f.json.comparison.json": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  }
+}
