@@ -1,0 +1,1247 @@
+{
+  "commit": "b9c9390732c2b586d55b6089f190fda097cec4d2",
+  "push_run": "https://github.com/RedSalamanders/DxUi/actions/runs/35526329502",
+  "pr_run": "https://github.com/RedSalamanders/DxUi/actions/runs/35526332077",
+  "artifacts": [
+    {
+      "artifact": "native-ARM64-ASan Debug",
+      "receipts": [
+        {
+          "suite": "Accessibility",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:47:08.5171048Z"
+        },
+        {
+          "suite": "AddressSanitizer",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 1,
+          "detected": true,
+          "skips": null,
+          "completedUtc": "2026-09-20T17:46:04.3845911Z"
+        },
+        {
+          "suite": "Animation",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:47:04.7411641Z"
+        },
+        {
+          "suite": "ComboBox",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:55.9742171Z"
+        },
+        {
+          "suite": "Control",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:06.8771684Z"
+        },
+        {
+          "suite": "Embedded",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:06.0045758Z"
+        },
+        {
+          "suite": "ExternalConsumer",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": null,
+          "completedUtc": "2026-09-20T17:55:31.3413937Z"
+        },
+        {
+          "suite": "ExternalConsumer",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": null,
+          "completedUtc": "2026-09-20T18:03:43.7222571Z"
+        },
+        {
+          "suite": "Foundation",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:04.5149788Z"
+        },
+        {
+          "suite": "Grid",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:06.4202220Z"
+        },
+        {
+          "suite": "Menu",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [
+            "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+            "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+          ],
+          "completedUtc": "2026-09-20T17:46:25.3510421Z"
+        },
+        {
+          "suite": "MultilineText",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:54.3077442Z"
+        },
+        {
+          "suite": "NativeTextInput",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:53.1546321Z"
+        },
+        {
+          "suite": "NewControls",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:25.9327313Z"
+        },
+        {
+          "suite": "ReadOnly",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:55.0264709Z"
+        },
+        {
+          "suite": "Rendering",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:47:03.7718439Z"
+        },
+        {
+          "suite": "TextField",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:47.0901139Z"
+        },
+        {
+          "suite": "Theme",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:06.5142182Z"
+        },
+        {
+          "suite": "Tooltip",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:56.9792895Z"
+        },
+        {
+          "suite": "Tree",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:56.3195137Z"
+        },
+        {
+          "suite": "WindowHost",
+          "configuration": "ASan Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:47:09.3971350Z"
+        }
+      ]
+    },
+    {
+      "artifact": "native-ARM64-Debug",
+      "receipts": [
+        {
+          "suite": "Accessibility",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:34.6166509Z"
+        },
+        {
+          "suite": "Animation",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:31.4723960Z"
+        },
+        {
+          "suite": "ComboBox",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:25.7769671Z"
+        },
+        {
+          "suite": "Control",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:05.0067175Z"
+        },
+        {
+          "suite": "Embedded",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:04.4559652Z"
+        },
+        {
+          "suite": "ExternalConsumer",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": null,
+          "completedUtc": "2026-09-20T17:54:51.4432227Z"
+        },
+        {
+          "suite": "Foundation",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:03.2042478Z"
+        },
+        {
+          "suite": "Grid",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:04.7195573Z"
+        },
+        {
+          "suite": "Menu",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [
+            "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+            "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+          ],
+          "completedUtc": "2026-09-20T17:46:20.2227825Z"
+        },
+        {
+          "suite": "MultilineText",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:24.9050266Z"
+        },
+        {
+          "suite": "NativeTextInput",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:24.4080626Z"
+        },
+        {
+          "suite": "NewControls",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:20.5465172Z"
+        },
+        {
+          "suite": "ReadOnly",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:25.2221384Z"
+        },
+        {
+          "suite": "Rendering",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:30.6021867Z"
+        },
+        {
+          "suite": "TextField",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:21.5186851Z"
+        },
+        {
+          "suite": "Theme",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:04.7843116Z"
+        },
+        {
+          "suite": "Tooltip",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:26.5135152Z"
+        },
+        {
+          "suite": "Tree",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:25.9888565Z"
+        },
+        {
+          "suite": "WindowHost",
+          "configuration": "Debug",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:46:35.2309237Z"
+        }
+      ]
+    },
+    {
+      "artifact": "native-ARM64-Release",
+      "receipts": [
+        {
+          "suite": "Accessibility",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:32.9865850Z"
+        },
+        {
+          "suite": "Animation",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:30.1526981Z"
+        },
+        {
+          "suite": "ComboBox",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:26.3162767Z"
+        },
+        {
+          "suite": "Control",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:07.1378122Z"
+        },
+        {
+          "suite": "Embedded",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:06.9070598Z"
+        },
+        {
+          "suite": "ExternalConsumer",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": null,
+          "completedUtc": "2026-09-20T17:57:22.4473019Z"
+        },
+        {
+          "suite": "Foundation",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:05.7856562Z"
+        },
+        {
+          "suite": "Grid",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:07.0086361Z"
+        },
+        {
+          "suite": "Menu",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [
+            "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+            "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+            "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+          ],
+          "completedUtc": "2026-09-20T17:48:21.5728355Z"
+        },
+        {
+          "suite": "MultilineText",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:25.5975818Z"
+        },
+        {
+          "suite": "NativeTextInput",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:25.3331859Z"
+        },
+        {
+          "suite": "NewControls",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:21.8315259Z"
+        },
+        {
+          "suite": "ReadOnly",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:25.7808317Z"
+        },
+        {
+          "suite": "Rendering",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:29.3461020Z"
+        },
+        {
+          "suite": "TextField",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:23.6373298Z"
+        },
+        {
+          "suite": "Theme",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:07.0537716Z"
+        },
+        {
+          "suite": "Tooltip",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:26.9665858Z"
+        },
+        {
+          "suite": "Tree",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:26.4881600Z"
+        },
+        {
+          "suite": "WindowHost",
+          "configuration": "Release",
+          "platform": "ARM64",
+          "nativeArchitecture": "Arm64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:48:33.5270361Z"
+        }
+      ]
+    },
+    {
+      "artifact": "native-x64-ASan Debug",
+      "receipts": [
+        {
+          "suite": "Accessibility",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:52.7823687Z"
+        },
+        {
+          "suite": "AddressSanitizer",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 1,
+          "detected": true,
+          "skips": null,
+          "completedUtc": "2026-09-20T17:40:35.4454181Z"
+        },
+        {
+          "suite": "Animation",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:47.6542088Z"
+        },
+        {
+          "suite": "ComboBox",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:29.0655099Z"
+        },
+        {
+          "suite": "Control",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:40.7405186Z"
+        },
+        {
+          "suite": "Embedded",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:38.6691140Z"
+        },
+        {
+          "suite": "ExternalConsumer",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": null,
+          "completedUtc": "2026-09-20T17:44:52.8603859Z"
+        },
+        {
+          "suite": "ExternalConsumer",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": null,
+          "completedUtc": "2026-09-20T17:47:46.3624136Z"
+        },
+        {
+          "suite": "Foundation",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:36.3402622Z"
+        },
+        {
+          "suite": "Grid",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:39.7048148Z"
+        },
+        {
+          "suite": "Menu",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:09.9072062Z"
+        },
+        {
+          "suite": "MultilineText",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:25.3841513Z"
+        },
+        {
+          "suite": "NativeTextInput",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:23.7725749Z"
+        },
+        {
+          "suite": "NewControls",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:10.9999813Z"
+        },
+        {
+          "suite": "ReadOnly",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:26.5054425Z"
+        },
+        {
+          "suite": "Rendering",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:46.1251255Z"
+        },
+        {
+          "suite": "TextField",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:16.6336855Z"
+        },
+        {
+          "suite": "Theme",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:39.8149893Z"
+        },
+        {
+          "suite": "Tooltip",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:30.9861892Z"
+        },
+        {
+          "suite": "Tree",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:29.9437552Z"
+        },
+        {
+          "suite": "WindowHost",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:54.1301357Z"
+        }
+      ]
+    },
+    {
+      "artifact": "native-x64-Debug",
+      "receipts": [
+        {
+          "suite": "Accessibility",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:25.0040011Z"
+        },
+        {
+          "suite": "Animation",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:22.6392901Z"
+        },
+        {
+          "suite": "ComboBox",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:17.1111106Z"
+        },
+        {
+          "suite": "Control",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:49.4949636Z"
+        },
+        {
+          "suite": "Embedded",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:48.6097207Z"
+        },
+        {
+          "suite": "ExternalConsumer",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": null,
+          "completedUtc": "2026-09-20T17:44:25.0070544Z"
+        },
+        {
+          "suite": "Foundation",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:47.4005405Z"
+        },
+        {
+          "suite": "Grid",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:49.1096385Z"
+        },
+        {
+          "suite": "Menu",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:10.3717107Z"
+        },
+        {
+          "suite": "MultilineText",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:16.2324589Z"
+        },
+        {
+          "suite": "NativeTextInput",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:15.8602921Z"
+        },
+        {
+          "suite": "NewControls",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:10.6857267Z"
+        },
+        {
+          "suite": "ReadOnly",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:16.4889758Z"
+        },
+        {
+          "suite": "Rendering",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:21.7541858Z"
+        },
+        {
+          "suite": "TextField",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:12.1740138Z"
+        },
+        {
+          "suite": "Theme",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:49.1721860Z"
+        },
+        {
+          "suite": "Tooltip",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:17.8687733Z"
+        },
+        {
+          "suite": "Tree",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:17.3452162Z"
+        },
+        {
+          "suite": "WindowHost",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:25.6246507Z"
+        }
+      ]
+    },
+    {
+      "artifact": "native-x64-Release",
+      "receipts": [
+        {
+          "suite": "Accessibility",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:18.4856300Z"
+        },
+        {
+          "suite": "Animation",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:16.5009133Z"
+        },
+        {
+          "suite": "ComboBox",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:12.5008402Z"
+        },
+        {
+          "suite": "Control",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:47.7693477Z"
+        },
+        {
+          "suite": "Embedded",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:47.4977929Z"
+        },
+        {
+          "suite": "ExternalConsumer",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": null,
+          "completedUtc": "2026-09-20T17:44:27.4518632Z"
+        },
+        {
+          "suite": "Foundation",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:46.5655941Z"
+        },
+        {
+          "suite": "Grid",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:47.6263153Z"
+        },
+        {
+          "suite": "Menu",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:07.9502261Z"
+        },
+        {
+          "suite": "MultilineText",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:11.6774550Z"
+        },
+        {
+          "suite": "NativeTextInput",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:11.3800966Z"
+        },
+        {
+          "suite": "NewControls",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:08.2367471Z"
+        },
+        {
+          "suite": "ReadOnly",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:11.9118571Z"
+        },
+        {
+          "suite": "Rendering",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:15.6460724Z"
+        },
+        {
+          "suite": "TextField",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:09.5282571Z"
+        },
+        {
+          "suite": "Theme",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:40:47.6573044Z"
+        },
+        {
+          "suite": "Tooltip",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:13.1695967Z"
+        },
+        {
+          "suite": "Tree",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:12.6722915Z"
+        },
+        {
+          "suite": "WindowHost",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "exitCode": 0,
+          "detected": null,
+          "skips": [],
+          "completedUtc": "2026-09-20T17:41:19.1740240Z"
+        }
+      ]
+    }
+  ]
+}
