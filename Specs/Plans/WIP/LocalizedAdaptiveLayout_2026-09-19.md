@@ -65,6 +65,17 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+**Consumer owner-target qualification, 2026-09-20:** I26 retains the requested task role adapter and
+raw context, verifies typed item/parent endpoint facts using canonical identity helpers, clears failed
+output and rechecks prompt freshness after provider calls. Initial candidate retained at 17/18 (existing select-next baseline capture failure, cause unproven);
+all three new cases pass. Subsequent lifetime/aliasing guards and the same final six-case matrix pass 18/18,
+zero warnings/errors/skips/audit issues. Renderer common median/p95 66539/66835 ->
+66561/66843 us; differing 66548/66834 -> 66564/66846 us.
+Candidate qualifier timings are not paired resource acceptance. The owner navigation/focus/rollback
+transaction, visible controls and popup return still remain open. No library source/API/pin/pixels
+changed; docs/gallery need no regeneration. Publication approval/exact-main/explicit adoption and
+remaining configuration/native/UIA/AT/resource gates remain open. Both plans remain ACTIVE.
+
 **Consumer enumeration settlement hook, 2026-09-20:** I26 now exposes pane-scoped UI-thread success
 and failure receipts after queued work, exact attempted folder/status, reentrant stale suppression
 and safe self-unsubscription. Reused 18/18 baseline, two retained 15/18 failed iterations (moved-from
