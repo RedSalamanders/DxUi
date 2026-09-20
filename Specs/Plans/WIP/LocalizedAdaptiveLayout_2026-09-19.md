@@ -65,6 +65,14 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+Latest consumer follow-up removes stale ordinary transfer paths, mini-progress and concurrency
+text from active conflicts, and measures the card from its decision content/actions. The prior
+policy-only progress flag did not detect the painted mini-bar. I26 now retains actual hosted-tree
+absence checks, complete metadata pixels/UIA, a failing pre-change baseline, 3/3 focused passes
+and a 25/27 broad Debug run with six reviewed French native-144-DPI captures. Two throughput repetitions fail the existing clipboard-preservation prerequisite (HTML Format, 0x800401D3); broad acceptance remains open. No shared code,
+API, pin or library gallery pixels changed. Publication/main-CI permission and explicit qualified
+pin adoption remain pending; no unchanged library requalification was repeated.
+
 Consumer metadata closeout is committed as `b522a2bf`; this library's coordination update is
 `a5712b0`. Current skills/specs/format checks pass. Read-only GitHub checks still show main at
 `b125edbf4cdd639d1cabd686f9dc3fe8aab1f374` with no PR for this branch. A concrete PR description
