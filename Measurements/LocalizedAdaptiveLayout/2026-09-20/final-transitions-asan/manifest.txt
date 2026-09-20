@@ -1,0 +1,147 @@
+{
+  "commit": "54e956eafa9ab0feeecefa40ba67a9f12b7439a3",
+  "suites": [
+    {
+      "suite": "Foundation",
+      "completedUtc": "2026-09-20T17:08:08.5411827Z",
+      "skips": []
+    },
+    {
+      "suite": "Embedded",
+      "completedUtc": "2026-09-20T17:08:10.1731987Z",
+      "skips": []
+    },
+    {
+      "suite": "Grid",
+      "completedUtc": "2026-09-20T17:08:12.0327149Z",
+      "skips": []
+    },
+    {
+      "suite": "Theme",
+      "completedUtc": "2026-09-20T17:08:12.1103753Z",
+      "skips": []
+    },
+    {
+      "suite": "Control",
+      "completedUtc": "2026-09-20T17:08:13.5246026Z",
+      "skips": []
+    },
+    {
+      "suite": "Menu",
+      "completedUtc": "2026-09-20T17:08:48.4800408Z",
+      "skips": [
+        "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+        "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+      ]
+    },
+    {
+      "suite": "NewControls",
+      "completedUtc": "2026-09-20T17:08:50.5511991Z",
+      "skips": []
+    },
+    {
+      "suite": "TextField",
+      "completedUtc": "2026-09-20T17:08:58.9705814Z",
+      "skips": []
+    },
+    {
+      "suite": "NativeTextInput",
+      "completedUtc": "2026-09-20T17:09:47.4907179Z",
+      "skips": []
+    },
+    {
+      "suite": "MultilineText",
+      "completedUtc": "2026-09-20T17:09:56.7740270Z",
+      "skips": []
+    },
+    {
+      "suite": "ReadOnly",
+      "completedUtc": "2026-09-20T17:10:02.4971385Z",
+      "skips": []
+    },
+    {
+      "suite": "ComboBox",
+      "completedUtc": "2026-09-20T17:10:04.9460681Z",
+      "skips": []
+    },
+    {
+      "suite": "Tree",
+      "completedUtc": "2026-09-20T17:10:06.2579796Z",
+      "skips": []
+    },
+    {
+      "suite": "Tooltip",
+      "completedUtc": "2026-09-20T17:10:08.2852036Z",
+      "skips": []
+    },
+    {
+      "suite": "Rendering",
+      "completedUtc": "2026-09-20T17:10:24.5431975Z",
+      "skips": []
+    },
+    {
+      "suite": "Animation",
+      "completedUtc": "2026-09-20T17:10:26.3325978Z",
+      "skips": []
+    },
+    {
+      "suite": "Accessibility",
+      "completedUtc": "2026-09-20T17:10:37.7073779Z",
+      "skips": []
+    },
+    {
+      "suite": "WindowHost",
+      "completedUtc": "2026-09-20T17:10:41.0733659Z",
+      "skips": []
+    }
+  ],
+  "hash_scope": "SHA256 of original captured bytes before Git checkout line-ending conversion",
+  "files": {
+    "Accessibility-receipt.txt": "7fa1a5d70cb9bc49ad53a3cf1731d6e76cbe1ec922f634b75d906f863952a6bf",
+    "Accessibility.log": "dd8320abadc28feaf0b3322cad681d3d897ba1bb58353d1fc58cb3c173a4697e",
+    "Animation-receipt.txt": "1f66c23b6de2ea798e67085554188df8284ee62281626e0db6f4375087db862f",
+    "Animation.log": "181ccfb07a7c3c67ae25db3125f5b63513438c19e074cc963d6c7a27b7a80d62",
+    "ComboBox-receipt.txt": "f53384454d1519625a88e6fe2ec7030a04dc1518b48518249f960ed541d56eef",
+    "ComboBox.log": "b29f09887d351c74847f6cecc4f116cb2c9a7eb685c9131b1ce8c641785eeca4",
+    "Control-receipt.txt": "043da8042375fa6abd671ec699027d33bf2d877398f4c9f914e14cb31ead9a5b",
+    "Control.log": "c253b6e6de5285111de183fefac612b9b5eeed6df32e63978997e5b07715d8fc",
+    "Embedded-receipt.txt": "087c1d1dad41266e06b1b219e17d941f41c262e9169b2b16f9cea3cbd8f90b38",
+    "Embedded.log": "c83d52d4cd9fc3b3e3f0f8c6222bc6114b6bf716121cfc690d68af8bd765f9d8",
+    "Foundation-receipt.txt": "b9bbd4a5eca1e642fff6d10d7be66292c9cac847de1349d5bfd4ec839620e794",
+    "Foundation.log": "01007c353f70730873e78034fb6cf5f6bcd702b01e52553f03d8bb4ba32e8372",
+    "Grid-receipt.txt": "0c11274192d50105fffba6ca405d5469618df167341de871f13379de821671cf",
+    "Grid.log": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "Menu-receipt.txt": "0d289c2db1adc1aaadbdbc926b6abd223bf47225f4d430a5cf632370f61abebc",
+    "Menu.log": "470bb2f864c4f47993eca6e7b5e95293abca3df83df89fe21a6d8cee31296ade",
+    "MultilineText-receipt.txt": "6bc8f74060e1d8345fe5a67597191b8012de638cb16928134bfa23c312553a41",
+    "MultilineText.log": "115e90d3665aaca20f5630f5487fbc7498595492191ee0e55187cf02a7f82791",
+    "NativeTextInput-receipt.txt": "df44ce8f8bc8db9f806658f06a166cbbee352a363084683f6f5014c759fb7abb",
+    "NativeTextInput.log": "f862915cdf8158b1336f52f95133e77916d9cd62ee21c589c48f0e11e839ff05",
+    "NewControls-receipt.txt": "ec86991669cdffa2d8ebda4379e6a0deabae272cae491643e784d1000d7903ce",
+    "NewControls.log": "5daf7f3217972c46ccd5e3bb77cffbf2043e1b2c5487c4fe3fa6536d0bb023bd",
+    "Performance-x64-ASan Debug-efe1401f3f854b67a20525a26089a750.json": "4301afda82a656fbb7f886b16e0e33da2531f40e45f93db56062237634e078ef",
+    "Performance-x64-ASan Debug-efe1401f3f854b67a20525a26089a750.json.comparison.json": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "ReadOnly-receipt.txt": "6f8e61a6d28b13412f095f0407d1313fda566349a569591bda83b91758e41fc8",
+    "ReadOnly.log": "abcb9b85165fb68b19a0e70c815fe5676201cfd3999818f38d8e036ae0d0b07e",
+    "Rendering-receipt.txt": "898d35e166b7b1f49bd876c7afd04475d80645f385d913575e8e5b760fe3d79d",
+    "Rendering.log": "12c54f8827ed39ad306a6391f9663a0e45eda1bd55029c50b2b4a5b428393bf9",
+    "runner.log": "5bb7560fc91a6eb1d4156f4c2bd234b1fce6643d3d4a77571be6f8696204c060",
+    "TextField-receipt.txt": "f7ee9202b8e7e4f938819ee9d85cd17e4dda0a51cd97beb7cdc900d53b151f3a",
+    "TextField.log": "b1d3bb0d6930b5f596013377af2ce45ffa53a97d822ff2f094301d7ba2a60493",
+    "Theme-receipt.txt": "e4abd05763f77faff8a23ed64c25c81e61752b7632e3fdb9b013bb3952d0d762",
+    "Theme.log": "1d502c308bc9845ab1f08d2a89ac946a81537be36e28bf9fcf8fc5a12007ceb7",
+    "Tooltip-receipt.txt": "dbdc9d5a140b8e0e434ea579ab5a1180d7483123ffb4e36c7785dd4e040b92cd",
+    "Tooltip.log": "619183b9e8a66d7089a4217f84d02494048118730f5c207d8eeff7d837829002",
+    "Tree-receipt.txt": "a18cc841661a67999fa4018fbffc931818ddba2d28060e6d99ff54094b83dd6d",
+    "Tree.log": "a1594223b505dc7ef35c9c890ed80f1428f8b8ceeea909653689929b7f56d288",
+    "WindowHost-receipt.txt": "b04abee34831c44af588d8041316db5232dc39765be9e902dc6a6ebafbd9a7cf",
+    "WindowHost.log": "6bb94961429d5625cc382694356cfcc911e579ac5faad205237da539c6d0e773"
+  }
+}

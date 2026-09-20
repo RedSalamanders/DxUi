@@ -65,6 +65,27 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+**Full scope caption follow-up, 2026-09-20:** commit `54e956e` passed all six native CI
+configurations, external-consumer checks and gallery generation in run `35524270794`.
+Preparing the complete French consumer scope sentence then exposed Checkbox ignoring inherited
+multiline mode. A library-owned pixel regression reproduces the missing additional text lines;
+Checkbox now honors the existing option without a new API or changed default. The corrected
+host-dispatched Space/disabled and acknowledgement checks pass Release Embedded/Control/Accessibility.
+A direct call to a disabled control's callback was rejected as an invalid fixture (the host gates
+input); its failure is retained. The first common-performance pair flagged clean latency, so five
+further alternating pairs were retained with all flags and matching identities. Median pair deltas
+are clean FPS -1.01%, p95 +2.65%, dirty FPS -0.37%, p95 -1.34%, with no allocation/surface change.
+Direction varies between pairs; no systematic degradation is confirmed. This does not prove
+performance equivalence. The updated production source and wrapped-caption gallery require a fresh
+published matrix before the immutable consumer handoff; do not adopt the earlier commit for this fix.
+Local x64 Debug, Release and ASan Debug now pass all 18 suites each; Menu retains nine foreground
+capability skips in each profile, other suites zero. The ASan detection probe passes. Receipts are
+under `Measurements/LocalizedAdaptiveLayout/2026-09-20/multiline-checkbox/final-local`. All five
+regenerated documentation sheets were visually reviewed with complete three-line French Checkbox
+text and visible checked state. Specs, skills and formatting pass; final clean-export dependency
+validation and the new published native matrix remain before handoff.
+
+
 **Generic transition qualification, 2026-09-20:** the new library-owned WARP tests in
 `Tests/Embedded/LocalizedLayoutTests.h` pass Release Embedded/Control/Accessibility with zero skips.
 [Retained receipts](../../../Measurements/LocalizedAdaptiveLayout/2026-09-20/localized-transitions/README.md)

@@ -286,6 +286,7 @@ __declspec(noinline) static int RunFunctionalTests()
     });
     TestLocalizedInvalidationAndSelectedDetail(gpu);
     TestLocalizedStackedBodyClipping(gpu);
+    TestLocalizedCheckboxCaption(gpu);
     TestSurfaceLifetime(gpu);
     TestPointerGesturesOnPaintDirtyView(gpu);
     TestTickDirtying(gpu);

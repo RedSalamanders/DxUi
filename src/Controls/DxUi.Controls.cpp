@@ -2968,7 +2968,7 @@ void Checkbox::Paint(ControlHost& host) const
                          GetMnemonic(),
                          rightToLeft ? DWRITE_TEXT_ALIGNMENT_TRAILING : DWRITE_TEXT_ALIGNMENT_LEADING,
                          DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
-                         false,
+                         IsMultiline(),
                          GetFlowDirection());
 }
 

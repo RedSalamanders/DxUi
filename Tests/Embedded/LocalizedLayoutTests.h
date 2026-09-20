@@ -285,3 +285,61 @@ static void TestLocalizedStackedBodyClipping(GraphicsFixture& gpu)
     site->root = nullptr;
     Check(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "retained scrolled action provider disconnects after detach");
 }
+
+// The optional multiline mode is inherited by Checkbox; verify the real painter,
+// not just its stored flag or accessible name. Subtract an empty-label frame so
+// theme colors and the indicator cannot manufacture the text witness.
+static void TestLocalizedCheckboxCaption(GraphicsFixture& gpu)
+{
+    EmbeddedScene scene;
+    Hr(scene.Initialize(gpu.device.get()), "localized checkbox attach");
+    auto& view     = scene.view;
+    auto root      = std::make_unique<DxUi::Panel>();
+    auto* checkbox = root->AddChild<DxUi::Checkbox>();
+    checkbox->SetBounds(D2D1::RectF(12, 12, 280, 116));
+    unsigned int toggles = 0;
+    checkbox->SetOnToggled([&](bool) { ++toggles; });
+    view.Controls().SetRoot(std::move(root));
+    const auto capture = [&](std::vector<uint8_t>& pixels)
+    {
+        Hr(view.Prepare(gpu.width, gpu.height, 96), "prepare checkbox caption");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose checkbox caption");
+        Hr(gpu.Read(pixels), "read checkbox caption");
+    };
+    std::vector<uint8_t> empty, single, wrapped;
+    capture(empty);
+    checkbox->SetText(L"Appliquer ce choix à tous les éléments similaires restants dans cette opération uniquement");
+    capture(single);
+    checkbox->SetMultiline(true);
+    capture(wrapped);
+    auto* format = view.Controls().GetTextFormat(DxUi::FontRole::Body);
+    Check(format != nullptr, "checkbox uses current Body typography");
+    const float singleLineExclusion = format->GetFontSize() * 1.5f;
+    const auto countOuterText       = [&](const std::vector<uint8_t>& pixels)
+    {
+        size_t changed = 0;
+        for (UINT y = 16; y < 110; ++y)
+        {
+            if (std::abs(static_cast<float>(y) - 64.0f) < singleLineExclusion)
+                continue;
+            for (UINT x = 44; x < 274; ++x)
+            {
+                const size_t offset = (static_cast<size_t>(y) * gpu.width + x) * 4;
+                if (! std::equal(pixels.begin() + offset, pixels.begin() + offset + 3, empty.begin() + offset))
+                    ++changed;
+            }
+        }
+        return changed;
+    };
+    Check(countOuterText(single) == 0, "default checkbox remains single-line");
+    Check(countOuterText(wrapped) > 30, "long French checkbox paints additional complete lines");
+    view.Controls().SetFocusControl(checkbox);
+    checkbox->SetChecked(true);
+    Check(toggles == 0 && checkbox->HasFocus(), "multiline checkbox acknowledgement preserves focus without callback");
+    Check(view.DispatchKey(VK_SPACE, true) && ! checkbox->IsChecked() && toggles == 1, "multiline checkbox retains Space toggle");
+    checkbox->SetEnabled(false);
+    Hr(view.Prepare(gpu.width, gpu.height, 96), "prepare disabled checkbox input state");
+    Check(! view.DispatchKey(VK_SPACE, true) && toggles == 1, "disabled multiline checkbox cannot toggle");
+    view.Detach();
+}

@@ -42,7 +42,9 @@ an implemented control to the catalog. Reuse existing controls and measurement s
   supplies work-area constraints; a child control does not move or activate the host window.
 - Disclosure preserves caller-owned state, exposes expanded/collapsed semantics and removes hidden
   children from navigation, input and rendering work. Checkbox checked state remains distinct from
-  focus/hover/pressed/disabled; checked paint and UIA Toggle always agree.
+  focus/hover/pressed/disabled; checked paint and UIA Toggle always agree. Checkbox honors opt-in
+  `SetMultiline(true)` for its complete caption. Measure Body text within the control width minus
+  36 DIP and reserve 6 DIP of vertical padding; its default remains single-line.
 - Grid summary rows are bounded and match hit/selection geometry. Complete selected-item text can
   be arranged in a separate wrapped detail view without duplicating the grid's data authority.
 

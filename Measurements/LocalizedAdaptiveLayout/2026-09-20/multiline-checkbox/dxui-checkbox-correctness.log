@@ -1,0 +1,29 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+Complex UI clean round 1: 2507.84 completed offscreen FPS; p95 0.5896 ms; private 26918912 bytes
+Complex UI clean round 2: 2636.44 completed offscreen FPS; p95 0.4433 ms; private 27054080 bytes
+Complex UI clean round 3: 2699.71 completed offscreen FPS; p95 0.4114 ms; private 27361280 bytes
+Complex UI clean round 4: 2738.34 completed offscreen FPS; p95 0.4209 ms; private 27344896 bytes
+Complex UI clean round 5: 2634.58 completed offscreen FPS; p95 0.4148 ms; private 27328512 bytes
+Complex UI dirty round 1: 563.569 completed offscreen FPS; p95 2.0067 ms; private 28127232 bytes
+Complex UI dirty round 2: 580.609 completed offscreen FPS; p95 1.8783 ms; private 28209152 bytes
+Complex UI dirty round 3: 582.562 completed offscreen FPS; p95 1.8594 ms; private 28262400 bytes
+Complex UI dirty round 4: 586.347 completed offscreen FPS; p95 1.876 ms; private 28332032 bytes
+Complex UI dirty round 5: 568.527 completed offscreen FPS; p95 1.9066 ms; private 28160000 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\reports\Performance-x64-Release-8b3f6babb4f74192b1eff22035eea996.json
+Running Embedded (x64 Release)
+FAIL: disabled multiline checkbox cannot toggle
+Running Control (x64 Release)
+PASS Control (0 capability skips recorded)
+Running Accessibility (x64 Release)
+PASS Accessibility (0 capability skips recorded)

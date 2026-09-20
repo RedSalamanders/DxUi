@@ -13,7 +13,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | Label | Construct with text or call `SetText`; choose a font role for headings/body text. |
 | Button | Construct with its caption; `SetOnClick` handles activation and `SetOnDropDownClick` handles split-button actions. |
 | Toggle | Set initial state with `SetChecked`; handle user intent with `SetOnToggled(bool)`. |
-| Checkbox | Uses toggle checked-state/event semantics with checkbox visuals. |
+| Checkbox | Uses toggle checked-state/event semantics with checkbox visuals. `SetMultiline(true)` wraps long captions; reserve 36 DIP horizontally for indicator/gaps and 6 DIP vertically around measured Body text. |
 | RadioButton | Configure selection state and `SetOnSelected`; use RadioButtons when selection is mutually exclusive. |
 | RadioButtons | Own a group of choices and handle `SetOnSelectionChanged(int)`. |
 | ProgressBar | Set minimum, maximum and value; `SetIndeterminate(true)` requires host animation ticks. |
@@ -67,7 +67,7 @@ insufficient output space and arithmetic overflow leave all outputs unchanged.
 
 An individual size must fit the available width. Measure overlong text wrapped first; standard
 `Button::SetMultiline(true)` enables matching wrapped paint with 12 DIP horizontal and 8 DIP vertical
-padding on each side. Its default is false, preserving existing single-line behavior. Other button
+padding on each side. Checkbox also honors this inherited option, using its own indicator/text geometry described above. The default is false, preserving existing single-line behavior. Other button
 variants retain their existing text/chrome policy. The helper does not choose actions, mutate focus,
 activate a host or cache application state. Cache measurements in your layout owner and recompute on
 text/font/DPI/width/visibility changes; apply the returned rectangles consistently to paint/input/UIA.

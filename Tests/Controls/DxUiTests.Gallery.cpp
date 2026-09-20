@@ -884,6 +884,13 @@ void AddComboItems(ComboBox& combo)
         checkbox->SetBounds(CenterIn(tile.content, 230.0f, 32.0f));
     }
     {
+        const Tile tile = flow.Next(*scene.root, L"Checkbox / Wrapped French");
+        auto* checkbox  = scene.root->AddChild<Checkbox>(L"Appliquer ce choix aux éléments similaires restants");
+        checkbox->SetMultiline(true);
+        checkbox->SetChecked(true);
+        checkbox->SetBounds(CenterIn(tile.content, 250.0f, 72.0f));
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"RadioButton / Selected");
         auto* radio     = scene.root->AddChild<RadioButton>(L"Daily");
         radio->SetChecked(true);

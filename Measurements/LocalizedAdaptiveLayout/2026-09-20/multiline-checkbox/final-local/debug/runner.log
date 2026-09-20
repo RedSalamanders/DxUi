@@ -1,0 +1,100 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                    ⚡  DEBUG  /  X64  /  BUILD  ⚡                     │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Debug
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.Controls.cpp
+  DxUi.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.lib
+  EmbeddedTests.cpp
+  DxUiTests.Accessibility.cpp
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.FoundationTests.exe
+  DxUiTests.Gallery.cpp
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.EmbeddedTests.exe
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:11
+Output: Z:\src\DxUi\.build\
+Log: Z:\src\DxUi\.build\logs\build-x64-Debug-f7c44e8cd4aa4305aaeb636abf67f910.log
+========================================
+Complex UI clean round 1: 2505.25 completed offscreen FPS; p95 0.5102 ms; private 28864512 bytes
+Complex UI clean round 2: 2564.05 completed offscreen FPS; p95 0.4308 ms; private 28803072 bytes
+Complex UI clean round 3: 2606.51 completed offscreen FPS; p95 0.4437 ms; private 28798976 bytes
+Complex UI clean round 4: 2523.36 completed offscreen FPS; p95 0.4382 ms; private 28741632 bytes
+Complex UI clean round 5: 2508.2 completed offscreen FPS; p95 0.4264 ms; private 29659136 bytes
+Complex UI dirty round 1: 444.556 completed offscreen FPS; p95 2.6207 ms; private 31113216 bytes
+Complex UI dirty round 2: 453.834 completed offscreen FPS; p95 2.4367 ms; private 32124928 bytes
+Complex UI dirty round 3: 471.453 completed offscreen FPS; p95 2.432 ms; private 32133120 bytes
+Complex UI dirty round 4: 459.689 completed offscreen FPS; p95 2.4382 ms; private 32186368 bytes
+Complex UI dirty round 5: 458.887 completed offscreen FPS; p95 2.368 ms; private 32137216 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\reports\Performance-x64-Debug-42a584636ec64d32a93231b8bfcd82c6.json
+Running Foundation (x64 Debug)
+PASS Foundation (0 capability skips recorded)
+Running Embedded (x64 Debug)
+PASS Embedded (0 capability skips recorded)
+Running Grid (x64 Debug)
+PASS Grid (0 capability skips recorded)
+Running Theme (x64 Debug)
+PASS Theme (0 capability skips recorded)
+Running Control (x64 Debug)
+PASS Control (0 capability skips recorded)
+Running Menu (x64 Debug)
+PASS Menu (9 capability skips recorded)
+Running NewControls (x64 Debug)
+PASS NewControls (0 capability skips recorded)
+Running TextField (x64 Debug)
+PASS TextField (0 capability skips recorded)
+Running NativeTextInput (x64 Debug)
+PASS NativeTextInput (0 capability skips recorded)
+Running MultilineText (x64 Debug)
+PASS MultilineText (0 capability skips recorded)
+Running ReadOnly (x64 Debug)
+PASS ReadOnly (0 capability skips recorded)
+Running ComboBox (x64 Debug)
+PASS ComboBox (0 capability skips recorded)
+Running Tree (x64 Debug)
+PASS Tree (0 capability skips recorded)
+Running Tooltip (x64 Debug)
+PASS Tooltip (0 capability skips recorded)
+Running Rendering (x64 Debug)
+PASS Rendering (0 capability skips recorded)
+Running Animation (x64 Debug)
+PASS Animation (0 capability skips recorded)
+Running Accessibility (x64 Debug)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 Debug)
+PASS WindowHost (0 capability skips recorded)
+All 18 requested suites passed.
