@@ -65,6 +65,14 @@ Exit: library-independent witnesses, a retained matched baseline and explicit im
 
 ### L0 checkpoint, 2026-09-19
 
+Consumer metadata closeout is committed as `b522a2bf`; this library's coordination update is
+`a5712b0`. Current skills/specs/format checks pass. Read-only GitHub checks still show main at
+`b125edbf4cdd639d1cabd686f9dc3fe8aab1f374` with no PR for this branch. A concrete PR description
+is prepared under the consumer evidence root (`i26-ui/dxui-layout-pr-body.md`), and publication/
+conditional-merge authorization is pending in the user task. Do not interpret silence as approval.
+While pending, I26 can independently remove stale ordinary transfer presentation from conflicts;
+no library rebuild, duplicate action-layout helper or manual dependency-pin bypass is needed.
+
 Latest consumer step (2026-09-20) moves conflict metadata from a restricted heading-side column
 to a complete measured row below each exact path, with stable separate UIA roles. A retained clean
 old-renderer fixture fails 0/3 as expected; the focused candidate passes 3/3 and final nine-case
