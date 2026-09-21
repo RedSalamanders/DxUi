@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../Support/HeapDiagnostic.h"
 #include <psapi.h>
 #pragma comment(lib, "psapi.lib")
 
@@ -109,13 +110,14 @@ void RunMenuResourceScalingTests()
         Require(GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory), sizeof(memory)) != FALSE &&
                     GetProcessHandleCount(GetCurrentProcess(), &handles) != FALSE,
                 "menu scaling counters are available");
-        std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v1\",\"entries\":" << variant.entries << ",\"descriptions\":" << variant.descriptions
+        std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v2\",\"entries\":" << variant.entries << ",\"descriptions\":" << variant.descriptions
                   << ",\"cycle\":" << cycle << ",\"phase\":\"" << phase << "\",\"privateBytes\":" << memory.PrivateUsage
                   << ",\"workingSetBytes\":" << memory.WorkingSetSize << ",\"handles\":" << handles
-                  << ",\"gdi\":" << GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS) << ",\"user\":" << GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS)
-                  << "}\n";
+                  << ",\"gdi\":" << GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS) << ",\"user\":" << GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS);
+        DxUiTestSupport::WriteHeapDiagnostic(std::cout, [](bool ok, const char* reason) { Require(ok, reason); });
+        std::cout << "}\n";
     };
-    std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v1\",\"menuItemObjectBytes\":" << sizeof(MenuFlyoutItem)
+    std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v2\",\"menuItemObjectBytes\":" << sizeof(MenuFlyoutItem)
               << ",\"toggleObjectBytes\":" << sizeof(Toggle) << ",\"capture\":false}\n";
     for (int cycle = 0; cycle < 32; ++cycle)
     {
@@ -140,7 +142,7 @@ void RunMenuResourceScalingTests()
             if (! supported)
             {
                 if (cycle == 0)
-                    std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v1\",\"entries\":" << variant.entries
+                    std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v2\",\"entries\":" << variant.entries
                               << ",\"descriptions\":" << variant.descriptions << ",\"supported\":false}\n";
                 continue;
             }
@@ -163,7 +165,7 @@ void RunMenuResourceScalingTests()
                 surfaceSize = size;
             Require(size.cx == surfaceSize->cx && size.cy == surfaceSize->cy, "scaling cases retain the same window extent");
             if (cycle == 0)
-                std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v1\",\"entries\":" << variant.entries << ",\"descriptions\":" << variant.descriptions
+                std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v2\",\"entries\":" << variant.entries << ",\"descriptions\":" << variant.descriptions
                           << ",\"widthPx\":" << size.cx << ",\"heightPx\":" << size.cy << ",\"dpi\":" << GetDpiForWindow(popup) << "}\n";
             sample(variant, cycle, "rendered");
             SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);

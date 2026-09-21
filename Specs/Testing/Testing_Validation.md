@@ -15,6 +15,12 @@ without bitmap capture. It rotates and reverses cases across 32 cycles, varying
 before/rendered/closed process and handle counters. The caller's item vector is
 already built at the before sample. Object `sizeof` values exclude native resources
 and dynamic allocations. Process-private deltas are not per-entry allocation sizes.
+Fixture v2 additionally samples busy/free bytes, entry overhead and region counters
+from process heaps using the bounded shared `Tests/Support/HeapDiagnostic.h` helper.
+It records errors per heap, allocates nothing while walking and holds only one heap
+lock at a time. These totals exclude non-heap native allocations and cannot identify
+call stacks or attribute a native text-layout object's exact cost. Heap sampling is
+diagnostic work outside timed rendering; retain v1 separately rather than replacing it.
 Release x64 CI retains this diagnostic even if another native suite fails; its
 results do not waive that failure or establish before/after source non-regression.
 `test.ps1` builds the selected configuration, runs Foundation, Embedded and all inherited control suites and records a JSON receipt with

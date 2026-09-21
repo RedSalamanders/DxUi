@@ -34,6 +34,17 @@ in RedSalamander's File Operations plan.
 
 ## Checkpoint
 
+Current resource investigation: `c1f047b` passes x64 Debug/Release/ASan native CI;
+ARM64 jobs remain active. Its no-capture scaling probe passes 320 open/close cycles
+at fixed 476x322 pixels / 96 DPI. `sizeof(MenuFlyoutItem)=248` and
+`sizeof(Toggle)=760`; neither includes dynamic/native storage. Process deltas are
+strongly non-monotonic (including negative values), so the probe does not establish
+a fixed or marginal per-entry allocation cost. Preserve its raw inputs and the
+earlier 1.15 MiB observation, without inferring resource approval.
+The follow-up v2 adds bounded process-heap busy/free measurements, promoting the
+grid diagnostic pattern into shared test support. No production behavior changes.
+Local qualification waits for RedSalamander Full; native CI qualification is pending.
+
 Current 2026-09-21: native CI on published `a474cf2` reproduces an incorrect new
 focus assertion across profiles. `BeginAsyncMenuInteraction` has always activated
 the root popup for keyboard dispatch; the test and its new contract prose wrongly

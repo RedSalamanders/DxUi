@@ -57,6 +57,12 @@ zero. WARP numbers cannot stand in for native graphics hardware, physical input 
 
 ## Dedicated library evidence
 
+The [no-capture menu scaling record](../Measurements/MenuDescriptions/2026-09-21/scaling-v1/README.md)
+retains the first 320-cycle probe and its non-monotonic private-memory changes.
+The current v2 diagnostic adds live/free process-heap counters; partial heap
+errors must be reported, and heap totals are not total process memory or native
+call-stack attribution. No per-entry cost or resource acceptance is inferred.
+
 Use `./test.ps1 -Configuration Release -Suites MenuResourceScaling` to investigate
 the incremental cost of menu descriptions. The diagnostic keeps the window extent
 constant, rotates described-row counts and samples before opening, after ordinary
