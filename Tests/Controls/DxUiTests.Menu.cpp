@@ -5747,13 +5747,28 @@ void TestDescribedMenuWrapsFrenchTextAndPreservesIdentity()
     SendMessageW(popup, WM_KEYDOWN, VK_END, 0);
     Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == 1u, "End skips disabled row and targets exact second destination");
     Require(GetFocus() == trackingFocus, "logical menu navigation preserves the session's native focus");
-    for (const UINT dpi : {192u, 96u, 144u})
+    std::optional<ContextMenuPopupItemLayoutDebugState> first96DpiLayout;
+    for (const UINT dpi : {192u, 96u, 144u, 96u})
     {
         RECT suggested = state.windowRectPx;
         SendMessageW(popup, WM_DPICHANGED, MAKEWPARAM(dpi, dpi), reinterpret_cast<LPARAM>(&suggested));
         Require(DebugGetContextMenuPopupState(popup, state) && state.dpi == dpi && state.keyboardIndex == 1u,
                 "DPI relayout preserves exact keyboard destination");
         Require(DebugGetContextMenuPopupItemLayout(popup, 1, layout) && layout.secondaryLineCount > 1, "DPI relayout preserves complete parent wrapping");
+        Require(layout.textRectDip.bottom < layout.secondaryTextRectDip.top && layout.secondaryTextRectDip.bottom < layout.itemRectDip.bottom,
+                "DPI reflow keeps both complete text fields inside their row");
+        if (dpi == 96u)
+        {
+            if (first96DpiLayout)
+            {
+                const auto& first = *first96DpiLayout;
+                Require(layout.primaryLineCount == first.primaryLineCount && layout.secondaryLineCount == first.secondaryLineCount &&
+                            std::abs((layout.textRectDip.right - layout.textRectDip.left) - (first.textRectDip.right - first.textRectDip.left)) < 0.5f &&
+                            std::abs((layout.itemRectDip.bottom - layout.itemRectDip.top) - (first.itemRectDip.bottom - first.itemRectDip.top)) < 0.5f,
+                        "returning to the same DPI must not accumulate scrollbar narrowing or row growth");
+            }
+            first96DpiLayout = layout;
+        }
     }
     SendMessageW(popup, WM_KEYDOWN, VK_RETURN, 0);
     owner.PumpMessages();

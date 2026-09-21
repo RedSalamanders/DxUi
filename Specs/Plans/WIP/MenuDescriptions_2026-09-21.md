@@ -34,6 +34,21 @@ in RedSalamander's File Operations plan.
 
 ## Checkpoint
 
+Current candidate work: `c1f047b` finished all six native CI profiles successfully;
+ARM64 Menu retains nine pre-existing interactive-desktop skips per profile.
+[Native receipts and limitations](../../../Measurements/MenuDescriptions/2026-09-21/native-ci/README.md).
+Diagnostic `356006a` is published and its v2 heap baseline is running in
+[CI 35649778625](https://github.com/RedSalamanders/DxUi/actions/runs/35649778625).
+The retained v1 measurement precedes the new production optimization: scrollbar
+reflow now changes the width of the freshly prepared text layouts instead of
+creating a second complete set while the first remains alive. Existing opening
+failure/reflow-dismissal paths still handle measurement failure. A French DPI
+roundtrip assertion guards against cumulative width loss and row-height growth.
+This candidate is not yet built, measured or accepted; preserve the diagnostic
+baseline before publishing it. Product Full still owns the local build lane.
+The intended pixels/API are unchanged; review/regenerate the harness gallery
+and run the full required configurations before qualifying the optimization.
+
 Current resource investigation: `c1f047b` passes x64 Debug/Release/ASan native CI;
 ARM64 jobs remain active. Its no-capture scaling probe passes 320 open/close cycles
 at fixed 476x322 pixels / 96 DPI. `sizeof(MenuFlyoutItem)=248` and

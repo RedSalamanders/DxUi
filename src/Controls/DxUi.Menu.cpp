@@ -2386,8 +2386,26 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
         height = (std::min)(height, popup.controller->sessionCallbacks.maxRootHeightDip);
     if (! PrepareMenuDescriptionLayouts(popup, width))
         return false;
-    if (popup.contentHeightDip > height && ! PrepareMenuDescriptionLayouts(popup, width - kScrollbarThicknessDip))
-        return false;
+    if (popup.contentHeightDip > height)
+    {
+        // These layouts were just prepared for this text/font/DPI. Reserving a
+        // scrollbar changes only their width: do not allocate a second full set
+        // while the first set is still alive. A failed reflow rejects opening
+        // or dismisses the existing popup through the caller's failure path.
+        for (auto& row : popup.descriptionLayouts)
+        {
+            if (! row.primary)
+                continue;
+            if (FAILED(row.primary->SetMaxWidth((std::max)(1.0f, row.primary->GetMaxWidth() - kScrollbarThicknessDip))) ||
+                FAILED(row.secondary->SetMaxWidth((std::max)(1.0f, row.secondary->GetMaxWidth() - kScrollbarThicknessDip))) ||
+                FAILED(row.primary->GetMetrics(&row.primaryMetrics)) || FAILED(row.secondary->GetMetrics(&row.secondaryMetrics)))
+                return false;
+            row.heightDip = 2.0f * kDescriptionPaddingDip + std::ceil(row.primaryMetrics.height) + kDescriptionGapDip + std::ceil(row.secondaryMetrics.height);
+        }
+        popup.RebuildItemOffsets();
+        popup.contentHeightDip = popup.itemOffsetsDip.back() + kMenuPaddingBottomDip;
+        ++popup.descriptionPreparationCount;
+    }
     sizeDip.height = popup.contentHeightDip;
     return true;
 }
