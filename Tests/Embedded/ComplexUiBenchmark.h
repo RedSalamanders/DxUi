@@ -27,14 +27,24 @@ inline PROCESS_MEMORY_COUNTERS_EX Memory()
     return memory;
 }
 
-inline void Run(const wchar_t* outputPath)
+inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool retention = false)
 {
     GraphicsFixture gpu;
     gpu.width  = 1280;
     gpu.height = 720;
     Hr(gpu.Create(), "benchmark WARP device");
     ComplexUiScene scene;
+    scene.model.multilineGrid = multilineGrid;
+    if (multilineGrid)
+        for (size_t i = 0u; i < scene.model.names.size(); ++i)
+            scene.model.names[i] = L"Description française détaillée de l’élément " + std::to_wstring(i) +
+                                   L" : vérifier les informations avant de poursuivre.\nUne deuxième phrase complète avec é et 📷.";
     Hr(scene.Initialize(gpu.device.get()), "benchmark independent scene");
+    if (multilineGrid)
+    {
+        scene.grid->SetRowHeightDip(64.0f);
+        scene.grid->SetLineClamp(2u);
+    }
     auto& view = scene.view;
 
     D3D11_TEXTURE2D_DESC readDesc{};
@@ -62,11 +72,14 @@ inline void Run(const wchar_t* outputPath)
         complete();
     }
     // Capture once outside measurement; reviewable proof that the workload has populated controls.
-    Hr(gpu.Save(L".build/test-artifacts/complex-ui.png"), "complex UI screenshot");
+    Hr(gpu.Save(multilineGrid ? L".build/test-artifacts/complex-ui-multiline-grid.png" : L".build/test-artifacts/complex-ui.png"), "complex UI screenshot");
     std::ofstream output{std::filesystem::path(outputPath)};
     Check(bool(output), "benchmark output file");
-    output << std::setprecision(10) << "{\"compiler\":" << _MSC_FULL_VER
-           << ",\"fixture\":\"dxui-complex-ui-v2\",\"renderer\":\"WARP\",\"width\":1280,\"height\":720,\"dpi\":96,"
+    output << std::setprecision(10) << "{\"compiler\":" << _MSC_FULL_VER << ",\"fixture\":\""
+           << (retention       ? "dxui-complex-ui-multiline-grid-retention-v1"
+               : multilineGrid ? "dxui-complex-ui-multiline-grid-v1"
+                               : "dxui-complex-ui-v2")
+           << "\",\"renderer\":\"WARP\",\"width\":1280,\"height\":720,\"dpi\":96,"
            << "\"controls\":83,\"modelRows\":1000,\"framesPerRound\":40,\"roundCount\":5,\"dirtyAllocationCeilingPerFrame\":"
            << kDirtyAllocationsPerFrameCeiling << ",\"scenarios\":[";
     using Clock        = std::chrono::steady_clock;
@@ -135,13 +148,60 @@ inline void Run(const wchar_t* outputPath)
         }
         output << "]}";
     }
+    output << ']';
+    if (retention)
+    {
+        // Six complete passes through the same 1,000-row model distinguish
+        // initial native font/heap caches from growth on repeated data. No
+        // working-set trimming or allocator purge may hide retained resources.
+        output << ",\"retention\":[";
+        const auto started = Clock::now();
+        const auto sample  = [&](size_t frame, const char* phase)
+        {
+            const auto memory = Memory();
+            DWORD handles     = 0;
+            Check(GetProcessHandleCount(GetCurrentProcess(), &handles) != FALSE, "retention handle count");
+            output << "{\"frame\":" << frame << ",\"phase\":\"" << phase << "\",\"elapsedMs\":" << elapsed(started)
+                   << ",\"privateBytes\":" << memory.PrivateUsage << ",\"workingSetBytes\":" << memory.WorkingSetSize << ",\"handles\":" << handles
+                   << ",\"surfaceBytes\":" << view.GetStatistics().surfaceBytes << '}';
+        };
+        sample(0u, "start");
+        for (size_t frame = 0u; frame < 6000u; ++frame)
+        {
+            update(frame);
+            Hr(view.Prepare(1280, 720), "retention preparation");
+            gpu.Bind();
+            Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "retention composition");
+            complete();
+            if ((frame + 1u) % 200u == 0u)
+            {
+                output << ',';
+                sample(frame + 1u, "scroll");
+            }
+        }
+        scene.grid->SetModel(nullptr);
+        output << ',';
+        sample(6000u, "model-cleared");
+        output << ']';
+    }
     view.SetVisible(false);
     const auto hidden = view.GetStatistics();
     Check(! view.NeedsAnimation() && ! view.NeedsPreparation(), "complex hidden view requests no work");
     Check(view.Prepare(1280, 720) == S_FALSE, "hidden benchmark preparation skipped");
     Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "hidden benchmark composition skipped");
     Check(view.GetStatistics().preparations == hidden.preparations && view.GetStatistics().composites == hidden.composites, "hidden counters unchanged");
-    output << "],\"hiddenPreparations\":0,\"hiddenComposites\":0}\n";
+    output << ",\"hiddenPreparations\":0,\"hiddenComposites\":0";
+    if (retention)
+    {
+        view.Controls().SetRoot(nullptr);
+        view.Detach();
+        const auto memory = Memory();
+        DWORD handles     = 0;
+        Check(GetProcessHandleCount(GetCurrentProcess(), &handles) != FALSE, "detached handle count");
+        output << ",\"detached\":{\"privateBytes\":" << memory.PrivateUsage << ",\"workingSetBytes\":" << memory.WorkingSetSize << ",\"handles\":" << handles
+               << '}';
+    }
+    output << "}\n";
     output.close();
     Check(bool(output), "benchmark report written");
 }

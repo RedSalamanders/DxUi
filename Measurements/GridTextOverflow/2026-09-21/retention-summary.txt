@@ -1,0 +1,40 @@
+{
+  "baseline": {
+    "seconds": 109.6600808,
+    "private_min": 29650944,
+    "private_max": 30420992,
+    "private_median": 30005248.0,
+    "working_min": 43282432,
+    "working_max": 43737088,
+    "handles": [
+      213
+    ],
+    "surface": [
+      3686400
+    ],
+    "detached": {
+      "privateBytes": 29986816,
+      "workingSetBytes": 43335680,
+      "handles": 211
+    }
+  },
+  "candidate": {
+    "seconds": 55.7535789,
+    "private_min": 31522816,
+    "private_max": 44621824,
+    "private_median": 36411392.0,
+    "working_min": 44376064,
+    "working_max": 47587328,
+    "handles": [
+      213
+    ],
+    "surface": [
+      3686400
+    ],
+    "detached": {
+      "privateBytes": 44257280,
+      "workingSetBytes": 46534656,
+      "handles": 211
+    }
+  }
+}

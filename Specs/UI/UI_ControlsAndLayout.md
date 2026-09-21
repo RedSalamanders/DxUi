@@ -49,6 +49,12 @@ physical application DPI presentation and real assistive-technology journeys req
   36 DIP and reserve 6 DIP of vertical padding; its default remains single-line.
 - Grid summary rows are bounded and match hit/selection geometry. Complete selected-item text can
   be arranged in a separate wrapped detail view without duplicating the grid's data authority.
+  Multiline cells honor `SetLineClamp` and available complete-line height, with an ellipsis when
+  content is omitted. Explicit paragraphs follow the same contract as automatically wrapped lines.
+  A partially visible row keeps its full-cell layout and is clipped without reflow or recentering.
+  Rendering does not shorten model, clipboard, tooltip or UIA values. Consumers reserve sufficient
+  row height for readable text. The implementation uses bounded retained layouts for multiline
+  cells; clean composition does no shaping. Qualification is tracked in the grid overflow WIP plan.
 
 The consumer chooses information hierarchy and whether repeated text is useful. Shared controls
 must support a single semantic heading with associated labelled values and complete exact-value

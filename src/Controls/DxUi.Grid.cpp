@@ -759,6 +759,9 @@ void Grid::SetModel(IDxGridModel* model) noexcept
 {
     // Non-owning pointer assignment. Caller responsible for model lifetime.
     const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+    _cellTextLayouts.clear();
+    _cellEllipsis.reset();
+    _cellEllipsisFormat.reset();
     _model                            = model;
     _lastPaintHadAnimatedVisibleCells = false;
     _animatedVisibleCellStateValid    = false;
@@ -877,7 +880,12 @@ void Grid::SetIconSizeDip(float iconSizeDip) noexcept
 
 void Grid::SetLineClamp(uint32_t lineClamp) noexcept
 {
-    _lineClamp = std::max(1u, lineClamp);
+    const auto normalized = std::max(1u, lineClamp);
+    if (_lineClamp != normalized)
+    {
+        _lineClamp = normalized;
+        RequestInvalidate();
+    }
 }
 
 void Grid::OnDensityChanged() noexcept
@@ -1855,11 +1863,204 @@ bool Grid::RequestToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t 
     return ToggleCheckboxCell(host, rowIndex, columnIndex);
 }
 
+void Grid::DrawCellText(ControlHost& host, const GridCellData& cellData, const D2D1_RECT_F& bounds, const D2D1_COLOR_F& color) const
+{
+    if (cellData.text.empty() || ! IsNonEmptyRect(bounds))
+        return;
+    // Existing single-line cells keep the established lightweight drawing path.
+    // The multiline contract alone needs retained shaping and vertical trimming.
+    if (! cellData.multiline)
+    {
+        DrawCenteredText(host, cellData.text, bounds, _cellTextFontRole, color, cellData.textAlignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false);
+        return;
+    }
+    auto* factory   = host.GetWriteFactory();
+    const bool wrap = cellData.multiline && _lineClamp > 1u;
+    auto* format    = host.GetTextFormat(_cellTextFontRole, cellData.textAlignment, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, wrap);
+    if (! factory || ! format || ! host.GetDeviceContext())
+        return;
+    constexpr size_t cacheSlots           = 32u;
+    constexpr size_t maxRetainedTextUnits = 4096u;
+    std::optional<CellTextLayoutCache> temporary;
+    if (cellData.text.size() > maxRetainedTextUnits)
+        temporary.emplace();
+    else if (_cellTextLayouts.empty())
+        _cellTextLayouts.resize(cacheSlots);
+    const float width    = bounds.right - bounds.left;
+    const float height   = bounds.bottom - bounds.top;
+    const uint32_t clamp = wrap ? _lineClamp : 1u;
+    // Identical cell values can share shaping across rows/columns. A row-index
+    // mapping systematically collides for adjacent visible rows and retains
+    // duplicate layouts for the same value in several columns.
+    const size_t slot =
+        temporary.has_value()
+            ? 0u
+            : (std::hash<std::wstring_view>{}(cellData.text) ^ std::hash<float>{}(width) ^ (std::hash<float>{}(height) << 1u) ^ clamp) % cacheSlots;
+    auto& cache       = temporary.has_value() ? temporary.value() : _cellTextLayouts[slot];
+    cache.usedInPaint = true;
+    if (! cache.layout || cache.format.get() != format || cache.text != cellData.text || cache.width != width || cache.height != height ||
+        cache.lineClamp != clamp)
+    {
+        cache.layout.reset();
+        cache.paintHeight = 0.0f;
+        cache.text        = cellData.text;
+        cache.displayText.clear();
+        cache.format    = format;
+        cache.width     = width;
+        cache.height    = height;
+        cache.lineClamp = clamp;
+        // A later paragraph cannot affect shaping of earlier paragraphs. Stop
+        // measuring once complete preceding paragraphs already fill the clamp,
+        // avoiding font fallback and shaping for entirely invisible tails.
+        const auto paragraphEnd = [&](size_t start) { return std::min(cellData.text.find_first_of(L"\r\n", start), cellData.text.size()); };
+        size_t measuredLength   = paragraphEnd(0u);
+        if (FAILED(factory->CreateTextLayout(cellData.text.data(), static_cast<UINT32>(measuredLength), format, width, height, cache.layout.put())))
+            return;
+        DWRITE_TEXT_METRICS metrics{};
+        if (FAILED(cache.layout->GetMetrics(&metrics)))
+        {
+            cache.layout.reset();
+            return;
+        }
+        if (measuredLength < cellData.text.size() && metrics.lineCount < clamp && metrics.height < height)
+        {
+            // At most one further shaping pass: each explicit paragraph adds
+            // at least one line, so the first clamp paragraphs suffice.
+            for (uint32_t paragraph = 1u; paragraph < clamp && measuredLength < cellData.text.size(); ++paragraph)
+            {
+                size_t next = measuredLength + 1u;
+                if (cellData.text[measuredLength] == L'\r' && next < cellData.text.size() && cellData.text[next] == L'\n')
+                    ++next;
+                measuredLength = paragraphEnd(next);
+            }
+            cache.layout.reset();
+            if (FAILED(factory->CreateTextLayout(cellData.text.data(), static_cast<UINT32>(measuredLength), format, width, height, cache.layout.put())) ||
+                FAILED(cache.layout->GetMetrics(&metrics)))
+            {
+                cache.layout.reset();
+                return;
+            }
+        }
+        // DirectWrite line metrics preserve fallback-font/emoji line heights. A
+        // font-size estimate can cut the last line even when the nominal count fits.
+        std::array<DWRITE_LINE_METRICS, 64> localLines{};
+        std::optional<std::vector<DWRITE_LINE_METRICS>> overflowLines;
+        std::span<DWRITE_LINE_METRICS> lines(localLines);
+        if (metrics.lineCount > localLines.size())
+        {
+            overflowLines.emplace(metrics.lineCount);
+            lines = *overflowLines;
+        }
+        UINT32 count = 0u;
+        if (FAILED(cache.layout->GetLineMetrics(lines.data(), static_cast<UINT32>(lines.size()), &count)))
+        {
+            cache.layout.reset();
+            return;
+        }
+        UINT32 visibleLines = 0u;
+        for (UINT32 i = 0u; i < count && i < clamp; ++i)
+        {
+            if (cache.paintHeight + lines[i].height > height + 0.01f)
+                break;
+            cache.paintHeight += lines[i].height;
+            ++visibleLines;
+        }
+        if (cache.paintHeight <= 0.0f)
+            return; // No complete line fits; caller owns minimum row height.
+        bool reusedLayout = false;
+        if (visibleLines < count || measuredLength < cellData.text.size())
+        {
+            // Height clipping does not trim later explicit paragraphs. Freeze
+            // the measured visible line boundaries and mark the omitted tail.
+            // DirectWrite supplies Unicode-safe boundaries; the model remains
+            // untouched. No-wrap keeps the marker on the last visible line,
+            // with horizontal ellipsis trimming if that line is already full.
+            auto& visibleText = cache.displayText;
+            visibleText.clear();
+            size_t offset = 0u;
+            for (UINT32 i = 0u; i < visibleLines; ++i)
+            {
+                if (i != 0u)
+                    visibleText.push_back(L'\n');
+                visibleText.append(cellData.text, offset, lines[i].length - lines[i].newlineLength);
+                offset += lines[i].length;
+            }
+            visibleText.push_back(L'\u2026');
+            const auto reusable = std::ranges::find_if(_cellTextLayouts,
+                                                       [&](const CellTextLayoutCache& entry)
+            {
+                return &entry != &cache && entry.layout && entry.format.get() == format && entry.width == width && entry.height == height &&
+                       entry.paintHeight == cache.paintHeight && entry.lineClamp == clamp && entry.displayText == visibleText;
+            });
+            if (reusable != _cellTextLayouts.end())
+            {
+                cache.layout = reusable->layout;
+                reusedLayout = true;
+            }
+            else
+            {
+                cache.layout.reset();
+                if (FAILED(factory->CreateTextLayout(
+                        visibleText.data(), static_cast<UINT32>(visibleText.size()), format, width, cache.paintHeight, cache.layout.put())) ||
+                    FAILED(cache.layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP)))
+                {
+                    cache.layout.reset();
+                    return;
+                }
+            }
+        }
+        if (! reusedLayout)
+        {
+            auto* ellipsisFormat = host.GetTextFormat(_cellTextFontRole, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, false);
+            if (! ellipsisFormat)
+            {
+                cache.layout.reset();
+                return;
+            }
+            if (! _cellEllipsis || _cellEllipsisFormat.get() != ellipsisFormat)
+            {
+                _cellEllipsis.reset();
+                _cellEllipsisFormat = ellipsisFormat;
+                if (FAILED(factory->CreateEllipsisTrimmingSign(ellipsisFormat, _cellEllipsis.put())))
+                {
+                    cache.layout.reset();
+                    return;
+                }
+            }
+            const DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_CHARACTER, 0u, 0u};
+            if (FAILED(cache.layout->SetTrimming(&trimming, _cellEllipsis.get())) || FAILED(cache.layout->SetMaxHeight(cache.paintHeight)))
+            {
+                cache.layout.reset();
+                return;
+            }
+        }
+    }
+    if (cache.layout && cache.paintHeight > 0.0f)
+    {
+        const auto origin = D2D1::Point2F(bounds.left, bounds.top + (height - cache.paintHeight) * 0.5f);
+        if (auto* brush = host.GetSolidBrush(color))
+            host.GetDeviceContext()->DrawTextLayout(origin, cache.layout.get(), brush, kTextDrawOptions);
+    }
+}
+
 void Grid::Paint(ControlHost& host) const
 {
-    _lastPaintHadAnimatedVisibleCells = false;
-    _animatedVisibleCellStateValid    = true;
-    auto* dc                          = host.GetDeviceContext();
+    for (auto& entry : _cellTextLayouts)
+        entry.usedInPaint = false;
+    const auto releaseOffscreenLayouts = wil::scope_exit([&]() noexcept
+    {
+        // Reuse bounded string storage, but do not retain shaped COM layouts
+        // for values that have scrolled out of this grid's visible working set.
+        for (auto& entry : _cellTextLayouts)
+            if (! entry.usedInPaint)
+            {
+                entry.layout.reset();
+                entry.format.reset();
+            }
+    });
+    _lastPaintHadAnimatedVisibleCells  = false;
+    _animatedVisibleCellStateValid     = true;
+    auto* dc                           = host.GetDeviceContext();
     if (! dc)
     {
         return;
@@ -2155,7 +2356,7 @@ void Grid::Paint(ControlHost& host) const
             else
             {
                 const GridColumnDesc columnDesc    = _model->GetColumn(columnIndex);
-                const GridCellLayoutMetrics layout = ComputeCellLayoutMetrics(host, visibleCellRect, columnDesc, cellData);
+                const GridCellLayoutMetrics layout = ComputeCellLayoutMetrics(host, cellRect, columnDesc, cellData);
                 GridResolvedCellVisuals cellVisuals{};
                 if (layout.hasCheckbox || layout.hasSwatch || layout.hasBadge)
                 {
@@ -2240,14 +2441,7 @@ void Grid::Paint(ControlHost& host) const
                     }
                 }
 
-                DrawCenteredText(host,
-                                 cellData.text,
-                                 layout.textRect,
-                                 _cellTextFontRole,
-                                 rowText,
-                                 cellData.textAlignment,
-                                 DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
-                                 cellData.multiline && _lineClamp > 1u);
+                DrawCellText(host, cellData, layout.textRect, rowText);
             }
         }
     }

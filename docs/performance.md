@@ -3,6 +3,8 @@
 DxUi must remain fast and use little memory. The normative
 [performance contract](../Specs/Core/Core_PerformanceAndResources.md) requires before/after evidence and developer
 advice for a confirmed regression. A green functional suite alone does not establish performance acceptance.
+The [Grid text-overflow investigation](../Measurements/GridTextOverflow/2026-09-21/README.md)
+retains matched original/candidate reports and unresolved resource flags; it is not an acceptance record.
 
 ## Run and compare
 
@@ -16,6 +18,11 @@ Before changing implementation, measure the current revision on an otherwise qui
 ```
 
 Keep the baseline; never overwrite it with the candidate. Use separate files for each configuration/architecture.
+`-Scenario MultilineGridRetention` extends the French multiline fixture with six complete passes through
+its 1,000 rows. It records process memory, handles and retained surface bytes every 200 frames, after
+clearing the Grid model, and after destroying the control tree/detaching the host. Compare identical
+harness hashes and configurations. This bounded retention experiment is separate from the common
+short benchmark and does not establish hours-long, multiple-view or hardware presentation acceptance.
 Every `test.ps1` invocation runs the complex-UI benchmark, including filtered suite runs, and embeds its scenarios
 and report path in every suite receipt. Without `-PerformanceBaseline`, the result is explicitly **unpaired**.
 This records throughput but cannot claim absence of regression. CI artifacts retain those measurements; a developer
@@ -25,6 +32,14 @@ The fixture is 1280×720 at 96 DPI, reduced motion, 83 controls: a root, 16 card
 slider and progress bar, plus a Tree and four-column Grid backed by 1,000 rows. After 20 warm-up frames it runs
 five rounds of 40 frames for each scenario. Clean frames reuse the prepared surface; dirty frames update 32 values,
 scroll the grid and repaint. A screenshot is recorded outside timing at `.build/test-artifacts/complex-ui.png`.
+
+For changes to multiline grid rendering, also run `performance.ps1 -Scenario MultilineGrid` on
+both implementations. Its distinct fixture, `dxui-complex-ui-multiline-grid-v1`, uses long French
+sentences, explicit paragraphs, combining accents and an emoji, 64-DIP rows and a two-line clamp.
+The grid advances one row per dirty frame to exercise reuse across viewport changes. Other controls,
+round counts, completion readback, resource gates and measurement methods remain the same.
+The harness records `complex-ui-multiline-grid.png` outside timing. This optional fixture does not
+replace the default benchmark; never compare reports from the two different scenarios.
 
 Receipts record completed offscreen WARP FPS, p50/p95 total frame milliseconds, p95 preparation and CPU composition
 times, C++ allocation counts with the gated dirty per-frame ceiling (`dirtyAllocationCeilingPerFrame`: 64 in

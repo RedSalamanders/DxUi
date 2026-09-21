@@ -1,0 +1,2 @@
+[START] Rendering
+FAILED: multiline grid preserves color-font emoji rather than silently rendering them monochrome

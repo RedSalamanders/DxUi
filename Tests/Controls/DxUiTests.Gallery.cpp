@@ -664,8 +664,9 @@ public:
                 outCell.progress = 0.64f;
                 return;
             default:
-                outCell.kind = GridCellKind::Text;
-                outCell.text = L"Sample row";
+                outCell.kind      = GridCellKind::Text;
+                outCell.text      = L"Une description française suffisamment longue pour montrer le contenu omis";
+                outCell.multiline = true;
                 return;
         }
     }

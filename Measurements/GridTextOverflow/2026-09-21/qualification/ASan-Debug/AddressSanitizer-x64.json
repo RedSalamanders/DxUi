@@ -1,0 +1,23 @@
+{
+  "suite": "AddressSanitizer",
+  "configuration": "ASan Debug",
+  "platform": "x64",
+  "nativeArchitecture": "X64",
+  "completedUtc": "2026-09-21T05:43:07.6308080Z",
+  "executable": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\x64\\ASan Debug\\DxUi.FoundationTests.exe",
+  "sha256": "2994575CCACE91BABC0A26D17004E2789209BC6A5B8E79926831E4881FEAD277",
+  "exitCode": 1,
+  "detected": true,
+  "log": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\logs\\test-AddressSanitizer-x64.log",
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-complex-ui-v2",
+  "benchmarkInputs": {
+    "Tests/Embedded/BenchmarkMain.h": "D969FBB79F059E29C177E89BE425ED60FC05D57CB2ACAE1D1BB662686F06C8F6",
+    "Tests/Embedded/ComplexUiBenchmark.h": "23C703CC9ED83B75DD6F4F4E29EC30674A8FC0D707DE75E1F312B2A522D774A7",
+    "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "measurement": "Functional qualification receipt with the separately linked unpaired common benchmark; not a matched performance acceptance.",
+  "archivedPerformanceReport": "Performance-x64-ASan Debug-c8d1acfd9a50497ea01142f494726830.json",
+  "originalReceiptSha256": "ad406419fc4117c09903f39fd0c41095a00b729c7e97380157f912e1f2dedd96"
+}
