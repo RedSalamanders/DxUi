@@ -1,0 +1,3 @@
+[START] Rendering
+Grid clamp ink rows: full=71 clamped=29
+FAILED: omitted content must paint a visible ellipsis beyond the same two complete prefix lines

@@ -1,0 +1,12 @@
+Complex UI clean round 1: 2406.99 completed offscreen FPS; p95 0.5408 ms; private 39219200 bytes
+Complex UI clean round 2: 2333.86 completed offscreen FPS; p95 0.4845 ms; private 37240832 bytes
+Complex UI clean round 3: 2164.88 completed offscreen FPS; p95 0.5222 ms; private 37257216 bytes
+Complex UI clean round 4: 2408.91 completed offscreen FPS; p95 0.4639 ms; private 35151872 bytes
+Complex UI clean round 5: 2554.08 completed offscreen FPS; p95 0.4427 ms; private 33284096 bytes
+Complex UI dirty round 1: 120.064 completed offscreen FPS; p95 9.7874 ms; private 33644544 bytes
+Complex UI dirty round 2: 125.392 completed offscreen FPS; p95 8.53 ms; private 33669120 bytes
+Complex UI dirty round 3: 123.422 completed offscreen FPS; p95 8.602 ms; private 33632256 bytes
+Complex UI dirty round 4: 123.825 completed offscreen FPS; p95 8.5507 ms; private 33525760 bytes
+Complex UI dirty round 5: 123.063 completed offscreen FPS; p95 8.7078 ms; private 34504704 bytes
+Performance comparison: unpaired
+Performance receipt: C:\RedSalamander.Perf\evidence\i26-ui\grid-native-isolation-20260921\no-draw.json

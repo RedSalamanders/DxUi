@@ -30,7 +30,25 @@ Reuse bounded text-layout resources; clean/hidden composition adds no work. No f
 
 ## Checkpoint
 
-Latest 2026-09-21: **native heap attribution implemented and qualified; production V11 unchanged**.
+Latest 2026-09-21: **native-call isolation finished; all experiments rejected and
+V11 restored**. Suppressing glyph submission and omitting `SetTrimming` separately
+do not establish a safe resource fix. A bounded single-layout inline-marker
+prototype passes Release Grid/Embedded/Rendering after the existing pixel test
+catches an invisible marker over a separator-only range. Its matched paced
+retention median is 37,914,624 private bytes, versus retained V11 36,831,232 and
+original 29,743,104; peak 45,936,640. No improvement or resource acceptance is
+claimed. [Exact patches, failed/passing tests and receipts](../../../Measurements/GridTextOverflow/2026-09-21/native-isolation/README.md).
+
+Restored V11 passes a fresh Release rebuild and all three focused suites, zero skips.
+Production/harness/gallery inputs remain those of `2ba0dfb`. This follow-up is
+evidence/documentation only; no consumer pin changed. Do not repeat these variants
+unchanged or mistake the previous unbounded inline-tail sample for a qualified fix.
+Return to Astra High for independent RedSalamander Full/configuration acceptance
+on its qualified pin while this library's resource advice/native-platform gates
+remain open. Additional resource work needs a new measurable hypothesis or the
+developer's explicit scoped tradeoff, not more arbitrary cache/layout substitutions.
+
+Previous 2026-09-21: **native heap attribution implemented and qualified; production V11 unchanged**.
 The opt-in `MultilineGridHeap` / `MultilineGridHeapPaced` diagnostics report bounded
 process-local heap occupancy outside timed rounds. All heap walks in eight retained
 runs finish without errors. The original/V11 unpaced median live-heap delta is
@@ -55,7 +73,7 @@ ARM64 execution and original paired resource acceptance remain open.
 Skills/specs/dependencies/format checks, 10 performance-comparison tool tests,
 77 raw archive hashes and exact summary reproduction pass.
 
-**Next: targeted Astra Extra High review** of the unresolved native allocation cost
+**Previous next action, completed above: targeted Astra Extra High review** of the unresolved native allocation cost
 and saved inline-tail prototype. Use the current diagnostic packet, retained baseline
 worktree and targeted DrawCellText reads. Preserve all baselines; no consumer pin or
 other-owner checkout changes. Return to the plan's High/Sol routing after this difficult

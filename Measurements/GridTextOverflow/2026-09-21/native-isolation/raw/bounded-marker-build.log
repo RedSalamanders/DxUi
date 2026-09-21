@@ -1,0 +1,36 @@
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\
+
+Compiling DxUi...
+
+  DxUi.Grid.cpp
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.lib
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.EmbeddedTests.exe
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.ControlTests.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.EmbeddedControls.exe
+
+========================================
+DxUi build passed in 00:05
+Output: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\
+Log: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\logs\build-x64-Release-7c8a3516f16d4e47bf8cfafe8f0ce1ff.log
+========================================
