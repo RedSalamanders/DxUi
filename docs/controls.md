@@ -50,6 +50,10 @@ the selection authority; repeated primary labels are supported. Description layo
 open/DPI reflow and reused during paint. Described menu entries expose native MenuItem/Invoke and
 the acknowledged checked state. Queued invocations expire with that popup instance.
 
+Normal dismissal delivers the completion callback and restores the prior owner control as applicable.
+If the process/thread exits with an asynchronous menu still open, controller teardown releases its
+capture and windows without invoking application completion callbacks or re-entering finalization.
+
 ```cpp
 DxUi::MenuFlyoutItem item;
 item.kind = DxUi::MenuItemKind::Radio;

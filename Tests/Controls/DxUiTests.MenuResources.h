@@ -95,6 +95,15 @@ void RunMenuResourceScalingTests()
 {
     using namespace DxUi;
     AttachedHostWindow owner;
+    // The helper starts at (-32000,-32000). Pin this resource fixture to one
+    // native monitor before opening any menu; clamping an offscreen anchor can
+    // cross a mixed-DPI boundary and change the surface during a comparison.
+    MONITORINFO monitorInfo{};
+    monitorInfo.cbSize = sizeof(monitorInfo);
+    Require(GetMonitorInfoW(MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY), &monitorInfo) != FALSE, "scaling fixture resolves its fixed monitor");
+    Require(SetWindowPos(owner.Hwnd(), nullptr, monitorInfo.rcWork.left + 64, monitorInfo.rcWork.top + 64, 320, 200, SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+            "scaling fixture positions only its owned nonactivating window");
+    owner.PumpMessages();
     struct Variant
     {
         int entries;
@@ -110,14 +119,14 @@ void RunMenuResourceScalingTests()
         Require(GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory), sizeof(memory)) != FALSE &&
                     GetProcessHandleCount(GetCurrentProcess(), &handles) != FALSE,
                 "menu scaling counters are available");
-        std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v2\",\"entries\":" << variant.entries << ",\"descriptions\":" << variant.descriptions
+        std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v3\",\"entries\":" << variant.entries << ",\"descriptions\":" << variant.descriptions
                   << ",\"cycle\":" << cycle << ",\"phase\":\"" << phase << "\",\"privateBytes\":" << memory.PrivateUsage
                   << ",\"workingSetBytes\":" << memory.WorkingSetSize << ",\"handles\":" << handles
                   << ",\"gdi\":" << GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS) << ",\"user\":" << GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS);
         DxUiTestSupport::WriteHeapDiagnostic(std::cout, [](bool ok, const char* reason) { Require(ok, reason); });
         std::cout << "}\n";
     };
-    std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v2\",\"menuItemObjectBytes\":" << sizeof(MenuFlyoutItem)
+    std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v3\",\"menuItemObjectBytes\":" << sizeof(MenuFlyoutItem)
               << ",\"toggleObjectBytes\":" << sizeof(Toggle) << ",\"capture\":false}\n";
     for (int cycle = 0; cycle < 32; ++cycle)
     {
@@ -142,7 +151,7 @@ void RunMenuResourceScalingTests()
             if (! supported)
             {
                 if (cycle == 0)
-                    std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v2\",\"entries\":" << variant.entries
+                    std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v3\",\"entries\":" << variant.entries
                               << ",\"descriptions\":" << variant.descriptions << ",\"supported\":false}\n";
                 continue;
             }
@@ -163,10 +172,18 @@ void RunMenuResourceScalingTests()
             const SIZE size{rect.right - rect.left, rect.bottom - rect.top};
             if (! surfaceSize)
                 surfaceSize = size;
+            std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v3\",\"entries\":" << variant.entries << ",\"descriptions\":" << variant.descriptions
+                      << ",\"cycle\":" << cycle << ",\"widthPx\":" << size.cx << ",\"heightPx\":" << size.cy << ",\"dpi\":" << GetDpiForWindow(popup) << "}\n";
+            if (size.cx != surfaceSize->cx || size.cy != surfaceSize->cy)
+            {
+                ContextMenuPopupDebugState state{};
+                const bool available = DebugGetContextMenuPopupState(popup, state);
+                std::cerr << "scaling extent mismatch: expected=" << surfaceSize->cx << ',' << surfaceSize->cy << " actual=" << size.cx << ',' << size.cy
+                          << " position=" << rect.left << ',' << rect.top << " debug=" << available << " internal=" << state.windowRectPx.left << ','
+                          << state.windowRectPx.top << ',' << state.windowRectPx.right << ',' << state.windowRectPx.bottom << " internalDpi=" << state.dpi
+                          << '\n';
+            }
             Require(size.cx == surfaceSize->cx && size.cy == surfaceSize->cy, "scaling cases retain the same window extent");
-            if (cycle == 0)
-                std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v2\",\"entries\":" << variant.entries << ",\"descriptions\":" << variant.descriptions
-                          << ",\"widthPx\":" << size.cx << ",\"heightPx\":" << size.cy << ",\"dpi\":" << GetDpiForWindow(popup) << "}\n";
             sample(variant, cycle, "rendered");
             SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
             owner.PumpMessages();
@@ -174,4 +191,22 @@ void RunMenuResourceScalingTests()
             sample(variant, cycle, "closed");
         }
     }
+}
+
+// Separate process suite: std::exit deliberately keeps stack-owned windows alive
+// while CRT thread-local menu controllers are destroyed. Ordinary scope teardown
+// closes the owner first and cannot exercise this lifetime boundary.
+void RunMenuExitLifetimeTests()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    std::vector<MenuFlyoutItem> items{
+        {.kind = MenuItemKind::Standard, .text = L"Archives", .commandId = 9300},
+    };
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), POINT{100, 100}, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}),
+            "exit lifetime fixture opens an asynchronous menu");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Archives");
+    Require(popup && GetCapture() == popup, "exit lifetime fixture leaves a live menu owning capture");
+    std::cerr << "[EXIT] MenuExitLifetime: active menu survives stack scope until CRT teardown\n" << std::flush;
+    std::exit(0);
 }

@@ -34,20 +34,43 @@ in RedSalamander's File Operations plan.
 
 ## Checkpoint
 
-Current candidate work: `c1f047b` finished all six native CI profiles successfully;
-ARM64 Menu retains nine pre-existing interactive-desktop skips per profile.
-[Native receipts and limitations](../../../Measurements/MenuDescriptions/2026-09-21/native-ci/README.md).
-Diagnostic `356006a` is published and its v2 heap baseline is running in
-[CI 35649778625](https://github.com/RedSalamanders/DxUi/actions/runs/35649778625).
-The retained v1 measurement precedes the new production optimization: scrollbar
-reflow now changes the width of the freshly prepared text layouts instead of
-creating a second complete set while the first remains alive. Existing opening
-failure/reflow-dismissal paths still handle measurement failure. A French DPI
-roundtrip assertion guards against cumulative width loss and row-height growth.
-This candidate is not yet built, measured or accepted; preserve the diagnostic
-baseline before publishing it. Product Full still owns the local build lane.
-The intended pixels/API are unchanged; review/regenerate the harness gallery
-and run the full required configurations before qualifying the optimization.
+**Newest repair, pending final qualification:** the independent MenuExitLifetime
+process regression reproduces a baseline ASan use-after-free during CRT teardown
+of an open captured async menu. The controller now marks finalization before
+releasing capture or destroying members, preventing synchronous recursive deletion.
+Four focused x64 ASan suites pass with zero skips.
+[Baseline/candidate trace](../../../Measurements/MenuDescriptions/2026-09-21/exit-lifetime/README.md).
+The added default process suite covers this boundary in every native CI profile.
+This nonvisual lifetime repair leaves gallery pixels unchanged. The positioning
+failure below remains unresolved, and the final source requires all configurations.
+
+
+**Current 2026-09-21:** source `7ada987` completes all six native CI profiles
+in run `35650904698`: eighteen regular suites per profile, zero x64 skips,
+nine pre-existing ARM64 Menu desktop skips; external consumers and ASan probes
+pass. [Reviewed packet](../../../Measurements/MenuDescriptions/2026-09-21/native-ci-reflow/README.md).
+The six Release gallery PNGs match described baseline `356006a` byte-for-byte.
+No resource waiver or consumer handoff is established by this functional CI.
+
+Local paired measurement has exposed an intermittent window-position failure
+in the retained described baseline. The native HWND remains at (0,0,1,1) while
+its internal menu rectangle is (82,107,558,429); SetWindowPos reports success.
+The original offscreen v2 fixture and native-monitor-anchored v3 both reproduce
+it. All failed attempts remain under
+`C:/RedSalamander.Perf/evidence/i26-ui/menu-reflow-local-20260921/`.
+The v3 fixture records every extent and mismatch details before rejecting the
+sample. No failed/partial resource run may be analyzed as a complete comparison.
+Temporary diagnostic-only edits in the separate baseline worktree trace native
+positioning and downstream CBT hooks; preserve their patches, then restore them
+before paired acceptance. They are not library behavior changes for adoption.
+
+Next: resolve the positioning failure, run identical local baseline/candidate
+resource fixtures, then qualify resource direction and final consumer handoff.
+Production candidate reuses freshly prepared layout pairs for scrollbar width;
+French DPI roundtrip assertions guard against cumulative narrowing/row growth.
+The grid branch and its resource gate remain separate. No tradeoff is approved.
+
+**Previous investigation history (superseded status retained below):**
 
 Current resource investigation: `c1f047b` passes x64 Debug/Release/ASan native CI;
 ARM64 jobs remain active. Its no-capture scaling probe passes 320 open/close cycles

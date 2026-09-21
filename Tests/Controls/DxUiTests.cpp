@@ -24,6 +24,7 @@ void RunAccessibilityTests();
 void RunMenuTests();
 void RunMenuResourceTests();
 void RunMenuResourceScalingTests();
+void RunMenuExitLifetimeTests();
 void RunNewControlTests();
 void RunGalleryGenerator(const std::filesystem::path& outputPath);
 void RunGalleryGeneratorPerTheme(const std::filesystem::path& outputDirectory);
@@ -208,6 +209,11 @@ int wmain(int argc, wchar_t** argv)
     };
 
     bool ranAnySuite = false;
+    if (suiteFilter.has_value() && shouldRunSuite("MenuExitLifetime"))
+    {
+        runSuite("MenuExitLifetime", RunMenuExitLifetimeTests);
+        return 1; // This probe succeeds only through the explicit CRT-exit path.
+    }
     if (suiteFilter.has_value() && shouldRunSuite("MenuResourceScaling"))
     {
         runSuite("MenuResourceScaling", RunMenuResourceScalingTests);
