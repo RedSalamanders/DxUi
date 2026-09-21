@@ -23,8 +23,10 @@ does not produce repeated notifications. Application navigation supplies its own
 stale-completion policy; the library does not choose the destination or steal focus on completion.
 
 Described native menus expose full per-entry names and MenuItem roles, exact command invocation
-and acknowledged checked state. Keyboard tracking keeps Win32 focus on the owner while updating
-logical entry focus. Explicit UIA focus of a native MenuItem follows that same rule for both root
+and acknowledged checked state. Modal menu tracking retains owner focus; an asynchronous menu
+uses its root popup for native keyboard dispatch and restores the previously focused owner control
+on dismissal while it still owns focus. Logical entry navigation does not change that session's
+native focus target. Explicit UIA focus of a native MenuItem follows that same rule for both root
 menus and submenus, independently of their activation style; embedded host focus stays with its bridge.
 Bounds follow the visible scrolled row geometry and DPI reflow. Posted UIA
 actions carry popup-instance identity so HWND reuse cannot dispatch an old action into a new menu;

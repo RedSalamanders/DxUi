@@ -5721,7 +5721,10 @@ void TestDescribedMenuWrapsFrenchTextAndPreservesIdentity()
         if (IsWindow(popup))
             SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
     });
-    Require(GetFocus() == previousFocus, "opening descriptions preserves native owner focus");
+    // ShowAsync deliberately activates its root popup for keyboard dispatch.
+    // A no-activation fixture instead preserves its previous native focus.
+    const HWND trackingFocus = GetFocus();
+    Require(trackingFocus == popup || trackingFocus == previousFocus, "opening descriptions uses only the existing menu-session focus targets");
     ContextMenuPopupDebugState state{};
     Require(DebugGetContextMenuPopupState(popup, state), "described menu state available");
     Require(state.hasScrollbar && state.visibleHeightDip <= 170.5f, "described rows use a bounded scroll viewport");
@@ -5743,7 +5746,7 @@ void TestDescribedMenuWrapsFrenchTextAndPreservesIdentity()
             "unchanged paints do not remeasure described text");
     SendMessageW(popup, WM_KEYDOWN, VK_END, 0);
     Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == 1u, "End skips disabled row and targets exact second destination");
-    Require(GetFocus() == previousFocus, "logical menu focus does not take Win32 focus");
+    Require(GetFocus() == trackingFocus, "logical menu navigation preserves the session's native focus");
     for (const UINT dpi : {192u, 96u, 144u})
     {
         RECT suggested = state.windowRectPx;
@@ -5756,6 +5759,50 @@ void TestDescribedMenuWrapsFrenchTextAndPreservesIdentity()
     owner.PumpMessages();
     Require(closed && result == 8912, "keyboard invokes exact second command despite identical leaf names");
     Require(WaitForWindowDestroyed(popup), "described menu closes after invocation");
+}
+
+void TestDescribedAsyncMenuRestoresFocusedOwnerChild()
+{
+    using namespace DxUi;
+    // The ordinary NewControls lane remains nonactivating. The Menu lane owns
+    // native focus qualification and its external desktop warning/restoration.
+    if (! DxUiTestWindowsCanActivateFlag())
+        return;
+    AttachedHostWindow owner;
+    ShowWindow(owner.Hwnd(), SW_SHOWNOACTIVATE);
+    wil::unique_hwnd child(CreateWindowExW(
+        0, L"EDIT", L"Menu owner input", WS_CHILD | WS_VISIBLE | WS_TABSTOP, 4, 4, 200, 28, owner.Hwnd(), nullptr, GetModuleHandleW(nullptr), nullptr));
+    Require(bool(child), "async menu focus fixture creates its owned input");
+    for (bool described : {false, true})
+    {
+        SetFocus(child.get());
+        if (! WaitForFocusedWindow(child.get()))
+        {
+            SkipDxUiTest("DxUi async described-menu owner restoration requires an interactive desktop");
+            return;
+        }
+        std::vector<MenuFlyoutItem> items{{.text = L"Première destination", .commandId = 89101}, {.text = L"Deuxième destination", .commandId = 89102}};
+        if (described)
+        {
+            items[0].secondaryText = L"C:\\Photographies\\Archives familiales";
+            items[1].secondaryText = L"D:\\Sauvegardes\\Collection du musée";
+        }
+        bool closed        = false;
+        const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "focus fixture anchor maps to screen");
+        Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&](std::optional<int>) noexcept { closed = true; }),
+                "focus fixture opens async menu");
+        const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+        Require(popup != nullptr, "focus fixture identifies its owned menu");
+        Require(WaitForFocusedWindow(popup), "plain and described async menus focus their keyboard-dispatch root");
+        SendMessageW(popup, WM_KEYDOWN, VK_END, 0);
+        ContextMenuPopupDebugState state{};
+        Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == 1u && GetFocus() == popup,
+                "logical row navigation preserves native async-root focus");
+        SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+        owner.PumpMessages();
+        Require(closed && WaitForWindowDestroyed(popup) && WaitForFocusedWindow(child.get()),
+                "plain and described async menus restore their original owner input on dismissal");
+    }
 }
 
 void TestDescribedMenuAccessibilityInvokesAndDisconnects()
@@ -5809,7 +5856,7 @@ void TestDescribedMenuAccessibilityInvokesAndDisconnects()
     owner.PumpMessages();
     ContextMenuPopupDebugState focusedState{};
     Require(GetFocus() == nativeFocus && DebugGetContextMenuPopupState(popup, focusedState) && focusedState.keyboardIndex == 1u,
-            "UIA focus tracks the exact row without transferring native owner focus");
+            "UIA focus tracks the exact row without changing native menu-session focus");
     wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
     RequireSucceeded(second.query_to(simple.put()), "menu entry exposes properties");
     wil::unique_variant name;
@@ -5931,6 +5978,8 @@ void TestDescribedMenuSubmenuKeepsSessionAndIdentity()
 
 void RunMenuDescriptionTests()
 {
+    std::cerr << "  [START] TestDescribedAsyncMenuRestoresFocusedOwnerChild\n" << std::flush;
+    TestDescribedAsyncMenuRestoresFocusedOwnerChild();
     std::cerr << "  [START] TestDescribedMenuWrapsFrenchTextAndPreservesIdentity\n" << std::flush;
     TestDescribedMenuWrapsFrenchTextAndPreservesIdentity();
     std::cerr << "  [START] TestDescribedMenuAccessibilityInvokesAndDisconnects\n" << std::flush;

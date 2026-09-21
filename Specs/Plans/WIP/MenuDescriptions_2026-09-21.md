@@ -13,8 +13,9 @@ existing mnemonic encoding. The consumer supplies destination identity and eligi
 DxUi contains no filesystem parsing or operation authority.
 
 Existing one-line menus retain their layout. Described menus expose full per-entry names,
-native MenuItem roles and invocation through the existing menu dispatcher. Menu tracking
-retains native owner focus while publishing logical menu focus. Surviving providers must
+native MenuItem roles and invocation through the existing menu dispatcher. Modal tracking retains
+owner focus; asynchronous tracking uses its root popup and restores the prior owner control on
+dismissal. Logical navigation preserves the session's native focus target. Surviving providers must
 disconnect after popup destruction. Full consumer assistive-technology qualification remains
 in RedSalamander's File Operations plan.
 
@@ -32,6 +33,35 @@ in RedSalamander's File Operations plan.
 - [ ] Update domain contracts and move this plan to Done only after all required gates pass.
 
 ## Checkpoint
+
+Current 2026-09-21: native CI on published `a474cf2` reproduces an incorrect new
+focus assertion across profiles. `BeginAsyncMenuInteraction` has always activated
+the root popup for keyboard dispatch; the test and its new contract prose wrongly
+expected owner focus immediately after ShowAsync. The correction preserves those
+existing modes, asserts stable session focus on navigation, and adds a directed
+plain/described journey restoring an actual owned Edit child after dismissal.
+It does not remove the UIA logical-focus or retained-provider checks. Local/native
+qualification of this correction is pending; all original CI failures stay retained.
+
+The user explicitly challenged the 1.15 MiB / twelve-entry interpretation. No
+memory tradeoff has been accepted. The new `MenuResourceScaling` fixture measures
+the first-description fixed activation separately from increasing described-row
+counts and total entries, with fixed window dimensions and no screenshot readback.
+It runs explicitly in Release x64 CI while the local RedSalamander Full run owns
+the desktop/build lane. Inputs are also copied to the original-library worktree
+for a later local matched comparison. Results are pending, not a resource pass.
+The optional fields create two text layouts per described row; any description
+also creates the whole menu's semantic tree. That source fact does not establish
+the allocator cost of either component. UIA/DirectWrite/shared allocator costs
+must not be labelled 100 KB of row storage by dividing a process total by twelve.
+
+CI baseline: https://github.com/RedSalamanders/DxUi/actions/runs/35644837020
+External raw logs: `C:/RedSalamander.Perf/evidence/i26-ui/menu-ci-a474cf2`.
+Scaling harness work: `C:/RedSalamander.Perf/evidence/i26-ui/menu-resource-scaling-20260921`.
+Production behavior and gallery inputs are unchanged by the focus-test correction
+and new diagnostic; no gallery regeneration is needed for this slice. No consumer
+dependency changed. Finish the new CI/local qualification and archive evidence
+before accepting or publishing a qualified consumer pin.
 
 2026-09-21: wrapped primary/secondary fields, retained layout, scrolling/DPI reflow,
 native MenuItem identities and guarded queued invocation are implemented in

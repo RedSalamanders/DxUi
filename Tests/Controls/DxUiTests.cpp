@@ -23,6 +23,7 @@ void RunAnimationTests();
 void RunAccessibilityTests();
 void RunMenuTests();
 void RunMenuResourceTests();
+void RunMenuResourceScalingTests();
 void RunNewControlTests();
 void RunGalleryGenerator(const std::filesystem::path& outputPath);
 void RunGalleryGeneratorPerTheme(const std::filesystem::path& outputDirectory);
@@ -207,6 +208,11 @@ int wmain(int argc, wchar_t** argv)
     };
 
     bool ranAnySuite = false;
+    if (suiteFilter.has_value() && shouldRunSuite("MenuResourceScaling"))
+    {
+        runSuite("MenuResourceScaling", RunMenuResourceScalingTests);
+        ranAnySuite = true;
+    }
     if (suiteFilter.has_value() && shouldRunSuite("MenuResources"))
     {
         runSuite("MenuResources", RunMenuResourceTests);

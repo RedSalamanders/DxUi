@@ -3002,7 +3002,8 @@ void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
         children[i]->SetBounds(rect);
     }
     Control* focus = popup.keyboardIndex && *popup.keyboardIndex < children.size() ? children[*popup.keyboardIndex].get() : nullptr;
-    // Native menus keep Win32 focus on their owner while tracking logical menu focus.
+    // Keep the session's native focus target while tracking logical entry focus:
+    // modal menus use their owner; async menus activate their root for keyboard dispatch.
     if (popup.host.GetFocusControl() != focus)
         popup.host.SetFocusControl(focus, false);
 }

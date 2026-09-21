@@ -57,6 +57,17 @@ zero. WARP numbers cannot stand in for native graphics hardware, physical input 
 
 ## Dedicated library evidence
 
+Use `./test.ps1 -Configuration Release -Suites MenuResourceScaling` to investigate
+the incremental cost of menu descriptions. The diagnostic keeps the window extent
+constant, rotates described-row counts and samples before opening, after ordinary
+paint and after closing. It performs no menu bitmap capture. Its raw JSON lines
+are retained in the suite log, including DPI, entry counts and process/handle
+counters. Release x64 CI runs it alongside the existing native matrix.
+The first description enables a whole-menu semantic tree; later descriptions add
+text layouts. A process-memory delta divided by the number of entries is therefore
+not a measurement of one entry's allocation. Treat this as attribution evidence,
+not a substitute for the required matched-source performance comparison.
+
 [Retained independent measurements](../Measurements/README.md) include raw rounds and comparison receipts with a
 scenario explanation. They measure the library's synthetic workload; AV adoption receipts live in RedXe.
 The `dxui-complex-ui-v2` scene is a new fixture, so its baseline/repeat pair demonstrates the measurement procedure

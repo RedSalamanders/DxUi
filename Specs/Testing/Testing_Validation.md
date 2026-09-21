@@ -7,6 +7,16 @@ Implemented capabilities are listed in [capabilities.json](../../capabilities.js
 targets are acceptance contracts, not claims of current support.
 
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
+
+The opt-in `MenuResourceScaling` control suite characterizes described-menu memory
+without bitmap capture. It rotates and reverses cases across 32 cycles, varying
+0/1/2/4/8/12 descriptions in a fixed twelve-entry menu and comparing plain/described
+12/24/48-entry menus. All cases must retain the same window extent; report DPI and
+before/rendered/closed process and handle counters. The caller's item vector is
+already built at the before sample. Object `sizeof` values exclude native resources
+and dynamic allocations. Process-private deltas are not per-entry allocation sizes.
+Release x64 CI retains this diagnostic even if another native suite fails; its
+results do not waive that failure or establish before/after source non-regression.
 `test.ps1` builds the selected configuration, runs Foundation, Embedded and all inherited control suites and records a JSON receipt with
 architecture, configuration, time and executable path under `.build/reports`. Failures propagate as nonzero exits.
 Every invocation also runs the populated complex-UI benchmark through `performance.ps1` and includes FPS/memory
