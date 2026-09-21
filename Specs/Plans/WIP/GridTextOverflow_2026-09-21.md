@@ -22,13 +22,24 @@ Reuse bounded text-layout resources; clean/hidden composition adds no work. No f
 - [ ] Verify actual pixels, long French/Unicode text, copy/UIA, narrow/short cells, clipping,
   mutation/resize/font changes, cache bounds and independent WARP/device-loss/lifecycle suites.
 - [x] Run x64 Debug/Release/ASan tests and all three ARM64 cross-builds.
-- [ ] Obtain required native ARM64 qualification; cross-builds are not runtime receipts.
+- [x] Obtain native ARM64 Grid/Embedded/Rendering/Accessibility qualification in all three profiles;
+  nine unrelated Menu desktop-capability skips per profile remain explicitly unqualified.
 - [ ] Compare paired performance/resources; preserve every failed/noisy attempt without rebaselining.
 - [x] Update controls documentation/domain contract and regenerate/review gallery; run validators/format (V11).
 - [ ] Qualify publication and explicit consumer pin adoption; retain the old consumer pin until qualified.
 - [ ] Move this plan to Done after its own gates pass. The previous localized-layout plan stays Done.
 
 ## Checkpoint
+
+Latest native qualification: published `7827873` passes all six native CI profiles
+after one unchanged x64 Debug Accessibility classification retry. Retain the first
+three-second `ElementFromHandle` setup timeout as an intermittent failure; no
+code repair is claimed. Grid/Embedded/Rendering/Accessibility have zero skips
+on x64 and ARM64 Debug/Release/ASan. ARM64 Menu has nine explicit interactive
+desktop skips in each profile. [Reviewed receipts and exact limitations](../../../Measurements/GridTextOverflow/2026-09-21/native-ci/README.md).
+This closes the native grid runtime gate, not original/candidate resource
+acceptance or product/AT/DPI qualification. The user challenged the separate
+menu memory explanation and has approved neither memory tradeoff. No pin changed.
 
 Latest 2026-09-21: **native-call isolation finished; all experiments rejected and
 V11 restored**. Suppressing glyph submission and omitting `SetTrimming` separately

@@ -102,6 +102,11 @@ Native ARM64 runs are configured in [CI](../.github/workflows/ci.yml) on `window
 That label identifies [GitHub's native ARM64 runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 Only an actual successful job and its receipts establish a runtime pass; configuration and cross-builds do not.
 
+The [grid candidate's native receipts](../Measurements/GridTextOverflow/2026-09-21/native-ci/README.md)
+cover all six x64/ARM64 profiles, preserve an intermittent accessibility setup failure
+and identify ARM64 Menu desktop-capability skips. These functional receipts do not
+close the candidate's separately measured resource regression.
+
 ## Other checks and formatting
 
 Run `validate-skills.ps1`, `validate-specs.ps1`, `validate-dependencies.ps1`, `format.ps1 -Check` and
