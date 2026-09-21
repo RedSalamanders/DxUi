@@ -3,8 +3,8 @@
 These are retained original/candidate measurements, **not performance acceptance**.
 Original production is `c52a8f5` (production tree of qualified `78b3de3`); only the
 four identical benchmark harness inputs differ in the baseline worktree. Reports
-record exact production, harness and executable hashes. V11 is the uncommitted
-candidate identified by its report fingerprints; later commits do not rewrite them.
+record exact production, harness and executable hashes. V11 was measured before local commit `71d6446`; its exact report fingerprints
+remain authoritative and later commits do not rewrite them.
 
 V6 ABBA contains every original/candidate crossover sample, including comparisons
 that require investigation. V11 Debug and Release fix complete-line ellipsis and
@@ -18,8 +18,8 @@ surface/replacement bytes remain 3,686,400. The common fixture has additional
 memory/timing flags. All flags remain in the comparison JSON; faster rendering
 does not waive the resource gate.
 
-Developer advice and matched retention evidence remain pending. The baseline
-ASan reports are unpaired until the corresponding candidate is rebuilt and run.
+Developer advice remains pending; matched retention evidence is recorded below.
+ASan reports remain unpaired until both executables use the same current harness.
 The six-pass retention fixture was added afterward and has a different harness
 fingerprint; it must compare only with its own identical original harness.
 Earlier rejected/invalid attempts and full build/test logs remain under
@@ -43,9 +43,9 @@ receipts. Its common benchmark receipts are explicitly unpaired; the matched
 investigation reports above still govern resource acceptance. Six current gallery
 images were regenerated via `gallery.ps1 -PublishDocs` and directly reviewed.
 
-Foreground qualification remains open: the first V11 Debug Menu run passed its
-executed assertions but skipped seven desktop checks. Its revised restoration
-reported child focus, foreground and cursor all restored. An external-harness
-follow-up now grants foreground permission to its suspended owned child before
-resuming it and bounds its lifetime with a job/timeout; that follow-up is not yet
-executed. No skipped run is promoted to a complete input pass.
+Foreground qualification now passes: Menu and NativeTextInput in all three x64
+profiles, six runs with zero skips and verified original child focus, foreground
+and cursor restoration. [Interactive receipts](qualification/interactive/README.md)
+retain external wrapper source/hash provenance and the corrected startup ordering.
+Earlier skipped/failed attempts remain recorded. Native ARM64 and resource gates
+are still open; no new consumer pin or overall closeout is implied.

@@ -1,0 +1,112 @@
+#include "Z:/src/RedSalamander/Tests/TestSupport/DirectedSelfTestInputWarning.h"
+#include <iostream>
+#include <string>
+#include <optional>
+int wmain(int argc, wchar_t** argv)
+{
+    if (argc != 2) return 2;
+    wil::unique_handle lease(CreateMutexW(nullptr, FALSE, L"Local\\RedSalamander.InteractiveTestRun.v1"));
+    if (!lease) return 3;
+    const auto wait = WaitForSingleObject(lease.get(), 60000);
+    if (wait != WAIT_OBJECT_0 && wait != WAIT_ABANDONED) return 4;
+    auto release = wil::scope_exit([&] { ReleaseMutex(lease.get()); });
+    const HWND original = GetForegroundWindow();
+    const DWORD originalThread = original ? GetWindowThreadProcessId(original, nullptr) : 0;
+    GUITHREADINFO originalGui{sizeof(GUITHREADINFO)};
+    const bool originalGuiSaved = originalThread && GetGUIThreadInfo(originalThread, &originalGui);
+    POINT cursor{};
+    const bool cursorSaved = GetCursorPos(&cursor) != FALSE;
+    std::optional<RedSalamander::TestSupport::DirectedSelfTestInputWarning> warning;
+    wil::unique_hwnd bootstrap;
+    auto restore = wil::scope_exit([&] {
+        if (cursorSaved) SetCursorPos(cursor.x, cursor.y);
+        const bool priorTargetValid = original && IsWindow(original);
+        if (priorTargetValid && GetForegroundWindow() != original) {
+            if (bootstrap) static_cast<void>(RedSalamander::TestSupport::DirectedSelfTestInputWarning::TryActivateOwnedWindow(bootstrap.get()));
+            const HWND foreground = GetForegroundWindow();
+            const DWORD foregroundThread = foreground ? GetWindowThreadProcessId(foreground, nullptr) : 0;
+            const DWORD ownThread = GetCurrentThreadId();
+            const bool attached = foregroundThread && foregroundThread != ownThread && AttachThreadInput(ownThread, foregroundThread, TRUE);
+            SetForegroundWindow(original);
+            if (attached) AttachThreadInput(ownThread, foregroundThread, FALSE);
+        }
+        if (priorTargetValid && GetForegroundWindow() == original && originalGuiSaved && originalGui.hwndFocus && IsWindow(originalGui.hwndFocus)) {
+            const DWORD ownThread = GetCurrentThreadId();
+            const bool focusAttached = originalThread != ownThread && AttachThreadInput(ownThread, originalThread, TRUE);
+            SetFocus(originalGui.hwndFocus);
+            if (focusAttached) AttachThreadInput(ownThread, originalThread, FALSE);
+        }
+        POINT restoredCursor{};
+        const bool cursorRestored = cursorSaved && GetCursorPos(&restoredCursor) && restoredCursor.x == cursor.x && restoredCursor.y == cursor.y;
+        GUITHREADINFO restoredGui{sizeof(GUITHREADINFO)};
+        const bool focusRestored = !originalGuiSaved || !originalGui.hwndFocus || (GetGUIThreadInfo(originalThread, &restoredGui) && restoredGui.hwndFocus == originalGui.hwndFocus);
+        std::cout << "Restoration: childFocus=" << focusRestored << " priorTargetPresent=" << (original != nullptr) << " priorTargetValid=" << priorTargetValid << " foreground=" << (GetForegroundWindow() == original) << " cursorSaved=" << cursorSaved << " cursorRestored=" << cursorRestored << '\n';
+    });
+    warning.emplace();
+    if (!warning->IsVisible()) return 5;
+    bootstrap.reset(CreateWindowExW(WS_EX_TOOLWINDOW, L"STATIC", L"DxUi interaction test harness", WS_OVERLAPPEDWINDOW, 80, 80, 320, 100, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
+    if (!bootstrap || !RedSalamander::TestSupport::DirectedSelfTestInputWarning::TryActivateOwnedWindow(bootstrap.get())) { std::cout << "Owned harness foreground activation denied.\n"; return 9; }
+    std::wstring command(argv[1]);
+    STARTUPINFOW startup{sizeof(startup)};
+    startup.dwFlags = STARTF_USESTDHANDLES;
+    startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    startup.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    startup.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    wil::unique_handle job(CreateJobObjectW(nullptr, nullptr));
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
+    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    if (!job || !SetInformationJobObject(job.get(), JobObjectExtendedLimitInformation, &limits, sizeof(limits))) return 10;
+    PROCESS_INFORMATION process{};
+    if (!CreateProcessW(nullptr, command.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr, nullptr, &startup, &process)) return 6;
+    wil::unique_handle child(process.hProcess), thread(process.hThread);
+    auto stopOwnedChild = wil::scope_exit([&] {
+        if (WaitForSingleObject(child.get(), 0) != WAIT_OBJECT_0) {
+            // Only the process created above; PID/name discovery is never used.
+            TerminateProcess(child.get(), 12);
+            WaitForSingleObject(child.get(), 5000);
+        }
+    });
+    if (!AssignProcessToJobObject(job.get(), child.get()))
+        std::cout << "Nested job unavailable: " << GetLastError() << "; owned-child timeout guard remains active.\n";
+    if (ResumeThread(thread.get()) == static_cast<DWORD>(-1)) {
+        std::cout << "Owned-child resume failed: " << GetLastError() << '\n';
+        return 11;
+    }
+    // A suspended process has not registered with USER yet (ERROR_INVALID_PARAMETER).
+    // Grant only this owned process after startup; never grant ASFW_ANY.
+    const ULONGLONG grantDeadline = GetTickCount64() + 2000u;
+    for (;;) {
+        if (AllowSetForegroundWindow(process.dwProcessId)) break;
+        const DWORD grantError = GetLastError();
+        if (grantError != ERROR_INVALID_PARAMETER || GetTickCount64() >= grantDeadline ||
+            WaitForSingleObject(child.get(), 0) == WAIT_OBJECT_0) {
+            std::cout << "Owned-child foreground grant failed after startup: " << grantError << '\n';
+            return 11;
+        }
+        MsgWaitForMultipleObjects(0, nullptr, FALSE, 10u, QS_ALLINPUT);
+        MSG message{};
+        while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+    }
+    std::cout << "Foreground permission granted to the owned child.\n";
+    const ULONGLONG deadline = GetTickCount64() + 120000u;
+    HANDLE childHandle = child.get();
+    for (;;) {
+        const auto now = GetTickCount64();
+        if (now >= deadline) return 12;
+        const auto status = MsgWaitForMultipleObjects(1, &childHandle, FALSE, static_cast<DWORD>(deadline - now), QS_ALLINPUT);
+        if (status == WAIT_TIMEOUT) return 12;
+        if (status == WAIT_OBJECT_0) break;
+        if (status == WAIT_FAILED) return 7;
+        MSG message{};
+        while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+    }
+    DWORD exitCode = 8;
+    GetExitCodeProcess(child.get(), &exitCode);
+    return static_cast<int>(exitCode);
+}
