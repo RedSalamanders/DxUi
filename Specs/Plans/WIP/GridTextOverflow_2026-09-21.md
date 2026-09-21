@@ -30,6 +30,18 @@ Reuse bounded text-layout resources; clean/hidden composition adds no work. No f
 
 ## Checkpoint
 
+Latest 2026-09-21 resource experiment: **eight cache slots rejected and reverted**.
+Fresh 32 -> 8 -> restored-32 Release retention measures dirty FPS 122.065 -> 95.418
+-> 121.133; private medians 33,918,976 -> 34,605,056 -> 33,613,824 bytes across six
+passes. Common-path timing also varies in the middle run, so preserve noise/causality
+limits. Grid/Embedded/Rendering pass for the experiment, zero skips. No production
+code change remains, no baseline is replaced, and the resource gate stays open.
+[Complete evidence](../../../Measurements/GridTextOverflow/2026-09-21/cache8-rejected/README.md).
+The companion consumer result slice is committed as `45f2c97ba` (87 focused Debug
+checks, exact inline-rename/Issues results, TSV/JSONL, reviewed captures). Consumer
+pin remains `78b3de3`; remaining P3 and final integrated gates proceed independently.
+
+
 Current production: **V11, local commit `71d6446`**. The 32-slot bounded multiline
 layout cache preserves complete Unicode model/copy/UIA values, enforces complete
 visible lines with ellipsis and clips full-cell layouts without reflow. Single-line

@@ -1,0 +1,13 @@
+diff --git a/src/Controls/DxUi.Grid.cpp b/src/Controls/DxUi.Grid.cpp
+index 6707e91..173504f 100644
+--- a/src/Controls/DxUi.Grid.cpp
++++ b/src/Controls/DxUi.Grid.cpp
+@@ -1879,7 +1879,7 @@ void Grid::DrawCellText(ControlHost& host, const GridCellData& cellData, const D
+     auto* format    = host.GetTextFormat(_cellTextFontRole, cellData.textAlignment, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, wrap);
+     if (! factory || ! format || ! host.GetDeviceContext())
+         return;
+-    constexpr size_t cacheSlots           = 32u;
++    constexpr size_t cacheSlots           = 8u;
+     constexpr size_t maxRetainedTextUnits = 4096u;
+     std::optional<CellTextLayoutCache> temporary;
+     if (cellData.text.size() > maxRetainedTextUnits)

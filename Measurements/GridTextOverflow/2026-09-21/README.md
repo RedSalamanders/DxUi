@@ -51,3 +51,7 @@ and cursor restoration. [Interactive receipts](qualification/interactive/README.
 retain external wrapper source/hash provenance and the corrected startup ordering.
 Earlier skipped/failed attempts remain recorded. Native ARM64 and resource gates
 are still open; no new consumer pin or overall closeout is implied.
+
+[Rejected eight-slot cache experiment](cache8-rejected/README.md) retains a fresh
+32 -> 8 -> 32 comparison. Eight slots did not remove the memory increase; the
+production change was reverted. Developer advice and original resource gates remain open.
