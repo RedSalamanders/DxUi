@@ -103,6 +103,8 @@ void RunMenuResourceScalingTests()
     Require(GetMonitorInfoW(MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY), &monitorInfo) != FALSE, "scaling fixture resolves its fixed monitor");
     Require(SetWindowPos(owner.Hwnd(), nullptr, monitorInfo.rcWork.left + 64, monitorInfo.rcWork.top + 64, 320, 200, SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
             "scaling fixture positions only its owned nonactivating window");
+    ShowWindow(owner.Hwnd(), SW_SHOWNOACTIVATE);
+    Require(RedrawWindow(owner.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW) != FALSE, "scaling owner completes its initial nonactivating paint");
     owner.PumpMessages();
     struct Variant
     {
@@ -119,14 +121,14 @@ void RunMenuResourceScalingTests()
         Require(GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory), sizeof(memory)) != FALSE &&
                     GetProcessHandleCount(GetCurrentProcess(), &handles) != FALSE,
                 "menu scaling counters are available");
-        std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v3\",\"entries\":" << variant.entries << ",\"descriptions\":" << variant.descriptions
+        std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v4\",\"entries\":" << variant.entries << ",\"descriptions\":" << variant.descriptions
                   << ",\"cycle\":" << cycle << ",\"phase\":\"" << phase << "\",\"privateBytes\":" << memory.PrivateUsage
                   << ",\"workingSetBytes\":" << memory.WorkingSetSize << ",\"handles\":" << handles
                   << ",\"gdi\":" << GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS) << ",\"user\":" << GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS);
         DxUiTestSupport::WriteHeapDiagnostic(std::cout, [](bool ok, const char* reason) { Require(ok, reason); });
         std::cout << "}\n";
     };
-    std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v3\",\"menuItemObjectBytes\":" << sizeof(MenuFlyoutItem)
+    std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v4\",\"menuItemObjectBytes\":" << sizeof(MenuFlyoutItem)
               << ",\"toggleObjectBytes\":" << sizeof(Toggle) << ",\"capture\":false}\n";
     for (int cycle = 0; cycle < 32; ++cycle)
     {
@@ -151,7 +153,7 @@ void RunMenuResourceScalingTests()
             if (! supported)
             {
                 if (cycle == 0)
-                    std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v3\",\"entries\":" << variant.entries
+                    std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v4\",\"entries\":" << variant.entries
                               << ",\"descriptions\":" << variant.descriptions << ",\"supported\":false}\n";
                 continue;
             }
@@ -172,7 +174,7 @@ void RunMenuResourceScalingTests()
             const SIZE size{rect.right - rect.left, rect.bottom - rect.top};
             if (! surfaceSize)
                 surfaceSize = size;
-            std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v3\",\"entries\":" << variant.entries << ",\"descriptions\":" << variant.descriptions
+            std::cout << "{\"fixture\":\"dxui-menu-resource-scaling-v4\",\"entries\":" << variant.entries << ",\"descriptions\":" << variant.descriptions
                       << ",\"cycle\":" << cycle << ",\"widthPx\":" << size.cx << ",\"heightPx\":" << size.cy << ",\"dpi\":" << GetDpiForWindow(popup) << "}\n";
             if (size.cx != surfaceSize->cx || size.cy != surfaceSize->cy)
             {
@@ -189,6 +191,84 @@ void RunMenuResourceScalingTests()
             owner.PumpMessages();
             Require(closed && WaitForWindowDestroyed(popup), "scaling menu closes each cycle");
             sample(variant, cycle, "closed");
+        }
+    }
+}
+
+// Isolate DirectWrite creation from shaping/measurement, without a menu, bitmap
+// readback or semantic tree. This diagnostic does not time heap walks or claim
+// that whole-process private bytes belong to one native allocation.
+void RunMenuTextLayoutResourceTests()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    auto* factory         = owner.Host().GetWriteFactory();
+    auto* primaryFormat   = owner.Host().GetTextFormat(FontRole::Body);
+    auto* secondaryFormat = owner.Host().GetTextFormat(FontRole::Small);
+    Require(factory && primaryFormat && secondaryFormat, "layout diagnostic has native text services");
+    constexpr size_t rowCount               = 12u;
+    constexpr float widthDip                = 396.0f;
+    constexpr std::wstring_view primaryText = L"Archives photographiques de la réunion familiale";
+    std::array<std::wstring, rowCount> secondaryTexts;
+    for (size_t row = 0u; row < rowCount; ++row)
+        secondaryTexts[row] = std::format(L"D:\\Sauvegardes\\Collection déjà présente\\Génération {}", row);
+    struct Row
+    {
+        wil::com_ptr<IDWriteTextLayout> primary;
+        wil::com_ptr<IDWriteTextLayout> secondary;
+    };
+    std::array<Row, rowCount> layouts;
+    const auto sample = [&](int cycle, int mode, const char* phase)
+    {
+        PROCESS_MEMORY_COUNTERS_EX memory{};
+        memory.cb = sizeof(memory);
+        Require(GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory), sizeof(memory)) != FALSE,
+                "layout diagnostic has process memory counters");
+        std::cout << "{\"fixture\":\"dxui-menu-text-layout-resources-v1\",\"cycle\":" << cycle << ",\"mode\":" << mode << ",\"rows\":" << rowCount
+                  << ",\"widthDip\":" << widthDip << ",\"phase\":\"" << phase << "\",\"privateBytes\":" << memory.PrivateUsage
+                  << ",\"primaryFontSize\":" << primaryFormat->GetFontSize() << ",\"secondaryFontSize\":" << secondaryFormat->GetFontSize();
+        DxUiTestSupport::WriteHeapDiagnostic(std::cout, [](bool ok, const char* reason) { Require(ok, reason); });
+        std::cout << "}\n";
+    };
+    const auto create = [&](std::wstring_view text, IDWriteTextFormat* format, wil::com_ptr<IDWriteTextLayout>& layout)
+    {
+        Require(SUCCEEDED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, widthDip, 1000000.0f, &layout)),
+                "layout diagnostic creates native text layout");
+        const DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_NONE, 0, 0};
+        Require(SUCCEEDED(layout->SetWordWrapping(DWRITE_WORD_WRAPPING_EMERGENCY_BREAK)) &&
+                    SUCCEEDED(layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR)) &&
+                    SUCCEEDED(layout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING)) && SUCCEEDED(layout->SetTrimming(&trimming, nullptr)),
+                "layout diagnostic applies described-menu text policy");
+    };
+    for (int cycle = 0; cycle < 32; ++cycle)
+    {
+        for (int step = 0; step < 3; ++step)
+        {
+            const int mode = (cycle + step) % 3; // 0 primary only; 1 secondary only; 2 both.
+            sample(cycle, mode, "before");
+            for (size_t row = 0u; row < rowCount; ++row)
+            {
+                if (mode != 1)
+                    create(primaryText, primaryFormat, layouts[row].primary);
+                if (mode != 0)
+                    create(secondaryTexts[row], secondaryFormat, layouts[row].secondary);
+            }
+            sample(cycle, mode, "created");
+            for (auto& row : layouts)
+            {
+                DWRITE_TEXT_METRICS metrics{};
+                if (row.primary)
+                    Require(SUCCEEDED(row.primary->GetMetrics(&metrics)) && metrics.lineCount > 0, "primary text shaping produces complete metrics");
+                if (row.secondary)
+                    Require(SUCCEEDED(row.secondary->GetMetrics(&metrics)) && metrics.lineCount > 0, "secondary text shaping produces complete metrics");
+            }
+            sample(cycle, mode, "measured");
+            for (auto& row : layouts)
+            {
+                row.primary.reset();
+                row.secondary.reset();
+            }
+            sample(cycle, mode, "released");
         }
     }
 }

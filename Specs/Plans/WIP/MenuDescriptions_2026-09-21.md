@@ -34,15 +34,34 @@ in RedSalamander's File Operations plan.
 
 ## Checkpoint
 
-**Newest repair, pending final qualification:** the independent MenuExitLifetime
+**Current: local foreground resource fixture resolved; memory gate remains open.**
+Both unchanged described baseline `356006a` and lifetime/reflow candidate `d461095`
+pass all 320 v4 openings at equal 476-by-322 pixels / 96 DPI, with no heap errors
+and verified focus/cursor restoration. These real async-menu probes require
+foreground mode; their suite classification now rejects `--no-activate`. The
+general activation guard is unchanged. Earlier failed probes remain invalid,
+and temporary library/CBT tracing was restored before the matched measurements.
+[Paired results and limitations](../../../Measurements/MenuDescriptions/2026-09-21/local-reflow-v4/README.md).
+Reflow reuse reduces private deltas in this pair but leaves live described-row
+storage essentially unchanged. Common composition timing flags require a quiet
+repeat. No menu/grid resource waiver or consumer pin adoption is established.
+Native CI `35656340075` on `d461095` has now succeeded in all six profiles;
+[its reviewed receipts](../../../Measurements/MenuDescriptions/2026-09-21/native-ci-lifetime/README.md)
+retain the explicit ARM64 desktop skips. An opt-in text-layout-only diagnostic
+now isolates native creation, metrics and release without popup/semantic costs;
+its implementation and the v4 activation classification await qualification.
+Next: finish resource qualification
+and product broad-order validation, then qualify explicit consumer adoption.
+
+**Previous repair:** the independent MenuExitLifetime
 process regression reproduces a baseline ASan use-after-free during CRT teardown
 of an open captured async menu. The controller now marks finalization before
 releasing capture or destroying members, preventing synchronous recursive deletion.
 Four focused x64 ASan suites pass with zero skips.
 [Baseline/candidate trace](../../../Measurements/MenuDescriptions/2026-09-21/exit-lifetime/README.md).
 The added default process suite covers this boundary in every native CI profile.
-This nonvisual lifetime repair leaves gallery pixels unchanged. The positioning
-failure below remains unresolved, and the final source requires all configurations.
+This nonvisual lifetime repair leaves gallery pixels unchanged. The earlier
+positioning failure and pending matrix below are superseded by the current checkpoint.
 
 
 **Current 2026-09-21:** source `7ada987` completes all six native CI profiles

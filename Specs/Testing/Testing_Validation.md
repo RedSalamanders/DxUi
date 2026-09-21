@@ -23,6 +23,21 @@ call stacks or attribute a native text-layout object's exact cost. Heap sampling
 diagnostic work outside timed rendering; retain v1 separately rather than replacing it.
 Release x64 CI retains this diagnostic even if another native suite fails; its
 results do not waive that failure or establish before/after source non-regression.
+Fixture v4 places a visible, owned parent on one native monitor and records the
+actual pixel extent and DPI for every opening. `MenuResources` and
+`MenuResourceScaling` require normal foreground menu interaction; `--no-activate`
+is rejected. Locally use the authorized warning/desktop-lease harness and verify
+focus and physical cursor restoration. A blocked activation path can leave a
+temporary 1-by-1 HWND despite correct internal layout, invalidating the measurement.
+Do not change the general activation guard or count failed v2/v3 samples as passes.
+The separate `MenuExitLifetime` teardown process does not require foreground input.
+`MenuTextLayoutResources` separately measures creation, metric computation and
+release for twelve primary layouts, twelve secondary layouts and their pairs.
+It uses the same French strings and Body/Small formats, at a declared 396-DIP
+width, with no popup, semantic tree or paint. The 32 rotated cycles distinguish
+native layout costs from the rest of a menu; they are not a substitute for actual
+menu resource measurements. This opt-in diagnostic remains nonactivating and its
+Release CI run retains the common benchmark receipt.
 `test.ps1` builds the selected configuration, runs Foundation, Embedded and all inherited control suites and records a JSON receipt with
 architecture, configuration, time and executable path under `.build/reports`. Failures propagate as nonzero exits.
 Every invocation also runs the populated complex-UI benchmark through `performance.ps1` and includes FPS/memory

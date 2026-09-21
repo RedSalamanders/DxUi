@@ -1,0 +1,22 @@
+{
+  "sourceCommit": "356006adb0704688d592caaea21328b7b448e188",
+  "sourceChanges": [
+    "Tests/Controls/DxUiTests.Menu.cpp",
+    "Tests/Controls/DxUiTests.MenuResources.h",
+    "Tests/Controls/DxUiTests.cpp"
+  ],
+  "executableSha256": "24F5326E7820CE2852F420BB5592D79FF0E3CF6A1D5483FC0F14117EBFAEF4F5",
+  "fixtureInputs": {
+    "Tests/Support/HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Tests/Controls/DxUiTests.cpp": "FC3BA1374D0D21461839194118AA86F7DF0AB438984189955835291045F29876",
+    "Tests/Controls/DxUiTests.Menu.cpp": "04500EC6FF2C957924F50C3880856E65F7B65B6A9D8A86000FBE20207F0B937F",
+    "Tests/Support/TestWindowActivationGuard.h": "76517C833895062867C4652F63981E649E75FD0EF0A941648E50B6A3FC9E051F",
+    "Tests/Controls/DxUiTests.MenuResources.h": "3F0DFD84349AEA69144CA1715B634138E07878270F6EC759550BF8E00E884F05",
+    "Tests/Controls/DxUiTestHelpers.h": "A8C6238E6445FA711E8DF37B640A09792B04343044C9D598C888121438087D44"
+  },
+  "foregroundWrapperSha256": "2BC2B27AD7FE2ADE4E1E87AB05AB49A40AB93824E9C8B00D987C8EE58471E9AE",
+  "evidenceRoot": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-reflow-local-20260921\\baseline-qualified-v4",
+  "testPassed": true,
+  "originalFocusRestored": true,
+  "physicalCursorRestored": true
+}

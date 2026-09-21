@@ -24,6 +24,7 @@ void RunAccessibilityTests();
 void RunMenuTests();
 void RunMenuResourceTests();
 void RunMenuResourceScalingTests();
+void RunMenuTextLayoutResourceTests();
 void RunMenuExitLifetimeTests();
 void RunNewControlTests();
 void RunGalleryGenerator(const std::filesystem::path& outputPath);
@@ -183,9 +184,14 @@ int wmain(int argc, wchar_t** argv)
         return _wcsicmp(wideName.c_str(), suiteFilter->c_str()) == 0;
     };
 
-    const auto suiteCanActivate = [](const char* name) noexcept { return _stricmp(name, "Menu") == 0 || _stricmp(name, "NativeTextInput") == 0; };
+    const auto suiteCanActivate = [](const char* name) noexcept
+    {
+        return _stricmp(name, "Menu") == 0 || _stricmp(name, "NativeTextInput") == 0 || _stricmp(name, "MenuResources") == 0 ||
+               _stricmp(name, "MenuResourceScaling") == 0;
+    };
     const bool selectedSuiteCanActivate =
-        suiteFilter.has_value() && (_wcsicmp(suiteFilter->c_str(), L"Menu") == 0 || _wcsicmp(suiteFilter->c_str(), L"NativeTextInput") == 0);
+        suiteFilter.has_value() && (_wcsicmp(suiteFilter->c_str(), L"Menu") == 0 || _wcsicmp(suiteFilter->c_str(), L"NativeTextInput") == 0 ||
+                                    _wcsicmp(suiteFilter->c_str(), L"MenuResources") == 0 || _wcsicmp(suiteFilter->c_str(), L"MenuResourceScaling") == 0);
     if (blockActivation && (! suiteFilter.has_value() || selectedSuiteCanActivate))
     {
         std::wcerr << L"--no-activate cannot run a DxUi suite whose contract requires real focus.\n";
@@ -209,6 +215,11 @@ int wmain(int argc, wchar_t** argv)
     };
 
     bool ranAnySuite = false;
+    if (suiteFilter.has_value() && shouldRunSuite("MenuTextLayoutResources"))
+    {
+        runSuite("MenuTextLayoutResources", RunMenuTextLayoutResourceTests);
+        ranAnySuite = true;
+    }
     if (suiteFilter.has_value() && shouldRunSuite("MenuExitLifetime"))
     {
         runSuite("MenuExitLifetime", RunMenuExitLifetimeTests);

@@ -59,7 +59,7 @@ zero. WARP numbers cannot stand in for native graphics hardware, physical input 
 
 The [no-capture menu scaling record](../Measurements/MenuDescriptions/2026-09-21/scaling-v1/README.md)
 retains the first 320-cycle probe and its non-monotonic private-memory changes.
-The current v2 diagnostic adds live/free process-heap counters; partial heap
+The current v4 diagnostic retains live/free process-heap counters; partial heap
 errors must be reported, and heap totals are not total process memory or native
 call-stack attribution. No per-entry cost or resource acceptance is inferred.
 
@@ -69,10 +69,21 @@ constant, rotates described-row counts and samples before opening, after ordinar
 paint and after closing. It performs no menu bitmap capture. Its raw JSON lines
 are retained in the suite log, including DPI, entry counts and process/handle
 counters. Release x64 CI runs it alongside the existing native matrix.
+This suite and `MenuResources` require foreground interaction. Local runs use the
+authorized warning and desktop lease with focus/cursor restoration; `--no-activate`
+is rejected. V4 records all 320 native extents from a visible owned parent on one
+monitor. Earlier locally failed activation-blocked runs remain invalid evidence.
 The first description enables a whole-menu semantic tree; later descriptions add
 text layouts. A process-memory delta divided by the number of entries is therefore
 not a measurement of one entry's allocation. Treat this as attribution evidence,
 not a substitute for the required matched-source performance comparison.
+
+`./test.ps1 -Configuration Release -Suites MenuTextLayoutResources` isolates the
+native text-layout path: twelve Body labels, twelve Small descriptions and their
+pairs, sampled before creation, before/after metrics and after release. It uses
+32 rotated cycles without popup, semantic tree or paint and does not take focus.
+Compare its live-heap deltas with the whole-menu probe; private-memory changes
+still include allocator retention and cannot identify an individual allocation.
 
 [Retained independent measurements](../Measurements/README.md) include raw rounds and comparison receipts with a
 scenario explanation. They measure the library's synthetic workload; AV adoption receipts live in RedXe.
