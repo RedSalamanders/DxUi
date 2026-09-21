@@ -65,14 +65,18 @@ All five gallery theme sheets and the embedded image were regenerated with
 `gallery.ps1 -PublishDocs` and directly reviewed. Skills/specs/dependencies/format
 validators pass. One trailing-whitespace line in the archived ASan log was noticed
 after the local commit; its reviewed copy is normalized and documented, while the
-external raw log remains unchanged. Include that correction in the next checkpoint.
+external raw log remains unchanged. That correction and the interactive receipts
+are committed in `725e83c`.
 
 Next: resolve the resource direction, obtain missing native qualification, then
 publish/adopt only an explicitly qualified pin and rerun consumer visual acceptance.
+The matched ASan pair is now retained under `qualification/asan-paired/`: the common
+fixture is within noise bands; multiline dirty FPS improves 26.639 -> 50.089, but
+clean-frame memory/timing flags remain. No resource waiver is inferred.
 Original-production worktree `Z:/src/DxUi-worktrees/i26-grid-baseline` is detached at
 `c52a8f5` (production tree of qualified `78b3de3`), with only four identical benchmark
-harness files changed. Its current Release executable matches the retention harness;
-Debug/ASan binaries predate that harness and need rebuilding before new matched pairs.
+harness files changed. Its current Release and rebuilt ASan executables match the
+current harness; Debug predates that harness and needs rebuilding before new pairs.
 Do not mutate a tested checkout during a native run or reuse mismatched fingerprints.
 
 Historical failures remain retained under `C:/RedSalamander.Perf/evidence/i26-ui`:

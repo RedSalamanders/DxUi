@@ -1,0 +1,19 @@
+Complex UI clean round 1: 1985.42 completed offscreen FPS; p95 0.5862 ms; private 447025152 bytes
+Complex UI clean round 2: 1922.99 completed offscreen FPS; p95 0.6773 ms; private 448794624 bytes
+Complex UI clean round 3: 1626.48 completed offscreen FPS; p95 0.7674 ms; private 450568192 bytes
+Complex UI clean round 4: 2076.63 completed offscreen FPS; p95 0.5369 ms; private 452931584 bytes
+Complex UI clean round 5: 2047.46 completed offscreen FPS; p95 0.5466 ms; private 454115328 bytes
+Complex UI dirty round 1: 54.783 completed offscreen FPS; p95 20.2004 ms; private 470683648 bytes
+Complex UI dirty round 2: 52.8153 completed offscreen FPS; p95 23.1029 ms; private 444379136 bytes
+Complex UI dirty round 3: 50.0885 completed offscreen FPS; p95 25.4518 ms; private 448897024 bytes
+Complex UI dirty round 4: 47.4123 completed offscreen FPS; p95 24.896 ms; private 460083200 bytes
+Complex UI dirty round 5: 46.2466 completed offscreen FPS; p95 24.6954 ms; private 450580480 bytes
+Performance comparison: advice-required
+REGRESSION clean/frameP50Ms: 0.459 -> 0.488
+REGRESSION clean/prepareP95Ms: 0.001 -> 0.001
+REGRESSION clean/composeCpuP95Ms: 0.017 -> 0.020
+REGRESSION clean/privateBytes: 435920896.000 -> 450568192.000
+REGRESSION clean/privatePeakBytes: 435920896.000 -> 450568192.000
+REGRESSION dirty/composeCpuP95Ms: 0.027 -> 0.030
+REGRESSION dirty/privatePeakBytes: 459702272.000 -> 474390528.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.

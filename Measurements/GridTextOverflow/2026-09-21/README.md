@@ -19,7 +19,9 @@ memory/timing flags. All flags remain in the comparison JSON; faster rendering
 does not waive the resource gate.
 
 Developer advice remains pending; matched retention evidence is recorded below.
-ASan reports remain unpaired until both executables use the same current harness.
+Earlier ASan reports remain unpaired; the current matched pair is retained under
+[`qualification/asan-paired`](qualification/asan-paired/README.md). Its common fixture
+is within noise bands; multiline still flags clean-frame memory/timing.
 The six-pass retention fixture was added afterward and has a different harness
 fingerprint; it must compare only with its own identical original harness.
 Earlier rejected/invalid attempts and full build/test logs remain under
