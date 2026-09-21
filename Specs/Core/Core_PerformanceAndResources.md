@@ -79,6 +79,15 @@ Run retention/soak checks long enough to distinguish bounded warm caches from su
 duration, maximum views/data and start/steady/peak/end resources. Do not claim a hardware or long-run pass from
 the short default benchmark. Match new development to a targeted measured workload as well as the common fixture.
 
+Optional heap-attribution fixtures may enumerate and walk process heaps outside timed rounds,
+with bounded storage and individual heap locks. Report per-heap failures and distinguish busy/free
+heap blocks from process-private memory and working set; their totals are not interchangeable.
+Do not purge heaps or trim working sets to hide retention. A separately identified fixture may
+pace retention frames to compare wall-clock allocation rates, but must leave measured FPS rounds
+unpaced and must not replace ordinary unpaced performance/resource acceptance. Diagnostic timing
+includes sampling overhead. [The grid investigation](../../Measurements/GridTextOverflow/2026-09-21/heap-attribution/README.md)
+records the implemented opt-in diagnostics and their unresolved conclusions.
+
 Steady-state hot paths use bounded reusable storage; cache derived state and batch compatible work. Never allocate,
 shape text, create targets, traverse layout, do I/O, block or read back in clean composition. Coalesce dirty state and
 prepare only changed visible content. Hidden, minimized, occluded, suspended, display-off and idle work is event-blocked,

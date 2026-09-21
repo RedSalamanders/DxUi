@@ -30,7 +30,38 @@ Reuse bounded text-layout resources; clean/hidden composition adds no work. No f
 
 ## Checkpoint
 
-Latest 2026-09-21 resource experiment: **eight cache slots rejected and reverted**.
+Latest 2026-09-21: **native heap attribution implemented and qualified; production V11 unchanged**.
+The opt-in `MultilineGridHeap` / `MultilineGridHeapPaced` diagnostics report bounded
+process-local heap occupancy outside timed rounds. All heap walks in eight retained
+runs finish without errors. The original/V11 unpaced median live-heap delta is
+1,227,109 bytes; free heap space grows by 9,456,936 bytes. This supports substantial
+allocator retention/fragmentation, not a call-stack-level attribution or resource waiver.
+Equal 50-fps retention pacing does not remove the growth. WPR setup was denied with
+0x80070005 before launch; no trace/configuration was installed. The independent menu
+candidate's cost is not explained by this grid-only evidence.
+
+Four additional experiments are retained as patches, all reverted: per-paint layout
+release, DrawTextW, complete cache release, and a single-layout inline-tail prototype.
+The last passes Release Grid/Embedded/Rendering with zero skips, but its paced private
+median 34,004,992 still exceeds original 29,743,104 (V11 36,831,232). It initially
+measures all input paragraphs, a hidden-tail cost requiring review. It is a candidate
+for further analysis, not an accepted optimization. Do not repeat the failed variants.
+[All receipts, patches, hashes and precise limits](../../../Measurements/GridTextOverflow/2026-09-21/heap-attribution/README.md).
+
+The final diagnostic-only code with V11 restored passes Grid/Embedded/Rendering in
+x64 Debug/Release/ASan Debug (nine suite passes, zero skips, ASan detection probe),
+and all three ARM64 cross-builds. Production/gallery inputs are unchanged. Native
+ARM64 execution and original paired resource acceptance remain open.
+Skills/specs/dependencies/format checks, 10 performance-comparison tool tests,
+77 raw archive hashes and exact summary reproduction pass.
+
+**Next: targeted Astra Extra High review** of the unresolved native allocation cost
+and saved inline-tail prototype. Use the current diagnostic packet, retained baseline
+worktree and targeted DrawCellText reads. Preserve all baselines; no consumer pin or
+other-owner checkout changes. Return to the plan's High/Sol routing after this difficult
+failure is resolved. At most one immediate continuation, no competing writers/builds.
+
+Previous 2026-09-21 resource experiment: **eight cache slots rejected and reverted**.
 Fresh 32 -> 8 -> restored-32 Release retention measures dirty FPS 122.065 -> 95.418
 -> 121.133; private medians 33,918,976 -> 34,605,056 -> 33,613,824 bytes across six
 passes. Common-path timing also varies in the middle run, so preserve noise/causality

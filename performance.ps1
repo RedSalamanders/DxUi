@@ -1,12 +1,14 @@
 <#
 .SYNOPSIS Measure completed complex-UI WARP frames and resources, optionally comparing a matched baseline.
 .PARAMETER Scenario Default uses single-line grid cells. MultilineGrid uses French multiline cells; MultilineGridRetention adds six complete scroll passes with resource samples.
+MultilineGridHeap adds process-local heap walks outside timed rounds for attribution; its retention timing is diagnostic, not performance acceptance.
+MultilineGridHeapPaced additionally targets 50 retention frames/second to distinguish frame-count retention from wall-clock cleanup effects.
 #>
 [CmdletBinding()]
 param(
     [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Release',
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
-    [ValidateSet('Default','MultilineGrid','MultilineGridRetention')][string] $Scenario = 'Default',
+    [ValidateSet('Default','MultilineGrid','MultilineGridRetention','MultilineGridHeap','MultilineGridHeapPaced')][string] $Scenario = 'Default',
     [string] $OutputPath = '',
     [string] $Baseline = '',
     [switch] $SkipBuild
@@ -32,6 +34,8 @@ try {
     $benchmarkArgument = switch ($Scenario) {
         'MultilineGrid' { '--benchmark-multiline-grid' }
         'MultilineGridRetention' { '--benchmark-multiline-grid-retention' }
+        'MultilineGridHeap' { '--benchmark-multiline-grid-heap' }
+        'MultilineGridHeapPaced' { '--benchmark-multiline-grid-heap-paced' }
         default { '--benchmark' }
     }
     & $exe $benchmarkArgument $OutputPath

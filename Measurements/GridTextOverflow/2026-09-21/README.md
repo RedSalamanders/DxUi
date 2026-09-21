@@ -1,6 +1,9 @@
 # Grid text overflow: investigation evidence
 
 These are retained original/candidate measurements, **not performance acceptance**.
+The [heap attribution follow-up](heap-attribution/README.md) separates live heap data
+from allocator free space and retains four rejected/unqualified rendering experiments.
+Its diagnostic code is qualified; production remains V11 and the resource gate stays open.
 Original production is `c52a8f5` (production tree of qualified `78b3de3`); only the
 four identical benchmark harness inputs differ in the baseline worktree. Reports
 record exact production, harness and executable hashes. V11 was measured before local commit `71d6446`; its exact report fingerprints

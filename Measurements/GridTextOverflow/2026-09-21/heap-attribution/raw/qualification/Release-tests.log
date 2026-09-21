@@ -1,0 +1,66 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\
+
+Compiling DxUi...
+
+  DxUi.Grid.cpp
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.lib
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.ControlTests.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.EmbeddedTests.exe
+
+========================================
+DxUi build passed in 00:05
+Output: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\
+Log: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\logs\build-x64-Release-664e50209cb34d9b8f64adb1d960433f.log
+========================================
+Complex UI clean round 1: 2078.09 completed offscreen FPS; p95 0.6222 ms; private 25657344 bytes
+Complex UI clean round 2: 1981.41 completed offscreen FPS; p95 0.8396 ms; private 25608192 bytes
+Complex UI clean round 3: 2217.58 completed offscreen FPS; p95 0.5733 ms; private 25530368 bytes
+Complex UI clean round 4: 2252.3 completed offscreen FPS; p95 0.5786 ms; private 25567232 bytes
+Complex UI clean round 5: 1801.77 completed offscreen FPS; p95 1.3019 ms; private 26169344 bytes
+Complex UI dirty round 1: 493.695 completed offscreen FPS; p95 2.3234 ms; private 27947008 bytes
+Complex UI dirty round 2: 513.811 completed offscreen FPS; p95 2.3601 ms; private 28028928 bytes
+Complex UI dirty round 3: 521.962 completed offscreen FPS; p95 2.2737 ms; private 28127232 bytes
+Complex UI dirty round 4: 499.936 completed offscreen FPS; p95 2.4056 ms; private 28217344 bytes
+Complex UI dirty round 5: 505.929 completed offscreen FPS; p95 2.2407 ms; private 28200960 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\reports\Performance-x64-Release-c0fc26a5fe794cc98ad5d5ef3da84115.json
+Running Grid (x64 Release)
+PASS Grid (0 capability skips recorded)
+Running Embedded (x64 Release)
+PASS Embedded (0 capability skips recorded)
+Running Rendering (x64 Release)
+PASS Rendering (0 capability skips recorded)
+All 3 requested suites passed.

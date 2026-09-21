@@ -1,0 +1,2056 @@
+{
+  "compiler": 195136257,
+  "fixture": "dxui-complex-ui-multiline-grid-heap-v1",
+  "renderer": "WARP",
+  "width": 1280,
+  "height": 720,
+  "dpi": 96,
+  "controls": 83,
+  "modelRows": 1000,
+  "framesPerRound": 40,
+  "roundCount": 5,
+  "dirtyAllocationCeilingPerFrame": 64,
+  "scenarios": [
+    {
+      "name": "clean",
+      "rounds": [
+        {
+          "fps": 2416.422004,
+          "frameP50Ms": 0.3989,
+          "frameP95Ms": 0.4959,
+          "prepareP95Ms": 0.0005,
+          "composeCpuP95Ms": 0.0145,
+          "cppAllocations": 0,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 36024320,
+          "privatePeakBytes": 37011456,
+          "privateGrowthBytes": -974848,
+          "workingSetBytes": 45146112,
+          "workingSetPeakBytes": 45658112
+        },
+        {
+          "fps": 2499.781269,
+          "frameP50Ms": 0.3643,
+          "frameP95Ms": 0.5421,
+          "prepareP95Ms": 0.0003,
+          "composeCpuP95Ms": 0.0124,
+          "cppAllocations": 0,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 33779712,
+          "privatePeakBytes": 36036608,
+          "privateGrowthBytes": -2244608,
+          "workingSetBytes": 45125632,
+          "workingSetPeakBytes": 45314048
+        },
+        {
+          "fps": 2507.051081,
+          "frameP50Ms": 0.3712,
+          "frameP95Ms": 0.5529,
+          "prepareP95Ms": 0.0003,
+          "composeCpuP95Ms": 0.0112,
+          "cppAllocations": 0,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 32854016,
+          "privatePeakBytes": 33783808,
+          "privateGrowthBytes": -925696,
+          "workingSetBytes": 45076480,
+          "workingSetPeakBytes": 45129728
+        },
+        {
+          "fps": 2235.098875,
+          "frameP50Ms": 0.4118,
+          "frameP95Ms": 0.5915,
+          "prepareP95Ms": 0.0006,
+          "composeCpuP95Ms": 0.02,
+          "cppAllocations": 0,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 32194560,
+          "privatePeakBytes": 33161216,
+          "privateGrowthBytes": -659456,
+          "workingSetBytes": 45125632,
+          "workingSetPeakBytes": 45125632
+        },
+        {
+          "fps": 2005.012531,
+          "frameP50Ms": 0.4845,
+          "frameP95Ms": 0.5769,
+          "prepareP95Ms": 0.0005,
+          "composeCpuP95Ms": 0.0206,
+          "cppAllocations": 0,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 30896128,
+          "privatePeakBytes": 32194560,
+          "privateGrowthBytes": -1298432,
+          "workingSetBytes": 44916736,
+          "workingSetPeakBytes": 45125632
+        }
+      ]
+    },
+    {
+      "name": "dirty",
+      "rounds": [
+        {
+          "fps": 57.15668906,
+          "frameP50Ms": 17.2101,
+          "frameP95Ms": 19.093,
+          "prepareP95Ms": 18.4359,
+          "composeCpuP95Ms": 0.0205,
+          "cppAllocations": 1080,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 31719424,
+          "privatePeakBytes": 31719424,
+          "privateGrowthBytes": 823296,
+          "workingSetBytes": 45682688,
+          "workingSetPeakBytes": 45682688
+        },
+        {
+          "fps": 57.36547617,
+          "frameP50Ms": 17.2614,
+          "frameP95Ms": 18.2903,
+          "prepareP95Ms": 17.7129,
+          "composeCpuP95Ms": 0.0206,
+          "cppAllocations": 1080,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 31846400,
+          "privatePeakBytes": 31870976,
+          "privateGrowthBytes": 126976,
+          "workingSetBytes": 45817856,
+          "workingSetPeakBytes": 45858816
+        },
+        {
+          "fps": 58.04348473,
+          "frameP50Ms": 17.0568,
+          "frameP95Ms": 18.3006,
+          "prepareP95Ms": 17.3964,
+          "composeCpuP95Ms": 0.0366,
+          "cppAllocations": 1080,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 31891456,
+          "privatePeakBytes": 31891456,
+          "privateGrowthBytes": 45056,
+          "workingSetBytes": 45891584,
+          "workingSetPeakBytes": 45891584
+        },
+        {
+          "fps": 54.75831255,
+          "frameP50Ms": 18.4304,
+          "frameP95Ms": 19.8358,
+          "prepareP95Ms": 19.3274,
+          "composeCpuP95Ms": 0.0199,
+          "cppAllocations": 1080,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 31506432,
+          "privatePeakBytes": 31961088,
+          "privateGrowthBytes": -385024,
+          "workingSetBytes": 45428736,
+          "workingSetPeakBytes": 46006272
+        },
+        {
+          "fps": 51.81873392,
+          "frameP50Ms": 19.184,
+          "frameP95Ms": 21.1503,
+          "prepareP95Ms": 20.5197,
+          "composeCpuP95Ms": 0.0183,
+          "cppAllocations": 1080,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 27897856,
+          "privatePeakBytes": 31506432,
+          "privateGrowthBytes": -3608576,
+          "workingSetBytes": 41840640,
+          "workingSetPeakBytes": 45441024
+        }
+      ]
+    }
+  ],
+  "retention": [
+    {
+      "frame": 0,
+      "phase": "start",
+      "elapsedMs": 0.0238,
+      "privateBytes": 27897856,
+      "workingSetBytes": 41844736,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9216640,
+          "freeBytes": 3936560,
+          "entryOverheadBytes": 174656,
+          "regionCommittedBytes": 13783040,
+          "regionUncommittedBytes": 20373504,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 432390,
+          "freeBytes": 115696,
+          "entryOverheadBytes": 10282,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 200,
+      "phase": "scroll",
+      "elapsedMs": 3726.0904,
+      "privateBytes": 28991488,
+      "workingSetBytes": 43012096,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9259480,
+          "freeBytes": 4910912,
+          "entryOverheadBytes": 184248,
+          "regionCommittedBytes": 14962688,
+          "regionUncommittedBytes": 19193856,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 432390,
+          "freeBytes": 107520,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 400,
+      "phase": "scroll",
+      "elapsedMs": 7532.5395,
+      "privateBytes": 29126656,
+      "workingSetBytes": 43114496,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9242272,
+          "freeBytes": 5026768,
+          "entryOverheadBytes": 184304,
+          "regionCommittedBytes": 15069184,
+          "regionUncommittedBytes": 19087360,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 432390,
+          "freeBytes": 107520,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 600,
+      "phase": "scroll",
+      "elapsedMs": 11357.0374,
+      "privateBytes": 29052928,
+      "workingSetBytes": 42995712,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9314600,
+          "freeBytes": 5176592,
+          "entryOverheadBytes": 184248,
+          "regionCommittedBytes": 15339520,
+          "regionUncommittedBytes": 18817024,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 432390,
+          "freeBytes": 107520,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 800,
+      "phase": "scroll",
+      "elapsedMs": 15158.8206,
+      "privateBytes": 29433856,
+      "workingSetBytes": 43114496,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9237834,
+          "freeBytes": 5249792,
+          "entryOverheadBytes": 184438,
+          "regionCommittedBytes": 15384576,
+          "regionUncommittedBytes": 18771968,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 433126,
+          "freeBytes": 106784,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 1000,
+      "phase": "scroll",
+      "elapsedMs": 18987.1562,
+      "privateBytes": 29470720,
+      "workingSetBytes": 43180032,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9383538,
+          "freeBytes": 5140000,
+          "entryOverheadBytes": 185214,
+          "regionCommittedBytes": 15384576,
+          "regionUncommittedBytes": 18771968,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 433126,
+          "freeBytes": 106784,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 1200,
+      "phase": "scroll",
+      "elapsedMs": 22809.5942,
+      "privateBytes": 29474816,
+      "workingSetBytes": 43139072,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9152218,
+          "freeBytes": 5380880,
+          "entryOverheadBytes": 184006,
+          "regionCommittedBytes": 15384576,
+          "regionUncommittedBytes": 18771968,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 433126,
+          "freeBytes": 106784,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 1400,
+      "phase": "scroll",
+      "elapsedMs": 26598.7772,
+      "privateBytes": 29073408,
+      "workingSetBytes": 42946560,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9189336,
+          "freeBytes": 5342944,
+          "entryOverheadBytes": 186280,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 434598,
+          "freeBytes": 105312,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 1600,
+      "phase": "scroll",
+      "elapsedMs": 30443.3974,
+      "privateBytes": 29097984,
+      "workingSetBytes": 43008000,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 8923176,
+          "freeBytes": 5575152,
+          "entryOverheadBytes": 185864,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 434598,
+          "freeBytes": 105312,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 1800,
+      "phase": "scroll",
+      "elapsedMs": 34328.5868,
+      "privateBytes": 29429760,
+      "workingSetBytes": 43110400,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9139456,
+          "freeBytes": 5366016,
+          "entryOverheadBytes": 186128,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 434598,
+          "freeBytes": 105312,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 2000,
+      "phase": "scroll",
+      "elapsedMs": 38172.8464,
+      "privateBytes": 29478912,
+      "workingSetBytes": 43180032,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9028672,
+          "freeBytes": 5451088,
+          "entryOverheadBytes": 185328,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 434598,
+          "freeBytes": 105312,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 2200,
+      "phase": "scroll",
+      "elapsedMs": 42048.0995,
+      "privateBytes": 29007872,
+      "workingSetBytes": 42999808,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 8820992,
+          "freeBytes": 5659136,
+          "entryOverheadBytes": 185072,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 434598,
+          "freeBytes": 105312,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 2400,
+      "phase": "scroll",
+      "elapsedMs": 45911.9294,
+      "privateBytes": 29429760,
+      "workingSetBytes": 43159552,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9331136,
+          "freeBytes": 5138384,
+          "entryOverheadBytes": 189632,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 434598,
+          "freeBytes": 105312,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 2600,
+      "phase": "scroll",
+      "elapsedMs": 49816.1925,
+      "privateBytes": 29466624,
+      "workingSetBytes": 43171840,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9157056,
+          "freeBytes": 5327184,
+          "entryOverheadBytes": 187168,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 434598,
+          "freeBytes": 105312,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 2800,
+      "phase": "scroll",
+      "elapsedMs": 53758.1106,
+      "privateBytes": 29462528,
+      "workingSetBytes": 43274240,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9195784,
+          "freeBytes": 5323520,
+          "entryOverheadBytes": 187256,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 434598,
+          "freeBytes": 105312,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 3000,
+      "phase": "scroll",
+      "elapsedMs": 57635.8886,
+      "privateBytes": 28979200,
+      "workingSetBytes": 43159552,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 8992568,
+          "freeBytes": 5484384,
+          "entryOverheadBytes": 186280,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 434598,
+          "freeBytes": 105312,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 3200,
+      "phase": "scroll",
+      "elapsedMs": 61469.5475,
+      "privateBytes": 29429760,
+      "workingSetBytes": 43167744,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9136520,
+          "freeBytes": 5376048,
+          "entryOverheadBytes": 187080,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 434598,
+          "freeBytes": 105312,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 3400,
+      "phase": "scroll",
+      "elapsedMs": 65331.3058,
+      "privateBytes": 29442048,
+      "workingSetBytes": 43278336,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9207528,
+          "freeBytes": 5279024,
+          "entryOverheadBytes": 187912,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 434598,
+          "freeBytes": 105312,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 3600,
+      "phase": "scroll",
+      "elapsedMs": 69230.1064,
+      "privateBytes": 29478912,
+      "workingSetBytes": 43343872,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9127226,
+          "freeBytes": 5360000,
+          "entryOverheadBytes": 189382,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 435334,
+          "freeBytes": 104576,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 3800,
+      "phase": "scroll",
+      "elapsedMs": 73133.9584,
+      "privateBytes": 29396992,
+      "workingSetBytes": 43032576,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9281322,
+          "freeBytes": 5205872,
+          "entryOverheadBytes": 188582,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 435334,
+          "freeBytes": 104576,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 4000,
+      "phase": "scroll",
+      "elapsedMs": 76953.1326,
+      "privateBytes": 29433856,
+      "workingSetBytes": 43081728,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9316026,
+          "freeBytes": 5171744,
+          "entryOverheadBytes": 189046,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 435334,
+          "freeBytes": 104576,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 4200,
+      "phase": "scroll",
+      "elapsedMs": 80920.1892,
+      "privateBytes": 29454336,
+      "workingSetBytes": 43032576,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 8868050,
+          "freeBytes": 5622784,
+          "entryOverheadBytes": 185982,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 435334,
+          "freeBytes": 104576,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 4400,
+      "phase": "scroll",
+      "elapsedMs": 84800.2763,
+      "privateBytes": 29478912,
+      "workingSetBytes": 43065344,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9213866,
+          "freeBytes": 5274640,
+          "entryOverheadBytes": 188310,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 435334,
+          "freeBytes": 104576,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 4600,
+      "phase": "scroll",
+      "elapsedMs": 88619.428,
+      "privateBytes": 29192192,
+      "workingSetBytes": 42987520,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9310834,
+          "freeBytes": 5188080,
+          "entryOverheadBytes": 189934,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 435334,
+          "freeBytes": 104576,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 4800,
+      "phase": "scroll",
+      "elapsedMs": 92445.8787,
+      "privateBytes": 29409280,
+      "workingSetBytes": 42954752,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9223946,
+          "freeBytes": 5277376,
+          "entryOverheadBytes": 188246,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 435334,
+          "freeBytes": 104576,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 5000,
+      "phase": "scroll",
+      "elapsedMs": 96329.4717,
+      "privateBytes": 29483008,
+      "workingSetBytes": 42958848,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9121058,
+          "freeBytes": 5373360,
+          "entryOverheadBytes": 187726,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 435334,
+          "freeBytes": 104576,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 5200,
+      "phase": "scroll",
+      "elapsedMs": 100131.5102,
+      "privateBytes": 29487104,
+      "workingSetBytes": 43098112,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9146514,
+          "freeBytes": 5348736,
+          "entryOverheadBytes": 186894,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 435334,
+          "freeBytes": 104576,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 5400,
+      "phase": "scroll",
+      "elapsedMs": 104072.8602,
+      "privateBytes": 28958720,
+      "workingSetBytes": 42885120,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 8924418,
+          "freeBytes": 5571648,
+          "entryOverheadBytes": 186494,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 435334,
+          "freeBytes": 104576,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 5600,
+      "phase": "scroll",
+      "elapsedMs": 107954.7965,
+      "privateBytes": 29163520,
+      "workingSetBytes": 42921984,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9229114,
+          "freeBytes": 5254032,
+          "entryOverheadBytes": 189798,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 435334,
+          "freeBytes": 104576,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 5800,
+      "phase": "scroll",
+      "elapsedMs": 112022.9478,
+      "privateBytes": 29478912,
+      "workingSetBytes": 43024384,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9166482,
+          "freeBytes": 5400816,
+          "entryOverheadBytes": 188190,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 435334,
+          "freeBytes": 104576,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 6000,
+      "phase": "scroll",
+      "elapsedMs": 115906.0936,
+      "privateBytes": 29466624,
+      "workingSetBytes": 43081728,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9286386,
+          "freeBytes": 5271056,
+          "entryOverheadBytes": 188942,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 435334,
+          "freeBytes": 104576,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    },
+    {
+      "frame": 6000,
+      "phase": "model-cleared",
+      "elapsedMs": 115906.8693,
+      "privateBytes": 29466624,
+      "workingSetBytes": 43081728,
+      "handles": 213,
+      "surfaceBytes": 3686400,
+      "heaps": [
+        {
+          "heap": 2313695264768,
+          "busyBytes": 9286386,
+          "freeBytes": 5271056,
+          "entryOverheadBytes": 188942,
+          "regionCommittedBytes": 15392768,
+          "regionUncommittedBytes": 18763776,
+          "error": 0
+        },
+        {
+          "heap": 2313693102080,
+          "busyBytes": 0,
+          "freeBytes": 2144,
+          "entryOverheadBytes": 32,
+          "regionCommittedBytes": 4096,
+          "regionUncommittedBytes": 61440,
+          "error": 0
+        },
+        {
+          "heap": 2313699524608,
+          "busyBytes": 288,
+          "freeBytes": 5616,
+          "entryOverheadBytes": 96,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        },
+        {
+          "heap": 2313722789888,
+          "busyBytes": 435334,
+          "freeBytes": 104576,
+          "entryOverheadBytes": 10250,
+          "regionCommittedBytes": 589824,
+          "regionUncommittedBytes": 1323008,
+          "error": 0
+        },
+        {
+          "heap": 2313724755968,
+          "busyBytes": 384,
+          "freeBytes": 5504,
+          "entryOverheadBytes": 112,
+          "regionCommittedBytes": 8192,
+          "regionUncommittedBytes": 57344,
+          "error": 0
+        }
+      ]
+    }
+  ],
+  "hiddenPreparations": 0,
+  "hiddenComposites": 0,
+  "detached": {
+    "privateBytes": 29384704,
+    "workingSetBytes": 42799104,
+    "handles": 211,
+    "heaps": [
+      {
+        "heap": 2313695264768,
+        "busyBytes": 9138963,
+        "freeBytes": 5415216,
+        "entryOverheadBytes": 188317,
+        "regionCommittedBytes": 15392768,
+        "regionUncommittedBytes": 18763776,
+        "error": 0
+      },
+      {
+        "heap": 2313693102080,
+        "busyBytes": 0,
+        "freeBytes": 2144,
+        "entryOverheadBytes": 32,
+        "regionCommittedBytes": 4096,
+        "regionUncommittedBytes": 61440,
+        "error": 0
+      },
+      {
+        "heap": 2313699524608,
+        "busyBytes": 288,
+        "freeBytes": 5616,
+        "entryOverheadBytes": 96,
+        "regionCommittedBytes": 8192,
+        "regionUncommittedBytes": 57344,
+        "error": 0
+      },
+      {
+        "heap": 2313722789888,
+        "busyBytes": 41406,
+        "freeBytes": 509376,
+        "entryOverheadBytes": 5106,
+        "regionCommittedBytes": 589824,
+        "regionUncommittedBytes": 1323008,
+        "error": 0
+      },
+      {
+        "heap": 2313724755968,
+        "busyBytes": 384,
+        "freeBytes": 5504,
+        "entryOverheadBytes": 112,
+        "regionCommittedBytes": 8192,
+        "regionUncommittedBytes": 57344,
+        "error": 0
+      }
+    ]
+  },
+  "platform": "x64",
+  "configuration": "Release",
+  "nativeArchitecture": "X64",
+  "machine": "SINON",
+  "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+  "os": "Microsoft Windows 10.0.26200",
+  "warpVersion": "10.0.26100.9278 (WinBuild.160101.0800)",
+  "powerPolicy": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)",
+  "buildSkipped": true,
+  "completedUtc": "2026-09-21T18:15:18.6819937Z",
+  "sourceCommit": "c52a8f5bfd16ffbc6f786fa31b55b919612a3060",
+  "sourceDirty": true,
+  "sourceFingerprint": "7FC42D6110ACCD9299F26874424709640995E570D8516ECD9A0BD4BE71C2D364",
+  "executableSha256": "B59210A5C48FB3EE775B7E8C17005F39902AE961F6BE8B5AB809C95AF0408948",
+  "workloadOwner": "DxUi",
+  "benchmarkInputs": {
+    "Tests/Embedded/BenchmarkMain.h": "CE19F4A4A9B7B6F9D3DFE4EEAF5E8EF60CCC6E3D4237311DE549C4CD537836CB",
+    "Tests/Embedded/ComplexUiBenchmark.h": "65AE8421D4C6BF7A280A2C5453EC749D6EB380BF6FDBD50036BAA756F60B162B",
+    "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "benchmarkSha256": "EC797BD9AF10DCB79951B94EF0F4172AB7ABC4A0CE4A371209C6EA2C3018E16C",
+  "measurement": "Completed offscreen WARP frames, including clear and blocking one-pixel readback; no swap-chain presentation or vsync."
+}

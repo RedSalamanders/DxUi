@@ -23,6 +23,14 @@ its 1,000 rows. It records process memory, handles and retained surface bytes ev
 clearing the Grid model, and after destroying the control tree/detaching the host. Compare identical
 harness hashes and configurations. This bounded retention experiment is separate from the common
 short benchmark and does not establish hours-long, multiple-view or hardware presentation acceptance.
+`-Scenario MultilineGridHeap` adds process-local heap walks outside the timed rounds.
+It reports busy/free blocks, overhead, region commitment and per-heap errors, using bounded
+enumeration and one heap lock at a time. Partial/failed walks are not total memory accounting.
+`MultilineGridHeapPaced` additionally targets 50 retention frames/second to distinguish
+frame-count effects from wall-clock cleanup. These opt-in diagnostics never pace production;
+their retention timing is not performance acceptance. The five FPS rounds remain unpaced.
+[Matched heap attribution and rejected experiments](../Measurements/GridTextOverflow/2026-09-21/heap-attribution/README.md)
+retain the observations, limits and unresolved resource gate.
 Every `test.ps1` invocation runs the complex-UI benchmark, including filtered suite runs, and embeds its scenarios
 and report path in every suite receipt. Without `-PerformanceBaseline`, the result is explicitly **unpaired**.
 This records throughput but cannot claim absence of regression. CI artifacts retain those measurements; a developer
