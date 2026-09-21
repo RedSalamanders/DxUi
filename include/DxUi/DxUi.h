@@ -272,6 +272,11 @@ struct MenuFlyoutItem
     bool checked         = false;
     int commandId        = 0;
     std::vector<MenuFlyoutItem> children; // Non-empty → has submenu
+    // Optional literal description below the primary label. Standard/Toggle/Radio/Info
+    // rows wrap both fields at the available menu width and grow to fit their text.
+    std::wstring secondaryText;
+    // Complete spoken identity; empty uses the decoded label and secondary text.
+    std::wstring accessibleName;
 };
 
 struct MenuBarItem
@@ -397,6 +402,7 @@ struct ContextMenuPopupDebugState
     std::optional<size_t> hoverTimerItemIndex;
     std::vector<std::wstring> itemTexts;
     std::vector<std::wstring> itemAcceleratorTexts;
+    std::vector<std::wstring> itemSecondaryTexts;
     std::vector<MenuItemKind> itemKinds;
     std::vector<bool> itemEnabled;
     std::vector<uint32_t> sliderValues;
@@ -409,16 +415,20 @@ struct ContextMenuPopupDebugState
     uint64_t rootSwitchImmediateRenderCount = 0;
     uint64_t renderCount                    = 0;
     size_t lastPaintedItemCount             = 0;
+    uint64_t descriptionPreparationCount    = 0;
 };
 
 struct ContextMenuPopupItemLayoutDebugState
 {
-    D2D1_RECT_F itemRectDip        = D2D1::RectF();
-    D2D1_RECT_F iconRectDip        = D2D1::RectF();
-    D2D1_RECT_F textRectDip        = D2D1::RectF();
-    D2D1_RECT_F acceleratorRectDip = D2D1::RectF();
-    D2D1_RECT_F chevronRectDip     = D2D1::RectF();
-    bool hasBitmapIcon             = false;
+    D2D1_RECT_F itemRectDip          = D2D1::RectF();
+    D2D1_RECT_F iconRectDip          = D2D1::RectF();
+    D2D1_RECT_F textRectDip          = D2D1::RectF();
+    D2D1_RECT_F acceleratorRectDip   = D2D1::RectF();
+    D2D1_RECT_F chevronRectDip       = D2D1::RectF();
+    D2D1_RECT_F secondaryTextRectDip = D2D1::RectF();
+    UINT32 primaryLineCount          = 0;
+    UINT32 secondaryLineCount        = 0;
+    bool hasBitmapIcon               = false;
 };
 
 struct ContextMenuPopupItemPaintDebugState
@@ -1386,6 +1396,7 @@ enum class AccessibilityRole : uint8_t
 {
     Default,
     Status,
+    MenuItem,
 };
 
 class Control
@@ -3817,7 +3828,9 @@ public:
     void SetOnEscape(std::function<bool()> onEscape);
     void SetOnFocusChanged(std::function<void(Control* control)> onFocusChanged);
     void ResetInteractionState() noexcept;
-    void SetFocusControl(Control* control) noexcept;
+    // Native command menus may track a non-text logical focus while their owner
+    // retains Win32 focus. Ordinary controls keep the default native transfer.
+    void SetFocusControl(Control* control, bool transferNativeFocus = true) noexcept;
     [[nodiscard]] Control* GetFocusControl() const noexcept;
     [[nodiscard]] bool HandleMnemonic(wchar_t mnemonic) noexcept;
     void SetTextInputBackend(TextInputBackend backend) noexcept;

@@ -1,0 +1,36 @@
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                 ⚡  ASAN DEBUG  /  ARM64  /  BUILD  ⚡                 │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: ASan Debug
+  Platform:      ARM64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\i26-menu-description\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\ARM64\ASan Debug\DxUi.lib
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\ARM64\ASan Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\ARM64\ASan Debug\DxUi.EmbeddedControls.exe
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\ARM64\ASan Debug\DxUi.ControlTests.exe
+  EmbeddedTests.cpp
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\ARM64\ASan Debug\DxUi.EmbeddedTests.exe
+
+========================================
+DxUi build passed in 00:03
+Output: Z:\src\DxUi-worktrees\i26-menu-description\.build\
+Log: Z:\src\DxUi-worktrees\i26-menu-description\.build\logs\build-ARM64-ASan Debug-a4d408fe7cb44f10b824e4ed9f3400c2.log
+========================================

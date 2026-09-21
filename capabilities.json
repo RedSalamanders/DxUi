@@ -22,6 +22,7 @@
     "redsalamander-migration"
   ],
   "pending": [
+    "described-native-menu-qualification",
     "embedded-host-text-uia-bridge",
     "av-control"
   ]

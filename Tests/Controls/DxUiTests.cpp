@@ -22,6 +22,7 @@ void RunRenderingTests();
 void RunAnimationTests();
 void RunAccessibilityTests();
 void RunMenuTests();
+void RunMenuResourceTests();
 void RunNewControlTests();
 void RunGalleryGenerator(const std::filesystem::path& outputPath);
 void RunGalleryGeneratorPerTheme(const std::filesystem::path& outputDirectory);
@@ -206,6 +207,11 @@ int wmain(int argc, wchar_t** argv)
     };
 
     bool ranAnySuite = false;
+    if (suiteFilter.has_value() && shouldRunSuite("MenuResources"))
+    {
+        runSuite("MenuResources", RunMenuResourceTests);
+        ranAnySuite = true;
+    }
     if (suiteFilter.has_value() && shouldRunSuite("Gallery"))
     {
         const std::filesystem::path outputPath = galleryOutputPath.value_or(GetDxUiTestArtifactPath(L"DxUiControlGallery.png"));

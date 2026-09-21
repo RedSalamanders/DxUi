@@ -35,6 +35,37 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | Tree | Supply a borrowed `IDxTreeModel`, optional `IDxTreeDelegate`, then `NotifyDataChanged` when data changes. Use stable IDs for selection/expansion. |
 | Grid | Supply a borrowed `IDxGridModel` and optional `IDxGridDelegate`; configure columns, row height and selection. Call `NotifyDataChanged` after model changes. |
 
+## Described native menu entries
+
+The in-progress [menu description qualification](../Specs/Plans/WIP/MenuDescriptions_2026-09-21.md)
+adds `MenuFlyoutItem::secondaryText` for Standard, Toggle, Radio and Info entries.
+The primary label and secondary field wrap independently at the available width; the row grows,
+and a constrained menu scrolls. Secondary text is literal Unicode. Primary text keeps existing
+mnemonic rules: double an ampersand to display it literally. Do not use the shortcut column for
+parent locations or other descriptive text.
+
+Supply `accessibleName` when the complete spoken identity differs from the two displayed fields.
+Otherwise UIA exposes the decoded primary label followed by its secondary text. Command IDs remain
+the selection authority; repeated primary labels are supported. Description layout is prepared on
+open/DPI reflow and reused during paint. Described menu entries expose native MenuItem/Invoke and
+the acknowledged checked state. Queued invocations expire with that popup instance.
+
+```cpp
+DxUi::MenuFlyoutItem item;
+item.kind = DxUi::MenuItemKind::Radio;
+item.text = L"Archives familiales";
+item.secondaryText = L"D:\\Photographies\\Exposition annuelle";
+item.accessibleName = L"D:\\Photographies\\Exposition annuelle\\Archives familiales";
+item.commandId = 42;
+```
+
+Existing one-line entries keep their layout. Header, Separator and Slider descriptions are not
+supported. This native popup capability adds no new catalog control or embedded popup window.
+Application destination eligibility, path formatting and final platform/AT adoption remain consumer work.
+The [retained menu measurements](../Measurements/MenuDescriptions/2026-09-21/README.md)
+separate open-menu layout/accessibility cost, screenshot buffers and the unresolved common-scene
+memory comparison. The capability remains pending qualification until those gates are resolved.
+
 ## Editable values
 
 ```cpp

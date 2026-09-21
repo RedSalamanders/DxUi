@@ -1,0 +1,83 @@
+[START] Menu
+  [START] TestPointerInputEventMouseMoveUsesDeliveredPoint
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPointerInputEventMouseMoveUsesDeliveredPoint
+  [START] TestPointerInputEventButtonUsesDeliveredPointAndFlags
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPointerInputEventButtonUsesDeliveredPointAndFlags
+  [START] TestPointerInputEventWheelUsesDeliveredScreenPoint
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPointerInputEventWheelUsesDeliveredScreenPoint
+  [START] TestContextMenuDebugStateProbeBoundsWedgedWindowThread
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestContextMenuDebugStateProbeBoundsWedgedWindowThread
+  [START] TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen
+  [START] TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion
+  [START] TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets
+  [START] TestContextMenuShowAsyncSubmenuCloseKeepsSessionAlive
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestContextMenuShowAsyncSubmenuCloseKeepsSessionAlive
+  [START] TestMenuGraphicalSliderSupportsClickDragAndAnimation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuGraphicalSliderSupportsClickDragAndAnimation
+  [START] TestMenuMnemonicHonorsExplicitAmpersandLabels
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuMnemonicHonorsExplicitAmpersandLabels
+  [START] TestMenuOpeningPointerUpCanBeIgnoredOutsideVisibleSurface
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuOpeningPointerUpCanBeIgnoredOutsideVisibleSurface
+  [START] TestEmbeddedViewerContextMenuNativeConversionFiltersStandaloneCommands
+  [DONE] TestEmbeddedViewerContextMenuNativeConversionFiltersStandaloneCommands
+  [START] TestMenuShadowMarginMouseUpLightDismissesAfterInitialRelease
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuShadowMarginMouseUpLightDismissesAfterInitialRelease
+  [START] TestSplitButtonContextMenuSentMouseMessagesHoverAndInvokeImmediately
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSplitButtonContextMenuSentMouseMessagesHoverAndInvokeImmediately
+  [START] TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput
+MENU TRACE COUNT: 10
+MENU TRACE: menu.show-begin owner=0xef813b6 point=(172, 231) items=4 focusFirst=false ignoreInitialLeftUp=false ignoreInitialRightUp=false maxRootHeightDip=0.0 captureBefore=0x0 focusBefore=0xef813b6 activeBefore=0xef813b6 hitWindow=0xef813b6
+MENU TRACE: menu.loop-start owner=0xef813b6 root=0x1a31b98 previousCapture=0x0 previousFocus=0xef813b6 currentCapture=0x1a31b98 popupCount=1 items=4
+MENU TRACE: menu.loop-message msg=WM_MOUSEMOVE msgId=0x200 hwnd=0x1a31b98 wParam=0x0 lParam=0x39008a popup=true ownerOrPopup=true
+MENU TRACE: menu.loop-dispatch-popup msg=WM_MOUSEMOVE msgId=0x200 hwnd=0x1a31b98
+MENU TRACE: menu.pointer source=PopupWndProc kind=Move hwnd=0x1a31b98 point=(300, 280) messageTime=90800718 keyboardRootTimeHas=false keyboardRootTime=0 deliveredPopupPointHas=true deliveredPopupPoint=(138.0, 57.0) hitWindow=0x1a31b98 mayInvoke=true mayDismiss=true maySwitchRoot=true mayKeyboardFocus=true beforePopup=0 beforePopupHwnd=0x1a31b98 beforeHitHas=true beforeHit=1 beforeHoverHas=false beforeHover=18446744073709551615 beforeKeyboardHas=false beforeKeyboard=18446744073709551615 afterPopup=0 afterPopupHwnd=0x1a31b98 afterHitHas=true afterHit=1 afterHoverHas=true afterHover=1 afterKeyboardHas=false afterKeyboard=18446744073709551615 popups=1 running=true result=-1 disposition=HoverChanged
+MENU TRACE: menu.popup-message msg=WM_MOUSEMOVE msgId=0x200 hwnd=0x1a31b98 wParam=0x0 lParam=0x39008a handled=true disposition=HoverChanged
+MENU TRACE: menu.loop-message msg=WM_MOUSEMOVE msgId=0x200 hwnd=0x1a31b98 wParam=0x0 lParam=0xc50120 popup=true ownerOrPopup=true
+MENU TRACE: menu.loop-dispatch-popup msg=WM_MOUSEMOVE msgId=0x200 hwnd=0x1a31b98
+MENU TRACE: menu.pointer source=PopupWndProc kind=Move hwnd=0x1a31b98 point=(450, 420) messageTime=90800718 keyboardRootTimeHas=false keyboardRootTime=0 deliveredPopupPointHas=true deliveredPopupPoint=(288.0, 197.0) hitWindow=0x21330 mayInvoke=true mayDismiss=true maySwitchRoot=true mayKeyboardFocus=true beforePopup=-1 beforePopupHwnd=0x0 beforeHitHas=false beforeHit=18446744073709551615 beforeHoverHas=false beforeHover=18446744073709551615 beforeKeyboardHas=false beforeKeyboard=18446744073709551615 afterPopup=-1 afterPopupHwnd=0x0 afterHitHas=false afterHit=18446744073709551615 afterHoverHas=false afterHover=18446744073709551615 afterKeyboardHas=false afterKeyboard=18446744073709551615 popups=1 running=true result=-1 disposition=Consumed
+MENU TRACE: menu.popup-message msg=WM_MOUSEMOVE msgId=0x200 hwnd=0x1a31b98 wParam=0x0 lParam=0xc50120 handled=true disposition=Consumed
+FAILED: owner-window message flood does not starve popup hover highlight: state=true visible=true capture=true dpi=96 hover=-1 fill=false renders=3 point=(300, 280)
+Foreground permission granted to the owned child.
+Restoration: childFocus=1 priorTargetPresent=1 priorTargetValid=1 foreground=1 cursorSaved=1 cursorRestored=0

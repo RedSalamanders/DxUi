@@ -17,6 +17,15 @@ Consumers own density tiers and responsive policy; DxUi contains no AV profile o
 
 ### Localized adaptive layout acceptance
 
+The [described-menu plan](../Plans/WIP/MenuDescriptions_2026-09-21.md) extends native command
+rows with opt-in literal secondary text. Standard/Toggle/Radio/Info rows must measure both fields
+at the final monitor-constrained width, including the scrollbar lane, then publish matching
+paint/hit geometry. Both fields wrap without silent truncation. Retain prepared layouts across
+unchanged paints; a failed reflow closes the menu without selecting a command. Long individual
+rows may exceed the viewport: keyboard navigation reveals their beginning and wheel/scrollbar
+interaction exposes the remainder. Preserve existing one-line behavior when secondary text is absent.
+Qualification is still in progress; this is not a consumer or native-platform acceptance claim.
+
 The following requirements are pending qualification under the
 [localized adaptive layout plan](../Plans/WIP/LocalizedAdaptiveLayout_2026-09-19.md); they do not add
 an implemented control to the catalog. Reuse existing controls and measurement services first.

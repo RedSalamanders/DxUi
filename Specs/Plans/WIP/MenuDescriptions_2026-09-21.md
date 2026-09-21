@@ -1,0 +1,102 @@
+# Described native menu entries
+
+Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
+Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.
+
+## Contract and scope
+
+Implement optional primary/secondary fields for native command menu entries. Both fields
+wrap at the actual monitor-constrained width. Prepare their layout outside paint and reuse
+it until width/DPI changes. Preserve row identity through scrolling, pointer/keyboard and
+UIA invocation. Descriptions contain literal Unicode, while the primary label retains the
+existing mnemonic encoding. The consumer supplies destination identity and eligibility;
+DxUi contains no filesystem parsing or operation authority.
+
+Existing one-line menus retain their layout. Described menus expose full per-entry names,
+native MenuItem roles and invocation through the existing menu dispatcher. Menu tracking
+retains native owner focus while publishing logical menu focus. Surviving providers must
+disconnect after popup destruction. Full consumer assistive-technology qualification remains
+in RedSalamander's File Operations plan.
+
+## Execution
+
+- [x] Retain unchanged Release baseline: Embedded, Control, NewControls pass; complex UI
+  performance/resources retained in `Measurements/MenuDescriptions/2026-09-21/baseline-release`.
+- [x] Implement wrapped rows, scrollbar/work-area/DPI remeasurement and accessible identity.
+- [x] Verify French Unicode, repeated names, short viewports, pointer/keyboard/UIA, disabled
+  entries, submenu behavior, owner focus and retained-provider teardown.
+- [x] Run x64 Debug/Release/ASan nonactivating tests and all ARM64 builds.
+- [ ] Complete directed input restoration across configurations and qualify paired performance/resources.
+- [x] Regenerate/review documentation gallery; run skills/spec/dependency/format validators.
+- [ ] Qualify native platform gates and record explicit consumer pin handoff/rollback.
+- [ ] Update domain contracts and move this plan to Done only after all required gates pass.
+
+## Checkpoint
+
+2026-09-21: wrapped primary/secondary fields, retained layout, scrolling/DPI reflow,
+native MenuItem identities and guarded queued invocation are implemented in
+`codex/menu-description-layout`, worktree `Z:/src/DxUi-worktrees/i26-menu-description`.
+The separate grid-overflow branch and its unresolved resource/native-runtime gates
+are not included. No consumer pin changed.
+
+All 16 non-activating suites passed in x64 Debug, Release and ASan Debug with zero
+skips; the isolated ASan detection probe also passed. Subsequent focused Release V5
+NewControls/Accessibility/WindowHost tests pass, including screen-reader logical focus,
+described submenu navigation, exact repeated-name selection, full accessible names,
+pointer hits on descriptions and stale queued invocation after cancellation/reopen.
+V5 changed the UIA SetFocus path: nonactivating native MenuItem requests preserve owner
+Win32 focus. Final focused Debug and ASan checks also pass, as do all three ARM64
+cross-builds on the final source. Synthetic DPI
+messages are explicitly not native mixed-monitor acceptance.
+
+The five published theme sheets were regenerated through the gallery harness and
+visually reviewed. The first directed Menu attempt stopped before its suite because
+an unmatched foreground-wrapper performance comparison failed; it also failed
+foreground/cursor restoration. This is retained as a failed attempt, not input evidence.
+Do not repeat that unchanged wrapper/powershell/performance combination.
+
+Three alternating unchanged/candidate Release pairs retain a repeated clean private
+memory increase (~0.8–1.18 MiB per process median). Allocations, surface bytes and hidden
+work are unchanged; the common fixture does not instantiate menus. The user requested
+an explanation of the added memory before deciding on its cost. No resource waiver
+has been granted. Identical benchmark-only phase sampling is now being applied to
+the unchanged implementation and candidate to distinguish device/scene/warm/capture
+costs. Retain both fixture hashes and all outcomes; never silently rebaseline.
+
+The sixty-cycle same-process comparison now finds almost identical warmed private
+medians (~32.8 MiB), rather than a fixed 1.1 MiB retained increment. Timing remains
+unqualified (candidate tail slowdown); raw phases/rounds and limitations are in
+`Measurements/MenuDescriptions/2026-09-21/README.md`. A matched-size actual menu probe
+finds ~1.15 MiB extra while twelve described entries are open, plus a separate ~0.81 MiB
+harness capture cost. After the user asked for attribution, these results were explained
+and acceptance of **only that measured open-menu cost** was requested. No reply/waiver
+is recorded yet; it would not waive the other gates.
+
+The direct Release Menu suite now passes with zero skips and verified physical cursor,
+foreground and child-focus restoration. The fixture preserves existing popup-context
+placement but saves/restores physical positions only while the cursor is still at the
+fixture's actual aligned position. The outer wrapper no longer forcibly overwrites
+unexpected movement. Release NativeTextInput then passes functionally, but its cursor
+check fails; remaining foreground runs stopped. The failed double-conversion experiment
+and all restoration failures are retained. Do not repeat foreground tests until an idle
+input window is available; never force cursor restoration to manufacture a pass.
+
+Next library action: resolve the pending scoped resource direction and remaining timing/
+retention attribution, finish directed Debug/ASan input and NativeTextInput restoration,
+then native ARM64 CI and qualified publication/handoff. No consumer pin changes yet.
+Independent RedSalamander P3 progress localization can proceed on its existing pin with
+Sol High while these library gates remain open. Do not merge the separate grid branch.
+
+Final review correction: the UIA logical-focus rule now applies to native MenuItem roles
+without depending on WS_EX_NOACTIVATE (root menus do not necessarily have that style).
+The described-menu tests also run at the start of the foreground Menu suite; the
+nonactivating lane alone cannot prove absence of native focus transfer. Allocation failure
+while constructing new semantic rows rejects the unpublished popup and discards partial
+nodes through the existing unregistered-popup cleanup. Final focused checks and cross-build
+logs use the `menu-root-focus-*` prefix. The prior foreground pass and memory receipts
+precede this final guard correction; they remain evidence for their exact source, not a
+qualification waiver for the correction. Final directed checks and paired acceptance remain open.
+All nine final focused suite runs (three suites in three x64 configurations) and all three
+final ARM64 cross-builds pass. Skills/spec/dependency/format validators pass. The gallery
+was regenerated on the corrected source; the two changed theme images were reviewed again.
+No build/test process from this task remains active at the checkpoint.

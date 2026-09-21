@@ -30,6 +30,10 @@ Interactive menu drivers wait for the popup's modal capture after visibility and
 asserting a retained painted hover, their physical cursor agrees with the delivered point so OS-generated moves
 cannot undo the fixture's input. Restore that cursor only while it still has the test's position; do not overwrite
 human movement. Failed hover assertions must report a failure, including outside-dismiss tests.
+Cursor fixtures retain the original and actual aligned positions in physical coordinates,
+and restore only while the cursor still has that aligned position. Popup-context alignment
+must not apply a second DPI conversion. An outer harness verifies restoration and must not
+force the saved cursor position over unexpected movement merely to make the check pass.
 
 Embedded WARP fixtures cover DPI, dirty/clean/hidden behavior, paint-dirty pointer Down after hover or keyboard
 focus, alpha, hostile state, negative origins, device loss,

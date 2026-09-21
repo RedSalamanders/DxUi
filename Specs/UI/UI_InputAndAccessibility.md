@@ -22,6 +22,15 @@ order; full-value access must not require duplicate hidden announcements. Repeat
 does not produce repeated notifications. Application navigation supplies its own stable target and
 stale-completion policy; the library does not choose the destination or steal focus on completion.
 
+Described native menus expose full per-entry names and MenuItem roles, exact command invocation
+and acknowledged checked state. Keyboard tracking keeps Win32 focus on the owner while updating
+logical entry focus. Explicit UIA focus of a native MenuItem follows that same rule for both root
+menus and submenus, independently of their activation style; embedded host focus stays with its bridge.
+Bounds follow the visible scrolled row geometry and DPI reflow. Posted UIA
+actions carry popup-instance identity so HWND reuse cannot dispatch an old action into a new menu;
+retained providers disconnect on teardown. Implementation and validation are tracked in the
+[menu description plan](../Plans/WIP/MenuDescriptions_2026-09-21.md).
+
 Custom controls overriding `OnFocusChanged` MUST invoke their base implementation so `HasFocus`,
 focus chrome and UIA keyboard-focus properties acknowledge the host transition. A stored host
 focus pointer alone is insufficient. Consumers qualify both visible focus and raw provider state.

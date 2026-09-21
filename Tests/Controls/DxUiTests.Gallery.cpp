@@ -412,6 +412,7 @@ struct GalleryMenuCaptures
     WindowHostBitmapCapture buttonDropDown;
     WindowHostBitmapCapture buttonSplit;
     WindowHostBitmapCapture menuSubmenu;
+    WindowHostBitmapCapture menuDescriptions;
     WindowHostBitmapCapture comboWindowOpen;
     WindowHostBitmapCapture comboModernOpen;
     WindowHostBitmapCapture comboEditOpen;
@@ -420,12 +421,24 @@ struct GalleryMenuCaptures
 [[nodiscard]] GalleryMenuCaptures CaptureGalleryMenus(const ThemePalette& theme)
 {
     GalleryMenuCaptures captures;
-    captures.buttonDropDown  = CaptureMenuPopupBitmapForGallery(theme, BuildButtonDropDownMenuItems(), L"Open");
-    captures.buttonSplit     = CaptureMenuPopupBitmapForGallery(theme, BuildButtonSplitMenuItems(), L"Run normally");
-    captures.menuSubmenu     = CaptureMenuPopupBitmapForGallery(theme, BuildStatefulSubmenuItems(), L"Open With", 0u, L"Internal Viewer");
-    captures.comboWindowOpen = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Window, false);
-    captures.comboModernOpen = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Modern, false);
-    captures.comboEditOpen   = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Window, true);
+    captures.buttonDropDown = CaptureMenuPopupBitmapForGallery(theme, BuildButtonDropDownMenuItems(), L"Open");
+    captures.buttonSplit    = CaptureMenuPopupBitmapForGallery(theme, BuildButtonSplitMenuItems(), L"Run normally");
+    captures.menuSubmenu    = CaptureMenuPopupBitmapForGallery(theme, BuildStatefulSubmenuItems(), L"Open With", 0u, L"Internal Viewer");
+    const std::wstring leaf = L"Sélection définitive pour impression et archivage — photographies familiales";
+    const std::vector<MenuFlyoutItem> describedItems{
+        {.kind          = MenuItemKind::Radio,
+         .text          = leaf,
+         .checked       = true,
+         .commandId     = 801,
+         .secondaryText = L"D:\\Sauvegardes\\Archives photographiques personnelles\\Exposition annuelle de la médiathèque"},
+        {.kind          = MenuItemKind::Radio,
+         .text          = leaf,
+         .commandId     = 802,
+         .secondaryText = L"D:\\Sauvegardes\\Archives photographiques personnelles\\Collection permanente du musée"}};
+    captures.menuDescriptions = CaptureMenuPopupBitmapForGallery(theme, describedItems, leaf);
+    captures.comboWindowOpen  = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Window, false);
+    captures.comboModernOpen  = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Modern, false);
+    captures.comboEditOpen    = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Window, true);
     return captures;
 }
 
@@ -1064,6 +1077,11 @@ void AddComboItems(ComboBox& combo)
 
         auto* preview = scene.root->AddChild<GalleryBitmapPreview>(std::move(menuCaptures.menuSubmenu));
         preview->SetBounds(D2D1::RectF(tile.content.left + 8.0f, tile.content.top + 38.0f, tile.content.right - 8.0f, tile.content.bottom - 2.0f));
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"Menu / Wrapped French names and distinct parent locations", 3u, 340.0f);
+        auto* preview   = scene.root->AddChild<GalleryBitmapPreview>(std::move(menuCaptures.menuDescriptions));
+        preview->SetBounds(tile.content);
     }
     {
         const Tile tile = flow.Next(*scene.root, L"ScrollPanel / Internal scrollbar", 2u, 148.0f);

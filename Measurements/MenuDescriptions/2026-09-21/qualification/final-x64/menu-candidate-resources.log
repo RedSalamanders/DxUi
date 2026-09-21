@@ -1,0 +1,70 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\i26-menu-description\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.lib
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.EmbeddedTests.exe
+  DxUiTests.Menu.cpp
+  DxUiTests.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:10
+Output: Z:\src\DxUi-worktrees\i26-menu-description\.build\
+Log: Z:\src\DxUi-worktrees\i26-menu-description\.build\logs\build-x64-Release-33a64393fa364c11a4f80613ab1d7eed.log
+========================================
+Complex UI clean round 1: 2464.44 completed offscreen FPS; p95 0.4911 ms; private 26521600 bytes
+Complex UI clean round 2: 2466.09 completed offscreen FPS; p95 0.5204 ms; private 28045312 bytes
+Complex UI clean round 3: 2344.65 completed offscreen FPS; p95 0.5922 ms; private 27979776 bytes
+Complex UI clean round 4: 2390.54 completed offscreen FPS; p95 0.6513 ms; private 27955200 bytes
+Complex UI clean round 5: 2506.17 completed offscreen FPS; p95 0.4927 ms; private 27930624 bytes
+Complex UI dirty round 1: 504.399 completed offscreen FPS; p95 2.459 ms; private 28409856 bytes
+Complex UI dirty round 2: 538.997 completed offscreen FPS; p95 2.0835 ms; private 28524544 bytes
+Complex UI dirty round 3: 547.852 completed offscreen FPS; p95 2.0326 ms; private 29446144 bytes
+Complex UI dirty round 4: 532.871 completed offscreen FPS; p95 2.0397 ms; private 29474816 bytes
+Complex UI dirty round 5: 484.742 completed offscreen FPS; p95 2.5077 ms; private 28536832 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-menu-description\.build\reports\Performance-x64-Release-ee0126e3f85f4006b4cd3fb80666f5fd.json
+Running MenuResources (x64 Release)
+PASS MenuResources (0 capability skips recorded)
+Running NewControls (x64 Release)
+PASS NewControls (0 capability skips recorded)
+Running Accessibility (x64 Release)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 Release)
+PASS WindowHost (0 capability skips recorded)
+All 4 requested suites passed.
