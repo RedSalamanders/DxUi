@@ -1,0 +1,13 @@
+Performance comparison: advice-required
+REGRESSION clean/frameP95Ms: 0.473 -> 0.527
+REGRESSION clean/privateBytes: 26304512.000 -> 28368896.000
+REGRESSION clean/privatePeakBytes: 27021312.000 -> 28749824.000
+REGRESSION clean/workingSetBytes: 40054784.000 -> 41787392.000
+REGRESSION clean/workingSetPeakBytes: 40615936.000 -> 41799680.000
+REGRESSION dirty/frameP95Ms: 2.002 -> 2.200
+REGRESSION dirty/prepareP95Ms: 1.361 -> 1.489
+REGRESSION dirty/privateBytes: 28217344.000 -> 29130752.000
+REGRESSION dirty/privatePeakBytes: 28221440.000 -> 29143040.000
+REGRESSION dirty/workingSetBytes: 41746432.000 -> 42815488.000
+REGRESSION dirty/workingSetPeakBytes: 41783296.000 -> 42844160.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.

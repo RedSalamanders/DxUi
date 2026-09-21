@@ -43,13 +43,23 @@ general activation guard is unchanged. Earlier failed probes remain invalid,
 and temporary library/CBT tracing was restored before the matched measurements.
 [Paired results and limitations](../../../Measurements/MenuDescriptions/2026-09-21/local-reflow-v4/README.md).
 Reflow reuse reduces private deltas in this pair but leaves live described-row
-storage essentially unchanged. Common composition timing flags require a quiet
-repeat. No menu/grid resource waiver or consumer pin adoption is established.
+storage essentially unchanged. A serial [ABBA repeat](../../../Measurements/MenuDescriptions/2026-09-21/common-reflow-abba/README.md)
+retains clean private increases of 1.0 and 2.1 million bytes and timing flags;
+no unchanged retry or silent rebaseline is warranted. No menu/grid resource waiver
+or consumer pin adoption is established.
 Native CI `35656340075` on `d461095` has now succeeded in all six profiles;
 [its reviewed receipts](../../../Measurements/MenuDescriptions/2026-09-21/native-ci-lifetime/README.md)
-retain the explicit ARM64 desktop skips. An opt-in text-layout-only diagnostic
-now isolates native creation, metrics and release without popup/semantic costs;
-its implementation and the v4 activation classification await qualification.
+retain the explicit ARM64 desktop skips. The opt-in
+[text-layout-only diagnostic](../../../Measurements/MenuDescriptions/2026-09-21/text-layout-isolation/README.md)
+passes both native Release CI and local `test.ps1`, exactly matching twelve-pair
+live heap: 13,272 bytes created, 453,754 after metrics, zero after release.
+CI `35659847692` now passes all six native profiles after one x64 Release job retry.
+The first attempt's disclosure subscription timeout at ElementFromHandle/E_PENDING/
+3,000 ms and its raw receipt remain retained; the retry classifies an intermittent
+failure and does not claim a product repair. All six external consumers, both ASan
+detection probes and annotation-disabled variants pass. Nine existing ARM64 Menu
+desktop skips remain explicit per profile. See the
+[qualified test-source receipts](../../../Measurements/MenuDescriptions/2026-09-21/native-ci-diagnostics/README.md).
 Next: finish resource qualification
 and product broad-order validation, then qualify explicit consumer adoption.
 
