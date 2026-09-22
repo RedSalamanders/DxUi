@@ -10,6 +10,7 @@
     "retained-controls",
     "control-catalog",
     "slider-preview-commit-cancel",
+    "editor-controls",
     "embedded-d3d11",
     "win32-host",
     "native-text-input",

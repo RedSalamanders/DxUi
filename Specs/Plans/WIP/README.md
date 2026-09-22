@@ -2,10 +2,10 @@
 
 | Status | Plan | Next action |
 |---|---|---|
-| ACTIVE | [Localized adaptive layout and interaction readiness](LocalizedAdaptiveLayout_2026-09-19.md) | L0: characterize existing primitives and retain paired baselines; then qualify generic improvements for explicit consumer adoption. |
+| HOLD | [TreeReorder_2026-09-21.md](TreeReorder_2026-09-21.md) | Drag-reorder is in `Tree`. Multi-select remains. Not a second tree in the app. |
 
-Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md` and
-`../Done/RedSalamanderMigration.md`. Further ARM64 and ASan qualification is
+Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md`,
+`../Done/RedSalamanderMigration.md` and `../Done/EditorConsumerControls_2026-09-20.md`. Further ARM64 and ASan qualification is
 user-deferred to RedSalamander's `DxUi_DeferredPlatformQualification_2026-09-13.md`.
 RedXe retains its separately owned hardware, real IME and assistive-technology gates.
 

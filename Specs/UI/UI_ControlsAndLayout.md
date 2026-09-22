@@ -17,9 +17,11 @@ Consumers own density tiers and responsive policy; DxUi contains no AV profile o
 
 ### Localized adaptive layout acceptance
 
-The following requirements are pending qualification under the
-[localized adaptive layout plan](../Plans/WIP/LocalizedAdaptiveLayout_2026-09-19.md); they do not add
-an implemented control to the catalog. Reuse existing controls and measurement services first.
+The shared implementation and synthetic acceptance below are qualified by the
+[localized adaptive layout plan](../Plans/Done/LocalizedAdaptiveLayout_2026-09-19.md) and its
+[final native receipts](../../Measurements/LocalizedAdaptiveLayout/2026-09-20/native-ci-main-78b3/README.md).
+They extend existing controls and add no new control kind to the catalog. Consumer adoption,
+physical application DPI presentation and real assistive-technology journeys require separate evidence.
 
 - A measured action group accepts caller-owned ordered controls, current typography, available DIP
   width and spacing. Wrap whole controls to further rows; a single overlong label may wrap and grow
@@ -59,13 +61,16 @@ remain bounded; hidden content requests no repaint/tick solely to maintain a vis
 French long-sentence fixtures at 96/144/192 DPI and constrained width/height qualify these contracts
 in both native and supplied-device hosts. Library fixtures are synthetic and consumer-independent.
 
-Implementation in progress, 2026-09-19: `ArrangeMeasuredActions` provides ordered, allocation-free
+Implemented and qualified, 2026-09-20: `ArrangeMeasuredActions` provides ordered, allocation-free
 geometry from already measured sizes, with unchanged outputs on invalid/capacity/overflow failure.
 Hidden `{0,0}` entries retain their index and receive empty bounds. The caller measures overlong
 labels at the available width and reserves the returned action height before laying out body content.
 `Button::SetMultiline` is opt-in for Standard text buttons, with 12/8 DIP per-side text padding.
-The L0/L1 fixture and required configuration, visual and consumer gates remain tracked in the plan;
-these APIs do not claim completion of disclosure/UIA or application adoption.
+Checkbox honors the inherited multiline option with the indicator/text geometry above. Disclosure
+uses acknowledged state and exposes the ExpandCollapse contract in the input/accessibility domain.
+Native x64/ARM64 Debug, Release and ASan suites, WARP scenes and reviewed five-theme gallery sheets
+qualify these library capabilities. ARM64 Menu records nine foreground capability skips per profile;
+real consumer screen-reader, physical mixed-DPI and application adoption remain separate gates.
 
 DxUi owns the implemented controls in `src/Controls` and their standalone tests in `Tests/Controls`.
 Source is edited in place here; historical import records do not freeze it. Consumer-specific bridges remain
@@ -75,7 +80,8 @@ separate work as recorded in capabilities.json.
 
 The public API exposes Panel, PageHost, CardPanel, Label, Button, Toggle, Checkbox, RadioButton, RadioButtons,
 ProgressBar, PageIndicator, ThroughputGraph, Slider, Toolbar, MenuBar, TabControl, ColorSwatch, TextField, ComboBox, TagPicker,
-StatusStrip, PopupLayer, StackPanel, ScrollPanel, TooltipLayer, Tree and Grid. GetControlCatalog returns immutable
+StatusStrip, PopupLayer, StackPanel, ScrollPanel, TooltipLayer, Tree, Grid, Splitter, NumericStepper and ColorPicker.
+GetControlCatalog returns immutable
 descriptors; CreateControl constructs the selected kind and returns E_INVALIDARG for unknown kinds, leaving the
 existing result intact on failure. Controls with models are configured by the caller; the factory does not invent
 application data. Constructors and examples are ordinary code, with no source-code generator or second control copy.
@@ -125,6 +131,51 @@ fat-finger target size the control to at least the 48 DIP hit band; they do not 
 Each control also requires accurate usage documentation in `docs/controls.md`. Code changes review affected docs
 and regenerate changed visuals into `docs/gallery` under [the documentation contract](../Core/Core_Documentation.md).
 
+### Splitter
+
+`Splitter` is a two-pane separator whose panes the consumer positions from `GetFirstPaneBounds` and
+`GetSecondPaneBounds`; the control owns no children. `SetOrientation` selects a vertical bar (first pane leading,
+mirrored in right-to-left flow) or a horizontal bar (first pane above). The position is the DIP offset of the
+separator's leading edge from the control's leading edge. `SetPosition` clamps between `SetMinimumFirstPane` and the
+extent minus the thickness and `SetMinimumSecondPane`, repaints and does not notify; a position set before the first
+layout keeps its value until bounds arrive. Only the separator plus `kHitSlopDip` (2 DIP) on each side is hittable;
+the pane areas fall through to the controls beneath. Dragging previews (`SplitterChangePhase::Preview`), release
+commits, Escape while dragging and capture loss restore the drag-start position and notify `Cancel`. Left/Right
+(vertical bar) or Up/Down (horizontal bar) move `kKeyboardStepDip` (8 DIP), Shift moves `kKeyboardLargeStepDip`
+(32 DIP), Home and End go to the limits; keyboard moves and `RequestPosition` notify `Commit` once. The separator
+paints the theme border at rest, a border/accent blend when hovered and the accent while dragging, with a three-dot
+grip; the horizontal or vertical resize cursor applies over the hit band and during a drag. The persisted position is
+consumer state. In an EmbeddedHost the consumer applies pane bounds on its next preparation, not inside the change
+callback. That bounds revision keeps the drag while the splitter stays in the tree, enabled and visible
+([`Rendering_EmbeddedD3D11.md`](../Rendering/Rendering_EmbeddedD3D11.md)).
+
+### Numeric stepper
+
+`NumericStepper` is a Panel that owns a `TextField`, an increment and a decrement icon button, an optional leading
+label (`SetLabel(text, widthDip)`) and an optional trailing unit (`SetUnit(text, widthDip)`); label and unit are
+painted, not child controls. Values clamp to `SetMinimum` / `SetMaximum` (default ±1e9) and format with
+`SetDecimals` (0–6) using `.` as the separator; `ParseValue` accepts an optional sign, digits and one `.` or `,`
+fraction with surrounding whitespace. Text that parses previews immediately (`NumericStepperChangePhase::Preview`)
+and opens an edit whose start value Escape restores (`Cancel`). Enter, focus loss, the buttons, Up/Down (Shift:
+`SetLargeStep`), `RequestValue` and `Nudge` commit once; text that does not parse reverts to the committed value.
+`SetValue` clamps, rewrites the text and never notifies. Disabling the stepper disables its three children.
+Right-to-left flow mirrors label, field, unit and buttons.
+
+### Color picker
+
+`ColorPicker` is a Panel with a saturation/value field (`kFieldDip` square), a vertical hue strip, new and current
+swatches, R/G/B `NumericStepper`s (0–255), a hex `TextField` (`#RRGGBB`, `RRGGBB`, `#RGB`, `RGB`) and OK/Cancel
+buttons whose captions come from `SetLabels`; the library ships no localized strings for it. `SetColor` sets the
+editing and current colors without notifying; `SetCurrentColor` changes the reference swatch only. Pointer drags on
+the field or strip, typed component values, hex text and `SampleColor` (host eyedropper) preview
+(`ColorPickerChangePhase::Preview`); OK, Enter and `Commit` copy the editing color into the current swatch and
+notify `Commit`; Cancel, Escape, `Cancel` and capture loss during a drag restore the current color and notify
+`Cancel`. Left/Right step saturation (mirrored in right-to-left flow) and Up/Down step value by 1/255, Page Up/Down
+step hue by one degree; Shift multiplies by ten. Grays keep the last hue and black keeps the last saturation so the
+field marker does not jump. `HsvFromArgb`, `ArgbFromHsv`, `ParseHexColor` and `FormatHexColor` are public helpers.
+Gradient brushes are created on the first paint per device context and reused until the hue or geometry changes.
+Alpha is always opaque.
+
 ### Consumer-selected popup row minimum
 
 ComboBox exposes `SetMinimumPopupItemHeight` / `GetMinimumPopupItemHeight` for an optional per-instance DIP minimum.
@@ -141,6 +192,15 @@ pressed and focused states. Decorative blends, animation strength and heuristic 
 dilute that pair. Disabled primary buttons use the button surface and disabled text, retain an opaque border and
 hide focus. Enabled focus remains visible for pointer and keyboard and uses the undiluted palette focus color.
 The normal light/dark appearance keeps its existing visual treatment.
+
+### Tree row drag
+
+`Tree::SetReorderEnabled` arms a pointer drag on a row (not the expander or the scrollbar). After the pointer moves
+at least 4 DIP, the tree draws an insertion line on the top or bottom half of the row under the pointer, or highlights
+the row when the pointer is in its middle and that row has children. Release calls `IDxTreeDelegate::OnTreeReorder`
+once with the source id, the target id and `TreeDropPlace` (`Before`, `After` or `Inside`). The tree does not change
+the model. Escape and capture loss cancel and do not call the delegate. A click that does not travel 4 DIP selects
+as before and does not reorder.
 
 ### Localized built-in text
 

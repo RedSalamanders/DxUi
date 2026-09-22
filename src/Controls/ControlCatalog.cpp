@@ -31,7 +31,10 @@ std::span<const ControlDescriptor> GetControlCatalog() noexcept
                                         ControlDescriptor{ControlKind::TooltipLayer, L"TooltipLayer"},
                                         ControlDescriptor{ControlKind::Tree, L"Tree"},
                                         ControlDescriptor{ControlKind::Grid, L"Grid"},
-                                        ControlDescriptor{ControlKind::PageIndicator, L"PageIndicator"}};
+                                        ControlDescriptor{ControlKind::PageIndicator, L"PageIndicator"},
+                                        ControlDescriptor{ControlKind::Splitter, L"Splitter"},
+                                        ControlDescriptor{ControlKind::NumericStepper, L"NumericStepper"},
+                                        ControlDescriptor{ControlKind::ColorPicker, L"ColorPicker"}};
     return entries;
 }
 HRESULT CreateControl(ControlKind kind, std::unique_ptr<Control>& result) noexcept
@@ -67,6 +70,9 @@ HRESULT CreateControl(ControlKind kind, std::unique_ptr<Control>& result) noexce
             case ControlKind::Tree: result = std::make_unique<Tree>(); return S_OK;
             case ControlKind::Grid: result = std::make_unique<Grid>(); return S_OK;
             case ControlKind::PageIndicator: result = std::make_unique<PageIndicator>(); return S_OK;
+            case ControlKind::Splitter: result = std::make_unique<Splitter>(); return S_OK;
+            case ControlKind::NumericStepper: result = std::make_unique<NumericStepper>(); return S_OK;
+            case ControlKind::ColorPicker: result = std::make_unique<ColorPicker>(); return S_OK;
             default: return E_INVALIDARG;
         }
     }

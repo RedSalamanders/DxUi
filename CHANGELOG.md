@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add the editor consumer controls `Splitter`, `NumericStepper` and `ColorPicker`: preview/commit/cancel notifications,
+  keyboard operation, right-to-left mirroring, disabled and focus-visible states, and the public `HsvFromArgb` /
+  `ArgbFromHsv` / `ParseHexColor` / `FormatHexColor` helpers. `WindowHostCursorKind::VerticalResize` maps to the
+  vertical resize cursor. Catalog/factory count is 30. API revision stays 2 (additive).
 - Paint `Slider` like the Windows volume flyout: a 6 DIP capsule track (fill and remainder the same thickness), a fixed
   20 DIP gray chrome disc, and an accent inner thumb that matches the track at rest and grows to 16 DIP on hover
   (12 DIP pressed). Pointer hit testing stays an unpainted 48 DIP band with a 24 DIP grab radius. Embedded

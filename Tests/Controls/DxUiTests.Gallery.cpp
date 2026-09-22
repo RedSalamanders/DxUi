@@ -927,6 +927,48 @@ void AddComboItems(ComboBox& combo)
         indicator->SetBounds(CenterIn(tile.content, 180.0f, PageIndicator::kStripHeightDip));
     }
     {
+        const Tile tile = flow.Next(*scene.root, L"Splitter / Vertical");
+        auto* splitter  = scene.root->AddChild<Splitter>();
+        splitter->SetBounds(CenterIn(tile.content, 260.0f, 48.0f));
+        splitter->SetMinimumFirstPane(40.0f);
+        splitter->SetMinimumSecondPane(40.0f);
+        splitter->SetPosition(150.0f);
+        auto* first = scene.root->AddChild<Label>(L"Canvas");
+        first->SetFontRole(FontRole::Small);
+        first->SetAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+        first->SetBounds(splitter->GetFirstPaneBounds());
+        auto* second = scene.root->AddChild<Label>(L"Layers");
+        second->SetFontRole(FontRole::Small);
+        second->SetAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+        second->SetBounds(splitter->GetSecondPaneBounds());
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"Splitter / Horizontal");
+        auto* splitter  = scene.root->AddChild<Splitter>();
+        splitter->SetOrientation(SplitterOrientation::Horizontal);
+        splitter->SetBounds(CenterIn(tile.content, 260.0f, 48.0f));
+        splitter->SetMinimumFirstPane(8.0f);
+        splitter->SetMinimumSecondPane(8.0f);
+        splitter->SetPosition(21.0f);
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"NumericStepper / Inspector");
+        auto* stepper   = scene.root->AddChild<NumericStepper>();
+        stepper->SetLabel(L"W", 20.0f);
+        stepper->SetUnit(L"px", 24.0f);
+        stepper->SetMinimum(0.0);
+        stepper->SetMaximum(4096.0);
+        stepper->SetDecimals(1);
+        stepper->SetValue(1024.5);
+        stepper->SetBounds(CenterIn(tile.content, 220.0f, NumericStepper::kDefaultHeightDip));
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"ColorPicker / Sheet", 2u, 300.0f);
+        auto* picker    = scene.root->AddChild<ColorPicker>();
+        picker->SetColor(0xFF3A7BD5u);
+        picker->SetBounds(CenterIn(tile.content, ColorPicker::kDefaultWidthDip, ColorPicker::kDefaultHeightDip));
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"Slider / Horizontal");
         auto* slider    = scene.root->AddChild<Slider>();
         slider->SetValue(68.0);

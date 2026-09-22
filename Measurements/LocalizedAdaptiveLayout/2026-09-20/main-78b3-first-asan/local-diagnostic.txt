@@ -1,0 +1,55 @@
+{
+  "binary_identity": "\nAlgorithm : SHA256\nHash      : A381923533D1F50166F713B5469136097ED326D1C8F8CA3D2141CC6028A8FFC7\nPath      : Z:\\src\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe\n\n",
+  "results": [
+    {
+      "run": 1,
+      "result": "pass",
+      "subscription": "stage=AddPropertyChangedEventHandlerNativeArray ready=1 hr=0x0 elapsedMs=109"
+    },
+    {
+      "run": 2,
+      "result": "pass",
+      "subscription": "stage=AddPropertyChangedEventHandlerNativeArray ready=1 hr=0x0 elapsedMs=94"
+    },
+    {
+      "run": 3,
+      "result": "pass",
+      "subscription": "stage=AddPropertyChangedEventHandlerNativeArray ready=1 hr=0x0 elapsedMs=109"
+    },
+    {
+      "run": 4,
+      "result": "pass",
+      "subscription": "stage=AddPropertyChangedEventHandlerNativeArray ready=1 hr=0x0 elapsedMs=93"
+    },
+    {
+      "run": 5,
+      "result": "pass",
+      "subscription": "stage=AddPropertyChangedEventHandlerNativeArray ready=1 hr=0x0 elapsedMs=94"
+    },
+    {
+      "run": 6,
+      "result": "pass",
+      "subscription": "stage=AddPropertyChangedEventHandlerNativeArray ready=1 hr=0x0 elapsedMs=94"
+    },
+    {
+      "run": 7,
+      "result": "pass",
+      "subscription": "stage=AddPropertyChangedEventHandlerNativeArray ready=1 hr=0x0 elapsedMs=94"
+    },
+    {
+      "run": 8,
+      "result": "pass",
+      "subscription": "stage=AddPropertyChangedEventHandlerNativeArray ready=1 hr=0x0 elapsedMs=94"
+    },
+    {
+      "run": 9,
+      "result": "pass",
+      "subscription": "stage=AddPropertyChangedEventHandlerNativeArray ready=1 hr=0x0 elapsedMs=94"
+    },
+    {
+      "run": 10,
+      "result": "pass",
+      "subscription": "stage=AddPropertyChangedEventHandlerNativeArray ready=1 hr=0x0 elapsedMs=94"
+    }
+  ]
+}

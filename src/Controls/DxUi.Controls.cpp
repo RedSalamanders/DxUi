@@ -2241,7 +2241,9 @@ void Button::Paint(ControlHost& host) const
     }
     else if (_variant == ButtonVariant::IconOnly)
     {
-        DrawCenteredText(host, _text, GetBounds(), FontRole::Icon, style.text);
+        // Segoe Fluent Icons when that family is installed (the same choice as RedSalamander chrome). A missing
+        // family draws the caller's Unicode stand-in in the UI font instead of a private-use box.
+        DrawCenteredText(host, _text, GetBounds(), host.HasFluentIconFont() ? FontRole::Icon : FontRole::Body, style.text);
     }
     else
     {

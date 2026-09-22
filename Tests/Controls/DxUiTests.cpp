@@ -23,6 +23,7 @@ void RunAnimationTests();
 void RunAccessibilityTests();
 void RunMenuTests();
 void RunNewControlTests();
+void RunEditorControlTests();
 void RunGalleryGenerator(const std::filesystem::path& outputPath);
 void RunGalleryGeneratorPerTheme(const std::filesystem::path& outputDirectory);
 void RunButtonContrastAuditGenerator(const std::filesystem::path& outputPath);
@@ -254,6 +255,11 @@ int wmain(int argc, wchar_t** argv)
     if (shouldRunSuite("NewControls"))
     {
         runSuite("NewControls", RunNewControlTests);
+        ranAnySuite = true;
+    }
+    if (shouldRunSuite("EditorControls"))
+    {
+        runSuite("EditorControls", RunEditorControlTests);
         ranAnySuite = true;
     }
     if (shouldRunSuite("TextField"))
