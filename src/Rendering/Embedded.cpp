@@ -415,10 +415,9 @@ bool EmbeddedHost::CapturedDragContinues() const noexcept
     const Control* captured = _host._capturedControl;
     if (! captured || ! captured->IsEnabled() || ! captured->IsVisible())
         return false;
-    const D2D1_RECT_F bounds = captured->GetBounds();
+    const D2D1_RECT_F bounds     = captured->GetBounds();
     const D2D1_RECT_F capturedAt = _host._capturedBounds;
-    if (bounds.left != capturedAt.left || bounds.top != capturedAt.top || bounds.right != capturedAt.right ||
-        bounds.bottom != capturedAt.bottom)
+    if (bounds.left != capturedAt.left || bounds.top != capturedAt.top || bounds.right != capturedAt.right || bounds.bottom != capturedAt.bottom)
         return false;
     const auto contains = [](auto&& self, const Control* root, const Control* target) noexcept -> bool
     {
