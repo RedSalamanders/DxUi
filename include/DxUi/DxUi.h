@@ -1320,6 +1320,22 @@ public:
     [[nodiscard]] virtual std::optional<size_t> FindVisibleItemById(uint64_t itemId) const noexcept;
 };
 
+enum class TreeDropPlace : uint8_t
+{
+    Before = 0,
+    After,
+    Inside,
+};
+
+// A committed row drag. `sourceId` and `targetId` are model ids. Before/After are siblings of the target;
+// Inside appends into a target that has children. The library does not move the model.
+struct TreeDrop
+{
+    uint64_t sourceId   = 0u;
+    uint64_t targetId   = 0u;
+    TreeDropPlace place = TreeDropPlace::Before;
+};
+
 class IDxTreeDelegate
 {
 public:
@@ -1329,6 +1345,7 @@ public:
     virtual void OnTreeItemInvoked(uint64_t itemId);
     virtual void OnTreeToggleExpanded(uint64_t itemId, bool expanded);
     virtual void OnTreeContextMenu(uint64_t itemId, POINT screenPoint);
+    virtual void OnTreeReorder(const TreeDrop& drop);
 };
 
 class GridSelectionModel final
@@ -1380,6 +1397,7 @@ enum class WindowHostCursorKind : uint8_t
     Default,
     HorizontalResize,
     Hand,
+    VerticalResize,
 };
 
 enum class AccessibilityRole : uint8_t
@@ -3195,6 +3213,12 @@ public:
     void SetEmptyStateText(std::wstring text);
     [[nodiscard]] std::wstring_view GetEmptyStateText() const noexcept;
     void SetDelegate(IDxTreeDelegate* delegate) noexcept;
+    // Pointer drag of a row. Release reports one `OnTreeReorder`; Escape and capture loss cancel.
+    void SetReorderEnabled(bool enabled) noexcept;
+    [[nodiscard]] bool ReorderEnabled() const noexcept
+    {
+        return _reorderEnabled;
+    }
     void SetRowHeightDip(float rowHeightDip) noexcept;
     void SetIndentDip(float indentDip) noexcept;
     void NotifyDataChanged();
@@ -3310,6 +3334,8 @@ private:
     void ClearTreeExpansionAnimation() noexcept;
     [[nodiscard]] bool HasActiveTreeExpansionAnimation(uint64_t nowTickMs) const noexcept;
     [[nodiscard]] float GetTreeExpansionProgress(uint64_t nowTickMs) const noexcept;
+    void ClearReorderDrag() noexcept;
+    [[nodiscard]] std::optional<TreeDrop> ResolveReorderDrop(D2D1_POINT_2F point) const noexcept;
 
     std::wstring _emptyStateText;
     // Non-owning. Caller manages model lifetime. Valid from SetModel() until Tree destruction.
@@ -3353,7 +3379,13 @@ private:
     mutable TreeTooltipOverflowCache _tooltipOverflowCache;
     ScrollbarHotPart _verticalScrollbarHotPart = ScrollbarHotPart::None;
     ScrollbarAnimationState _verticalScrollbarAnimation{};
-    bool _dragVerticalThumb = false;
+    bool _dragVerticalThumb   = false;
+    bool _reorderEnabled      = false;
+    bool _reorderArmed        = false;
+    bool _reorderDragging     = false;
+    uint64_t _reorderSourceId = 0u;
+    D2D1_POINT_2F _reorderPress{};
+    std::optional<TreeDrop> _reorderDrop;
 };
 
 class Grid final : public Control
@@ -3746,6 +3778,316 @@ void DebugClearClipboardFallbackText() noexcept;
 [[nodiscard]] bool DebugWriteClipboardUnicodeText(HWND ownerWindow, std::wstring_view text) noexcept;
 #endif
 
+// ── Editor consumer controls ─────────────────────────────────────────────
+// Generic controls an editor-class consumer composes into its own chrome (split panes, numeric inspectors, a
+// color picker). None of them knows about documents, layers, brushes or application settings.
+
+enum class SplitterOrientation : uint8_t
+{
+    Vertical,   // The separator is a vertical bar: first pane left, second pane right (mirrored in RTL).
+    Horizontal, // The separator is a horizontal bar: first pane above, second pane below.
+};
+
+enum class SplitterChangePhase : uint8_t
+{
+    Preview,
+    Commit,
+    Cancel,
+};
+
+struct SplitterChange
+{
+    SplitterChangePhase phase;
+    float position;
+};
+
+// A draggable separator between two panes whose bounds the consumer applies. Position is the DIP offset of the
+// separator's leading edge from the control's leading edge, clamped by the pane minimums. Dragging previews,
+// releasing commits, Escape or capture loss restores the drag start. Left/Right (Up/Down) step, Shift steps
+// further, Home/End go to the limits; keyboard changes commit. The persistable position is consumer state.
+class Splitter final : public Control
+{
+public:
+    static constexpr float kDefaultThicknessDip   = 6.0f;
+    static constexpr float kDefaultMinimumPaneDip = 48.0f;
+    static constexpr float kKeyboardStepDip       = 8.0f;
+    static constexpr float kKeyboardLargeStepDip  = 32.0f;
+    static constexpr float kHitSlopDip            = 2.0f;
+
+    Splitter();
+
+    void SetOrientation(SplitterOrientation orientation) noexcept;
+    [[nodiscard]] SplitterOrientation GetOrientation() const noexcept;
+    void SetThickness(float thicknessDip) noexcept;
+    [[nodiscard]] float GetThickness() const noexcept;
+    void SetMinimumFirstPane(float minimumDip) noexcept;
+    [[nodiscard]] float GetMinimumFirstPane() const noexcept;
+    void SetMinimumSecondPane(float minimumDip) noexcept;
+    [[nodiscard]] float GetMinimumSecondPane() const noexcept;
+    // Clamps and repaints without notifying; use it to apply persisted or resize-derived positions.
+    void SetPosition(float positionDip) noexcept;
+    [[nodiscard]] float GetPosition() const noexcept;
+    // One committed programmatic change; false while dragging, when disabled, or for a non-finite value.
+    bool RequestPosition(ControlHost& host, float positionDip) noexcept;
+    void SetOnChange(std::function<void(SplitterChange)> onChange);
+    [[nodiscard]] bool IsDragging() const noexcept;
+    [[nodiscard]] float ClampPosition(float positionDip) const noexcept;
+    [[nodiscard]] D2D1_RECT_F GetFirstPaneBounds() const noexcept;
+    [[nodiscard]] D2D1_RECT_F GetSecondPaneBounds() const noexcept;
+    [[nodiscard]] D2D1_RECT_F GetSeparatorBounds() const noexcept;
+
+    [[nodiscard]] D2D1_RECT_F GetHitBounds() const noexcept override;
+    void Paint(ControlHost& host) const override;
+    bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
+    bool OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) override;
+    bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
+    bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers) override;
+    void OnCaptureLost(ControlHost& host) override;
+
+protected:
+    void OnBoundsChanged() noexcept override;
+    [[nodiscard]] WindowHostCursorKind ResolveCursorKind(ControlHost& host, D2D1_POINT_2F pointDip) const noexcept override;
+
+private:
+    void NotifyChange(SplitterChangePhase phase) noexcept;
+    [[nodiscard]] float Extent() const noexcept;
+    [[nodiscard]] float PointerAxis(D2D1_POINT_2F point) const noexcept;
+
+    std::function<void(SplitterChange)> _onChange;
+    SplitterOrientation _orientation = SplitterOrientation::Vertical;
+    float _thicknessDip              = kDefaultThicknessDip;
+    float _minimumFirstDip           = kDefaultMinimumPaneDip;
+    float _minimumSecondDip          = kDefaultMinimumPaneDip;
+    float _positionDip               = kDefaultMinimumPaneDip;
+    float _dragStartPositionDip      = 0.0f;
+    float _dragPointerOffsetDip      = 0.0f;
+    bool _dragging                   = false;
+};
+
+enum class NumericStepperChangePhase : uint8_t
+{
+    Preview,
+    Commit,
+    Cancel,
+};
+
+struct NumericStepperChange
+{
+    NumericStepperChangePhase phase;
+    double value;
+};
+
+// A labeled numeric field with step buttons and keyboard nudge for inspectors and dialogs. Typing previews as soon
+// as the text parses; Enter, focus loss, the buttons, Up/Down (Shift: large step) commit; Escape cancels the edit
+// and restores the committed value. Values clamp to [minimum, maximum] and format with a fixed number of decimals.
+class NumericStepper final : public Panel
+{
+public:
+    static constexpr float kDefaultHeightDip = 32.0f;
+    static constexpr float kButtonWidthDip   = 22.0f;
+    static constexpr float kGapDip           = 4.0f;
+
+    NumericStepper();
+
+    void SetLabel(std::wstring label, float widthDip);
+    [[nodiscard]] std::wstring_view GetLabel() const noexcept;
+    void SetUnit(std::wstring unit, float widthDip);
+    [[nodiscard]] std::wstring_view GetUnit() const noexcept;
+    void SetMinimum(double minimum) noexcept;
+    [[nodiscard]] double GetMinimum() const noexcept;
+    void SetMaximum(double maximum) noexcept;
+    [[nodiscard]] double GetMaximum() const noexcept;
+    void SetStep(double step) noexcept;
+    [[nodiscard]] double GetStep() const noexcept;
+    void SetLargeStep(double step) noexcept;
+    [[nodiscard]] double GetLargeStep() const noexcept;
+    void SetDecimals(uint8_t decimals) noexcept;
+    [[nodiscard]] uint8_t GetDecimals() const noexcept;
+    // Clamps, updates the text and repaints without notifying.
+    void SetValue(double value) noexcept;
+    [[nodiscard]] double GetValue() const noexcept;
+    // One committed change; false when disabled or for a non-finite value.
+    bool RequestValue(ControlHost& host, double value) noexcept;
+    // One step (large: the large step) in `direction` (+1 / -1), committed; false when disabled or at the limit.
+    bool Nudge(ControlHost& host, int direction, bool large) noexcept;
+    void SetOnChange(std::function<void(NumericStepperChange)> onChange);
+    [[nodiscard]] bool IsEditing() const noexcept;
+    [[nodiscard]] TextField& Field() noexcept;
+    [[nodiscard]] const TextField& Field() const noexcept;
+    [[nodiscard]] Button& IncrementButton() noexcept;
+    [[nodiscard]] Button& DecrementButton() noexcept;
+    [[nodiscard]] std::wstring FormatValue(double value) const;
+    // Accepts an optional sign, digits, and one '.' or ',' fraction; surrounding whitespace is ignored.
+    [[nodiscard]] static std::optional<double> ParseValue(std::wstring_view text) noexcept;
+
+    void Paint(ControlHost& host) const override;
+
+protected:
+    void OnBoundsChanged() noexcept override;
+    void OnEnabledChanged(bool enabled) noexcept override;
+    void OnFlowDirectionChanged() noexcept override;
+
+private:
+    void Arrange() noexcept;
+    void SyncText();
+    [[nodiscard]] double ClampValue(double value) const noexcept;
+    bool CommitEdit(ControlHost* host) noexcept;
+    void CancelEdit(ControlHost* host) noexcept;
+    void ApplyValue(ControlHost* host, double value, NumericStepperChangePhase phase) noexcept;
+    void NotifyChange(NumericStepperChangePhase phase) noexcept;
+
+    std::function<void(NumericStepperChange)> _onChange;
+    TextField* _field  = nullptr;
+    Button* _increment = nullptr;
+    Button* _decrement = nullptr;
+    std::wstring _label;
+    std::wstring _unit;
+    float _labelWidthDip = 0.0f;
+    float _unitWidthDip  = 0.0f;
+    double _minimum      = -1.0e9;
+    double _maximum      = 1.0e9;
+    double _step         = 1.0;
+    double _largeStep    = 10.0;
+    double _value        = 0.0;
+    double _editStart    = 0.0;
+    uint8_t _decimals    = 0;
+    bool _editing        = false;
+    bool _syncing        = false;
+};
+
+struct HsvColor
+{
+    float hue        = 0.0f; // degrees, 0 ≤ hue < 360
+    float saturation = 0.0f; // 0…1
+    float value      = 0.0f; // 0…1
+};
+
+// Grays and black have no hue of their own; `previous` keeps the last hue (and saturation for black) so a picker
+// field does not jump while the user drags through the gray axis.
+[[nodiscard]] HsvColor HsvFromArgb(uint32_t argb, const HsvColor* previous = nullptr) noexcept;
+[[nodiscard]] uint32_t ArgbFromHsv(const HsvColor& hsv, uint8_t alpha = 255u) noexcept;
+// "#RRGGBB", "RRGGBB", "#RGB" or "RGB" (case-insensitive, surrounding whitespace ignored); alpha is opaque.
+[[nodiscard]] std::optional<uint32_t> ParseHexColor(std::wstring_view text) noexcept;
+[[nodiscard]] std::wstring FormatHexColor(uint32_t argb);
+
+enum class ColorPickerChangePhase : uint8_t
+{
+    Preview,
+    Commit,
+    Cancel,
+};
+
+struct ColorPickerChange
+{
+    ColorPickerChangePhase phase;
+    uint32_t argb;
+};
+
+// HSV field, hue strip, R/G/B steppers, hex field, new/current swatches, OK and Cancel. Pointer drags and typed
+// values preview; OK or Enter commit; Escape, Cancel, or capture loss during a drag cancel and restore the current
+// color. Eyedropping outside the picker is the host's job: it feeds `SampleColor`. Strings are consumer-supplied.
+class ColorPicker final : public Panel
+{
+public:
+    static constexpr float kDefaultWidthDip  = 316.0f;
+    static constexpr float kDefaultHeightDip = 236.0f;
+    static constexpr float kFieldDip         = 160.0f;
+    static constexpr float kHueStripWidthDip = 20.0f;
+    static constexpr float kGapDip           = 8.0f;
+    static constexpr float kSwatchDip        = 28.0f; // swatch height
+    static constexpr float kSwatchWidthDip   = 44.0f; // wide enough for a short caption beneath
+    static constexpr float kRowDip           = 28.0f;
+    static constexpr float kButtonWidthDip   = 72.0f;
+
+    struct Labels
+    {
+        std::wstring newColor     = L"New";
+        std::wstring currentColor = L"Current";
+        std::wstring hex          = L"Hex";
+        std::wstring red          = L"R";
+        std::wstring green        = L"G";
+        std::wstring blue         = L"B";
+        std::wstring ok           = L"OK";
+        std::wstring cancel       = L"Cancel";
+    };
+
+    ColorPicker();
+
+    void SetLabels(Labels labels);
+    [[nodiscard]] const Labels& GetLabels() const noexcept;
+    // The editing color and the current (reference) swatch, without notifying.
+    void SetColor(uint32_t argb) noexcept;
+    [[nodiscard]] uint32_t GetColor() const noexcept;
+    void SetCurrentColor(uint32_t argb) noexcept;
+    [[nodiscard]] uint32_t GetCurrentColor() const noexcept;
+    [[nodiscard]] HsvColor GetHsv() const noexcept;
+    // A host-sampled color (eyedropper) becomes the editing color and previews.
+    void SampleColor(ControlHost& host, uint32_t argb) noexcept;
+    void Commit(ControlHost& host) noexcept;
+    void Cancel(ControlHost& host) noexcept;
+    void SetOnChange(std::function<void(ColorPickerChange)> onChange);
+    [[nodiscard]] bool IsDragging() const noexcept;
+    [[nodiscard]] D2D1_RECT_F GetFieldRect() const noexcept;
+    [[nodiscard]] D2D1_RECT_F GetHueStripRect() const noexcept;
+    [[nodiscard]] D2D1_RECT_F GetNewSwatchRect() const noexcept;
+    [[nodiscard]] D2D1_RECT_F GetCurrentSwatchRect() const noexcept;
+    [[nodiscard]] NumericStepper& RedField() noexcept;
+    [[nodiscard]] NumericStepper& GreenField() noexcept;
+    [[nodiscard]] NumericStepper& BlueField() noexcept;
+    [[nodiscard]] TextField& HexField() noexcept;
+    [[nodiscard]] Button& OkButton() noexcept;
+    [[nodiscard]] Button& CancelButton() noexcept;
+
+    void Paint(ControlHost& host) const override;
+    bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
+    bool OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) override;
+    bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
+    bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers) override;
+    void OnCaptureLost(ControlHost& host) override;
+
+protected:
+    void OnBoundsChanged() noexcept override;
+    void OnEnabledChanged(bool enabled) noexcept override;
+
+private:
+    enum class Drag : uint8_t
+    {
+        None,
+        Field,
+        Hue,
+    };
+
+    void Arrange() noexcept;
+    void ApplyHsv(ControlHost* host, HsvColor hsv, bool notify) noexcept;
+    void ApplyArgb(ControlHost* host, uint32_t argb, bool notify) noexcept;
+    void SyncChildren() noexcept;
+    void NotifyChange(ColorPickerChangePhase phase) noexcept;
+    void UpdateFromPoint(ControlHost& host, D2D1_POINT_2F point) noexcept;
+    void EnsureBrushes(ControlHost& host) const noexcept;
+
+    std::function<void(ColorPickerChange)> _onChange;
+    Labels _labels;
+    NumericStepper* _red   = nullptr;
+    NumericStepper* _green = nullptr;
+    NumericStepper* _blue  = nullptr;
+    TextField* _hex        = nullptr;
+    Button* _ok            = nullptr;
+    Button* _cancel        = nullptr;
+    HsvColor _hsv;
+    uint32_t _argb                            = 0xFF000000u;
+    uint32_t _current                         = 0xFF000000u;
+    uint32_t _dragStartArgb                   = 0xFF000000u;
+    Drag _drag                                = Drag::None;
+    bool _syncing                             = false;
+    mutable ID2D1DeviceContext* _brushContext = nullptr;
+    mutable float _brushHue                   = -1.0f;
+    mutable D2D1_RECT_F _brushField           = D2D1::RectF();
+    mutable D2D1_RECT_F _brushStrip           = D2D1::RectF();
+    mutable wil::com_ptr<ID2D1LinearGradientBrush> _saturationBrush;
+    mutable wil::com_ptr<ID2D1LinearGradientBrush> _valueBrush;
+    mutable wil::com_ptr<ID2D1LinearGradientBrush> _hueBrush;
+};
+
 class ControlHost final
 {
 public:
@@ -4123,6 +4465,7 @@ private:
 
     Control* _hoveredControl             = nullptr;
     Control* _capturedControl            = nullptr;
+    D2D1_RECT_F _capturedBounds          = {};
     Control* _focusedControl             = nullptr;
     Control* _supplementalTooltipControl = nullptr;
     std::weak_ptr<int> _supplementalTooltipLifetime;

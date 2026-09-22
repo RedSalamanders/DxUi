@@ -144,6 +144,9 @@ private:
     uint64_t _textInputRevision = 1;
     static void InvalidateThunk(void* context) noexcept;
     void CancelPointer() noexcept;
+    // A drag may continue across a bounds revision while its control is still in the tree, enabled and visible.
+    // Hiding, disabling, removing it, or resizing the view still cancels.
+    [[nodiscard]] bool CapturedDragContinues() const noexcept;
     // Drops the cached surface and its D2D target while hidden or zero-sized; the next sized visible
     // preparation allocates exactly one replacement.
     void ReleaseSurface() noexcept;

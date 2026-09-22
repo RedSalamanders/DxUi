@@ -1200,10 +1200,63 @@ void TestTreeHoveredClippedTextShowsFullTextTooltip()
 
 } // namespace
 
+void TestTreeDragReorderReportsDropAndEscapeCancels()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 160.0f));
+    tree->SetReorderEnabled(true);
+
+    MutableTreeModel model;
+    model.SetVisibleItems({
+        TreeItemData{.id = 10u, .text = L"Top"},
+        TreeItemData{.id = 20u, .text = L"Middle"},
+        TreeItemData{.id = 30u, .text = L"Bottom", .hasChildren = true},
+    });
+    RecordingTreeDelegate delegate;
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+
+    const std::optional<D2D1_RECT_F> top    = tree->GetVisibleItemHitRect(0u);
+    const std::optional<D2D1_RECT_F> bottom = tree->GetVisibleItemHitRect(2u);
+    Require(top.has_value() && bottom.has_value(), "reorder rows have hit rectangles");
+    const D2D1_POINT_2F from         = D2D1::Point2F((top->left + top->right) * 0.5f, (top->top + top->bottom) * 0.5f);
+    const D2D1_POINT_2F beforeBottom = D2D1::Point2F((bottom->left + bottom->right) * 0.5f, bottom->top + 2.0f);
+    Require(tree->OnMouseDown(host, from, false, 0u), "reorder drag starts on a row");
+    Require(tree->OnMouseMove(host, D2D1::Point2F(from.x + 1.0f, from.y + 1.0f), 0u), "a short move stays a click");
+    static_cast<void>(tree->OnMouseUp(host, D2D1::Point2F(from.x + 1.0f, from.y + 1.0f), false, 0u));
+    Require(delegate.reorderCount == 0u, "a click does not reorder");
+
+    Require(tree->OnMouseDown(host, from, false, 0u), "reorder drag starts again");
+    Require(tree->OnMouseMove(host, beforeBottom, 0u), "reorder drag follows the pointer");
+    Require(tree->OnKeyDown(host, VK_ESCAPE, 0u), "escape cancels a row drag");
+    static_cast<void>(tree->OnMouseUp(host, beforeBottom, false, 0u));
+    Require(delegate.reorderCount == 0u, "escape drops the reorder");
+
+    Require(tree->OnMouseDown(host, from, false, 0u), "reorder drag starts for the commit");
+    Require(tree->OnMouseMove(host, beforeBottom, 0u), "reorder drag reaches the target");
+    static_cast<void>(tree->OnMouseUp(host, beforeBottom, false, 0u));
+    Require(delegate.reorderCount == 1u, "release commits one reorder");
+    Require(delegate.lastDrop.sourceId == 10u && delegate.lastDrop.targetId == 30u && delegate.lastDrop.place == TreeDropPlace::Before,
+            "the drop is before the target row");
+
+    const D2D1_POINT_2F inside = D2D1::Point2F((bottom->left + bottom->right) * 0.5f, (bottom->top + bottom->bottom) * 0.5f);
+    Require(tree->OnMouseDown(host, from, false, 0u), "reorder drag starts for an inside drop");
+    Require(tree->OnMouseMove(host, inside, 0u), "reorder drag enters a parent row");
+    static_cast<void>(tree->OnMouseUp(host, inside, false, 0u));
+    Require(delegate.reorderCount == 2u && delegate.lastDrop.place == TreeDropPlace::Inside && delegate.lastDrop.targetId == 30u,
+            "the middle of a parent row drops inside it");
+}
+
 void RunTreeTests()
 {
     TestTreeLocalizedEmptyStateRepaintsWithoutSelectionChange();
     TestTreePointerSelectionNotifiesDelegate();
+    TestTreeDragReorderReportsDropAndEscapeCancels();
     TestTreeExpanderClickRequestsToggle();
     TestTreeExpanderReResolvesStableItemAfterSelectionReorder();
     TestTreeSelectionDelegateCanReplaceRootSafely();

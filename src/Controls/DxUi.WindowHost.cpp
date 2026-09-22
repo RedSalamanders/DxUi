@@ -1803,6 +1803,7 @@ void ControlHost::CaptureMouse(Control* control) noexcept
         return;
     }
     _capturedControl = control;
+    _capturedBounds  = control ? control->GetBounds() : D2D1_RECT_F{};
     // Some controls capture during their own mouse-down handling; avoid a
     // redundant SetCapture that can immediately re-enter capture-lost cleanup.
     if (_hwnd && GetCapture() != _hwnd)
@@ -4099,11 +4100,13 @@ HCURSOR ControlHost::ResolveCursorHandle(WindowHostCursorKind cursorKind) const 
     static const HCURSOR arrowCursor      = LoadCursorW(nullptr, IDC_ARROW);
     static const HCURSOR horizontalCursor = LoadCursorW(nullptr, IDC_SIZEWE);
     static const HCURSOR handCursor       = LoadCursorW(nullptr, IDC_HAND);
+    static const HCURSOR verticalCursor   = LoadCursorW(nullptr, IDC_SIZENS);
 
     switch (cursorKind)
     {
         case WindowHostCursorKind::HorizontalResize: return horizontalCursor ? horizontalCursor : arrowCursor;
         case WindowHostCursorKind::Hand: return handCursor ? handCursor : arrowCursor;
+        case WindowHostCursorKind::VerticalResize: return verticalCursor ? verticalCursor : arrowCursor;
         case WindowHostCursorKind::Default:
         default: return arrowCursor;
     }
