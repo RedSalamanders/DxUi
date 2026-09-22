@@ -1320,6 +1320,22 @@ public:
     [[nodiscard]] virtual std::optional<size_t> FindVisibleItemById(uint64_t itemId) const noexcept;
 };
 
+enum class TreeDropPlace : uint8_t
+{
+    Before = 0,
+    After,
+    Inside,
+};
+
+// A committed row drag. `sourceId` and `targetId` are model ids. Before/After are siblings of the target;
+// Inside appends into a target that has children. The library does not move the model.
+struct TreeDrop
+{
+    uint64_t sourceId   = 0u;
+    uint64_t targetId   = 0u;
+    TreeDropPlace place = TreeDropPlace::Before;
+};
+
 class IDxTreeDelegate
 {
 public:
@@ -1329,6 +1345,7 @@ public:
     virtual void OnTreeItemInvoked(uint64_t itemId);
     virtual void OnTreeToggleExpanded(uint64_t itemId, bool expanded);
     virtual void OnTreeContextMenu(uint64_t itemId, POINT screenPoint);
+    virtual void OnTreeReorder(const TreeDrop& drop);
 };
 
 class GridSelectionModel final
@@ -3196,6 +3213,12 @@ public:
     void SetEmptyStateText(std::wstring text);
     [[nodiscard]] std::wstring_view GetEmptyStateText() const noexcept;
     void SetDelegate(IDxTreeDelegate* delegate) noexcept;
+    // Pointer drag of a row. Release reports one `OnTreeReorder`; Escape and capture loss cancel.
+    void SetReorderEnabled(bool enabled) noexcept;
+    [[nodiscard]] bool ReorderEnabled() const noexcept
+    {
+        return _reorderEnabled;
+    }
     void SetRowHeightDip(float rowHeightDip) noexcept;
     void SetIndentDip(float indentDip) noexcept;
     void NotifyDataChanged();
@@ -3311,6 +3334,8 @@ private:
     void ClearTreeExpansionAnimation() noexcept;
     [[nodiscard]] bool HasActiveTreeExpansionAnimation(uint64_t nowTickMs) const noexcept;
     [[nodiscard]] float GetTreeExpansionProgress(uint64_t nowTickMs) const noexcept;
+    void ClearReorderDrag() noexcept;
+    [[nodiscard]] std::optional<TreeDrop> ResolveReorderDrop(D2D1_POINT_2F point) const noexcept;
 
     std::wstring _emptyStateText;
     // Non-owning. Caller manages model lifetime. Valid from SetModel() until Tree destruction.
@@ -3354,7 +3379,13 @@ private:
     mutable TreeTooltipOverflowCache _tooltipOverflowCache;
     ScrollbarHotPart _verticalScrollbarHotPart = ScrollbarHotPart::None;
     ScrollbarAnimationState _verticalScrollbarAnimation{};
-    bool _dragVerticalThumb = false;
+    bool _dragVerticalThumb   = false;
+    bool _reorderEnabled      = false;
+    bool _reorderArmed        = false;
+    bool _reorderDragging     = false;
+    uint64_t _reorderSourceId = 0u;
+    D2D1_POINT_2F _reorderPress{};
+    std::optional<TreeDrop> _reorderDrop;
 };
 
 class Grid final : public Control

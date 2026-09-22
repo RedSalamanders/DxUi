@@ -193,6 +193,15 @@ dilute that pair. Disabled primary buttons use the button surface and disabled t
 hide focus. Enabled focus remains visible for pointer and keyboard and uses the undiluted palette focus color.
 The normal light/dark appearance keeps its existing visual treatment.
 
+### Tree row drag
+
+`Tree::SetReorderEnabled` arms a pointer drag on a row (not the expander or the scrollbar). After the pointer moves
+at least 4 DIP, the tree draws an insertion line on the top or bottom half of the row under the pointer, or highlights
+the row when the pointer is in its middle and that row has children. Release calls `IDxTreeDelegate::OnTreeReorder`
+once with the source id, the target id and `TreeDropPlace` (`Before`, `After` or `Inside`). The tree does not change
+the model. Escape and capture loss cancel and do not call the delegate. A click that does not travel 4 DIP selects
+as before and does not reorder.
+
 ### Localized built-in text
 
 Consumers supply owned per-instance strings through `ComboBox::SetNoMatchesText`,
