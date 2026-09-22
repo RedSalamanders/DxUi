@@ -1803,6 +1803,7 @@ void ControlHost::CaptureMouse(Control* control) noexcept
         return;
     }
     _capturedControl = control;
+    _capturedBounds  = control ? control->GetBounds() : D2D1_RECT_F{};
     // Some controls capture during their own mouse-down handling; avoid a
     // redundant SetCapture that can immediately re-enter capture-lost cleanup.
     if (_hwnd && GetCapture() != _hwnd)

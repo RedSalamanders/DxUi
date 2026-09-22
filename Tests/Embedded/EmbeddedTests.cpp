@@ -440,6 +440,28 @@ __declspec(noinline) static int RunFunctionalTests()
         scene.slider->SetEnabled(true);
         Hr(scene.view.Prepare(480, 240), "restore control availability");
     }
+    // A splitter drag survives the pane layout that follows a preview. Resizing the view still cancels, above.
+    {
+        auto* root = static_cast<DxUi::Panel*>(scene.view.Controls().GetRoot());
+        auto* splitter = root->AddChild<DxUi::Splitter>();
+        splitter->SetBounds(D2D1::RectF(0, 0, 480, 240));
+        splitter->SetMinimumFirstPane(80);
+        splitter->SetMinimumSecondPane(80);
+        splitter->SetPosition(200);
+        Hr(scene.view.Prepare(480, 240), "prepare splitter drag");
+        Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 203, 120}), "splitter press");
+        Check(scene.view.DispatchPointer({DxUi::PointerAction::Move, 260, 120}), "splitter preview");
+        const float dragged = splitter->GetPosition();
+        Check(dragged > 240.0f, "splitter preview moved");
+        scene.slider->SetBounds(D2D1::RectF(24, 164, 440, 212));
+        Hr(scene.view.Prepare(480, 240), "pane layout during splitter drag");
+        Check(scene.view.Controls().GetCapturedControl() == splitter && splitter->GetPosition() == dragged,
+              "pane layout keeps the splitter drag");
+        Check(scene.view.DispatchPointer({DxUi::PointerAction::Move, 300, 120}), "splitter drag continues after layout");
+        Check(splitter->GetPosition() > dragged, "continued drag moves again");
+        Check(scene.view.DispatchPointer({DxUi::PointerAction::Up, 300, 120}), "splitter release");
+        scene.slider->SetBounds(D2D1::RectF(24, 160, 440, 208));
+    }
     std::shared_ptr<DxUi::GraphicsDevice> shared;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), shared), "shared supplied device pool");
     DxUi::EmbeddedHost a, b;

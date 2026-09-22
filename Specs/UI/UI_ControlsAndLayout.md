@@ -146,8 +146,8 @@ commits, Escape while dragging and capture loss restore the drag-start position 
 paints the theme border at rest, a border/accent blend when hovered and the accent while dragging, with a three-dot
 grip; the horizontal or vertical resize cursor applies over the hit band and during a drag. The persisted position is
 consumer state. In an EmbeddedHost the consumer applies pane bounds on its next preparation, not inside the change
-callback: a bounds change during the captured drag changes the interaction revision and the next pointer event
-cancels the drag ([`Rendering_EmbeddedD3D11.md`](../Rendering/Rendering_EmbeddedD3D11.md)).
+callback. That bounds revision keeps the drag while the splitter stays in the tree, enabled and visible
+([`Rendering_EmbeddedD3D11.md`](../Rendering/Rendering_EmbeddedD3D11.md)).
 
 ### Numeric stepper
 

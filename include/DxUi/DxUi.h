@@ -4434,6 +4434,7 @@ private:
 
     Control* _hoveredControl             = nullptr;
     Control* _capturedControl            = nullptr;
+    D2D1_RECT_F _capturedBounds          = {};
     Control* _focusedControl             = nullptr;
     Control* _supplementalTooltipControl = nullptr;
     std::weak_ptr<int> _supplementalTooltipLifetime;
