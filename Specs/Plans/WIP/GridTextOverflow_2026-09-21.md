@@ -29,6 +29,13 @@ Both executions use the same library binary. Their automatic benchmarks are expl
 unpaired. The new test still needs the remaining final configurations and does not replace
 native assistive-technology acceptance.
 
+The [x64 Debug follow-up](../../../Measurements/GridTextOverflow/2026-09-23/uia-full-value-debug/README.md)
+rebuilds V11 and passes Grid, Rendering, Embedded and Accessibility with zero capability skips.
+Its exact source/driver and executable receipts are retained; the automatic benchmark is unpaired.
+New-witness x64 ASan and ARM64 configuration qualification remains open; prior production receipts
+are not presented as execution of a test that did not yet exist.
+
+
 ## September 23 cache experiment closeout
 
 The consumer confirmation and waiting/Issues slices are committed as `26209bac` and `a3777b3f0`.
