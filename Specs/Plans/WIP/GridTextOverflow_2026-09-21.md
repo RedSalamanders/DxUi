@@ -8,6 +8,15 @@ The consumer's French Issues grid exposed a generic defect: `SetLineClamp` enabl
 does not limit visible lines or produce an omission marker. Partially visible cells also lay out
 against their clipped rectangle, changing text placement as they cross the viewport boundary.
 
+## September 23 developer decision
+
+The user explicitly answered **"Accept the grid memory tradeoff"** to the measured
+6–7 MiB process-memory increase for readable multiline Issues rows, with roughly doubled
+offscreen throughput. This accepts that recorded V11 grid cost only; it does not accept
+the rejected associative cache, menu benchmark differences, or unrelated regressions.
+Keep the original paired receipts and thresholds. Combined library qualification and
+explicit consumer adoption remain required; no pin changes follow from this decision alone.
+
 ## September 23 cache experiment closeout
 
 The consumer confirmation and waiting/Issues slices are committed as `26209bac` and `a3777b3f0`.
@@ -46,7 +55,7 @@ candidate and require a rebuild before reuse.** No restored-source execution is 
 Docs/gallery were reviewed: existing V11 public behavior and pixels remain unchanged, so
 only performance documentation and evidence links need updates for this rejected variant.
 
-Next: resolve original grid/menu resource advice and integrated consumer acceptance, while
+Next: complete remaining menu resource advice and integrated consumer acceptance, while
 continuing independent current-pin Debug validation. Do not repeat rejected variants or
 misapply V11's previous six-profile passes to the rejected associative implementation.
 
