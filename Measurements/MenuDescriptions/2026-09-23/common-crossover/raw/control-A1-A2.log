@@ -1,0 +1,4 @@
+Performance comparison: advice-required
+REGRESSION clean/privatePeakBytes: 27332608.000 -> 27992064.000
+REGRESSION dirty/composeCpuP95Ms: 0.019 -> 0.020
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.

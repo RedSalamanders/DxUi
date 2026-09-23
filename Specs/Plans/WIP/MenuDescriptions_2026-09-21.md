@@ -24,8 +24,24 @@ which reverse sign. Clean differences concentrate in GPU completion; dirty diffe
 preparation and GPU completion. These diagnostics establish no stable timing regression and do
 not pass or waive the standard paired gate. Individual diagnostic reports lack per-run clocks and
 binary identities; retain the actual driver and post-build hash receipts with that explicit limit.
-Next: restore only the owned instrumentation, rebuild the affected benchmark translation unit,
-and run one predeclared ordinary matched crossover with the existing thresholds and all results retained.
+The owned diagnostic headers have been restored. Fresh ordinary rebuilds and the predeclared
+matched crossover are now retained below; diagnostic timing remains excluded from acceptance.
+
+## September 23 ordinary crossover
+
+The [ordinary A1/B1/B2/A2 packet](../../../Measurements/MenuDescriptions/2026-09-23/common-crossover/README.md)
+retains fresh warning/error-free Release builds, all eight identical fixture inputs, per-invocation
+UTC and unchanged executable/library hashes, four successful benchmark executions, and all four
+comparison failures. Clean frame P95 rises by 0.0492 and 0.0345 ms (+11.192%/+7.997%) in both A/B
+pairs, while the A/A and B/B controls improve. This repeated timing flag remains unresolved.
+Dirty private-memory flags occur only in pair two and also in the B/B control; these four runs do
+not establish a stable candidate memory increase. Allocations and surfaces are unchanged.
+
+The user has been asked whether to continue causal investigation or accept only the measured
+clean-frame timing cost. No answer or waiver is recorded. The accepted V11 grid memory cost is
+separate and cannot qualify this menu candidate. No benchmark threshold or baseline was changed.
+The process-local heap evidence and 36% lower live menu shaping storage remain independent facts;
+no causal claim about the shared-scene timing follows from them.
 
 ## Contract and scope
 

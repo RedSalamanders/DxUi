@@ -1,0 +1,1173 @@
+{
+  "rule": "Preserve every comparison. Investigation bands are not acceptance budgets. No automatic waiver or rebaseline.",
+  "runOrder": [
+    "A1",
+    "B1",
+    "B2",
+    "A2"
+  ],
+  "comparisons": {
+    "pair1-A1-B1": [
+      "A1",
+      "B1"
+    ],
+    "pair2-A2-B2": [
+      "A2",
+      "B2"
+    ],
+    "control-A1-A2": [
+      "A1",
+      "A2"
+    ],
+    "control-B1-B2": [
+      "B1",
+      "B2"
+    ]
+  },
+  "observations": [
+    {
+      "key": "clean/fps",
+      "noisePercent": 5.0,
+      "pair1": {
+        "scenario": "clean",
+        "metric": "fps",
+        "before": 2485.321072,
+        "after": 2311.590895,
+        "changePercent": -6.9902508354864334,
+        "noisePercent": 5.0,
+        "regressed": true
+      },
+      "pair2": {
+        "scenario": "clean",
+        "metric": "fps",
+        "before": 2544.367407,
+        "after": 2516.958005,
+        "changePercent": -1.077258021958316,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "clean",
+        "metric": "fps",
+        "before": 2485.321072,
+        "after": 2544.367407,
+        "changePercent": 2.3758030970414623,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "clean",
+        "metric": "fps",
+        "before": 2311.590895,
+        "after": 2516.958005,
+        "changePercent": 8.884232519007229,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": true,
+      "repeatedPairFlag": false,
+      "interpretation": "single-pair-flag-unresolved"
+    },
+    {
+      "key": "clean/frameP50Ms",
+      "noisePercent": 5.0,
+      "pair1": {
+        "scenario": "clean",
+        "metric": "frameP50Ms",
+        "before": 0.3982,
+        "after": 0.424,
+        "changePercent": 6.479156202913106,
+        "noisePercent": 5.0,
+        "regressed": true
+      },
+      "pair2": {
+        "scenario": "clean",
+        "metric": "frameP50Ms",
+        "before": 0.3855,
+        "after": 0.3806,
+        "changePercent": -1.2710765239948185,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "clean",
+        "metric": "frameP50Ms",
+        "before": 0.3982,
+        "after": 0.3855,
+        "changePercent": -3.189352084379704,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "clean",
+        "metric": "frameP50Ms",
+        "before": 0.424,
+        "after": 0.3806,
+        "changePercent": -10.235849056603774,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": true,
+      "repeatedPairFlag": false,
+      "interpretation": "single-pair-flag-unresolved"
+    },
+    {
+      "key": "clean/frameP95Ms",
+      "noisePercent": 5.0,
+      "pair1": {
+        "scenario": "clean",
+        "metric": "frameP95Ms",
+        "before": 0.4396,
+        "after": 0.4888,
+        "changePercent": 11.191992720655142,
+        "noisePercent": 5.0,
+        "regressed": true
+      },
+      "pair2": {
+        "scenario": "clean",
+        "metric": "frameP95Ms",
+        "before": 0.4314,
+        "after": 0.4659,
+        "changePercent": 7.997218358831715,
+        "noisePercent": 5.0,
+        "regressed": true
+      },
+      "baselineControl": {
+        "scenario": "clean",
+        "metric": "frameP95Ms",
+        "before": 0.4396,
+        "after": 0.4314,
+        "changePercent": -1.8653321201091866,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "clean",
+        "metric": "frameP95Ms",
+        "before": 0.4888,
+        "after": 0.4659,
+        "changePercent": -4.684942716857621,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": true,
+      "interpretation": "repeated-pair-flag-needs-causal-review"
+    },
+    {
+      "key": "clean/prepareP95Ms",
+      "noisePercent": 5.0,
+      "pair1": {
+        "scenario": "clean",
+        "metric": "prepareP95Ms",
+        "before": 0.0003,
+        "after": 0.0004,
+        "changePercent": 33.33333333333335,
+        "noisePercent": 5.0,
+        "regressed": true
+      },
+      "pair2": {
+        "scenario": "clean",
+        "metric": "prepareP95Ms",
+        "before": 0.0003,
+        "after": 0.0003,
+        "changePercent": 0.0,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "clean",
+        "metric": "prepareP95Ms",
+        "before": 0.0003,
+        "after": 0.0003,
+        "changePercent": 0.0,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "clean",
+        "metric": "prepareP95Ms",
+        "before": 0.0004,
+        "after": 0.0003,
+        "changePercent": -25.00000000000001,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": true,
+      "repeatedPairFlag": false,
+      "interpretation": "single-pair-flag-unresolved"
+    },
+    {
+      "key": "clean/composeCpuP95Ms",
+      "noisePercent": 5.0,
+      "pair1": {
+        "scenario": "clean",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0123,
+        "after": 0.0126,
+        "changePercent": 2.4390243902439046,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "clean",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0118,
+        "after": 0.0124,
+        "changePercent": 5.084745762711873,
+        "noisePercent": 5.0,
+        "regressed": true
+      },
+      "baselineControl": {
+        "scenario": "clean",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0123,
+        "after": 0.0118,
+        "changePercent": -4.0650406504065035,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "clean",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0126,
+        "after": 0.0124,
+        "changePercent": -1.5873015873015928,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "single-pair-flag-unresolved"
+    },
+    {
+      "key": "clean/privateBytes",
+      "noisePercent": 2.0,
+      "pair1": {
+        "scenario": "clean",
+        "metric": "privateBytes",
+        "before": 27332608,
+        "after": 27279360,
+        "changePercent": -0.19481492582047455,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "clean",
+        "metric": "privateBytes",
+        "before": 27226112,
+        "after": 27684864,
+        "changePercent": 1.6849706634572081,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "clean",
+        "metric": "privateBytes",
+        "before": 27332608,
+        "after": 27226112,
+        "changePercent": -0.389629851640938,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "clean",
+        "metric": "privateBytes",
+        "before": 27279360,
+        "after": 27684864,
+        "changePercent": 1.4864864864864824,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "clean/privatePeakBytes",
+      "noisePercent": 2.0,
+      "pair1": {
+        "scenario": "clean",
+        "metric": "privatePeakBytes",
+        "before": 27332608,
+        "after": 27320320,
+        "changePercent": -0.04495729057395481,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "clean",
+        "metric": "privatePeakBytes",
+        "before": 27992064,
+        "after": 27684864,
+        "changePercent": -1.097453906935908,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "clean",
+        "metric": "privatePeakBytes",
+        "before": 27332608,
+        "after": 27992064,
+        "changePercent": 2.4127079274689045,
+        "noisePercent": 2.0,
+        "regressed": true
+      },
+      "candidateControl": {
+        "scenario": "clean",
+        "metric": "privatePeakBytes",
+        "before": 27320320,
+        "after": 27684864,
+        "changePercent": 1.3343328335832183,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": true,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "clean/workingSetBytes",
+      "noisePercent": 2.0,
+      "pair1": {
+        "scenario": "clean",
+        "metric": "workingSetBytes",
+        "before": 43266048,
+        "after": 43274240,
+        "changePercent": 0.01893401495787206,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "clean",
+        "metric": "workingSetBytes",
+        "before": 43466752,
+        "after": 43704320,
+        "changePercent": 0.5465510742555635,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "clean",
+        "metric": "workingSetBytes",
+        "before": 43266048,
+        "after": 43466752,
+        "changePercent": 0.46388336646785433,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "clean",
+        "metric": "workingSetBytes",
+        "before": 43274240,
+        "after": 43704320,
+        "changePercent": 0.9938476100331384,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "clean/workingSetPeakBytes",
+      "noisePercent": 2.0,
+      "pair1": {
+        "scenario": "clean",
+        "metric": "workingSetPeakBytes",
+        "before": 43266048,
+        "after": 43380736,
+        "changePercent": 0.2650762094102088,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "clean",
+        "metric": "workingSetPeakBytes",
+        "before": 43503616,
+        "after": 43704320,
+        "changePercent": 0.46135015535260226,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "clean",
+        "metric": "workingSetPeakBytes",
+        "before": 43266048,
+        "after": 43503616,
+        "changePercent": 0.5490864337782897,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "clean",
+        "metric": "workingSetPeakBytes",
+        "before": 43380736,
+        "after": 43704320,
+        "changePercent": 0.7459163440657113,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "clean/surfaceBytes",
+      "noisePercent": 0,
+      "pair1": {
+        "scenario": "clean",
+        "metric": "surfaceBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "clean",
+        "metric": "surfaceBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "clean",
+        "metric": "surfaceBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "clean",
+        "metric": "surfaceBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "clean/replacementPeakBytes",
+      "noisePercent": 0,
+      "pair1": {
+        "scenario": "clean",
+        "metric": "replacementPeakBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "clean",
+        "metric": "replacementPeakBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "clean",
+        "metric": "replacementPeakBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "clean",
+        "metric": "replacementPeakBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "clean/cppAllocations",
+      "noisePercent": 0,
+      "pair1": {
+        "scenario": "clean",
+        "metric": "cppAllocations",
+        "before": 0,
+        "after": 0,
+        "changePercent": null,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "clean",
+        "metric": "cppAllocations",
+        "before": 0,
+        "after": 0,
+        "changePercent": null,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "clean",
+        "metric": "cppAllocations",
+        "before": 0,
+        "after": 0,
+        "changePercent": null,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "clean",
+        "metric": "cppAllocations",
+        "before": 0,
+        "after": 0,
+        "changePercent": null,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "clean/composeAllocations",
+      "noisePercent": 0,
+      "pair1": {
+        "scenario": "clean",
+        "metric": "composeAllocations",
+        "before": 0,
+        "after": 0,
+        "changePercent": null,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "clean",
+        "metric": "composeAllocations",
+        "before": 0,
+        "after": 0,
+        "changePercent": null,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "clean",
+        "metric": "composeAllocations",
+        "before": 0,
+        "after": 0,
+        "changePercent": null,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "clean",
+        "metric": "composeAllocations",
+        "before": 0,
+        "after": 0,
+        "changePercent": null,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "dirty/fps",
+      "noisePercent": 5.0,
+      "pair1": {
+        "scenario": "dirty",
+        "metric": "fps",
+        "before": 535.6781753,
+        "after": 542.3831774,
+        "changePercent": 1.2516847631966588,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "dirty",
+        "metric": "fps",
+        "before": 542.6576387,
+        "after": 541.9936695,
+        "changePercent": -0.12235508221917213,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "dirty",
+        "metric": "fps",
+        "before": 535.6781753,
+        "after": 542.6576387,
+        "changePercent": 1.3029209928314245,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "dirty",
+        "metric": "fps",
+        "before": 542.3831774,
+        "after": 541.9936695,
+        "changePercent": -0.07181415579059491,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "dirty/frameP50Ms",
+      "noisePercent": 5.0,
+      "pair1": {
+        "scenario": "dirty",
+        "metric": "frameP50Ms",
+        "before": 1.8453,
+        "after": 1.8051,
+        "changePercent": -2.1785075597463788,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "dirty",
+        "metric": "frameP50Ms",
+        "before": 1.8005,
+        "after": 1.8091,
+        "changePercent": 0.4776450985837233,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "dirty",
+        "metric": "frameP50Ms",
+        "before": 1.8453,
+        "after": 1.8005,
+        "changePercent": -2.4277895193193455,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "dirty",
+        "metric": "frameP50Ms",
+        "before": 1.8051,
+        "after": 1.8091,
+        "changePercent": 0.22159437150295336,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "dirty/frameP95Ms",
+      "noisePercent": 5.0,
+      "pair1": {
+        "scenario": "dirty",
+        "metric": "frameP95Ms",
+        "before": 2.1218,
+        "after": 2.0173,
+        "changePercent": -4.925063625223858,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "dirty",
+        "metric": "frameP95Ms",
+        "before": 2.1208,
+        "after": 2.0513,
+        "changePercent": -3.2770652583930637,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "dirty",
+        "metric": "frameP95Ms",
+        "before": 2.1218,
+        "after": 2.1208,
+        "changePercent": -0.04712979545667961,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "dirty",
+        "metric": "frameP95Ms",
+        "before": 2.0173,
+        "after": 2.0513,
+        "changePercent": 1.6854211074208036,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "dirty/prepareP95Ms",
+      "noisePercent": 5.0,
+      "pair1": {
+        "scenario": "dirty",
+        "metric": "prepareP95Ms",
+        "before": 1.4078,
+        "after": 1.398,
+        "changePercent": -0.6961216081829869,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "dirty",
+        "metric": "prepareP95Ms",
+        "before": 1.4087,
+        "after": 1.3807,
+        "changePercent": -1.9876481862710293,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "dirty",
+        "metric": "prepareP95Ms",
+        "before": 1.4078,
+        "after": 1.4087,
+        "changePercent": 0.06392953544538393,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "dirty",
+        "metric": "prepareP95Ms",
+        "before": 1.398,
+        "after": 1.3807,
+        "changePercent": -1.237482117310429,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "dirty/composeCpuP95Ms",
+      "noisePercent": 5.0,
+      "pair1": {
+        "scenario": "dirty",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0189,
+        "after": 0.0198,
+        "changePercent": 4.761904761904767,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "dirty",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0201,
+        "after": 0.021,
+        "changePercent": 4.47761194029852,
+        "noisePercent": 5.0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "dirty",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0189,
+        "after": 0.0201,
+        "changePercent": 6.349206349206349,
+        "noisePercent": 5.0,
+        "regressed": true
+      },
+      "candidateControl": {
+        "scenario": "dirty",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0198,
+        "after": 0.021,
+        "changePercent": 6.060606060606055,
+        "noisePercent": 5.0,
+        "regressed": true
+      },
+      "baselineControlOutsideBand": true,
+      "candidateControlOutsideBand": true,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "dirty/privateBytes",
+      "noisePercent": 2.0,
+      "pair1": {
+        "scenario": "dirty",
+        "metric": "privateBytes",
+        "before": 29175808,
+        "after": 28917760,
+        "changePercent": -0.8844587954513594,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "dirty",
+        "metric": "privateBytes",
+        "before": 28700672,
+        "after": 29528064,
+        "changePercent": 2.8828314542600264,
+        "noisePercent": 2.0,
+        "regressed": true
+      },
+      "baselineControl": {
+        "scenario": "dirty",
+        "metric": "privateBytes",
+        "before": 29175808,
+        "after": 28700672,
+        "changePercent": -1.6285273059104322,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "dirty",
+        "metric": "privateBytes",
+        "before": 28917760,
+        "after": 29528064,
+        "changePercent": 2.1104815864022575,
+        "noisePercent": 2.0,
+        "regressed": true
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": true,
+      "repeatedPairFlag": false,
+      "interpretation": "single-pair-flag-unresolved"
+    },
+    {
+      "key": "dirty/privatePeakBytes",
+      "noisePercent": 2.0,
+      "pair1": {
+        "scenario": "dirty",
+        "metric": "privatePeakBytes",
+        "before": 29290496,
+        "after": 28921856,
+        "changePercent": -1.2585652356313815,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "dirty",
+        "metric": "privatePeakBytes",
+        "before": 28708864,
+        "after": 29556736,
+        "changePercent": 2.953345698387788,
+        "noisePercent": 2.0,
+        "regressed": true
+      },
+      "baselineControl": {
+        "scenario": "dirty",
+        "metric": "privatePeakBytes",
+        "before": 29290496,
+        "after": 28708864,
+        "changePercent": -1.9857362606628404,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "dirty",
+        "metric": "privatePeakBytes",
+        "before": 28921856,
+        "after": 29556736,
+        "changePercent": 2.1951564934145296,
+        "noisePercent": 2.0,
+        "regressed": true
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": true,
+      "repeatedPairFlag": false,
+      "interpretation": "single-pair-flag-unresolved"
+    },
+    {
+      "key": "dirty/workingSetBytes",
+      "noisePercent": 2.0,
+      "pair1": {
+        "scenario": "dirty",
+        "metric": "workingSetBytes",
+        "before": 45051904,
+        "after": 44953600,
+        "changePercent": -0.21820165469588204,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "dirty",
+        "metric": "workingSetBytes",
+        "before": 44888064,
+        "after": 45170688,
+        "changePercent": 0.6296194908294472,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "dirty",
+        "metric": "workingSetBytes",
+        "before": 45051904,
+        "after": 44888064,
+        "changePercent": -0.36366942449314044,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "dirty",
+        "metric": "workingSetBytes",
+        "before": 44953600,
+        "after": 45170688,
+        "changePercent": 0.48291571753986684,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "dirty/workingSetPeakBytes",
+      "noisePercent": 2.0,
+      "pair1": {
+        "scenario": "dirty",
+        "metric": "workingSetPeakBytes",
+        "before": 45113344,
+        "after": 44953600,
+        "changePercent": -0.3540947884510648,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "dirty",
+        "metric": "workingSetPeakBytes",
+        "before": 44924928,
+        "after": 45170688,
+        "changePercent": 0.547045951859948,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "dirty",
+        "metric": "workingSetPeakBytes",
+        "before": 45113344,
+        "after": 44924928,
+        "changePercent": -0.4176502633012502,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "dirty",
+        "metric": "workingSetPeakBytes",
+        "before": 44953600,
+        "after": 45170688,
+        "changePercent": 0.48291571753986684,
+        "noisePercent": 2.0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "dirty/surfaceBytes",
+      "noisePercent": 0,
+      "pair1": {
+        "scenario": "dirty",
+        "metric": "surfaceBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "dirty",
+        "metric": "surfaceBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "dirty",
+        "metric": "surfaceBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "dirty",
+        "metric": "surfaceBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "dirty/replacementPeakBytes",
+      "noisePercent": 0,
+      "pair1": {
+        "scenario": "dirty",
+        "metric": "replacementPeakBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "dirty",
+        "metric": "replacementPeakBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "dirty",
+        "metric": "replacementPeakBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "dirty",
+        "metric": "replacementPeakBytes",
+        "before": 3686400,
+        "after": 3686400,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "dirty/cppAllocations",
+      "noisePercent": 0,
+      "pair1": {
+        "scenario": "dirty",
+        "metric": "cppAllocations",
+        "before": 2160,
+        "after": 2160,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "dirty",
+        "metric": "cppAllocations",
+        "before": 2160,
+        "after": 2160,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "dirty",
+        "metric": "cppAllocations",
+        "before": 2160,
+        "after": 2160,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "dirty",
+        "metric": "cppAllocations",
+        "before": 2160,
+        "after": 2160,
+        "changePercent": 0.0,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    },
+    {
+      "key": "dirty/composeAllocations",
+      "noisePercent": 0,
+      "pair1": {
+        "scenario": "dirty",
+        "metric": "composeAllocations",
+        "before": 0,
+        "after": 0,
+        "changePercent": null,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "pair2": {
+        "scenario": "dirty",
+        "metric": "composeAllocations",
+        "before": 0,
+        "after": 0,
+        "changePercent": null,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControl": {
+        "scenario": "dirty",
+        "metric": "composeAllocations",
+        "before": 0,
+        "after": 0,
+        "changePercent": null,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "candidateControl": {
+        "scenario": "dirty",
+        "metric": "composeAllocations",
+        "before": 0,
+        "after": 0,
+        "changePercent": null,
+        "noisePercent": 0,
+        "regressed": false
+      },
+      "baselineControlOutsideBand": false,
+      "candidateControlOutsideBand": false,
+      "repeatedPairFlag": false,
+      "interpretation": "no-threshold-flag-in-this-crossover"
+    }
+  ]
+}

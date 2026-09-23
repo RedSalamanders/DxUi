@@ -1,0 +1,234 @@
+﻿Build started 23/09/2026 21:56:05.
+Logging verbosity is set to: Normal.
+     1>Project "Z:\src\DxUi-worktrees\i26-menu-description\DxUi.sln" on node 1 (Rebuild target(s)).
+     1>ValidateSolutionConfiguration:
+         Building solution configuration "Release|x64".
+     1>Project "Z:\src\DxUi-worktrees\i26-menu-description\DxUi.sln" (1) is building "Z:\src\DxUi-worktrees\i26-menu-description\src\DxUi.vcxproj" (2) on node 1 (Rebuild target(s)).
+     2>_PrepareForClean:
+         Deleting file "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.tlog\DxUi.lastbuildstate".
+       PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+       InitializeBuildStatus:
+         Creating "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+         Touching "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.tlog\unsuccessfulbuild".
+     1>Project "Z:\src\DxUi-worktrees\i26-menu-description\DxUi.sln" (1) is building "Z:\src\DxUi-worktrees\i26-menu-description\Samples\EmbeddedControls\DxUi.EmbeddedControls.vcxproj" (4) on node 3 (Rebuild target(s)).
+     4>_PrepareForClean:
+         Deleting file "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\DxUi.EmbeddedControls.lastbuildstate".
+     1>Project "Z:\src\DxUi-worktrees\i26-menu-description\DxUi.sln" (1) is building "Z:\src\DxUi-worktrees\i26-menu-description\Tests\Foundation\DxUi.FoundationTests.vcxproj" (3) on node 5 (Rebuild target(s)).
+     3>_PrepareForClean:
+         Deleting file "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\DxUi.FoundationTests.lastbuildstate".
+     1>Project "Z:\src\DxUi-worktrees\i26-menu-description\DxUi.sln" (1) is building "Z:\src\DxUi-worktrees\i26-menu-description\Tests\Controls\DxUi.ControlTests.vcxproj" (5) on node 2 (Rebuild target(s)).
+     5>_PrepareForClean:
+         Deleting file "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\DxUi.ControlTests.lastbuildstate".
+     1>Project "Z:\src\DxUi-worktrees\i26-menu-description\DxUi.sln" (1) is building "Z:\src\DxUi-worktrees\i26-menu-description\Tests\Embedded\DxUi.EmbeddedTests.vcxproj" (6) on node 4 (Rebuild target(s)).
+     6>_PrepareForClean:
+         Deleting file "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\DxUi.EmbeddedTests.lastbuildstate".
+     2>FxCompile:
+         C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x86\fxc.exe /nologo /E"VSMain" /T vs_5_0 /Fh "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.h" /Fo "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.cso" /Vn "g_DxUiCompositeVS" /Ges /O3 /Qstrip_debug /Qstrip_reflect /Qstrip_priv Rendering\CompositeVS.hlsl 
+         compilation header save succeeded; see Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.h
+         compilation object save succeeded; see Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.cso
+         C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x86\fxc.exe /nologo /E"PSMain" /T ps_5_0 /Fh "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.h" /Fo "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.cso" /Vn "g_DxUiCompositePS" /Ges /O3 /Qstrip_debug /Qstrip_reflect /Qstrip_priv Rendering\CompositePS.hlsl 
+         compilation header save succeeded; see Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.h
+         compilation object save succeeded; see Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.cso
+       ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+       ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /I"Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\\" /I"Z:\src\DxUi-worktrees\i26-menu-description\include" /I"Z:\src\DxUi-worktrees\i26-menu-description\.build\vcpkg_installed\x64\x64-windows\include" /Zi /nologo /W4 /WX /diagnostics:column /sdl /O2 /D NDEBUG /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\\" /Fd"Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor Controls\ControlCatalog.cpp Controls\NativeMenuInterop.cpp Rendering\Embedded.cpp Foundation\FrameRuntime.cpp Controls\DxUi.Accessibility.cpp Controls\DxUi.ComboBox.cpp Controls\DxUi.Controls.cpp Controls\DxUi.cpp Controls\DxUi.Grid.cpp Controls\DxUi.Menu.cpp Controls\DxUi.NativeTextInput.cpp Controls\DxUi.PointerInput.cpp Controls\DxUi.Scrollbar.cpp Controls\DxUi.SingleLineTextEditing.cpp Controls\DxUi.TextInput.cpp Controls\DxUi.TextStoreACP.cpp Controls\TextInputServices.cpp Controls\TextClipboard.cpp Controls\DxUi.Theme.cpp Controls\DxUi.Tree.cpp Controls\DxUi.Typeahead.cpp Controls\DxUi.WindowHost.cpp
+         ControlCatalog.cpp
+         NativeMenuInterop.cpp
+         Embedded.cpp
+         FrameRuntime.cpp
+         DxUi.Accessibility.cpp
+         DxUi.ComboBox.cpp
+         DxUi.Controls.cpp
+         DxUi.cpp
+         DxUi.Grid.cpp
+         DxUi.Menu.cpp
+         DxUi.NativeTextInput.cpp
+         DxUi.PointerInput.cpp
+         DxUi.Scrollbar.cpp
+         DxUi.SingleLineTextEditing.cpp
+         DxUi.TextInput.cpp
+         DxUi.TextStoreACP.cpp
+         TextInputServices.cpp
+         TextClipboard.cpp
+         DxUi.Theme.cpp
+         DxUi.Tree.cpp
+         Generating Code...
+         Compiling...
+         DxUi.Typeahead.cpp
+         DxUi.WindowHost.cpp
+         Generating Code...
+       Lib:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\Lib.exe /OUT:"Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.lib" /NOLOGO /MACHINE:X64 "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\ControlCatalog.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\NativeMenuInterop.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\Embedded.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\FrameRuntime.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.Accessibility.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.ComboBox.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.Controls.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.Grid.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.Menu.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.NativeTextInput.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.PointerInput.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.Scrollbar.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.SingleLineTextEditing.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.TextInput.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.TextStoreACP.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\TextInputServices.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\TextClipboard.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.Theme.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.Tree.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.Typeahead.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.WindowHost.obj"
+         DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.lib
+       FinalizeBuildStatus:
+         Deleting file "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.tlog\unsuccessfulbuild".
+         Touching "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi\DxUi.tlog\DxUi.lastbuildstate".
+     2>Done Building Project "Z:\src\DxUi-worktrees\i26-menu-description\src\DxUi.vcxproj" (Rebuild target(s)).
+     3>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+     6>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+     4>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+     5>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+     6>InitializeBuildStatus:
+         Creating "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+     3>InitializeBuildStatus:
+         Creating "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+     4>InitializeBuildStatus:
+         Creating "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+     5>InitializeBuildStatus:
+         Creating "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+     6>InitializeBuildStatus:
+         Touching "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\unsuccessfulbuild".
+     3>InitializeBuildStatus:
+         Touching "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\unsuccessfulbuild".
+     4>InitializeBuildStatus:
+         Touching "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\unsuccessfulbuild".
+     5>InitializeBuildStatus:
+         Touching "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\unsuccessfulbuild".
+     4>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+     3>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+     5>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+     4>ComputeStdModulesCompileInputs:
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+     5>ComputeStdModulesCompileInputs:
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+     3>ComputeStdModulesCompileInputs:
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+     5>ComputeStdModulesCompileInputs:
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+     3>ComputeStdModulesCompileInputs:
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+     4>ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /I"Z:\src\DxUi-worktrees\i26-menu-description\include" /I"Z:\src\DxUi-worktrees\i26-menu-description\.build\vcpkg_installed\x64\x64-windows\include" /Zi /nologo /W4 /WX /diagnostics:column /sdl /O2 /D NDEBUG /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\\" /Fd"Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\vc145.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor Main.cpp
+     3>ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /I"Z:\src\DxUi-worktrees\i26-menu-description\include" /I"Z:\src\DxUi-worktrees\i26-menu-description\.build\vcpkg_installed\x64\x64-windows\include" /Zi /nologo /W4 /WX /diagnostics:column /sdl /O2 /D NDEBUG /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.FoundationTests\\" /Fd"Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.FoundationTests\vc145.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor FoundationTests.cpp PublicHelpersTests.cpp
+     5>ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /I"Z:\src\DxUi-worktrees\i26-menu-description\include" /I"Z:\src\DxUi-worktrees\i26-menu-description\.build\vcpkg_installed\x64\x64-windows\include" /Zi /nologo /W4 /WX /diagnostics:column /sdl /O2 /D ENABLE_TESTS /D NDEBUG /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\\" /Fd"Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\vc145.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor DxUiTests.Accessibility.cpp DxUiTests.Animation.cpp DxUiTests.ComboBox.cpp DxUiTests.Controls.cpp DxUiTests.cpp DxUiTests.Gallery.cpp DxUiTests.Grid.cpp DxUiTests.Menu.cpp DxUiTests.MultilineText.cpp DxUiTests.NativeTextInput.cpp DxUiTests.NewControls.cpp DxUiTests.ReadOnly.cpp DxUiTests.Rendering.cpp DxUiTests.TextField.cpp DxUiTests.Theme.cpp DxUiTests.Tooltip.cpp DxUiTests.Tree.cpp DxUiTests.WindowHost.cpp
+     6>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+       ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /I"Z:\src\DxUi-worktrees\i26-menu-description\include" /I"Z:\src\DxUi-worktrees\i26-menu-description\.build\vcpkg_installed\x64\x64-windows\include" /Zi /nologo /W4 /WX /diagnostics:column /sdl /O2 /D NDEBUG /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\\" /Fd"Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\vc145.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor EmbeddedTests.cpp
+     3>ClCompile:
+         FoundationTests.cpp
+     5>ClCompile:
+         DxUiTests.Accessibility.cpp
+     4>ClCompile:
+         Main.cpp
+     6>ClCompile:
+         EmbeddedTests.cpp
+     3>ClCompile:
+         PublicHelpersTests.cpp
+         Generating Code...
+       Link:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.FoundationTests.exe" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.FoundationTests.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.FoundationTests.lib" /MACHINE:X64 "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.FoundationTests\FoundationTests.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.FoundationTests\PublicHelpersTests.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.lib"
+     4>Link:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.EmbeddedControls.exe" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.EmbeddedControls.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.EmbeddedControls.lib" /MACHINE:X64 "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\Main.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.lib"
+     5>ClCompile:
+         DxUiTests.Animation.cpp
+     3>Link:
+         DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.FoundationTests.exe
+       FinalizeBuildStatus:
+         Deleting file "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\unsuccessfulbuild".
+         Touching "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\DxUi.FoundationTests.lastbuildstate".
+     3>Done Building Project "Z:\src\DxUi-worktrees\i26-menu-description\Tests\Foundation\DxUi.FoundationTests.vcxproj" (Rebuild target(s)).
+     4>Link:
+         DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.EmbeddedControls.exe
+       FinalizeBuildStatus:
+         Deleting file "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\unsuccessfulbuild".
+         Touching "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\DxUi.EmbeddedControls.lastbuildstate".
+     4>Done Building Project "Z:\src\DxUi-worktrees\i26-menu-description\Samples\EmbeddedControls\DxUi.EmbeddedControls.vcxproj" (Rebuild target(s)).
+     6>Link:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.EmbeddedTests.exe" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.EmbeddedTests.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.EmbeddedTests.lib" /MACHINE:X64 "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\EmbeddedTests.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.lib"
+         DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.EmbeddedTests.exe
+       FinalizeBuildStatus:
+         Deleting file "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\unsuccessfulbuild".
+         Touching "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\DxUi.EmbeddedTests.lastbuildstate".
+     6>Done Building Project "Z:\src\DxUi-worktrees\i26-menu-description\Tests\Embedded\DxUi.EmbeddedTests.vcxproj" (Rebuild target(s)).
+     5>ClCompile:
+         DxUiTests.ComboBox.cpp
+         DxUiTests.Controls.cpp
+         DxUiTests.cpp
+         DxUiTests.Gallery.cpp
+         DxUiTests.Grid.cpp
+         DxUiTests.Menu.cpp
+         DxUiTests.MultilineText.cpp
+         DxUiTests.NativeTextInput.cpp
+         DxUiTests.NewControls.cpp
+         DxUiTests.ReadOnly.cpp
+         DxUiTests.Rendering.cpp
+         DxUiTests.TextField.cpp
+         DxUiTests.Theme.cpp
+         DxUiTests.Tooltip.cpp
+         DxUiTests.Tree.cpp
+         DxUiTests.WindowHost.cpp
+         Generating Code...
+       Link:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.ControlTests.exe" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.ControlTests.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.ControlTests.lib" /MACHINE:X64 "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Accessibility.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Animation.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.ComboBox.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Controls.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Gallery.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Grid.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Menu.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.MultilineText.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.NativeTextInput.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.NewControls.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.ReadOnly.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Rendering.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.TextField.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Theme.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Tooltip.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Tree.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.WindowHost.obj"
+         "Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.lib"
+         DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.ControlTests.exe
+       FinalizeBuildStatus:
+         Deleting file "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\unsuccessfulbuild".
+         Touching "Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\DxUi.ControlTests.lastbuildstate".
+     5>Done Building Project "Z:\src\DxUi-worktrees\i26-menu-description\Tests\Controls\DxUi.ControlTests.vcxproj" (Rebuild target(s)).
+     1>Done Building Project "Z:\src\DxUi-worktrees\i26-menu-description\DxUi.sln" (Rebuild target(s)).
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:02:18.06
