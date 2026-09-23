@@ -14,3 +14,5 @@ Validate changed guidance with `validate-skills.ps1` and `validate-specs.ps1`. F
 in `capabilities.json`; library tests do not replace consumer product qualification or deferred native-platform/IME/AT coverage.
 
 Update ControlCatalog and the all-control gallery when adding a concrete control. Run its interaction tests and generate the themed sheets with gallery.ps1.
+Add its `docs/controls.md` entry and its design-system guideline and preview under `Specs/DesignSystem/components`
+per [the design-system contract](../../../Specs/UI/UI_DesignSystem.md); visual changes update the affected tokens and previews.

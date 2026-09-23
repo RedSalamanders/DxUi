@@ -1,0 +1,78 @@
+{
+  "v": 3,
+  "layout": "files",
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-09-23T08:29:51Z"
+  },
+  "title": "DxUi",
+  "namespace": "DxUi",
+  "libraries": [],
+  "sections": {},
+  "groups": [
+    "Gallery"
+  ],
+  "assetGroups": {
+    "Gallery": {
+      "name": "Gallery",
+      "tile": "l",
+      "order": [
+        "theme-controls-light.png",
+        "theme-controls-dark.png",
+        "theme-controls-high-contrast.png",
+        "theme-controls-rainbow-light.png",
+        "theme-controls-rainbow-dark.png",
+        "embedded-controls.png"
+      ],
+      "files": {
+        "theme-controls-light.png": {
+          "name": "theme-controls-light.png",
+          "blob": "ac011c59cce74f0b2bd4fca058c74e79",
+          "size": 307080,
+          "type": "image/png"
+        },
+        "theme-controls-dark.png": {
+          "name": "theme-controls-dark.png",
+          "blob": "8abf07129db4b5a0d90ccea1be02a44d",
+          "size": 308556,
+          "type": "image/png"
+        },
+        "theme-controls-high-contrast.png": {
+          "name": "theme-controls-high-contrast.png",
+          "blob": "889ee0de84bf4196a9f98b6ee868fa39",
+          "size": 298638,
+          "type": "image/png"
+        },
+        "theme-controls-rainbow-light.png": {
+          "name": "theme-controls-rainbow-light.png",
+          "blob": "c92bab7522394ac5b91abab5df9d3a62",
+          "size": 309372,
+          "type": "image/png"
+        },
+        "theme-controls-rainbow-dark.png": {
+          "name": "theme-controls-rainbow-dark.png",
+          "blob": "8f6a3c30da46b622e5583020996f9f32",
+          "size": 310159,
+          "type": "image/png"
+        },
+        "embedded-controls.png": {
+          "name": "embedded-controls.png",
+          "blob": "74c23e6cccb551e5df9adddef5086d87",
+          "size": 6375,
+          "type": "image/png"
+        }
+      }
+    }
+  },
+  "blobs": {},
+  "docs": {
+    "readme": "project/README.md",
+    "sections": []
+  },
+  "lastChange": {
+    "by": "eric-jesover",
+    "at": "2026-09-23T08:52:05Z",
+    "via": "Claude Code · RedSalamanders/DxUi@feature/design-system",
+    "note": "All 30 catalog controls previewed; Theming section from the RedSalamander review; ProgressBar colors corrected."
+  }
+}

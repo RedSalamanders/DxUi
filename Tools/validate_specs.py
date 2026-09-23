@@ -17,7 +17,7 @@ def main():
         'Specs/UI/UI_ControlsAndLayout.md', 'Specs/UI/UI_ThemeAndTypography.md',
         'Specs/UI/UI_InputAndAccessibility.md', 'Specs/Rendering/Rendering_EmbeddedD3D11.md',
         'Specs/Rendering/Rendering_Win32Host.md', 'Specs/Testing/Testing_Validation.md',
-        'Specs/Core/Core_Documentation.md', 'docs/README.md', 'docs/controls.md', 'docs/getting-started.md',
+        'Specs/Core/Core_Documentation.md', 'Specs/UI/UI_DesignSystem.md', 'Specs/DesignSystem/README.md', 'docs/README.md', 'docs/controls.md', 'docs/getting-started.md',
         'docs/hosting.md', 'docs/performance.md', 'docs/gallery/README.md', 'docs/samples.md', 'Measurements/README.md',
     ]
     for name in required:
@@ -40,6 +40,7 @@ def main():
     if set(indexed) != expected or len(indexed) != len(set(indexed)):
         failures.append('Every direct WIP plan must appear exactly once in its index')
     failures.extend(validate_docs(ROOT))
+    failures.extend(validate_design_system(ROOT))
     failures.extend(validate_measurements(ROOT))
     if failures:
         print('\n'.join(failures), file=sys.stderr)
@@ -74,14 +75,49 @@ def validate_measurements(root):
     return failures
 
 
+def catalog_controls(root):
+    catalog = (root / 'include/DxUi/ControlCatalog.h').read_text(encoding='utf-8')
+    names = re.search(r'enum class ControlKind[^\{]*\{([^}]+)', catalog).group(1)
+    return [name.strip() for name in names.split(',') if name.strip()]
+
+
+def validate_design_system(root):
+    # Every catalog control has design-system guidelines and a preview; no stale component remains.
+    failures = []
+    system = root / 'Specs/DesignSystem'
+    try:
+        controls = catalog_controls(root)
+        index = json.loads((system / 'design-system.json').read_text(encoding='utf-8-sig'))
+        tokens = json.loads((system / 'tokens.json').read_text(encoding='utf-8-sig'))
+        if index.get('layout') != 'files' or not index.get('title'):
+            failures.append('Invalid design-system index')
+        if not tokens['color']['themes'] or not tokens['color']['tokens']:
+            failures.append('Design-system tokens need themes and colors')
+        if not (system / 'README.md').read_text(encoding='utf-8').strip():
+            failures.append('Empty design-system README')
+        components = system / 'components'
+        for name in controls:
+            guide = components / name / 'README.md'
+            preview = components / name / 'preview.html'
+            if not guide.is_file() or not preview.is_file():
+                failures.append(f'Missing design-system component: {name}')
+            elif not preview.read_text(encoding='utf-8').startswith('<!-- @dsCard '):
+                failures.append(f'Design-system preview lacks its card marker: {name}')
+        known = set(controls) | {'Cover'}
+        for folder in components.iterdir():
+            if folder.is_dir() and folder.name not in known:
+                failures.append(f'Design-system component is not in the catalog: {folder.name}')
+    except (OSError, ValueError, KeyError, AttributeError, TypeError) as error:
+        failures.append(f'Invalid design system: {error}')
+    return failures
+
+
 def validate_docs(root):
     failures = []
     try:
         if '](docs/README.md)' not in (root / 'README.md').read_text(encoding='utf-8-sig'):
             failures.append('Root README must link docs/README.md')
-        catalog = (root / 'include/DxUi/ControlCatalog.h').read_text(encoding='utf-8')
-        names = re.search(r'enum class ControlKind[^\{]*\{([^}]+)', catalog).group(1)
-        controls = [name.strip() for name in names.split(',') if name.strip()]
+        controls = catalog_controls(root)
         guide = (root / 'docs/controls.md').read_text(encoding='utf-8-sig')
         for name in controls:
             if not re.search(r'^\| ' + re.escape(name) + r' \|', guide, re.MULTILINE):

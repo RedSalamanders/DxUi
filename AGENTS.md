@@ -20,7 +20,8 @@ The repository is public and its default branch is `main`. Use focused feature b
 - Embedded hosting borrows the application's device/context and uses its scheduling. It owns no swap chain,
   renderer HWND, worker or periodic timer. Preparation and composition are separate contracts.
 - Validate the control and embedded suites for UI changes; Foundation alone cannot establish their correctness.
-- New controls require a catalog/factory entry, meaningful interaction tests and a populated gallery tile.
+- New controls require a catalog/factory entry, meaningful interaction tests, a populated gallery tile, a
+  docs/controls.md entry and a design-system guideline and preview (Specs/UI/UI_DesignSystem.md), republished.
 - Application screenshots for specifications, documentation, and UI reviews must be generated through the
   application's test harness with deterministic scenarios and no desktop takeover. Reuse or extend harness
   capture support rather than using Computer Use or manual desktop screenshots. Preserve scenario/build
