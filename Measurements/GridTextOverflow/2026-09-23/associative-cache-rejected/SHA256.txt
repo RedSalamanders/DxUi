@@ -1,0 +1,497 @@
+[
+  {
+    "path": "raw/associative-build.log",
+    "sha256": "30b58ce4a95cb09e5354c17fec7a2220090306c5e8b1305991e08bd8d2917ec3",
+    "sourceRelativePath": "associative-build.log"
+  },
+  {
+    "path": "raw/associative-common.json",
+    "sha256": "599f6b36da1a6da6246679d5365ccdafd5dbc4c1d058b4e2b1b02b17ef67199e",
+    "sourceRelativePath": "associative-common.json"
+  },
+  {
+    "path": "raw/associative-common.json.comparison.json",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "sourceRelativePath": "associative-common.json.comparison.json"
+  },
+  {
+    "path": "raw/associative-heap.json",
+    "sha256": "b20e5e9e34496f39c9c4665ab6fccef292b4261d2128645e0143dcfea4b5f5ed",
+    "sourceRelativePath": "associative-heap.json"
+  },
+  {
+    "path": "raw/associative-heap.json.comparison.json",
+    "sha256": "7d2a7bdd6110297fa8b3d807889feeaeda77ef2bdd34eae4b96bdb1341928d57",
+    "sourceRelativePath": "associative-heap.json.comparison.json"
+  },
+  {
+    "path": "raw/associative-heap.log",
+    "sha256": "d592e48b02d6189bd8896d1eeda4b6f2a6c884491aa953b9ac6af6b7ec123a50",
+    "sourceRelativePath": "associative-heap.log"
+  },
+  {
+    "path": "raw/associative-inputs.receipt.txt",
+    "sha256": "ef3d9376903186d14dbc33568ff9a66f651023bb66b88182963c1ca108da006c",
+    "sourceRelativePath": "associative-inputs.json"
+  },
+  {
+    "path": "raw/dependencies.log",
+    "sha256": "09905665f8ccc3fe429dc332f13f2926f05059e3f2002b7cdd1c0cbdacb2d686",
+    "sourceRelativePath": "dependencies.log"
+  },
+  {
+    "path": "raw/direct-map-build.log",
+    "sha256": "e8179c3e7c08ba88b47f6c4fb3b14624e26b1e41ffaf518730aeb102373cc29c",
+    "sourceRelativePath": "direct-map-build.log"
+  },
+  {
+    "path": "raw/direct-map-common.json",
+    "sha256": "8859142730df50f3426f54e746cab27aaa6f89040d6f200caafd30e1390bdd7e",
+    "sourceRelativePath": "direct-map-common.json"
+  },
+  {
+    "path": "raw/direct-map-Embedded-x64-Release.receipt.txt",
+    "sha256": "ce2e54afef135712743456ee7d1985f61be7c1848ba15675802455a1ca3d58e1",
+    "sourceRelativePath": "direct-map-Embedded-x64-Release.json"
+  },
+  {
+    "path": "raw/direct-map-Embedded-x64-Release.log",
+    "sha256": "64ca7e89b85d2cf36bd94484f565ce1a8efd76f6fcd28503f2c0335f53dc8772",
+    "sourceRelativePath": "direct-map-Embedded-x64-Release.log"
+  },
+  {
+    "path": "raw/direct-map-Grid-x64-Release.receipt.txt",
+    "sha256": "996c23be6df163452258b8d3dd6bd7977ecc28251b99282e8bf75f10a160a217",
+    "sourceRelativePath": "direct-map-Grid-x64-Release.json"
+  },
+  {
+    "path": "raw/direct-map-Grid-x64-Release.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "sourceRelativePath": "direct-map-Grid-x64-Release.log"
+  },
+  {
+    "path": "raw/direct-map-heap-exit.txt",
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "sourceRelativePath": "direct-map-heap-exit.txt"
+  },
+  {
+    "path": "raw/direct-map-heap.json",
+    "sha256": "70c6a1150c5d5260f6548bb8c8be6b555d0a0f67bcb47a85689826320f0bb40c",
+    "sourceRelativePath": "direct-map-heap.json"
+  },
+  {
+    "path": "raw/direct-map-heap.json.comparison.json",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "sourceRelativePath": "direct-map-heap.json.comparison.json"
+  },
+  {
+    "path": "raw/direct-map-heap.log",
+    "sha256": "16f9712e7d79843a41483e90db6e549f6ab36b316f5da5d6afbba238d4658dab",
+    "sourceRelativePath": "direct-map-heap.log"
+  },
+  {
+    "path": "raw/direct-map-inputs.receipt.txt",
+    "sha256": "42894da24f5731faee155164987c959563e939cad18aeccedc52efcca2dfc541",
+    "sourceRelativePath": "direct-map-inputs.json"
+  },
+  {
+    "path": "raw/direct-map-regression-build.log",
+    "sha256": "29011ce09896674e143c41677428fcd94b9e3ef84b2010b2942e9c0d65b6f569",
+    "sourceRelativePath": "direct-map-regression-build.log"
+  },
+  {
+    "path": "raw/direct-map-regression-tests.log",
+    "sha256": "28d54ec372f4c33c7ed1460c23e2fe28e9d8097dd6bb74bfc8a9b84de8364e34",
+    "sourceRelativePath": "direct-map-regression-tests.log"
+  },
+  {
+    "path": "raw/direct-map-Rendering-x64-Release.receipt.txt",
+    "sha256": "2eb9bbd547f4d812c01bee256352e736b3e3158b0550572a7bd24d1abe136846",
+    "sourceRelativePath": "direct-map-Rendering-x64-Release.json"
+  },
+  {
+    "path": "raw/direct-map-Rendering-x64-Release.log",
+    "sha256": "7e23973afcb1be80e72503be3c6c791b4ced22d48d7479511f63e00110cf59dc",
+    "sourceRelativePath": "direct-map-Rendering-x64-Release.log"
+  },
+  {
+    "path": "raw/measure-associative.ps1",
+    "sha256": "ba29a89578d84338865654cdd9f53372fdd7c80d268da97d0bce2e559254bf77",
+    "sourceRelativePath": "measure-associative.ps1"
+  },
+  {
+    "path": "raw/measure-direct-map.ps1",
+    "sha256": "06662286911c9ce8b8e61de118db25ae2b9b708529a5b2018d6a57b7cf0039aa",
+    "sourceRelativePath": "measure-direct-map.ps1"
+  },
+  {
+    "path": "raw/policy-provenance-correction.md",
+    "sha256": "7213e0d878acbc4bbdb123df9ef3a74984e5cbd9786f55998e47971c6bf1f711",
+    "sourceRelativePath": "policy-provenance-correction.md"
+  },
+  {
+    "path": "raw/qualify-warm32-associative-rebuilt.ps1",
+    "sha256": "7b64d370cea379624df9ac355b83f630ac2c24381ecdc1222faee956cd068ec8",
+    "sourceRelativePath": "qualify-warm32-associative-rebuilt.ps1"
+  },
+  {
+    "path": "raw/qualify-warm32-associative.ps1",
+    "sha256": "f7f0d1e663e2647500251b4f37a3f79567ddf10ff0a1a67e2ea1e24849f166fe",
+    "sourceRelativePath": "qualify-warm32-associative.ps1"
+  },
+  {
+    "path": "raw/qualify-warm32-direct-map-rebuilt.ps1",
+    "sha256": "8a6431345da936ffb736f3d18c72edf761c49e16a7a87f577d4c627936d831ac",
+    "sourceRelativePath": "qualify-warm32-direct-map-rebuilt.ps1"
+  },
+  {
+    "path": "raw/qualify-warm32-direct-map.ps1",
+    "sha256": "caf39a3303627128aeb6ca8a2ea47ce15b0f1764a7f4cef1130e749efdb6c942",
+    "sourceRelativePath": "qualify-warm32-direct-map.ps1"
+  },
+  {
+    "path": "raw/redundant-candidate-preparation-build.log",
+    "sha256": "1de2564de5b20c41873c250d46ebf57e12ab752247c86f506ea3f1727a6c6443",
+    "sourceRelativePath": "redundant-candidate-preparation-build.log"
+  },
+  {
+    "path": "raw/redundant-candidate-preparation-tests.log",
+    "sha256": "99f98bafc0a0be5a3fd1b6e1a3aa05729f38ac20646c01e83fe630bca776354f",
+    "sourceRelativePath": "redundant-candidate-preparation-tests.log"
+  },
+  {
+    "path": "raw/redundant-candidate-preparation.txt",
+    "sha256": "20bf5b0d17331169bf2936058f502bad680418925bebcd8a2fe58a07a733a6ee",
+    "sourceRelativePath": "redundant-candidate-preparation.txt"
+  },
+  {
+    "path": "raw/skills.log",
+    "sha256": "5b3f8f0d19ac78d111973206d219668da634ef8e7e9c4703a89f21c2aa31cc0b",
+    "sourceRelativePath": "skills.log"
+  },
+  {
+    "path": "raw/specs.log",
+    "sha256": "b51a36e61b6a5ef94fdce0613c9b92bffe59bc42da645050e1cd08cf92faf0c4",
+    "sourceRelativePath": "specs.log"
+  },
+  {
+    "path": "raw/warm-candidate-inputs.receipt.txt",
+    "sha256": "f28c1c8f5669115125721d283c39308c3c51b5cf6d74f512b7c52fa22e902ab8",
+    "sourceRelativePath": "warm-candidate-inputs.json"
+  },
+  {
+    "path": "raw/warm-candidate-receipts/Embedded-x64-Release.receipt.txt",
+    "sha256": "3dead3018472e76bac52a229a572bf07d253cde4520ba08181311b94e797309d",
+    "sourceRelativePath": "warm-candidate-receipts/Embedded-x64-Release.json"
+  },
+  {
+    "path": "raw/warm-candidate-receipts/Grid-x64-Release.receipt.txt",
+    "sha256": "2ba995cf6c136e18e69b5ba99ea87b177657d13ee6fb9a0a970ab86cf28fad5a",
+    "sourceRelativePath": "warm-candidate-receipts/Grid-x64-Release.json"
+  },
+  {
+    "path": "raw/warm-candidate-receipts/Rendering-x64-Release.receipt.txt",
+    "sha256": "ba71db0464e2d2388a8cd507dd4310d11a87a4b1f32041aabd8eca2a7f691f1b",
+    "sourceRelativePath": "warm-candidate-receipts/Rendering-x64-Release.json"
+  },
+  {
+    "path": "raw/warm-candidate-receipts/test-Embedded-x64-Release.log",
+    "sha256": "5378f83f5559fa3988e3a3d8f08b501402abeea0be9ffab0d7d1fe1261f8811b",
+    "sourceRelativePath": "warm-candidate-receipts/test-Embedded-x64-Release.log"
+  },
+  {
+    "path": "raw/warm-candidate-receipts/test-Grid-x64-Release.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "sourceRelativePath": "warm-candidate-receipts/test-Grid-x64-Release.log"
+  },
+  {
+    "path": "raw/warm-candidate-receipts/test-Rendering-x64-Release.log",
+    "sha256": "9d02d8b9036bdd45463eac4cc5a66dfd6f7b06fda2ad58241ef2dbada0035702",
+    "sourceRelativePath": "warm-candidate-receipts/test-Rendering-x64-Release.log"
+  },
+  {
+    "path": "raw/warm-regression-build.log",
+    "sha256": "c86d71cd1955958b39c66ce1a32400157b9d9d8c05be5e26125498859a47ac13",
+    "sourceRelativePath": "warm-regression-build.log"
+  },
+  {
+    "path": "raw/warm-regression-status.txt",
+    "sha256": "38acbf96f182f91f10d941f1698c308e36994cc09fca083b153cad99a75c1719",
+    "sourceRelativePath": "warm-regression-status.txt"
+  },
+  {
+    "path": "raw/warm-regression-tests.log",
+    "sha256": "ba4f854e9c1c48f4367df667288ff180864ca95d8f05fb516a5f854a4cee3ee2",
+    "sourceRelativePath": "warm-regression-tests.log"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/build-exit.txt",
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "sourceRelativePath": "warm32-associative-rebuilt/build-exit.txt"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/build.log",
+    "sha256": "cd09ed3206bd170a6a7e929b8631c0e2512930b419f9f2cc891e98d003b92464",
+    "sourceRelativePath": "warm32-associative-rebuilt/build.log"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/functional-Embedded.log",
+    "sha256": "0d8a5093de328b3b95fdc06a691038145f4b7b7c7cfcfddd64af7b45db4f81a6",
+    "sourceRelativePath": "warm32-associative-rebuilt/functional-Embedded.log"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/functional-Grid.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "sourceRelativePath": "warm32-associative-rebuilt/functional-Grid.log"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/functional-Rendering.log",
+    "sha256": "ecc85aeac5632eb79121e3c503a9fa8172a300c41e57ca3bbc49871905ef2d16",
+    "sourceRelativePath": "warm32-associative-rebuilt/functional-Rendering.log"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/functional-results.receipt.txt",
+    "sha256": "3073f55ce9c820c7e0a98e927a1250b2f711fd05861d5651f45779aab1a7d13e",
+    "sourceRelativePath": "warm32-associative-rebuilt/functional-results.json"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/inputs.receipt.txt",
+    "sha256": "1868f3ed4bbe160b80077fd4d74f7bd5ab96f59b4847e89ab9dc2674f5f0e57b",
+    "sourceRelativePath": "warm32-associative-rebuilt/inputs.json"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/performance.comparison.json",
+    "sha256": "322979d0af513f13dacab6e46dd3d86bee3be9ea99b27d5394e0d021995a67f4",
+    "sourceRelativePath": "warm32-associative-rebuilt/performance.comparison.json"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/performance.json",
+    "sha256": "24ae23fe8272656a511ab7a6e13a9db0e96d1a18ae05c1dae89021d861e6f0c2",
+    "sourceRelativePath": "warm32-associative-rebuilt/performance.json"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/RUNNER-FAILURE.md",
+    "sha256": "5e5f673238cd61358d2c48ff7a690cf37f55d63e5e9659be8cd9421d2d2dd0f1",
+    "sourceRelativePath": "warm32-associative-rebuilt/RUNNER-FAILURE.md"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/stale-copied-receipts/Embedded-x64-Release.receipt.txt",
+    "sha256": "02ccca2b3586d09da34da3713e9eda24c97437cdbad12853276d628cc7c07962",
+    "sourceRelativePath": "warm32-associative-rebuilt/stale-copied-receipts/Embedded-x64-Release.json"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/stale-copied-receipts/Grid-x64-Release.receipt.txt",
+    "sha256": "1eb1cf98b96304412cfd1697c9eed611d5f8c988cb01bd8572e7eea588edc3fb",
+    "sourceRelativePath": "warm32-associative-rebuilt/stale-copied-receipts/Grid-x64-Release.json"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/stale-copied-receipts/performance.comparison.json",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "sourceRelativePath": "warm32-associative-rebuilt/stale-copied-receipts/performance.comparison.json"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/stale-copied-receipts/performance.json",
+    "sha256": "bb9fca596b8e565d3905117a04333a87e67e2e71b163ec6d356871b5470a746e",
+    "sourceRelativePath": "warm32-associative-rebuilt/stale-copied-receipts/performance.json"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/stale-copied-receipts/Rendering-x64-Release.receipt.txt",
+    "sha256": "ca12436a43b675b73e975f7f23107a031de5b0a563407c604e253e1cfd2effef",
+    "sourceRelativePath": "warm32-associative-rebuilt/stale-copied-receipts/Rendering-x64-Release.json"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/stale-copied-receipts/test-Embedded-x64-Release.log",
+    "sha256": "76d15c46e66a71b75b07547e632cc1158cb25382df3b97b4cc305fe82812bb11",
+    "sourceRelativePath": "warm32-associative-rebuilt/stale-copied-receipts/test-Embedded-x64-Release.log"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/stale-copied-receipts/test-Grid-x64-Release.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "sourceRelativePath": "warm32-associative-rebuilt/stale-copied-receipts/test-Grid-x64-Release.log"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/stale-copied-receipts/test-Rendering-x64-Release.log",
+    "sha256": "6803325722a1b1aed320c3939af3bed2f1915b3b220b6750952f79d497bb035b",
+    "sourceRelativePath": "warm32-associative-rebuilt/stale-copied-receipts/test-Rendering-x64-Release.log"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/tests-exit.txt",
+    "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+    "sourceRelativePath": "warm32-associative-rebuilt/tests-exit.txt"
+  },
+  {
+    "path": "raw/warm32-associative-rebuilt/tests.log",
+    "sha256": "d8761b686667dc4b140f43d8b5576f04ea00bf017e0a8426251f9233675b84d9",
+    "sourceRelativePath": "warm32-associative-rebuilt/tests.log"
+  },
+  {
+    "path": "raw/warm32-direct-map/build-exit.txt",
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "sourceRelativePath": "warm32-direct-map/build-exit.txt"
+  },
+  {
+    "path": "raw/warm32-direct-map/build.log",
+    "sha256": "8df9700ce7b1e6ec993d9ebefb2aaa3690c5a235862b4579478b266d0b05b9ba",
+    "sourceRelativePath": "warm32-direct-map/build.log"
+  },
+  {
+    "path": "raw/warm32-direct-map/Embedded-x64-Release.receipt.txt",
+    "sha256": "60179225a6cc4f3159c450568483e084dac461049a3af287d948a1905a81a4b9",
+    "sourceRelativePath": "warm32-direct-map/Embedded-x64-Release.json"
+  },
+  {
+    "path": "raw/warm32-direct-map/Grid-x64-Release.receipt.txt",
+    "sha256": "de8c88a2416ca89d80c7bb74b5d85afa6b08ae5c5bc06d91dfbc441a46d5639b",
+    "sourceRelativePath": "warm32-direct-map/Grid-x64-Release.json"
+  },
+  {
+    "path": "raw/warm32-direct-map/inputs.receipt.txt",
+    "sha256": "dc893262233181973ce7b3a3568b7523239b90b99f8e17a044aa881bb87ce678",
+    "sourceRelativePath": "warm32-direct-map/inputs.json"
+  },
+  {
+    "path": "raw/warm32-direct-map/INVALID.md",
+    "sha256": "150def7ec2a38efbb26b608b6f0ee4c14c0e5f17537f3cbfc62c81eeb7360ab2",
+    "sourceRelativePath": "warm32-direct-map/INVALID.md"
+  },
+  {
+    "path": "raw/warm32-direct-map/performance.comparison.json",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "sourceRelativePath": "warm32-direct-map/performance.comparison.json"
+  },
+  {
+    "path": "raw/warm32-direct-map/performance.json",
+    "sha256": "b8816d17c23e37113b83db024fa07422aa6594b6c0bf14f3883d7609e1ffabb1",
+    "sourceRelativePath": "warm32-direct-map/performance.json"
+  },
+  {
+    "path": "raw/warm32-direct-map/Rendering-x64-Release.receipt.txt",
+    "sha256": "552becee6e48eb5c3a141e21d11c21d4dc2f466e258ba418c7878c10e71f3e35",
+    "sourceRelativePath": "warm32-direct-map/Rendering-x64-Release.json"
+  },
+  {
+    "path": "raw/warm32-direct-map/test-Embedded-x64-Release.log",
+    "sha256": "2eb816c2b8f6967b9636361d4619f214874339bb0a64e8840becf5e3e4b23c3d",
+    "sourceRelativePath": "warm32-direct-map/test-Embedded-x64-Release.log"
+  },
+  {
+    "path": "raw/warm32-direct-map/test-Grid-x64-Release.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "sourceRelativePath": "warm32-direct-map/test-Grid-x64-Release.log"
+  },
+  {
+    "path": "raw/warm32-direct-map/test-Rendering-x64-Release.log",
+    "sha256": "cbaa05d825e774bb94cbb7abd57d737eebb71c83ba1926bae0632e4d9e1b0cd4",
+    "sourceRelativePath": "warm32-direct-map/test-Rendering-x64-Release.log"
+  },
+  {
+    "path": "raw/warm32-direct-map/tests-exit.txt",
+    "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+    "sourceRelativePath": "warm32-direct-map/tests-exit.txt"
+  },
+  {
+    "path": "raw/warm32-direct-map/tests.log",
+    "sha256": "3a8cabf8ca71ec0f4d2ab997805f4d584da1e47af5e3281391b8deb88cb7bc40",
+    "sourceRelativePath": "warm32-direct-map/tests.log"
+  },
+  {
+    "path": "raw/warm32-direct-map-rebuilt/build-exit.txt",
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "sourceRelativePath": "warm32-direct-map-rebuilt/build-exit.txt"
+  },
+  {
+    "path": "raw/warm32-direct-map-rebuilt/build.log",
+    "sha256": "9fc81e03874a488c0def9c5761a572a7c2d965321b8ea62482ed79aa15e8ede2",
+    "sourceRelativePath": "warm32-direct-map-rebuilt/build.log"
+  },
+  {
+    "path": "raw/warm32-direct-map-rebuilt/Embedded-x64-Release.receipt.txt",
+    "sha256": "02ccca2b3586d09da34da3713e9eda24c97437cdbad12853276d628cc7c07962",
+    "sourceRelativePath": "warm32-direct-map-rebuilt/Embedded-x64-Release.json"
+  },
+  {
+    "path": "raw/warm32-direct-map-rebuilt/Grid-x64-Release.receipt.txt",
+    "sha256": "1eb1cf98b96304412cfd1697c9eed611d5f8c988cb01bd8572e7eea588edc3fb",
+    "sourceRelativePath": "warm32-direct-map-rebuilt/Grid-x64-Release.json"
+  },
+  {
+    "path": "raw/warm32-direct-map-rebuilt/inputs.receipt.txt",
+    "sha256": "b0729aab8e5605129187e1b06a7b5bd17b2c48266e782d578992c08abcec1322",
+    "sourceRelativePath": "warm32-direct-map-rebuilt/inputs.json"
+  },
+  {
+    "path": "raw/warm32-direct-map-rebuilt/performance.comparison.json",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "sourceRelativePath": "warm32-direct-map-rebuilt/performance.comparison.json"
+  },
+  {
+    "path": "raw/warm32-direct-map-rebuilt/performance.json",
+    "sha256": "bb9fca596b8e565d3905117a04333a87e67e2e71b163ec6d356871b5470a746e",
+    "sourceRelativePath": "warm32-direct-map-rebuilt/performance.json"
+  },
+  {
+    "path": "raw/warm32-direct-map-rebuilt/Rendering-x64-Release.receipt.txt",
+    "sha256": "ca12436a43b675b73e975f7f23107a031de5b0a563407c604e253e1cfd2effef",
+    "sourceRelativePath": "warm32-direct-map-rebuilt/Rendering-x64-Release.json"
+  },
+  {
+    "path": "raw/warm32-direct-map-rebuilt/test-Embedded-x64-Release.log",
+    "sha256": "76d15c46e66a71b75b07547e632cc1158cb25382df3b97b4cc305fe82812bb11",
+    "sourceRelativePath": "warm32-direct-map-rebuilt/test-Embedded-x64-Release.log"
+  },
+  {
+    "path": "raw/warm32-direct-map-rebuilt/test-Grid-x64-Release.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "sourceRelativePath": "warm32-direct-map-rebuilt/test-Grid-x64-Release.log"
+  },
+  {
+    "path": "raw/warm32-direct-map-rebuilt/test-Rendering-x64-Release.log",
+    "sha256": "6803325722a1b1aed320c3939af3bed2f1915b3b220b6750952f79d497bb035b",
+    "sourceRelativePath": "warm32-direct-map-rebuilt/test-Rendering-x64-Release.log"
+  },
+  {
+    "path": "raw/warm32-direct-map-rebuilt/tests-exit.txt",
+    "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+    "sourceRelativePath": "warm32-direct-map-rebuilt/tests-exit.txt"
+  },
+  {
+    "path": "raw/warm32-direct-map-rebuilt/tests.log",
+    "sha256": "7cd76c642a3acca3c2d5d0d209d439cb60618bed27a88506a8d992f5afcaff74",
+    "sourceRelativePath": "warm32-direct-map-rebuilt/tests.log"
+  },
+  {
+    "path": "patches/warm32-direct-map-rebuilt.patch",
+    "sha256": "b760ef8b0bb8adf74275fee1cf82b82303f7b482ed105c562966363fcff5f576",
+    "sourceRelativePath": null
+  },
+  {
+    "path": "patches/warm32-associative-rebuilt.patch",
+    "sha256": "e88ba1f395eb91b75bfc111606bfad3cae49bfe68304833b3a5d09fe5e62e461",
+    "sourceRelativePath": null
+  },
+  {
+    "path": "raw/checked-sol-audit.md",
+    "sha256": "0bb6ff762bb5816b158da8aeb2e86b70371f21f71db2bfa6216a1130a82d4364",
+    "sourceRelativePath": "checked-sol-audit.md"
+  },
+  {
+    "path": "raw/closeout-skills.log",
+    "sha256": "5b3f8f0d19ac78d111973206d219668da634ef8e7e9c4703a89f21c2aa31cc0b",
+    "sourceRelativePath": "closeout-skills.log"
+  },
+  {
+    "path": "raw/closeout-specs.log",
+    "sha256": "36de1db2f8d1dc76bf67d43983a9e2611f4ef30b7a1b8c2b49406cd21b71f02c",
+    "sourceRelativePath": "closeout-specs.log"
+  },
+  {
+    "path": "raw/closeout-dependencies.log",
+    "sha256": "09905665f8ccc3fe429dc332f13f2926f05059e3f2002b7cdd1c0cbdacb2d686",
+    "sourceRelativePath": "closeout-dependencies.log"
+  },
+  {
+    "path": "raw/closeout-format.log",
+    "sha256": "444bec9f0dea809335be8497fbb7277928576b58e0efd75f2958ba93537694d7",
+    "sourceRelativePath": "closeout-format.log"
+  }
+]

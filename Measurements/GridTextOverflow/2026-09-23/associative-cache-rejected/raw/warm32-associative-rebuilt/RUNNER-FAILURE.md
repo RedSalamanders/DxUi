@@ -1,0 +1,3 @@
+# Paired runner remains failed
+
+The mandatory test.ps1 invocation stopped in paired performance comparison (advice-required) before any functional suite ran. Its exit1 remains a failed overall gate. The driver mistakenly copied unchanged suite receipts from the previous original-policy run; these are retained only in stale-copied-receipts and are NOT candidate qualification. The actual current candidate performance receipt is Performance-x64-Release-68efedc16bfa4c339b635449834e6313.json, bound to the rebuilt executable. Supplementary direct native tests may establish functionality only; they cannot waive this performance gate or establish full configuration qualification.

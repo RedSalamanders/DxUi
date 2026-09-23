@@ -5,6 +5,9 @@ DxUi must remain fast and use little memory. The normative
 advice for a confirmed regression. A green functional suite alone does not establish performance acceptance.
 The [Grid text-overflow investigation](../Measurements/GridTextOverflow/2026-09-21/README.md)
 retains matched original/candidate reports and unresolved resource flags; it is not an acceptance record.
+The [rejected associative-cache experiment](../Measurements/GridTextOverflow/2026-09-23/associative-cache-rejected/README.md)
+reduces layout churn but increases private memory; its prototype was restored, and invalid incremental
+comparison attempts remain explicitly excluded from qualification.
 
 ## Run and compare
 

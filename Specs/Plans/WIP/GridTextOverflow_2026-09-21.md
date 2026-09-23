@@ -8,6 +8,48 @@ The consumer's French Issues grid exposed a generic defect: `SetLineClamp` enabl
 does not limit visible lines or produce an omission marker. Partially visible cells also lay out
 against their clipped rectangle, changing text placement as they cross the viewport boundary.
 
+## September 23 cache experiment closeout
+
+The consumer confirmation and waiting/Issues slices are committed as `26209bac` and `a3777b3f0`.
+The latter has 424 captures, 48 transition/36 static geometry witnesses and fresh Release PR 824/0/0.
+The 32-entry associative-cache experiment is **rejected for adoption and restored to base V11**.
+It eliminates collisions in the new 32-cell warm fixture but increases matched private memory.
+No original resource gate, consumer pin, threshold or six-profile qualification has changed.
+
+Both final policies use `build.ps1 -Rebuild`, with identical test/helper/benchmark bytes and
+actual Grid compilation. The direct-map fixture records 28 hits, 36 misses and 72 layout
+creation attempts, then fails the expected warm-reuse assertion (exit 1). The candidate's
+supplementary Grid/Embedded/Rendering tests pass, zero skips; Rendering records 64 hits,
+zero misses and zero layout creations, equal repeated pixels and clean host teardown.
+
+The mandatory paired candidate `test.ps1` remains failed: dirty private bytes rise
+28,643,328 -> 29,659,136 (+1,015,808 bytes, 3.55%), dirty peak rises 28,717,056 ->
+29,683,712, and clean preparation p95 0.0003 -> 0.0004 ms is also flagged. Functional
+passes do not waive these results. Initial matched heap counters likewise show less
+churn but increased process memory. Sol High independently audited the rebuilt receipts;
+root checked its conclusions before rejecting/restoring the experimental implementation.
+
+Earlier source restores preserved old timestamps, leaving a candidate Grid library linked
+into original-header tests. The first `warm32-direct-map`, later `direct-map-regression`
+and `direct-map-common` results are invalid as original-policy evidence. The first warm32
+run exited 0xC0000005 during teardown; no stack attributes causality. A separate borrowed
+model lifetime hazard was corrected before rebuilding both policies. The initial 14:05
+direct-map compilation and 14:06 heap baseline remain valid. The candidate driver also
+copied stale original suite receipts after the performance gate stopped it; those receipts
+are quarantined and explicitly excluded. Every failed/invalid/redundant attempt is retained.
+
+[Reviewed packet, exact patches and hashes](../../../Measurements/GridTextOverflow/2026-09-23/associative-cache-rejected/README.md)
+contains the complete scope and next action. Five experimental code/test files and their
+provisional contract paragraph are restored to HEAD `0ae8362`; both archived patches apply
+cleanly to that base. **Current source is V11; current Release binaries are the rejected
+candidate and require a rebuild before reuse.** No restored-source execution is claimed.
+Docs/gallery were reviewed: existing V11 public behavior and pixels remain unchanged, so
+only performance documentation and evidence links need updates for this rejected variant.
+
+Next: resolve original grid/menu resource advice and integrated consumer acceptance, while
+continuing independent current-pin Debug validation. Do not repeat rejected variants or
+misapply V11's previous six-profile passes to the rejected associative implementation.
+
 ## Contract
 
 Honor the configured line limit and available complete-line height, using DirectWrite ellipsis

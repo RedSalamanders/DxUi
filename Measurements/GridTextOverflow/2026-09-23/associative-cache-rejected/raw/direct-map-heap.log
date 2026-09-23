@@ -1,0 +1,12 @@
+Complex UI clean round 1: 2021.49 completed offscreen FPS; p95 0.6165 ms; private 34099200 bytes
+Complex UI clean round 2: 2003.07 completed offscreen FPS; p95 0.5928 ms; private 33116160 bytes
+Complex UI clean round 3: 1982.88 completed offscreen FPS; p95 0.7278 ms; private 32063488 bytes
+Complex UI clean round 4: 2239.78 completed offscreen FPS; p95 0.5056 ms; private 32174080 bytes
+Complex UI clean round 5: 1964.47 completed offscreen FPS; p95 0.6547 ms; private 32137216 bytes
+Complex UI dirty round 1: 84.176 completed offscreen FPS; p95 14.076 ms; private 38563840 bytes
+Complex UI dirty round 2: 86.1567 completed offscreen FPS; p95 14.1874 ms; private 33947648 bytes
+Complex UI dirty round 3: 83.7426 completed offscreen FPS; p95 13.8596 ms; private 35553280 bytes
+Complex UI dirty round 4: 82.5234 completed offscreen FPS; p95 13.7235 ms; private 39108608 bytes
+Complex UI dirty round 5: 89.0259 completed offscreen FPS; p95 13.7226 ms; private 38547456 bytes
+Performance comparison: unpaired
+Performance receipt: C:\RedSalamander.Perf\evidence\i26-ui\grid-cache-associative-20260923\direct-map-heap.json
