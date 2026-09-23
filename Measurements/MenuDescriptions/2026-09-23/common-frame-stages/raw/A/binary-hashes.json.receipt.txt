@@ -1,0 +1,12 @@
+[
+  {
+    "Algorithm": "SHA256",
+    "Hash": "B656DD5AC358EEB4E51F151D15F997BAC5C5486A0A06A12F63F1F4E338EB7826",
+    "Path": "Z:\\src\\DxUi-worktrees\\i26-menu-intern-baseline\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "1737FD041399630612ABE66446CBBCC2176A571FCED84B0E870EF67C2475C396",
+    "Path": "Z:\\src\\DxUi-worktrees\\i26-menu-intern-baseline\\.build\\x64\\Release\\DxUi.lib"
+  }
+]

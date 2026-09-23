@@ -15,6 +15,18 @@ attribute all earlier samples, waive performance flags or qualify the consumer p
 separate CPU frame stages from GPU completion waits and include a same-binary control.
 Diagnostic timing is excluded from acceptance; no system-wide tracing was enabled.
 
+## September 23 frame-stage follow-up
+
+The [opt-in stage packet](../../../Measurements/MenuDescriptions/2026-09-23/common-frame-stages/README.md)
+preserves identical fixture inputs and the serial A1/A2/B1/B2/A3 sequence. All five runs pass;
+all fifty rounds reconcile. Same-binary clean/dirty spreads exceed the bracketed A/B differences,
+which reverse sign. Clean differences concentrate in GPU completion; dirty differences include
+preparation and GPU completion. These diagnostics establish no stable timing regression and do
+not pass or waive the standard paired gate. Individual diagnostic reports lack per-run clocks and
+binary identities; retain the actual driver and post-build hash receipts with that explicit limit.
+Next: restore only the owned instrumentation, rebuild the affected benchmark translation unit,
+and run one predeclared ordinary matched crossover with the existing thresholds and all results retained.
+
 ## Contract and scope
 
 Implement optional primary/secondary fields for native command menu entries. Both fields
