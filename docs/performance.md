@@ -89,6 +89,11 @@ The [popup-local sharing experiment](../Measurements/MenuDescriptions/2026-09-23
 compares separate, combined and shared native layouts. Sharing equal text/font/width
 reduces duplicate shaping storage; unique captions do not have the same saving.
 Its text-only evidence is separate from whole-menu and common-scene acceptance.
+The same packet retains a matched whole-menu comparison: twelve repeated-caption
+rows use 575,310 versus 367,894 live heap bytes. The
+[six-profile native qualification](../Measurements/MenuDescriptions/2026-09-23/native-ci-sharing/README.md)
+passes functionally with explicit ARM64 desktop skips; common-scene timing flags
+and consumer adoption remain unresolved.
 
 [Retained independent measurements](../Measurements/README.md) include raw rounds and comparison receipts with a
 scenario explanation. They measure the library's synthetic workload; AV adoption receipts live in RedXe.

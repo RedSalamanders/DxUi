@@ -29,12 +29,13 @@ in RedSalamander's File Operations plan.
 - [x] Run x64 Debug/Release/ASan nonactivating tests and all ARM64 builds.
 - [ ] Complete directed input restoration across configurations and qualify paired performance/resources.
 - [x] Regenerate/review documentation gallery; run skills/spec/dependency/format validators.
-- [ ] Qualify native platform gates and record explicit consumer pin handoff/rollback.
+- [x] Run all six native configuration profiles on the sharing candidate, retaining ARM64 desktop skips.
+- [ ] Resolve resource gates and record explicit consumer pin handoff/rollback.
 - [ ] Update domain contracts and move this plan to Done only after all required gates pass.
 
 ## Checkpoint
 
-**September 23: popup-local text sharing implemented; qualification in progress.**
+**September 23: popup-local text sharing passes all six native profiles; resource qualification remains open.**
 An isolated twelve-row French probe found 453,754 live bytes for separate primary/secondary
 layouts, 250,346 for one formatted layout per row, and 246,338 for shared identical primary
 text plus distinct secondary text. Each returned to baseline after release. The candidate
@@ -49,7 +50,13 @@ retains the exact pre-sharing production and v4 fixture for a current matched co
 Matched whole-menu live heap falls from 575,310 to 367,894 bytes for twelve repeated-caption
 entries (36%). The first common comparison and serial ABBA retain timing flags. Clean rebuilding
 produces identical benchmark code bytes, rejecting incremental code layout as an explanation.
-These results do not waive common-scene flags or qualify adoption. Native six-profile CI is next.
+These results do not waive common-scene flags or qualify adoption. Candidate `f72941b`
+passes native CI `35831275327` in all six profiles without a retry: nineteen regular
+suites per profile, zero x64 skips and nine existing ARM64 Menu desktop-capability skips
+per profile. All external consumers, both annotation-disabled ASan variants and intentional
+ASan detection probes pass. Both extra x64 Release resource diagnostics pass. The
+[native receipts](../../../Measurements/MenuDescriptions/2026-09-23/native-ci-sharing/README.md)
+retain exact source identity, skips and raw outcomes.
 Full logs and probe sources: `C:/RedSalamander.Perf/evidence/i26-ui/menu-combined-layout-probe/`.
 The [reviewed sharing packet](../../../Measurements/MenuDescriptions/2026-09-23/popup-text-sharing/README.md)
 retains the isolated experiment and current matched menu results.
@@ -57,7 +64,9 @@ Docs/gallery review: this is storage sharing only, with unchanged fonts, field p
 geometry, colors and hit behavior. No new control or gallery example is needed; verify the
 existing gallery hashes on the final candidate. Regeneration confirms unchanged described-menu
 pixels; two animated progress bars differ, documented in the packet. Static validators pass.
-All configuration gates remain required.
+Native configuration execution is complete for this exact candidate. Resource/timing
+acceptance, explicitly qualified consumer handoff and consumer DPI/AT remain open; no
+unchanged timing retry or consumer pin update is justified by these functional results.
 
 **Current: local foreground resource fixture resolved; memory gate remains open.**
 Both unchanged described baseline `356006a` and lifetime/reflow candidate `d461095`
