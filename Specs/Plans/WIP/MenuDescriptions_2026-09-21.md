@@ -3,6 +3,18 @@
 Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
 Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.
 
+## September 23 process-local attribution
+
+The [nine-phase heap diagnostic](../../../Measurements/MenuDescriptions/2026-09-23/common-heap-phases/README.md)
+uses identical opt-in fixture instrumentation and clean Release rebuilds. At dirty completion
+the candidate has +438,272 private bytes but -32,602 live heap bytes, with +528,384 committed
+and +451,296 free heap bytes. After teardown, live heap bytes differ by -338, while the
+additional commitment/free capacity persists. The fixture creates no described menu; this
+pair supports allocator-capacity retention, not live per-entry layout growth. It does not
+attribute all earlier samples, waive performance flags or qualify the consumer pin. Next:
+separate CPU frame stages from GPU completion waits and include a same-binary control.
+Diagnostic timing is excluded from acceptance; no system-wide tracing was enabled.
+
 ## Contract and scope
 
 Implement optional primary/secondary fields for native command menu entries. Both fields

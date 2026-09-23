@@ -1,0 +1,10 @@
+Complex UI clean round 1: 2159.44 completed offscreen FPS; p95 0.5607 ms; private 26030080 bytes
+Complex UI clean round 2: 2434.63 completed offscreen FPS; p95 0.495 ms; private 27045888 bytes
+Complex UI clean round 3: 2342.26 completed offscreen FPS; p95 0.4857 ms; private 27262976 bytes
+Complex UI clean round 4: 2311.03 completed offscreen FPS; p95 0.5694 ms; private 27340800 bytes
+Complex UI clean round 5: 2208.07 completed offscreen FPS; p95 0.5053 ms; private 27324416 bytes
+Complex UI dirty round 1: 511.42 completed offscreen FPS; p95 2.446 ms; private 27762688 bytes
+Complex UI dirty round 2: 487.672 completed offscreen FPS; p95 2.4742 ms; private 29601792 bytes
+Complex UI dirty round 3: 504.943 completed offscreen FPS; p95 2.4148 ms; private 29601792 bytes
+Complex UI dirty round 4: 517.937 completed offscreen FPS; p95 2.2227 ms; private 29589504 bytes
+Complex UI dirty round 5: 463.816 completed offscreen FPS; p95 3.239 ms; private 29548544 bytes
