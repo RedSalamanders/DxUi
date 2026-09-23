@@ -1,0 +1,7 @@
+# Complete UIA values for shortened multiline cells
+
+The restored V11 implementation was rebuilt in x64 Release. Grid, Rendering and Embedded passed without capability skips. The first new Accessibility witness failed because its direct selection-model mutation omitted `NotifyDataChanged`; that failure and all original receipts are retained. The corrected Accessibility suite passes with zero skips. Its cell has French paragraphs, CRLF, combining accents and emoji; an actual bitmap comparison establishes visible omission, while UIA Name, Value and ValuePattern must equal the complete original string. Selection remains unchanged. A scope guard detaches the borrowed model on every exit.
+
+The library hash is identical in the failed/corrected runs; only the test binary changed. Final formatting changes only CRLF normalization on the three edited lines; root compared text after removing carriage returns. Skill, spec, dependency and formatting validation pass. Existing V11 usage documentation and gallery remain applicable because this slice changes no production behavior.
+
+Both standard test runs include their automatically generated complex-UI benchmark reports, explicitly **unpaired**. They do not establish performance acceptance, waive the common-scene flags, qualify the pending combined pin, or replace final x64/ARM64/ASan and assistive-technology gates. The first wrapper propagated the test exception before archival; root copied exact executable-bound receipts before the next run. The corrected wrapper preserves exceptions and excludes stale receipts.

@@ -1,0 +1,125 @@
+diff --git a/Tests/Controls/DxUiTests.Accessibility.cpp b/Tests/Controls/DxUiTests.Accessibility.cpp
+index e6b082d..019b7e5 100644
+--- a/Tests/Controls/DxUiTests.Accessibility.cpp
++++ b/Tests/Controls/DxUiTests.Accessibility.cpp
+@@ -3543,6 +3543,112 @@ void TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable()
+     Require(FAILED(item->get_SelectionContainer(container.put())) && ! container, "removed rows cannot retain a stale selection container");
+ }
+ 
++void TestAccessibilityTrimmedMultilineGridCellKeepsCompleteNameAndValue()
++{
++    using namespace DxUi;
++
++    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
++    SetWindowPos(window.Hwnd(), nullptr, 0, 0, 620, 550, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
++    window.PumpMessages();
++    auto theme          = window.Host().GetTheme();
++    theme.reducedMotion = true;
++    window.Host().SetTheme(theme);
++
++    GridCellData cell{};
++    cell.kind      = GridCellKind::Text;
++    cell.multiline = true;
++    cell.text =
++        L"Première ligne française\r\nDeuxième ligne é\r\nTroisième ligne 📷 🍊\r\nQuatrième ligne 👨‍👩‍👧\r\nDernière ligne complète";
++    const std::wstring completeText = cell.text;
++    SingleCellGridModel textModel(cell);
++    GridCellData prefix = cell;
++    prefix.text         = L"Première ligne française\nDeuxième ligne é";
++    SingleCellGridModel prefixModel(prefix);
++
++    auto root   = std::make_unique<Panel>();
++    auto* label = root->AddChild<Label>(L"Grid witness");
++    label->SetBounds(D2D1::RectF(360.0f, 20.0f, 500.0f, 44.0f));
++    auto* grid = root->AddChild<Grid>();
++    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 230.0f));
++    grid->SetRowHeightDip(160.0f);
++    grid->SetHeaderHeightDip(30.0f);
++    grid->SetLineClamp(2u);
++    const std::array<GridColumnLayoutEntry, 1> columns{{{L"status", 0u, 300.0f}}};
++    grid->SetModel(&prefixModel);
++    grid->ApplyColumnLayout(columns);
++    window.Host().SetRoot(std::move(root));
++    const auto detachModel = wil::scope_exit([&] { grid->SetModel(nullptr); });
++
++    const auto capture = [&](const char* context)
++    {
++        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
++        window.PumpMessages();
++        RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
++        window.PumpMessages();
++        WindowHostBitmapCapture bitmap;
++        Require(window.Host().DebugCaptureBitmap(bitmap), context);
++        return bitmap;
++    };
++    const auto prefixCapture = capture("capture two complete multiline Grid prefix lines");
++    grid->SetModel(&textModel);
++    grid->ApplyColumnLayout(columns);
++    const auto trimmedCapture = capture("capture trimmed multiline Grid cell");
++    Require(prefixCapture.widthPx == trimmedCapture.widthPx && prefixCapture.heightPx == trimmedCapture.heightPx,
++            "trimmed Grid and prefix reference use the same bitmap extent");
++    const auto px           = [&](float dip) { return static_cast<UINT>(window.Host().DipsToPixels(dip)); };
++    uint64_t omissionPixels = 0u;
++    for (UINT y = px(54.0f); y < std::min(px(207.0f), trimmedCapture.heightPx); ++y)
++        for (UINT x = px(29.0f); x < std::min(px(311.0f), trimmedCapture.widthPx); ++x)
++        {
++            const size_t offset = (static_cast<size_t>(y) * trimmedCapture.widthPx + x) * 4u;
++            for (size_t channel = 0u; channel < 4u; ++channel)
++                omissionPixels += prefixCapture.bgraPixels[offset + channel] != trimmedCapture.bgraPixels[offset + channel] ? 1u : 0u;
++        }
++    Require(omissionPixels > 0u, "trimmed Grid paints an omission marker beyond the same two complete prefix lines");
++
++    grid->GetSelectionModel().SetSingle(textModel.GetStableRowId(0u));
++    grid->NotifyDataChanged();
++    Require(grid->GetSelectionModel().GetCount() == 1u && grid->IsRowSelected(0u), "UIA fixture starts with its only row selected");
++    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
++    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
++    Require(rootProvider != nullptr, "trimmed Grid fixture creates an accessibility provider");
++    auto labelProvider =
++        GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 390.0f, 30.0f, "trimmed Grid label provider resolves by point");
++    wil::com_ptr_nothrow<IRawElementProviderFragment> gridProvider;
++    RequireSucceeded(labelProvider->Navigate(NavigateDirection_NextSibling, gridProvider.put()), "trimmed Grid label navigates to Grid sibling");
++    Require(gridProvider != nullptr, "trimmed Grid provider exists");
++    wil::com_ptr_nothrow<IRawElementProviderFragment> headerProvider;
++    RequireSucceeded(gridProvider->Navigate(NavigateDirection_FirstChild, headerProvider.put()), "trimmed Grid exposes its column header");
++    Require(headerProvider != nullptr, "trimmed Grid column header exists");
++    wil::com_ptr_nothrow<IRawElementProviderFragment> rowProvider;
++    RequireSucceeded(headerProvider->Navigate(NavigateDirection_NextSibling, rowProvider.put()), "trimmed Grid header navigates to its row");
++    Require(rowProvider != nullptr, "trimmed Grid row provider exists");
++    wil::com_ptr_nothrow<IRawElementProviderSimple> rowSimple;
++    RequireSucceeded(rowProvider.query_to(rowSimple.put()), "trimmed Grid row exposes a simple provider");
++    Require(ReadProviderBoolProperty(*rowSimple.get(), UIA_SelectionItemIsSelectedPropertyId, "trimmed Grid row exposes selected state"),
++            "trimmed Grid row is selected before reading its cell");
++    wil::com_ptr_nothrow<IRawElementProviderFragment> cellProvider;
++    RequireSucceeded(rowProvider->Navigate(NavigateDirection_FirstChild, cellProvider.put()), "trimmed Grid row navigates to its cell");
++    Require(cellProvider != nullptr, "trimmed Grid cell provider exists");
++    wil::com_ptr_nothrow<IRawElementProviderSimple> cellSimple;
++    RequireSucceeded(cellProvider.query_to(cellSimple.put()), "trimmed Grid cell exposes a simple provider");
++    Require(ReadProviderStringProperty(*cellSimple.get(), UIA_NamePropertyId, "trimmed Grid cell exposes full Name") == completeText,
++            "trimmed Grid cell UIA Name retains every original Unicode paragraph");
++    Require(ReadProviderStringProperty(*cellSimple.get(), UIA_ValueValuePropertyId, "trimmed Grid cell exposes full Value") == completeText,
++            "trimmed Grid cell UIA Value retains every original Unicode paragraph");
++    wil::com_ptr_nothrow<IUnknown> valueUnknown;
++    RequireSucceeded(cellSimple->GetPatternProvider(UIA_ValuePatternId, valueUnknown.put()), "trimmed Grid cell ValuePattern lookup succeeds");
++    Require(valueUnknown != nullptr, "trimmed Grid cell exposes ValuePattern");
++    wil::com_ptr_nothrow<IValueProvider> valueProvider;
++    RequireSucceeded(valueUnknown.query_to(valueProvider.put()), "trimmed Grid cell ValuePattern supports IValueProvider");
++    wil::unique_bstr value;
++    RequireSucceeded(valueProvider->get_Value(value.put()), "trimmed Grid cell ValuePattern returns complete value");
++    Require(std::wstring(value.get() ? value.get() : L"") == completeText, "trimmed Grid cell ValuePattern preserves the complete model text");
++    Require(grid->GetSelectionModel().GetCount() == 1u && grid->IsRowSelected(0u) &&
++                ReadProviderBoolProperty(*rowSimple.get(), UIA_SelectionItemIsSelectedPropertyId, "trimmed Grid row remains selected"),
++            "reading trimmed Grid accessibility text leaves selection unchanged");
++}
++
+ void TestAccessibilityProviderExposesGridRowSelectionPatterns()
+ {
+     using namespace DxUi;
+@@ -4554,6 +4660,7 @@ void RunAccessibilityTests()
+     TestAccessibilityTreeItemProviderKeepsStableIdentityAcrossReorder();
+     TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns();
+     TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable();
++    TestAccessibilityTrimmedMultilineGridCellKeepsCompleteNameAndValue();
+     TestAccessibilityProviderExposesGridRowSelectionPatterns();
+     TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure();
+     TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren();

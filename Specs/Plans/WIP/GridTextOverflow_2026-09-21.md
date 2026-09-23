@@ -17,6 +17,18 @@ the rejected associative cache, menu benchmark differences, or unrelated regress
 Keep the original paired receipts and thresholds. Combined library qualification and
 explicit consumer adoption remain required; no pin changes follow from this decision alone.
 
+A focused Accessibility witness has been added after reviewing the existing Rendering
+coverage: a genuinely shortened French/Unicode multiline cell must expose the complete
+original text through its UIA Name, Value property and ValuePattern without changing selection.
+The borrowed model detaches on normal and exceptional exit. The rebuilt V11 x64 Release
+Grid, Rendering and Embedded suites pass; the corrected Accessibility suite passes without
+skips. The first witness omitted `NotifyDataChanged` after direct selection mutation and
+failed; that run is retained alongside the correction in the
+[focused packet](../../../Measurements/GridTextOverflow/2026-09-23/uia-full-value-release/README.md).
+Both executions use the same library binary. Their automatic benchmarks are explicitly
+unpaired. The new test still needs the remaining final configurations and does not replace
+native assistive-technology acceptance.
+
 ## September 23 cache experiment closeout
 
 The consumer confirmation and waiting/Issues slices are committed as `26209bac` and `a3777b3f0`.
