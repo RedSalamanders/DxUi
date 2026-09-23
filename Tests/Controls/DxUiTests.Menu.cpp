@@ -355,8 +355,18 @@ public:
         {
             POINT current{};
             // Preserve a person's pointer movement during this interactive test.
-            if (GetPhysicalCursorPos(&current) && current.x == _alignedCursor.x && current.y == _alignedCursor.y)
-                SetPhysicalCursorPos(_originalCursor.x, _originalCursor.y);
+            const bool readable = GetPhysicalCursorPos(&current) != FALSE;
+            if (readable && current.x == _alignedCursor.x && current.y == _alignedCursor.y)
+            {
+                const bool restored = SetPhysicalCursorPos(_originalCursor.x, _originalCursor.y) != FALSE;
+                POINT verified{};
+                const bool exact = restored && GetPhysicalCursorPos(&verified) && verified.x == _originalCursor.x && verified.y == _originalCursor.y;
+                std::printf("Menu pointer restoration: restored=%d exact=%d\n", restored, exact);
+            }
+            else
+            {
+                std::printf("Menu pointer restoration: preservedExternalMovement=%d positionReadable=%d\n", readable, readable);
+            }
         }
         if (_previousDpi)
             SetThreadDpiAwarenessContext(_previousDpi);
@@ -5734,6 +5744,18 @@ void TestDescribedMenuWrapsFrenchTextAndPreservesIdentity()
     Require(layout.primaryLineCount > 1 && layout.secondaryLineCount > 1, "both long French fields wrap");
     Require(layout.textRectDip.bottom < layout.secondaryTextRectDip.top && layout.secondaryTextRectDip.bottom < layout.itemRectDip.bottom,
             "primary and parent text have separate complete regions inside row");
+    const auto requireNativeWidths = [&]()
+    {
+        for (size_t index = 0; index < items.size(); ++index)
+        {
+            ContextMenuPopupItemLayoutDebugState row{};
+            Require(DebugGetContextMenuPopupItemLayout(popup, index, row), "every described row exposes native text widths");
+            const float availableWidth = row.textRectDip.right - row.textRectDip.left;
+            Require(std::abs(row.primaryLayoutWidthDip - availableWidth) < 0.5f && std::abs(row.secondaryLayoutWidthDip - availableWidth) < 0.5f,
+                    "shared native layouts retain the final row width without cumulative scrollbar subtraction");
+        }
+    };
+    requireNativeWidths();
     const uint64_t preparationCount = state.descriptionPreparationCount;
     for (int paint = 0; paint < 3; ++paint)
     {
@@ -5757,6 +5779,7 @@ void TestDescribedMenuWrapsFrenchTextAndPreservesIdentity()
         Require(DebugGetContextMenuPopupItemLayout(popup, 1, layout) && layout.secondaryLineCount > 1, "DPI relayout preserves complete parent wrapping");
         Require(layout.textRectDip.bottom < layout.secondaryTextRectDip.top && layout.secondaryTextRectDip.bottom < layout.itemRectDip.bottom,
                 "DPI reflow keeps both complete text fields inside their row");
+        requireNativeWidths();
         if (dpi == 96u)
         {
             if (first96DpiLayout)

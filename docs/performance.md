@@ -85,6 +85,11 @@ pairs, sampled before creation, before/after metrics and after release. It uses
 Compare its live-heap deltas with the whole-menu probe; private-memory changes
 still include allocator retention and cannot identify an individual allocation.
 
+The [popup-local sharing experiment](../Measurements/MenuDescriptions/2026-09-23/popup-text-sharing/README.md)
+compares separate, combined and shared native layouts. Sharing equal text/font/width
+reduces duplicate shaping storage; unique captions do not have the same saving.
+Its text-only evidence is separate from whole-menu and common-scene acceptance.
+
 [Retained independent measurements](../Measurements/README.md) include raw rounds and comparison receipts with a
 scenario explanation. They measure the library's synthetic workload; AV adoption receipts live in RedXe.
 The `dxui-complex-ui-v2` scene is a new fixture, so its baseline/repeat pair demonstrates the measurement procedure

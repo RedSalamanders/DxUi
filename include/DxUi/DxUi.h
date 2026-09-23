@@ -428,6 +428,8 @@ struct ContextMenuPopupItemLayoutDebugState
     D2D1_RECT_F secondaryTextRectDip = D2D1::RectF();
     UINT32 primaryLineCount          = 0;
     UINT32 secondaryLineCount        = 0;
+    float primaryLayoutWidthDip      = 0.0f;
+    float secondaryLayoutWidthDip    = 0.0f;
     bool hasBitmapIcon               = false;
 };
 

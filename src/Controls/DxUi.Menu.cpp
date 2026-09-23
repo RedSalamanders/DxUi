@@ -8,10 +8,12 @@
 #include <exception>
 #include <format>
 #include <limits>
+#include <map>
 #include <mutex>
 #include <new>
 #include <shellscalingapi.h>
 #include <system_error>
+#include <tuple>
 #include <utility>
 #include <wil/win32_helpers.h>
 #include <wincodec.h>
@@ -979,7 +981,8 @@ struct MenuDescriptionLayout
     wil::com_ptr<IDWriteTextLayout> secondary;
     DWRITE_TEXT_METRICS primaryMetrics{};
     DWRITE_TEXT_METRICS secondaryMetrics{};
-    float heightDip = 0.0f;
+    float heightDip    = 0.0f;
+    float textWidthDip = 0.0f;
 };
 
 [[nodiscard]] int RoundToIntSaturated(double value) noexcept
@@ -2333,6 +2336,14 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
     try
     {
         std::vector<MenuDescriptionLayout> prepared(popup.itemCount);
+        struct PreparedText
+        {
+            wil::com_ptr<IDWriteTextLayout> layout;
+            DWRITE_TEXT_METRICS metrics{};
+        };
+        // Preparation-local interning: identical text/font/width shares native
+        // shaping storage only within this popup. No global cache or row identity.
+        std::map<std::tuple<FontRole, float, std::wstring>, PreparedText, std::less<>> textLayouts;
         auto* factory = popup.host.GetWriteFactory();
         if (! factory)
             return false;
@@ -2348,8 +2359,15 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
             const float textWidth     = (std::max)(1.0f,
                                                    contentWidthDip - kTextLeftPaddingDip - kAccelRightPaddingDip -
                                                        (popup.hasSubmenuItems ? kChevronAreaWidthDip : 0.0f) - reservedAccel);
-            const auto prepare = [&](std::wstring_view text, FontRole role, wil::com_ptr<IDWriteTextLayout>& layout, DWRITE_TEXT_METRICS& metrics) noexcept
+            const auto prepare        = [&](std::wstring_view text, FontRole role, wil::com_ptr<IDWriteTextLayout>& layout, DWRITE_TEXT_METRICS& metrics)
             {
+                const auto cached = textLayouts.find(std::tuple{role, textWidth, text});
+                if (cached != textLayouts.end())
+                {
+                    layout  = cached->second.layout;
+                    metrics = cached->second.metrics;
+                    return true;
+                }
                 auto* format = popup.host.GetTextFormat(role);
                 if (! format || text.size() > (std::numeric_limits<UINT32>::max)())
                     return false;
@@ -2358,11 +2376,15 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
                     FAILED(layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR)) || FAILED(layout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING)))
                     return false;
                 const DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_NONE, 0, 0};
-                return SUCCEEDED(layout->SetTrimming(&trimming, nullptr)) && SUCCEEDED(layout->GetMetrics(&metrics));
+                if (FAILED(layout->SetTrimming(&trimming, nullptr)) || FAILED(layout->GetMetrics(&metrics)))
+                    return false;
+                textLayouts.try_emplace(std::tuple{role, textWidth, std::wstring(text)}, PreparedText{layout, metrics});
+                return true;
             };
             if (! prepare(label.displayText, FontRole::Body, row.primary, row.primaryMetrics) ||
                 ! prepare(item.secondaryText, FontRole::Small, row.secondary, row.secondaryMetrics))
                 return false;
+            row.textWidthDip = textWidth;
             row.heightDip = 2.0f * kDescriptionPaddingDip + std::ceil(row.primaryMetrics.height) + kDescriptionGapDip + std::ceil(row.secondaryMetrics.height);
         }
         popup.descriptionLayouts = std::move(prepared);
@@ -2398,8 +2420,10 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
         {
             if (! row.primary)
                 continue;
-            if (FAILED(row.primary->SetMaxWidth((std::max)(1.0f, row.primary->GetMaxWidth() - kScrollbarThicknessDip))) ||
-                FAILED(row.secondary->SetMaxWidth((std::max)(1.0f, row.secondary->GetMaxWidth() - kScrollbarThicknessDip))) ||
+            // Shared layouts may occur in several rows: use the original width,
+            // never repeatedly subtract from the same native object's width.
+            const float textWidth = (std::max)(1.0f, row.textWidthDip - kScrollbarThicknessDip);
+            if (FAILED(row.primary->SetMaxWidth(textWidth)) || FAILED(row.secondary->SetMaxWidth(textWidth)) ||
                 FAILED(row.primary->GetMetrics(&row.primaryMetrics)) || FAILED(row.secondary->GetMetrics(&row.secondaryMetrics)))
                 return false;
             row.heightDip = 2.0f * kDescriptionPaddingDip + std::ceil(row.primaryMetrics.height) + kDescriptionGapDip + std::ceil(row.secondaryMetrics.height);
@@ -5967,8 +5991,11 @@ bool DebugGetContextMenuPopupItemLayout(HWND hwnd, size_t itemIndex, ContextMenu
     outState.secondaryTextRectDip    = layout.secondaryTextRectDip;
     if (! popup->descriptionLayouts.empty())
     {
-        outState.primaryLineCount   = popup->descriptionLayouts[itemIndex].primaryMetrics.lineCount;
-        outState.secondaryLineCount = popup->descriptionLayouts[itemIndex].secondaryMetrics.lineCount;
+        outState.primaryLineCount        = popup->descriptionLayouts[itemIndex].primaryMetrics.lineCount;
+        outState.secondaryLineCount      = popup->descriptionLayouts[itemIndex].secondaryMetrics.lineCount;
+        const auto& row                  = popup->descriptionLayouts[itemIndex];
+        outState.primaryLayoutWidthDip   = row.primary ? row.primary->GetMaxWidth() : 0.0f;
+        outState.secondaryLayoutWidthDip = row.secondary ? row.secondary->GetMaxWidth() : 0.0f;
     }
     outState.hasBitmapIcon = popup->items[itemIndex].iconBitmap != nullptr;
     return outState.itemRectDip.right > outState.itemRectDip.left && outState.itemRectDip.bottom > outState.itemRectDip.top;

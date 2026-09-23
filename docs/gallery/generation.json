@@ -1,6 +1,6 @@
 {
   "command": "gallery.ps1 -PublishDocs",
-  "sourceCommit": "78b3de389a189c7f86f611787e0489fb6d474218",
+  "sourceCommit": "fb857d44f093da3ad62a2cb0cf090e2b5bc13bef",
   "sourceDirty": true,
   "configuration": "Release",
   "platform": "x64",
@@ -16,7 +16,7 @@
       "file": "theme-controls-dark.png"
     },
     {
-      "sha256": "4A1FA07B7C4AEDF4C4FE4D093FEFB23051663D18F5B552091085F2E6570BDB26",
+      "sha256": "B13C10C2887712997999E9073C32DC14AD94A7A05E5535BFBB9B32EBEA651299",
       "file": "theme-controls-high-contrast.png"
     },
     {
@@ -24,7 +24,7 @@
       "file": "theme-controls-light.png"
     },
     {
-      "sha256": "30562C0BE9FAE06933462BCEB2DB939B186AB47AD5DBCF5B971DAECEBDEEAD6F",
+      "sha256": "5FAC30FB2E999BA1A6FBB3CFC2D3486861FF968F49A652DF33CF0D993FED39D5",
       "file": "theme-controls-rainbow-dark.png"
     },
     {

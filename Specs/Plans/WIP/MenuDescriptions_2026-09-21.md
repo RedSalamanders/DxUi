@@ -34,6 +34,31 @@ in RedSalamander's File Operations plan.
 
 ## Checkpoint
 
+**September 23: popup-local text sharing implemented; qualification in progress.**
+An isolated twelve-row French probe found 453,754 live bytes for separate primary/secondary
+layouts, 250,346 for one formatted layout per row, and 246,338 for shared identical primary
+text plus distinct secondary text. Each returned to baseline after release. The candidate
+uses text/font/width sharing to preserve the existing two-field drawing and spacing contracts.
+Its lookup exists only during preparation; row and command identities remain separate. Reflow
+uses absolute widths, with regression assertions for every repeated row through DPI round trips.
+All seventeen non-activating Release suites pass with zero skips. Directed Menu/NativeTextInput
+cases pass; an initial Menu cursor mismatch is retained, and its diagnostic follow-up verifies
+all three pointer restores plus final child focus/foreground/cursor. The actual menu probe
+passes all 320 openings with restored focus/cursor. A clean `fb857d4` worktree
+retains the exact pre-sharing production and v4 fixture for a current matched comparison.
+Matched whole-menu live heap falls from 575,310 to 367,894 bytes for twelve repeated-caption
+entries (36%). The first common comparison and serial ABBA retain timing flags. Clean rebuilding
+produces identical benchmark code bytes, rejecting incremental code layout as an explanation.
+These results do not waive common-scene flags or qualify adoption. Native six-profile CI is next.
+Full logs and probe sources: `C:/RedSalamander.Perf/evidence/i26-ui/menu-combined-layout-probe/`.
+The [reviewed sharing packet](../../../Measurements/MenuDescriptions/2026-09-23/popup-text-sharing/README.md)
+retains the isolated experiment and current matched menu results.
+Docs/gallery review: this is storage sharing only, with unchanged fonts, field positions, row
+geometry, colors and hit behavior. No new control or gallery example is needed; verify the
+existing gallery hashes on the final candidate. Regeneration confirms unchanged described-menu
+pixels; two animated progress bars differ, documented in the packet. Static validators pass.
+All configuration gates remain required.
+
 **Current: local foreground resource fixture resolved; memory gate remains open.**
 Both unchanged described baseline `356006a` and lifetime/reflow candidate `d461095`
 pass all 320 v4 openings at equal 476-by-322 pixels / 96 DPI, with no heap errors

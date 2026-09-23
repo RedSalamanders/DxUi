@@ -1,0 +1,23 @@
+$ErrorActionPreference = 'Stop'
+$probeRoot = $PSScriptRoot
+$repo = 'Z:/src/DxUi-worktrees/i26-menu-description'
+$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+$installation = & $vswhere -latest -prerelease -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+if (-not $installation) { throw 'Visual Studio toolchain not found' }
+$vcvars = Join-Path $installation 'VC/Auxiliary/Build/vcvars64.bat'
+$wilHeader = Get-ChildItem "$repo/.build/vcpkg_installed/x64/*/include/wil/resource.h" | Select-Object -First 1
+if (-not $wilHeader) { throw 'Qualified WIL headers not found' }
+$includes = Split-Path (Split-Path $wilHeader.FullName)
+$response = @(
+ '/nologo', '/std:c++latest', '/O2', '/MD', '/EHsc', '/W4', '/WX', '/utf-8', '/permissive-', '/DUNICODE', '/D_UNICODE',
+ ('/I"'+$repo+'/include"'), ('/I"'+$includes+'"'),
+ ('/Fo"'+$probeRoot+'/CombinedLayoutProbe.obj"'), ('/Fe"'+$probeRoot+'/CombinedLayoutProbe.exe"'),
+ ('"'+$probeRoot+'/CombinedLayoutProbe.cpp"'), '/link', 'dwrite.lib', 'ole32.lib', 'user32.lib', 'advapi32.lib'
+)
+Set-Content -LiteralPath "$probeRoot/compiler.rsp" -Value $response -Encoding utf8NoBOM
+$command = 'call "'+$vcvars+'" >nul && cl.exe @"'+$probeRoot+'/compiler.rsp"'
+& $env:ComSpec /d /c $command *> "$probeRoot/build.log"
+$buildExit = $LASTEXITCODE
+Set-Content -LiteralPath "$probeRoot/build-exit.txt" -Value $buildExit
+Get-Content -LiteralPath "$probeRoot/build.log" -Tail 12
+exit $buildExit

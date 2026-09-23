@@ -1,0 +1,22 @@
+[
+  {
+    "file": "theme-controls-high-contrast.png",
+    "boundingBox": [
+      1442,
+      540,
+      1519,
+      546
+    ],
+    "changedPixels": 450
+  },
+  {
+    "file": "theme-controls-rainbow-dark.png",
+    "boundingBox": [
+      1374,
+      540,
+      1565,
+      546
+    ],
+    "changedPixels": 642
+  }
+]

@@ -49,6 +49,9 @@ Otherwise UIA exposes the decoded primary label followed by its secondary text. 
 the selection authority; repeated primary labels are supported. Description layout is prepared on
 open/DPI reflow and reused during paint. Described menu entries expose native MenuItem/Invoke and
 the acknowledged checked state. Queued invocations expire with that popup instance.
+Equal text/font/width combinations share native shaping storage within that popup; commands and
+accessible names remain independent. The temporary lookup is discarded after preparation, and
+scrollbar/DPI reflow preserves each row's final available width.
 
 Normal dismissal delivers the completion callback and restores the prior owner control as applicable.
 If the process/thread exits with an asynchronous menu still open, controller teardown releases its

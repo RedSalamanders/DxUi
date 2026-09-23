@@ -24,6 +24,11 @@ paint/hit geometry. Both fields wrap without silent truncation. Retain prepared 
 unchanged paints; a failed reflow closes the menu without selecting a command. Long individual
 rows may exceed the viewport: keyboard navigation reveals their beginning and wheel/scrollbar
 interaction exposes the remainder. Preserve existing one-line behavior when secondary text is absent.
+Identical text with the same font role and available width may share native layout storage within
+one popup preparation. Sharing must preserve separate command IDs, accessible identities, row state
+and hit rectangles. The lookup is preparation-local and released before paint; no process-wide
+text cache is retained. Scrollbar reflow sets an absolute final width, including for shared layouts,
+so repeated rows cannot cumulatively narrow one another. DPI changes prepare a fresh coherent set.
 Qualification is still in progress; this is not a consumer or native-platform acceptance claim.
 
 The shared implementation and synthetic acceptance below are qualified by the
