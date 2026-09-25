@@ -8,6 +8,16 @@ The consumer's French Issues grid exposed a generic defect: `SetLineClamp` enabl
 does not limit visible lines or produce an omission marker. Partially visible cells also lay out
 against their clipped rectangle, changing text placement as they cross the viewport boundary.
 
+## September 25 main merge
+
+Main `57ba237` (design system, editor consumer controls, Tree reorder) is merged into this slice for
+review. The duplicate localized-layout closeout merged cleanly. The gallery sheets and receipt take
+main's 30-control generation, so the published grid clamp pixels must be regenerated on the merged tree.
+The Grid design-system guideline and static preview now describe complete-line clamping; the design
+system still needs republishing. Python skills/specs/dependencies/test-port/build-matrix validators and
+tool tests pass on the merged tree. No native build, test, gallery or benchmark ran for this merge; the
+pull request's six native CI profiles also run the new UIA witness in x64 ASan and all ARM64 profiles.
+
 ## September 23 developer decision
 
 The user explicitly answered **"Accept the grid memory tradeoff"** to the measured
@@ -94,8 +104,12 @@ Reuse bounded text-layout resources; clean/hidden composition adds no work. No f
 - [x] Run x64 Debug/Release/ASan tests and all three ARM64 cross-builds.
 - [x] Obtain native ARM64 Grid/Embedded/Rendering/Accessibility qualification in all three profiles;
   nine unrelated Menu desktop-capability skips per profile remain explicitly unqualified.
-- [ ] Compare paired performance/resources; preserve every failed/noisy attempt without rebaselining.
+- [x] Compare paired performance/resources; preserve every failed/noisy attempt without rebaselining.
+  The V11 cost was accepted on 2026-09-23 and recorded in Core_PerformanceAndResources.md; the
+  associative-cache variant stays rejected.
 - [x] Update controls documentation/domain contract and regenerate/review gallery; run validators/format (V11).
+- [ ] After the main merge, regenerate and review the gallery with `gallery.ps1 -PublishDocs`, pass
+  the six native CI profiles and republish the design system with the updated Grid preview.
 - [ ] Qualify publication and explicit consumer pin adoption; retain the old consumer pin until qualified.
 - [ ] Move this plan to Done after its own gates pass. The previous localized-layout plan stays Done.
 
