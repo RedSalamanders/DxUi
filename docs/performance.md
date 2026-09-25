@@ -57,6 +57,44 @@ zero. WARP numbers cannot stand in for native graphics hardware, physical input 
 
 ## Dedicated library evidence
 
+The [no-capture menu scaling record](../Measurements/MenuDescriptions/2026-09-21/scaling-v1/README.md)
+retains the first 320-cycle probe and its non-monotonic private-memory changes.
+The current v4 diagnostic retains live/free process-heap counters; partial heap
+errors must be reported, and heap totals are not total process memory or native
+call-stack attribution. No per-entry cost or resource acceptance is inferred.
+
+Use `./test.ps1 -Configuration Release -Suites MenuResourceScaling` to investigate
+the incremental cost of menu descriptions. The diagnostic keeps the window extent
+constant, rotates described-row counts and samples before opening, after ordinary
+paint and after closing. It performs no menu bitmap capture. Its raw JSON lines
+are retained in the suite log, including DPI, entry counts and process/handle
+counters. Release x64 CI runs it alongside the existing native matrix.
+This suite and `MenuResources` require foreground interaction. Local runs use the
+authorized warning and desktop lease with focus/cursor restoration; `--no-activate`
+is rejected. V4 records all 320 native extents from a visible owned parent on one
+monitor. Earlier locally failed activation-blocked runs remain invalid evidence.
+The first description enables a whole-menu semantic tree; later descriptions add
+text layouts. A process-memory delta divided by the number of entries is therefore
+not a measurement of one entry's allocation. Treat this as attribution evidence,
+not a substitute for the required matched-source performance comparison.
+
+`./test.ps1 -Configuration Release -Suites MenuTextLayoutResources` isolates the
+native text-layout path: twelve Body labels, twelve Small descriptions and their
+pairs, sampled before creation, before/after metrics and after release. It uses
+32 rotated cycles without popup, semantic tree or paint and does not take focus.
+Compare its live-heap deltas with the whole-menu probe; private-memory changes
+still include allocator retention and cannot identify an individual allocation.
+
+The [popup-local sharing experiment](../Measurements/MenuDescriptions/2026-09-23/popup-text-sharing/README.md)
+compares separate, combined and shared native layouts. Sharing equal text/font/width
+reduces duplicate shaping storage; unique captions do not have the same saving.
+Its text-only evidence is separate from whole-menu and common-scene acceptance.
+The same packet retains a matched whole-menu comparison: twelve repeated-caption
+rows use 575,310 versus 367,894 live heap bytes. The
+[six-profile native qualification](../Measurements/MenuDescriptions/2026-09-23/native-ci-sharing/README.md)
+passes functionally with explicit ARM64 desktop skips; common-scene timing flags
+and consumer adoption remain unresolved.
+
 [Retained independent measurements](../Measurements/README.md) include raw rounds and comparison receipts with a
 scenario explanation. They measure the library's synthetic workload; AV adoption receipts live in RedXe.
 The `dxui-complex-ui-v2` scene is a new fixture, so its baseline/repeat pair demonstrates the measurement procedure

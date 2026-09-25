@@ -38,6 +38,44 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | NumericStepper | Set range, `SetStep` / `SetLargeStep`, `SetDecimals`, an optional `SetLabel` / `SetUnit` with widths, and handle `SetOnChange(NumericStepperChange)`: typing previews, Enter, focus loss, the buttons and Up/Down (Shift: large step) commit, Escape cancels. `SetValue` is silent. Preferred height is `kDefaultHeightDip` (32). |
 | ColorPicker | Size it to `kDefaultWidthDip` x `kDefaultHeightDip` (316 x 236), supply captions through `SetLabels`, open it with `SetColor` and handle `SetOnChange(ColorPickerChange)`. Feed eyedropper results through `SampleColor`; OK or Enter commit, Cancel or Escape restore the current color. |
 
+## Described native menu entries
+
+The in-progress [menu description qualification](../Specs/Plans/WIP/MenuDescriptions_2026-09-21.md)
+adds `MenuFlyoutItem::secondaryText` for Standard, Toggle, Radio and Info entries.
+The primary label and secondary field wrap independently at the available width; the row grows,
+and a constrained menu scrolls. Secondary text is literal Unicode. Primary text keeps existing
+mnemonic rules: double an ampersand to display it literally. Do not use the shortcut column for
+parent locations or other descriptive text.
+
+Supply `accessibleName` when the complete spoken identity differs from the two displayed fields.
+Otherwise UIA exposes the decoded primary label followed by its secondary text. Command IDs remain
+the selection authority; repeated primary labels are supported. Description layout is prepared on
+open/DPI reflow and reused during paint. Described menu entries expose native MenuItem/Invoke and
+the acknowledged checked state. Queued invocations expire with that popup instance.
+Equal text/font/width combinations share native shaping storage within that popup; commands and
+accessible names remain independent. The temporary lookup is discarded after preparation, and
+scrollbar/DPI reflow preserves each row's final available width.
+
+Normal dismissal delivers the completion callback and restores the prior owner control as applicable.
+If the process/thread exits with an asynchronous menu still open, controller teardown releases its
+capture and windows without invoking application completion callbacks or re-entering finalization.
+
+```cpp
+DxUi::MenuFlyoutItem item;
+item.kind = DxUi::MenuItemKind::Radio;
+item.text = L"Archives familiales";
+item.secondaryText = L"D:\\Photographies\\Exposition annuelle";
+item.accessibleName = L"D:\\Photographies\\Exposition annuelle\\Archives familiales";
+item.commandId = 42;
+```
+
+Existing one-line entries keep their layout. Header, Separator and Slider descriptions are not
+supported. This native popup capability adds no new catalog control or embedded popup window.
+Application destination eligibility, path formatting and final platform/AT adoption remain consumer work.
+The [retained menu measurements](../Measurements/MenuDescriptions/2026-09-21/README.md)
+separate open-menu layout/accessibility cost, screenshot buffers and the unresolved common-scene
+memory comparison. The capability remains pending qualification until those gates are resolved.
+
 ## Editable values
 
 ```cpp
