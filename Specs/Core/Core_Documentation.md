@@ -1,7 +1,7 @@
 # Documentation and generated gallery
 
 Status: normative current contract
-Last reviewed: 2026-09-05
+Last reviewed: 2026-09-23
 
 `docs/README.md` is the user entrypoint and MUST be linked from the root README. Documentation covers prerequisites,
 exact-pin consumption, both hosting modes, ownership, input, layout/DPI, themes, recovery, every public control,
@@ -18,8 +18,11 @@ regenerate the gallery when visuals, controls, layout, typography, themes, state
 internal change may leave gallery pixels unchanged, but its change/plan must state why docs/gallery need no update.
 Do not accept stale instructions or screenshots as complete work.
 
-Every catalog control MUST have a usage entry in `docs/controls.md`, a populated gallery tile and meaningful behavior
-tests. Additions/removals must update these together. The generated gallery includes light, dark, rainbow light,
+Every catalog control MUST have a usage entry in `docs/controls.md`, a populated gallery tile, meaningful behavior
+tests and a design-system guideline and preview under `Specs/DesignSystem/components/<Control>/`
+([contract](../UI/UI_DesignSystem.md)). A new control is incomplete until its documentation, gallery tile and
+design-system preview exist and the design system is republished. Additions/removals must update these together;
+visual changes to existing controls update the affected design-system tokens and previews in the same change. The generated gallery includes light, dark, rainbow light,
 rainbow dark and high-contrast sheets plus the supplied-device example. Generate with `gallery.ps1 -PublishDocs`,
 review all sheets for clipping/overlap/missing content, and publish PNGs, Markdown/HTML indexes and the generation
 receipt in `docs/gallery`. Native tests/baselines remain distinct; never rebaseline tests merely to match a changed
