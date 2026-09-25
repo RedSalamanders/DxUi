@@ -82,6 +82,10 @@ They never change the user's Windows animation preference. Popup pixel capture w
 window so a temporary sizing HWND cannot satisfy visual-baseline readiness. Pixel assertions and original baselines
 remain unchanged across runner environments.
 
+The default `MenuExitLifetime` process suite leaves an asynchronous menu open with capture and calls
+`std::exit(0)`, so CRT thread-local teardown destroys the live controller. Returning normally fails the suite;
+ASan profiles catch reentrant destruction. It needs no foreground input.
+
 Native menu input fixtures wait for a visible popup: the hidden measurement HWND is not ready for input.
 Cold creation has a separate five-second setup allowance; owner-message-flood hover and invocation checks
 retain their 800 ms deadlines after setup. Capture readiness similarly waits for the final visible surface.
