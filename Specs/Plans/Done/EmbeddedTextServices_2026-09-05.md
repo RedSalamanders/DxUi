@@ -34,7 +34,7 @@ supported. `embedded-host-text-uia-bridge` stays pending for the RedXe tree/even
 
 | Gate | Evidence / owner |
 | --- | --- |
-| Matched text/UIA performance | OPEN. Passing v2 text-state pairs are in [TextInput/2026-09-05](../../../Measurements/TextInput/2026-09-05/README.md). [NativeStore](../../../Measurements/TextInput/NativeStore-2026-09-05/README.md) and [HostServices](../../../Measurements/TextInput/HostServices-2026-09-05/README.md) flagged bands or were inconclusive. EmbeddedUIA ABBA receipts were not committed under Measurements. RedXe AV owns the next comparison; do not waive failures. |
+| Matched text/UIA performance | OPEN. Passing v2 text-state pairs are in [TextInput/2026-09-05](../../../Measurements/TextInput/2026-09-05/README.md). [NativeStore](../../../Measurements/TextInput/NativeStore-2026-09-05/README.md) and [HostServices](../../../Measurements/TextInput/HostServices-2026-09-05/README.md) flagged bands or were inconclusive. The EmbeddedUIA ABBA receipts, which flag bands for advice, were archived on 2026-09-25 in [EmbeddedUia-2026-09-05](../../../Measurements/TextInput/EmbeddedUia-2026-09-05/README.md). RedXe AV owns the next comparison; do not waive failures. |
 | Real IME, touch, screen reader | Not established. Synthetic NativeTextInput/UIA tests and a hidden TSF sample do not count. |
 | RedXe generic transport acceptance | Synthetic adapters exist; real IME/AT release acceptance stays on RedXe `Specs/Plugins/Plugins_AVControl.md`. |
 
