@@ -68,8 +68,10 @@ verification supplements synthetic tests.
 EmbeddedHost dispatches pointer Down/Move/Up/Wheel/Leave/Cancel, keyboard down/up and character events to its retained
 tree, with stale-focus/capture pruning. A second Down on the same control within the system double-click interval and a
 16 DIP slop calls `OnMouseDoubleClick` (word selection, row activation) instead of `OnMouseDown`. Pointer Down/Move/Up/Wheel switch the host to pointer modality so keyboard-only
-focus chrome does not appear on a touch. Hit-testing stays valid while the cached surface is paint-dirty; only a
-changed interaction revision (bounds, tree, visibility, enabled) makes geometry incoherent and cancels capture.
+focus chrome does not appear on a touch. Hit-testing stays valid while the cached surface is paint-dirty. A changed interaction revision makes a new hit
+incoherent until the next preparation. A drag already captured continues when some other control's bounds change and
+the captured control stays in the tree, enabled, visible, and unmoved. Moving, hiding, disabling or removing the
+captured control, or resizing the view, cancels that drag.
 ControlHost retains native Win32 TSF/IME and UIA behavior, exercised by the
 ported suites. EmbeddedHost owns no OS-focus HWND. Application-side `TextInputServices` borrows the caller's HWND;
 `AttachAccessibility` publishes providers without creating one. Cross-plugin COM/POD transport, composition/IME

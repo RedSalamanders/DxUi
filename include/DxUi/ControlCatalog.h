@@ -30,7 +30,10 @@ enum class ControlKind : uint8_t
     TooltipLayer,
     Tree,
     Grid,
-    PageIndicator
+    PageIndicator,
+    Splitter,
+    NumericStepper,
+    ColorPicker
 };
 struct ControlDescriptor
 {

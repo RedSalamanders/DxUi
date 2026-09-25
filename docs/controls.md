@@ -34,6 +34,9 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | TooltipLayer | Usually managed through `ControlHost::SetTooltip`, `SetTooltipDelayed`, hide-delay and `ClearTooltip`; delayed behavior needs host ticks. |
 | Tree | Supply a borrowed `IDxTreeModel`, optional `IDxTreeDelegate`, then `NotifyDataChanged` when data changes. Use stable IDs for selection/expansion. |
 | Grid | Supply a borrowed `IDxGridModel` and optional `IDxGridDelegate`; configure columns, row height and selection. Call `NotifyDataChanged` after model changes. |
+| Splitter | Size it over both panes, choose `SetOrientation`, set the pane minimums and `SetPosition`, then place your pane controls from `GetFirstPaneBounds` / `GetSecondPaneBounds` inside `SetOnChange(SplitterChange)` (preview while dragging, commit on release or keyboard, cancel on Escape or capture loss). Only the separator plus 2 DIP is hittable; the position you persist is your state. In an EmbeddedHost apply the pane bounds on your next Prepare rather than inside the callback, or the bounds change cancels the drag on the next pointer event. |
+| NumericStepper | Set range, `SetStep` / `SetLargeStep`, `SetDecimals`, an optional `SetLabel` / `SetUnit` with widths, and handle `SetOnChange(NumericStepperChange)`: typing previews, Enter, focus loss, the buttons and Up/Down (Shift: large step) commit, Escape cancels. `SetValue` is silent. Preferred height is `kDefaultHeightDip` (32). |
+| ColorPicker | Size it to `kDefaultWidthDip` x `kDefaultHeightDip` (316 x 236), supply captions through `SetLabels`, open it with `SetColor` and handle `SetOnChange(ColorPickerChange)`. Feed eyedropper results through `SampleColor`; OK or Enter commit, Cancel or Escape restore the current color. |
 
 ## Editable values
 

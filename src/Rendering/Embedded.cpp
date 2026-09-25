@@ -274,7 +274,12 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         CancelPointer();
         return E_OUTOFMEMORY;
     }
-    if (s.preparedInteractionRevision != _host._interactionRevision || (s.width && (width != s.width || height != s.height || dpi != s.dpi)))
+    const bool geometryChanged = s.preparedInteractionRevision != _host._interactionRevision;
+    const bool targetChanged   = s.width && (width != s.width || height != s.height || dpi != s.dpi);
+    // Sibling pane layout during a splitter drag changes the interaction revision. The captured control is still
+    // the drag target, so that revision must not snap the drag back. A new view size, or a capture whose control
+    // is gone, hidden or disabled, still cancels.
+    if (targetChanged || (geometryChanged && ! CapturedDragContinues()))
         CancelPointer();
     if (! s.dirty && s.coherent && width == s.width && height == s.height && dpi == s.dpi)
         return S_FALSE;
@@ -405,6 +410,29 @@ HRESULT EmbeddedHost::Composite(ID3D11DeviceContext* context, const D3D11_VIEWPO
     ++s.stats.composites;
     return S_OK;
 }
+bool EmbeddedHost::CapturedDragContinues() const noexcept
+{
+    const Control* captured = _host._capturedControl;
+    if (! captured || ! captured->IsEnabled() || ! captured->IsVisible())
+        return false;
+    const D2D1_RECT_F bounds     = captured->GetBounds();
+    const D2D1_RECT_F capturedAt = _host._capturedBounds;
+    if (bounds.left != capturedAt.left || bounds.top != capturedAt.top || bounds.right != capturedAt.right || bounds.bottom != capturedAt.bottom)
+        return false;
+    const auto contains = [](auto&& self, const Control* root, const Control* target) noexcept -> bool
+    {
+        if (! root)
+            return false;
+        if (root == target)
+            return true;
+        for (size_t i = 0; i < root->GetLogicalChildCount(); ++i)
+            if (self(self, root->GetLogicalChild(i), target))
+                return true;
+        return false;
+    };
+    return contains(contains, _host._root.get(), captured);
+}
+
 void EmbeddedHost::CancelPointer() noexcept
 {
     // Validate by traversing live children without dereferencing a possibly removed captured pointer.

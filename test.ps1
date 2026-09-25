@@ -5,7 +5,7 @@ param(
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
     [switch] $SkipBuild,
     [string] $PerformanceBaseline = '',
-    [string[]] $Suites = @('Foundation','Embedded','Grid','Theme','Control','Menu','NewControls','TextField','NativeTextInput','MultilineText','ReadOnly','ComboBox','Tree','Tooltip','Rendering','Animation','Accessibility','WindowHost')
+    [string[]] $Suites = @('Foundation','Embedded','Grid','Theme','Control','Menu','NewControls','EditorControls','TextField','NativeTextInput','MultilineText','ReadOnly','ComboBox','Tree','Tooltip','Rendering','Animation','Accessibility','WindowHost')
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'

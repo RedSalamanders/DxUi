@@ -5,8 +5,10 @@ The API uses namespace `DxUi`. It supports a supplied-device embedded view and a
 
 - [Getting started](getting-started.md): prerequisites, builds, exact-pin consumption and a minimal control tree.
 - [Hosting and lifetime](hosting.md): graphics, input, DPI, animation, native windows and recovery.
-- [Control guide](controls.md): all 27 controls, configuration, events and model ownership.
+- [Control guide](controls.md): all 30 controls, configuration, events and model ownership.
 - [Generated gallery](gallery/README.md): five themes and the runnable embedded example.
+- [Design system](../Specs/DesignSystem/README.md): palette tokens per theme, type styles, metrics, usage rules and a
+  guideline and preview for every control.
 - [Standalone samples](samples.md): minimal playground and the shared complex-UI benchmark scene.
 - [Performance and testing](performance.md): complex-UI FPS, memory, comparisons and ARM64 evidence.
 

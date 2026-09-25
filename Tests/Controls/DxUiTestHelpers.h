@@ -1857,10 +1857,18 @@ public:
         lastContextMenuPoint  = screenPoint;
     }
 
-    size_t selectionChangedCount   = 0u;
-    size_t invokedCount            = 0u;
-    size_t toggleCount             = 0u;
-    size_t contextMenuCount        = 0u;
+    void OnTreeReorder(const DxUi::TreeDrop& drop) override
+    {
+        ++reorderCount;
+        lastDrop = drop;
+    }
+
+    size_t selectionChangedCount = 0u;
+    size_t invokedCount          = 0u;
+    size_t toggleCount           = 0u;
+    size_t contextMenuCount      = 0u;
+    size_t reorderCount          = 0u;
+    DxUi::TreeDrop lastDrop{};
     uint64_t lastSelectedItemId    = 0u;
     uint64_t lastInvokedItemId     = 0u;
     uint64_t lastToggledItemId     = 0u;

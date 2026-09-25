@@ -164,8 +164,14 @@ void DrawTreeRow(ControlHost& host,
     if (layout.hasIcon)
     {
         const D2D1_COLOR_F iconColor = WithAlpha(rowVisuals.icon, alpha);
-        DrawCenteredText(
-            host, item.iconText, layout.iconRect, FontRole::Small, iconColor, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false);
+        DrawCenteredText(host,
+                         item.iconText,
+                         layout.iconRect,
+                         host.HasFluentIconFont() ? FontRole::Icon : FontRole::Small,
+                         iconColor,
+                         DWRITE_TEXT_ALIGNMENT_CENTER,
+                         DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                         false);
     }
 
     if (layout.hasBadge)
@@ -215,6 +221,73 @@ void IDxTreeDelegate::OnTreeToggleExpanded(uint64_t /*itemId*/, bool /*expanded*
 
 void IDxTreeDelegate::OnTreeContextMenu(uint64_t /*itemId*/, POINT /*screenPoint*/)
 {
+}
+
+void IDxTreeDelegate::OnTreeReorder(const TreeDrop& /*drop*/)
+{
+}
+
+void Tree::SetReorderEnabled(bool enabled) noexcept
+{
+    if (_reorderEnabled == enabled)
+    {
+        return;
+    }
+    _reorderEnabled = enabled;
+    if (! enabled)
+    {
+        ClearReorderDrag();
+    }
+}
+
+void Tree::ClearReorderDrag() noexcept
+{
+    _reorderArmed    = false;
+    _reorderDragging = false;
+    _reorderSourceId = 0u;
+    _reorderDrop.reset();
+}
+
+std::optional<TreeDrop> Tree::ResolveReorderDrop(D2D1_POINT_2F point) const noexcept
+{
+    if (! _model || _reorderSourceId == 0u)
+    {
+        return std::nullopt;
+    }
+    const std::optional<size_t> index = FindVisibleItemAtPoint(point);
+    if (! index.has_value())
+    {
+        return std::nullopt;
+    }
+    TreeItemData target;
+    _model->GetVisibleItem(index.value(), target);
+    if (target.id == 0u || target.id == _reorderSourceId)
+    {
+        return std::nullopt;
+    }
+    const std::optional<D2D1_RECT_F> rect = GetVisibleItemHitRect(index.value());
+    if (! rect.has_value() || rect->bottom <= rect->top)
+    {
+        return std::nullopt;
+    }
+    const float span  = rect->bottom - rect->top;
+    const float along = (point.y - rect->top) / span;
+    TreeDrop drop;
+    drop.sourceId = _reorderSourceId;
+    drop.targetId = target.id;
+    if (target.hasChildren && along > 0.25f && along < 0.75f)
+    {
+        drop.place = TreeDropPlace::Inside;
+    }
+    else if (along < 0.5f)
+    {
+        drop.place = TreeDropPlace::Before;
+    }
+    else
+    {
+        drop.place = TreeDropPlace::After;
+    }
+    return drop;
 }
 
 Tree::Tree()
@@ -551,6 +624,28 @@ void Tree::Paint(ControlHost& host) const
         }
     }
 
+    if (_reorderDrop.has_value())
+    {
+        const std::optional<size_t> index     = _model->FindVisibleItemById(_reorderDrop->targetId);
+        const std::optional<D2D1_RECT_F> rect = index.has_value() ? GetVisibleItemHitRect(index.value()) : std::nullopt;
+        if (rect.has_value())
+        {
+            if (_reorderDrop->place == TreeDropPlace::Inside)
+            {
+                D2D1_COLOR_F fill = theme.accent;
+                fill.a            = 0.28f;
+                DrawRoundedRect(host, rect.value(), fill, theme.accent, 2.0f);
+            }
+            else
+            {
+                const float y = _reorderDrop->place == TreeDropPlace::Before ? rect->top : rect->bottom;
+                const D2D1_RECT_F line =
+                    D2D1::RectF(contentRect.left + 4.0f, y - 1.0f, (std::max)(contentRect.left + 8.0f, contentRect.right - 4.0f), y + 1.0f);
+                DrawRoundedRect(host, line, theme.accent, theme.accent, 1.0f);
+            }
+        }
+    }
+
     if (GetVerticalScrollableExtent() > 0.0f)
     {
         const D2D1_RECT_F track                 = GetVerticalScrollbarRect();
@@ -636,6 +731,23 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         UpdateScrollbarHotState(HitInfo{.zone = HitZone::VerticalScrollbar, .onScrollbarThumb = true});
         host.ClearTooltip();
         Invalidate(host);
+        return true;
+    }
+
+    if (_reorderArmed)
+    {
+        const float dx = point.x - _reorderPress.x;
+        const float dy = point.y - _reorderPress.y;
+        if (! _reorderDragging && (dx * dx) + (dy * dy) >= 16.0f)
+        {
+            _reorderDragging = true;
+            host.ClearTooltip();
+        }
+        if (_reorderDragging)
+        {
+            _reorderDrop = ResolveReorderDrop(point);
+            Invalidate(host);
+        }
         return true;
     }
 
@@ -747,6 +859,15 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             host.RequestAnimation();
         }
     }
+    else if (_reorderEnabled && hit.zone == HitZone::Item)
+    {
+        _reorderArmed    = true;
+        _reorderDragging = false;
+        _reorderSourceId = hitItem.id;
+        _reorderPress    = point;
+        _reorderDrop.reset();
+        host.CaptureMouse(this);
+    }
     Invalidate(host);
     return true;
 }
@@ -808,6 +929,20 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         return false;
     }
 
+    if (_reorderArmed)
+    {
+        const bool commit   = _reorderDragging && _reorderDrop.has_value() && _delegate != nullptr;
+        const TreeDrop drop = _reorderDrop.value_or(TreeDrop{});
+        ClearReorderDrag();
+        host.ReleaseMouseCapture();
+        Invalidate(host);
+        if (commit)
+        {
+            _delegate->OnTreeReorder(drop);
+        }
+        return true;
+    }
+
     const bool wasDragging = _dragVerticalThumb;
     _dragVerticalThumb     = false;
     _dragThumbOffsetDip    = 0.0f;
@@ -822,6 +957,11 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
 
 void Tree::OnCaptureLost(ControlHost& host)
 {
+    if (_reorderArmed)
+    {
+        ClearReorderDrag();
+        Invalidate(host);
+    }
     if (_dragVerticalThumb)
     {
         _dragVerticalThumb  = false;
@@ -855,6 +995,14 @@ bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta
 
 bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
 {
+    if (_reorderArmed && virtualKey == VK_ESCAPE)
+    {
+        ClearReorderDrag();
+        host.ReleaseMouseCapture();
+        Invalidate(host);
+        return true;
+    }
+
     if (! _model || _model->GetVisibleItemCount() == 0u)
     {
         return false;

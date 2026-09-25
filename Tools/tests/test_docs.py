@@ -58,3 +58,38 @@ class DocumentationTests(unittest.TestCase):
         receipt['workloadOwner'] = 'Application'
         self.put('Measurements/example/run.json', json.dumps(receipt))
         self.assertTrue(tool.validate_measurements(self.root))
+
+
+class DesignSystemTests(unittest.TestCase):
+    setUp = helpers.ValidatorTests.setUp
+    tearDown = helpers.ValidatorTests.tearDown
+    put = helpers.ValidatorTests.put
+
+    def fixture(self):
+        self.put('include/DxUi/ControlCatalog.h', 'enum class ControlKind { Label, Button };')
+        self.put('Specs/DesignSystem/design-system.json', json.dumps({'v': 3, 'layout': 'files', 'title': 'DxUi'}))
+        self.put('Specs/DesignSystem/tokens.json', json.dumps({'color': {'themes': [{'id': 'light'}], 'tokens': [{'name': 'text'}]}}))
+        self.put('Specs/DesignSystem/README.md', 'Usage rules.')
+        self.put('Specs/DesignSystem/components/Cover/preview.html', '<!-- @dsCard height=288 -->')
+        for name in ('Label', 'Button'):
+            self.put(f'Specs/DesignSystem/components/{name}/README.md', f'{name} guidelines.')
+            self.put(f'Specs/DesignSystem/components/{name}/preview.html', '<!-- @dsCard group="Text" height=80 -->\n<!doctype html>')
+
+    def test_complete_design_system(self):
+        self.fixture()
+        self.assertEqual(load_tool('validate_specs').validate_design_system(self.root), [])
+
+    def test_new_control_requires_design_system_preview(self):
+        self.fixture()
+        self.put('include/DxUi/ControlCatalog.h', 'enum class ControlKind { Label, Button, Slider };')
+        self.assertIn('Missing design-system component: Slider', load_tool('validate_specs').validate_design_system(self.root))
+
+    def test_preview_requires_card_marker(self):
+        self.fixture()
+        self.put('Specs/DesignSystem/components/Button/preview.html', '<!doctype html>')
+        self.assertIn('Design-system preview lacks its card marker: Button', load_tool('validate_specs').validate_design_system(self.root))
+
+    def test_removed_control_leaves_no_stale_component(self):
+        self.fixture()
+        self.put('include/DxUi/ControlCatalog.h', 'enum class ControlKind { Label };')
+        self.assertIn('Design-system component is not in the catalog: Button', load_tool('validate_specs').validate_design_system(self.root))

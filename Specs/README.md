@@ -14,6 +14,7 @@ not permission to ignore a conflicting contract. Reconcile disagreements in the 
 | [Input and accessibility](UI/UI_InputAndAccessibility.md) | UI |
 | [Controls and layout](UI/UI_ControlsAndLayout.md) | UI |
 | [Theme and typography](UI/UI_ThemeAndTypography.md) | UI |
+| [Design system](UI/UI_DesignSystem.md) | UI |
 | [Window hosting](Rendering/Rendering_Win32Host.md) | Rendering |
 | [Validation and evidence](Testing/Testing_Validation.md) | Testing |
 | [Documentation and gallery](Core/Core_Documentation.md) | Core |
