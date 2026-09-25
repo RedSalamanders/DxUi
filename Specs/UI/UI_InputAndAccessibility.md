@@ -85,8 +85,8 @@ steps report Commit. Hover and press ease painted chrome only: a 6 DIP track, in
 pressed, inside a fixed 20 DIP gray chrome disc. The 48 DIP hit band and 24 DIP grab radius do not change with hover or press. Keyboard steps and
 RequestValue ease the painted thumb to the committed value, then stop requesting ticks. Pointer drags and SetValue snap
 the painted position so live acknowledgement cannot lag. Reduced motion snaps every visual and requests no slider ticks.
-SetValue updates from
-externally acknowledged state without firing an input callback. Existing
+SetValue updates from externally acknowledged state without firing an input callback, including snapping a pending
+animation when the acknowledged value equals its accepted target. Existing
 SetOnValueChanged remains the legacy live-value observer; AV uses SetOnChange and calls the OS setter only on Commit.
 Callback-driven root replacement is supported and covered by a regression test.
 

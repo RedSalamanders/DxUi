@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <fstream>
+#include <limits>
 #include <string>
 #include <thread>
 
@@ -1100,6 +1101,72 @@ void TestSliderSetValueSnapsDisplayedPosition()
     RequireFloatNear(static_cast<float>(slider.DebugGetDisplayedValue()), 80.0f, 0.0001f, "a later SetValue keeps the painted thumb in lockstep");
 }
 
+void TestSliderAcknowledgementStopsPendingAnimation()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto theme          = host.GetTheme();
+    theme.reducedMotion = false;
+    host.SetTheme(theme);
+    auto root    = std::make_unique<Panel>();
+    auto* slider = root->AddChild<Slider>();
+    slider->SetBounds(D2D1::RectF(0, 0, 220, 48));
+    slider->SetValue(20);
+    size_t commits = 0;
+    slider->SetOnChange([&](SliderChange change) { commits += change.phase == SliderChangePhase::Commit ? 1u : 0u; });
+    host.SetRoot(std::move(root));
+    Require(slider->RequestValue(host, 80), "accessible or keyboard-style request accepts a new target");
+    Require(slider->DebugGetDisplayedValue() < 80, "accepted target initially has a pending visual transition");
+    slider->SetValue(80);
+    RequireFloatNear(static_cast<float>(slider->DebugGetDisplayedValue()), 80, 0.0001f, "acknowledgement of the same accepted target snaps the painted thumb");
+    Require(commits == 1 && ! slider->Tick(host, GetTickCount64() + 500), "silent acknowledgement emits no extra commit and leaves no slider animation work");
+}
+
+void TestSliderRejectsNonFiniteRangeAndSteps()
+{
+    using namespace DxUi;
+    Slider slider;
+    slider.SetValue(45);
+    for (double invalid : {std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()})
+    {
+        slider.SetMinimum(invalid);
+        slider.SetMaximum(invalid);
+        slider.SetStep(invalid);
+        slider.SetLargeStep(invalid);
+        slider.SetValue(invalid);
+        Require(slider.GetMinimum() == 0 && slider.GetMaximum() == 100 && slider.GetStep() == 1 && slider.GetLargeStep() == 10 && slider.GetValue() == 45,
+                "invalid scalar input preserves the last usable slider configuration");
+    }
+    slider.SetMinimum(-std::numeric_limits<double>::max());
+    slider.SetMaximum(std::numeric_limits<double>::max());
+    Require(slider.GetMaximum() == 100, "overflowing range span is rejected before it can corrupt pointer mapping");
+}
+
+void TestSliderOffCenterGrabAndCancel()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* slider = root->AddChild<Slider>();
+    slider->SetBounds(D2D1::RectF(0, 0, 220, 48));
+    slider->SetValue(50);
+    size_t commits = 0, cancels = 0;
+    slider->SetOnChange([&](SliderChange change)
+    {
+        commits += change.phase == SliderChangePhase::Commit ? 1u : 0u;
+        cancels += change.phase == SliderChangePhase::Cancel ? 1u : 0u;
+    });
+    host.SetRoot(std::move(root));
+    Require(slider->OnMouseDown(host, D2D1::Point2F(118, 40), false, 0), "finger grab accepts offset on both axes");
+    Require(slider->GetValue() == 50, "off-center finger grab does not jump the value");
+    Require(slider->OnMouseMove(host, D2D1::Point2F(260, 60), 0), "captured drag continues outside slider bounds");
+    Require(slider->GetValue() == 100, "captured drag clamps to the endpoint");
+    slider->OnCaptureLost(host);
+    host.ReleaseMouseCapture();
+    Require(! slider->OnMouseUp(host, D2D1::Point2F(260, 60), false, 0) && slider->GetValue() == 50 && commits == 0 && cancels == 1,
+            "capture cancellation restores the draft and late release cannot commit it");
+}
+
 // ---------------------------------------------------------------------------
 // Toolbar
 // ---------------------------------------------------------------------------
@@ -2033,6 +2100,9 @@ void RunNewControlTests()
     TestSliderVerticalAndRightToLeftGeometryMirrors();
     TestSliderPaintHandlesMissingDeviceContext();
     TestSliderSetValueSnapsDisplayedPosition();
+    TestSliderAcknowledgementStopsPendingAnimation();
+    TestSliderRejectsNonFiniteRangeAndSteps();
+    TestSliderOffCenterGrabAndCancel();
 
     // Toolbar
     TestToolbarAddButtonCreatesChildren();
