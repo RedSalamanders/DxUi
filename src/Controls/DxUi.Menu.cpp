@@ -1024,6 +1024,8 @@ struct MenuDescriptionLayout
 static constexpr wchar_t kMenuWindowClass[]        = L"DxUi_ContextMenu";
 static constexpr UINT kMenuAccessibleInvokeMessage = WM_APP + 0x21a;
 static constexpr UINT kMenuAccessibleFocusMessage  = WM_APP + 0x21b;
+// Finalizes an asynchronous session that a failed DPI reflow dismissed inside a window operation.
+static constexpr UINT kMenuDeferredFinalizeMessage = WM_APP + 0x21c;
 struct MenuAccessibilityRequest
 {
     HWND target;
@@ -1983,6 +1985,14 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             auto request = TakeMessagePayload<MenuAccessibilityRequest>(lp);
             if (request && request->target == hwnd)
                 InvalidatePopup(*popup);
+            return 0;
+        }
+        if (msg == kMenuDeferredFinalizeMessage)
+        {
+            // The window operation that delivered the failed reflow has unwound. A running session
+            // (for example one that reused this HWND) ignores a stale request.
+            if (controller && controller->asyncSession && ! controller->running)
+                FinalizeAsyncMenuController(*controller);
             return 0;
         }
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -3376,13 +3386,15 @@ void RelayoutMenuPopupForDpi(MenuPopup& popup, UINT dpi, const RECT* suggestedWi
     const float requestedVisibleWidthDip = ResolveVisibleMenuWidthDip(sizeDip.width, popup.controller, popup.isSubmenu);
     if (! PrepareMenuDescriptionSize(popup, sizeDip, ComputePopupSurfaceRectFromTopLeft(surfaceTopLeft, requestedVisibleWidthDip, 1000000.0f, dpi)))
     {
-        // A failed reflow must not leave an actionable partially measured menu.
-        if (popup.controller)
+        // A failed reflow must not leave an actionable partially measured menu. WM_DPICHANGED can
+        // arrive synchronously inside a window operation, such as CreateMenuPopupWindow moving a new
+        // popup to its monitor, whose caller still uses this popup and controller. Only dismiss here:
+        // no command can run, and an asynchronous session finalizes after that caller unwinds.
+        if (MenuController* const controller = popup.controller)
         {
-            auto* controller = popup.controller;
             controller->Dismiss();
             if (controller->asyncSession)
-                FinalizeAsyncMenuController(*controller);
+                static_cast<void>(PostMessageW(popup.hwnd, kMenuDeferredFinalizeMessage, 0, 0));
         }
         return;
     }
@@ -3607,6 +3619,13 @@ bool CreateMenuPopupWindow(MenuController& controller,
     const int widthPx  = windowRect.right - windowRect.left;
     const int heightPx = windowRect.bottom - windowRect.top;
     SetWindowPos(hwnd, HWND_TOP, windowRect.left, windowRect.top, widthPx, heightPx, SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+    if (! controller.running)
+    {
+        // Moving to a monitor with another DPI can reflow synchronously. A failed reflow dismissed the
+        // session: never show or activate this popup. It stays registered, so the modal loop, the
+        // deferred async finalization or the unpublished controller's destructor tears it down.
+        return false;
+    }
     ApplyMenuPopupWindowRegion(hwnd, registeredPopup->shadowMargins, registeredPopup->dpi, widthPx, heightPx);
     if (! registeredPopup->keyboardIndex.has_value())
     {
