@@ -24,6 +24,7 @@ a regression or claim application-level acceptance from these library measuremen
 
 - [Native text-store investigation](TextInput/NativeStore-2026-09-05/README.md): callback safety; performance acceptance open, owned by RedXe AV.
 - [Application-side text services](TextInput/HostServices-2026-09-05/README.md): TSF/clipboard component; performance acceptance open, owned by RedXe AV.
+- [Embedded UIA, 2026-09-05](TextInput/EmbeddedUia-2026-09-05/README.md): lazy embedded UIA attach, short A1/B1/B2/A2 comparison flagged for advice; performance acceptance open, owned by RedXe AV.
 
 - [Native clipboard capacity, 2026-09-09](Clipboard/2026-09-09/README.md): retained pre-fix failure, candidate Debug regression pass and raw benchmark rounds; performance acceptance in progress.
 
