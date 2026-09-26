@@ -2136,6 +2136,18 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             return 0;
         }
 
+        if (msg == WM_SETFOCUS && ! popup->descriptionLayouts.empty())
+        {
+            // Native activation restores only a row that keyboard or UIA navigation chose. The host's
+            // first-focusable fallback would otherwise make row 0 the keyboard target of a pointer-opened
+            // menu (Enter would invoke it) and announce it as focused.
+            SynchronizeMenuAccessibility(*popup);
+            if (! popup->host.GetFocusControl())
+            {
+                return 0;
+            }
+        }
+
         bool handled   = false;
         LRESULT result = popup->host.HandleMessage(hwnd, msg, wp, lp, handled);
         if (handled)

@@ -6012,6 +6012,49 @@ void TestDescribedMenuSubmenuKeepsSessionAndIdentity()
     Require(closed && result == 8942 && WaitForWindowDestroyed(popup), "return from submenu preserves the exact sibling command");
 }
 
+void TestDescribedPointerMenuActivationSelectsNoRow()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    const std::vector<MenuFlyoutItem> items{{.text = L"Archives familiales", .commandId = 8951, .secondaryText = L"C:\\Photographies\\Archives familiales"},
+                                            {.text = L"Collection du musée", .commandId = 8952, .secondaryText = L"D:\\Sauvegardes\\Collection du musée"}};
+    std::optional<int> result;
+    bool closed        = false;
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "pointer-opened described menu anchor maps to screen");
+    // focusFirstNavigableItem stays false, as for a context menu invoked by the pointer.
+    Require(ContextMenu::ShowAsync(owner.Hwnd(),
+                                   anchor,
+                                   items,
+                                   owner.Host().GetTheme(),
+                                   [&](std::optional<int> chosen) noexcept
+    {
+        result = chosen;
+        closed = true;
+    }),
+            "pointer-opened described menu opens");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+    Require(popup != nullptr, "pointer-opened described menu appears");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        if (IsWindow(popup))
+            SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    });
+    // In the activating lane ShowAsync gives its root native focus synchronously. That
+    // activation must not choose a row, and nothing here pumps a pointer move that could reset one.
+    ContextMenuPopupDebugState state{};
+    Require(DebugGetContextMenuPopupState(popup, state) && ! state.keyboardIndex.has_value(), "activating a pointer-opened described menu selects no row");
+    if (! state.hoveredIndex.has_value())
+    {
+        SendMessageW(popup, WM_KEYDOWN, VK_RETURN, 0);
+        Require(! closed && IsWindow(popup), "Enter without a keyboard or pointer row invokes nothing");
+        SendMessageW(popup, WM_KEYDOWN, VK_DOWN, 0);
+        Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == 0u, "the first Down selects the first described row");
+    }
+    SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    owner.PumpMessages();
+    Require(closed && ! result && WaitForWindowDestroyed(popup), "dismissing the pointer-opened described menu returns no command");
+}
+
 } // namespace
 
 void RunMenuDescriptionTests()
@@ -6026,6 +6069,8 @@ void RunMenuDescriptionTests()
     TestDescribedMenuPointerAndCancelledQueuedInvoke();
     std::cerr << "  [START] TestDescribedMenuSubmenuKeepsSessionAndIdentity\n" << std::flush;
     TestDescribedMenuSubmenuKeepsSessionAndIdentity();
+    std::cerr << "  [START] TestDescribedPointerMenuActivationSelectsNoRow\n" << std::flush;
+    TestDescribedPointerMenuActivationSelectsNoRow();
 }
 
 #include "DxUiTests.MenuResources.h"
