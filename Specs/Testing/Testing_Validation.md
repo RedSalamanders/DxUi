@@ -128,6 +128,13 @@ Windows-generated capture moves must describe the same position. It restores the
 if the pointer remains at the fixture target, preserving intervening human movement. The 2,000-message
 flood, hover/paint assertions and 800 ms hover/invocation bounds remain unchanged.
 
+The native disclosure automation client subscribes from its own MTA thread while the owner thread pumps.
+Cold client setup (COM, `ElementFromHandle` and property-event subscription) has a separate 20-second
+allowance, because hosted x64 runners have exceeded the former 3000 ms bound. Acknowledged expansion, collapse
+and unsubscribe keep their 3000 ms deadlines. Every run logs the setup stage, HRESULT, stage durations and
+longest owner-thread pump, which separates a stalled provider thread from slow UIA client initialization.
+This is a bounded setup allowance, not a root-cause fix.
+
 ## Independent library workloads
 
 The complex benchmark uses the same synthetic scene as `DxUi.EmbeddedControls.exe --complex-ui`, with no application
