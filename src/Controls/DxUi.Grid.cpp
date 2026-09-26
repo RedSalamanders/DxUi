@@ -1878,9 +1878,11 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
         _cellTextLayouts.resize(cacheSlots);
     // Identical cell values can share shaping across rows/columns. A row-index
     // mapping systematically collides for adjacent visible rows and retains
-    // duplicate layouts for the same value in several columns.
+    // duplicate layouts for the same value in several columns. The clamp is
+    // grid-wide, so it stays out of the slot: a clamp change rebuilds each
+    // entry in place through the key comparison below.
     const size_t slot =
-        retained ? (std::hash<std::wstring_view>{}(cellData.text) ^ std::hash<float>{}(width) ^ (std::hash<float>{}(height) << 1u) ^ clamp) % cacheSlots : 0u;
+        retained ? (std::hash<std::wstring_view>{}(cellData.text) ^ std::hash<float>{}(width) ^ (std::hash<float>{}(height) << 1u)) % cacheSlots : 0u;
     CellTextLayoutCache& cache = retained ? _cellTextLayouts[slot] : temporary.value();
     cache.usedInPaint          = true;
     if (! cache.layout || cache.format.get() != format || cache.text != cellData.text || cache.width != width || cache.height != height ||

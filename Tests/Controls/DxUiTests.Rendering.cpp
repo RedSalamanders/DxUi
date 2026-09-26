@@ -176,19 +176,39 @@ void TestGridMultilineClampPreservesCompleteModelText()
             changedPixels += CaptureBgra(beforeClip, x, y) != CaptureBgra(clipped, x, y) ? 1u : 0u;
     Require(changedPixels == 0u, "viewport clipping must not reflow or recenter the surviving portion of a cell");
 
-    // Reuse the same model and cache slot through text, font, width and height
-    // changes. Each cached result must equal a fresh model attachment.
+    // Reuse the same model through text, font, width, height and clamp changes.
+    // Each cached result must equal a fresh model attachment. The last two steps
+    // keep text, width and height, and so the cache slot, fixed and change only
+    // the font role, then only the clamp: a layout reused without comparing that
+    // key field would paint stale content.
     grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 230.0f));
-    for (size_t variant = 0u; variant < 4u; ++variant)
+    struct CacheVariant
+    {
+        bool oversizedText;
+        FontRole fontRole;
+        float rowHeightDip;
+        uint32_t lineClamp;
+        float columnWidthDip;
+    };
+    constexpr CacheVariant variants[] = {
+        {false, FontRole::Body, 96.0f, 1u, 270.0f},
+        {false, FontRole::Subtitle, 96.0f, 3u, 150.0f},
+        {false, FontRole::Body, 38.0f, 3u, 270.0f},
+        {true, FontRole::Body, 96.0f, 3u, 270.0f},
+        {false, FontRole::Body, 96.0f, 3u, 270.0f},
+        {false, FontRole::Subtitle, 96.0f, 3u, 270.0f},
+        {false, FontRole::Subtitle, 96.0f, 2u, 270.0f},
+    };
+    for (const CacheVariant& variant : variants)
     {
         auto changed = cell;
-        changed.text = variant == 3u ? std::wstring(5000u, L'é') + L"\nFin 📷" : L"Valeur modifiée 👨‍👩‍👧\nDeuxième ligne\nFin complète";
+        changed.text = variant.oversizedText ? std::wstring(5000u, L'é') + L"\nFin 📷" : L"Valeur modifiée 👨‍👩‍👧\nDeuxième ligne\nFin complète";
         textModel    = SingleCellGridModel(changed);
         grid->NotifyDataChanged();
-        grid->SetCellTextFontRole(variant == 1u ? FontRole::Subtitle : FontRole::Body);
-        grid->SetRowHeightDip(variant == 2u ? 38.0f : 96.0f);
-        grid->SetLineClamp(variant == 0u ? 1u : 3u);
-        const std::array<GridColumnLayoutEntry, 1> changedColumns{{{L"status", 0u, variant == 1u ? 150.0f : 270.0f}}};
+        grid->SetCellTextFontRole(variant.fontRole);
+        grid->SetRowHeightDip(variant.rowHeightDip);
+        grid->SetLineClamp(variant.lineClamp);
+        const std::array<GridColumnLayoutEntry, 1> changedColumns{{{L"status", 0u, variant.columnWidthDip}}};
         grid->ApplyColumnLayout(changedColumns);
         const auto cached = CaptureAttachedHostWindowBitmap(window, "updated retained multiline cell");
         grid->SetModel(nullptr);
