@@ -3616,8 +3616,18 @@ private:
         float height       = 0.0f;
         float paintHeight  = 0.0f;
         uint32_t lineClamp = 0u;
+        bool truncated     = false; // Paint cannot show the whole value; hover offers it in full.
         bool usedInPaint   = false;
     };
+    // Paint and the hover tooltip share one prepared multiline layout, so the
+    // omission marker and the full-value tooltip cannot disagree. Returns the
+    // retained or temporary entry, or nullptr when no text can be painted.
+    [[nodiscard]] const CellTextLayoutCache* PrepareCellTextLayout(
+        const ControlHost& host, const GridCellData& cellData, float width, float height, std::optional<CellTextLayoutCache>& temporary) const;
+    [[nodiscard]] bool IsMultilineCellTextClipped(const ControlHost& host,
+                                                  const GridCellData& cellData,
+                                                  const D2D1_RECT_F& textRect,
+                                                  const D2D1_RECT_F& viewportRect) const;
     void DrawCellText(ControlHost& host, const GridCellData& cellData, const D2D1_RECT_F& bounds, const D2D1_COLOR_F& color) const;
     mutable std::vector<CellTextLayoutCache> _cellTextLayouts;
     mutable wil::com_ptr<IDWriteTextFormat> _cellEllipsisFormat;
