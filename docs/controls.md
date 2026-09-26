@@ -101,8 +101,10 @@ the visible item sequence with IDs, depth and expansion state. Supply actual pop
 notifications; a factory-created empty control does not demonstrate interaction.
 For multiline grid summaries, set `GridCellData::multiline`, a suitable row height, and
 `Grid::SetLineClamp`. The grid displays complete measured lines and marks omitted content with
-an ellipsis, including explicit paragraphs. Viewport clipping keeps text placement stable.
-Copy and accessibility still expose the full model value; provide a complete detail view when
+an ellipsis, including explicit paragraphs; trailing line breaks are not content. A row too short
+for one line still shows its first line, clipped like a single-line cell. Viewport clipping keeps
+text placement stable. Copy and accessibility still expose the full model value, and hovering
+shows it as a tooltip whenever lines are omitted or clipped; provide a complete detail view when
 the summary alone is insufficient. The gallery includes a long French summary.
 See [the benchmark model](../Samples/ComplexUi/ComplexUiScene.h),
 [grid tests](../Tests/Controls/DxUiTests.Grid.cpp), [tree tests](../Tests/Controls/DxUiTests.Tree.cpp), and

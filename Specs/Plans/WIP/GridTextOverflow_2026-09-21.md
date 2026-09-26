@@ -8,6 +8,28 @@ The consumer's French Issues grid exposed a generic defect: `SetLineClamp` enabl
 does not limit visible lines or produce an omission marker. Partially visible cells also lay out
 against their clipped rectangle, changing text placement as they cross the viewport boundary.
 
+## September 26 review fixes
+
+Main `c36413b` (#23, #25, #26) is merged. A static review of the pull request found three
+multiline defects; each is fixed with a focused test. These commits were written without a
+Windows toolchain: no native build, test, gallery or benchmark has run on them yet.
+
+- A multiline cell too short for one complete line painted nothing; the 20-DIP minimum row and
+  the Compact default row leave less than one Body line. The first line now paints, centred and
+  clipped to its text area like a single-line cell (`TestGridMultilineShortRowsPaintClippedFirstLine`).
+- The tooltip ignored height clamping and measured the viewport-clipped rectangle. Paint and the
+  tooltip now share one prepared full-cell layout that records omission; painted text hidden by a
+  horizontally scrolled viewport still offers it (`TestGridMultilineTooltipFollowsPaintedLines`).
+- Trailing CR/LF, U+2028 or U+2029 produced a false ellipsis or a half-line offset, and the
+  ellipsis followed trailing whitespace (`TestGridMultilineTrailingSeparatorsMatchTrimmedTwin`).
+- The clamp no longer selects the cache slot, so the stale-cache test's new font-only and
+  clamp-only steps fail on a missing key comparison. Oversized text is no longer copied.
+
+The gallery's clamped French cell breaks at a space, so its ellipsis now follows the last word
+directly; the post-merge gallery regeneration below must follow these commits. The six native CI
+profiles and a paired multiline benchmark must pass on them before the accepted V11 envelope is
+applied to this revision.
+
 ## September 25 main merge
 
 Main `57ba237` (design system, editor consumer controls, Tree reorder) is merged into this slice for

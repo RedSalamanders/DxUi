@@ -51,10 +51,15 @@ physical application DPI presentation and real assistive-technology journeys req
   be arranged in a separate wrapped detail view without duplicating the grid's data authority.
   Multiline cells honor `SetLineClamp` and available complete-line height, with an ellipsis when
   content is omitted. Explicit paragraphs follow the same contract as automatically wrapped lines.
-  A partially visible row keeps its full-cell layout and is clipped without reflow or recentering.
-  Rendering does not shorten model, clipboard, tooltip or UIA values. Consumers reserve sufficient
-  row height for readable text. The implementation uses bounded retained layouts for multiline
-  cells; clean composition does no shaping. Qualification is tracked in the grid overflow WIP plan.
+  Trailing line or paragraph separators are not content: they add no ellipsis and do not shift
+  centring, and the ellipsis follows the last visible character. When not even one line fits, the
+  first line is centred and clipped to the text area like a single-line cell, never left blank or
+  painted into neighbouring rows. A partially visible row keeps its full-cell layout and is clipped
+  without reflow or recentering. Rendering does not shorten model, clipboard, tooltip or UIA values;
+  hovering offers the full value whenever paint omits, trims or clips text, or a horizontally
+  scrolled viewport hides part of it. Consumers reserve sufficient row height for readable text.
+  The implementation uses bounded retained layouts for multiline cells, shared by paint and the
+  tooltip; clean composition does no shaping. Qualification is tracked in the grid overflow WIP plan.
 
 The consumer chooses information hierarchy and whether repeated text is useful. Shared controls
 must support a single semantic heading with associated labelled values and complete exact-value
