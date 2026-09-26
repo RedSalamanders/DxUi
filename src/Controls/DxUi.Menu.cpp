@@ -2907,10 +2907,16 @@ public:
             // Detailed text is prepared at the final available width outside paint.
             if (! popup->descriptionLayouts.empty() && HasMenuDescription(item))
             {
+                // GetSolidBrush can return null; like every other draw here, skip rather than pass it.
                 const auto& row = popup->descriptionLayouts[i];
-                dc->DrawTextLayout(D2D1::Point2F(layout.textRectDip.left, layout.textRectDip.top), row.primary.get(), host.GetSolidBrush(textColor));
-                dc->DrawTextLayout(
-                    D2D1::Point2F(layout.secondaryTextRectDip.left, layout.secondaryTextRectDip.top), row.secondary.get(), host.GetSolidBrush(accelColor));
+                if (auto* primaryBrush = host.GetSolidBrush(textColor); primaryBrush && row.primary)
+                {
+                    dc->DrawTextLayout(D2D1::Point2F(layout.textRectDip.left, layout.textRectDip.top), row.primary.get(), primaryBrush);
+                }
+                if (auto* secondaryBrush = host.GetSolidBrush(accelColor); secondaryBrush && row.secondary)
+                {
+                    dc->DrawTextLayout(D2D1::Point2F(layout.secondaryTextRectDip.left, layout.secondaryTextRectDip.top), row.secondary.get(), secondaryBrush);
+                }
             }
             else
             {
@@ -2970,7 +2976,9 @@ public:
 template <typename Base> class MenuAccessibilityItem final : public Base
 {
 public:
-    MenuAccessibilityItem(MenuPopup& owner, size_t index) noexcept : _popup(owner), _index(index)
+    // Not noexcept: the Label/Toggle bases allocate (lifetime token, strings), and
+    // PopulateMenuAccessibility turns that bad_alloc into a rejected popup.
+    MenuAccessibilityItem(MenuPopup& owner, size_t index) : _popup(owner), _index(index)
     {
     }
     void Paint(ControlHost&) const override
