@@ -7632,12 +7632,14 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
     Control* control = ResolveMutableControl();
     if (control && control->IsFocusable())
     {
-        // Nonactivating native menus track logical item focus while Win32 focus
-        // remains on their owner, including explicit screen-reader focus requests.
-        const bool nativeMenuItem = ! _target->embedded && control->GetAccessibilityRole() == AccessibilityRole::MenuItem;
-        if (! _target->embedded && ! nativeMenuItem)
+        // Native menu popups track logical row focus while the menu session keeps its Win32
+        // focus target (the owner for modal tracking, the root popup for asynchronous tracking).
+        // This follows the popup host, so every focusable row qualifies, including sliders, and
+        // ordinary controls that use the MenuItem role keep native focus transfer.
+        const bool nativeMenuRow = ! _target->embedded && IsNativeMenuPopupWindow(_hwnd);
+        if (! _target->embedded && ! nativeMenuRow)
             ::SetFocus(_hwnd);
-        host->SetFocusControl(control, ! nativeMenuItem);
+        host->SetFocusControl(control, ! nativeMenuRow);
     }
     return S_OK;
 }

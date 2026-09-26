@@ -5547,6 +5547,14 @@ void RunMenuModalLoop(MenuController& controller)
 
 } // anonymous namespace
 
+bool IsNativeMenuPopupWindow(HWND hwnd) noexcept
+{
+    // Only this module registers the popup class, so its exact name identifies a menu popup host.
+    wchar_t className[std::size(kMenuWindowClass) + 1u]{};
+    const int length = hwnd ? GetClassNameW(hwnd, className, static_cast<int>(std::size(className))) : 0;
+    return length == static_cast<int>(std::size(kMenuWindowClass) - 1u) && std::wstring_view(className, static_cast<size_t>(length)) == kMenuWindowClass;
+}
+
 // ---------------------------------------------------------------------------
 // ContextMenu::Show — public API
 // ---------------------------------------------------------------------------

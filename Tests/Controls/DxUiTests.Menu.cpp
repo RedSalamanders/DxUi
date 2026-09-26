@@ -6130,6 +6130,75 @@ void TestDescribedMenuScrollRepublishesAccessibleGeometry()
             "UIA bounds follow the scrolled row geometry");
 }
 
+void TestDescribedModalMenuSliderFocusKeepsOwnerFocus()
+{
+    using namespace DxUi;
+    // Native focus ownership needs the activating Menu lane; the nonactivating lane blocks focus changes.
+    if (! DxUiTestWindowsCanActivateFlag())
+        return;
+    AttachedHostWindow owner;
+    SetWindowPos(owner.Hwnd(), nullptr, 120, 120, 360, 220, SWP_NOZORDER);
+    if (! TryActivateDxUiTestWindow(owner.Hwnd()))
+    {
+        SkipDxUiTest("DxUi described modal menu focus retention requires an interactive desktop");
+        return;
+    }
+    const DWORD uiThreadId = GetCurrentThreadId();
+    // A slider row is focusable but is not a MenuItem command; it must follow the popup's rule.
+    const std::vector<MenuFlyoutItem> items{
+        {.text = L"Archives", .commandId = 8971, .secondaryText = L"C:\\Photographies\\Archives familiales"},
+        {.kind = MenuItemKind::Slider, .text = L"Zoom", .sliderStops = {{.text = L"Petit", .commandId = 8972}, {.text = L"Grand", .commandId = 8973}}}};
+    std::string driverFailure;
+    std::thread driver([&]
+    {
+        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
+        const HWND popup        = WaitForOwnedContextMenuPopupWindow(owner.Hwnd());
+        if (! popup)
+        {
+            driverFailure = "described modal menu appears";
+            return;
+        }
+        GUITHREADINFO before{sizeof(GUITHREADINFO)};
+        if (GetGUIThreadInfo(uiThreadId, &before) == FALSE || before.hwndFocus != owner.Hwnd())
+        {
+            driverFailure = "modal tracking starts with native focus on its owner";
+            return;
+        }
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+        root.attach(CreateWindowHostAccessibilityProvider(popup));
+        wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+        wil::com_ptr_nothrow<IRawElementProviderFragment> command;
+        wil::com_ptr_nothrow<IRawElementProviderFragment> slider;
+        if (! root || FAILED(root.query_to(rootFragment.put())) || FAILED(rootFragment->Navigate(NavigateDirection_FirstChild, command.put())) || ! command ||
+            FAILED(command->Navigate(NavigateDirection_NextSibling, slider.put())) || ! slider)
+        {
+            driverFailure = "described modal menu exposes its slider row";
+            return;
+        }
+        if (FAILED(slider->SetFocus()))
+        {
+            driverFailure = "a screen reader can focus the slider row";
+            return;
+        }
+        GUITHREADINFO after{sizeof(GUITHREADINFO)};
+        if (GetGUIThreadInfo(uiThreadId, &after) == FALSE || after.hwndFocus != owner.Hwnd())
+        {
+            driverFailure = "UIA focus of a slider row keeps native focus on the modal owner";
+            return;
+        }
+        ContextMenuPopupDebugState state{};
+        if (! DebugGetContextMenuPopupState(popup, state) || state.keyboardIndex != 1u)
+        {
+            driverFailure = "UIA focus tracks the slider row logically";
+        }
+    });
+    const POINT anchor              = ClientScreenPointForTest(owner.Hwnd(), 24, 60, "described modal menu anchor maps to screen");
+    const std::optional<int> result = ContextMenu::Show(owner.Hwnd(), anchor, items, owner.Host().GetTheme());
+    driver.join();
+    Require(driverFailure.empty(), driverFailure.c_str());
+    Require(! result.has_value(), "dismissing the described modal menu returns no command");
+}
+
 } // namespace
 
 void RunMenuDescriptionTests()
@@ -6148,6 +6217,8 @@ void RunMenuDescriptionTests()
     TestDescribedPointerMenuActivationSelectsNoRow();
     std::cerr << "  [START] TestDescribedMenuScrollRepublishesAccessibleGeometry\n" << std::flush;
     TestDescribedMenuScrollRepublishesAccessibleGeometry();
+    std::cerr << "  [START] TestDescribedModalMenuSliderFocusKeepsOwnerFocus\n" << std::flush;
+    TestDescribedModalMenuSliderFocusKeepsOwnerFocus();
 }
 
 #include "DxUiTests.MenuResources.h"
