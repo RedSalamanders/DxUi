@@ -274,6 +274,70 @@ void TestGridMultilineShortRowsPaintClippedFirstLine()
     }
 }
 
+void TestGridMultilineTrailingSeparatorsMatchTrimmedTwin()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(), nullptr, 0, 0, 480, 280, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    SingleCellGridModel model(GridCellData{});
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 180.0f));
+    grid->SetHeaderHeightDip(30.0f);
+    // A 58-DIP text area fits three Body lines, so a phantom empty line after a
+    // trailing separator would fit too and move the centred text instead of hiding.
+    grid->SetRowHeightDip(64.0f);
+    grid->SetModel(&model);
+    const std::array<GridColumnLayoutEntry, 1> columns{{{L"status", 0u, 300.0f}}};
+    grid->ApplyColumnLayout(columns);
+    window.Host().SetRoot(std::move(root));
+    const auto capture = [&](std::wstring text, uint32_t lineClamp, const char* context)
+    {
+        GridCellData cell{};
+        cell.text      = std::move(text);
+        cell.multiline = true;
+        model          = SingleCellGridModel(cell);
+        grid->NotifyDataChanged();
+        grid->SetLineClamp(lineClamp);
+        return CaptureAttachedHostWindowBitmap(window, context);
+    };
+    struct TwinCase
+    {
+        const wchar_t* text;
+        const wchar_t* twin;
+        uint32_t lineClamp;
+        const char* name;
+    };
+    // Each value paints exactly like its twin without the trailing separators or
+    // the space before the omission marker: no false ellipsis and no offset.
+    const TwinCase cases[] = {
+        {L"abc\r\n", L"abc", 1u, "single paragraph ending in CRLF, clamp 1"},
+        {L"A\r\nB\r\n", L"A\r\nB", 2u, "two paragraphs ending in CRLF, clamp 2"},
+        {L"A\r\nB\r\n", L"A\r\nB", 3u, "two paragraphs ending in CRLF, clamp 3"},
+        {L"Fin\u2029", L"Fin", 2u, "trailing paragraph separator"},
+        {L"Fin\u2028\u2028", L"Fin", 2u, "trailing line separators"},
+        {L"Fin \r\nsuite", L"Fin\r\nsuite", 1u, "space before an omitted paragraph"},
+        {L"A \r\nB \r\nC", L"A \r\nB\r\nC", 2u, "space ending the last visible line"},
+    };
+    for (const TwinCase& twinCase : cases)
+    {
+        const auto trailing = capture(twinCase.text, twinCase.lineClamp, twinCase.name);
+        const auto twin     = capture(twinCase.twin, twinCase.lineClamp, twinCase.name);
+        std::cout << "Grid multiline trailing-separator twin: " << twinCase.name << '\n';
+        Require(trailing.bgraPixels == twin.bgraPixels, "trailing separators or a trailing space must not add an ellipsis or shift centred lines");
+    }
+    const auto empty = capture(L"", 2u, "empty multiline value");
+    for (const wchar_t* separatorsOnly : {L"\r\n", L"\r\n\r\n", L"\u2029"})
+    {
+        const auto blank = capture(separatorsOnly, 2u, "separator-only multiline value");
+        Require(blank.bgraPixels == empty.bgraPixels, "a multiline value made only of separators paints nothing");
+    }
+}
+
 void TestMultilineButtonPaintUsesMultipleTextRows()
 {
     using namespace DxUi;
@@ -1889,6 +1953,7 @@ void RunRenderingTests()
 {
     TestGridMultilineClampPreservesCompleteModelText();
     TestGridMultilineShortRowsPaintClippedFirstLine();
+    TestGridMultilineTrailingSeparatorsMatchTrimmedTwin();
     TestMultilineButtonPaintUsesMultipleTextRows();
     const auto runTest = [](const char* name, void (*fn)())
     {

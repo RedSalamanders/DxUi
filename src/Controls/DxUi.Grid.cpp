@@ -304,6 +304,23 @@ struct GridResolvedCellVisuals final
     return cellData.multiline && cellData.kind != GridCellKind::Spinner && cellData.kind != GridCellKind::Marquee;
 }
 
+// Trailing line and paragraph separators only add an empty DirectWrite line.
+// They are neither omitted content nor part of the vertically centred text.
+[[nodiscard]] size_t FindCellTextContentEnd(std::wstring_view text) noexcept
+{
+    size_t end = text.size();
+    while (end > 0u)
+    {
+        const wchar_t last = text[end - 1u];
+        if (last != L'\r' && last != L'\n' && last != L'\u2028' && last != L'\u2029')
+        {
+            break;
+        }
+        --end;
+    }
+    return end;
+}
+
 // Single-line captions only; multiline cells use Grid::IsMultilineCellTextClipped.
 [[nodiscard]] bool IsGridCellVisibleTextClipped(const ControlHost& host, const GridCellData& cellData, const GridCellLayoutMetrics& layout) noexcept
 {
@@ -1841,7 +1858,10 @@ bool Grid::RequestToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t 
 const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
     const ControlHost& host, const GridCellData& cellData, float width, float height, std::optional<CellTextLayoutCache>& temporary) const
 {
-    if (cellData.text.empty() || width <= 0.0f || height <= 0.0f)
+    // Trailing separators only add an empty DirectWrite line; measuring
+    // without them keeps them from marking omitted content or shifting centring.
+    const std::wstring_view content(cellData.text.data(), FindCellTextContentEnd(cellData.text));
+    if (content.empty() || width <= 0.0f || height <= 0.0f)
         return nullptr;
     auto* factory        = host.GetWriteFactory();
     const uint32_t clamp = std::max(1u, _lineClamp);
@@ -1878,9 +1898,9 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
         // A later paragraph cannot affect shaping of earlier paragraphs. Stop
         // measuring once complete preceding paragraphs already fill the clamp,
         // avoiding font fallback and shaping for entirely invisible tails.
-        const auto paragraphEnd = [&](size_t start) { return std::min(cellData.text.find_first_of(L"\r\n", start), cellData.text.size()); };
+        const auto paragraphEnd = [content](size_t start) { return std::min(content.find_first_of(L"\r\n", start), content.size()); };
         size_t measuredLength   = paragraphEnd(0u);
-        if (FAILED(factory->CreateTextLayout(cellData.text.data(), static_cast<UINT32>(measuredLength), format, width, height, cache.layout.put())))
+        if (FAILED(factory->CreateTextLayout(content.data(), static_cast<UINT32>(measuredLength), format, width, height, cache.layout.put())))
             return nullptr;
         DWRITE_TEXT_METRICS metrics{};
         if (FAILED(cache.layout->GetMetrics(&metrics)))
@@ -1888,19 +1908,19 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
             cache.layout.reset();
             return nullptr;
         }
-        if (measuredLength < cellData.text.size() && metrics.lineCount < clamp && metrics.height < height)
+        if (measuredLength < content.size() && metrics.lineCount < clamp && metrics.height < height)
         {
             // At most one further shaping pass: each explicit paragraph adds
             // at least one line, so the first clamp paragraphs suffice.
-            for (uint32_t paragraph = 1u; paragraph < clamp && measuredLength < cellData.text.size(); ++paragraph)
+            for (uint32_t paragraph = 1u; paragraph < clamp && measuredLength < content.size(); ++paragraph)
             {
                 size_t next = measuredLength + 1u;
-                if (cellData.text[measuredLength] == L'\r' && next < cellData.text.size() && cellData.text[next] == L'\n')
+                if (content[measuredLength] == L'\r' && next < content.size() && content[next] == L'\n')
                     ++next;
                 measuredLength = paragraphEnd(next);
             }
             cache.layout.reset();
-            if (FAILED(factory->CreateTextLayout(cellData.text.data(), static_cast<UINT32>(measuredLength), format, width, height, cache.layout.put())) ||
+            if (FAILED(factory->CreateTextLayout(content.data(), static_cast<UINT32>(measuredLength), format, width, height, cache.layout.put())) ||
                 FAILED(cache.layout->GetMetrics(&metrics)))
             {
                 cache.layout.reset();
@@ -1936,7 +1956,7 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
         }
         if (cache.paintHeight <= 0.0f)
             return nullptr; // Degenerate line metrics: the retained entry paints nothing.
-        const bool omitted = visibleLines < count || measuredLength < cellData.text.size();
+        const bool omitted = visibleLines < count || measuredLength < content.size();
         cache.truncated    = omitted || cache.paintHeight > height + kCellTextLineFitToleranceDip || metrics.width > width + 0.5f;
         bool reusedLayout  = false;
         if (omitted)
@@ -1946,6 +1966,8 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
             // DirectWrite supplies Unicode-safe boundaries; the model remains
             // untouched. No-wrap keeps the marker on the last visible line,
             // with horizontal ellipsis trimming if that line is already full.
+            // The marker follows the last visible character, not the space or
+            // separator at which that line broke.
             auto& visibleText = cache.displayText;
             visibleText.clear();
             size_t offset = 0u;
@@ -1953,7 +1975,8 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
             {
                 if (i != 0u)
                     visibleText.push_back(L'\n');
-                visibleText.append(cellData.text, offset, lines[i].length - lines[i].newlineLength);
+                const UINT32 tailLength = (i + 1u == visibleLines) ? lines[i].trailingWhitespaceLength : lines[i].newlineLength;
+                visibleText.append(cellData.text, offset, lines[i].length - tailLength);
                 offset += lines[i].length;
             }
             visibleText.push_back(L'\u2026');
@@ -2011,7 +2034,7 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
 
 bool Grid::IsMultilineCellTextClipped(const ControlHost& host, const GridCellData& cellData, const D2D1_RECT_F& textRect, const D2D1_RECT_F& viewportRect) const
 {
-    if (cellData.text.empty())
+    if (FindCellTextContentEnd(cellData.text) == 0u)
         return false;
     if (! IsNonEmptyRect(textRect))
         return true;
