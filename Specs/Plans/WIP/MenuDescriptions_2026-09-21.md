@@ -27,6 +27,7 @@ repaint. The `accessibleName` scope is documented. New Menu tests cover:
 - pointer activation;
 - scrolled UIA geometry;
 - modal Slider-row focus;
+- ordinary MenuItem-role focus transfer;
 - fractional-DPI lane and widths.
 
 The reflow-failure path has no deterministic fault injection. No public API changed. Python

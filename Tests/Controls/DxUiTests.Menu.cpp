@@ -6220,6 +6220,46 @@ void TestDescribedModalMenuSliderFocusKeepsOwnerFocus()
     Require(! result.has_value(), "dismissing the described modal menu returns no command");
 }
 
+void TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus()
+{
+    using namespace DxUi;
+    // Native focus transfer needs the activating Menu lane; the nonactivating lane blocks it.
+    if (! DxUiTestWindowsCanActivateFlag())
+        return;
+    AttachedHostWindow other;
+    AttachedHostWindow window;
+    SetWindowPos(other.Hwnd(), nullptr, 120, 120, 320, 200, SWP_NOZORDER);
+    SetWindowPos(window.Hwnd(), nullptr, 480, 120, 320, 200, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    // An ordinary host may use the public MenuItem role; only native menu popups keep focus away.
+    auto root = std::make_unique<Panel>();
+    for (int index = 0; index < 2; ++index)
+    {
+        auto* recent    = root->AddChild<Label>(std::format(L"Dossier récent {}", index));
+        const float top = 8.0f + 32.0f * static_cast<float>(index);
+        recent->SetBounds(D2D1::RectF(8.0f, top, 240.0f, top + 28.0f));
+        recent->SetFocusable(true);
+        recent->SetAccessibilityRole(AccessibilityRole::MenuItem);
+    }
+    window.Host().SetRoot(std::move(root));
+    if (! TryActivateDxUiTestWindow(other.Hwnd()))
+    {
+        SkipDxUiTest("DxUi MenuItem-role native focus transfer requires an interactive desktop");
+        return;
+    }
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    provider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(provider != nullptr, "ordinary MenuItem-role host publishes a UIA root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+    RequireSucceeded(provider.query_to(rootFragment.put()), "ordinary MenuItem-role root navigates");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> entry;
+    RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, entry.put()), "ordinary MenuItem-role entry is available");
+    Require(entry != nullptr, "ordinary MenuItem-role entry exists");
+    RequireSucceeded(entry->SetFocus(), "a screen reader can focus an ordinary MenuItem-role entry");
+    Require(GetFocus() == window.Hwnd() && window.Host().GetFocusControl() != nullptr,
+            "UIA focus of a MenuItem-role control outside a native menu popup transfers native focus");
+}
+
 void TestDescribedMenuFractionalDpiKeepsLaneAndWidths()
 {
     using namespace DxUi;
@@ -6295,6 +6335,8 @@ void RunMenuDescriptionTests()
     TestDescribedMenuScrollRepublishesAccessibleGeometry();
     std::cerr << "  [START] TestDescribedModalMenuSliderFocusKeepsOwnerFocus\n" << std::flush;
     TestDescribedModalMenuSliderFocusKeepsOwnerFocus();
+    std::cerr << "  [START] TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus\n" << std::flush;
+    TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus();
     std::cerr << "  [START] TestDescribedMenuFractionalDpiKeepsLaneAndWidths\n" << std::flush;
     TestDescribedMenuFractionalDpiKeepsLaneAndWidths();
 }
