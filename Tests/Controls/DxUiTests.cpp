@@ -22,6 +22,7 @@ void RunRenderingTests();
 void RunAnimationTests();
 void RunAccessibilityTests();
 void RunMenuTests();
+void RunMenuExitLifetimeTests();
 void RunNewControlTests();
 void RunEditorControlTests();
 void RunGalleryGenerator(const std::filesystem::path& outputPath);
@@ -231,6 +232,11 @@ int wmain(int argc, wchar_t** argv)
         DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
         std::cerr << "[DONE] ButtonContrast\n" << std::flush;
         ranAnySuite = true;
+    }
+    if (suiteFilter.has_value() && shouldRunSuite("MenuExitLifetime"))
+    {
+        runSuite("MenuExitLifetime", RunMenuExitLifetimeTests);
+        return 1; // This probe succeeds only through the explicit CRT-exit path.
     }
     if (shouldRunSuite("Grid"))
     {

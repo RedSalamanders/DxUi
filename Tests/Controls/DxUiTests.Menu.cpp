@@ -5744,3 +5744,21 @@ void RunMenuTests()
     runTest("TestContextMenuPopupRelayoutsOnDpiChanged", TestContextMenuPopupRelayoutsOnDpiChanged);
     runTest("TestContextMenuDpiRelayoutConstrainsOversizedContentToWorkArea", TestContextMenuDpiRelayoutConstrainsOversizedContentToWorkArea);
 }
+
+// Separate process suite: std::exit deliberately keeps stack-owned windows alive
+// while CRT thread-local menu controllers are destroyed. Ordinary scope teardown
+// closes the owner first and cannot exercise this lifetime boundary.
+void RunMenuExitLifetimeTests()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    std::vector<MenuFlyoutItem> items{
+        {.kind = MenuItemKind::Standard, .text = L"Archives", .commandId = 9300},
+    };
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), POINT{100, 100}, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}),
+            "exit lifetime fixture opens an asynchronous menu");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Archives");
+    Require(popup && GetCapture() == popup, "exit lifetime fixture leaves a live menu owning capture");
+    std::cerr << "[EXIT] MenuExitLifetime: active menu survives stack scope until CRT teardown\n" << std::flush;
+    std::exit(0);
+}
