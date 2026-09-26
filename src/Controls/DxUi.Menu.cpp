@@ -3048,6 +3048,7 @@ void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
         return;
     const auto children = root->GetChildren();
     const auto viewport = popup.GetViewportRect();
+    bool boundsChanged  = false;
     for (size_t i = 0; i < children.size(); ++i)
     {
         auto rect   = GetVisibleItemRect(popup, i);
@@ -3055,13 +3056,28 @@ void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
         rect.bottom = (std::min)(rect.bottom, viewport.bottom);
         if (rect.bottom < rect.top)
             rect = D2D1::RectF();
-        children[i]->SetBounds(rect);
+        const D2D1_RECT_F previous = children[i]->GetBounds();
+        if (previous.left != rect.left || previous.top != rect.top || previous.right != rect.right || previous.bottom != rect.bottom)
+        {
+            children[i]->SetBounds(rect);
+            boundsChanged = true;
+        }
     }
     Control* focus = popup.keyboardIndex && *popup.keyboardIndex < children.size() ? children[*popup.keyboardIndex].get() : nullptr;
     // Keep the session's native focus target while tracking logical entry focus:
     // modal menus use their owner; async menus activate their root for keyboard dispatch.
+    bool published = false;
     if (popup.host.GetFocusControl() != focus)
+    {
         popup.host.SetFocusControl(focus, false);
+        // A completed focus transition republishes the UIA snapshot, including the bounds above.
+        published = popup.host.GetFocusControl() == focus;
+    }
+    // Providers answer BoundingRectangle and ElementProviderFromPoint from that published
+    // snapshot. Scrolling, DPI reflow and UIA-driven reveal move rows without a focus change,
+    // so republish when a row actually moved; unchanged hover repaints publish nothing.
+    if (boundsChanged && ! published)
+        popup.host.RefreshAccessibilitySnapshot();
 }
 
 // ---------------------------------------------------------------------------

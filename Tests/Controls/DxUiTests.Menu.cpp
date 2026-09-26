@@ -6055,6 +6055,81 @@ void TestDescribedPointerMenuActivationSelectsNoRow()
     Require(closed && ! result && WaitForWindowDestroyed(popup), "dismissing the pointer-opened described menu returns no command");
 }
 
+void TestDescribedMenuScrollRepublishesAccessibleGeometry()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    std::vector<MenuFlyoutItem> items;
+    for (int index = 0; index < 8; ++index)
+    {
+        items.push_back(MenuFlyoutItem{
+            .text = std::format(L"Destination {}", index), .commandId = 8960 + index, .secondaryText = std::format(L"D:\\Sauvegardes\\Collection {}", index)});
+    }
+    ContextMenuSessionCallbacks callbacks{};
+    callbacks.maxRootHeightDip = 170.0f;
+    const POINT anchor         = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "scrolled described menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}, callbacks),
+            "scrolled described menu opens");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+    Require(popup != nullptr, "scrolled described menu appears");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        if (IsWindow(popup))
+            SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    });
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(popup));
+    Require(root != nullptr, "scrolled described menu publishes a UIA root");
+    ContextMenuPopupDebugState state{};
+    Require(DebugGetContextMenuPopupState(popup, state) && state.hasScrollbar && state.scrollOffsetDip == 0.0f,
+            "described rows start at the top of a bounded viewport");
+
+    // Three wheel notches toward the user move the rows without changing logical focus; nothing
+    // is pumped. The signed delta travels in the high word, so 0x10000 - WHEEL_DELTA encodes -1 notch.
+    const WPARAM wheelTowardUser = MAKEWPARAM(0, static_cast<WORD>(0x10000 - WHEEL_DELTA));
+    const LPARAM wheelPoint =
+        MAKELPARAM((state.surfaceRectPx.left + state.surfaceRectPx.right) / 2, (state.surfaceRectPx.top + state.surfaceRectPx.bottom) / 2);
+    for (int notch = 0; notch < 3; ++notch)
+        SendMessageW(popup, WM_MOUSEWHEEL, wheelTowardUser, wheelPoint);
+    Require(DebugGetContextMenuPopupState(popup, state) && state.scrollOffsetDip > 60.0f && ! state.keyboardIndex.has_value(),
+            "the wheel scrolls described rows without selecting one");
+
+    std::optional<size_t> row;
+    D2D1_RECT_F rowDip{};
+    for (size_t index = 1; index < items.size() && ! row.has_value(); ++index)
+    {
+        D2D1_RECT_F candidate{};
+        if (DebugGetContextMenuPopupItemRect(popup, index, candidate) && candidate.top >= state.viewportRectDip.top &&
+            candidate.bottom <= state.viewportRectDip.bottom)
+        {
+            row    = index;
+            rowDip = candidate;
+        }
+    }
+    Require(row.has_value(), "a described row is fully visible after scrolling");
+    RECT windowRect{};
+    Require(GetWindowRect(popup, &windowRect) != FALSE, "scrolled popup exposes its window origin");
+    const double expectedLeft   = static_cast<double>(windowRect.left) + static_cast<double>(DipToPixelForPopup(rowDip.left, state.dpi));
+    const double expectedTop    = static_cast<double>(windowRect.top) + static_cast<double>(DipToPixelForPopup(rowDip.top, state.dpi));
+    const double expectedRight  = static_cast<double>(windowRect.left) + static_cast<double>(DipToPixelForPopup(rowDip.right, state.dpi));
+    const double expectedBottom = static_cast<double>(windowRect.top) + static_cast<double>(DipToPixelForPopup(rowDip.bottom, state.dpi));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragment> hit;
+    RequireSucceeded(root->ElementProviderFromPoint((expectedLeft + expectedRight) * 0.5, (expectedTop + expectedBottom) * 0.5, hit.put()),
+                     "UIA hit-tests the scrolled row");
+    Require(hit != nullptr, "UIA hit testing finds a described row after scrolling");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> hitSimple;
+    RequireSucceeded(hit.query_to(hitSimple.put()), "the hit row exposes properties");
+    wil::unique_variant automationId;
+    RequireSucceeded(hitSimple->GetPropertyValue(UIA_AutomationIdPropertyId, &automationId), "the hit row exposes its automation id");
+    Require(automationId.vt == VT_BSTR && std::format(L"menu.item.{}", *row) == automationId.bstrVal, "UIA hit testing follows the scrolled row geometry");
+    UiaRect bounds{};
+    RequireSucceeded(hit->get_BoundingRectangle(&bounds), "the hit row exposes its bounds");
+    Require(std::abs(bounds.left - expectedLeft) <= 1.0 && std::abs(bounds.top - expectedTop) <= 1.0 &&
+                std::abs(bounds.left + bounds.width - expectedRight) <= 1.0 && std::abs(bounds.top + bounds.height - expectedBottom) <= 1.0,
+            "UIA bounds follow the scrolled row geometry");
+}
+
 } // namespace
 
 void RunMenuDescriptionTests()
@@ -6071,6 +6146,8 @@ void RunMenuDescriptionTests()
     TestDescribedMenuSubmenuKeepsSessionAndIdentity();
     std::cerr << "  [START] TestDescribedPointerMenuActivationSelectsNoRow\n" << std::flush;
     TestDescribedPointerMenuActivationSelectsNoRow();
+    std::cerr << "  [START] TestDescribedMenuScrollRepublishesAccessibleGeometry\n" << std::flush;
+    TestDescribedMenuScrollRepublishesAccessibleGeometry();
 }
 
 #include "DxUiTests.MenuResources.h"
