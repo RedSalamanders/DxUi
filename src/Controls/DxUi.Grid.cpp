@@ -1891,7 +1891,10 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
         cache.layout.reset();
         cache.paintHeight = 0.0f;
         cache.truncated   = false;
-        cache.text        = cellData.text;
+        // Only a retained entry needs its key text. An oversized value is laid
+        // out afresh for every use, so it is never copied into the entry.
+        if (retained)
+            cache.text = cellData.text;
         cache.displayText.clear();
         cache.format    = format;
         cache.width     = width;
