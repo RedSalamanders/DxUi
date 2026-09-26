@@ -6199,6 +6199,61 @@ void TestDescribedModalMenuSliderFocusKeepsOwnerFocus()
     Require(! result.has_value(), "dismissing the described modal menu returns no command");
 }
 
+void TestDescribedMenuFractionalDpiKeepsLaneAndWidths()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    const std::vector<MenuFlyoutItem> items{{.text = L"Archives familiales", .commandId = 8981, .secondaryText = L"C:\\Photographies\\Archives familiales"},
+                                            {.text = L"Collection du musée", .commandId = 8982, .secondaryText = L"D:\\Sauvegardes\\Collection du musée"}};
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "fractional DPI described menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}),
+            "fractional DPI described menu opens");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+    Require(popup != nullptr, "fractional DPI described menu appears");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        if (IsWindow(popup))
+            SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    });
+    ContextMenuPopupDebugState state{};
+    Require(DebugGetContextMenuPopupState(popup, state) && ! state.hasScrollbar, "two described rows fit without a scrollbar");
+    // Described rows are whole DIPs tall. Pick a DPI whose whole-pixel viewport rounds below that
+    // content (a remainder under half a pixel), as 125% does for content of 4n + 1 DIPs. Prefer
+    // the common 125% and 175% scales, then any synthetic DPI.
+    const long contentDip = std::lround(state.contentHeightDip);
+    Require(std::abs(state.contentHeightDip - static_cast<float>(contentDip)) < 0.01f, "described content height is whole DIPs");
+    const auto roundsBelowContent = [contentDip](UINT dpi) noexcept
+    {
+        const long remainder = (contentDip * static_cast<long>(dpi)) % 96L;
+        return remainder > 0L && remainder < 48L;
+    };
+    UINT roundedDownDpi = roundsBelowContent(120u) ? 120u : (roundsBelowContent(168u) ? 168u : 0u);
+    for (UINT dpi = 97u; dpi < 240u && roundedDownDpi == 0u; ++dpi)
+    {
+        if (roundsBelowContent(dpi))
+            roundedDownDpi = dpi;
+    }
+    if (roundedDownDpi == 0u)
+    {
+        SkipDxUiTest("DxUi fractional DPI menu probe found no DPI that rounds this content height down");
+        return;
+    }
+    RECT suggested = state.windowRectPx;
+    SendMessageW(popup, WM_DPICHANGED, MAKEWPARAM(roundedDownDpi, roundedDownDpi), reinterpret_cast<LPARAM>(&suggested));
+    Require(DebugGetContextMenuPopupState(popup, state) && state.dpi == roundedDownDpi &&
+                std::abs(state.contentHeightDip - static_cast<float>(contentDip)) < 0.01f,
+            "fractional DPI reflow keeps the described content height");
+    Require(! state.hasScrollbar, "whole-pixel rounding of fitting described rows reserves no scrollbar lane");
+    for (size_t index = 0; index < items.size(); ++index)
+    {
+        ContextMenuPopupItemLayoutDebugState row{};
+        Require(DebugGetContextMenuPopupItemLayout(popup, index, row), "fractional DPI row exposes native text widths");
+        const float availableWidth = row.textRectDip.right - row.textRectDip.left;
+        Require(std::abs(row.primaryLayoutWidthDip - availableWidth) < 0.5f && std::abs(row.secondaryLayoutWidthDip - availableWidth) < 0.5f,
+                "fractional DPI layouts match the painted text width");
+    }
+}
+
 } // namespace
 
 void RunMenuDescriptionTests()
@@ -6219,6 +6274,8 @@ void RunMenuDescriptionTests()
     TestDescribedMenuScrollRepublishesAccessibleGeometry();
     std::cerr << "  [START] TestDescribedModalMenuSliderFocusKeepsOwnerFocus\n" << std::flush;
     TestDescribedModalMenuSliderFocusKeepsOwnerFocus();
+    std::cerr << "  [START] TestDescribedMenuFractionalDpiKeepsLaneAndWidths\n" << std::flush;
+    TestDescribedMenuFractionalDpiKeepsLaneAndWidths();
 }
 
 #include "DxUiTests.MenuResources.h"

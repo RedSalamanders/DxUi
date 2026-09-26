@@ -1148,9 +1148,20 @@ struct MenuPopup
                items[index].kind != MenuItemKind::Info;
     }
 
+    // Whole-pixel sizing can leave a described popup's viewport up to half a device pixel shorter
+    // than content that fits. That rounding slack neither reserves a scrollbar lane nor scrolls,
+    // so the lane PrepareMenuDescriptionSize reserves before sizing matches the final viewport.
+    // Plain popups keep their established strict comparison.
+    [[nodiscard]] bool ContentOverflowsViewport(float viewportHeightDip) const noexcept
+    {
+        if (! (viewportHeightDip > 0.0f))
+            return false;
+        return descriptionLayouts.empty() ? contentHeightDip > viewportHeightDip : contentHeightDip - viewportHeightDip > PixelToDip(0.5f);
+    }
+
     [[nodiscard]] bool NeedsScrollbar() const noexcept
     {
-        return contentHeightDip > menuHeightDip && menuHeightDip > 0.0f;
+        return ContentOverflowsViewport(menuHeightDip);
     }
 
     [[nodiscard]] D2D1_RECT_F GetSurfaceRect() const noexcept
@@ -1160,6 +1171,9 @@ struct MenuPopup
 
     [[nodiscard]] float GetScrollExtent() const noexcept
     {
+        // A described popup never turns whole-pixel rounding slack into a scroll range.
+        if (! descriptionLayouts.empty() && ! NeedsScrollbar())
+            return 0.0f;
         return (std::max)(0.0f, contentHeightDip - menuHeightDip);
     }
 
@@ -2426,13 +2440,17 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
 {
     if (! std::any_of(popup.items, popup.items + popup.itemCount, HasMenuDescription))
         return true;
-    const float width = popup.PixelToDip(static_cast<float>(availableRectPx.right - availableRectPx.left));
-    float height      = popup.PixelToDip(static_cast<float>(availableRectPx.bottom - availableRectPx.top));
-    if (! popup.isSubmenu && popup.controller && popup.controller->sessionCallbacks.maxRootHeightDip > 0.0f)
-        height = (std::min)(height, popup.controller->sessionCallbacks.maxRootHeightDip);
+    const float width            = popup.PixelToDip(static_cast<float>(availableRectPx.right - availableRectPx.left));
+    const int availableHeightPx  = (std::max)(1, static_cast<int>(availableRectPx.bottom - availableRectPx.top));
+    const float maxRootHeightDip = (! popup.isSubmenu && popup.controller) ? popup.controller->sessionCallbacks.maxRootHeightDip : 0.0f;
     if (! PrepareMenuDescriptionLayouts(popup, width))
         return false;
-    if (popup.contentHeightDip > height)
+    // Decide the lane with the viewport the caller will create: the requested height rounded to
+    // whole device pixels inside the work area. NeedsScrollbar applies the same comparison to the
+    // final surface, and reserving the lane can only grow the content, so the two agree.
+    const float requestedHeightDip = maxRootHeightDip > 0.0f ? (std::min)(popup.contentHeightDip, maxRootHeightDip) : popup.contentHeightDip;
+    const int viewportHeightPx     = (std::min)(DipExtentToPixels(requestedHeightDip, popup.dpi), availableHeightPx);
+    if (popup.ContentOverflowsViewport(popup.PixelToDip(static_cast<float>(viewportHeightPx))))
     {
         // These layouts were just prepared for this text/font/DPI. Reserving a
         // scrollbar changes only their width: do not allocate a second full set
