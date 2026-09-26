@@ -1,10 +1,12 @@
 #include "../../src/Controls/DxUi.PointerInput.h"
 #include "../../src/Controls/DxUiNativeMenuInterop.h"
 #include "../../src/Support/AnimationDispatcher.h"
+#include "../../src/Support/PostedPayload.h"
 #include "DxUiTestHelpers.h"
 #include <DxUi/Diagnostics.h>
 #include <cstdio>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -457,6 +459,16 @@ void DrainPendingMouseMessagesForMenuSuite() noexcept
     while (PeekMessageW(&msg, nullptr, WM_MOUSEFIRST, WM_MOUSELAST, PM_REMOVE) != FALSE)
     {
     }
+}
+
+// White-box view of the bounded posted-payload registry that carries queued UIA menu actions.
+[[nodiscard]] size_t CountQueuedPayloadsForMenuSuite(HWND hwnd)
+{
+    auto& registry = DxUi::Detail::Payloads();
+    const std::lock_guard lock(registry.mutex);
+    return static_cast<size_t>(std::count_if(registry.entries.begin(), registry.entries.end(), [hwnd](const DxUi::Detail::PayloadEntry& entry) noexcept {
+        return entry.token != 0 && entry.window == hwnd;
+    }));
 }
 
 [[nodiscard]] bool WaitForPendingSubmenuCloseTimerForMenuSuite(HWND popupHwnd, DxUi::ContextMenuPopupDebugState& outState)
@@ -5757,6 +5769,7 @@ void TestDescribedMenuWrapsFrenchTextAndPreservesIdentity()
     };
     requireNativeWidths();
     const uint64_t preparationCount = state.descriptionPreparationCount;
+    const uint64_t renderCount      = state.renderCount;
     for (int paint = 0; paint < 3; ++paint)
     {
         WindowHostBitmapCapture capture{};
@@ -5764,8 +5777,10 @@ void TestDescribedMenuWrapsFrenchTextAndPreservesIdentity()
         if (paint == 0)
             Require(SaveWindowHostBitmapCaptureAsPngForTest(L".build/menu-description-test.png", capture), "described menu review capture is retained");
     }
-    Require(DebugGetContextMenuPopupState(popup, state) && state.descriptionPreparationCount == preparationCount,
-            "unchanged paints do not remeasure described text");
+    // The captures must really repaint the rows; otherwise the preparation count proves nothing.
+    Require(DebugGetContextMenuPopupState(popup, state) && state.renderCount >= renderCount + 3u && state.lastPaintedItemCount > 0u,
+            "each review capture repaints the described rows");
+    Require(state.descriptionPreparationCount == preparationCount, "unchanged paints do not remeasure described text");
     SendMessageW(popup, WM_KEYDOWN, VK_END, 0);
     Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == 1u, "End skips disabled row and targets exact second destination");
     Require(GetFocus() == trackingFocus, "logical menu navigation preserves the session's native focus");
@@ -5962,11 +5977,17 @@ void TestDescribedMenuPointerAndCancelledQueuedInvoke()
     wil::com_ptr_nothrow<IInvokeProvider> invoke;
     RequireSucceeded(pattern.query_to(invoke.put()), "queued-action invoke acquired");
     RequireSucceeded(invoke->Invoke(), "action queues before cancellation");
+    // A message posted to a destroyed HWND cannot reach another popup unless the handle value is
+    // reused, so the replacement check below cannot fail by itself. Observe the popup-owned payload
+    // instead: WM_NCDESTROY must release it undispatched.
+    const HWND cancelledPopup = popup;
+    Require(CountQueuedPayloadsForMenuSuite(cancelledPopup) >= 1u, "the UIA invoke waits as a popup-owned payload");
     SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
     Require(WaitForWindowDestroyed(popup) && ! result, "Escape cancels the queued action before dispatch");
+    Require(CountQueuedPayloadsForMenuSuite(cancelledPopup) == 0u, "destroying the popup releases its queued action");
     popup = open();
     owner.PumpMessages();
-    Require(IsWindow(popup) && ! result, "cancelled request cannot act on a replacement popup");
+    Require(IsWindow(popup) && ! result, "a replacement popup opens without running the cancelled action");
     Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "old provider cannot act on replacement popup");
 }
 
