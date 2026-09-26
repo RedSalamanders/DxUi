@@ -24,6 +24,8 @@ constexpr uint64_t kSpinnerFrameDurationMs   = 120u;
 constexpr uint64_t kMarqueeCycleDurationMs   = 1400u;
 constexpr float kMarqueeBandFraction         = 0.32f;
 constexpr std::wstring_view kSpinnerFrames[] = {L"|", L"/", L"-", L"\\"};
+// A measured line counts as complete when it fits the text rectangle within this tolerance.
+constexpr float kCellTextLineFitToleranceDip = 0.01f;
 
 void ResetGridCellData(GridCellData& cellData) noexcept
 {
@@ -1921,18 +1923,21 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
             cache.layout.reset();
             return nullptr;
         }
+        // Complete lines only, while at least one fits. A first line taller
+        // than the text rectangle still paints, centred and clipped like a
+        // single-line cell, instead of leaving the cell blank.
         UINT32 visibleLines = 0u;
         for (UINT32 i = 0u; i < count && i < clamp; ++i)
         {
-            if (cache.paintHeight + lines[i].height > height + 0.01f)
+            if (visibleLines != 0u && cache.paintHeight + lines[i].height > height + kCellTextLineFitToleranceDip)
                 break;
             cache.paintHeight += lines[i].height;
             ++visibleLines;
         }
         if (cache.paintHeight <= 0.0f)
-            return nullptr; // No complete line fits; caller owns minimum row height.
+            return nullptr; // Degenerate line metrics: the retained entry paints nothing.
         const bool omitted = visibleLines < count || measuredLength < cellData.text.size();
-        cache.truncated    = omitted || metrics.width > width + 0.5f;
+        cache.truncated    = omitted || cache.paintHeight > height + kCellTextLineFitToleranceDip || metrics.width > width + 0.5f;
         bool reusedLayout  = false;
         if (omitted)
         {
@@ -2044,9 +2049,18 @@ void Grid::DrawCellText(ControlHost& host, const GridCellData& cellData, const D
     const CellTextLayoutCache* prepared = PrepareCellTextLayout(host, cellData, bounds.right - bounds.left, height, temporary);
     if (! prepared)
         return;
-    const auto origin = D2D1::Point2F(bounds.left, bounds.top + (height - prepared->paintHeight) * 0.5f);
-    if (auto* brush = host.GetSolidBrush(color))
-        dc->DrawTextLayout(origin, prepared->layout.get(), brush, kTextDrawOptions);
+    auto* brush = host.GetSolidBrush(color);
+    if (! brush)
+        return;
+    // Like DrawCenteredText, a first line taller than the text rectangle is
+    // centred on it and clipped to it, so it never paints into other rows.
+    const auto origin       = D2D1::Point2F(bounds.left, bounds.top + (height - prepared->paintHeight) * 0.5f);
+    const bool clipToBounds = prepared->paintHeight > height + kCellTextLineFitToleranceDip;
+    if (clipToBounds)
+        dc->PushAxisAlignedClip(bounds, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+    dc->DrawTextLayout(origin, prepared->layout.get(), brush, kTextDrawOptions);
+    if (clipToBounds)
+        dc->PopAxisAlignedClip();
 }
 
 void Grid::Paint(ControlHost& host) const

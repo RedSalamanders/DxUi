@@ -202,6 +202,78 @@ void TestGridMultilineClampPreservesCompleteModelText()
     }
 }
 
+void TestGridMultilineShortRowsPaintClippedFirstLine()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(), nullptr, 0, 0, 480, 280, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    GridCellData cell{};
+    cell.text      = L"Quelques glyphes jpgy qui descendent\nParagraphe omis";
+    cell.multiline = true;
+    SingleCellGridModel emptyModel(GridCellData{});
+    SingleCellGridModel textModel(cell);
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 180.0f));
+    grid->SetHeaderHeightDip(30.0f);
+    grid->SetModel(&emptyModel);
+    window.Host().SetRoot(std::move(root));
+    const std::array<GridColumnLayoutEntry, 1> columns{{{L"status", 0u, 300.0f}}};
+    struct ShortRowCase
+    {
+        const char* name;
+        Density density;
+        float rowHeightDip;
+        FontRole fontRole;
+    };
+    // The minimum 20-DIP row leaves a 14-DIP text area, less than one Body line.
+    // Compact density shrinks the default 28-DIP row the same way. A Title line
+    // is taller than the whole cell, so only clipping keeps it out of other rows.
+    constexpr ShortRowCase cases[] = {
+        {"minimum row, Body", Density::Standard, 20.0f, FontRole::Body},
+        {"compact default row, Body", Density::Compact, 28.0f, FontRole::Body},
+        {"minimum row, Title taller than the cell", Density::Standard, 20.0f, FontRole::Title},
+    };
+    for (const ShortRowCase& shortRow : cases)
+    {
+        auto theme          = window.Host().GetTheme();
+        theme.reducedMotion = true;
+        theme.density       = shortRow.density;
+        window.Host().SetTheme(theme);
+        grid->SetRowHeightDip(shortRow.rowHeightDip);
+        grid->SetCellTextFontRole(shortRow.fontRole);
+        grid->SetModel(&emptyModel);
+        grid->ApplyColumnLayout(columns);
+        const auto empty = CaptureAttachedHostWindowBitmap(window, "short multiline row empty reference");
+        grid->SetModel(&textModel);
+        grid->ApplyColumnLayout(columns);
+        const auto painted = CaptureAttachedHostWindowBitmap(window, "short multiline row with text");
+        Require(painted.widthPx == empty.widthPx && painted.heightPx == empty.heightPx, "short multiline row captures share one extent");
+        const GridCellLayoutMetrics metrics = grid->GetCellLayoutMetrics(window.Host(), 0u, 0u);
+        const auto px                       = [&](float dip) { return window.Host().DipsToPixels(dip); };
+        uint64_t textPixels                 = 0u;
+        uint64_t strayPixels                = 0u;
+        for (UINT y = 0u; y < painted.heightPx; ++y)
+            for (UINT x = 0u; x < painted.widthPx; ++x)
+            {
+                if (CaptureBgra(painted, x, y) == CaptureBgra(empty, x, y))
+                    continue;
+                const float centerX = static_cast<float>(x) + 0.5f;
+                const float centerY = static_cast<float>(y) + 0.5f;
+                if (centerX >= px(metrics.textRect.left) && centerX <= px(metrics.textRect.right) && centerY >= px(metrics.textRect.top) &&
+                    centerY <= px(metrics.textRect.bottom))
+                    ++textPixels;
+                else if (centerX < px(metrics.cellRect.left) - 1.0f || centerX > px(metrics.cellRect.right) + 1.0f ||
+                         centerY < px(metrics.cellRect.top) - 1.0f || centerY > px(metrics.cellRect.bottom) + 1.0f)
+                    ++strayPixels;
+            }
+        std::cout << "Grid short multiline row (" << shortRow.name << "): text=" << textPixels << " outside=" << strayPixels << '\n';
+        Require(textPixels > 0u, "a multiline cell too short for one complete line still paints its first line");
+        Require(strayPixels == 0u, "a multiline first line taller than its text area never paints outside the cell");
+    }
+}
+
 void TestMultilineButtonPaintUsesMultipleTextRows()
 {
     using namespace DxUi;
@@ -1816,6 +1888,7 @@ void TestAttachedHostRecoversAfterSimulatedDeviceLoss()
 void RunRenderingTests()
 {
     TestGridMultilineClampPreservesCompleteModelText();
+    TestGridMultilineShortRowsPaintClippedFirstLine();
     TestMultilineButtonPaintUsesMultipleTextRows();
     const auto runTest = [](const char* name, void (*fn)())
     {
