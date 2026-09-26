@@ -32,7 +32,7 @@ Owning library contracts remain under `Specs/` in this repository. RedXe consume
 | Gate | Owner |
 | --- | --- |
 | Real IME, touch, screen-reader | RedXe AV RFC |
-| Matched text/UIA performance (NativeStore/HostServices open; EmbeddedUIA receipts uncommitted) | RedXe AV RFC; do not waive failures |
+| Matched text/UIA performance (NativeStore/HostServices/EmbeddedUIA open; EmbeddedUIA receipts archived 2026-09-25) | RedXe AV RFC; do not waive failures |
 | Intermittent Menu flood / split-button CI on non-pin commits | Preserve failures; pin `3208083` had a full five-job pass ([33991645881](https://github.com/RedSalamanders/DxUi/actions/runs/33991645881)) |
 | AV G1 audio policy and G2 camera | RedXe AV RFC |
 | RedSalamander in-tree replacement | [RedSalamanderMigration](RedSalamanderMigration.md) |
