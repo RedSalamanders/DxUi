@@ -275,7 +275,8 @@ struct MenuFlyoutItem
     // Optional literal description below the primary label. Standard/Toggle/Radio/Info
     // rows wrap both fields at the available menu width and grow to fit their text.
     std::wstring secondaryText;
-    // Complete spoken identity; empty uses the decoded label and secondary text.
+    // Complete spoken identity; empty uses the decoded label and secondary text. It applies only in a
+    // popup with at least one described entry; other popups expose no per-entry UIA elements.
     std::wstring accessibleName;
 };
 

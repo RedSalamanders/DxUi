@@ -3,6 +3,39 @@
 Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
 Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.
 
+## September 26 review fixes
+
+Main `c36413b` (with the merged CRT-exit lifetime fix) is merged into the branch without rebasing.
+A static review of the pull request found these defects, which are now fixed:
+- **Activation selected a row.** A pointer-opened asynchronous menu selected row 0 when its root
+  popup received focus, and so did a root switch. Described popups now restore only an existing
+  logical row on WM_SETFOCUS.
+- **Stale UIA geometry.** Scrolling left UIA hit testing and bounds on the old rows. A row whose
+  bounds change now republishes the provider snapshot.
+- **Focus rule keyed on the MenuItem role.** Explicit UIA focus of a Slider row moved Win32 focus
+  off the menu session. The rule now follows an internal native-menu-popup host check and covers
+  every focusable row.
+- **Re-entrant reflow failure.** A failed DPI reflow finalized synchronously inside `SetWindowPos`.
+  It now dismisses and posts deferred finalization, and popup creation never shows a dismissed session.
+- **Allocation failure and null brushes.** A failed allocation in a semantic row constructor
+  terminated the process, and described paint could pass a null brush to `DrawTextLayout`.
+- **Scrollbar lane at fractional DPI.** The lane decision disagreed with the whole-pixel viewport.
+  Both now share one predicate with half-pixel rounding slack.
+
+Two weak assertions are now falsifiable: payload drain on teardown, and that review captures really
+repaint. The `accessibleName` scope is documented. New Menu tests cover:
+- pointer activation;
+- scrolled UIA geometry;
+- modal Slider-row focus;
+- fractional-DPI lane and widths.
+
+The reflow-failure path has no deterministic fault injection. No public API changed. Python
+validators, pinned clang-format and `git diff --check` pass. No native build, test, gallery or
+benchmark ran for these fixes: this environment cannot compile. The six native profiles and the
+activating Menu lane must pass before this checkpoint can be claimed. Gallery pixels should not
+change at integer scales. Verify them on regeneration, because the rounding-slack rule can remove a
+spurious sub-pixel scrollbar lane at a fractional capture scale.
+
 ## September 25 rebase onto main
 
 The branch is rebased onto main `57ba237` as `claude/menu-description-layout`, stacked on the

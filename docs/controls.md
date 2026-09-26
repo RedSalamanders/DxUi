@@ -48,7 +48,10 @@ mnemonic rules: double an ampersand to display it literally. Do not use the shor
 parent locations or other descriptive text.
 
 Supply `accessibleName` when the complete spoken identity differs from the two displayed fields.
-Otherwise UIA exposes the decoded primary label followed by its secondary text. Command IDs remain
+Otherwise UIA exposes the decoded primary label followed by its secondary text. Per-entry UIA
+elements exist only in a popup (root or submenu) with at least one described entry, so
+`accessibleName` is ignored in a popup without one; plain menus keep their existing behavior.
+A menu opened by the pointer starts without a keyboard selection, like a plain menu. Command IDs remain
 the selection authority; repeated primary labels are supported. Description layout is prepared on
 open/DPI reflow and reused during paint. Described menu entries expose native MenuItem/Invoke and
 the acknowledged checked state. Queued invocations expire with that popup instance.

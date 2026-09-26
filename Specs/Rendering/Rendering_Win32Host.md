@@ -39,6 +39,14 @@ destructor is active. This fallback does not invoke an application completion ca
 `MenuExitLifetime` process suite exits with a live captured menu to exercise this boundary under ASan;
 ordinary owner-window scope cleanup does not cover it.
 
+WM_DPICHANGED can arrive synchronously inside a window operation, for example while a new popup moves
+to a monitor with another DPI. A failed described-menu reflow there only dismisses the session, so no
+command can run. Asynchronous finalization, including the completion callback, is posted and runs after
+that operation unwinds; a running session ignores a stale request. Popup creation that observes the
+dismissed session fails without showing or activating the popup. For the root created by `ShowAsync`,
+that call reports failure and never fires its callback; a dismissed submenu or root switch finalizes
+through the posted request or the modal loop.
+
 Native tooltip show/hide deadlines use the current UI-thread dispatcher clock, not the last tick of an idle
 individual host. A resumed host must not show or hide a newly scheduled tooltip immediately because its
 previous tick is stale. Embedded tooltip scheduling retains the application-provided animation epoch.

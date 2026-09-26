@@ -20,8 +20,12 @@ Consumers own density tiers and responsive policy; DxUi contains no AV profile o
 The [described-menu plan](../Plans/WIP/MenuDescriptions_2026-09-21.md) extends native command
 rows with opt-in literal secondary text. Standard/Toggle/Radio/Info rows must measure both fields
 at the final monitor-constrained width, including the scrollbar lane, then publish matching
-paint/hit geometry. Both fields wrap without silent truncation. Retain prepared layouts across
-unchanged paints; a failed reflow closes the menu without selecting a command. Long individual
+paint/hit geometry. The lane decision uses the viewport the popup will actually have: the requested
+height rounded to whole device pixels inside the work area. Overflow of at most half a device pixel
+is rounding slack; it neither reserves the lane nor scrolls, so the lane reserved before sizing and
+the final scrollbar always agree at fractional scales. Both fields wrap without silent truncation.
+Retain prepared layouts across unchanged paints; a failed reflow closes the menu without selecting
+a command, and a popup whose session closed while it was being positioned is never shown. Long individual
 rows may exceed the viewport: keyboard navigation reveals their beginning and wheel/scrollbar
 interaction exposes the remainder. Preserve existing one-line behavior when secondary text is absent.
 Identical text with the same font role and available width may share native layout storage within
