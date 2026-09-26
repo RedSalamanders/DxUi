@@ -4,6 +4,10 @@ This directory retains reviewed evidence from DxUi's own samples and benchmarks.
 interfaces, but use synthetic data and require no RedXe or RedSalamander checkout, plugin, settings or services.
 Application adoption measurements belong in their application's repository.
 
+- [Described native menus, 2026-09-21](MenuDescriptions/2026-09-21/README.md): wrapped French
+  entries, menu/UIA lifecycle coverage, stage and open/close memory attribution; resource
+  acceptance and native platform/consumer handoff remain open.
+
 - [Complex UI, 2026-09-05](ComplexUi/2026-09-05/README.md): Release baseline and matched repeat, complete raw rounds,
   comparison and rendered scene.
 - [Complex UI, 2026-09-07](ComplexUi/2026-09-07/README.md): surface-lifetime round; Debug/Release baselines measured

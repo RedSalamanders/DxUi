@@ -22,6 +22,25 @@ order; full-value access must not require duplicate hidden announcements. Repeat
 does not produce repeated notifications. Application navigation supplies its own stable target and
 stale-completion policy; the library does not choose the destination or steal focus on completion.
 
+Described native menus expose full per-entry names and MenuItem roles, exact command invocation
+and acknowledged checked state. Modal and asynchronous menu tracking both activate the root popup
+for native keyboard dispatch; submenus never activate. Dismissal restores the previously focused
+owner control while the menu still owns focus. Logical entry navigation does not change that
+session's native focus target. Native activation of a popup never selects an entry: it restores only a row
+that keyboard or UIA navigation already chose, so a pointer-opened menu has no keyboard target and
+publishes no transient focus. Explicit UIA focus of any focusable row in a native menu popup,
+including non-command rows such as sliders, follows the session rule for both root menus and
+submenus, independently of their activation style. The rule belongs to the popup host, not to the
+MenuItem role: other controls with that role keep ordinary UIA focus transfer, and embedded host
+focus stays with its bridge. Bounds follow the visible scrolled row geometry and DPI reflow; a row
+whose bounds change republishes the provider snapshot even without a focus change, so hit testing
+and BoundingRectangle match the scrolled rows. Per-entry elements, and therefore `accessibleName`,
+exist only in a popup with at least one described entry; a popup without described entries keeps its
+existing tree and exposes no per-entry elements. Posted UIA
+actions carry popup-instance identity so HWND reuse cannot dispatch an old action into a new menu;
+retained providers disconnect on teardown. Implementation and validation are tracked in the
+[menu description plan](../Plans/WIP/MenuDescriptions_2026-09-21.md).
+
 Custom controls overriding `OnFocusChanged` MUST invoke their base implementation so `HasFocus`,
 focus chrome and UIA keyboard-focus properties acknowledge the host transition. A stored host
 focus pointer alone is insufficient. Consumers qualify both visible focus and raw provider state.

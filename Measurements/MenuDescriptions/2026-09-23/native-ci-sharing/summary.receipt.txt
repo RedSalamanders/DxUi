@@ -1,0 +1,63 @@
+{
+  "commit": "f72941b83ba8269e35da5b01f7bcd3133ba7515b",
+  "run": 35831275327,
+  "profiles": [
+    {
+      "profile": "native-ARM64-ASan-Debug",
+      "regularSuites": 19,
+      "regularExitCodes": 0,
+      "skips": 9,
+      "externalConsumers": 2,
+      "expectedAsanDetection": 1,
+      "extraDiagnostics": []
+    },
+    {
+      "profile": "native-ARM64-Debug",
+      "regularSuites": 19,
+      "regularExitCodes": 0,
+      "skips": 9,
+      "externalConsumers": 1,
+      "expectedAsanDetection": 0,
+      "extraDiagnostics": []
+    },
+    {
+      "profile": "native-ARM64-Release",
+      "regularSuites": 19,
+      "regularExitCodes": 0,
+      "skips": 9,
+      "externalConsumers": 1,
+      "expectedAsanDetection": 0,
+      "extraDiagnostics": []
+    },
+    {
+      "profile": "native-x64-ASan-Debug",
+      "regularSuites": 19,
+      "regularExitCodes": 0,
+      "skips": 0,
+      "externalConsumers": 2,
+      "expectedAsanDetection": 1,
+      "extraDiagnostics": []
+    },
+    {
+      "profile": "native-x64-Debug",
+      "regularSuites": 19,
+      "regularExitCodes": 0,
+      "skips": 0,
+      "externalConsumers": 1,
+      "expectedAsanDetection": 0,
+      "extraDiagnostics": []
+    },
+    {
+      "profile": "native-x64-Release",
+      "regularSuites": 19,
+      "regularExitCodes": 0,
+      "skips": 0,
+      "externalConsumers": 1,
+      "expectedAsanDetection": 0,
+      "extraDiagnostics": [
+        "MenuResourceScaling",
+        "MenuTextLayoutResources"
+      ]
+    }
+  ]
+}

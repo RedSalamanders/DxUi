@@ -6,6 +6,8 @@
 #include <string>
 #include <thread>
 
+void RunMenuDescriptionTests();
+
 namespace
 {
 
@@ -2132,6 +2134,7 @@ void RunNewControlTests()
     // Oversized context menus
     TestContextMenuPopupScrollsOversizedContent();
     TestContextMenuPopupHonorsSessionMaxRootHeight();
+    RunMenuDescriptionTests();
 
     // StatusStrip
     TestStatusStripTextRoundtrips();
