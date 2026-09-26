@@ -1305,6 +1305,8 @@ void InvalidatePopup(MenuPopup& popup) noexcept;
 
 struct MenuController
 {
+    ~MenuController() noexcept;
+
     HWND ownerHwnd = nullptr;
     ThemePalette theme;
     MenuItemVisualStyle style;
@@ -3648,6 +3650,17 @@ void EndAsyncMenuInteraction(MenuController& controller) noexcept
         DXUI_MENU_DIAGNOSTICS_TRACE(
             L"menu.async-restore-focus", L"previousFocus={:#x} focusAfter={:#x}", TraceHwndValue(controller.previousFocus), TraceHwndValue(GetFocus()));
     }
+}
+
+MenuController::~MenuController() noexcept
+{
+    // CRT thread-local teardown can destroy a still-open async controller.
+    // ReleaseCapture/DestroyWindow synchronously re-enter MenuWndProc: keep
+    // finalization closed before any host/member destructor can release it.
+    asyncFinalizing = true;
+    running         = false;
+    EndAsyncMenuInteraction(*this);
+    DestroyPopupChain(*this);
 }
 
 void FinalizeAsyncMenuController(MenuController& controller) noexcept
