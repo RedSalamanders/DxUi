@@ -127,6 +127,10 @@ painted disc so a fat finger can grab the thumb. Neither layer is sized from the
 Keyboard and `RequestValue` ease the painted inner thumb to the new value; pointer drags and `SetValue` snap.
 Reduced motion snaps every visual. Keyboard steps still use `SetStep` / `SetLargeStep`. Consumers that need a
 fat-finger target size the control to at least the 48 DIP hit band; they do not enlarge the chrome disc to match.
+An acknowledgement through `SetValue` snaps and stops position animation even when it equals the accepted target.
+Non-finite values, range limits and steps leave the previous valid state unchanged. A range whose span overflows
+also leaves the prior range intact. Off-center thumb grabs retain the pointer offset, continue outside bounds under
+capture, and restore the initial value on cancellation without a later release committing it.
 
 Each control also requires accurate usage documentation in `docs/controls.md`. Code changes review affected docs
 and regenerate changed visuals into `docs/gallery` under [the documentation contract](../Core/Core_Documentation.md).
