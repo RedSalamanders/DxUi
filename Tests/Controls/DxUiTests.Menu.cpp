@@ -6151,7 +6151,7 @@ void TestDescribedMenuScrollRepublishesAccessibleGeometry()
             "UIA bounds follow the scrolled row geometry");
 }
 
-void TestDescribedModalMenuSliderFocusKeepsOwnerFocus()
+void TestDescribedSubmenuSliderFocusKeepsSessionFocus()
 {
     using namespace DxUi;
     // Native focus ownership needs the activating Menu lane; the nonactivating lane blocks focus changes.
@@ -6161,63 +6161,48 @@ void TestDescribedModalMenuSliderFocusKeepsOwnerFocus()
     SetWindowPos(owner.Hwnd(), nullptr, 120, 120, 360, 220, SWP_NOZORDER);
     if (! TryActivateDxUiTestWindow(owner.Hwnd()))
     {
-        SkipDxUiTest("DxUi described modal menu focus retention requires an interactive desktop");
+        SkipDxUiTest("DxUi described submenu focus retention requires an interactive desktop");
         return;
     }
-    const DWORD uiThreadId = GetCurrentThreadId();
-    // A slider row is focusable but is not a MenuItem command; it must follow the popup's rule.
-    const std::vector<MenuFlyoutItem> items{
-        {.text = L"Archives", .commandId = 8971, .secondaryText = L"C:\\Photographies\\Archives familiales"},
-        {.kind = MenuItemKind::Slider, .text = L"Zoom", .sliderStops = {{.text = L"Petit", .commandId = 8972}, {.text = L"Grand", .commandId = 8973}}}};
-    std::string driverFailure;
-    std::thread driver([&]
-    {
-        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
-        const HWND popup        = WaitForOwnedContextMenuPopupWindow(owner.Hwnd());
-        if (! popup)
-        {
-            driverFailure = "described modal menu appears";
-            return;
-        }
-        GUITHREADINFO before{sizeof(GUITHREADINFO)};
-        if (GetGUIThreadInfo(uiThreadId, &before) == FALSE || before.hwndFocus != owner.Hwnd())
-        {
-            driverFailure = "modal tracking starts with native focus on its owner";
-            return;
-        }
-        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
-        root.attach(CreateWindowHostAccessibilityProvider(popup));
-        wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
-        wil::com_ptr_nothrow<IRawElementProviderFragment> command;
-        wil::com_ptr_nothrow<IRawElementProviderFragment> slider;
-        if (! root || FAILED(root.query_to(rootFragment.put())) || FAILED(rootFragment->Navigate(NavigateDirection_FirstChild, command.put())) || ! command ||
-            FAILED(command->Navigate(NavigateDirection_NextSibling, slider.put())) || ! slider)
-        {
-            driverFailure = "described modal menu exposes its slider row";
-            return;
-        }
-        if (FAILED(slider->SetFocus()))
-        {
-            driverFailure = "a screen reader can focus the slider row";
-            return;
-        }
-        GUITHREADINFO after{sizeof(GUITHREADINFO)};
-        if (GetGUIThreadInfo(uiThreadId, &after) == FALSE || after.hwndFocus != owner.Hwnd())
-        {
-            driverFailure = "UIA focus of a slider row keeps native focus on the modal owner";
-            return;
-        }
-        ContextMenuPopupDebugState state{};
-        if (! DebugGetContextMenuPopupState(popup, state) || state.keyboardIndex != 1u)
-        {
-            driverFailure = "UIA focus tracks the slider row logically";
-        }
-    });
-    const POINT anchor              = ClientScreenPointForTest(owner.Hwnd(), 24, 60, "described modal menu anchor maps to screen");
-    const std::optional<int> result = ContextMenu::Show(owner.Hwnd(), anchor, items, owner.Host().GetTheme());
-    driver.join();
-    Require(driverFailure.empty(), driverFailure.c_str());
-    Require(! result.has_value(), "dismissing the described modal menu returns no command");
+    // Modal and asynchronous sessions both activate their root popup, so explicit focus of a root row
+    // cannot move Win32 focus. A submenu never activates: a native transfer for its focusable slider
+    // row, which is not a MenuItem command, would activate it and deactivate the root, which ends an
+    // asynchronous session while the provider call is still running.
+    const std::vector<MenuFlyoutItem> items{{.text      = L"Affichage",
+                                             .commandId = 8971,
+                                             .children = {{.text = L"Archives", .commandId = 89711, .secondaryText = L"C:\\Photographies\\Archives familiales"},
+                                                          {.kind        = MenuItemKind::Slider,
+                                                           .text        = L"Zoom",
+                                                           .sliderStops = {{.text = L"Petit", .commandId = 89712}, {.text = L"Grand", .commandId = 89713}}}},
+                                             .secondaryText = L"Options de la galerie"}};
+    bool closed        = false;
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 24, 60, "described submenu slider anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&](std::optional<int>) noexcept { closed = true; }),
+            "described submenu slider session opens");
+    const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
+    const HWND popup   = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Affichage");
+    Require(popup != nullptr && WaitForFocusedWindow(popup), "the asynchronous root popup takes native keyboard focus");
+    SendMessageW(popup, WM_KEYDOWN, VK_HOME, 0);
+    SendMessageW(popup, WM_KEYDOWN, VK_RIGHT, 0);
+    const HWND child = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Archives");
+    Require(child != nullptr && ! closed && GetFocus() == popup, "the described submenu opens without taking native focus");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(child));
+    Require(root != nullptr, "the described submenu publishes a UIA root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+    RequireSucceeded(root.query_to(rootFragment.put()), "the described submenu root navigates");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> command;
+    RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, command.put()), "the described submenu exposes its command row");
+    Require(command != nullptr, "the described submenu command row exists");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> slider;
+    RequireSucceeded(command->Navigate(NavigateDirection_NextSibling, slider.put()), "the described submenu exposes its slider row");
+    Require(slider != nullptr, "the described submenu slider row exists");
+    RequireSucceeded(slider->SetFocus(), "a screen reader can focus the submenu slider row");
+    owner.PumpMessages();
+    Require(! closed && IsWindow(popup) && IsWindow(child), "UIA focus of a submenu slider row keeps the asynchronous session open");
+    Require(GetFocus() == popup, "UIA focus of a submenu slider row keeps native focus on the root popup");
+    ContextMenuPopupDebugState state{};
+    Require(DebugGetContextMenuPopupState(child, state) && state.keyboardIndex == 1u, "UIA focus tracks the submenu slider row logically");
 }
 
 void TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus()
@@ -6333,8 +6318,8 @@ void RunMenuDescriptionTests()
     TestDescribedPointerMenuActivationSelectsNoRow();
     std::cerr << "  [START] TestDescribedMenuScrollRepublishesAccessibleGeometry\n" << std::flush;
     TestDescribedMenuScrollRepublishesAccessibleGeometry();
-    std::cerr << "  [START] TestDescribedModalMenuSliderFocusKeepsOwnerFocus\n" << std::flush;
-    TestDescribedModalMenuSliderFocusKeepsOwnerFocus();
+    std::cerr << "  [START] TestDescribedSubmenuSliderFocusKeepsSessionFocus\n" << std::flush;
+    TestDescribedSubmenuSliderFocusKeepsSessionFocus();
     std::cerr << "  [START] TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus\n" << std::flush;
     TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus();
     std::cerr << "  [START] TestDescribedMenuFractionalDpiKeepsLaneAndWidths\n" << std::flush;

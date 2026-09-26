@@ -3,6 +3,24 @@
 Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
 Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.
 
+## September 26 native CI correction
+
+Native CI on `7836afe` (runs 36230468191 and 36230470803) failed all three x64 profiles in the
+activating Menu lane. The new Slider-row test first asserted that modal tracking starts with native
+focus on its owner, and that premise was wrong. `RunMenuModalLoop`, like `ShowAsync`, has always
+activated its root popup for keyboard dispatch, on main as well. The original contract sentence
+saying that modal tracking retains owner focus is corrected, together with two source comments that
+repeated it. Production behavior does not change.
+
+On a root row the host-keyed rule cannot move Win32 focus, because the root already holds it.
+The replacement test therefore focuses the Slider row of a nonactivating asynchronous submenu,
+where a native transfer would activate the submenu and deactivate the root, ending the session.
+It checks three things: the session stays open, the root keeps Win32 focus, and the row becomes the
+logical keyboard target. ARM64 passed because its Menu lane records both new activating tests as
+interactive-desktop skips. The failing x64 runs are retained as evidence. The failure also stopped
+the x64 Menu lane early, so the MenuItem-role test and the rest of that activating lane have not
+yet run on this branch.
+
 ## September 26 review fixes
 
 Main `c36413b` (with the merged CRT-exit lifetime fix) is merged into the branch without rebasing.
@@ -26,7 +44,7 @@ Two weak assertions are now falsifiable: payload drain on teardown, and that rev
 repaint. The `accessibleName` scope is documented. New Menu tests cover:
 - pointer activation;
 - scrolled UIA geometry;
-- modal Slider-row focus;
+- submenu Slider-row focus;
 - ordinary MenuItem-role focus transfer;
 - fractional-DPI lane and widths.
 
@@ -104,11 +122,11 @@ existing mnemonic encoding. The consumer supplies destination identity and eligi
 DxUi contains no filesystem parsing or operation authority.
 
 Existing one-line menus retain their layout. Described menus expose full per-entry names,
-native MenuItem roles and invocation through the existing menu dispatcher. Modal tracking retains
-owner focus; asynchronous tracking uses its root popup and restores the prior owner control on
-dismissal. Logical navigation preserves the session's native focus target. Surviving providers must
-disconnect after popup destruction. Full consumer assistive-technology qualification remains
-in RedSalamander's File Operations plan.
+native MenuItem roles and invocation through the existing menu dispatcher. Modal and asynchronous
+tracking both activate the root popup and restore the prior owner control on dismissal; submenus
+never activate. Logical navigation preserves the session's native focus target. Surviving
+providers must disconnect after popup destruction. Full consumer assistive-technology
+qualification remains in RedSalamander's File Operations plan.
 
 ## Execution
 

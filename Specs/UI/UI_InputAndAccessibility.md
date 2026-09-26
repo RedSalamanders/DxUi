@@ -23,10 +23,10 @@ does not produce repeated notifications. Application navigation supplies its own
 stale-completion policy; the library does not choose the destination or steal focus on completion.
 
 Described native menus expose full per-entry names and MenuItem roles, exact command invocation
-and acknowledged checked state. Modal menu tracking retains owner focus; an asynchronous menu
-uses its root popup for native keyboard dispatch and restores the previously focused owner control
-on dismissal while it still owns focus. Logical entry navigation does not change that session's
-native focus target. Native activation of a popup never selects an entry: it restores only a row
+and acknowledged checked state. Modal and asynchronous menu tracking both activate the root popup
+for native keyboard dispatch; submenus never activate. Dismissal restores the previously focused
+owner control while the menu still owns focus. Logical entry navigation does not change that
+session's native focus target. Native activation of a popup never selects an entry: it restores only a row
 that keyboard or UIA navigation already chose, so a pointer-opened menu has no keyboard target and
 publishes no transient focus. Explicit UIA focus of any focusable row in a native menu popup,
 including non-command rows such as sliders, follows the session rule for both root menus and

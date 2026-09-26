@@ -7633,9 +7633,9 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
     if (control && control->IsFocusable())
     {
         // Native menu popups track logical row focus while the menu session keeps its Win32
-        // focus target (the owner for modal tracking, the root popup for asynchronous tracking).
-        // This follows the popup host, so every focusable row qualifies, including sliders, and
-        // ordinary controls that use the MenuItem role keep native focus transfer.
+        // focus target: the root popup, which modal and asynchronous tracking both activate.
+        // Submenus never activate. This follows the popup host, so every focusable row qualifies,
+        // including sliders, and ordinary controls that use the MenuItem role keep native focus transfer.
         const bool nativeMenuRow = ! _target->embedded && IsNativeMenuPopupWindow(_hwnd);
         if (! _target->embedded && ! nativeMenuRow)
             ::SetFocus(_hwnd);

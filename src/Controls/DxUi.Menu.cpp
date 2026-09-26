@@ -3100,8 +3100,8 @@ void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
         }
     }
     Control* focus = popup.keyboardIndex && *popup.keyboardIndex < children.size() ? children[*popup.keyboardIndex].get() : nullptr;
-    // Keep the session's native focus target while tracking logical entry focus:
-    // modal menus use their owner; async menus activate their root for keyboard dispatch.
+    // Keep the session's native focus target while tracking logical entry focus: modal and
+    // asynchronous menus both activate their root popup for keyboard dispatch.
     bool published = false;
     if (popup.host.GetFocusControl() != focus)
     {
