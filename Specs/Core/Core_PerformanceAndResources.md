@@ -34,6 +34,24 @@ cause, ask the developer for advice, and propose options with quantified costs: 
 reduce optional scope, or defer/revert the change. Any explicitly approved tradeoff needs durable rationale and the
 chosen resource budget in this contract or its owning domain; a WIP note alone cannot waive a requirement.
 
+### I26 accepted multiline Grid memory tradeoff
+
+On 2026-09-23 the user explicitly accepted the measured V11 multiline Grid process-memory
+cost to retain complete-line clipping, omission markers and readable Issues summaries.
+The observed fixed-fixture Release median rises from 33,214,464 to 40,226,816 private bytes
+(+7,012,352 bytes); paced retention rises from 29,743,104 to 36,831,232 bytes. The accepted
+envelope is those recorded approximately 6–7 MiB costs, alongside the measured multiline
+offscreen throughput improvement from 61.974 to 122.243 FPS. Preserve the
+[original qualification](../../Measurements/GridTextOverflow/2026-09-21/qualification/Release/README.md)
+and [heap attribution](../../Measurements/GridTextOverflow/2026-09-21/heap-attribution/README.md).
+Process private bytes are not equivalent to live cache storage; attribution includes native
+heap capacity and does not establish a settled long-run bound.
+
+This decision does not accept the rejected associative-cache experiment, separate common-path
+timing/memory flags, menu benchmark differences, or additional growth. Existing investigation
+bands and deterministic allocation/surface/hidden-work budgets remain unchanged. It neither
+updates a consumer pin nor replaces the remaining functional and integrated qualification.
+
 ### I19 accepted resource trade-off
 
 On 2026-09-13 the user accepted the measured static-library adoption trade-off and
@@ -78,6 +96,15 @@ and CPU/GPU/total frame costs separately. WARP coverage and a clean composite al
 Run retention/soak checks long enough to distinguish bounded warm caches from sustained growth; report samples,
 duration, maximum views/data and start/steady/peak/end resources. Do not claim a hardware or long-run pass from
 the short default benchmark. Match new development to a targeted measured workload as well as the common fixture.
+
+Optional heap-attribution fixtures may enumerate and walk process heaps outside timed rounds,
+with bounded storage and individual heap locks. Report per-heap failures and distinguish busy/free
+heap blocks from process-private memory and working set; their totals are not interchangeable.
+Do not purge heaps or trim working sets to hide retention. A separately identified fixture may
+pace retention frames to compare wall-clock allocation rates, but must leave measured FPS rounds
+unpaced and must not replace ordinary unpaced performance/resource acceptance. Diagnostic timing
+includes sampling overhead. [The grid investigation](../../Measurements/GridTextOverflow/2026-09-21/heap-attribution/README.md)
+records the implemented opt-in diagnostics and their unresolved conclusions.
 
 Steady-state hot paths use bounded reusable storage; cache derived state and batch compatible work. Never allocate,
 shape text, create targets, traverse layout, do I/O, block or read back in clean composition. Coalesce dirty state and

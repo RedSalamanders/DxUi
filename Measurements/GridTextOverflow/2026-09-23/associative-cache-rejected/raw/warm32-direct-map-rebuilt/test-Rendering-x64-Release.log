@@ -1,0 +1,7 @@
+[START] Rendering
+Grid clamp ink rows: full=71 clamped=29
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+Grid warm working set: hits=28 misses=36 layout creations=72
+FAILED: unchanged visible working set must actually repaint and reuse all thirty-two multiline values

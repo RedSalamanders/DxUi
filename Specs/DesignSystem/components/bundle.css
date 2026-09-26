@@ -109,6 +109,8 @@ body { margin: 0; background: var(--windowBackground); color: var(--text); font:
 .dx-grid tr.is-hover td { background: var(--hoverFill); }
 .dx-grid tr.is-selected td { background: var(--selectionFill); color: var(--selectionText); }
 .dx-grid tr.is-inactive td { background: var(--selectionInactiveFill); }
+.dx-grid tr.is-multiline td { height: 44px; }
+.dx-clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; line-height: 16px; }
 .dx-badge { display: inline-block; min-width: 28px; box-sizing: border-box; padding: 0 6px; height: 16px; line-height: 16px; border-radius: 8px; text-align: center; font-size: 11px; }
 .dx-badge.info { background: var(--infoFill); color: var(--infoText); }
 .dx-badge.warn { background: var(--warningFill); color: var(--warningText); }

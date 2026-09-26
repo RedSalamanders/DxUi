@@ -1,0 +1,1 @@
+Both policies passed the initial 16-row/one-column warm test (32 hits, zero misses). This test was non-discriminating and does not establish a fixed regression. The new 16-row/two-column variant is pending compilation on both policies.

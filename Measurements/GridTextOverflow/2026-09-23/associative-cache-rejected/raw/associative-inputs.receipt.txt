@@ -1,0 +1,14 @@
+[
+  {
+    "path": "src/Controls/DxUi.Grid.cpp",
+    "sha256": "ffc0b09e0872033442d8d79649970b0476dd28d17e98ff1936c178e0977ddc6f"
+  },
+  {
+    "path": "include/DxUi/DxUi.h",
+    "sha256": "fce09d59861033b7d50382dc3c68a292ad63a13dc44db8509eb9689281d7e83f"
+  },
+  {
+    "path": "Tests/Embedded/ComplexUiBenchmark.h",
+    "sha256": "8195a01e2ac04b547977907b5d9f27a1cc122d9be0a08fefacf1dc01d6b3fc89"
+  }
+]

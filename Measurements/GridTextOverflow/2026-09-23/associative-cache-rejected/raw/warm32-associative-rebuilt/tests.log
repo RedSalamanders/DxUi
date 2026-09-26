@@ -1,0 +1,33 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+Complex UI clean round 1: 2388.46 completed offscreen FPS; p95 0.5244 ms; private 27729920 bytes
+Complex UI clean round 2: 2356.64 completed offscreen FPS; p95 0.6135 ms; private 27353088 bytes
+Complex UI clean round 3: 2364.39 completed offscreen FPS; p95 0.4929 ms; private 27729920 bytes
+Complex UI clean round 4: 2305.89 completed offscreen FPS; p95 0.5202 ms; private 28045312 bytes
+Complex UI clean round 5: 1661.54 completed offscreen FPS; p95 1.0339 ms; private 28340224 bytes
+Complex UI dirty round 1: 492.484 completed offscreen FPS; p95 2.4448 ms; private 28655616 bytes
+Complex UI dirty round 2: 495.727 completed offscreen FPS; p95 2.3415 ms; private 29691904 bytes
+Complex UI dirty round 3: 490.675 completed offscreen FPS; p95 2.5088 ms; private 29683712 bytes
+Complex UI dirty round 4: 493.23 completed offscreen FPS; p95 2.4513 ms; private 29659136 bytes
+Complex UI dirty round 5: 495.811 completed offscreen FPS; p95 2.3753 ms; private 29609984 bytes
+Performance comparison: advice-required
+REGRESSION clean/prepareP95Ms: 0.000 -> 0.000
+REGRESSION dirty/privateBytes: 28643328.000 -> 29659136.000
+REGRESSION dirty/privatePeakBytes: 28717056.000 -> 29683712.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Exception: Z:\src\DxUi-worktrees\i26-grid-line-clamp\Tools\Invoke-Python.ps1:13
+Line |
+  13 |  … DE -ne 0) { throw "Python validation failed with exit code $LASTEXITC …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Python validation failed with exit code 1.
+
+

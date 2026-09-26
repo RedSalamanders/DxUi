@@ -7,6 +7,7 @@
 struct ComplexUiModel final : DxUi::IDxGridModel, DxUi::IDxTreeModel
 {
     std::array<std::wstring, 1000> names;
+    bool multilineGrid = false;
     ComplexUiModel()
     {
         for (size_t i = 0; i < names.size(); ++i)
@@ -26,7 +27,8 @@ struct ComplexUiModel final : DxUi::IDxGridModel, DxUi::IDxTreeModel
     }
     void GetCellData(size_t row, size_t, DxUi::GridCellData& cell) const override
     {
-        cell.text = names[row];
+        cell.text      = names[row];
+        cell.multiline = multilineGrid;
     }
     std::optional<size_t> FindRowByStableId(uint64_t id) const noexcept override
     {
@@ -101,7 +103,7 @@ struct ComplexUiScene
             sliders[i]->SetValue(value);
             progress[i]->SetValue(value);
         }
-        grid->EnsureRowVisible((frame * 7) % model.names.size());
+        grid->EnsureRowVisible((frame * (model.multilineGrid ? 1u : 7u)) % model.names.size());
         view.MarkDirty();
     }
 };

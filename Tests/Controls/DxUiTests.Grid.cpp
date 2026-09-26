@@ -1530,6 +1530,66 @@ void TestGridRepeatedExplicitTooltipShowsWhenCellTextIsClipped()
     Require(host.GetTooltipText() == L"Clipped repeated tooltip text", "grid uses the repeated explicit tooltip for clipped visible text");
 }
 
+void TestGridMultilineTooltipFollowsPaintedLines()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 260.0f));
+    host.SetRoot(std::move(root));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 260.0f));
+
+    GridCellData cellData;
+    cellData.kind      = GridCellKind::Text;
+    cellData.text      = L"Ligne 1\nLigne 2";
+    cellData.multiline = true;
+    SingleCellGridModel model(cellData);
+    grid->SetModel(&model);
+
+    const auto hoverCell = [&](std::wstring text, const char* context)
+    {
+        cellData.text = std::move(text);
+        model         = SingleCellGridModel(cellData);
+        grid->NotifyDataChanged();
+        host.ClearTooltip();
+        const GridCellLayoutMetrics metrics = grid->GetCellLayoutMetrics(host, 0u, 0u);
+        const D2D1_POINT_2F hoverPoint =
+            D2D1::Point2F((metrics.cellRect.left + metrics.cellRect.right) * 0.5f, (metrics.cellRect.top + metrics.cellRect.bottom) * 0.5f);
+        Require(grid->OnMouseMove(host, hoverPoint, 0), context);
+    };
+
+    // The default 28-DIP row leaves a 22-DIP text area. With the default clamp of
+    // two lines only "Ligne 1..." paints, so hovering must offer the full value.
+    hoverCell(L"Ligne 1\nLigne 2", "grid multiline cell with an omitted line is hovered");
+    Require(host.HasTooltip(), "a multiline cell that paints an omission marker shows a tooltip");
+    Require(host.GetTooltipText() == L"Ligne 1\nLigne 2", "the multiline tooltip carries the complete model value");
+
+    // A taller row paints both lines completely; nothing is omitted.
+    grid->SetRowHeightDip(64.0f);
+    hoverCell(L"Ligne 1\nLigne 2", "grid multiline cell with two complete lines is hovered");
+    Require(! host.HasTooltip(), "a multiline cell whose lines all paint shows no tooltip");
+
+    // Wrapping alone omits nothing: a paragraph wider than the column that wraps
+    // within the clamp and row paints completely, unlike an unwrapped caption.
+    grid->SetRowHeightDip(160.0f);
+    grid->SetLineClamp(8u);
+    hoverCell(L"Une phrase assez longue pour passer a la ligne dans la colonne", "grid wrapped multiline cell is hovered");
+    Require(! host.HasTooltip(), "a wrapped multiline cell that paints completely shows no tooltip");
+
+    // Paint lays text out against the full cell. When a horizontally scrolled
+    // viewport hides part of the painted text, the full value is offered as for
+    // single-line cells; short text that stays in view is not.
+    const std::array<GridColumnLayoutEntry, 1u> wideLayout{GridColumnLayoutEntry{.columnId = L"status", .displayIndex = 0u, .widthDip = 560.0f}};
+    grid->ApplyColumnLayout(wideLayout);
+    hoverCell(L"Court\nTexte", "grid short multiline cell in a wide column is hovered");
+    Require(! host.HasTooltip(), "short multiline text inside the viewport shows no tooltip");
+    hoverCell(L"Une seule longue phrase qui continue bien au-dela de la partie visible de cette colonne tres large",
+              "grid multiline cell extending past the viewport is hovered");
+    Require(host.HasTooltip(), "multiline text that the viewport hides horizontally shows a tooltip");
+}
+
 void TestGridFolderViewVisualModeUsesFolderLikeRowHighlights()
 {
     using namespace DxUi;
@@ -1851,6 +1911,7 @@ void RunGridTests()
     TestGridExplicitTooltipOverridesLongTextFallback();
     TestGridLongTextFallbackTooltipRequiresClippedText();
     TestGridRepeatedExplicitTooltipShowsWhenCellTextIsClipped();
+    TestGridMultilineTooltipFollowsPaintedLines();
     TestGridFolderViewVisualModeUsesFolderLikeRowHighlights();
     TestGridEmptyModelDoesNotHitTestBodyRows();
     TestGridSetModelNullCancelsActiveColumnResize();

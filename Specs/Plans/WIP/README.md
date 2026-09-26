@@ -2,6 +2,7 @@
 
 | Status | Plan | Next action |
 |---|---|---|
+| ACTIVE | [Bounded grid text and clipping](GridTextOverflow_2026-09-21.md) | V11 memory tradeoff accepted and main merged; regenerate the gallery, pass six native CI profiles and republish the design system, then consumer qualification before explicit pin adoption. |
 | HOLD | [TreeReorder_2026-09-21.md](TreeReorder_2026-09-21.md) | Drag-reorder is in `Tree`. Multi-select remains. Not a second tree in the app. |
 
 Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md`,

@@ -1,0 +1,249 @@
+﻿Build started 9/21/2026 7:08:21 PM.
+Logging verbosity is set to: Normal.
+     1>Project "D:\a\DxUi\DxUi\DxUi.sln" on node 1 (Build target(s)).
+     1>ValidateSolutionConfiguration:
+         Building solution configuration "Debug|x64".
+     1>Project "D:\a\DxUi\DxUi\DxUi.sln" (1) is building "D:\a\DxUi\DxUi\src\DxUi.vcxproj" (2) on node 1 (default targets).
+     2>PrepareForBuild:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\".
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+         Creating directory "D:\a\DxUi\DxUi\.build\x64\Debug\".
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.tlog\".
+       InitializeBuildStatus:
+         Creating "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+         Touching "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.tlog\unsuccessfulbuild".
+       FxCompile:
+         C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x86\fxc.exe /nologo /E"VSMain" /T vs_5_0 /Fh "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUiCompositeVS.h" /Fo "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUiCompositeVS.cso" /Vn "g_DxUiCompositeVS" /Od /Zi /Ges /O3 /Qstrip_debug /Qstrip_reflect /Qstrip_priv Rendering\CompositeVS.hlsl 
+         compilation header save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUiCompositeVS.h
+         compilation object save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUiCompositeVS.cso
+         C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x86\fxc.exe /nologo /E"PSMain" /T ps_5_0 /Fh "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUiCompositePS.h" /Fo "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUiCompositePS.cso" /Vn "g_DxUiCompositePS" /Od /Zi /Ges /O3 /Qstrip_debug /Qstrip_reflect /Qstrip_priv Rendering\CompositePS.hlsl 
+         compilation header save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUiCompositePS.h
+         compilation object save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUiCompositePS.cso
+       ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+       MakeDirsForCl:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\microsoft\STL".
+       SetModuleDependencies:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi_MD.tlog\".
+       ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /ID:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\ /ID:\a\DxUi\DxUi\include /I"D:\a\DxUi\DxUi\.build\vcpkg_installed\x64\x64-windows\include" /ZI /JMC /nologo /W4 /WX /diagnostics:column /sdl /Od /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\\" /Fd"D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor Controls\ControlCatalog.cpp Controls\NativeMenuInterop.cpp Rendering\Embedded.cpp Foundation\FrameRuntime.cpp Controls\DxUi.Accessibility.cpp Controls\DxUi.ComboBox.cpp Controls\DxUi.Controls.cpp Controls\DxUi.cpp Controls\DxUi.Grid.cpp Controls\DxUi.Menu.cpp Controls\DxUi.NativeTextInput.cpp Controls\DxUi.PointerInput.cpp Controls\DxUi.Scrollbar.cpp Controls\DxUi.SingleLineTextEditing.cpp Controls\DxUi.TextInput.cpp Controls\DxUi.TextStoreACP.cpp Controls\TextInputServices.cpp Controls\TextClipboard.cpp Controls\DxUi.Theme.cpp Controls\DxUi.Tree.cpp Controls\DxUi.Typeahead.cpp Controls\DxUi.WindowHost.cpp
+         ControlCatalog.cpp
+         NativeMenuInterop.cpp
+         Embedded.cpp
+         FrameRuntime.cpp
+         DxUi.Accessibility.cpp
+         DxUi.ComboBox.cpp
+         DxUi.Controls.cpp
+         DxUi.cpp
+         DxUi.Grid.cpp
+         DxUi.Menu.cpp
+         DxUi.NativeTextInput.cpp
+         DxUi.PointerInput.cpp
+         DxUi.Scrollbar.cpp
+         DxUi.SingleLineTextEditing.cpp
+         DxUi.TextInput.cpp
+         DxUi.TextStoreACP.cpp
+         TextInputServices.cpp
+         TextClipboard.cpp
+         DxUi.Theme.cpp
+         DxUi.Tree.cpp
+         Generating Code...
+         Compiling...
+         DxUi.Typeahead.cpp
+         DxUi.WindowHost.cpp
+         Generating Code...
+       Lib:
+         C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\Lib.exe /OUT:"D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.lib" /NOLOGO /MACHINE:X64 D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\ControlCatalog.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\NativeMenuInterop.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\Embedded.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\FrameRuntime.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.Accessibility.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.ComboBox.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.Controls.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.Grid.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.Menu.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.NativeTextInput.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.PointerInput.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.Scrollbar.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.SingleLineTextEditing.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.TextInput.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.TextStoreACP.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\TextInputServices.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\TextClipboard.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.Theme.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.Tree.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.Typeahead.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.WindowHost.obj
+         DxUi.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.lib
+       FinalizeBuildStatus:
+         Deleting file "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.tlog\unsuccessfulbuild".
+         Touching "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi\DxUi.tlog\DxUi.lastbuildstate".
+     2>Done Building Project "D:\a\DxUi\DxUi\src\DxUi.vcxproj" (default targets).
+     1>Project "D:\a\DxUi\DxUi\DxUi.sln" (1) is building "D:\a\DxUi\DxUi\Tests\Controls\DxUi.ControlTests.vcxproj" (5) on node 4 (default targets).
+     5>PrepareForBuild:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\".
+     1>Project "D:\a\DxUi\DxUi\DxUi.sln" (1) is building "D:\a\DxUi\DxUi\Tests\Foundation\DxUi.FoundationTests.vcxproj" (3) on node 3 (default targets).
+     3>PrepareForBuild:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.FoundationTests\".
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\".
+     1>Project "D:\a\DxUi\DxUi\DxUi.sln" (1) is building "D:\a\DxUi\DxUi\Tests\Embedded\DxUi.EmbeddedTests.vcxproj" (6) on node 2 (default targets).
+     6>PrepareForBuild:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedTests\".
+     5>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\".
+     6>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\".
+     3>InitializeBuildStatus:
+         Creating "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+         Touching "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\unsuccessfulbuild".
+     5>InitializeBuildStatus:
+         Creating "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+         Touching "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\unsuccessfulbuild".
+     6>InitializeBuildStatus:
+         Creating "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+         Touching "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\unsuccessfulbuild".
+     3>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+     5>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+     3>MakeDirsForCl:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.FoundationTests\microsoft\STL".
+       SetModuleDependencies:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.FoundationTests\DxUi.Fou.D62F4A2E_MD.tlog\".
+     5>MakeDirsForCl:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\microsoft\STL".
+       SetModuleDependencies:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUi.Con.B4F322B1_MD.tlog\".
+     6>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+       MakeDirsForCl:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedTests\microsoft\STL".
+       SetModuleDependencies:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F_MD.tlog\".
+     3>ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /ID:\a\DxUi\DxUi\include /I"D:\a\DxUi\DxUi\.build\vcpkg_installed\x64\x64-windows\include" /ZI /JMC /nologo /W4 /WX /diagnostics:column /sdl /Od /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.FoundationTests\\" /Fd"D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.FoundationTests\vc145.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor FoundationTests.cpp PublicHelpersTests.cpp
+     6>ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /ID:\a\DxUi\DxUi\include /I"D:\a\DxUi\DxUi\.build\vcpkg_installed\x64\x64-windows\include" /ZI /JMC /nologo /W4 /WX /diagnostics:column /sdl /Od /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedTests\\" /Fd"D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedTests\vc145.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor EmbeddedTests.cpp
+     5>ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /ID:\a\DxUi\DxUi\include /I"D:\a\DxUi\DxUi\.build\vcpkg_installed\x64\x64-windows\include" /ZI /JMC /nologo /W4 /WX /diagnostics:column /sdl /Od /D ENABLE_TESTS /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\\" /Fd"D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\vc145.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor DxUiTests.Accessibility.cpp DxUiTests.Animation.cpp DxUiTests.ComboBox.cpp DxUiTests.Controls.cpp DxUiTests.cpp DxUiTests.Gallery.cpp DxUiTests.Grid.cpp DxUiTests.Menu.cpp DxUiTests.MultilineText.cpp DxUiTests.NativeTextInput.cpp DxUiTests.NewControls.cpp DxUiTests.ReadOnly.cpp DxUiTests.Rendering.cpp DxUiTests.TextField.cpp DxUiTests.Theme.cpp DxUiTests.Tooltip.cpp DxUiTests.Tree.cpp DxUiTests.WindowHost.cpp
+     3>ClCompile:
+         FoundationTests.cpp
+     5>ClCompile:
+         DxUiTests.Accessibility.cpp
+     6>ClCompile:
+         EmbeddedTests.cpp
+     1>Project "D:\a\DxUi\DxUi\DxUi.sln" (1) is building "D:\a\DxUi\DxUi\Samples\EmbeddedControls\DxUi.EmbeddedControls.vcxproj" (4) on node 2 (default targets).
+     4>PrepareForBuild:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedControls\".
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\".
+       InitializeBuildStatus:
+         Creating "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+         Touching "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\unsuccessfulbuild".
+       ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+       MakeDirsForCl:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedControls\microsoft\STL".
+       SetModuleDependencies:
+         Creating directory "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E_MD.tlog\".
+       ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /ID:\a\DxUi\DxUi\include /I"D:\a\DxUi\DxUi\.build\vcpkg_installed\x64\x64-windows\include" /ZI /JMC /nologo /W4 /WX /diagnostics:column /sdl /Od /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedControls\\" /Fd"D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedControls\vc145.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor Main.cpp
+         Main.cpp
+     3>ClCompile:
+         PublicHelpersTests.cpp
+         Generating Code...
+     4>Link:
+         C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.EmbeddedControls.exe" /INCREMENTAL /ILK:"D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedControls\DxUi.EmbeddedControls.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.EmbeddedControls.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.EmbeddedControls.lib" /MACHINE:X64 D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedControls\Main.obj
+         D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.lib
+     3>Link:
+         C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.FoundationTests.exe" /INCREMENTAL /ILK:"D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.FoundationTests\DxUi.FoundationTests.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.FoundationTests.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.FoundationTests.lib" /MACHINE:X64 D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.FoundationTests\FoundationTests.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.FoundationTests\PublicHelpersTests.obj
+         D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.lib
+     5>ClCompile:
+         DxUiTests.Animation.cpp
+     3>Link:
+         DxUi.FoundationTests.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.FoundationTests.exe
+     4>Link:
+         DxUi.EmbeddedControls.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.EmbeddedControls.exe
+     3>FinalizeBuildStatus:
+         Deleting file "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\unsuccessfulbuild".
+         Touching "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\DxUi.FoundationTests.lastbuildstate".
+     3>Done Building Project "D:\a\DxUi\DxUi\Tests\Foundation\DxUi.FoundationTests.vcxproj" (default targets).
+     4>FinalizeBuildStatus:
+         Deleting file "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\unsuccessfulbuild".
+         Touching "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\DxUi.EmbeddedControls.lastbuildstate".
+     4>Done Building Project "D:\a\DxUi\DxUi\Samples\EmbeddedControls\DxUi.EmbeddedControls.vcxproj" (default targets).
+     6>Link:
+         C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.EmbeddedTests.exe" /INCREMENTAL /ILK:"D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedTests\DxUi.EmbeddedTests.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.EmbeddedTests.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.EmbeddedTests.lib" /MACHINE:X64 D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedTests\EmbeddedTests.obj
+         D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.lib
+         DxUi.EmbeddedTests.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.EmbeddedTests.exe
+       FinalizeBuildStatus:
+         Deleting file "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\unsuccessfulbuild".
+         Touching "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\DxUi.EmbeddedTests.lastbuildstate".
+     6>Done Building Project "D:\a\DxUi\DxUi\Tests\Embedded\DxUi.EmbeddedTests.vcxproj" (default targets).
+     5>ClCompile:
+         DxUiTests.ComboBox.cpp
+         DxUiTests.Controls.cpp
+         DxUiTests.cpp
+         DxUiTests.Gallery.cpp
+         DxUiTests.Grid.cpp
+         DxUiTests.Menu.cpp
+         DxUiTests.MultilineText.cpp
+         DxUiTests.NativeTextInput.cpp
+         DxUiTests.NewControls.cpp
+         DxUiTests.ReadOnly.cpp
+         DxUiTests.Rendering.cpp
+         DxUiTests.TextField.cpp
+         DxUiTests.Theme.cpp
+         DxUiTests.Tooltip.cpp
+         DxUiTests.Tree.cpp
+         DxUiTests.WindowHost.cpp
+         Generating Code...
+       Link:
+         C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.ControlTests.exe" /INCREMENTAL /ILK:"D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUi.ControlTests.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.ControlTests.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.ControlTests.lib" /MACHINE:X64 D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.Accessibility.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.Animation.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.ComboBox.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.Controls.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.Gallery.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.Grid.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.Menu.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.MultilineText.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.NativeTextInput.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.NewControls.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.ReadOnly.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.Rendering.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.TextField.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.Theme.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.Tooltip.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.Tree.obj
+         D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUiTests.WindowHost.obj
+         D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.lib
+         DxUi.ControlTests.vcxproj -> D:\a\DxUi\DxUi\.build\x64\Debug\DxUi.ControlTests.exe
+       FinalizeBuildStatus:
+         Deleting file "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\unsuccessfulbuild".
+         Touching "D:\a\DxUi\DxUi\.build\Intermediate\x64\Debug\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\DxUi.ControlTests.lastbuildstate".
+     5>Done Building Project "D:\a\DxUi\DxUi\Tests\Controls\DxUi.ControlTests.vcxproj" (default targets).
+     1>Done Building Project "D:\a\DxUi\DxUi\DxUi.sln" (Build target(s)).
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+FileLogger wrote to: D:\a\DxUi\DxUi\.build\logs\build-x64-Debug-fcf1ba9395b8428a9811414162431111.log
+
+Time Elapsed 00:03:40.37

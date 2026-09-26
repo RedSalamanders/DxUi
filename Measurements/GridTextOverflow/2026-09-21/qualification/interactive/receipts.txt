@@ -1,0 +1,74 @@
+[
+  {
+    "configuration": "Debug",
+    "suite": "Menu",
+    "exitCode": 0,
+    "skips": 0,
+    "restored": true,
+    "completedUtc": "2026-09-21T06:09:47.1548067Z",
+    "executableSha256": "84A8BD480E0EF202CBC80F6234505569F6EC376FA9921A4473836DCD61A84656",
+    "wrapperSha256": "8D6CD9A3F75141176C15E85EBFD31F20687CA4B077C8A0982970E676E81AC886",
+    "wrapperSourceSha256": "439C88C3802061427DA9D29636512BEE9E90F5EE2B4232469C9FCE748E9212D1",
+    "log": "C:/RedSalamander.Perf/evidence/i26-ui/dxui-grid-v11-input-v4-Debug-Menu.log"
+  },
+  {
+    "configuration": "Debug",
+    "suite": "NativeTextInput",
+    "exitCode": 0,
+    "skips": 0,
+    "restored": true,
+    "completedUtc": "2026-09-21T06:10:14.1226267Z",
+    "executableSha256": "84A8BD480E0EF202CBC80F6234505569F6EC376FA9921A4473836DCD61A84656",
+    "wrapperSha256": "8D6CD9A3F75141176C15E85EBFD31F20687CA4B077C8A0982970E676E81AC886",
+    "wrapperSourceSha256": "439C88C3802061427DA9D29636512BEE9E90F5EE2B4232469C9FCE748E9212D1",
+    "log": "C:/RedSalamander.Perf/evidence/i26-ui/dxui-grid-v11-input-v4-Debug-NativeTextInput.log"
+  },
+  {
+    "configuration": "Release",
+    "suite": "Menu",
+    "exitCode": 0,
+    "skips": 0,
+    "restored": true,
+    "completedUtc": "2026-09-21T06:10:47.9536337Z",
+    "executableSha256": "172231F3F42D8640E3E1721CE4E491A8A369CFA45FF7A7B232B77A769E40D490",
+    "wrapperSha256": "8D6CD9A3F75141176C15E85EBFD31F20687CA4B077C8A0982970E676E81AC886",
+    "wrapperSourceSha256": "439C88C3802061427DA9D29636512BEE9E90F5EE2B4232469C9FCE748E9212D1",
+    "log": "C:/RedSalamander.Perf/evidence/i26-ui/dxui-grid-v11-input-v4-Release-Menu.log"
+  },
+  {
+    "configuration": "Release",
+    "suite": "NativeTextInput",
+    "exitCode": 0,
+    "skips": 0,
+    "restored": true,
+    "completedUtc": "2026-09-21T06:11:18.7738289Z",
+    "executableSha256": "172231F3F42D8640E3E1721CE4E491A8A369CFA45FF7A7B232B77A769E40D490",
+    "wrapperSha256": "8D6CD9A3F75141176C15E85EBFD31F20687CA4B077C8A0982970E676E81AC886",
+    "wrapperSourceSha256": "439C88C3802061427DA9D29636512BEE9E90F5EE2B4232469C9FCE748E9212D1",
+    "log": "C:/RedSalamander.Perf/evidence/i26-ui/dxui-grid-v11-input-v4-Release-NativeTextInput.log"
+  },
+  {
+    "configuration": "ASan Debug",
+    "suite": "Menu",
+    "exitCode": 0,
+    "skips": 0,
+    "restored": true,
+    "completedUtc": "2026-09-21T06:12:07.8307503Z",
+    "executableSha256": "3274A9D30F2999D45389001A587983C39DB4602B963B451715886003D4114744",
+    "wrapperSha256": "8D6CD9A3F75141176C15E85EBFD31F20687CA4B077C8A0982970E676E81AC886",
+    "wrapperSourceSha256": "439C88C3802061427DA9D29636512BEE9E90F5EE2B4232469C9FCE748E9212D1",
+    "log": "C:/RedSalamander.Perf/evidence/i26-ui/dxui-grid-v11-input-v4-ASan-Debug-Menu.log"
+  },
+  {
+    "configuration": "ASan Debug",
+    "suite": "NativeTextInput",
+    "exitCode": 0,
+    "skips": 0,
+    "restored": true,
+    "completedUtc": "2026-09-21T06:13:00.5282553Z",
+    "executableSha256": "3274A9D30F2999D45389001A587983C39DB4602B963B451715886003D4114744",
+    "wrapperSha256": "8D6CD9A3F75141176C15E85EBFD31F20687CA4B077C8A0982970E676E81AC886",
+    "wrapperSourceSha256": "439C88C3802061427DA9D29636512BEE9E90F5EE2B4232469C9FCE748E9212D1",
+    "log": "C:/RedSalamander.Perf/evidence/i26-ui/dxui-grid-v11-input-v4-ASan-Debug-NativeTextInput.log"
+  }
+]

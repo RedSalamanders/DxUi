@@ -1,0 +1,30 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+Complex UI clean round 1: 2304.33 completed offscreen FPS; p95 0.5501 ms; private 25427968 bytes
+Complex UI clean round 2: 2158.31 completed offscreen FPS; p95 0.618 ms; private 25358336 bytes
+Complex UI clean round 3: 1959.82 completed offscreen FPS; p95 0.6464 ms; private 25358336 bytes
+Complex UI clean round 4: 2216.43 completed offscreen FPS; p95 0.5685 ms; private 25362432 bytes
+Complex UI clean round 5: 2360.3 completed offscreen FPS; p95 0.5205 ms; private 25317376 bytes
+Complex UI dirty round 1: 516.855 completed offscreen FPS; p95 2.258 ms; private 28037120 bytes
+Complex UI dirty round 2: 531.723 completed offscreen FPS; p95 2.1662 ms; private 28090368 bytes
+Complex UI dirty round 3: 510.655 completed offscreen FPS; p95 2.3596 ms; private 28168192 bytes
+Complex UI dirty round 4: 542.903 completed offscreen FPS; p95 2.0025 ms; private 28200960 bytes
+Complex UI dirty round 5: 532.296 completed offscreen FPS; p95 2.1061 ms; private 28217344 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\reports\Performance-x64-Release-25c752986f5047fca9c2d802e0f0d3f3.json
+Running Grid (x64 Release)
+PASS Grid (0 capability skips recorded)
+Running Embedded (x64 Release)
+PASS Embedded (0 capability skips recorded)
+Running Rendering (x64 Release)
+PASS Rendering (0 capability skips recorded)
+All 3 requested suites passed.

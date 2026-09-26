@@ -1,0 +1,5 @@
+# September 23 policy provenance correction
+
+The 14:05 local direct-map build explicitly compiles Grid.cpp; its 14:06 heap run precedes the 14:10 associative build and remains the retained original heap/resource baseline. The later 14:20 direct-map-regression build does not compile Grid.cpp after restoring older source mtimes; direct-map-common.json and the corresponding Grid/Embedded/Rendering regression receipts cannot establish original-policy behavior. Preserve them as invalid comparison evidence. The same issue invalidates warm32-direct-map: it rebuilt tests against restored original headers but retained the candidate library. Rendering then exited 0xC0000005 during teardown; no stack trace attributes causality.
+
+Root independently verified Sol High's source/build-log findings. Both new runs use -Rebuild and retain identical corrected thirty-two-cell fixture bytes. The fixture model now outlives its borrowing host. No old baseline is replaced or failure erased. Earlier initial heap counts and resource deltas remain valid on their recorded scope; later common-path timing is not borrowed into that claim.

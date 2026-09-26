@@ -3604,6 +3604,34 @@ private:
                                                                  const D2D1_RECT_F& cellRect,
                                                                  const GridColumnDesc& columnDesc,
                                                                  const GridCellData& cellData) const noexcept;
+    // Only visible cells enter this direct-mapped cache. Very large model strings
+    // use a temporary layout, so a scrolling grid cannot retain unbounded text.
+    struct CellTextLayoutCache
+    {
+        std::wstring text;
+        std::wstring displayText;
+        wil::com_ptr<IDWriteTextFormat> format;
+        wil::com_ptr<IDWriteTextLayout> layout;
+        float width        = 0.0f;
+        float height       = 0.0f;
+        float paintHeight  = 0.0f;
+        uint32_t lineClamp = 0u;
+        bool truncated     = false; // Paint cannot show the whole value; hover offers it in full.
+        bool usedInPaint   = false;
+    };
+    // Paint and the hover tooltip share one prepared multiline layout, so the
+    // omission marker and the full-value tooltip cannot disagree. Returns the
+    // retained or temporary entry, or nullptr when no text can be painted.
+    [[nodiscard]] const CellTextLayoutCache* PrepareCellTextLayout(
+        const ControlHost& host, const GridCellData& cellData, float width, float height, std::optional<CellTextLayoutCache>& temporary) const;
+    [[nodiscard]] bool IsMultilineCellTextClipped(const ControlHost& host,
+                                                  const GridCellData& cellData,
+                                                  const D2D1_RECT_F& textRect,
+                                                  const D2D1_RECT_F& viewportRect) const;
+    void DrawCellText(ControlHost& host, const GridCellData& cellData, const D2D1_RECT_F& bounds, const D2D1_COLOR_F& color) const;
+    mutable std::vector<CellTextLayoutCache> _cellTextLayouts;
+    mutable wil::com_ptr<IDWriteTextFormat> _cellEllipsisFormat;
+    mutable wil::com_ptr<IDWriteInlineObject> _cellEllipsis;
     [[nodiscard]] VisibleColumnSpan ComputeVisibleColumnSpan(float clipRightDip) const noexcept;
     [[nodiscard]] bool HasAnimatedVisibleCells() const;
     [[nodiscard]] GridSortGlyphVisualState ResolveSortGlyphVisualState(const ThemePalette& theme, size_t columnIndex, uint64_t nowTickMs) const noexcept;
