@@ -66,8 +66,9 @@ jobs:
         if: ${{ !cancelled() && matrix.platform == 'x64' && matrix.configuration == 'Release' }}
         shell: pwsh
         run: ./test.ps1 -Configuration Release -Platform x64 -SkipBuild -Suites MenuResourceScaling,MenuTextLayoutResources
+      # x64 Release also publishes into this checkout's docs/gallery, uploaded below for review and commit.
       - shell: pwsh
-        run: ./gallery.ps1 -SkipBuild -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
+        run: ./gallery.ps1 -SkipBuild -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }} ${{ matrix.platform == 'x64' && matrix.configuration == 'Release' && '-PublishDocs' || '' }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -77,4 +78,10 @@ jobs:
             .build/reports/*.json
             .build/test-artifacts/**
             .build/gallery/**
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ matrix.platform == 'x64' && matrix.configuration == 'Release' }}
+        with:
+          name: docs-gallery-x64-Release
+          path: docs/gallery/
           retention-days: 14

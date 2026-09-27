@@ -155,7 +155,9 @@ close the candidate's separately measured resource regression.
 Run `validate-skills.ps1`, `validate-specs.ps1`, `validate-dependencies.ps1`, `format.ps1 -Check` and
 `python -m unittest discover -s Tools/tests -v`. Run x64 Debug/Release suites and build ARM64 Debug/Release for code
 changes; native ARM64 CI must also pass. Use `gallery.ps1 -PublishDocs` after visual/control changes and review all
-generated sheets. Full IME, touch and screen-reader adoption checks remain explicit manual gates.
+generated sheets. CI's x64 Release job runs the same command and uploads its `docs/gallery` output as
+`docs-gallery-x64-Release`; review those sheets before committing them. Full IME, touch and screen-reader adoption
+checks remain explicit manual gates.
 
 [Formatting CI](../.github/workflows/format.yml) checks pushes/PRs and uploads a ready-to-apply patch. To reformat a
 branch remotely, run its manual workflow with `apply_changes` enabled. It commits formatting on the selected

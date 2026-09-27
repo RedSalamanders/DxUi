@@ -79,7 +79,7 @@ animation callbacks, module-owned window procedures and menu invocation without 
 
 `docs/README.md` documents consumption and all controls; root README links it and the published gallery.
 `gallery.ps1 -PublishDocs` publishes reviewed sheets and a generation receipt under `docs/gallery`, leaving runtime
-logs in `.build`. Docs/gallery maintenance follows [Core_Documentation](../Core/Core_Documentation.md).
+logs in `.build`. The receipt's `sourceDirty` excludes `docs/gallery`, which the command itself replaces. Docs/gallery maintenance follows [Core_Documentation](../Core/Core_Documentation.md).
 The formatting workflow uses `format.ps1` and the repository `.clang-format` on pushes and PRs, returning a patch
 when changes are needed. Formatting is pinned to clang-format 22.1.3; CI installs the Windows x64 wheel using the
 version and SHA256 in `Tools/requirements-format.txt`. `format.ps1` checks the version and accepts `-FormatterPath`
