@@ -1,0 +1,242 @@
+[
+  {
+    "original_name": "@analysis/analyze-menu-frame-stages.py",
+    "archived_path": "analyze-menu-frame-stages.py",
+    "size": 13137,
+    "sha256": "d202f3d618c305833f135574162748b07be3d3d0f635652b9cbf4e980b52ed3e"
+  },
+  {
+    "original_name": "@analysis/menu-frame-stages-analysis.md",
+    "archived_path": "analysis-original.md",
+    "size": 12520,
+    "sha256": "2bd8fe9fb1670c6c21a029fce7ea3441ee6cebf7c24054ac1dca0ccb74a21946"
+  },
+  {
+    "original_name": "@driver/run-menu-stages-20260923.ps1",
+    "archived_path": "raw/run-menu-stages-20260923.ps1",
+    "size": 2268,
+    "sha256": "98a44b880d8ca50d063efde68f6d6249e77a3a5145647aaa27c743de1c04adab"
+  },
+  {
+    "original_name": "A/binary-hashes.json",
+    "archived_path": "raw/A/binary-hashes.json.receipt.txt",
+    "size": 453,
+    "sha256": "87aed81681d34185175e659df4c7078a10e64d1221c00e5a28177dd4f144baf1"
+  },
+  {
+    "original_name": "A/build-exit.txt",
+    "archived_path": "raw/A/build-exit.txt",
+    "size": 3,
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+  },
+  {
+    "original_name": "A/build.log",
+    "archived_path": "raw/A/build.log",
+    "size": 2827,
+    "sha256": "a8ffbca9d2142f974c987c6b332db5c37ae95d4b516ac06ded5ae3cdbec9204a"
+  },
+  {
+    "original_name": "A/head.txt",
+    "archived_path": "raw/A/head.txt",
+    "size": 42,
+    "sha256": "e529111fd1321d0004470258ba0abd17532b50bc9cbc106e80c19c71838ba4c8"
+  },
+  {
+    "original_name": "A/inputs.json",
+    "archived_path": "raw/A/inputs.json.receipt.txt",
+    "size": 733,
+    "sha256": "ddc4de0266f0f6de91026e6f544e7feed885e36a408a1c6dd360619d345ec1c7"
+  },
+  {
+    "original_name": "A/inputs/Samples/ComplexUi/ComplexUiScene.h",
+    "archived_path": "raw/A/inputs/Samples/ComplexUi/ComplexUiScene.h",
+    "size": 4166,
+    "sha256": "a166ad54851cbe97cf1980f2507af07810b316c0464a981b65da0f3af96b66bd"
+  },
+  {
+    "original_name": "A/inputs/Samples/EmbeddedControls/GraphicsFixture.h",
+    "archived_path": "raw/A/inputs/Samples/EmbeddedControls/GraphicsFixture.h",
+    "size": 4826,
+    "sha256": "b242c5efa16862ccf416cc2c7a277a2e78354273ef43d3cfdf48c69bbef5c19d"
+  },
+  {
+    "original_name": "A/inputs/Tests/Embedded/BenchmarkMain.h",
+    "archived_path": "raw/A/inputs/Tests/Embedded/BenchmarkMain.h",
+    "size": 1902,
+    "sha256": "571b1a022f6e62d12ec6001c14030ecbf28b0e9352dabe3a4bd42d35fe5bc243"
+  },
+  {
+    "original_name": "A/inputs/Tests/Embedded/ComplexUiBenchmark.h",
+    "archived_path": "raw/A/inputs/Tests/Embedded/ComplexUiBenchmark.h",
+    "size": 10775,
+    "sha256": "c8cfe904921582f1096e1f311ddaaaf0175baf93cccd61cdd35eccf526a19ccf"
+  },
+  {
+    "original_name": "A/inputs/Tests/Embedded/ComplexUiFrameStages.h",
+    "archived_path": "raw/A/inputs/Tests/Embedded/ComplexUiFrameStages.h",
+    "size": 6649,
+    "sha256": "50de13fed8738046b4b2323f4c80134f3906cf2ed2c4fb6211530a3687f39d10"
+  },
+  {
+    "original_name": "A/instrumentation.patch",
+    "archived_path": "raw/A/instrumentation.patch",
+    "size": 5579,
+    "sha256": "6379679991aab689db239a7002ca1ac80ea665ad654084f30500b0ef5623e780"
+  },
+  {
+    "original_name": "A1-exit.txt",
+    "archived_path": "raw/A1-exit.txt",
+    "size": 3,
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+  },
+  {
+    "original_name": "A1.json",
+    "archived_path": "raw/A1.json.receipt.txt",
+    "size": 3440,
+    "sha256": "b853353f52b7ed1415767f54460410a29306c393577ab67a3a95ade77a3f6b40"
+  },
+  {
+    "original_name": "A1.log",
+    "archived_path": "raw/A1.log",
+    "size": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original_name": "A2-exit.txt",
+    "archived_path": "raw/A2-exit.txt",
+    "size": 3,
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+  },
+  {
+    "original_name": "A2.json",
+    "archived_path": "raw/A2.json.receipt.txt",
+    "size": 3435,
+    "sha256": "d942fe5eb793a1f28f1a96fae19e8f8df033464eb27cb32108bd8efcf9493753"
+  },
+  {
+    "original_name": "A2.log",
+    "archived_path": "raw/A2.log",
+    "size": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original_name": "A3-exit.txt",
+    "archived_path": "raw/A3-exit.txt",
+    "size": 3,
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+  },
+  {
+    "original_name": "A3.json",
+    "archived_path": "raw/A3.json.receipt.txt",
+    "size": 3445,
+    "sha256": "2c06302bd159cd961ecabf0566566a091118d8e1e110d33d8027026c91309c80"
+  },
+  {
+    "original_name": "A3.log",
+    "archived_path": "raw/A3.log",
+    "size": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original_name": "B/binary-hashes.json",
+    "archived_path": "raw/B/binary-hashes.json.receipt.txt",
+    "size": 445,
+    "sha256": "fb0703dbd53cea68f099767b6c766d9186a1b9ce48e99d3a490eee0c2b1838a8"
+  },
+  {
+    "original_name": "B/build-exit.txt",
+    "archived_path": "raw/B/build-exit.txt",
+    "size": 3,
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+  },
+  {
+    "original_name": "B/build.log",
+    "archived_path": "raw/B/build.log",
+    "size": 2795,
+    "sha256": "37c30bee98da80f061abf8ede2e8d86be39759c490c8a1915ce2361d49371244"
+  },
+  {
+    "original_name": "B/head.txt",
+    "archived_path": "raw/B/head.txt",
+    "size": 42,
+    "sha256": "9d631dee48dfd90dd9d94ad56fde5ad03128117cac2d36fb0fd85e153ed2b633"
+  },
+  {
+    "original_name": "B/inputs.json",
+    "archived_path": "raw/B/inputs.json.receipt.txt",
+    "size": 733,
+    "sha256": "ddc4de0266f0f6de91026e6f544e7feed885e36a408a1c6dd360619d345ec1c7"
+  },
+  {
+    "original_name": "B/inputs/Samples/ComplexUi/ComplexUiScene.h",
+    "archived_path": "raw/B/inputs/Samples/ComplexUi/ComplexUiScene.h",
+    "size": 4166,
+    "sha256": "a166ad54851cbe97cf1980f2507af07810b316c0464a981b65da0f3af96b66bd"
+  },
+  {
+    "original_name": "B/inputs/Samples/EmbeddedControls/GraphicsFixture.h",
+    "archived_path": "raw/B/inputs/Samples/EmbeddedControls/GraphicsFixture.h",
+    "size": 4826,
+    "sha256": "b242c5efa16862ccf416cc2c7a277a2e78354273ef43d3cfdf48c69bbef5c19d"
+  },
+  {
+    "original_name": "B/inputs/Tests/Embedded/BenchmarkMain.h",
+    "archived_path": "raw/B/inputs/Tests/Embedded/BenchmarkMain.h",
+    "size": 1902,
+    "sha256": "571b1a022f6e62d12ec6001c14030ecbf28b0e9352dabe3a4bd42d35fe5bc243"
+  },
+  {
+    "original_name": "B/inputs/Tests/Embedded/ComplexUiBenchmark.h",
+    "archived_path": "raw/B/inputs/Tests/Embedded/ComplexUiBenchmark.h",
+    "size": 10775,
+    "sha256": "c8cfe904921582f1096e1f311ddaaaf0175baf93cccd61cdd35eccf526a19ccf"
+  },
+  {
+    "original_name": "B/inputs/Tests/Embedded/ComplexUiFrameStages.h",
+    "archived_path": "raw/B/inputs/Tests/Embedded/ComplexUiFrameStages.h",
+    "size": 6649,
+    "sha256": "50de13fed8738046b4b2323f4c80134f3906cf2ed2c4fb6211530a3687f39d10"
+  },
+  {
+    "original_name": "B/instrumentation.patch",
+    "archived_path": "raw/B/instrumentation.patch",
+    "size": 5579,
+    "sha256": "6379679991aab689db239a7002ca1ac80ea665ad654084f30500b0ef5623e780"
+  },
+  {
+    "original_name": "B1-exit.txt",
+    "archived_path": "raw/B1-exit.txt",
+    "size": 3,
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+  },
+  {
+    "original_name": "B1.json",
+    "archived_path": "raw/B1.json.receipt.txt",
+    "size": 3438,
+    "sha256": "c25db1105a7f88ad3111edc0af3b0204b1b19a86ccd9a6ef6dea0c50ffebd53d"
+  },
+  {
+    "original_name": "B1.log",
+    "archived_path": "raw/B1.log",
+    "size": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original_name": "B2-exit.txt",
+    "archived_path": "raw/B2-exit.txt",
+    "size": 3,
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+  },
+  {
+    "original_name": "B2.json",
+    "archived_path": "raw/B2.json.receipt.txt",
+    "size": 3438,
+    "sha256": "d2aa0b04b47496e9fc7d1438eaa3b5101a987899a7383c6b8f38c6504769b4fa"
+  },
+  {
+    "original_name": "B2.log",
+    "archived_path": "raw/B2.log",
+    "size": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

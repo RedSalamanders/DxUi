@@ -1,0 +1,5 @@
+
+Algorithm : SHA256
+Hash      : 097F201D76EBA9D196C130DA0DCCBA78EF135FE786CBB93B42D06DBC22747339
+Path      : Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.ControlTests.exe
+

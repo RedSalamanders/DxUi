@@ -208,6 +208,9 @@ void UnregisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexc
 void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept;
 void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
 void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
+// True for a native menu popup window. Explicit UIA focus of a row in such a popup tracks
+// logical row focus only; the menu session keeps its own Win32 focus target.
+[[nodiscard]] bool IsNativeMenuPopupWindow(HWND hwnd) noexcept;
 [[nodiscard]] LRESULT ReturnWindowHostAccessibilityProvider(HWND hwnd, WPARAM wp, LPARAM lp) noexcept;
 [[nodiscard]] bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, LRESULT& outResult) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS

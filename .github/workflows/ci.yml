@@ -62,6 +62,10 @@ jobs:
       - shell: pwsh
         if: matrix.configuration == 'ASan Debug'
         run: ./test-consumer.ps1 -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }} -DisableStlAnnotations
+      - name: Characterize menu resource scaling without capture
+        if: ${{ !cancelled() && matrix.platform == 'x64' && matrix.configuration == 'Release' }}
+        shell: pwsh
+        run: ./test.ps1 -Configuration Release -Platform x64 -SkipBuild -Suites MenuResourceScaling,MenuTextLayoutResources
       - shell: pwsh
         run: ./gallery.ps1 -SkipBuild -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

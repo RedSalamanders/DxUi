@@ -1,0 +1,2921 @@
+entries descriptions open-private-median closed-private-median (last16, bytes)
+12 0 8192.0 8192.0
+12 1 4096.0 0.0
+12 2 4096.0 0.0
+12 4 4096.0 -1269760.0
+12 8 18432.0 63488.0
+12 12 18432.0 16384.0
+24 0 12288.0 8192.0
+24 24 653312.0 780288.0
+48 0 10240.0 6144.0
+48 48 954368.0 -53248.0
+entries descriptions open-busy-median open-free-median closed-busy-median (last16, bytes)
+12 0 85398.0 -78336.0 135.0
+12 1 150091.0 -134352.0 -451.5
+12 2 188669.0 -173744.0 259.5
+12 4 265698.0 -233336.0 -192.0
+12 8 419771.0 -266576.0 259.5
+12 12 574501.5 -410896.0 -259.5
+24 0 94164.0 -83344.0 135.0
+24 24 1072315.5 -654688.0 -259.5
+48 0 111476.0 -104376.0 67.5
+48 48 2071406.5 -1824552.0 61.5
+[
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "menuItemObjectBytes": 248,
+    "toggleObjectBytes": 760,
+    "capture": false
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 0,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 0,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 0,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 0,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 0,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 0,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 0,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 0,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 0,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 0,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 1,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 1,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 1,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 1,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 1,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 1,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 1,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 1,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 1,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 1,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 2,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 2,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 2,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 2,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 2,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 2,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 2,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 2,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 2,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 2,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 3,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 3,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 3,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 3,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 3,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 3,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 3,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 3,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 3,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 3,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 4,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 4,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 4,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 4,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 4,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 4,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 4,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 4,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 4,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 4,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 5,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 5,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 5,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 5,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 5,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 5,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 5,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 5,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 5,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 5,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 6,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 6,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 6,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 6,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 6,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 6,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 6,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 6,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 6,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 6,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 7,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 7,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 7,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 7,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 7,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 7,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 7,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 7,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 7,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 7,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 8,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 8,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 8,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 8,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 8,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 8,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 8,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 8,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 8,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 8,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 9,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 9,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 9,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 9,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 9,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 9,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 9,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 9,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 9,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 9,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 10,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 10,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 10,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 10,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 10,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 10,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 10,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 10,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 10,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 10,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 11,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 11,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 11,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 11,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 11,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 11,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 11,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 11,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 11,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 11,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 12,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 12,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 12,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 12,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 12,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 12,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 12,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 12,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 12,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 12,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 13,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 13,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 13,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 13,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 13,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 13,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 13,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 13,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 13,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 13,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 14,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 14,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 14,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 14,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 14,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 14,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 14,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 14,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 14,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 14,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 15,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 15,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 15,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 15,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 15,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 15,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 15,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 15,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 15,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 15,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 16,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 16,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 16,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 16,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 16,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 16,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 16,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 16,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 16,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 16,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 17,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 17,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 17,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 17,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 17,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 17,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 17,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 17,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 17,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 17,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 18,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 18,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 18,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 18,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 18,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 18,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 18,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 18,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 18,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 18,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 19,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 19,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 19,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 19,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 19,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 19,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 19,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 19,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 19,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 19,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 20,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 20,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 20,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 20,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 20,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 20,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 20,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 20,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 20,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 20,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 21,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 21,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 21,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 21,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 21,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 21,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 21,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 21,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 21,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 21,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 22,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 22,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 22,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 22,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 22,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 22,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 22,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 22,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 22,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 22,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 23,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 23,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 23,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 23,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 23,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 23,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 23,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 23,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 23,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 23,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 24,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 24,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 24,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 24,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 24,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 24,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 24,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 24,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 24,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 24,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 25,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 25,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 25,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 25,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 25,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 25,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 25,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 25,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 25,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 25,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 26,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 26,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 26,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 26,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 26,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 26,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 26,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 26,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 26,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 26,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 27,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 27,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 27,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 27,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 27,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 27,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 27,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 27,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 27,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 27,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 28,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 28,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 28,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 28,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 28,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 28,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 28,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 28,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 28,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 28,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 29,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 29,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 29,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 29,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 29,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 29,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 29,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 29,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 29,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 29,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 30,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 30,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 30,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 30,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 30,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 30,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 30,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 30,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 30,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 30,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 0,
+    "cycle": 31,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 48,
+    "cycle": 31,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 48,
+    "descriptions": 0,
+    "cycle": 31,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 24,
+    "cycle": 31,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 24,
+    "descriptions": 0,
+    "cycle": 31,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 12,
+    "cycle": 31,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 8,
+    "cycle": 31,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 4,
+    "cycle": 31,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 2,
+    "cycle": 31,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  },
+  {
+    "fixture": "dxui-menu-resource-scaling-v4",
+    "entries": 12,
+    "descriptions": 1,
+    "cycle": 31,
+    "widthPx": 476,
+    "heightPx": 322,
+    "dpi": 96
+  }
+]
+entries descriptions released-busy-median released-private-median (last16, bytes)
+12 0 85199.0 4096.0
+12 1 150479.0 4096.0
+12 2 188537.5 4096.0
+12 4 265957.0 1273856.0
+12 8 419771.0 -2048.0
+12 12 574761.0 4096.0
+24 0 94100.0 4096.0
+24 24 1072575.0 -2048.0
+48 0 111341.0 4096.0
+48 48 2071474.0 1048576.0

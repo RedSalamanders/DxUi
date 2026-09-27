@@ -1,0 +1,17 @@
+
+Algorithm : SHA256
+Hash      : F5897AC5E59E7553BBC2F6FAB39FF4C4D7FBF8968FCECEAF9AFCAA882EEE3B05
+Path      : Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.ControlTests.exe
+
+Algorithm : SHA256
+Hash      : CE5BA41CE20DE983C1EF9EF1D7AB42757691F12412B002107CBCCCF254273E42
+Path      : C:\RedSalamander.Perf\evidence\i26-ui\dxui-menu-input-wrapper.exe
+
+Algorithm : SHA256
+Hash      : 15012EE573004788249900BED313FCACFBA2DD84377DD06E5C619A88E4A54E04
+Path      : C:\RedSalamander.Perf\evidence\i26-ui\dxui-menu-input-wrapper.cpp
+
+Algorithm : SHA256
+Hash      : 5D33CEC0BDCAE9D21C17DB744720FCB10615DABBFDF53915080A693227B4590C
+Path      : Z:\src\RedSalamander\Tests\TestSupport\DirectedSelfTestInputWarning.h
+

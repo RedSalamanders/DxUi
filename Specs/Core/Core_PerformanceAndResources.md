@@ -70,6 +70,20 @@ where the Debug STL allocates one container proxy per std::vector/std::wstring. 
 `dirtyAllocationCeilingPerFrame`. A ceiling is never raised to pass; a failing gate reports the measured count for
 advice. The benchmark does not establish displayed FPS.
 
+Benchmark receipts also record process-memory phases at entry, device creation, scene
+creation, warm-up, screenshot encoding and the hidden state. These untimed samples help
+locate changes; they do not replace matched frame/retention comparisons. The opt-in
+`MenuResources` control suite records 96 open/render/capture/close cycles for twelve
+plain or described entries at matched 456-by-300-DIP viewport constraints, including
+private/working-set bytes and process/GDI/USER handles. Report screenshot-buffer cost
+separately from the open product menu; a short cycling run alone cannot establish a
+long-run retention bound. The identical probe can characterize plain menus on the old
+implementation and reports described mode as unsupported there.
+The benchmark executable's opt-in `--benchmark-retention <output-prefix>` repeats
+sixty complete create/render/hide/destroy cycles in one process, retaining each inner
+report. Bind that diagnostic's executable/source/fixture hashes and keep its raw rounds;
+it does not replace the default acceptance comparison or a controlled long-duration soak.
+
 Shipping/consumer acceptance additionally requires a named hardware fixture and actual presented complex-UI FPS,
 frame pacing and p50/p95/p99 latency at the target refresh rate (at least 60 FPS / 16.67 ms per frame for a 60 Hz
 consumer while actively updating). Include 96/144/192 DPI, large data sets, typing/dragging, animation, scrolling,
