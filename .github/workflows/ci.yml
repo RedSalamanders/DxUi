@@ -8,6 +8,10 @@ on:
         description: Optional baseline revision for a paired x64 Release benchmark; empty skips it.
         required: false
         default: ''
+      benchmark_candidate:
+        description: Optional candidate revision for the paired benchmark; empty measures the dispatched ref.
+        required: false
+        default: ''
       benchmark_scenarios:
         description: Comma-separated performance.ps1 scenarios for the paired benchmark.
         required: false
@@ -111,8 +115,9 @@ jobs:
       - shell: pwsh
         env:
           BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline }}
+          BENCHMARK_CANDIDATE: ${{ inputs.benchmark_candidate }}
           BENCHMARK_SCENARIOS: ${{ inputs.benchmark_scenarios }}
-        run: ./performance-paired.ps1 -BaselineRevision $env:BENCHMARK_BASELINE -Scenario @($env:BENCHMARK_SCENARIOS -split ',' | ForEach-Object { $_.Trim() })
+        run: ./performance-paired.ps1 -BaselineRevision $env:BENCHMARK_BASELINE -CandidateRevision $env:BENCHMARK_CANDIDATE -Scenario @($env:BENCHMARK_SCENARIOS -split ',' | ForEach-Object { $_.Trim() })
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -120,5 +125,6 @@ jobs:
           path: |
             .build/paired/*/reports/**
             .build/paired/*/baseline/.build/logs/*.log
+            .build/paired/*/candidate/.build/logs/*.log
             .build/logs/*.log
           retention-days: 14

@@ -1,19 +1,22 @@
 <#
-.SYNOPSIS Measure a baseline revision against this checkout on one machine with an identical benchmark harness.
+.SYNOPSIS Measure a baseline revision against a candidate on one machine with an identical benchmark harness.
 .DESCRIPTION
 Creates a detached worktree of BaselineRevision under .build/paired/<run>, copies this checkout's measurement
 driver and benchmark inputs into it, restores and builds both trees, then runs each scenario serially as A1, B1,
-B2, A2 (A = baseline, B = this checkout). B1/A1 and B2/A2 cross the change; A2/A1 and B2/B1 are same-source
-controls. Every receipt and comparison is retained under the run's reports directory with summary.json.
-Flagged comparisons are findings that need developer advice, not script failures; invalid evidence fails.
-The baseline worktree is left in place for inspection; remove it with git worktree remove.
+B2, A2 (A = baseline, B = candidate). The candidate is this checkout, or a second detached worktree when
+CandidateRevision is given; both historical trees then use this checkout's harness. B1/A1 and B2/A2 cross the
+change; A2/A1 and B2/B1 are same-source controls. Every receipt and comparison is retained under the run's
+reports directory with summary.json. Flagged comparisons are findings that need developer advice, not script
+failures; invalid evidence fails. Worktrees are left in place for inspection; remove them with git worktree remove.
 .PARAMETER BaselineRevision Commit, branch or tag measured as A.
+.PARAMETER CandidateRevision Optional commit, branch or tag measured as B instead of this checkout.
 .PARAMETER Scenario One or more performance.ps1 scenarios.
 .PARAMETER OutputDirectory Parent of the run directory; defaults to .build/paired.
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string] $BaselineRevision,
+    [string] $CandidateRevision = '',
     [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Release',
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
     [ValidateSet('Default','MultilineGrid','MultilineGridRetention','MultilineGridHeap','MultilineGridHeapPaced')][string[]] $Scenario = @('Default'),
@@ -28,37 +31,48 @@ $ErrorActionPreference = 'Stop'
 $harness = @('performance.ps1', 'Tests/Embedded/BenchmarkMain.h', 'Tests/Embedded/ComplexUiBenchmark.h',
     'Tests/Support/HeapDiagnostic.h', 'Samples/ComplexUi/ComplexUiScene.h', 'Samples/EmbeddedControls/GraphicsFixture.h')
 
-$candidateRoot = $PSScriptRoot
-$baselineCommit = & git -C $candidateRoot rev-parse --verify --quiet "$BaselineRevision^{commit}"
-if ($LASTEXITCODE -ne 0 -or -not $baselineCommit) { throw "Unknown baseline revision: $BaselineRevision" }
-$baselineCommit = $baselineCommit.Trim()
-$candidateCommit = (& git -C $candidateRoot rev-parse HEAD).Trim()
+function Resolve-Commit([string] $Revision) {
+    $commit = & git -C $PSScriptRoot rev-parse --verify --quiet "$Revision^{commit}"
+    if ($LASTEXITCODE -ne 0 -or -not $commit) { throw "Unknown revision: $Revision" }
+    return $commit.Trim()
+}
+
+$harnessRoot = $PSScriptRoot
+$baselineCommit = Resolve-Commit $BaselineRevision
+$candidateCommit = if ($CandidateRevision) { Resolve-Commit $CandidateRevision } else { (& git -C $harnessRoot rev-parse HEAD).Trim() }
 if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the candidate commit.' }
 if ($baselineCommit -eq $candidateCommit) { throw 'The baseline and candidate are the same commit.' }
-$candidateDirty = [bool](& git -C $candidateRoot status --porcelain)
+$harnessDirty = [bool](& git -C $harnessRoot status --porcelain)
 
-if (-not $OutputDirectory) { $OutputDirectory = Join-Path $candidateRoot '.build/paired' }
+if (-not $OutputDirectory) { $OutputDirectory = Join-Path $harnessRoot '.build/paired' }
 $runName = '{0}-{1}' -f [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ'), $baselineCommit.Substring(0, 12)
 $runRoot = Join-Path ([IO.Path]::GetFullPath($OutputDirectory)) $runName
 if (Test-Path -LiteralPath $runRoot) { throw "The paired run directory already exists: $runRoot" }
 $baselineRoot = Join-Path $runRoot 'baseline'
+$candidateRoot = if ($CandidateRevision) { Join-Path $runRoot 'candidate' } else { $harnessRoot }
 $reports = Join-Path $runRoot 'reports'
 New-Item -ItemType Directory -Path $reports -Force | Out-Null
 
-& git -C $candidateRoot worktree add --detach $baselineRoot $baselineCommit
-if ($LASTEXITCODE -ne 0) { throw "Cannot create the baseline worktree: $baselineRoot" }
 $harnessHashes = [ordered]@{}
 foreach ($path in $harness) {
-    $source = Join-Path $candidateRoot $path
+    $source = Join-Path $harnessRoot $path
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Missing benchmark harness input: $path" }
-    $target = Join-Path $baselineRoot $path
-    New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
-    Copy-Item -LiteralPath $source -Destination $target -Force
     $harnessHashes[$path] = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
+}
+$worktrees = @(, @($baselineRoot, $baselineCommit))
+if ($CandidateRevision) { $worktrees += , @($candidateRoot, $candidateCommit) }
+foreach ($worktree in $worktrees) {
+    & git -C $harnessRoot worktree add --detach $worktree[0] $worktree[1]
+    if ($LASTEXITCODE -ne 0) { throw "Cannot create the worktree: $($worktree[0])" }
+    foreach ($path in $harness) {
+        $target = Join-Path $worktree[0] $path
+        New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $harnessRoot $path) -Destination $target -Force
+    }
 }
 
 if (-not $SkipBuild) {
-    & (Join-Path $baselineRoot 'vcpkg-install.ps1') -Platform $Platform
+    foreach ($worktree in $worktrees) { & (Join-Path $worktree[0] 'vcpkg-install.ps1') -Platform $Platform }
     foreach ($root in @($baselineRoot, $candidateRoot)) {
         & (Join-Path $root 'build.ps1') -Configuration $Configuration -Platform $Platform
     }
@@ -96,7 +110,7 @@ function Compare-Measurement([string] $Candidate, [string] $Baseline, [string] $
     $output = Join-Path $reports "$Name.comparison.json"
     # Invoke-Python throws when the comparator flags a regression; the written status is the result.
     try {
-        & (Join-Path $candidateRoot 'Tools/Invoke-Python.ps1') -Script (Join-Path $candidateRoot 'Tools/compare_performance.py') `
+        & (Join-Path $harnessRoot 'Tools/Invoke-Python.ps1') -Script (Join-Path $harnessRoot 'Tools/compare_performance.py') `
             -Arguments @($Candidate, '--baseline', $Baseline, '--output', $output) | Out-Host
     } catch {
         Write-Host "Comparator exit for ${Name}: $($_.Exception.Message)"
@@ -124,7 +138,9 @@ foreach ($scenarioName in $Scenario) {
 
 $summary = [ordered]@{
     command = 'performance-paired.ps1'; baselineRevision = $BaselineRevision; baselineCommit = $baselineCommit
-    candidateCommit = $candidateCommit; candidateDirty = $candidateDirty; configuration = $Configuration; platform = $Platform
+    candidateRevision = $(if ($CandidateRevision) { $CandidateRevision } else { 'HEAD' }); candidateCommit = $candidateCommit
+    harnessCommit = (& git -C $harnessRoot rev-parse HEAD).Trim(); harnessDirty = $harnessDirty
+    configuration = $Configuration; platform = $Platform
     machine = [Environment]::MachineName; completedUtc = [DateTime]::UtcNow.ToString('o'); order = 'A1, B1, B2, A2'
     harness = $harnessHashes; scenarios = $results
 }
