@@ -1,3 +1,3 @@
-# Preserve raw measurement and CI receipt bytes.
+# Preserve original measurement payload bytes.
 * -text
-raw/** -whitespace
+raw/** binary
