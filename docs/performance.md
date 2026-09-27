@@ -108,7 +108,14 @@ Only an actual successful job and its receipts establish a runtime pass; configu
 The [grid candidate's native receipts](../Measurements/GridTextOverflow/2026-09-21/native-ci/README.md)
 cover all six x64/ARM64 profiles, preserve an intermittent accessibility setup failure
 and identify ARM64 Menu desktop-capability skips. These functional receipts do not
-close the candidate's separately measured resource regression.
+close the candidate's separately measured resource regression. The user subsequently accepted only
+the recorded V11 grid memory cost; other gates retain their original evidence and thresholds.
+
+The [full-value UIA witness packet](../Measurements/GridTextOverflow/2026-09-27/uia-six-profile-ci/README.md)
+qualifies the later French/Unicode omission test on exact source `40384eae` in all six native profiles.
+Grid, Rendering, Embedded and Accessibility pass with zero skips; unrelated ARM64 Menu desktop skips
+remain explicit. These unpaired automatic benchmarks do not establish combined-consumer resource
+acceptance or native assistive-technology coverage.
 
 ## Other checks and formatting
 

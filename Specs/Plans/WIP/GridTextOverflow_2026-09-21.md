@@ -10,6 +10,18 @@ against their clipped rectangle, changing text placement as they cross the viewp
 
 ## September 23 developer decision
 
+September 27 qualification update: root reviewed the already completed exact-head CI run
+`35918640900` at `40384eae7997a688ea441a09010dd89dba882578`; a separate Luna evidence audit
+confirmed all 84 packet hashes and the receipt claims. Grid, Rendering, Embedded and Accessibility
+pass with zero skips in all six x64/native ARM64 Debug, Release and ASan Debug profiles.
+Both sanitizer probes detect their intentional isolated fault. This closes the new full-value
+UIA witness's missing configuration receipts without rerunning unchanged builds.
+[Source-bound six-profile packet](../../../Measurements/GridTextOverflow/2026-09-27/uia-six-profile-ci/README.md)
+retains executable hashes, actual native architectures, build logs and all unrelated Menu desktop
+skips. Automatic benchmarks remain unpaired. Native assistive-technology acceptance, combined
+qualification and explicit consumer adoption remain separate. Docs/gallery review finds no new
+production or visual change in this evidence-only update; existing V11 gallery images remain valid.
+
 The user explicitly answered **"Accept the grid memory tradeoff"** to the measured
 6–7 MiB process-memory increase for readable multiline Issues rows, with roughly doubled
 offscreen throughput. This accepts that recorded V11 grid cost only; it does not accept
@@ -26,14 +38,14 @@ skips. The first witness omitted `NotifyDataChanged` after direct selection muta
 failed; that run is retained alongside the correction in the
 [focused packet](../../../Measurements/GridTextOverflow/2026-09-23/uia-full-value-release/README.md).
 Both executions use the same library binary. Their automatic benchmarks are explicitly
-unpaired. The new test still needs the remaining final configurations and does not replace
-native assistive-technology acceptance.
+unpaired. The new test's remaining configurations are now covered by the September 27 review
+above; they do not replace native assistive-technology acceptance.
 
 The [x64 Debug follow-up](../../../Measurements/GridTextOverflow/2026-09-23/uia-full-value-debug/README.md)
 rebuilds V11 and passes Grid, Rendering, Embedded and Accessibility with zero capability skips.
 Its exact source/driver and executable receipts are retained; the automatic benchmark is unpaired.
-New-witness x64 ASan and ARM64 configuration qualification remains open; prior production receipts
-are not presented as execution of a test that did not yet exist.
+New-witness x64 ASan and native ARM64 configuration qualification is now retained in the packet
+above; earlier production receipts are not substituted for execution of the new witness.
 
 
 ## September 23 cache experiment closeout
