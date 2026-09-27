@@ -1,0 +1,230 @@
+[
+  {
+    "platform": "x64",
+    "configuration": "Debug",
+    "native_architecture": "X64",
+    "suites": [
+      {
+        "suite": "Grid",
+        "executable_sha256": "CDB82C372A6FC75E202B2E590EB0E943AD6374CA4E9E929681DC3DBB7753A9DA",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Rendering",
+        "executable_sha256": "CDB82C372A6FC75E202B2E590EB0E943AD6374CA4E9E929681DC3DBB7753A9DA",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Embedded",
+        "executable_sha256": "9E147C089B5CD6035C6A9C5F01B6BB43444F8C2891C83D3740D9C9910C9E0B29",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Accessibility",
+        "executable_sha256": "CDB82C372A6FC75E202B2E590EB0E943AD6374CA4E9E929681DC3DBB7753A9DA",
+        "exit": 0,
+        "skips": 0
+      }
+    ],
+    "other_capability_skips": {}
+  },
+  {
+    "platform": "x64",
+    "configuration": "Release",
+    "native_architecture": "X64",
+    "suites": [
+      {
+        "suite": "Grid",
+        "executable_sha256": "45FDA2EEBBC653EF189B644CC83043DA657BF4D487C285D8D22AFE723551A2BA",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Rendering",
+        "executable_sha256": "45FDA2EEBBC653EF189B644CC83043DA657BF4D487C285D8D22AFE723551A2BA",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Embedded",
+        "executable_sha256": "9BD0CA1473EAEBF43726CDE3BAEFB0213B5DBB36F7A699A6CFAA0913922F1FE9",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Accessibility",
+        "executable_sha256": "45FDA2EEBBC653EF189B644CC83043DA657BF4D487C285D8D22AFE723551A2BA",
+        "exit": 0,
+        "skips": 0
+      }
+    ],
+    "other_capability_skips": {}
+  },
+  {
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "native_architecture": "X64",
+    "suites": [
+      {
+        "suite": "Grid",
+        "executable_sha256": "45D3577BB03D5F608E8DCC77E09D1570DD8F0398EF3589B691EC47A030F7EAC6",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Rendering",
+        "executable_sha256": "45D3577BB03D5F608E8DCC77E09D1570DD8F0398EF3589B691EC47A030F7EAC6",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Embedded",
+        "executable_sha256": "913F46CD10C82B24D74E485E1EFB80AFB9EFB7117B0E2BA07AB654EA71A14774",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Accessibility",
+        "executable_sha256": "45D3577BB03D5F608E8DCC77E09D1570DD8F0398EF3589B691EC47A030F7EAC6",
+        "exit": 0,
+        "skips": 0
+      }
+    ],
+    "other_capability_skips": {}
+  },
+  {
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "native_architecture": "Arm64",
+    "suites": [
+      {
+        "suite": "Grid",
+        "executable_sha256": "358189E578A5C89BD691F2091FF542AF0155503E2721039400CFBC3868B9DAA2",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Rendering",
+        "executable_sha256": "358189E578A5C89BD691F2091FF542AF0155503E2721039400CFBC3868B9DAA2",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Embedded",
+        "executable_sha256": "8C887280EED9BAB23E3921933903902EE637BF3DDD55315876358627674C854E",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Accessibility",
+        "executable_sha256": "358189E578A5C89BD691F2091FF542AF0155503E2721039400CFBC3868B9DAA2",
+        "exit": 0,
+        "skips": 0
+      }
+    ],
+    "other_capability_skips": {
+      "Menu": [
+        "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+        "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+      ]
+    }
+  },
+  {
+    "platform": "ARM64",
+    "configuration": "Release",
+    "native_architecture": "Arm64",
+    "suites": [
+      {
+        "suite": "Grid",
+        "executable_sha256": "718FFCB6E9161FAFEA9555903B9C426060AA61F13EA07F53F14B324818BA767A",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Rendering",
+        "executable_sha256": "718FFCB6E9161FAFEA9555903B9C426060AA61F13EA07F53F14B324818BA767A",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Embedded",
+        "executable_sha256": "D3299997FF79CABE3D0CB6494033E49BDEF5F6343921452960CF68304F53E949",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Accessibility",
+        "executable_sha256": "718FFCB6E9161FAFEA9555903B9C426060AA61F13EA07F53F14B324818BA767A",
+        "exit": 0,
+        "skips": 0
+      }
+    ],
+    "other_capability_skips": {
+      "Menu": [
+        "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+        "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+      ]
+    }
+  },
+  {
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "native_architecture": "Arm64",
+    "suites": [
+      {
+        "suite": "Grid",
+        "executable_sha256": "8E73EFFE64AB4C7B6BA0C9445D0C1E62326C28984B9450F9D9D5584CFDC61E7B",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Rendering",
+        "executable_sha256": "8E73EFFE64AB4C7B6BA0C9445D0C1E62326C28984B9450F9D9D5584CFDC61E7B",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Embedded",
+        "executable_sha256": "B4D83D73FBB4B789B97A05823C24949CE1ED4416DED28A0FB293E11EE60CA560",
+        "exit": 0,
+        "skips": 0
+      },
+      {
+        "suite": "Accessibility",
+        "executable_sha256": "8E73EFFE64AB4C7B6BA0C9445D0C1E62326C28984B9450F9D9D5584CFDC61E7B",
+        "exit": 0,
+        "skips": 0
+      }
+    ],
+    "other_capability_skips": {
+      "Menu": [
+        "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+        "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+        "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+      ]
+    }
+  }
+]

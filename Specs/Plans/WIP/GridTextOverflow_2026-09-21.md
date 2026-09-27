@@ -21,8 +21,8 @@ lifetime on successful and failed assertions. No crash was observed or attribute
 
 Grid, Rendering, Embedded and Accessibility pass without skips in x64 Release, Debug and ASan
 Debug (12 suite passes), including the expected sanitizer detection probe. All three ARM64
-configurations build with zero warnings/errors; native ARM64 execution of this witness remains
-open. Root ran one native lane and checked a cheaper-model source/evidence review.
+configurations build with zero warnings/errors. Native ARM64 execution is now qualified by
+the exact-commit CI review below. Root ran one local native lane and checked a cheaper-model review.
 [The reviewed packet](../../../Measurements/GridTextOverflow/2026-09-27/cache-bound-witness/README.md)
 retains all six full build logs, source/binary identities and original/candidate inputs.
 Release's native suites passed before an archive-driver date conversion failed; the original
@@ -37,7 +37,12 @@ Windows checkout path limits under the deeper consumer fixture. Eighteen evidenc
 are shortened without changing their bytes; the original map/checksum, reversible rename map
 and failing job log are retained in the UIA packet's `raw/path-repair`. No global Git setting,
 library source or compiled witness changes. Skills/spec/dependency/format validation passes;
-fresh aggregate CI after this packaging repair remains required before adoption.
+replacement run `36324654165` on `15f98822b934b5014f0d69b6eb26b1d320d20eaf` succeeds
+in all six native profiles, including relocated consumers. Root verifies 24 zero-skip
+Grid/Rendering/Embedded/Accessibility receipts, both intentional ASan detections, actual native
+architectures and source identities in the
+[85-payload CI packet](../../../Measurements/GridTextOverflow/2026-09-27/cache-bound-six-profile-ci/README.md).
+Other Menu desktop skips are retained, and automatic benchmark results remain unpaired.
 Production rendering/cache policy remains V11. Docs/gallery review: diagnostics and test lifetime
 only; no control, theme, geometry or gallery input changes, so the published V11 images remain valid.
 Performance acceptance and consumer adoption are unchanged; do not waive retained timing flags.
@@ -142,7 +147,8 @@ Reuse bounded text-layout resources; clean/hidden composition adds no work. No f
 - [x] Obtain native ARM64 Grid/Embedded/Rendering/Accessibility qualification in all three profiles;
   the preceding full-value UIA source is qualified at `40384eae`; nine unrelated Menu
   desktop-capability skips per profile remain explicitly unqualified.
-- [ ] Obtain native ARM64 execution of the September 27 cache-bound witness in all three profiles.
+- [x] Obtain native ARM64 execution of the September 27 cache-bound witness in all three profiles
+  (exact-commit CI `36324654165`, 24 focused passes across all six native profiles).
 - [ ] Compare paired performance/resources; preserve every failed/noisy attempt without rebaselining.
 - [x] Update controls documentation/domain contract and regenerate/review gallery; run validators/format (V11).
 - [ ] Qualify publication and explicit consumer pin adoption; retain the old consumer pin until qualified.

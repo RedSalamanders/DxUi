@@ -7,7 +7,10 @@ scrolls and reattaches models, and checks oversized values and teardown. These c
 Grid's retained values; they do not measure all DirectWrite/process allocation or waive paired
 timing and memory gates. The [cache-bound witness packet](../Measurements/GridTextOverflow/2026-09-27/cache-bound-witness/README.md)
 retains 12 passing x64 suites across Release/Debug/ASan, the sanitizer probe and three ARM64 cross-builds.
-Native ARM64 execution of that new witness remains pending; these automatic benchmarks are unpaired.
+The [six-profile CI follow-up](../Measurements/GridTextOverflow/2026-09-27/cache-bound-six-profile-ci/README.md)
+adds 24 zero-skip focused passes on exact source `15f98822`, including native ARM64 execution and
+both ASan detection probes. These automatic benchmarks remain unpaired; desktop/AT acceptance,
+retained timing flags, combined qualification and explicit consumer adoption remain separate.
 
 DxUi must remain fast and use little memory. The normative
 [performance contract](../Specs/Core/Core_PerformanceAndResources.md) requires before/after evidence and developer
