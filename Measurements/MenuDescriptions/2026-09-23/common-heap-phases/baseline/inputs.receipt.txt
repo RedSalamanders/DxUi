@@ -1,0 +1,22 @@
+[
+  {
+    "path": "Tests/Embedded/ComplexUiBenchmark.h",
+    "sha256": "c8cfe904921582f1096e1f311ddaaaf0175baf93cccd61cdd35eccf526a19ccf"
+  },
+  {
+    "path": "Tests/Embedded/BenchmarkMain.h",
+    "sha256": "6bac4cf8c88ecca35ca422474a6629c2fe8baafccec7d7dfc3696c9836b1df57"
+  },
+  {
+    "path": "Tests/Support/HeapDiagnostic.h",
+    "sha256": "c9c5e000fd2a5ab888ef730959d8e88fb166177a8667f077d1ae3e1d8d6afa64"
+  },
+  {
+    "path": "Samples/ComplexUi/ComplexUiScene.h",
+    "sha256": "a166ad54851cbe97cf1980f2507af07810b316c0464a981b65da0f3af96b66bd"
+  },
+  {
+    "path": "Samples/EmbeddedControls/GraphicsFixture.h",
+    "sha256": "b242c5efa16862ccf416cc2c7a277a2e78354273ef43d3cfdf48c69bbef5c19d"
+  }
+]

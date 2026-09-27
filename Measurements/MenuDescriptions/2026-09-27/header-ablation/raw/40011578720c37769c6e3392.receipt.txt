@@ -1,0 +1,5 @@
+{
+  "original": "C:/RedSalamander.Perf/evidence/i26-ui/menu-header-ablation-20260927/A",
+  "verifiedUtc": "2026-09-27T15:45:33.3158041Z",
+  "reason": "Resume after H dependency preflight refusal; no previous benchmark invocation."
+}

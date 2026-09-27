@@ -1,0 +1,48 @@
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\i26-menu-baseline\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-baseline\.build\x64\Release\DxUi.lib
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-baseline\.build\x64\Release\DxUi.ControlTests.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-baseline\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-baseline\.build\x64\Release\DxUi.FoundationTests.exe
+  EmbeddedTests.cpp
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-baseline\.build\x64\Release\DxUi.EmbeddedTests.exe
+
+========================================
+DxUi build passed in 00:04
+Output: Z:\src\DxUi-worktrees\i26-menu-baseline\.build\
+Log: Z:\src\DxUi-worktrees\i26-menu-baseline\.build\logs\build-x64-Release-4ad981cd104e4b19aa32c5665aa63fa1.log
+========================================
+Complex UI clean round 1: 2313.86 completed offscreen FPS; p95 0.5939 ms; private 26103808 bytes
+Complex UI clean round 2: 2359.55 completed offscreen FPS; p95 0.4921 ms; private 25640960 bytes
+Complex UI clean round 3: 1977.23 completed offscreen FPS; p95 0.694 ms; private 25612288 bytes
+Complex UI clean round 4: 1948.72 completed offscreen FPS; p95 0.6364 ms; private 26251264 bytes
+Complex UI clean round 5: 2139.38 completed offscreen FPS; p95 0.5767 ms; private 26980352 bytes
+Complex UI dirty round 1: 541.878 completed offscreen FPS; p95 2.0349 ms; private 28766208 bytes
+Complex UI dirty round 2: 541.307 completed offscreen FPS; p95 2.0124 ms; private 29007872 bytes
+Complex UI dirty round 3: 541.509 completed offscreen FPS; p95 2.1506 ms; private 29016064 bytes
+Complex UI dirty round 4: 544.539 completed offscreen FPS; p95 2.1299 ms; private 29310976 bytes
+Complex UI dirty round 5: 511.193 completed offscreen FPS; p95 2.429 ms; private 29048832 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-menu-baseline\.build\reports\menu-phases-1.json

@@ -1,0 +1,70 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                  ⚡  ASAN DEBUG  /  X64  /  BUILD  ⚡                  │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: ASan Debug
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\i26-menu-description\.build\
+
+Compiling DxUi...
+
+  DxUi.Accessibility.cpp
+  DxUi.Menu.cpp
+  Generating Code...
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\ASan Debug\DxUi.lib
+  DxUiTests.Menu.cpp
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\ASan Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\ASan Debug\DxUi.EmbeddedControls.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\ASan Debug\DxUi.EmbeddedTests.exe
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\ASan Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:12
+Output: Z:\src\DxUi-worktrees\i26-menu-description\.build\
+Log: Z:\src\DxUi-worktrees\i26-menu-description\.build\logs\build-x64-ASan Debug-46763e7718da430cada66395322d38b1.log
+========================================
+Complex UI clean round 1: 2111.35 completed offscreen FPS; p95 0.6332 ms; private 212148224 bytes
+Complex UI clean round 2: 2146.63 completed offscreen FPS; p95 0.5716 ms; private 216678400 bytes
+Complex UI clean round 3: 2159.35 completed offscreen FPS; p95 0.5714 ms; private 218923008 bytes
+Complex UI clean round 4: 2032.85 completed offscreen FPS; p95 0.6736 ms; private 222097408 bytes
+Complex UI clean round 5: 1979.14 completed offscreen FPS; p95 0.626 ms; private 224931840 bytes
+Complex UI dirty round 1: 94.2478 completed offscreen FPS; p95 11.7772 ms; private 367030272 bytes
+Complex UI dirty round 2: 92.2559 completed offscreen FPS; p95 11.4942 ms; private 502476800 bytes
+Complex UI dirty round 3: 94.1908 completed offscreen FPS; p95 12.6075 ms; private 533946368 bytes
+Complex UI dirty round 4: 94.5853 completed offscreen FPS; p95 12.8666 ms; private 535711744 bytes
+Complex UI dirty round 5: 90.7055 completed offscreen FPS; p95 13.1839 ms; private 537071616 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-menu-description\.build\reports\Performance-x64-ASan Debug-23f66ec44ce1470f8f8552871851404b.json
+PASS AddressSanitizer detection probe (isolated expected failure)
+Running NewControls (x64 ASan Debug)
+PASS NewControls (0 capability skips recorded)
+Running Accessibility (x64 ASan Debug)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 ASan Debug)
+PASS WindowHost (0 capability skips recorded)
+All 3 requested suites passed.

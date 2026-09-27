@@ -1,0 +1,12 @@
+Complex UI clean round 1: 2519.42 completed offscreen FPS; p95 0.5578 ms; private 27201536 bytes
+Complex UI clean round 2: 2637.18 completed offscreen FPS; p95 0.4739 ms; private 27238400 bytes
+Complex UI clean round 3: 2681.99 completed offscreen FPS; p95 0.4196 ms; private 27230208 bytes
+Complex UI clean round 4: 2675.46 completed offscreen FPS; p95 0.4247 ms; private 27197440 bytes
+Complex UI clean round 5: 2708.45 completed offscreen FPS; p95 0.4091 ms; private 27164672 bytes
+Complex UI dirty round 1: 577.853 completed offscreen FPS; p95 1.8377 ms; private 29528064 bytes
+Complex UI dirty round 2: 570.607 completed offscreen FPS; p95 1.9868 ms; private 28835840 bytes
+Complex UI dirty round 3: 580.168 completed offscreen FPS; p95 1.9176 ms; private 29495296 bytes
+Complex UI dirty round 4: 572.222 completed offscreen FPS; p95 1.9256 ms; private 29503488 bytes
+Complex UI dirty round 5: 567.199 completed offscreen FPS; p95 1.9905 ms; private 28930048 bytes
+Performance comparison: unpaired
+Performance receipt: C:\RedSalamander.Perf\evidence\i26-ui\menu-header-ablation-v2-20260927\A2.json

@@ -1,0 +1,34 @@
+{
+  "fixture": "ordinary-complex-ui-x64-release-crossover-v1",
+  "declaredRunOrder": [
+    "A1",
+    "B1",
+    "B2",
+    "A2"
+  ],
+  "declaredComparisons": {
+    "pair1-A1-B1": [
+      "A1",
+      "B1"
+    ],
+    "pair2-A2-B2": [
+      "A2",
+      "B2"
+    ],
+    "control-A1-A2": [
+      "A1",
+      "A2"
+    ],
+    "control-B1-B2": [
+      "B1",
+      "B2"
+    ]
+  },
+  "recordedUtc": "2026-09-23T19:53:45.3326351Z",
+  "baselineRepo": "Z:\\src\\DxUi-worktrees\\i26-menu-intern-baseline",
+  "candidateRepo": "Z:\\src\\DxUi-worktrees\\i26-menu-description",
+  "pythonExe": "C:/Users/eric/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+  "pythonSha256": "372C2EAE555B344520BF147BE0096E009069AECA4E7F78D6AECEA6D53158056A",
+  "driverSha256": "C1DDF64054897B85F11CB29BC35CD730EB37FC7B426CDCA01778CCAAD5ABD769",
+  "note": "One ordinary performance.ps1 -SkipBuild invocation per run; compare saved reports only after all four complete."
+}

@@ -1,0 +1,4 @@
+Performance comparison: advice-required
+REGRESSION dirty/prepareP95Ms: 1.215 -> 1.278
+REGRESSION dirty/composeCpuP95Ms: 0.018 -> 0.021
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.

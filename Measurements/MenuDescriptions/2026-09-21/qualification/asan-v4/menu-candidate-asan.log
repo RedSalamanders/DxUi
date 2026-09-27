@@ -1,0 +1,145 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                  ⚡  ASAN DEBUG  /  X64  /  BUILD  ⚡                  │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: ASan Debug
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\i26-menu-description\.build\
+
+Compiling DxUi...
+
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\i26-menu-description\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositePS.cso
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  Generating Code...
+  Compiling...
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\ASan Debug\DxUi.lib
+  FoundationTests.cpp
+  Main.cpp
+  DxUiTests.Accessibility.cpp
+  EmbeddedTests.cpp
+  PublicHelpersTests.cpp
+  Generating Code...
+  DxUiTests.Animation.cpp
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\ASan Debug\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\ASan Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\ASan Debug\DxUi.EmbeddedTests.exe
+  DxUiTests.ComboBox.cpp
+  DxUiTests.Controls.cpp
+  DxUiTests.cpp
+  DxUiTests.Gallery.cpp
+  DxUiTests.Grid.cpp
+  DxUiTests.Menu.cpp
+  DxUiTests.MultilineText.cpp
+  DxUiTests.NativeTextInput.cpp
+  DxUiTests.NewControls.cpp
+  DxUiTests.ReadOnly.cpp
+  DxUiTests.Rendering.cpp
+  DxUiTests.TextField.cpp
+  DxUiTests.Theme.cpp
+  DxUiTests.Tooltip.cpp
+  DxUiTests.Tree.cpp
+  DxUiTests.WindowHost.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\ASan Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 01:41
+Output: Z:\src\DxUi-worktrees\i26-menu-description\.build\
+Log: Z:\src\DxUi-worktrees\i26-menu-description\.build\logs\build-x64-ASan Debug-42f752149cd34419a4ee0de196660751.log
+========================================
+Complex UI clean round 1: 1930.56 completed offscreen FPS; p95 0.8517 ms; private 247029760 bytes
+Complex UI clean round 2: 2106.94 completed offscreen FPS; p95 0.6127 ms; private 251564032 bytes
+Complex UI clean round 3: 1908.62 completed offscreen FPS; p95 0.6238 ms; private 253812736 bytes
+Complex UI clean round 4: 2011.19 completed offscreen FPS; p95 0.5969 ms; private 256942080 bytes
+Complex UI clean round 5: 2119.34 completed offscreen FPS; p95 0.5864 ms; private 259772416 bytes
+Complex UI dirty round 1: 97.9579 completed offscreen FPS; p95 10.7354 ms; private 402161664 bytes
+Complex UI dirty round 2: 91.0182 completed offscreen FPS; p95 12.185 ms; private 537321472 bytes
+Complex UI dirty round 3: 94.5995 completed offscreen FPS; p95 12.7194 ms; private 567525376 bytes
+Complex UI dirty round 4: 98.1673 completed offscreen FPS; p95 12.6437 ms; private 569667584 bytes
+Complex UI dirty round 5: 96.3973 completed offscreen FPS; p95 13.0993 ms; private 571912192 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-menu-description\.build\reports\Performance-x64-ASan Debug-27f7c1bc48f94531adb0bccdd52c9e05.json
+PASS AddressSanitizer detection probe (isolated expected failure)
+Running Foundation (x64 ASan Debug)
+PASS Foundation (0 capability skips recorded)
+Running Embedded (x64 ASan Debug)
+PASS Embedded (0 capability skips recorded)
+Running Grid (x64 ASan Debug)
+PASS Grid (0 capability skips recorded)
+Running Theme (x64 ASan Debug)
+PASS Theme (0 capability skips recorded)
+Running Control (x64 ASan Debug)
+PASS Control (0 capability skips recorded)
+Running NewControls (x64 ASan Debug)
+PASS NewControls (0 capability skips recorded)
+Running TextField (x64 ASan Debug)
+PASS TextField (0 capability skips recorded)
+Running MultilineText (x64 ASan Debug)
+PASS MultilineText (0 capability skips recorded)
+Running ReadOnly (x64 ASan Debug)
+PASS ReadOnly (0 capability skips recorded)
+Running ComboBox (x64 ASan Debug)
+PASS ComboBox (0 capability skips recorded)
+Running Tree (x64 ASan Debug)
+PASS Tree (0 capability skips recorded)
+Running Tooltip (x64 ASan Debug)
+PASS Tooltip (0 capability skips recorded)
+Running Rendering (x64 ASan Debug)
+PASS Rendering (0 capability skips recorded)
+Running Animation (x64 ASan Debug)
+PASS Animation (0 capability skips recorded)
+Running Accessibility (x64 ASan Debug)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 ASan Debug)
+PASS WindowHost (0 capability skips recorded)
+All 16 requested suites passed.

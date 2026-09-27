@@ -11,3 +11,5 @@
 Measurements/GridTextOverflow/2026-09-21/heap-attribution/raw/** -text -whitespace
 Measurements/GridTextOverflow/2026-09-21/native-isolation/raw/** -text -whitespace
 Measurements/GridTextOverflow/2026-09-21/native-ci/raw/** -text -whitespace
+Measurements/MenuDescriptions/2026-09-21/scaling-v1/raw/** -text -whitespace
+Measurements/MenuDescriptions/2026-09-21/native-ci/raw/** -text -whitespace

@@ -1,0 +1,7 @@
+Performance comparison: advice-required
+REGRESSION clean/fps: 2635.584 -> 2499.453
+REGRESSION clean/frameP50Ms: 0.369 -> 0.390
+REGRESSION clean/frameP95Ms: 0.439 -> 0.472
+REGRESSION dirty/prepareP95Ms: 1.215 -> 1.301
+REGRESSION dirty/composeCpuP95Ms: 0.018 -> 0.021
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.

@@ -5,7 +5,11 @@ interfaces, but use synthetic data and require no RedXe or RedSalamander checkou
 Application adoption measurements belong in their application's repository.
 
 - [Grid native CI, 2026-09-21](GridTextOverflow/2026-09-21/native-ci/README.md): six native profiles,
-  retained accessibility classification retry and explicit ARM64 Menu capability skips; resource approval remains open.
+  retained accessibility classification retry and explicit ARM64 Menu capability skips; recorded memory and timing
+  costs are accepted, with combined qualification and consumer adoption still required.
+- [Described native menus, 2026-09-21](MenuDescriptions/2026-09-21/README.md): wrapped French
+  entries, menu/UIA lifecycle coverage, stage and open/close memory attribution; recorded timing costs
+  are accepted, with combined qualification and consumer handoff still required.
 
 - [Complex UI, 2026-09-05](ComplexUi/2026-09-05/README.md): Release baseline and matched repeat, complete raw rounds,
   comparison and rendered scene.

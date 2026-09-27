@@ -17,6 +17,20 @@ Consumers own density tiers and responsive policy; DxUi contains no AV profile o
 
 ### Localized adaptive layout acceptance
 
+The [described-menu plan](../Plans/WIP/MenuDescriptions_2026-09-21.md) extends native command
+rows with opt-in literal secondary text. Standard/Toggle/Radio/Info rows must measure both fields
+at the final monitor-constrained width, including the scrollbar lane, then publish matching
+paint/hit geometry. Both fields wrap without silent truncation. Retain prepared layouts across
+unchanged paints; a failed reflow closes the menu without selecting a command. Long individual
+rows may exceed the viewport: keyboard navigation reveals their beginning and wheel/scrollbar
+interaction exposes the remainder. Preserve existing one-line behavior when secondary text is absent.
+Identical text with the same font role and available width may share native layout storage within
+one popup preparation. Sharing must preserve separate command IDs, accessible identities, row state
+and hit rectangles. The lookup is preparation-local and released before paint; no process-wide
+text cache is retained. Scrollbar reflow sets an absolute final width, including for shared layouts,
+so repeated rows cannot cumulatively narrow one another. DPI changes prepare a fresh coherent set.
+Qualification is still in progress; this is not a consumer or native-platform acceptance claim.
+
 The shared implementation and synthetic acceptance below are qualified by the
 [localized adaptive layout plan](../Plans/Done/LocalizedAdaptiveLayout_2026-09-19.md) and its
 [final native receipts](../../Measurements/LocalizedAdaptiveLayout/2026-09-20/native-ci-main-78b3/README.md).

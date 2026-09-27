@@ -1,0 +1,72 @@
+{
+  "fixture": "dxui-menu-text-layout-resources-v1",
+  "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-reflow-local-20260921\\text-isolation-local\\test.log",
+  "cycles": 32,
+  "rows": 12,
+  "widthDip": 396,
+  "summary": [
+    {
+      "mode": 0,
+      "phase": "created",
+      "median": 6624.0,
+      "minimum": 6624,
+      "maximum": 6624
+    },
+    {
+      "mode": 0,
+      "phase": "measured",
+      "median": 226272.0,
+      "minimum": 226272,
+      "maximum": 226272
+    },
+    {
+      "mode": 0,
+      "phase": "released",
+      "median": 0.0,
+      "minimum": 0,
+      "maximum": 0
+    },
+    {
+      "mode": 1,
+      "phase": "created",
+      "median": 6648.0,
+      "minimum": 6648,
+      "maximum": 6648
+    },
+    {
+      "mode": 1,
+      "phase": "measured",
+      "median": 227482.0,
+      "minimum": 227482,
+      "maximum": 227482
+    },
+    {
+      "mode": 1,
+      "phase": "released",
+      "median": 0.0,
+      "minimum": 0,
+      "maximum": 0
+    },
+    {
+      "mode": 2,
+      "phase": "created",
+      "median": 13272.0,
+      "minimum": 13272,
+      "maximum": 13272
+    },
+    {
+      "mode": 2,
+      "phase": "measured",
+      "median": 453754.0,
+      "minimum": 453754,
+      "maximum": 453754
+    },
+    {
+      "mode": 2,
+      "phase": "released",
+      "median": 0.0,
+      "minimum": 0,
+      "maximum": 0
+    }
+  ]
+}

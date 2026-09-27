@@ -32,6 +32,13 @@ ordinary posted owner-window traffic. Input feedback cannot depend on the entire
 An idle menu still blocks on messages; this policy adds no timer, polling or synchronous repaint during dispatch.
 The existing owner-message-flood test retains its hover/invocation deadline and verifies visible feedback.
 
+An asynchronous menu controller must also close its interaction and native popup chain during
+thread-local/CRT destruction when its caller leaves a menu open. Mark finalization before releasing
+capture or destroying windows: their synchronous messages must not recursively delete a host whose
+destructor is active. This fallback does not invoke an application completion callback. The separate
+`MenuExitLifetime` process suite exits with a live captured menu to exercise this boundary under ASan;
+ordinary owner-window scope cleanup does not cover it.
+
 Native tooltip show/hide deadlines use the current UI-thread dispatcher clock, not the last tick of an idle
 individual host. A resumed host must not show or hide a newly scheduled tooltip immediately because its
 previous tick is stale. Embedded tooltip scheduling retains the application-provided animation epoch.

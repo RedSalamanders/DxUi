@@ -3036,6 +3036,10 @@ struct TextRangeSpanMoveResult
 
 [[nodiscard]] CONTROLTYPEID GetControlTypeId(const Control* control) noexcept
 {
+    if (control && control->GetAccessibilityRole() == AccessibilityRole::MenuItem)
+    {
+        return UIA_MenuItemControlTypeId;
+    }
     if (control && control->GetAccessibilityRole() == AccessibilityRole::Status)
     {
         return UIA_StatusBarControlTypeId;
@@ -7628,9 +7632,12 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
     Control* control = ResolveMutableControl();
     if (control && control->IsFocusable())
     {
-        if (! _target->embedded)
+        // Nonactivating native menus track logical item focus while Win32 focus
+        // remains on their owner, including explicit screen-reader focus requests.
+        const bool nativeMenuItem = ! _target->embedded && control->GetAccessibilityRole() == AccessibilityRole::MenuItem;
+        if (! _target->embedded && ! nativeMenuItem)
             ::SetFocus(_hwnd);
-        host->SetFocusControl(control);
+        host->SetFocusControl(control, ! nativeMenuItem);
     }
     return S_OK;
 }

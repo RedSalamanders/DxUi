@@ -1,0 +1,12 @@
+Complex UI clean round 1: 2106.31 completed offscreen FPS; p95 0.6211 ms; private 27799552 bytes
+Complex UI clean round 2: 2228.55 completed offscreen FPS; p95 0.4843 ms; private 27811840 bytes
+Complex UI clean round 3: 2520.97 completed offscreen FPS; p95 0.4765 ms; private 27840512 bytes
+Complex UI clean round 4: 2498.27 completed offscreen FPS; p95 0.4432 ms; private 27803648 bytes
+Complex UI clean round 5: 2599.85 completed offscreen FPS; p95 0.4109 ms; private 27848704 bytes
+Complex UI dirty round 1: 549.14 completed offscreen FPS; p95 2.0927 ms; private 29876224 bytes
+Complex UI dirty round 2: 539.794 completed offscreen FPS; p95 2.3414 ms; private 29724672 bytes
+Complex UI dirty round 3: 559.999 completed offscreen FPS; p95 1.9837 ms; private 29753344 bytes
+Complex UI dirty round 4: 562.677 completed offscreen FPS; p95 2.0155 ms; private 29757440 bytes
+Complex UI dirty round 5: 507.621 completed offscreen FPS; p95 2.6206 ms; private 29732864 bytes
+Performance comparison: unpaired
+Performance receipt: C:\RedSalamander.Perf\evidence\i26-ui\menu-reflow-local-20260921\baseline-qualified-v4\performance.json

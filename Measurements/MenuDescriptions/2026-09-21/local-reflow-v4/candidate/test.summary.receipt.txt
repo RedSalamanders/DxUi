@@ -1,0 +1,5373 @@
+{
+  "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-reflow-local-20260921\\candidate-qualified-v4\\test.log",
+  "metadata": [
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "menuItemObjectBytes": 248,
+      "toggleObjectBytes": 760,
+      "capture": false
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 0,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 0,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 0,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 0,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 0,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 0,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 0,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 0,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 0,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 0,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 1,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 1,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 1,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 1,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 1,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 1,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 1,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 1,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 1,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 1,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 2,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 2,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 2,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 2,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 2,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 2,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 2,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 2,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 2,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 2,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 3,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 3,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 3,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 3,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 3,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 3,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 3,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 3,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 3,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 3,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 4,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 4,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 4,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 4,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 4,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 4,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 4,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 4,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 4,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 4,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 5,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 5,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 5,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 5,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 5,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 5,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 5,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 5,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 5,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 5,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 6,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 6,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 6,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 6,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 6,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 6,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 6,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 6,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 6,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 6,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 7,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 7,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 7,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 7,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 7,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 7,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 7,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 7,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 7,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 7,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 8,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 8,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 8,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 8,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 8,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 8,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 8,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 8,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 8,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 8,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 9,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 9,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 9,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 9,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 9,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 9,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 9,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 9,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 9,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 9,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 10,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 10,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 10,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 10,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 10,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 10,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 10,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 10,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 10,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 10,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 11,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 11,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 11,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 11,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 11,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 11,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 11,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 11,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 11,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 11,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 12,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 12,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 12,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 12,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 12,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 12,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 12,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 12,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 12,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 12,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 13,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 13,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 13,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 13,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 13,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 13,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 13,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 13,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 13,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 13,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 14,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 14,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 14,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 14,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 14,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 14,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 14,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 14,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 14,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 14,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 15,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 15,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 15,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 15,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 15,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 15,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 15,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 15,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 15,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 15,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 16,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 16,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 16,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 16,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 16,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 16,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 16,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 16,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 16,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 16,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 17,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 17,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 17,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 17,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 17,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 17,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 17,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 17,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 17,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 17,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 18,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 18,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 18,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 18,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 18,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 18,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 18,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 18,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 18,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 18,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 19,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 19,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 19,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 19,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 19,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 19,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 19,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 19,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 19,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 19,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 20,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 20,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 20,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 20,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 20,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 20,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 20,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 20,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 20,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 20,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 21,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 21,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 21,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 21,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 21,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 21,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 21,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 21,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 21,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 21,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 22,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 22,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 22,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 22,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 22,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 22,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 22,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 22,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 22,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 22,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 23,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 23,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 23,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 23,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 23,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 23,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 23,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 23,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 23,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 23,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 24,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 24,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 24,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 24,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 24,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 24,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 24,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 24,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 24,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 24,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 25,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 25,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 25,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 25,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 25,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 25,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 25,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 25,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 25,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 25,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 26,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 26,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 26,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 26,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 26,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 26,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 26,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 26,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 26,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 26,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 27,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 27,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 27,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 27,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 27,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 27,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 27,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 27,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 27,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 27,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 28,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 28,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 28,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 28,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 28,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 28,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 28,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 28,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 28,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 28,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 29,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 29,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 29,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 29,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 29,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 29,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 29,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 29,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 29,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 29,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 30,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 30,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 30,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 30,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 30,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 30,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 30,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 30,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 30,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 30,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 0,
+      "cycle": 31,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 48,
+      "cycle": 31,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 48,
+      "descriptions": 0,
+      "cycle": 31,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 24,
+      "cycle": 31,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 24,
+      "descriptions": 0,
+      "cycle": 31,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 12,
+      "cycle": 31,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 8,
+      "cycle": 31,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 4,
+      "cycle": 31,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 2,
+      "cycle": 31,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v4",
+      "entries": 12,
+      "descriptions": 1,
+      "cycle": 31,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    }
+  ],
+  "variants": [
+    {
+      "entries": 12,
+      "descriptions": 0,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 10240.0,
+          "min": -262144,
+          "max": 11198464
+        },
+        "closed-privateBytes": {
+          "median": 8192.0,
+          "min": -266240,
+          "max": 11542528
+        },
+        "released-privateBytes": {
+          "median": 4096.0,
+          "min": -344064,
+          "max": 4096
+        },
+        "rendered-workingSetBytes": {
+          "median": 8192.0,
+          "min": -253952,
+          "max": 14491648
+        },
+        "closed-workingSetBytes": {
+          "median": 4096.0,
+          "min": -258048,
+          "max": 17338368
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": -2846720,
+          "max": 4096
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 241
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 282
+        },
+        "released-handles": {
+          "median": 6.0,
+          "min": -41,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 11
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 11
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 17
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 16
+        },
+        "released-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "rendered-heapbusyBytes": {
+          "median": 85853.0,
+          "min": 84815,
+          "max": 2588211
+        },
+        "closed-heapbusyBytes": {
+          "median": 327.0,
+          "min": -519,
+          "max": 2710614
+        },
+        "released-heapbusyBytes": {
+          "median": 85266.5,
+          "min": -122403,
+          "max": 86237
+        },
+        "rendered-heapfreeBytes": {
+          "median": -78336.0,
+          "min": -1362368,
+          "max": 184800
+        },
+        "closed-heapfreeBytes": {
+          "median": 48.0,
+          "min": -1369760,
+          "max": 270272
+        },
+        "released-heapfreeBytes": {
+          "median": -77568.0,
+          "min": -85952,
+          "max": 7392
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": -125.0,
+          "min": -605,
+          "max": 133357
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": -218.5,
+          "min": -702,
+          "max": 144442
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 253.5,
+          "min": -11085,
+          "max": 586
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 8192.0,
+          "min": 4096,
+          "max": 528384
+        },
+        "closed-privateBytes": {
+          "median": 8192.0,
+          "min": 0,
+          "max": 524288
+        },
+        "released-privateBytes": {
+          "median": 4096.0,
+          "min": 0,
+          "max": 4096
+        },
+        "rendered-workingSetBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 540672
+        },
+        "closed-workingSetBytes": {
+          "median": 4096.0,
+          "min": 0,
+          "max": 536576
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": 0,
+          "max": 4096
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 1.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 5.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "rendered-heapbusyBytes": {
+          "median": 85398.0,
+          "min": 84815,
+          "max": 85982
+        },
+        "closed-heapbusyBytes": {
+          "median": 135.0,
+          "min": -519,
+          "max": 1038
+        },
+        "released-heapbusyBytes": {
+          "median": 85199.0,
+          "min": 84559,
+          "max": 85853
+        },
+        "rendered-heapfreeBytes": {
+          "median": -78336.0,
+          "min": -85216,
+          "max": -15072
+        },
+        "closed-heapfreeBytes": {
+          "median": 48.0,
+          "min": -5056,
+          "max": 69216
+        },
+        "released-heapfreeBytes": {
+          "median": -77776.0,
+          "min": -85600,
+          "max": -77152
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": -166.0,
+          "min": -397,
+          "max": 290
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": -235.5,
+          "min": -702,
+          "max": 176
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 253.5,
+          "min": -278,
+          "max": 337
+        }
+      }
+    },
+    {
+      "entries": 12,
+      "descriptions": 1,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 368640
+        },
+        "closed-privateBytes": {
+          "median": 0.0,
+          "min": -1310720,
+          "max": 851968
+        },
+        "released-privateBytes": {
+          "median": 4096.0,
+          "min": -798720,
+          "max": 1642496
+        },
+        "rendered-workingSetBytes": {
+          "median": 8192.0,
+          "min": 4096,
+          "max": 438272
+        },
+        "closed-workingSetBytes": {
+          "median": 2048.0,
+          "min": -606208,
+          "max": 462848
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": -24576,
+          "max": 610304
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 2.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 3
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 1
+        },
+        "released-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "rendered-heapbusyBytes": {
+          "median": 150092.0,
+          "min": 149701,
+          "max": 226935
+        },
+        "closed-heapbusyBytes": {
+          "median": -130.5,
+          "min": -1719,
+          "max": 77644
+        },
+        "released-heapbusyBytes": {
+          "median": 150351.0,
+          "min": 149291,
+          "max": 151939
+        },
+        "rendered-heapfreeBytes": {
+          "median": -136688.0,
+          "min": -183984,
+          "max": 46016
+        },
+        "closed-heapfreeBytes": {
+          "median": 5904.0,
+          "min": -1097424,
+          "max": 295584
+        },
+        "released-heapfreeBytes": {
+          "median": -140856.0,
+          "min": -438768,
+          "max": 950400
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": -27.0,
+          "min": -211,
+          "max": 4345
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": -571.5,
+          "min": -1866,
+          "max": 4932
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 581.0,
+          "min": -587,
+          "max": 1749
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 12288
+        },
+        "closed-privateBytes": {
+          "median": 0.0,
+          "min": -1310720,
+          "max": 8192
+        },
+        "released-privateBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 1314816
+        },
+        "rendered-workingSetBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 12288
+        },
+        "closed-workingSetBytes": {
+          "median": 0.0,
+          "min": -606208,
+          "max": 8192
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 610304
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 6.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "rendered-heapbusyBytes": {
+          "median": 150091.0,
+          "min": 149701,
+          "max": 150220
+        },
+        "closed-heapbusyBytes": {
+          "median": -451.5,
+          "min": -1719,
+          "max": 613
+        },
+        "released-heapbusyBytes": {
+          "median": 150479.0,
+          "min": 149607,
+          "max": 151939
+        },
+        "rendered-heapfreeBytes": {
+          "median": -134352.0,
+          "min": -151904,
+          "max": -77312
+        },
+        "closed-heapfreeBytes": {
+          "median": 6920.0,
+          "min": -32384,
+          "max": 295584
+        },
+        "released-heapfreeBytes": {
+          "median": -140112.0,
+          "min": -438768,
+          "max": -119520
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": 36.5,
+          "min": -203,
+          "max": 213
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": -704.0,
+          "min": -1656,
+          "max": 360
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 725.0,
+          "min": -204,
+          "max": 1678
+        }
+      }
+    },
+    {
+      "entries": 12,
+      "descriptions": 2,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 634880
+        },
+        "closed-privateBytes": {
+          "median": 0.0,
+          "min": -1269760,
+          "max": 761856
+        },
+        "released-privateBytes": {
+          "median": 4096.0,
+          "min": -126976,
+          "max": 1273856
+        },
+        "rendered-workingSetBytes": {
+          "median": 16384.0,
+          "min": 4096,
+          "max": 618496
+        },
+        "closed-workingSetBytes": {
+          "median": 12288.0,
+          "min": -573440,
+          "max": 749568
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": -131072,
+          "max": 577536
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 7
+        },
+        "closed-handles": {
+          "median": 2.0,
+          "min": 0,
+          "max": 5
+        },
+        "released-handles": {
+          "median": 4.0,
+          "min": 2,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 1
+        },
+        "released-user": {
+          "median": 2.0,
+          "min": 1,
+          "max": 2
+        },
+        "rendered-heapbusyBytes": {
+          "median": 188733.0,
+          "min": 188086,
+          "max": 423330
+        },
+        "closed-heapbusyBytes": {
+          "median": 451.5,
+          "min": -903,
+          "max": 233061
+        },
+        "released-heapbusyBytes": {
+          "median": 188605.0,
+          "min": 187830,
+          "max": 190269
+        },
+        "rendered-heapfreeBytes": {
+          "median": -180400.0,
+          "min": -262912,
+          "max": -37856
+        },
+        "closed-heapfreeBytes": {
+          "median": 1720.0,
+          "min": -852704,
+          "max": 289728
+        },
+        "released-heapfreeBytes": {
+          "median": -181040.0,
+          "min": -462544,
+          "max": 679824
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": -187.0,
+          "min": -658,
+          "max": 8414
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": -56.0,
+          "min": -654,
+          "max": 8779
+        },
+        "released-heapentryOverheadBytes": {
+          "median": -169.5,
+          "min": -381,
+          "max": 435
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 61440
+        },
+        "closed-privateBytes": {
+          "median": 0.0,
+          "min": -1269760,
+          "max": 57344
+        },
+        "released-privateBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 1273856
+        },
+        "rendered-workingSetBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 53248
+        },
+        "closed-workingSetBytes": {
+          "median": 0.0,
+          "min": -573440,
+          "max": 49152
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 577536
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 7
+        },
+        "closed-handles": {
+          "median": 2.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "rendered-heapbusyBytes": {
+          "median": 188669.0,
+          "min": 188505,
+          "max": 189252
+        },
+        "closed-heapbusyBytes": {
+          "median": 259.5,
+          "min": -384,
+          "max": 1422
+        },
+        "released-heapbusyBytes": {
+          "median": 188537.5,
+          "min": 187830,
+          "max": 188989
+        },
+        "rendered-heapfreeBytes": {
+          "median": -173744.0,
+          "min": -251056,
+          "max": -42464
+        },
+        "closed-heapfreeBytes": {
+          "median": 16744.0,
+          "min": -78192,
+          "max": 289728
+        },
+        "released-heapfreeBytes": {
+          "median": -180704.0,
+          "min": -462544,
+          "max": -164080
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": -155.0,
+          "min": -301,
+          "max": 115
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": -23.0,
+          "min": -624,
+          "max": 304
+        },
+        "released-heapentryOverheadBytes": {
+          "median": -169.5,
+          "min": -253,
+          "max": 371
+        }
+      }
+    },
+    {
+      "entries": 12,
+      "descriptions": 4,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 4096.0,
+          "min": -876544,
+          "max": 598016
+        },
+        "closed-privateBytes": {
+          "median": -1261568.0,
+          "min": -2347008,
+          "max": 593920
+        },
+        "released-privateBytes": {
+          "median": 1265664.0,
+          "min": -544768,
+          "max": 2351104
+        },
+        "rendered-workingSetBytes": {
+          "median": 4096.0,
+          "min": -466944,
+          "max": 282624
+        },
+        "closed-workingSetBytes": {
+          "median": -559104.0,
+          "min": -1003520,
+          "max": 282624
+        },
+        "released-workingSetBytes": {
+          "median": 563200.0,
+          "min": 0,
+          "max": 1007616
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 2.0,
+          "min": 0,
+          "max": 3
+        },
+        "released-handles": {
+          "median": 4.0,
+          "min": 3,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "rendered-heapbusyBytes": {
+          "median": 265698.0,
+          "min": 265178,
+          "max": 318851
+        },
+        "closed-heapbusyBytes": {
+          "median": 129.0,
+          "min": -1032,
+          "max": 49530
+        },
+        "released-heapbusyBytes": {
+          "median": 265961.0,
+          "min": 232538,
+          "max": 269321
+        },
+        "rendered-heapfreeBytes": {
+          "median": -241008.0,
+          "min": -443984,
+          "max": 97616
+        },
+        "closed-heapfreeBytes": {
+          "median": 247400.0,
+          "min": -998688,
+          "max": 364880
+        },
+        "released-heapfreeBytes": {
+          "median": -512192.0,
+          "min": -559248,
+          "max": 798640
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": 359.0,
+          "min": -177,
+          "max": 8957
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": -112.0,
+          "min": -1224,
+          "max": 8614
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 366.5,
+          "min": -249,
+          "max": 1135
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 4096.0,
+          "min": -876544,
+          "max": 598016
+        },
+        "closed-privateBytes": {
+          "median": -1269760.0,
+          "min": -2347008,
+          "max": 593920
+        },
+        "released-privateBytes": {
+          "median": 1273856.0,
+          "min": -544768,
+          "max": 2351104
+        },
+        "rendered-workingSetBytes": {
+          "median": 4096.0,
+          "min": -466944,
+          "max": 139264
+        },
+        "closed-workingSetBytes": {
+          "median": -567296.0,
+          "min": -901120,
+          "max": 135168
+        },
+        "released-workingSetBytes": {
+          "median": 571392.0,
+          "min": 4096,
+          "max": 905216
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 2.0,
+          "min": 0,
+          "max": 3
+        },
+        "released-handles": {
+          "median": 4.0,
+          "min": 3,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "rendered-heapbusyBytes": {
+          "median": 265698.0,
+          "min": 265178,
+          "max": 282969
+        },
+        "closed-heapbusyBytes": {
+          "median": -192.0,
+          "min": -1032,
+          "max": 17008
+        },
+        "released-heapbusyBytes": {
+          "median": 265957.0,
+          "min": 265569,
+          "max": 266601
+        },
+        "rendered-heapfreeBytes": {
+          "median": -233336.0,
+          "min": -381856,
+          "max": 97616
+        },
+        "closed-heapfreeBytes": {
+          "median": 281696.0,
+          "min": -133088,
+          "max": 364880
+        },
+        "released-heapfreeBytes": {
+          "median": -521064.0,
+          "min": -559248,
+          "max": -248768
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": 386.0,
+          "min": -177,
+          "max": 1039
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": -112.0,
+          "min": -1224,
+          "max": 680
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 531.0,
+          "min": 87,
+          "max": 1135
+        }
+      }
+    },
+    {
+      "entries": 12,
+      "descriptions": 8,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 24576.0,
+          "min": 4096,
+          "max": 1081344
+        },
+        "closed-privateBytes": {
+          "median": 67584.0,
+          "min": 0,
+          "max": 1462272
+        },
+        "released-privateBytes": {
+          "median": 4096.0,
+          "min": -884736,
+          "max": 4096
+        },
+        "rendered-workingSetBytes": {
+          "median": 55296.0,
+          "min": 4096,
+          "max": 438272
+        },
+        "closed-workingSetBytes": {
+          "median": 51200.0,
+          "min": 0,
+          "max": 434176
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 4096
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 6.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "rendered-heapbusyBytes": {
+          "median": 419899.0,
+          "min": 419252,
+          "max": 589865
+        },
+        "closed-heapbusyBytes": {
+          "median": 516.0,
+          "min": -903,
+          "max": 169446
+        },
+        "released-heapbusyBytes": {
+          "median": 419771.0,
+          "min": 418733,
+          "max": 420419
+        },
+        "rendered-heapfreeBytes": {
+          "median": -272568.0,
+          "min": -445776,
+          "max": -26688
+        },
+        "closed-heapfreeBytes": {
+          "median": -23456.0,
+          "min": -160512,
+          "max": 378784
+        },
+        "released-heapfreeBytes": {
+          "median": -272256.0,
+          "min": -411600,
+          "max": -112768
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": 1630.0,
+          "min": 437,
+          "max": 9095
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": -400.0,
+          "min": -1454,
+          "max": 7882
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 1917.0,
+          "min": 693,
+          "max": 3029
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 18432.0,
+          "min": 4096,
+          "max": 589824
+        },
+        "closed-privateBytes": {
+          "median": 63488.0,
+          "min": 0,
+          "max": 1462272
+        },
+        "released-privateBytes": {
+          "median": -2048.0,
+          "min": -884736,
+          "max": 4096
+        },
+        "rendered-workingSetBytes": {
+          "median": 43008.0,
+          "min": 4096,
+          "max": 180224
+        },
+        "closed-workingSetBytes": {
+          "median": 38912.0,
+          "min": 0,
+          "max": 176128
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 4096
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 6.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "rendered-heapbusyBytes": {
+          "median": 419771.0,
+          "min": 419252,
+          "max": 420290
+        },
+        "closed-heapbusyBytes": {
+          "median": 259.5,
+          "min": -903,
+          "max": 1038
+        },
+        "released-heapbusyBytes": {
+          "median": 419771.0,
+          "min": 418733,
+          "max": 420155
+        },
+        "rendered-heapfreeBytes": {
+          "median": -266576.0,
+          "min": -431536,
+          "max": -192048
+        },
+        "closed-heapfreeBytes": {
+          "median": -29224.0,
+          "min": -135984,
+          "max": 32288
+        },
+        "released-heapfreeBytes": {
+          "median": -265288.0,
+          "min": -407712,
+          "max": -112768
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": 1577.5,
+          "min": 670,
+          "max": 2597
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": -544.0,
+          "min": -1399,
+          "max": 1568
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 2127.5,
+          "min": 1029,
+          "max": 2965
+        }
+      }
+    },
+    {
+      "entries": 12,
+      "descriptions": 12,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 20480.0,
+          "min": -12288,
+          "max": 827392
+        },
+        "closed-privateBytes": {
+          "median": 20480.0,
+          "min": -16384,
+          "max": 823296
+        },
+        "released-privateBytes": {
+          "median": 4096.0,
+          "min": -131072,
+          "max": 4096
+        },
+        "rendered-workingSetBytes": {
+          "median": 145408.0,
+          "min": 4096,
+          "max": 352256
+        },
+        "closed-workingSetBytes": {
+          "median": 141312.0,
+          "min": 0,
+          "max": 348160
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": -4096,
+          "max": 4096
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 2.0,
+          "min": 0,
+          "max": 3
+        },
+        "released-handles": {
+          "median": 4.0,
+          "min": 3,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "rendered-heapbusyBytes": {
+          "median": 574630.0,
+          "min": 574111,
+          "max": 650698
+        },
+        "closed-heapbusyBytes": {
+          "median": 61.5,
+          "min": -1032,
+          "max": 75812
+        },
+        "released-heapbusyBytes": {
+          "median": 574765.0,
+          "min": 573598,
+          "max": 575405
+        },
+        "rendered-heapfreeBytes": {
+          "median": -439784.0,
+          "min": -657568,
+          "max": -213296
+        },
+        "closed-heapfreeBytes": {
+          "median": -156056.0,
+          "min": -372176,
+          "max": 27616
+        },
+        "released-heapfreeBytes": {
+          "median": -272296.0,
+          "min": -328944,
+          "max": -240912
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": 3223.5,
+          "min": 2139,
+          "max": 5782
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": 400.0,
+          "min": -993,
+          "max": 3532
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 2955.0,
+          "min": 1875,
+          "max": 3835
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 18432.0,
+          "min": 4096,
+          "max": 393216
+        },
+        "closed-privateBytes": {
+          "median": 16384.0,
+          "min": 0,
+          "max": 389120
+        },
+        "released-privateBytes": {
+          "median": 4096.0,
+          "min": -12288,
+          "max": 4096
+        },
+        "rendered-workingSetBytes": {
+          "median": 137216.0,
+          "min": 4096,
+          "max": 167936
+        },
+        "closed-workingSetBytes": {
+          "median": 133120.0,
+          "min": 0,
+          "max": 163840
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 4096
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 2.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "rendered-heapbusyBytes": {
+          "median": 574501.5,
+          "min": 574111,
+          "max": 575149
+        },
+        "closed-heapbusyBytes": {
+          "median": -259.5,
+          "min": -1032,
+          "max": 1032
+        },
+        "released-heapbusyBytes": {
+          "median": 574761.0,
+          "min": 574117,
+          "max": 575405
+        },
+        "rendered-heapfreeBytes": {
+          "median": -410896.0,
+          "min": -559408,
+          "max": -213296
+        },
+        "closed-heapfreeBytes": {
+          "median": -146368.0,
+          "min": -288320,
+          "max": 27616
+        },
+        "released-heapfreeBytes": {
+          "median": -269336.0,
+          "min": -285392,
+          "max": -240912
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": 3455.0,
+          "min": 2202,
+          "max": 4203
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": 400.0,
+          "min": -993,
+          "max": 1160
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 3111.0,
+          "min": 2330,
+          "max": 3835
+        }
+      }
+    },
+    {
+      "entries": 24,
+      "descriptions": 0,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 8192.0,
+          "min": -1904640,
+          "max": 28672
+        },
+        "closed-privateBytes": {
+          "median": 6144.0,
+          "min": -1904640,
+          "max": 24576
+        },
+        "released-privateBytes": {
+          "median": 4096.0,
+          "min": -8192,
+          "max": 4096
+        },
+        "rendered-workingSetBytes": {
+          "median": 12288.0,
+          "min": -679936,
+          "max": 36864
+        },
+        "closed-workingSetBytes": {
+          "median": 8192.0,
+          "min": -679936,
+          "max": 36864
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": 0,
+          "max": 4096
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 6.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "rendered-heapbusyBytes": {
+          "median": 94228.0,
+          "min": 93581,
+          "max": 128169
+        },
+        "closed-heapbusyBytes": {
+          "median": 135.0,
+          "min": -384,
+          "max": 33934
+        },
+        "released-heapbusyBytes": {
+          "median": 94100.0,
+          "min": 93325,
+          "max": 95003
+        },
+        "rendered-heapfreeBytes": {
+          "median": -80832.0,
+          "min": -155312,
+          "max": 2416
+        },
+        "closed-heapfreeBytes": {
+          "median": 10584.0,
+          "min": -63504,
+          "max": 101264
+        },
+        "released-heapfreeBytes": {
+          "median": -90224.0,
+          "min": -99008,
+          "max": -79472
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": -60.0,
+          "min": -635,
+          "max": 396
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": -160.0,
+          "min": -928,
+          "max": 441
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 4.0,
+          "min": -324,
+          "max": 396
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 12288.0,
+          "min": 4096,
+          "max": 24576
+        },
+        "closed-privateBytes": {
+          "median": 8192.0,
+          "min": 0,
+          "max": 20480
+        },
+        "released-privateBytes": {
+          "median": 4096.0,
+          "min": -8192,
+          "max": 4096
+        },
+        "rendered-workingSetBytes": {
+          "median": 10240.0,
+          "min": 4096,
+          "max": 16384
+        },
+        "closed-workingSetBytes": {
+          "median": 8192.0,
+          "min": 0,
+          "max": 12288
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": 0,
+          "max": 4096
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 1.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 5.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "rendered-heapbusyBytes": {
+          "median": 94164.0,
+          "min": 94100,
+          "max": 95266
+        },
+        "closed-heapbusyBytes": {
+          "median": 135.0,
+          "min": -384,
+          "max": 1941
+        },
+        "released-heapbusyBytes": {
+          "median": 94100.0,
+          "min": 93325,
+          "max": 94484
+        },
+        "rendered-heapfreeBytes": {
+          "median": -83344.0,
+          "min": -155312,
+          "max": -13408
+        },
+        "closed-heapfreeBytes": {
+          "median": 6944.0,
+          "min": -63504,
+          "max": 78720
+        },
+        "released-heapfreeBytes": {
+          "median": -89872.0,
+          "min": -98816,
+          "max": -83552
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": 9.5,
+          "min": -587,
+          "max": 396
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": -107.5,
+          "min": -551,
+          "max": 441
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 4.0,
+          "min": -324,
+          "max": 332
+        }
+      }
+    },
+    {
+      "entries": 24,
+      "descriptions": 24,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 319488.0,
+          "min": 4096,
+          "max": 843776
+        },
+        "closed-privateBytes": {
+          "median": 464896.0,
+          "min": -1118208,
+          "max": 937984
+        },
+        "released-privateBytes": {
+          "median": 4096.0,
+          "min": -548864,
+          "max": 1454080
+        },
+        "rendered-workingSetBytes": {
+          "median": 206848.0,
+          "min": 81920,
+          "max": 503808
+        },
+        "closed-workingSetBytes": {
+          "median": 202752.0,
+          "min": -552960,
+          "max": 499712
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": 0,
+          "max": 749568
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 2.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "rendered-heapbusyBytes": {
+          "median": 1072316.0,
+          "min": 1071278,
+          "max": 1105737
+        },
+        "closed-heapbusyBytes": {
+          "median": 129.0,
+          "min": -1551,
+          "max": 33544
+        },
+        "released-heapbusyBytes": {
+          "median": 1072571.0,
+          "min": 1039540,
+          "max": 1073319
+        },
+        "rendered-heapfreeBytes": {
+          "median": -649712.0,
+          "min": -851296,
+          "max": -369056
+        },
+        "closed-heapfreeBytes": {
+          "median": 131544.0,
+          "min": -981600,
+          "max": 552976
+        },
+        "released-heapfreeBytes": {
+          "median": -787992.0,
+          "min": -1060512,
+          "max": 330336
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": 7668.5,
+          "min": 5461,
+          "max": 9156
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": 131.5,
+          "min": -3256,
+          "max": 2488
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 7561.0,
+          "min": 6261,
+          "max": 9469
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 653312.0,
+          "min": 4096,
+          "max": 843776
+        },
+        "closed-privateBytes": {
+          "median": 780288.0,
+          "min": 0,
+          "max": 937984
+        },
+        "released-privateBytes": {
+          "median": -2048.0,
+          "min": -548864,
+          "max": 4096
+        },
+        "rendered-workingSetBytes": {
+          "median": 194560.0,
+          "min": 131072,
+          "max": 270336
+        },
+        "closed-workingSetBytes": {
+          "median": 190464.0,
+          "min": 126976,
+          "max": 266240
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": 4096,
+          "max": 4096
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 2.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "rendered-heapbusyBytes": {
+          "median": 1072315.5,
+          "min": 1071278,
+          "max": 1072834
+        },
+        "closed-heapbusyBytes": {
+          "median": -259.5,
+          "min": -1551,
+          "max": 513
+        },
+        "released-heapbusyBytes": {
+          "median": 1072575.0,
+          "min": 1071931,
+          "max": 1073319
+        },
+        "rendered-heapfreeBytes": {
+          "median": -654688.0,
+          "min": -851296,
+          "max": -572160
+        },
+        "closed-heapfreeBytes": {
+          "median": 125376.0,
+          "min": 33008,
+          "max": 222032
+        },
+        "released-heapfreeBytes": {
+          "median": -778176.0,
+          "min": -927504,
+          "max": -757648
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": 7843.5,
+          "min": 5989,
+          "max": 9156
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": 835.5,
+          "min": -3256,
+          "max": 2488
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 7033.0,
+          "min": 6261,
+          "max": 9469
+        }
+      }
+    },
+    {
+      "entries": 48,
+      "descriptions": 0,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 10240.0,
+          "min": 4096,
+          "max": 57344
+        },
+        "closed-privateBytes": {
+          "median": 6144.0,
+          "min": 0,
+          "max": 53248
+        },
+        "released-privateBytes": {
+          "median": 4096.0,
+          "min": 0,
+          "max": 4096
+        },
+        "rendered-workingSetBytes": {
+          "median": 8192.0,
+          "min": 4096,
+          "max": 36864
+        },
+        "closed-workingSetBytes": {
+          "median": 8192.0,
+          "min": 0,
+          "max": 32768
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": 0,
+          "max": 4096
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 8
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 6.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 1
+        },
+        "released-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "rendered-heapbusyBytes": {
+          "median": 111476.0,
+          "min": 111085,
+          "max": 195666
+        },
+        "closed-heapbusyBytes": {
+          "median": 135.0,
+          "min": -384,
+          "max": 83806
+        },
+        "released-heapbusyBytes": {
+          "median": 111476.0,
+          "min": 110701,
+          "max": 111860
+        },
+        "rendered-heapfreeBytes": {
+          "median": -104728.0,
+          "min": -319392,
+          "max": -30192
+        },
+        "closed-heapfreeBytes": {
+          "median": -904.0,
+          "min": -211456,
+          "max": 73408
+        },
+        "released-heapfreeBytes": {
+          "median": -103600.0,
+          "min": -120480,
+          "max": -99872
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": -183.5,
+          "min": -580,
+          "max": 2926
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": -435.5,
+          "min": -784,
+          "max": 3042
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 223.5,
+          "min": -116,
+          "max": 524
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 10240.0,
+          "min": 4096,
+          "max": 28672
+        },
+        "closed-privateBytes": {
+          "median": 6144.0,
+          "min": 0,
+          "max": 24576
+        },
+        "released-privateBytes": {
+          "median": 4096.0,
+          "min": 0,
+          "max": 4096
+        },
+        "rendered-workingSetBytes": {
+          "median": 8192.0,
+          "min": 4096,
+          "max": 20480
+        },
+        "closed-workingSetBytes": {
+          "median": 4096.0,
+          "min": 0,
+          "max": 16384
+        },
+        "released-workingSetBytes": {
+          "median": 4096.0,
+          "min": 0,
+          "max": 4096
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 8
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 6.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 1
+        },
+        "released-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "rendered-heapbusyBytes": {
+          "median": 111476.0,
+          "min": 111085,
+          "max": 111995
+        },
+        "closed-heapbusyBytes": {
+          "median": 67.5,
+          "min": -384,
+          "max": 903
+        },
+        "released-heapbusyBytes": {
+          "median": 111341.0,
+          "min": 110701,
+          "max": 111860
+        },
+        "rendered-heapfreeBytes": {
+          "median": -104376.0,
+          "min": -111120,
+          "max": -30192
+        },
+        "closed-heapfreeBytes": {
+          "median": -768.0,
+          "min": -5888,
+          "max": 73408
+        },
+        "released-heapfreeBytes": {
+          "median": -103568.0,
+          "min": -119904,
+          "max": -102832
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": -184.5,
+          "min": -356,
+          "max": 204
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": -435.5,
+          "min": -551,
+          "max": -23
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 203.0,
+          "min": 188,
+          "max": 291
+        }
+      }
+    },
+    {
+      "entries": 48,
+      "descriptions": 48,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 987136.0,
+          "min": 81920,
+          "max": 2371584
+        },
+        "closed-privateBytes": {
+          "median": 40960.0,
+          "min": -974848,
+          "max": 1687552
+        },
+        "released-privateBytes": {
+          "median": 997376.0,
+          "min": 385024,
+          "max": 1462272
+        },
+        "rendered-workingSetBytes": {
+          "median": 806912.0,
+          "min": 352256,
+          "max": 5292032
+        },
+        "closed-workingSetBytes": {
+          "median": 100352.0,
+          "min": -282624,
+          "max": 4616192
+        },
+        "released-workingSetBytes": {
+          "median": 630784.0,
+          "min": 552960,
+          "max": 872448
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 2.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "rendered-heapbusyBytes": {
+          "median": 2071471.0,
+          "min": 2070368,
+          "max": 2114288
+        },
+        "closed-heapbusyBytes": {
+          "median": 196.5,
+          "min": -1302,
+          "max": 43266
+        },
+        "released-heapbusyBytes": {
+          "median": 2071666.0,
+          "min": 2071022,
+          "max": 2072310
+        },
+        "rendered-heapfreeBytes": {
+          "median": -1750568.0,
+          "min": -2107584,
+          "max": 197600
+        },
+        "closed-heapfreeBytes": {
+          "median": -132296.0,
+          "min": -529648,
+          "max": 1865712
+        },
+        "released-heapfreeBytes": {
+          "median": -1596792.0,
+          "min": -1675840,
+          "max": -1571696
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": 22705.0,
+          "min": 19554,
+          "max": 24314
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": 1508.5,
+          "min": 70,
+          "max": 3647
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 20294.0,
+          "min": 18282,
+          "max": 22794
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 954368.0,
+          "min": 81920,
+          "max": 2371584
+        },
+        "closed-privateBytes": {
+          "median": -53248.0,
+          "min": -974848,
+          "max": 1314816
+        },
+        "released-privateBytes": {
+          "median": 1048576.0,
+          "min": 724992,
+          "max": 1073152
+        },
+        "rendered-workingSetBytes": {
+          "median": 774144.0,
+          "min": 352256,
+          "max": 1236992
+        },
+        "closed-workingSetBytes": {
+          "median": 24576.0,
+          "min": -282624,
+          "max": 622592
+        },
+        "released-workingSetBytes": {
+          "median": 630784.0,
+          "min": 581632,
+          "max": 790528
+        },
+        "rendered-handles": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "closed-handles": {
+          "median": 2.0,
+          "min": 0,
+          "max": 2
+        },
+        "released-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 6
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "released-user": {
+          "median": 2.0,
+          "min": 2,
+          "max": 2
+        },
+        "rendered-heapbusyBytes": {
+          "median": 2071406.5,
+          "min": 2070759,
+          "max": 2072574
+        },
+        "closed-heapbusyBytes": {
+          "median": 61.5,
+          "min": -1167,
+          "max": 513
+        },
+        "released-heapbusyBytes": {
+          "median": 2071474.0,
+          "min": 2071022,
+          "max": 2072310
+        },
+        "rendered-heapfreeBytes": {
+          "median": -1824552.0,
+          "min": -2107584,
+          "max": -1343360
+        },
+        "closed-heapfreeBytes": {
+          "median": -244008.0,
+          "min": -529648,
+          "max": 275520
+        },
+        "released-heapfreeBytes": {
+          "median": -1601464.0,
+          "min": -1626704,
+          "max": -1571696
+        },
+        "rendered-heapentryOverheadBytes": {
+          "median": 21585.5,
+          "min": 19554,
+          "max": 24136
+        },
+        "closed-heapentryOverheadBytes": {
+          "median": 1307.5,
+          "min": 200,
+          "max": 3647
+        },
+        "released-heapentryOverheadBytes": {
+          "median": 19542.0,
+          "min": 18282,
+          "max": 21994
+        }
+      }
+    }
+  ]
+}

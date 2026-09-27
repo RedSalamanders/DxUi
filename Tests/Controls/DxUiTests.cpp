@@ -22,6 +22,10 @@ void RunRenderingTests();
 void RunAnimationTests();
 void RunAccessibilityTests();
 void RunMenuTests();
+void RunMenuResourceTests();
+void RunMenuResourceScalingTests();
+void RunMenuTextLayoutResourceTests();
+void RunMenuExitLifetimeTests();
 void RunNewControlTests();
 void RunGalleryGenerator(const std::filesystem::path& outputPath);
 void RunGalleryGeneratorPerTheme(const std::filesystem::path& outputDirectory);
@@ -180,9 +184,14 @@ int wmain(int argc, wchar_t** argv)
         return _wcsicmp(wideName.c_str(), suiteFilter->c_str()) == 0;
     };
 
-    const auto suiteCanActivate = [](const char* name) noexcept { return _stricmp(name, "Menu") == 0 || _stricmp(name, "NativeTextInput") == 0; };
+    const auto suiteCanActivate = [](const char* name) noexcept
+    {
+        return _stricmp(name, "Menu") == 0 || _stricmp(name, "NativeTextInput") == 0 || _stricmp(name, "MenuResources") == 0 ||
+               _stricmp(name, "MenuResourceScaling") == 0;
+    };
     const bool selectedSuiteCanActivate =
-        suiteFilter.has_value() && (_wcsicmp(suiteFilter->c_str(), L"Menu") == 0 || _wcsicmp(suiteFilter->c_str(), L"NativeTextInput") == 0);
+        suiteFilter.has_value() && (_wcsicmp(suiteFilter->c_str(), L"Menu") == 0 || _wcsicmp(suiteFilter->c_str(), L"NativeTextInput") == 0 ||
+                                    _wcsicmp(suiteFilter->c_str(), L"MenuResources") == 0 || _wcsicmp(suiteFilter->c_str(), L"MenuResourceScaling") == 0);
     if (blockActivation && (! suiteFilter.has_value() || selectedSuiteCanActivate))
     {
         std::wcerr << L"--no-activate cannot run a DxUi suite whose contract requires real focus.\n";
@@ -206,6 +215,26 @@ int wmain(int argc, wchar_t** argv)
     };
 
     bool ranAnySuite = false;
+    if (suiteFilter.has_value() && shouldRunSuite("MenuTextLayoutResources"))
+    {
+        runSuite("MenuTextLayoutResources", RunMenuTextLayoutResourceTests);
+        ranAnySuite = true;
+    }
+    if (suiteFilter.has_value() && shouldRunSuite("MenuExitLifetime"))
+    {
+        runSuite("MenuExitLifetime", RunMenuExitLifetimeTests);
+        return 1; // This probe succeeds only through the explicit CRT-exit path.
+    }
+    if (suiteFilter.has_value() && shouldRunSuite("MenuResourceScaling"))
+    {
+        runSuite("MenuResourceScaling", RunMenuResourceScalingTests);
+        ranAnySuite = true;
+    }
+    if (suiteFilter.has_value() && shouldRunSuite("MenuResources"))
+    {
+        runSuite("MenuResources", RunMenuResourceTests);
+        ranAnySuite = true;
+    }
     if (suiteFilter.has_value() && shouldRunSuite("Gallery"))
     {
         const std::filesystem::path outputPath = galleryOutputPath.value_or(GetDxUiTestArtifactPath(L"DxUiControlGallery.png"));

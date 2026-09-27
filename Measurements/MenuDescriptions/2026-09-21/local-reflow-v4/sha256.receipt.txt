@@ -1,0 +1,94 @@
+[
+  {
+    "path": "baseline/analysis.txt",
+    "sha256": "94E6FD1D990ABAA38E0267B8270304C5645F4D2BB28C85FFC308423BD2146077"
+  },
+  {
+    "path": "baseline/performance.json.comparison.receipt.txt",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6"
+  },
+  {
+    "path": "baseline/performance.log",
+    "sha256": "09ED092E873958C09AA42C75B5D5CFAA27D23580A2FECFD5BC44BCDB1D72C0F1"
+  },
+  {
+    "path": "baseline/performance.receipt.txt",
+    "sha256": "EB723BE49B5DC1CE1277F3C4A69A40FD98EC8616CB494F2C8F82F2886D62AA89"
+  },
+  {
+    "path": "baseline/source-receipt.receipt.txt",
+    "sha256": "211F651FE3FBC06334FD6443AFBD9E0D375C0CBFF1E7F1B4A8B17B0A13759D27"
+  },
+  {
+    "path": "baseline/test-exit.txt",
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "path": "baseline/test.log",
+    "sha256": "C331193A3906AADC8017F5E1E0760102FD05844C112E8963E4F720C51FEDBAA6"
+  },
+  {
+    "path": "baseline/test.summary.receipt.txt",
+    "sha256": "14C51E7B839CEBA9079955596A746580B785E54044262C9D26B55FE5E7D0BD93"
+  },
+  {
+    "path": "candidate/analysis.txt",
+    "sha256": "B7E9F5E93523989B0692180F0620E23BE3215B83761B4F6077AB52288DB62174"
+  },
+  {
+    "path": "candidate/performance.json.comparison.receipt.txt",
+    "sha256": "5689265AC5473147514EB27F3D96B7EC5B0828F6B5848B22FC6444F0854821DC"
+  },
+  {
+    "path": "candidate/performance.log",
+    "sha256": "1A3840BA719A6970AF1E171F4546FA6A2EC15CA445DB707AE267F446630F5F54"
+  },
+  {
+    "path": "candidate/performance.receipt.txt",
+    "sha256": "D6A259F303630148B65E9E57FB2E5096599940C25C509BCA1F3C40052446E9B8"
+  },
+  {
+    "path": "candidate/source-receipt.receipt.txt",
+    "sha256": "7045769B3855411DCF2966136C471C425B715540B4F6285E1D5E88D61AB31349"
+  },
+  {
+    "path": "candidate/test-exit.txt",
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "path": "candidate/test.log",
+    "sha256": "213F32574DF2E03B08A1F1ACA0010D5C2FC6B85E0AD9DA530F19A9FF9997A044"
+  },
+  {
+    "path": "candidate/test.summary.receipt.txt",
+    "sha256": "9184533C90E7EF4B3FBCDAC826A5A314FACB38B67DD845F6BA491A73C69CE214"
+  },
+  {
+    "path": "fixture/DxUiTestHelpers.h.source.txt",
+    "sha256": "A8C6238E6445FA711E8DF37B640A09792B04343044C9D598C888121438087D44"
+  },
+  {
+    "path": "fixture/DxUiTests.cpp.source.txt",
+    "sha256": "FC3BA1374D0D21461839194118AA86F7DF0AB438984189955835291045F29876"
+  },
+  {
+    "path": "fixture/DxUiTests.Menu.cpp.source.txt",
+    "sha256": "04500EC6FF2C957924F50C3880856E65F7B65B6A9D8A86000FBE20207F0B937F"
+  },
+  {
+    "path": "fixture/DxUiTests.MenuResources.h.source.txt",
+    "sha256": "3F0DFD84349AEA69144CA1715B634138E07878270F6EC759550BF8E00E884F05"
+  },
+  {
+    "path": "fixture/HeapDiagnostic.h.source.txt",
+    "sha256": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64"
+  },
+  {
+    "path": "fixture/TestWindowActivationGuard.candidate.h.source.txt",
+    "sha256": "28F8764F37A06DB502F3F02E49FD87426D4FAD00BDBB89B7E97374CA5CD442AC"
+  },
+  {
+    "path": "fixture/TestWindowActivationGuard.h.source.txt",
+    "sha256": "76517C833895062867C4652F63981E649E75FD0EF0A941648E50B6A3FC9E051F"
+  }
+]

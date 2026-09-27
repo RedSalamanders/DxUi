@@ -1,0 +1,56 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+Complex UI clean round 1: 2217.76 completed offscreen FPS; p95 0.6049 ms; private 26308608 bytes
+Complex UI clean round 2: 2355.23 completed offscreen FPS; p95 0.4963 ms; private 26238976 bytes
+Complex UI clean round 3: 2325.41 completed offscreen FPS; p95 0.5818 ms; private 26791936 bytes
+Complex UI clean round 4: 2360.86 completed offscreen FPS; p95 0.5128 ms; private 27164672 bytes
+Complex UI clean round 5: 2561.77 completed offscreen FPS; p95 0.4439 ms; private 27144192 bytes
+Complex UI dirty round 1: 525.148 completed offscreen FPS; p95 2.1867 ms; private 28762112 bytes
+Complex UI dirty round 2: 533.327 completed offscreen FPS; p95 2.1715 ms; private 28905472 bytes
+Complex UI dirty round 3: 543.691 completed offscreen FPS; p95 2.1529 ms; private 29040640 bytes
+Complex UI dirty round 4: 483.141 completed offscreen FPS; p95 2.5016 ms; private 29032448 bytes
+Complex UI dirty round 5: 523.816 completed offscreen FPS; p95 2.1772 ms; private 29020160 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-menu-description\.build\reports\Performance-x64-Release-63e4980cd6ec4789a35deebe5795befa.json
+Running Foundation (x64 Release)
+PASS Foundation (0 capability skips recorded)
+Running Embedded (x64 Release)
+PASS Embedded (0 capability skips recorded)
+Running Grid (x64 Release)
+PASS Grid (0 capability skips recorded)
+Running Theme (x64 Release)
+PASS Theme (0 capability skips recorded)
+Running Control (x64 Release)
+PASS Control (0 capability skips recorded)
+Running NewControls (x64 Release)
+PASS NewControls (0 capability skips recorded)
+Running TextField (x64 Release)
+PASS TextField (0 capability skips recorded)
+Running MultilineText (x64 Release)
+PASS MultilineText (0 capability skips recorded)
+Running ReadOnly (x64 Release)
+PASS ReadOnly (0 capability skips recorded)
+Running ComboBox (x64 Release)
+PASS ComboBox (0 capability skips recorded)
+Running Tree (x64 Release)
+PASS Tree (0 capability skips recorded)
+Running Tooltip (x64 Release)
+PASS Tooltip (0 capability skips recorded)
+Running Rendering (x64 Release)
+PASS Rendering (0 capability skips recorded)
+Running Animation (x64 Release)
+PASS Animation (0 capability skips recorded)
+Running Accessibility (x64 Release)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 Release)
+PASS WindowHost (0 capability skips recorded)
+All 16 requested suites passed.

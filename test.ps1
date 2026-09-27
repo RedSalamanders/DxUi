@@ -5,7 +5,7 @@ param(
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
     [switch] $SkipBuild,
     [string] $PerformanceBaseline = '',
-    [string[]] $Suites = @('Foundation','Embedded','Grid','Theme','Control','Menu','NewControls','TextField','NativeTextInput','MultilineText','ReadOnly','ComboBox','Tree','Tooltip','Rendering','Animation','Accessibility','WindowHost')
+    [string[]] $Suites = @('Foundation','Embedded','Grid','Theme','Control','Menu','MenuExitLifetime','NewControls','TextField','NativeTextInput','MultilineText','ReadOnly','ComboBox','Tree','Tooltip','Rendering','Animation','Accessibility','WindowHost')
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -45,7 +45,7 @@ try {
         $name = switch ($suite) { Foundation {'DxUi.FoundationTests.exe'} Embedded {'DxUi.EmbeddedTests.exe'} default {'DxUi.ControlTests.exe'} }
         $executable = Join-Path $PSScriptRoot ".build/$Platform/$Configuration/$name"
         if (-not (Test-Path -LiteralPath $executable)) { throw "Test executable is missing: $executable" }
-        $arguments = @(if ($suite -in @('Foundation','Embedded')) { @() } elseif ($suite -in @('Menu','NativeTextInput')) { @("--suite=$suite") } else { @("--suite=$suite",'--no-activate') })
+        $arguments = @(if ($suite -in @('Foundation','Embedded')) { @() } elseif ($suite -in @('Menu','NativeTextInput','MenuResources','MenuResourceScaling')) { @("--suite=$suite") } else { @("--suite=$suite",'--no-activate') })
         $log = Join-Path $logs "test-$suite-$Platform-$Configuration.log"
         Write-Host "Running $suite ($Platform $Configuration)"
         & $executable @arguments *> $log

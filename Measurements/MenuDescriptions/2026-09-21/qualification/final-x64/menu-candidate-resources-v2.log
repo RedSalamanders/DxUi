@@ -1,0 +1,62 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\i26-menu-description\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.lib
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.EmbeddedTests.exe
+  DxUiTests.Menu.cpp
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Release\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:07
+Output: Z:\src\DxUi-worktrees\i26-menu-description\.build\
+Log: Z:\src\DxUi-worktrees\i26-menu-description\.build\logs\build-x64-Release-ac7fe81c73df4cad82ab6313838fee90.log
+========================================
+Complex UI clean round 1: 2244.9 completed offscreen FPS; p95 0.5534 ms; private 26365952 bytes
+Complex UI clean round 2: 2309.76 completed offscreen FPS; p95 0.5386 ms; private 26259456 bytes
+Complex UI clean round 3: 2266.92 completed offscreen FPS; p95 0.5339 ms; private 26292224 bytes
+Complex UI clean round 4: 2343.59 completed offscreen FPS; p95 0.5246 ms; private 26476544 bytes
+Complex UI clean round 5: 2247.52 completed offscreen FPS; p95 0.5181 ms; private 26984448 bytes
+Complex UI dirty round 1: 482.912 completed offscreen FPS; p95 2.4139 ms; private 27860992 bytes
+Complex UI dirty round 2: 486.013 completed offscreen FPS; p95 2.3008 ms; private 28082176 bytes
+Complex UI dirty round 3: 499.746 completed offscreen FPS; p95 2.1955 ms; private 28090368 bytes
+Complex UI dirty round 4: 501.104 completed offscreen FPS; p95 2.3694 ms; private 28868608 bytes
+Complex UI dirty round 5: 493.015 completed offscreen FPS; p95 2.3994 ms; private 28807168 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-menu-description\.build\reports\Performance-x64-Release-ab3ebaa4e9ed43baa57f97f52fddff6b.json
+Running MenuResources (x64 Release)
+PASS MenuResources (0 capability skips recorded)
+All 1 requested suites passed.

@@ -1,0 +1,95 @@
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+
+#include <DxUi/Typography.h>
+#include <array>
+#include <cstdlib>
+#include <format>
+#include <iostream>
+#include <string>
+#include <wil/com.h>
+#include "Z:/src/DxUi-worktrees/i26-menu-description/Tests/Support/HeapDiagnostic.h"
+
+void Check(bool ok, const char* reason)
+{
+    if (!ok)
+    {
+        std::cerr << reason << '\n';
+        std::exit(1);
+    }
+}
+
+int main()
+{
+    wil::com_ptr<IDWriteFactory> factory;
+    Check(SUCCEEDED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(factory.put()))), "factory");
+    wil::com_ptr<IDWriteTextFormat> primaryFormat;
+    wil::com_ptr<IDWriteTextFormat> secondaryFormat;
+    Check(SUCCEEDED(DxUi::Typography::CreateTextFormat(factory.get(), DxUi::Typography::GetDxUiTypographySpec(DxUi::FontRole::Body), primaryFormat.put())), "primary format");
+    Check(SUCCEEDED(DxUi::Typography::CreateTextFormat(factory.get(), DxUi::Typography::GetDxUiTypographySpec(DxUi::FontRole::Small), secondaryFormat.put())), "secondary format");
+    std::wstring secondaryFamily(secondaryFormat->GetFontFamilyNameLength() + 1u, L'\0');
+    Check(SUCCEEDED(secondaryFormat->GetFontFamilyName(secondaryFamily.data(), static_cast<UINT32>(secondaryFamily.size()))), "secondary family");
+    std::wstring secondaryLocale(secondaryFormat->GetLocaleNameLength() + 1u, L'\0');
+    Check(SUCCEEDED(secondaryFormat->GetLocaleName(secondaryLocale.data(), static_cast<UINT32>(secondaryLocale.size()))), "secondary locale");
+    constexpr size_t count = 12;
+    constexpr std::wstring_view primary = L"Archives photographiques de la réunion familiale";
+    std::array<std::wstring, count> secondaryTexts;
+    std::array<std::wstring, count> combinedTexts;
+    for (size_t i = 0; i < count; ++i)
+    {
+        secondaryTexts[i] = std::format(L"D:\\Sauvegardes\\Collection déjà présente\\Génération {}", i);
+        combinedTexts[i] = std::format(L"{}\n{}", primary, secondaryTexts[i]);
+    }
+    struct Row
+    {
+        wil::com_ptr<IDWriteTextLayout> primary;
+        wil::com_ptr<IDWriteTextLayout> secondary;
+    };
+    std::array<Row, count> rows;
+    const auto create = [&](std::wstring_view text, IDWriteTextFormat* format, wil::com_ptr<IDWriteTextLayout>& layout)
+    {
+        Check(SUCCEEDED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, 396.0f, 1000000.0f, layout.put())), "create layout");
+        const DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_NONE, 0, 0};
+        Check(SUCCEEDED(layout->SetWordWrapping(DWRITE_WORD_WRAPPING_EMERGENCY_BREAK)) && SUCCEEDED(layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR)) && SUCCEEDED(layout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING)) && SUCCEEDED(layout->SetTrimming(&trimming, nullptr)), "layout policy");
+    };
+    const auto sample = [&](int cycle, int mode, const char* phase)
+    {
+        std::cout << "{\"fixture\":\"combined-layout-isolation-v1\",\"cycle\":" << cycle << ",\"mode\":" << mode << ",\"phase\":\"" << phase << "\"";
+        DxUiTestSupport::WriteHeapDiagnostic(std::cout, Check);
+        std::cout << "}\n";
+    };
+    for (int cycle = 0; cycle < 32; ++cycle)
+    {
+        for (int step = 0; step < 3; ++step)
+        {
+            const int mode = (cycle + step) % 3;
+            sample(cycle, mode, "before");
+            for (size_t i = 0; i < count; ++i)
+            {
+                if (mode == 2 && i > 0)
+                    rows[i].primary = rows[0].primary;
+                else
+                    create(mode == 1 ? std::wstring_view(combinedTexts[i]) : primary, primaryFormat.get(), rows[i].primary);
+                if (mode != 1)
+                    create(secondaryTexts[i], secondaryFormat.get(), rows[i].secondary);
+                else
+                {
+                    const DWRITE_TEXT_RANGE range{static_cast<UINT32>(primary.size() + 1u), static_cast<UINT32>(secondaryTexts[i].size())};
+                    Check(SUCCEEDED(rows[i].primary->SetFontFamilyName(secondaryFamily.c_str(), range)) && SUCCEEDED(rows[i].primary->SetFontSize(secondaryFormat->GetFontSize(), range)) && SUCCEEDED(rows[i].primary->SetFontWeight(secondaryFormat->GetFontWeight(), range)) && SUCCEEDED(rows[i].primary->SetFontStyle(secondaryFormat->GetFontStyle(), range)) && SUCCEEDED(rows[i].primary->SetFontStretch(secondaryFormat->GetFontStretch(), range)) && SUCCEEDED(rows[i].primary->SetLocaleName(secondaryLocale.c_str(), range)), "secondary range typography");
+                }
+            }
+            sample(cycle, mode, "created");
+            for (auto& row : rows)
+            {
+                DWRITE_TEXT_METRICS metrics{};
+                Check(SUCCEEDED(row.primary->GetMetrics(&metrics)) && metrics.lineCount > 0, "primary metrics");
+                if (row.secondary)
+                    Check(SUCCEEDED(row.secondary->GetMetrics(&metrics)) && metrics.lineCount > 0, "secondary metrics");
+            }
+            sample(cycle, mode, "measured");
+            for (auto& row : rows) { row.primary.reset(); row.secondary.reset(); }
+            sample(cycle, mode, "released");
+        }
+    }
+}

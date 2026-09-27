@@ -1,0 +1,1173 @@
+{
+  "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-ci-c1f047b\\native-x64-Release\\logs\\test-MenuResourceScaling-x64-Release.log",
+  "metadata": [
+    {
+      "fixture": "dxui-menu-resource-scaling-v1",
+      "menuItemObjectBytes": 248,
+      "toggleObjectBytes": 760,
+      "capture": false
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v1",
+      "entries": 12,
+      "descriptions": 0,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v1",
+      "entries": 12,
+      "descriptions": 1,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v1",
+      "entries": 12,
+      "descriptions": 2,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v1",
+      "entries": 12,
+      "descriptions": 4,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v1",
+      "entries": 12,
+      "descriptions": 8,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v1",
+      "entries": 12,
+      "descriptions": 12,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v1",
+      "entries": 24,
+      "descriptions": 0,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v1",
+      "entries": 24,
+      "descriptions": 24,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v1",
+      "entries": 48,
+      "descriptions": 0,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    },
+    {
+      "fixture": "dxui-menu-resource-scaling-v1",
+      "entries": 48,
+      "descriptions": 48,
+      "widthPx": 476,
+      "heightPx": 322,
+      "dpi": 96
+    }
+  ],
+  "variants": [
+    {
+      "entries": 12,
+      "descriptions": 0,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 352256.0,
+          "min": -5582848,
+          "max": 15872000
+        },
+        "closed-privateBytes": {
+          "median": -20480.0,
+          "min": -5742592,
+          "max": 16506880
+        },
+        "rendered-workingSetBytes": {
+          "median": 804864.0,
+          "min": -2695168,
+          "max": 19197952
+        },
+        "closed-workingSetBytes": {
+          "median": 313344.0,
+          "min": -2854912,
+          "max": 20348928
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 64
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 69
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 4
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 4
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 264192.0,
+          "min": -5582848,
+          "max": 4313088
+        },
+        "closed-privateBytes": {
+          "median": 155648.0,
+          "min": -5742592,
+          "max": 4984832
+        },
+        "rendered-workingSetBytes": {
+          "median": 886784.0,
+          "min": -2695168,
+          "max": 2596864
+        },
+        "closed-workingSetBytes": {
+          "median": 313344.0,
+          "min": -2854912,
+          "max": 3465216
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "entries": 12,
+      "descriptions": 1,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 323584.0,
+          "min": -4386816,
+          "max": 4505600
+        },
+        "closed-privateBytes": {
+          "median": 77824.0,
+          "min": -4669440,
+          "max": 4136960
+        },
+        "rendered-workingSetBytes": {
+          "median": 86016.0,
+          "min": -2723840,
+          "max": 4534272
+        },
+        "closed-workingSetBytes": {
+          "median": -83968.0,
+          "min": -3485696,
+          "max": 4648960
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 5
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 3
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 2048.0,
+          "min": -4386816,
+          "max": 2973696
+        },
+        "closed-privateBytes": {
+          "median": -462848.0,
+          "min": -4669440,
+          "max": 3461120
+        },
+        "rendered-workingSetBytes": {
+          "median": -182272.0,
+          "min": -2723840,
+          "max": 1904640
+        },
+        "closed-workingSetBytes": {
+          "median": -83968.0,
+          "min": -3485696,
+          "max": 1691648
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "entries": 12,
+      "descriptions": 2,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 512000.0,
+          "min": -3485696,
+          "max": 4632576
+        },
+        "closed-privateBytes": {
+          "median": 40960.0,
+          "min": -4382720,
+          "max": 4571136
+        },
+        "rendered-workingSetBytes": {
+          "median": 555008.0,
+          "min": -1818624,
+          "max": 3084288
+        },
+        "closed-workingSetBytes": {
+          "median": 231424.0,
+          "min": -3043328,
+          "max": 3878912
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 1394688.0,
+          "min": -884736,
+          "max": 4632576
+        },
+        "closed-privateBytes": {
+          "median": 1269760.0,
+          "min": -843776,
+          "max": 4571136
+        },
+        "rendered-workingSetBytes": {
+          "median": 1390592.0,
+          "min": -1482752,
+          "max": 3084288
+        },
+        "closed-workingSetBytes": {
+          "median": 1093632.0,
+          "min": -970752,
+          "max": 3633152
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "entries": 12,
+      "descriptions": 4,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": -468992.0,
+          "min": -3723264,
+          "max": 3584000
+        },
+        "closed-privateBytes": {
+          "median": -593920.0,
+          "min": -4866048,
+          "max": 3702784
+        },
+        "rendered-workingSetBytes": {
+          "median": -344064.0,
+          "min": -2678784,
+          "max": 2154496
+        },
+        "closed-workingSetBytes": {
+          "median": -563200.0,
+          "min": -2936832,
+          "max": 1781760
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": -1171456.0,
+          "min": -3723264,
+          "max": 2080768
+        },
+        "closed-privateBytes": {
+          "median": -1431552.0,
+          "min": -4866048,
+          "max": 1871872
+        },
+        "rendered-workingSetBytes": {
+          "median": -487424.0,
+          "min": -1695744,
+          "max": 1077248
+        },
+        "closed-workingSetBytes": {
+          "median": -862208.0,
+          "min": -2936832,
+          "max": 528384
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "entries": 12,
+      "descriptions": 8,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 659456.0,
+          "min": -2650112,
+          "max": 3739648
+        },
+        "closed-privateBytes": {
+          "median": 40960.0,
+          "min": -3727360,
+          "max": 1884160
+        },
+        "rendered-workingSetBytes": {
+          "median": 512000.0,
+          "min": -1908736,
+          "max": 3932160
+        },
+        "closed-workingSetBytes": {
+          "median": -163840.0,
+          "min": -2301952,
+          "max": 2686976
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 458752.0,
+          "min": -1802240,
+          "max": 2093056
+        },
+        "closed-privateBytes": {
+          "median": 108544.0,
+          "min": -2793472,
+          "max": 1884160
+        },
+        "rendered-workingSetBytes": {
+          "median": 356352.0,
+          "min": -1908736,
+          "max": 1949696
+        },
+        "closed-workingSetBytes": {
+          "median": 153600.0,
+          "min": -1626112,
+          "max": 1781760
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "entries": 12,
+      "descriptions": 12,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 927744.0,
+          "min": -4665344,
+          "max": 5873664
+        },
+        "closed-privateBytes": {
+          "median": 137216.0,
+          "min": -4251648,
+          "max": 5771264
+        },
+        "rendered-workingSetBytes": {
+          "median": 604160.0,
+          "min": -4194304,
+          "max": 3690496
+        },
+        "closed-workingSetBytes": {
+          "median": 55296.0,
+          "min": -4349952,
+          "max": 4116480
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 985088.0,
+          "min": -4665344,
+          "max": 3960832
+        },
+        "closed-privateBytes": {
+          "median": 137216.0,
+          "min": -3534848,
+          "max": 4030464
+        },
+        "rendered-workingSetBytes": {
+          "median": 677888.0,
+          "min": -4194304,
+          "max": 3379200
+        },
+        "closed-workingSetBytes": {
+          "median": 180224.0,
+          "min": -3067904,
+          "max": 2506752
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "entries": 24,
+      "descriptions": 0,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 784384.0,
+          "min": -2215936,
+          "max": 4169728
+        },
+        "closed-privateBytes": {
+          "median": 192512.0,
+          "min": -4345856,
+          "max": 4562944
+        },
+        "rendered-workingSetBytes": {
+          "median": 909312.0,
+          "min": -1634304,
+          "max": 3403776
+        },
+        "closed-workingSetBytes": {
+          "median": 380928.0,
+          "min": -2805760,
+          "max": 3358720
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 397312.0,
+          "min": -2211840,
+          "max": 4169728
+        },
+        "closed-privateBytes": {
+          "median": -415744.0,
+          "min": -4345856,
+          "max": 4108288
+        },
+        "rendered-workingSetBytes": {
+          "median": 503808.0,
+          "min": -1097728,
+          "max": 3403776
+        },
+        "closed-workingSetBytes": {
+          "median": 165888.0,
+          "min": -2588672,
+          "max": 3350528
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "entries": 24,
+      "descriptions": 24,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 1148928.0,
+          "min": -4210688,
+          "max": 4927488
+        },
+        "closed-privateBytes": {
+          "median": -122880.0,
+          "min": -4784128,
+          "max": 3567616
+        },
+        "rendered-workingSetBytes": {
+          "median": 731136.0,
+          "min": -3710976,
+          "max": 3473408
+        },
+        "closed-workingSetBytes": {
+          "median": -28672.0,
+          "min": -4448256,
+          "max": 2379776
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 1589248.0,
+          "min": -4210688,
+          "max": 4927488
+        },
+        "closed-privateBytes": {
+          "median": 206848.0,
+          "min": -4784128,
+          "max": 3567616
+        },
+        "rendered-workingSetBytes": {
+          "median": 505856.0,
+          "min": -3710976,
+          "max": 2813952
+        },
+        "closed-workingSetBytes": {
+          "median": 364544.0,
+          "min": -4448256,
+          "max": 2379776
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "entries": 48,
+      "descriptions": 0,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 651264.0,
+          "min": -1933312,
+          "max": 4272128
+        },
+        "closed-privateBytes": {
+          "median": 892928.0,
+          "min": -2039808,
+          "max": 3936256
+        },
+        "rendered-workingSetBytes": {
+          "median": 458752.0,
+          "min": -1982464,
+          "max": 3047424
+        },
+        "closed-workingSetBytes": {
+          "median": 460800.0,
+          "min": -2101248,
+          "max": 3620864
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 239616.0,
+          "min": -1933312,
+          "max": 3936256
+        },
+        "closed-privateBytes": {
+          "median": -194560.0,
+          "min": -2039808,
+          "max": 3936256
+        },
+        "rendered-workingSetBytes": {
+          "median": 245760.0,
+          "min": -1982464,
+          "max": 2838528
+        },
+        "closed-workingSetBytes": {
+          "median": -163840.0,
+          "min": -2101248,
+          "max": 3620864
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "entries": 48,
+      "descriptions": 48,
+      "all32": {
+        "rendered-privateBytes": {
+          "median": 2621440.0,
+          "min": -1613824,
+          "max": 7704576
+        },
+        "closed-privateBytes": {
+          "median": -331776.0,
+          "min": -4595712,
+          "max": 5308416
+        },
+        "rendered-workingSetBytes": {
+          "median": 1667072.0,
+          "min": -1220608,
+          "max": 3629056
+        },
+        "closed-workingSetBytes": {
+          "median": -772096.0,
+          "min": -3497984,
+          "max": 2854912
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "last16": {
+        "rendered-privateBytes": {
+          "median": 3012608.0,
+          "min": 200704,
+          "max": 6062080
+        },
+        "closed-privateBytes": {
+          "median": 204800.0,
+          "min": -3756032,
+          "max": 5308416
+        },
+        "rendered-workingSetBytes": {
+          "median": 1667072.0,
+          "min": 434176,
+          "max": 3182592
+        },
+        "closed-workingSetBytes": {
+          "median": -264192.0,
+          "min": -2646016,
+          "max": 2854912
+        },
+        "rendered-handles": {
+          "median": 4.0,
+          "min": 4,
+          "max": 4
+        },
+        "closed-handles": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "closed-gdi": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        },
+        "rendered-user": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "closed-user": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    }
+  ]
+}

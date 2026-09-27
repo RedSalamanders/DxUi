@@ -1,0 +1,6 @@
+[START] Accessibility
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA] disclosure subscription stage=ElementFromHandle ready=0 hr=0x8000000a elapsedMs=3000
+FAILED: subscribe native disclosure property events

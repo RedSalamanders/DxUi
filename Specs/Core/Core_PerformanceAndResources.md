@@ -52,6 +52,14 @@ timing/memory flags, menu benchmark differences, or additional growth. Existing 
 bands and deterministic allocation/surface/hidden-work budgets remain unchanged. It neither
 updates a consumer pin nor replaces the remaining functional and integrated qualification.
 
+On 2026-09-27 the user additionally answered **"Accept the recorded timing tradeoffs"**.
+For this same V11 multiline fixture, that accepts the recorded clean-frame median increase
+from 0.3936 to 0.4182 ms (+0.0246 ms), and dirty CPU-composition P95 from 0.0152 to
+0.0182 ms (+0.0030 ms), alongside the roughly doubled dirty offscreen throughput above.
+This supplements the earlier memory decision; it does not change the original comparator
+flags, investigation bands or baseline. Correctness, combined-build/resource, DPI and
+accessibility gates remain required. Additional regressions require separate investigation.
+
 ### I19 accepted resource trade-off
 
 On 2026-09-13 the user accepted the measured static-library adoption trade-off and
@@ -70,6 +78,26 @@ It covers the named offscreen fixture only; hardware presentation and long-run r
 still require their own evidence. Consumer measurements and their accepted costs remain
 in the corresponding product repositories.
 
+### I26 described-menu timing tradeoff
+
+On 2026-09-27 the user explicitly answered **"Accept the recorded timing tradeoffs"**
+after reviewing the grid and described-menu measurements. For this menu candidate,
+the accepted timing envelope is the recorded clean-frame P95 increase up to 0.0492 ms
+in the [September 23 crossover](../../Measurements/MenuDescriptions/2026-09-23/common-crossover/README.md)
+and the recorded timing differences in the
+[September 27 source ablation](../../Measurements/MenuDescriptions/2026-09-27/header-ablation/README.md),
+including dirty-frame P95 up to 0.1649 ms above its paired baseline. The qualified source
+is `36a1c437fa404c3296aafb6c2d3ac20e8c4566e5`; the production benefit is readable primary/path
+menu rows and popup-local text sharing (575,310 to 367,894 live heap bytes for the measured
+twelve-entry repeated-caption fixture). These offscreen WARP measurements do not establish
+presented latency or causality; the header-only variant and same-binary controls also vary.
+
+Keep all original samples, comparator flags and thresholds. This explicitly accepts these
+recorded timing costs for this implementation; it does not assert non-regression, reset a
+baseline, accept additional process-memory growth or admit future regressions. Correctness,
+combined-library and consumer build/resource qualification, DPI and accessibility gates remain
+required. The grid's separate memory and timing decisions remain in its owning record.
+
 ### Ongoing validation and resource budgets
 
 Every `test.ps1` invocation MUST report complex-UI FPS and memory, including filtered suites, and each suite receipt
@@ -87,6 +115,20 @@ clean rounds must record zero, and dirty rounds may not exceed 64 allocations pe
 where the Debug STL allocates one container proxy per std::vector/std::wstring. The receipt records
 `dirtyAllocationCeilingPerFrame`. A ceiling is never raised to pass; a failing gate reports the measured count for
 advice. The benchmark does not establish displayed FPS.
+
+Benchmark receipts also record process-memory phases at entry, device creation, scene
+creation, warm-up, screenshot encoding and the hidden state. These untimed samples help
+locate changes; they do not replace matched frame/retention comparisons. The opt-in
+`MenuResources` control suite records 96 open/render/capture/close cycles for twelve
+plain or described entries at matched 456-by-300-DIP viewport constraints, including
+private/working-set bytes and process/GDI/USER handles. Report screenshot-buffer cost
+separately from the open product menu; a short cycling run alone cannot establish a
+long-run retention bound. The identical probe can characterize plain menus on the old
+implementation and reports described mode as unsupported there.
+The benchmark executable's opt-in `--benchmark-retention <output-prefix>` repeats
+sixty complete create/render/hide/destroy cycles in one process, retaining each inner
+report. Bind that diagnostic's executable/source/fixture hashes and keep its raw rounds;
+it does not replace the default acceptance comparison or a controlled long-duration soak.
 
 Shipping/consumer acceptance additionally requires a named hardware fixture and actual presented complex-UI FPS,
 frame pacing and p50/p95/p99 latency at the target refresh rate (at least 60 FPS / 16.67 ms per frame for a 60 Hz

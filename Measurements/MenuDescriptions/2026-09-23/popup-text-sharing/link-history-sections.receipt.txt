@@ -1,0 +1,125 @@
+{
+  "incremental": {
+    "file": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-combined-layout-probe\\incremental-candidate\\DxUi.EmbeddedTests.exe",
+    "sections": {
+      ".text": {
+        "size": 1920512,
+        "sha256": "ce6a5692431e810e42621c90319f1e25af4bbb24f67b9dec96c892c7780e07c2"
+      },
+      ".rdata": {
+        "size": 488960,
+        "sha256": "4562b5ceff2bf3b11c6f3394d21225d2c6bf8b7f7192d3a13aa69a34ae84973d"
+      },
+      ".data": {
+        "size": 20480,
+        "sha256": "8674d8036a09c858c96fd93e05b2d67dd6b9abc26a830eb8c8855cf30611a02e"
+      },
+      ".pdata": {
+        "size": 66560,
+        "sha256": "3776f64564ed6732121f990cb4f651f78f90336c57e046c5d7e8c3b05aef1b7d"
+      },
+      ".idata": {
+        "size": 24064,
+        "sha256": "526166d65b3ee58c03b47158dbe3976f2608553b13f57ee11524c83bc2f33f65"
+      },
+      ".tls": {
+        "size": 1536,
+        "sha256": "c092971b16e2d032945f10d27619097fb01c7a7777448ed139203c2e9463064d"
+      },
+      ".00cfg": {
+        "size": 512,
+        "sha256": "c531aae6a55e2022d8146173f40b1ecf476285be7cd6d39030d68186eb2d6bf3"
+      },
+      ".rsrc": {
+        "size": 1536,
+        "sha256": "1c6b99678c288efba3a6da9b438c66798ddedd0a97ed582f5a7a0c9694cb8f9e"
+      },
+      ".reloc": {
+        "size": 12288,
+        "sha256": "c4c6906addb85622719d42cbe1231a912d7faf538e539aac488f17581f81aded"
+      }
+    }
+  },
+  "clean": {
+    "file": "Z:\\src\\DxUi-worktrees\\i26-menu-description\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe",
+    "sections": {
+      ".text": {
+        "size": 1920512,
+        "sha256": "ce6a5692431e810e42621c90319f1e25af4bbb24f67b9dec96c892c7780e07c2"
+      },
+      ".rdata": {
+        "size": 488960,
+        "sha256": "62ee6bc9f0a09f7558a5143b9434652e223592251ff610729910e70a6218d814"
+      },
+      ".data": {
+        "size": 20480,
+        "sha256": "8674d8036a09c858c96fd93e05b2d67dd6b9abc26a830eb8c8855cf30611a02e"
+      },
+      ".pdata": {
+        "size": 66560,
+        "sha256": "3776f64564ed6732121f990cb4f651f78f90336c57e046c5d7e8c3b05aef1b7d"
+      },
+      ".idata": {
+        "size": 24064,
+        "sha256": "526166d65b3ee58c03b47158dbe3976f2608553b13f57ee11524c83bc2f33f65"
+      },
+      ".tls": {
+        "size": 1536,
+        "sha256": "c092971b16e2d032945f10d27619097fb01c7a7777448ed139203c2e9463064d"
+      },
+      ".00cfg": {
+        "size": 512,
+        "sha256": "c531aae6a55e2022d8146173f40b1ecf476285be7cd6d39030d68186eb2d6bf3"
+      },
+      ".rsrc": {
+        "size": 1536,
+        "sha256": "1c6b99678c288efba3a6da9b438c66798ddedd0a97ed582f5a7a0c9694cb8f9e"
+      },
+      ".reloc": {
+        "size": 12288,
+        "sha256": "c4c6906addb85622719d42cbe1231a912d7faf538e539aac488f17581f81aded"
+      }
+    }
+  },
+  "baseline": {
+    "file": "Z:\\src\\DxUi-worktrees\\i26-menu-intern-baseline\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe",
+    "sections": {
+      ".text": {
+        "size": 1916928,
+        "sha256": "9452bb4a020822bdb52f0318120fdd8242e4bfb945283759883e215068a54797"
+      },
+      ".rdata": {
+        "size": 488448,
+        "sha256": "1150ef1d16f04d840d3389d7006d1bd89306f13963c46488030b241c7b500096"
+      },
+      ".data": {
+        "size": 20480,
+        "sha256": "de5f03fbc6781c4eb31304b3d89328b5b96b63acdcf8de8fc298f747b7c29d9e"
+      },
+      ".pdata": {
+        "size": 66560,
+        "sha256": "4c93a2e5b42d6cbe55a62839a91d52de85ced0b99faf84e628efc0eeb1b54c74"
+      },
+      ".idata": {
+        "size": 24064,
+        "sha256": "213268010600452eecace8839cc2ff90be0a53bdbe16e9154d91435f73813525"
+      },
+      ".tls": {
+        "size": 1536,
+        "sha256": "c092971b16e2d032945f10d27619097fb01c7a7777448ed139203c2e9463064d"
+      },
+      ".00cfg": {
+        "size": 512,
+        "sha256": "ad145b3e98cdc09bdcf9214dfce298ea7bdeac98c92f4de529db383531a97f57"
+      },
+      ".rsrc": {
+        "size": 1536,
+        "sha256": "6df35620cfd98c8966d6fc562415c24f5aa51bb8953f57e43dc7b85b09de247e"
+      },
+      ".reloc": {
+        "size": 12288,
+        "sha256": "ae53b6328aef7562e4106b4fe9a331e560048a8d9609d6b77a60da1450153955"
+      }
+    }
+  }
+}

@@ -1,0 +1,3 @@
+# Preserve original receipt bytes; raw evidence is not reformatted.
+* -text
+raw/** -whitespace

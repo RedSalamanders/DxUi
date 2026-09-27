@@ -1,0 +1,67 @@
+{
+  "fixture": "ordinary-complex-ui-x64-release-header-source-ablation-v1",
+  "purpose": "Balanced source ablation for the repeated clean-frame-P95 flag; not qualification, waiver, or rebaseline.",
+  "inferenceLimit": "H is on a C: managed path while A/B are Z: worktrees. Record executable .text hashes; path/image layout remains a confound, so these comparisons localize timing differences but do not alone prove the header caused them.",
+  "declaredRunOrder": [
+    "A1",
+    "H1",
+    "B1",
+    "B2",
+    "H2",
+    "A2"
+  ],
+  "declaredComparisons": {
+    "first-A1-H1": [
+      "A1",
+      "H1"
+    ],
+    "first-H1-B1": [
+      "H1",
+      "B1"
+    ],
+    "first-A1-B1": [
+      "A1",
+      "B1"
+    ],
+    "second-A2-H2": [
+      "A2",
+      "H2"
+    ],
+    "second-H2-B2": [
+      "H2",
+      "B2"
+    ],
+    "second-A2-B2": [
+      "A2",
+      "B2"
+    ],
+    "control-A1-A2": [
+      "A1",
+      "A2"
+    ],
+    "control-H1-H2": [
+      "H1",
+      "H2"
+    ],
+    "control-B1-B2": [
+      "B1",
+      "B2"
+    ]
+  },
+  "sourceDeltaAtoH": "include/DxUi/DxUi.h only; H must equal A plus exactly the two candidate debug-state float fields",
+  "sourceDeltaHtoB": "src/Controls/DxUi.Menu.cpp only",
+  "requireIdenticalEightBenchmarkAndFixtureInputs": true,
+  "comparatorThresholds": "Unchanged Tools/compare_performance.py defaults; every saved comparison retained.",
+  "recovery": "V1 built A successfully, then H refused before compilation because its new checkout lacked dependencies. V1 ran no benchmarks. Reuse only that exact verified A build; restore H dependencies through vcpkg-install.ps1 and freshly rebuild H and B. Retain V1 failure unchanged.",
+  "retainedBuildA": "C:/RedSalamander.Perf/evidence/i26-ui/menu-header-ablation-20260927/A",
+  "recordedUtc": "2026-09-27T15:45:33.1899290Z",
+  "repositories": {
+    "A": "Z:\\src\\DxUi-worktrees\\i26-menu-intern-baseline",
+    "H": "C:\\Users\\eric\\.codex\\worktrees\\i26-menu-header-probe\\DxUi",
+    "B": "Z:\\src\\DxUi-worktrees\\i26-menu-description"
+  },
+  "pythonExe": "C:/Users/eric/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+  "pythonSha256": "372C2EAE555B344520BF147BE0096E009069AECA4E7F78D6AECEA6D53158056A",
+  "driverSha256": "3234CEFB55F99447E61C21A19DF82ED747FDE4B321A0B4F6851E26C16EA43C22",
+  "note": "Six ordinary performance.ps1 -SkipBuild invocations; no diagnostic frame-stage headers or instrumentation."
+}

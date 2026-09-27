@@ -1,0 +1,72 @@
+=================================================================
+==8172==ERROR: AddressSanitizer: heap-use-after-free on address 0x11f8c0ca1210 at pc 0x7ff6198b8e08 bp 0x00be8735f8c0 sp 0x00be8735f8c0
+READ of size 1 at 0x11f8c0ca1210 thread T0
+    #0 0x7ff6198b8e04 in `anonymous namespace'::ProbeAddressSanitizer C:\a\DxUi\DxUi\Tests\Foundation\FoundationTests.cpp:41
+    #1 0x7ff6198b918c in main C:\a\DxUi\DxUi\Tests\Foundation\FoundationTests.cpp:51
+    #2 0x7ff619da72bc in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:78
+    #3 0x7ff619da70f8 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #4 0x7ff619da6f40 in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #5 0x7ff619da73e0 in mainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_main.cpp:16
+    #6 0x7fff4149873c  (C:\Windows\System32\KERNEL32.DLL+0x18000873c)
+    #7 0x7fff44c65080  (C:\Windows\SYSTEM32\ntdll.dll+0x1800d5080)
+
+0x11f8c0ca1210 is located 0 bytes inside of 8-byte region [0x11f8c0ca1210,0x11f8c0ca1218)
+freed by thread T0 here:
+    #0 0x7ff619da53f4 in operator delete[](void *) D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_array_thunk.cpp:43
+    #1 0x7ff6198b9e0c in std::default_delete<char[]>::operator()<char, 0>(char *) const C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\include\memory:3352
+    #2 0x7ff6198ba0d4 in std::unique_ptr<char[], struct std::default_delete<char[]>>::reset<char *, 0>(char *) C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\include\memory:3650
+    #3 0x7ff6198ba634 in std::unique_ptr<char[], struct std::default_delete<char[]>>::reset(std::nullptr_t) C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\include\memory:3598
+    #4 0x7ff6198b8de0 in `anonymous namespace'::ProbeAddressSanitizer C:\a\DxUi\DxUi\Tests\Foundation\FoundationTests.cpp:40
+    #5 0x7ff6198b918c in main C:\a\DxUi\DxUi\Tests\Foundation\FoundationTests.cpp:51
+    #6 0x7ff619da72bc in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:78
+    #7 0x7ff619da70f8 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #8 0x7ff619da6f40 in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #9 0x7ff619da73e0 in mainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_main.cpp:16
+    #10 0x7fff4149873c  (C:\Windows\System32\KERNEL32.DLL+0x18000873c)
+    #11 0x7fff44c65080  (C:\Windows\SYSTEM32\ntdll.dll+0x1800d5080)
+
+previously allocated by thread T0 here:
+    #0 0x7ff619da52e4 in operator new[](unsigned __int64) D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_new_array_thunk.cpp:41
+    #1 0x7ff6198b9fe4 in std::make_unique<char[], 0>(unsigned __int64) C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231\include\memory:3672
+    #2 0x7ff6198b8dc4 in `anonymous namespace'::ProbeAddressSanitizer C:\a\DxUi\DxUi\Tests\Foundation\FoundationTests.cpp:38
+    #3 0x7ff6198b918c in main C:\a\DxUi\DxUi\Tests\Foundation\FoundationTests.cpp:51
+    #4 0x7ff619da72bc in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:78
+    #5 0x7ff619da70f8 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #6 0x7ff619da6f40 in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #7 0x7ff619da73e0 in mainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_main.cpp:16
+    #8 0x7fff4149873c  (C:\Windows\System32\KERNEL32.DLL+0x18000873c)
+    #9 0x7fff44c65080  (C:\Windows\SYSTEM32\ntdll.dll+0x1800d5080)
+
+SUMMARY: AddressSanitizer: heap-use-after-free C:\a\DxUi\DxUi\Tests\Foundation\FoundationTests.cpp:41 in `anonymous namespace'::ProbeAddressSanitizer
+Shadow bytes around the buggy address:
+  0x11f8c0ca0f80: fa fa 04 fa fa fa 04 fa fa fa 04 fa fa fa 04 fa
+  0x11f8c0ca1000: fa fa 04 fa fa fa 04 fa fa fa 04 fa fa fa 04 fa
+  0x11f8c0ca1080: fa fa 04 fa fa fa 00 fa fa fa 00 fa fa fa 00 fa
+  0x11f8c0ca1100: fa fa 00 fa fa fa 00 fa fa fa 00 fa fa fa 00 fa
+  0x11f8c0ca1180: fa fa 00 fa fa fa 00 fa fa fa 00 fa fa fa 00 00
+=>0x11f8c0ca1200: fa fa[fd]fa fa fa 01 fa fa fa fa fa fa fa fa fa
+  0x11f8c0ca1280: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x11f8c0ca1300: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x11f8c0ca1380: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x11f8c0ca1400: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x11f8c0ca1480: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==8172==ABORTING

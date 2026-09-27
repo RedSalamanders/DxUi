@@ -1,8 +1,8 @@
 {
   "command": "gallery.ps1 -PublishDocs",
-  "sourceCommit": "c52a8f5bfd16ffbc6f786fa31b55b919612a3060",
+  "sourceCommit": "fb857d44f093da3ad62a2cb0cf090e2b5bc13bef",
   "sourceDirty": true,
-  "configuration": "Debug",
+  "configuration": "Release",
   "platform": "x64",
   "nativeArchitecture": "X64",
   "controlCount": 27,
@@ -12,23 +12,23 @@
       "file": "embedded-controls.png"
     },
     {
-      "sha256": "83841E14D2C8FAF6F9D781A67A053D154682F6788A5B6B3957E4DA2B7CC49612",
+      "sha256": "F2AF20CB557A765EF12DB794A81B273A2089AF32027351C45B005D2692DE0E99",
       "file": "theme-controls-dark.png"
     },
     {
-      "sha256": "BE1663499C0F4A0C0365998A648A9C21CD446C784E4F3AE350C77111F27A6F66",
+      "sha256": "B13C10C2887712997999E9073C32DC14AD94A7A05E5535BFBB9B32EBEA651299",
       "file": "theme-controls-high-contrast.png"
     },
     {
-      "sha256": "97433C72B1EDC25BEB999130274CFFB336C624AEBB71A661DD0CFD58FAEC5936",
+      "sha256": "86192F782250EEFAE57F4B7866C20E397810791E66A9463DA103E06C872EC5E8",
       "file": "theme-controls-light.png"
     },
     {
-      "sha256": "7A93DF8287A0A68213AF5D76A9013FA737EE52A5E2B6A9F6FD1082B3AEE08087",
+      "sha256": "5FAC30FB2E999BA1A6FBB3CFC2D3486861FF968F49A652DF33CF0D993FED39D5",
       "file": "theme-controls-rainbow-dark.png"
     },
     {
-      "sha256": "72F731F8E92453E6F247C1487758004B294092707CD981C74FE0D694B6A91911",
+      "sha256": "081ABA55167F34A3B5E762C7813B9D1E16306A05AB1E3251436632F4B48D7C8A",
       "file": "theme-controls-rainbow-light.png"
     }
   ]

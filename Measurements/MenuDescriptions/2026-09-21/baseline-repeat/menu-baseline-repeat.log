@@ -1,0 +1,100 @@
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\i26-menu-baseline\.build\
+
+Compiling DxUi...
+
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\i26-menu-baseline\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\i26-menu-baseline\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\i26-menu-baseline\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\i26-menu-baseline\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.cso
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  Generating Code...
+  Compiling...
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-baseline\.build\x64\Release\DxUi.lib
+  FoundationTests.cpp
+  DxUiTests.Accessibility.cpp
+  Main.cpp
+  EmbeddedTests.cpp
+  PublicHelpersTests.cpp
+  Generating Code...
+  DxUiTests.Animation.cpp
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-baseline\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-baseline\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-baseline\.build\x64\Release\DxUi.EmbeddedTests.exe
+  DxUiTests.ComboBox.cpp
+  DxUiTests.Controls.cpp
+  DxUiTests.cpp
+  DxUiTests.Gallery.cpp
+  DxUiTests.Grid.cpp
+  DxUiTests.Menu.cpp
+  DxUiTests.MultilineText.cpp
+  DxUiTests.NativeTextInput.cpp
+  DxUiTests.NewControls.cpp
+  DxUiTests.ReadOnly.cpp
+  DxUiTests.Rendering.cpp
+  DxUiTests.TextField.cpp
+  DxUiTests.Theme.cpp
+  DxUiTests.Tooltip.cpp
+  DxUiTests.Tree.cpp
+  DxUiTests.WindowHost.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-baseline\.build\x64\Release\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 02:18
+Output: Z:\src\DxUi-worktrees\i26-menu-baseline\.build\
+Log: Z:\src\DxUi-worktrees\i26-menu-baseline\.build\logs\build-x64-Release-6faad8c3abba488aa05a901aed36cd0c.log
+========================================
+Complex UI clean round 1: 2184.31 completed offscreen FPS; p95 0.5986 ms; private 26107904 bytes
+Complex UI clean round 2: 2218.73 completed offscreen FPS; p95 0.5107 ms; private 26079232 bytes
+Complex UI clean round 3: 2270.69 completed offscreen FPS; p95 0.5244 ms; private 26083328 bytes
+Complex UI clean round 4: 2477.61 completed offscreen FPS; p95 0.4918 ms; private 26980352 bytes
+Complex UI clean round 5: 2350.98 completed offscreen FPS; p95 0.5121 ms; private 27897856 bytes
+Complex UI dirty round 1: 504.657 completed offscreen FPS; p95 2.3134 ms; private 28934144 bytes
+Complex UI dirty round 2: 537.045 completed offscreen FPS; p95 2.0709 ms; private 28946432 bytes
+Complex UI dirty round 3: 550.993 completed offscreen FPS; p95 1.9772 ms; private 28975104 bytes
+Complex UI dirty round 4: 524.515 completed offscreen FPS; p95 2.1083 ms; private 28987392 bytes
+Complex UI dirty round 5: 522.126 completed offscreen FPS; p95 2.2688 ms; private 28930048 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-menu-baseline\.build\reports\menu-baseline-repeat.json

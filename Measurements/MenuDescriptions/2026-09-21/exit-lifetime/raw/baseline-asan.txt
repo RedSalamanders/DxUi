@@ -1,0 +1,127 @@
+[START] MenuExitLifetime
+[EXIT] MenuExitLifetime: active menu survives stack scope until CRT teardown
+=================================================================
+==39928==ERROR: AddressSanitizer: heap-use-after-free on address 0x11c028da0705 at pc 0x7ff79cd8ddec bp 0x00225cbec9e0 sp 0x00225cbec9e8
+READ of size 1 at 0x11c028da0705 thread T0
+    #0 0x7ff79cd8ddeb in DxUi::ControlHost::DeactivateNativeTextInputSession Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\src\Controls\DxUi.NativeTextInput.cpp:618
+    #1 0x7ff79cd8ccd7 in DxUi::ControlHost::DeactivateTextInput Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\src\Controls\DxUi.NativeTextInput.cpp:526
+    #2 0x7ff79cd03993 in DxUi::ControlHost::Detach Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\src\Controls\DxUi.WindowHost.cpp:1277
+    #3 0x7ff79ccf2fc0 in DxUi::ControlHost::Detach Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\src\Controls\DxUi.WindowHost.cpp:1213
+    #4 0x7ff79ccf247e in DxUi::ControlHost::~ControlHost Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\src\Controls\DxUi.WindowHost.cpp:1176
+    #5 0x7ff79cdd4de5 in DxUi::`anonymous namespace'::MenuPopup::~MenuPopup+0x65 (Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140b64de5)
+    #6 0x7ff79cdd4e16 in DxUi::`anonymous namespace'::MenuPopup::`scalar deleting destructor'+0x16 (Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140b64e16)
+    #7 0x7ff79cdda98b in std::default_delete<DxUi::`anonymous namespace'::MenuPopup>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #8 0x7ff79cddaaa0 in std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> >::~unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #9 0x7ff79cddaed6 in std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> >::`scalar deleting destructor'+0x16 (Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140b6aed6)
+    #10 0x7ff79ce5a921 in std::destroy_at<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:337
+    #11 0x7ff79ce5a893 in std::_Default_allocator_traits<std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > >::destroy<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:739
+    #12 0x7ff79ce352c2 in std::_Destroy_range<std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:1107
+    #13 0x7ff79cdd8649 in std::vector<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> >,std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > >::_Tidy C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:2099
+    #14 0x7ff79cdd6186 in std::vector<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> >,std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > >::~vector<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> >,std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:832
+    #15 0x7ff79cdda8be in DxUi::`anonymous namespace'::MenuController::~MenuController+0x2e (Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140b6a8be)
+    #16 0x7ff79cdda916 in DxUi::`anonymous namespace'::MenuController::`scalar deleting destructor'+0x16 (Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140b6a916)
+    #17 0x7ff79ce022cb in std::default_delete<DxUi::`anonymous namespace'::MenuController>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #18 0x7ff79ce023e0 in std::unique_ptr<DxUi::`anonymous namespace'::MenuController,std::default_delete<DxUi::`anonymous namespace'::MenuController> >::~unique_ptr<DxUi::`anonymous namespace'::MenuController,std::default_delete<DxUi::`anonymous namespace'::MenuController> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #19 0x7ff79ce02886 in std::unique_ptr<DxUi::`anonymous namespace'::MenuController,std::default_delete<DxUi::`anonymous namespace'::MenuController> >::`scalar deleting destructor'+0x16 (Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140b92886)
+    #20 0x7ff79ce5a8f1 in std::destroy_at<std::unique_ptr<DxUi::`anonymous namespace'::MenuController,std::default_delete<DxUi::`anonymous namespace'::MenuController> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:337
+    #21 0x7ff79ce5a863 in std::_Default_allocator_traits<std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuController,std::default_delete<DxUi::`anonymous namespace'::MenuController> > > >::destroy<std::unique_ptr<DxUi::`anonymous namespace'::MenuController,std::default_delete<DxUi::`anonymous namespace'::MenuController> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:739
+    #22 0x7ff79ce35262 in std::_Destroy_range<std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuController,std::default_delete<DxUi::`anonymous namespace'::MenuController> > > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:1107
+    #23 0x7ff79ce00479 in std::vector<std::unique_ptr<DxUi::`anonymous namespace'::MenuController,std::default_delete<DxUi::`anonymous namespace'::MenuController> >,std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuController,std::default_delete<DxUi::`anonymous namespace'::MenuController> > > >::_Tidy C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:2099
+    #24 0x7ff79cdff316 in std::vector<std::unique_ptr<DxUi::`anonymous namespace'::MenuController,std::default_delete<DxUi::`anonymous namespace'::MenuController> >,std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuController,std::default_delete<DxUi::`anonymous namespace'::MenuController> > > >::~vector<std::unique_ptr<DxUi::`anonymous namespace'::MenuController,std::default_delete<DxUi::`anonymous namespace'::MenuController> >,std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuController,std::default_delete<DxUi::`anonymous namespace'::MenuController> > > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:832
+    #25 0x7ff79cfb0682 in `DxUi::`anonymous namespace'::ActiveAsyncMenuControllers'::`2'::`dynamic atexit destructor for 'controllers''+0x82 (Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140d40682)
+    #26 0x7ff79cf76e39 in __dyn_tls_dtor D:\a\_work\1\s\src\vctools\crt\vcstartup\src\tls\tlsdtor.cpp:122
+    #27 0x7ff813541f6d in wassert+0x31d (C:\WINDOWS\SYSTEM32\ucrtbased.dll+0x1800a1f6d)
+    #28 0x7ff813541e0c in wassert+0x1bc (C:\WINDOWS\SYSTEM32\ucrtbased.dll+0x1800a1e0c)
+    #29 0x7ff813541e86 in wassert+0x236 (C:\WINDOWS\SYSTEM32\ucrtbased.dll+0x1800a1e86)
+    #30 0x7ff81354211f in wassert+0x4cf (C:\WINDOWS\SYSTEM32\ucrtbased.dll+0x1800a211f)
+    #31 0x7ff813542455 in exit+0x15 (C:\WINDOWS\SYSTEM32\ucrtbased.dll+0x1800a2455)
+    #32 0x7ff79c6177db in RunMenuExitLifetimeTests Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\Tests\Controls\DxUiTests.MenuResources.h:211
+    #33 0x7ff79c4b9ea1 in `wmain'::`2'::<lambda_5>::operator() Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\Tests\Controls\DxUiTests.cpp:206
+    #34 0x7ff79c4b8237 in wmain Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\Tests\Controls\DxUiTests.cpp:214
+    #35 0x7ff79cf77598 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #36 0x7ff79cf774b1 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #37 0x7ff79cf7736d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #38 0x7ff79cf7760d in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #39 0x7ff972bccd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #40 0x7ff9747ccaeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+0x11c028da0705 is located 1669 bytes inside of 3640-byte region [0x11c028da0080,0x11c028da0eb8)
+freed by thread T0 here:
+    #0 0x7ff79cf758d3 in operator delete D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff79cdd4e30 in DxUi::`anonymous namespace'::MenuPopup::`scalar deleting destructor'+0x30 (Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140b64e30)
+    #2 0x7ff79cdda98b in std::default_delete<DxUi::`anonymous namespace'::MenuPopup>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #3 0x7ff79cddaaa0 in std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> >::~unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #4 0x7ff79cddaed6 in std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> >::`scalar deleting destructor'+0x16 (Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140b6aed6)
+    #5 0x7ff79ce5a921 in std::destroy_at<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:337
+    #6 0x7ff79ce5a893 in std::_Default_allocator_traits<std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > >::destroy<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:739
+    #7 0x7ff79ce352c2 in std::_Destroy_range<std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:1107
+    #8 0x7ff79cdd6853 in std::vector<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> >,std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > >::clear C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:1827
+    #9 0x7ff79cdfcefd in DxUi::`anonymous namespace'::DestroyPopupChain Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\src\Controls\DxUi.Menu.cpp:3893
+    #10 0x7ff79cdcb262 in DxUi::`anonymous namespace'::FinalizeAsyncMenuController Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\src\Controls\DxUi.Menu.cpp:3990
+    #11 0x7ff79cde0ffd in DxUi::`anonymous namespace'::MenuWndProc Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\src\Controls\DxUi.Menu.cpp:2120
+    #12 0x7ff9740252c5 in CallWindowProcW+0x6a5 (C:\WINDOWS\System32\USER32.dll+0x1800152c5)
+    #13 0x7ff974024b4b in GetFocus+0x1e3b (C:\WINDOWS\System32\USER32.dll+0x180014b4b)
+    #14 0x7ff97404f672 in GetWindowDpiAwarenessContext+0x4d2 (C:\WINDOWS\System32\USER32.dll+0x18003f672)
+    #15 0x7ff974884de3 in KiUserCallbackDispatcher+0x23 (C:\WINDOWS\SYSTEM32\ntdll.dll+0x180164de3)
+    #16 0x7ff97241b623 in NtUserReleaseCapture+0x13 (C:\WINDOWS\System32\win32u.dll+0x18000b623)
+    #17 0x7ff79cd03977 in DxUi::ControlHost::Detach Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\src\Controls\DxUi.WindowHost.cpp:1271
+    #18 0x7ff79ccf2fc0 in DxUi::ControlHost::Detach Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\src\Controls\DxUi.WindowHost.cpp:1213
+    #19 0x7ff79ccf247e in DxUi::ControlHost::~ControlHost Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\src\Controls\DxUi.WindowHost.cpp:1176
+    #20 0x7ff79cdd4de5 in DxUi::`anonymous namespace'::MenuPopup::~MenuPopup+0x65 (Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140b64de5)
+    #21 0x7ff79cdd4e16 in DxUi::`anonymous namespace'::MenuPopup::`scalar deleting destructor'+0x16 (Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140b64e16)
+    #22 0x7ff79cdda98b in std::default_delete<DxUi::`anonymous namespace'::MenuPopup>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #23 0x7ff79cddaaa0 in std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> >::~unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #24 0x7ff79cddaed6 in std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> >::`scalar deleting destructor'+0x16 (Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140b6aed6)
+    #25 0x7ff79ce5a921 in std::destroy_at<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:337
+    #26 0x7ff79ce5a893 in std::_Default_allocator_traits<std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > >::destroy<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:739
+    #27 0x7ff79ce352c2 in std::_Destroy_range<std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:1107
+    #28 0x7ff79cdd8649 in std::vector<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> >,std::allocator<std::unique_ptr<DxUi::`anonymous namespace'::MenuPopup,std::default_delete<DxUi::`anonymous namespace'::MenuPopup> > > >::_Tidy C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:2099
+
+previously allocated by thread T0 here:
+    #0 0x7ff79cf757b5 in operator new D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_new_scalar_thunk.cpp:40
+    #1 0x7ff79ce64cc7 in std::make_unique<DxUi::`anonymous namespace'::MenuPopup,0> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3666
+    #2 0x7ff79cdf6683 in DxUi::`anonymous namespace'::CreateMenuPopupWindow Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\src\Controls\DxUi.Menu.cpp:3385
+    #3 0x7ff79cdb5a55 in DxUi::ContextMenu::ShowAsync Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\src\Controls\DxUi.Menu.cpp:5614
+    #4 0x7ff79c6174e7 in RunMenuExitLifetimeTests Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\Tests\Controls\DxUiTests.MenuResources.h:206
+    #5 0x7ff79c4b9ea1 in `wmain'::`2'::<lambda_5>::operator() Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\Tests\Controls\DxUiTests.cpp:206
+    #6 0x7ff79c4b8237 in wmain Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\Tests\Controls\DxUiTests.cpp:214
+    #7 0x7ff79cf77598 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #8 0x7ff79cf774b1 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #9 0x7ff79cf7736d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #10 0x7ff79cf7760d in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #11 0x7ff972bccd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #12 0x7ff9747ccaeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+SUMMARY: AddressSanitizer: heap-use-after-free Z:\src\DxUi-worktrees\i26-menu-reflow-baseline\src\Controls\DxUi.NativeTextInput.cpp:618 in DxUi::ControlHost::DeactivateNativeTextInputSession
+Shadow bytes around the buggy address:
+  0x11c028da0480: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x11c028da0500: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x11c028da0580: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x11c028da0600: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x11c028da0680: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+=>0x11c028da0700:[fd]fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x11c028da0780: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x11c028da0800: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x11c028da0880: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x11c028da0900: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x11c028da0980: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==39928==ABORTING

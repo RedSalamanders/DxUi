@@ -8,6 +8,19 @@ The consumer's French Issues grid exposed a generic defect: `SetLineClamp` enabl
 does not limit visible lines or produce an omission marker. Partially visible cells also lay out
 against their clipped rectangle, changing text placement as they cross the viewport boundary.
 
+## September 27 timing acceptance and combined qualification
+
+The user explicitly answered **"Accept the recorded timing tradeoffs"**, supplementing the
+earlier grid memory acceptance. The [owning performance contract](../../Core/Core_PerformanceAndResources.md#i26-accepted-multiline-grid-memory-tradeoff)
+now retains the V11 clean median +0.0246 ms and dirty composition P95 +0.0030 ms with the
+roughly doubled dirty throughput. Original flags, thresholds and baselines remain unchanged.
+This supersedes the historical pending timing-advice notes below; do not repeat that question.
+
+Root combines grid `047414e` and menu `0f35bab` in the existing managed checkout on
+`codex/fileops-ui-qualified`, reviewing additive public API, diagnostics, fixtures and contracts.
+Native combined correctness/resource qualification and explicit RedSalamander pin adoption
+remain required. Component receipts alone do not qualify the combined source.
+
 ## September 27 cache-bound witness qualification
 
 Root checked a Luna audit and found that the existing mutation/pixel test resets its one-cell

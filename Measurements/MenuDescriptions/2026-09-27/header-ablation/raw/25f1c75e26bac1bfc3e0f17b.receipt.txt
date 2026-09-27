@@ -1,0 +1,23 @@
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                  ⚡  RELEASE  /  X64  /  REBUILD  ⚡                   │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Exception: C:\Users\eric\.codex\worktrees\i26-menu-header-probe\DxUi\build.ps1:140
+Line |
+ 140 |      throw "Restore dependencies first: vcpkg-install.ps1 -Platform $P …
+     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Restore dependencies first: vcpkg-install.ps1 -Platform x64 -OutputRoot
+     | "C:\Users\eric\.codex\worktrees\i26-menu-header-probe\DxUi\.build\"
+
+

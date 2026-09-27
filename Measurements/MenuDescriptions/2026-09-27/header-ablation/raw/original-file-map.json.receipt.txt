@@ -1,0 +1,1064 @@
+[
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\benchmark-inputs.json",
+    "path": "raw/acbb199d73ce57fc7864429f.receipt.txt",
+    "sha256": "acbb199d73ce57fc7864429f0070792f02173712189950dc27e379557947b29b",
+    "size": 1124
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\build-console.log",
+    "path": "raw/62153c16dc84f0823d0ea1a5.receipt.txt",
+    "sha256": "62153c16dc84f0823d0ea1a5d3a4218c3d565bca2f433b50794512925211596f",
+    "size": 4520
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\build-exit.txt",
+    "path": "raw/13bf7b3039c63bf5a50491fa.receipt.txt",
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\build-msbuild.log",
+    "path": "raw/63dc9e6bf6a9b22c7aec2e04.receipt.txt",
+    "sha256": "63dc9e6bf6a9b22c7aec2e042dd56027acc610768b0af60021bf08ec87d0655f",
+    "size": 29071
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\build-receipt.json",
+    "path": "raw/5d2e55b063f66854a04d3eb8.receipt.txt",
+    "sha256": "5d2e55b063f66854a04d3eb8dfa36c5a9211313754ae36bb67e19d6a567ef009",
+    "size": 823
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\head.txt",
+    "path": "raw/e529111fd1321d0004470258.receipt.txt",
+    "sha256": "e529111fd1321d0004470258ba0abd17532b50bc9cbc106e80c19c71838ba4c8",
+    "size": 42
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\inputs\\performance.ps1",
+    "path": "raw/2c094be6a24fa15efa50d624.receipt.txt",
+    "sha256": "2c094be6a24fa15efa50d6247d7c8e0cd11c08fce2d88c7a0582a7bf4cf13572",
+    "size": 4892
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\inputs\\Samples\\ComplexUi\\ComplexUiScene.h",
+    "path": "raw/a166ad54851cbe97cf1980f2.receipt.txt",
+    "sha256": "a166ad54851cbe97cf1980f2507af07810b316c0464a981b65da0f3af96b66bd",
+    "size": 4166
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\inputs\\Samples\\EmbeddedControls\\GraphicsFixture.h",
+    "path": "raw/b242c5efa16862ccf416cc2c.receipt.txt",
+    "sha256": "b242c5efa16862ccf416cc2c7a277a2e78354273ef43d3cfdf48c69bbef5c19d",
+    "size": 4826
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\inputs\\Tests\\Embedded\\BenchmarkMain.h",
+    "path": "raw/7a418a55e91f5c61a1cfd59e.receipt.txt",
+    "sha256": "7a418a55e91f5c61a1cfd59edb04c88ef800efc5be4af0b210d2c345250716c9",
+    "size": 970
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\inputs\\Tests\\Embedded\\ComplexUiBenchmark.h",
+    "path": "raw/3e374d30ff3d475b3197c32d.receipt.txt",
+    "sha256": "3e374d30ff3d475b3197c32dcfe2dd339f01fd8a8172abb598c39d1450ebca6c",
+    "size": 9582
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\inputs\\Tests\\Embedded\\EmbeddedTests.cpp",
+    "path": "raw/ac72ec954a39378b899708e0.receipt.txt",
+    "sha256": "ac72ec954a39378b899708e04d46895b752406a72c282d507260519965b61543",
+    "size": 33662
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\inputs\\Tools\\compare_performance.py",
+    "path": "raw/adac2e54dc3ba35bc48d7cf6.receipt.txt",
+    "sha256": "adac2e54dc3ba35bc48d7cf66fb7c7d936d73cc0598b100565e177f759925b55",
+    "size": 4958
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\inputs\\Tools\\Invoke-Python.ps1",
+    "path": "raw/d1bef14dcaa150827860abff.receipt.txt",
+    "sha256": "d1bef14dcaa150827860abff5acdf5f6a323da0b60c0f2ec4e9b6d4c13ae2ab4",
+    "size": 589
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\library-diff.patch",
+    "path": "raw/7eb70257593da06f682a3ddd.receipt.txt",
+    "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "size": 2
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\library-source-hashes.json",
+    "path": "raw/68885ea455203616d024cd66.receipt.txt",
+    "sha256": "68885ea455203616d024cd66e484d382d44d1825a340686f3991fcde373f7af5",
+    "size": 8749
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\A\\status.txt",
+    "path": "raw/7eb70257593da06f682a3ddd.receipt.txt",
+    "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "size": 2
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\B\\benchmark-inputs.json",
+    "path": "raw/acbb199d73ce57fc7864429f.receipt.txt",
+    "sha256": "acbb199d73ce57fc7864429f0070792f02173712189950dc27e379557947b29b",
+    "size": 1124
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\B\\head.txt",
+    "path": "raw/2929eca6ccf918d19293c689.receipt.txt",
+    "sha256": "2929eca6ccf918d19293c6894db5ee05361f7202e6729c1d56e0a17cfddb5e40",
+    "size": 42
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\B\\inputs\\performance.ps1",
+    "path": "raw/2c094be6a24fa15efa50d624.receipt.txt",
+    "sha256": "2c094be6a24fa15efa50d6247d7c8e0cd11c08fce2d88c7a0582a7bf4cf13572",
+    "size": 4892
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\B\\inputs\\Samples\\ComplexUi\\ComplexUiScene.h",
+    "path": "raw/a166ad54851cbe97cf1980f2.receipt.txt",
+    "sha256": "a166ad54851cbe97cf1980f2507af07810b316c0464a981b65da0f3af96b66bd",
+    "size": 4166
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\B\\inputs\\Samples\\EmbeddedControls\\GraphicsFixture.h",
+    "path": "raw/b242c5efa16862ccf416cc2c.receipt.txt",
+    "sha256": "b242c5efa16862ccf416cc2c7a277a2e78354273ef43d3cfdf48c69bbef5c19d",
+    "size": 4826
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\B\\inputs\\Tests\\Embedded\\BenchmarkMain.h",
+    "path": "raw/7a418a55e91f5c61a1cfd59e.receipt.txt",
+    "sha256": "7a418a55e91f5c61a1cfd59edb04c88ef800efc5be4af0b210d2c345250716c9",
+    "size": 970
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\B\\inputs\\Tests\\Embedded\\ComplexUiBenchmark.h",
+    "path": "raw/3e374d30ff3d475b3197c32d.receipt.txt",
+    "sha256": "3e374d30ff3d475b3197c32dcfe2dd339f01fd8a8172abb598c39d1450ebca6c",
+    "size": 9582
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\B\\inputs\\Tests\\Embedded\\EmbeddedTests.cpp",
+    "path": "raw/ac72ec954a39378b899708e0.receipt.txt",
+    "sha256": "ac72ec954a39378b899708e04d46895b752406a72c282d507260519965b61543",
+    "size": 33662
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\B\\inputs\\Tools\\compare_performance.py",
+    "path": "raw/adac2e54dc3ba35bc48d7cf6.receipt.txt",
+    "sha256": "adac2e54dc3ba35bc48d7cf66fb7c7d936d73cc0598b100565e177f759925b55",
+    "size": 4958
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\B\\inputs\\Tools\\Invoke-Python.ps1",
+    "path": "raw/d1bef14dcaa150827860abff.receipt.txt",
+    "sha256": "d1bef14dcaa150827860abff5acdf5f6a323da0b60c0f2ec4e9b6d4c13ae2ab4",
+    "size": 589
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\B\\library-diff.patch",
+    "path": "raw/7eb70257593da06f682a3ddd.receipt.txt",
+    "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "size": 2
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\B\\library-source-hashes.json",
+    "path": "raw/e40c7e96100b62de5e5ed6b7.receipt.txt",
+    "sha256": "e40c7e96100b62de5e5ed6b7440ec25d8c9195a3e9a4c26e178c4f96774e28e3",
+    "size": 8749
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\B\\status.txt",
+    "path": "raw/7eb70257593da06f682a3ddd.receipt.txt",
+    "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "size": 2
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\benchmark-inputs-A.json",
+    "path": "raw/acbb199d73ce57fc7864429f.receipt.txt",
+    "sha256": "acbb199d73ce57fc7864429f0070792f02173712189950dc27e379557947b29b",
+    "size": 1124
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\benchmark-inputs-B.json",
+    "path": "raw/acbb199d73ce57fc7864429f.receipt.txt",
+    "sha256": "acbb199d73ce57fc7864429f0070792f02173712189950dc27e379557947b29b",
+    "size": 1124
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\benchmark-inputs-H.json",
+    "path": "raw/acbb199d73ce57fc7864429f.receipt.txt",
+    "sha256": "acbb199d73ce57fc7864429f0070792f02173712189950dc27e379557947b29b",
+    "size": 1124
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\benchmark-inputs.json",
+    "path": "raw/acbb199d73ce57fc7864429f.receipt.txt",
+    "sha256": "acbb199d73ce57fc7864429f0070792f02173712189950dc27e379557947b29b",
+    "size": 1124
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\build-console.log",
+    "path": "raw/25f1c75e26bac1bfc3e0f17b.receipt.txt",
+    "sha256": "25f1c75e26bac1bfc3e0f17b49215dc2475d1b90fbf0263c2996b49ea1ca0450",
+    "size": 2071
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\build-exit.txt",
+    "path": "raw/f1b2f662800122bed0ff2556.receipt.txt",
+    "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\head.txt",
+    "path": "raw/e529111fd1321d0004470258.receipt.txt",
+    "sha256": "e529111fd1321d0004470258ba0abd17532b50bc9cbc106e80c19c71838ba4c8",
+    "size": 42
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\inputs\\performance.ps1",
+    "path": "raw/2c094be6a24fa15efa50d624.receipt.txt",
+    "sha256": "2c094be6a24fa15efa50d6247d7c8e0cd11c08fce2d88c7a0582a7bf4cf13572",
+    "size": 4892
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\inputs\\Samples\\ComplexUi\\ComplexUiScene.h",
+    "path": "raw/a166ad54851cbe97cf1980f2.receipt.txt",
+    "sha256": "a166ad54851cbe97cf1980f2507af07810b316c0464a981b65da0f3af96b66bd",
+    "size": 4166
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\inputs\\Samples\\EmbeddedControls\\GraphicsFixture.h",
+    "path": "raw/b242c5efa16862ccf416cc2c.receipt.txt",
+    "sha256": "b242c5efa16862ccf416cc2c7a277a2e78354273ef43d3cfdf48c69bbef5c19d",
+    "size": 4826
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\inputs\\Tests\\Embedded\\BenchmarkMain.h",
+    "path": "raw/7a418a55e91f5c61a1cfd59e.receipt.txt",
+    "sha256": "7a418a55e91f5c61a1cfd59edb04c88ef800efc5be4af0b210d2c345250716c9",
+    "size": 970
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\inputs\\Tests\\Embedded\\ComplexUiBenchmark.h",
+    "path": "raw/3e374d30ff3d475b3197c32d.receipt.txt",
+    "sha256": "3e374d30ff3d475b3197c32dcfe2dd339f01fd8a8172abb598c39d1450ebca6c",
+    "size": 9582
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\inputs\\Tests\\Embedded\\EmbeddedTests.cpp",
+    "path": "raw/ac72ec954a39378b899708e0.receipt.txt",
+    "sha256": "ac72ec954a39378b899708e04d46895b752406a72c282d507260519965b61543",
+    "size": 33662
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\inputs\\Tools\\compare_performance.py",
+    "path": "raw/adac2e54dc3ba35bc48d7cf6.receipt.txt",
+    "sha256": "adac2e54dc3ba35bc48d7cf66fb7c7d936d73cc0598b100565e177f759925b55",
+    "size": 4958
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\inputs\\Tools\\Invoke-Python.ps1",
+    "path": "raw/d1bef14dcaa150827860abff.receipt.txt",
+    "sha256": "d1bef14dcaa150827860abff5acdf5f6a323da0b60c0f2ec4e9b6d4c13ae2ab4",
+    "size": 589
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\library-diff.patch",
+    "path": "raw/0e14b4a7ec9e0c8350297108.receipt.txt",
+    "sha256": "0e14b4a7ec9e0c835029710871d0c852f098baa05907ab0995fa02a4147721c4",
+    "size": 488
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\library-source-hashes.json",
+    "path": "raw/eb0be26ac8b165eb7fa4992b.receipt.txt",
+    "sha256": "eb0be26ac8b165eb7fa4992b4bc7b51cc1e8beb2642b6d9bdb93a69b472cf525",
+    "size": 8749
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\H\\status.txt",
+    "path": "raw/af63b01fe676b3e2bd356b3d.receipt.txt",
+    "sha256": "af63b01fe676b3e2bd356b3d6266f566800006be9eb81411426557639ad3c4a1",
+    "size": 24
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\protocol.json",
+    "path": "raw/d41d4012c2aed56604064539.receipt.txt",
+    "sha256": "d41d4012c2aed566040645391b104d3d6b76f27325845d9e1df054093f4953f8",
+    "size": 2108
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-20260927\\run-menu-header-factorial-draft-20260927.ps1",
+    "path": "raw/2f2dff5d29872a0c50923e43.receipt.txt",
+    "sha256": "2f2dff5d29872a0c50923e43e15bbce4fa6ec0d7633a7b615b38a5b7abd85003",
+    "size": 21220
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\benchmark-inputs.json",
+    "path": "raw/acbb199d73ce57fc7864429f.receipt.txt",
+    "sha256": "acbb199d73ce57fc7864429f0070792f02173712189950dc27e379557947b29b",
+    "size": 1124
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\build-console.log",
+    "path": "raw/62153c16dc84f0823d0ea1a5.receipt.txt",
+    "sha256": "62153c16dc84f0823d0ea1a5d3a4218c3d565bca2f433b50794512925211596f",
+    "size": 4520
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\build-exit.txt",
+    "path": "raw/13bf7b3039c63bf5a50491fa.receipt.txt",
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\build-msbuild.log",
+    "path": "raw/63dc9e6bf6a9b22c7aec2e04.receipt.txt",
+    "sha256": "63dc9e6bf6a9b22c7aec2e042dd56027acc610768b0af60021bf08ec87d0655f",
+    "size": 29071
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\build-receipt.json",
+    "path": "raw/5d2e55b063f66854a04d3eb8.receipt.txt",
+    "sha256": "5d2e55b063f66854a04d3eb8dfa36c5a9211313754ae36bb67e19d6a567ef009",
+    "size": 823
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\build-reuse.json",
+    "path": "raw/40011578720c37769c6e3392.receipt.txt",
+    "sha256": "40011578720c37769c6e3392755f1de7768d149c48b755e9a127a53faf2f6e91",
+    "size": 238
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\head.txt",
+    "path": "raw/e529111fd1321d0004470258.receipt.txt",
+    "sha256": "e529111fd1321d0004470258ba0abd17532b50bc9cbc106e80c19c71838ba4c8",
+    "size": 42
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\inputs\\performance.ps1",
+    "path": "raw/2c094be6a24fa15efa50d624.receipt.txt",
+    "sha256": "2c094be6a24fa15efa50d6247d7c8e0cd11c08fce2d88c7a0582a7bf4cf13572",
+    "size": 4892
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\inputs\\Samples\\ComplexUi\\ComplexUiScene.h",
+    "path": "raw/a166ad54851cbe97cf1980f2.receipt.txt",
+    "sha256": "a166ad54851cbe97cf1980f2507af07810b316c0464a981b65da0f3af96b66bd",
+    "size": 4166
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\inputs\\Samples\\EmbeddedControls\\GraphicsFixture.h",
+    "path": "raw/b242c5efa16862ccf416cc2c.receipt.txt",
+    "sha256": "b242c5efa16862ccf416cc2c7a277a2e78354273ef43d3cfdf48c69bbef5c19d",
+    "size": 4826
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\inputs\\Tests\\Embedded\\BenchmarkMain.h",
+    "path": "raw/7a418a55e91f5c61a1cfd59e.receipt.txt",
+    "sha256": "7a418a55e91f5c61a1cfd59edb04c88ef800efc5be4af0b210d2c345250716c9",
+    "size": 970
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\inputs\\Tests\\Embedded\\ComplexUiBenchmark.h",
+    "path": "raw/3e374d30ff3d475b3197c32d.receipt.txt",
+    "sha256": "3e374d30ff3d475b3197c32dcfe2dd339f01fd8a8172abb598c39d1450ebca6c",
+    "size": 9582
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\inputs\\Tests\\Embedded\\EmbeddedTests.cpp",
+    "path": "raw/ac72ec954a39378b899708e0.receipt.txt",
+    "sha256": "ac72ec954a39378b899708e04d46895b752406a72c282d507260519965b61543",
+    "size": 33662
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\inputs\\Tools\\compare_performance.py",
+    "path": "raw/adac2e54dc3ba35bc48d7cf6.receipt.txt",
+    "sha256": "adac2e54dc3ba35bc48d7cf66fb7c7d936d73cc0598b100565e177f759925b55",
+    "size": 4958
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\inputs\\Tools\\Invoke-Python.ps1",
+    "path": "raw/d1bef14dcaa150827860abff.receipt.txt",
+    "sha256": "d1bef14dcaa150827860abff5acdf5f6a323da0b60c0f2ec4e9b6d4c13ae2ab4",
+    "size": 589
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\library-diff.patch",
+    "path": "raw/7eb70257593da06f682a3ddd.receipt.txt",
+    "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "size": 2
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\library-source-hashes.json",
+    "path": "raw/68885ea455203616d024cd66.receipt.txt",
+    "sha256": "68885ea455203616d024cd66e484d382d44d1825a340686f3991fcde373f7af5",
+    "size": 8749
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A\\status.txt",
+    "path": "raw/7eb70257593da06f682a3ddd.receipt.txt",
+    "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "size": 2
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A1-exit.txt",
+    "path": "raw/13bf7b3039c63bf5a50491fa.receipt.txt",
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A1-invocation.json",
+    "path": "raw/a2460dd9ffa3a8ccebb0ac0d.receipt.txt",
+    "sha256": "a2460dd9ffa3a8ccebb0ac0d1562c926e704c756b4c1e3e8b59766a47cc3506e",
+    "size": 1111
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A1.json",
+    "path": "raw/reports/A1.json",
+    "sha256": "15ffad2b7b85a1d9eadaa841644c39934027c67b4bee77d88504ed2e64ae9375",
+    "size": 8011
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A1.json.comparison.json",
+    "path": "raw/14fc8def36f2813db7d27871.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "size": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A1.log",
+    "path": "raw/0b1c48aacb8eff5f2e33b84b.receipt.txt",
+    "sha256": "0b1c48aacb8eff5f2e33b84b785f5afa287d32fd1cbbf5a7afad0552670573e2",
+    "size": 1110
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A2-exit.txt",
+    "path": "raw/13bf7b3039c63bf5a50491fa.receipt.txt",
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A2-invocation.json",
+    "path": "raw/891d10803cc7b1cf35d53f6f.receipt.txt",
+    "sha256": "891d10803cc7b1cf35d53f6fa2da4d68554a3b3dd2ea41752e6fa6e77c495b45",
+    "size": 1111
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A2.json",
+    "path": "raw/reports/A2.json",
+    "sha256": "0c5672df8c9c73ff3a2ab515ea241d892106cb48236ebee3c298e231e522425a",
+    "size": 8019
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A2.json.comparison.json",
+    "path": "raw/14fc8def36f2813db7d27871.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "size": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\A2.log",
+    "path": "raw/8b64397eb7ef2dbfe111c0b9.receipt.txt",
+    "sha256": "8b64397eb7ef2dbfe111c0b9780e1942060f83dcb9271f8d12fd5185568f724a",
+    "size": 1115
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\benchmark-inputs.json",
+    "path": "raw/acbb199d73ce57fc7864429f.receipt.txt",
+    "sha256": "acbb199d73ce57fc7864429f0070792f02173712189950dc27e379557947b29b",
+    "size": 1124
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\build-console.log",
+    "path": "raw/e2021498b3ac1eee6ae8a9b3.receipt.txt",
+    "sha256": "e2021498b3ac1eee6ae8a9b3c00a1401b750f4076ece8c28827a6f095a956edb",
+    "size": 4472
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\build-exit.txt",
+    "path": "raw/13bf7b3039c63bf5a50491fa.receipt.txt",
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\build-msbuild.log",
+    "path": "raw/723109abfd228046aa236103.receipt.txt",
+    "sha256": "723109abfd228046aa236103e6ae9a1cc41ee18dcbf4ce5740886b152a676aa2",
+    "size": 28452
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\build-receipt.json",
+    "path": "raw/f36c21315a8ff55966aa4c79.receipt.txt",
+    "sha256": "f36c21315a8ff55966aa4c79acb5862b42c5d2712b5c4eda3c6461b2df1201d5",
+    "size": 823
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\head.txt",
+    "path": "raw/2929eca6ccf918d19293c689.receipt.txt",
+    "sha256": "2929eca6ccf918d19293c6894db5ee05361f7202e6729c1d56e0a17cfddb5e40",
+    "size": 42
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\inputs\\performance.ps1",
+    "path": "raw/2c094be6a24fa15efa50d624.receipt.txt",
+    "sha256": "2c094be6a24fa15efa50d6247d7c8e0cd11c08fce2d88c7a0582a7bf4cf13572",
+    "size": 4892
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\inputs\\Samples\\ComplexUi\\ComplexUiScene.h",
+    "path": "raw/a166ad54851cbe97cf1980f2.receipt.txt",
+    "sha256": "a166ad54851cbe97cf1980f2507af07810b316c0464a981b65da0f3af96b66bd",
+    "size": 4166
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\inputs\\Samples\\EmbeddedControls\\GraphicsFixture.h",
+    "path": "raw/b242c5efa16862ccf416cc2c.receipt.txt",
+    "sha256": "b242c5efa16862ccf416cc2c7a277a2e78354273ef43d3cfdf48c69bbef5c19d",
+    "size": 4826
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\inputs\\Tests\\Embedded\\BenchmarkMain.h",
+    "path": "raw/7a418a55e91f5c61a1cfd59e.receipt.txt",
+    "sha256": "7a418a55e91f5c61a1cfd59edb04c88ef800efc5be4af0b210d2c345250716c9",
+    "size": 970
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\inputs\\Tests\\Embedded\\ComplexUiBenchmark.h",
+    "path": "raw/3e374d30ff3d475b3197c32d.receipt.txt",
+    "sha256": "3e374d30ff3d475b3197c32dcfe2dd339f01fd8a8172abb598c39d1450ebca6c",
+    "size": 9582
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\inputs\\Tests\\Embedded\\EmbeddedTests.cpp",
+    "path": "raw/ac72ec954a39378b899708e0.receipt.txt",
+    "sha256": "ac72ec954a39378b899708e04d46895b752406a72c282d507260519965b61543",
+    "size": 33662
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\inputs\\Tools\\compare_performance.py",
+    "path": "raw/adac2e54dc3ba35bc48d7cf6.receipt.txt",
+    "sha256": "adac2e54dc3ba35bc48d7cf66fb7c7d936d73cc0598b100565e177f759925b55",
+    "size": 4958
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\inputs\\Tools\\Invoke-Python.ps1",
+    "path": "raw/d1bef14dcaa150827860abff.receipt.txt",
+    "sha256": "d1bef14dcaa150827860abff5acdf5f6a323da0b60c0f2ec4e9b6d4c13ae2ab4",
+    "size": 589
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\library-diff.patch",
+    "path": "raw/7eb70257593da06f682a3ddd.receipt.txt",
+    "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "size": 2
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\library-source-hashes.json",
+    "path": "raw/e40c7e96100b62de5e5ed6b7.receipt.txt",
+    "sha256": "e40c7e96100b62de5e5ed6b7440ec25d8c9195a3e9a4c26e178c4f96774e28e3",
+    "size": 8749
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B\\status.txt",
+    "path": "raw/7eb70257593da06f682a3ddd.receipt.txt",
+    "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+    "size": 2
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B1-exit.txt",
+    "path": "raw/13bf7b3039c63bf5a50491fa.receipt.txt",
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B1-invocation.json",
+    "path": "raw/44e4def94cf9240b0522612c.receipt.txt",
+    "sha256": "44e4def94cf9240b0522612c9718b340f4b2b93068d1d9689aa91e122d8e6e64",
+    "size": 1111
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B1.json",
+    "path": "raw/reports/B1.json",
+    "sha256": "06679e5e6cfeb0e943db6bf96100ccf28481012b229998364d2b4aafe109a2c3",
+    "size": 8008
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B1.json.comparison.json",
+    "path": "raw/14fc8def36f2813db7d27871.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "size": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B1.log",
+    "path": "raw/13115f07198f1ae8c41e0350.receipt.txt",
+    "sha256": "13115f07198f1ae8c41e035045126f9ac4827e277276d6498c6255a3fc424898",
+    "size": 1113
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B2-exit.txt",
+    "path": "raw/13bf7b3039c63bf5a50491fa.receipt.txt",
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B2-invocation.json",
+    "path": "raw/5167bd773b675d745d6518a7.receipt.txt",
+    "sha256": "5167bd773b675d745d6518a77e0d86c0d71e4b458792e9e8f686feaff7d82ae2",
+    "size": 1111
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B2.json",
+    "path": "raw/reports/B2.json",
+    "sha256": "67cb0afd706d1fca26aacc7d7f95bbd712023fd7ed5be366aa6f292661ccc6ce",
+    "size": 8015
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B2.json.comparison.json",
+    "path": "raw/14fc8def36f2813db7d27871.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "size": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\B2.log",
+    "path": "raw/3b268791bb0d2911529c5056.receipt.txt",
+    "sha256": "3b268791bb0d2911529c505671f7fe44e8a0a35f71702bc102d83e0f079f595d",
+    "size": 1115
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\benchmark-inputs-A.json",
+    "path": "raw/acbb199d73ce57fc7864429f.receipt.txt",
+    "sha256": "acbb199d73ce57fc7864429f0070792f02173712189950dc27e379557947b29b",
+    "size": 1124
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\benchmark-inputs-B.json",
+    "path": "raw/acbb199d73ce57fc7864429f.receipt.txt",
+    "sha256": "acbb199d73ce57fc7864429f0070792f02173712189950dc27e379557947b29b",
+    "size": 1124
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\benchmark-inputs-H.json",
+    "path": "raw/acbb199d73ce57fc7864429f.receipt.txt",
+    "sha256": "acbb199d73ce57fc7864429f0070792f02173712189950dc27e379557947b29b",
+    "size": 1124
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\control-A1-A2-exit.txt",
+    "path": "raw/f1b2f662800122bed0ff2556.receipt.txt",
+    "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\control-A1-A2.json",
+    "path": "raw/4d693a5a3e254e17e25060d0.receipt.txt",
+    "sha256": "4d693a5a3e254e17e25060d085a2d41e6776ec74423cf4860158a588a83dbe1e",
+    "size": 5771
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\control-A1-A2.log",
+    "path": "raw/5c6776d9908032ead0d37ea8.receipt.txt",
+    "sha256": "5c6776d9908032ead0d37ea82609b2abbe383fe0bcbf85b2eba8da2508fde0c6",
+    "size": 385
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\control-B1-B2-exit.txt",
+    "path": "raw/f1b2f662800122bed0ff2556.receipt.txt",
+    "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\control-B1-B2.json",
+    "path": "raw/7164b129ad9fe366babffb5b.receipt.txt",
+    "sha256": "7164b129ad9fe366babffb5b3f3255bb46e751e5bab77371e9f0d9eb4285bcb0",
+    "size": 5765
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\control-B1-B2.log",
+    "path": "raw/b5a9e8b5f3d3ba99fc593232.receipt.txt",
+    "sha256": "b5a9e8b5f3d3ba99fc593232ff543add85f78229f4927f536615dbd59a1f2bba",
+    "size": 430
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\control-H1-H2-exit.txt",
+    "path": "raw/f1b2f662800122bed0ff2556.receipt.txt",
+    "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\control-H1-H2.json",
+    "path": "raw/4dc25180d9f7c63c41f8c026.receipt.txt",
+    "sha256": "4dc25180d9f7c63c41f8c026a2fe9bdaacb92e097dd230685a1d34ffbd662188",
+    "size": 5776
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\control-H1-H2.log",
+    "path": "raw/15764beade2bcd60128e864e.receipt.txt",
+    "sha256": "15764beade2bcd60128e864edb179ad9fa0ae470e086acd10a299e7b3f294981",
+    "size": 464
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\file-hashes.json",
+    "path": "raw/7fea76f7fd3ecb6d59db295d.receipt.txt",
+    "sha256": "7fea76f7fd3ecb6d59db295da54137ce73f5d2251f76b8699e57da44791a31c0",
+    "size": 17210
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\first-A1-B1-exit.txt",
+    "path": "raw/f1b2f662800122bed0ff2556.receipt.txt",
+    "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\first-A1-B1.json",
+    "path": "raw/b021b5bf5aea1e611f441946.receipt.txt",
+    "sha256": "b021b5bf5aea1e611f441946a3d25a1f6a700c68524271eb1f505e83bbea72ea",
+    "size": 5774
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\first-A1-B1.log",
+    "path": "raw/a0be556382a5e59ef58a5880.receipt.txt",
+    "sha256": "a0be556382a5e59ef58a58801de174db9570e14cc85af34604025acf722cc1bc",
+    "size": 480
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\first-A1-H1-exit.txt",
+    "path": "raw/f1b2f662800122bed0ff2556.receipt.txt",
+    "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\first-A1-H1.json",
+    "path": "raw/c91fd5fdfe8067f2b4f5b437.receipt.txt",
+    "sha256": "c91fd5fdfe8067f2b4f5b4371d1f8c5b0ec9615474ecf876da282e75724c300e",
+    "size": 5755
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\first-A1-H1.log",
+    "path": "raw/868c22a89914ad2a3c24e178.receipt.txt",
+    "sha256": "868c22a89914ad2a3c24e178f12f969a4b65ef0dddee44f474e7cb8dd56246dc",
+    "size": 519
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\first-H1-B1-exit.txt",
+    "path": "raw/f1b2f662800122bed0ff2556.receipt.txt",
+    "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\first-H1-B1.json",
+    "path": "raw/e203935215ddee878220ce54.receipt.txt",
+    "sha256": "e203935215ddee878220ce54a259d52e802db80acad0720f99e1aa50d56ca73a",
+    "size": 5778
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\first-H1-B1.log",
+    "path": "raw/62f14afc2eb7ed203e0e3d21.receipt.txt",
+    "sha256": "62f14afc2eb7ed203e0e3d2199e1c1d057aae8d1fdfff37cc92051791e46910d",
+    "size": 338
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\benchmark-inputs.json",
+    "path": "raw/acbb199d73ce57fc7864429f.receipt.txt",
+    "sha256": "acbb199d73ce57fc7864429f0070792f02173712189950dc27e379557947b29b",
+    "size": 1124
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\build-console.log",
+    "path": "raw/f394c8090b3761396a8c9457.receipt.txt",
+    "sha256": "f394c8090b3761396a8c945741802ed542dc0b5ac9a7790e4ec455fbdf735c65",
+    "size": 4652
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\build-exit.txt",
+    "path": "raw/13bf7b3039c63bf5a50491fa.receipt.txt",
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\build-msbuild.log",
+    "path": "raw/139e33dba8f0cf87d7dc6692.receipt.txt",
+    "sha256": "139e33dba8f0cf87d7dc66924f0a120105c1a1000cb45ad7348594ce75df1650",
+    "size": 33055
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\build-receipt.json",
+    "path": "raw/3194e47c639c6fa02d4e791e.receipt.txt",
+    "sha256": "3194e47c639c6fa02d4e791e9e96d4dc93ad6a01af30e2ccabb31accf89f259e",
+    "size": 823
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\head.txt",
+    "path": "raw/e529111fd1321d0004470258.receipt.txt",
+    "sha256": "e529111fd1321d0004470258ba0abd17532b50bc9cbc106e80c19c71838ba4c8",
+    "size": 42
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\inputs\\performance.ps1",
+    "path": "raw/2c094be6a24fa15efa50d624.receipt.txt",
+    "sha256": "2c094be6a24fa15efa50d6247d7c8e0cd11c08fce2d88c7a0582a7bf4cf13572",
+    "size": 4892
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\inputs\\Samples\\ComplexUi\\ComplexUiScene.h",
+    "path": "raw/a166ad54851cbe97cf1980f2.receipt.txt",
+    "sha256": "a166ad54851cbe97cf1980f2507af07810b316c0464a981b65da0f3af96b66bd",
+    "size": 4166
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\inputs\\Samples\\EmbeddedControls\\GraphicsFixture.h",
+    "path": "raw/b242c5efa16862ccf416cc2c.receipt.txt",
+    "sha256": "b242c5efa16862ccf416cc2c7a277a2e78354273ef43d3cfdf48c69bbef5c19d",
+    "size": 4826
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\inputs\\Tests\\Embedded\\BenchmarkMain.h",
+    "path": "raw/7a418a55e91f5c61a1cfd59e.receipt.txt",
+    "sha256": "7a418a55e91f5c61a1cfd59edb04c88ef800efc5be4af0b210d2c345250716c9",
+    "size": 970
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\inputs\\Tests\\Embedded\\ComplexUiBenchmark.h",
+    "path": "raw/3e374d30ff3d475b3197c32d.receipt.txt",
+    "sha256": "3e374d30ff3d475b3197c32dcfe2dd339f01fd8a8172abb598c39d1450ebca6c",
+    "size": 9582
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\inputs\\Tests\\Embedded\\EmbeddedTests.cpp",
+    "path": "raw/ac72ec954a39378b899708e0.receipt.txt",
+    "sha256": "ac72ec954a39378b899708e04d46895b752406a72c282d507260519965b61543",
+    "size": 33662
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\inputs\\Tools\\compare_performance.py",
+    "path": "raw/adac2e54dc3ba35bc48d7cf6.receipt.txt",
+    "sha256": "adac2e54dc3ba35bc48d7cf66fb7c7d936d73cc0598b100565e177f759925b55",
+    "size": 4958
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\inputs\\Tools\\Invoke-Python.ps1",
+    "path": "raw/d1bef14dcaa150827860abff.receipt.txt",
+    "sha256": "d1bef14dcaa150827860abff5acdf5f6a323da0b60c0f2ec4e9b6d4c13ae2ab4",
+    "size": 589
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\library-diff.patch",
+    "path": "raw/0e14b4a7ec9e0c8350297108.receipt.txt",
+    "sha256": "0e14b4a7ec9e0c835029710871d0c852f098baa05907ab0995fa02a4147721c4",
+    "size": 488
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\library-source-hashes.json",
+    "path": "raw/eb0be26ac8b165eb7fa4992b.receipt.txt",
+    "sha256": "eb0be26ac8b165eb7fa4992b4bc7b51cc1e8beb2642b6d9bdb93a69b472cf525",
+    "size": 8749
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H\\status.txt",
+    "path": "raw/af63b01fe676b3e2bd356b3d.receipt.txt",
+    "sha256": "af63b01fe676b3e2bd356b3d6266f566800006be9eb81411426557639ad3c4a1",
+    "size": 24
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H1-exit.txt",
+    "path": "raw/13bf7b3039c63bf5a50491fa.receipt.txt",
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H1-invocation.json",
+    "path": "raw/263f420951de4d598de59b63.receipt.txt",
+    "sha256": "263f420951de4d598de59b63104da0fef2b0d5c7b1b8afe91aa5e864456f7eda",
+    "size": 1110
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H1.json",
+    "path": "raw/reports/H1.json",
+    "sha256": "25c0bc7be21220cb05a452331542e1167941ea54c4aaaeb82078e54ee8e0bd3a",
+    "size": 8017
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H1.json.comparison.json",
+    "path": "raw/14fc8def36f2813db7d27871.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "size": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H1.log",
+    "path": "raw/cbdd05b15e45901419f8e2d3.receipt.txt",
+    "sha256": "cbdd05b15e45901419f8e2d3dc778731ca09ebf8b719ec0342855376d84fccad",
+    "size": 1112
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H2-exit.txt",
+    "path": "raw/13bf7b3039c63bf5a50491fa.receipt.txt",
+    "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H2-invocation.json",
+    "path": "raw/8807b2807fbb3cd6932a4f0d.receipt.txt",
+    "sha256": "8807b2807fbb3cd6932a4f0dece6243c55c12038b089b9db4884cc6e04bbde69",
+    "size": 1111
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H2.json",
+    "path": "raw/reports/H2.json",
+    "sha256": "70f58891cd02b4ca498b98964ea1c5b96810865e651b10bf95bf8c61f3ee1fbe",
+    "size": 8016
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H2.json.comparison.json",
+    "path": "raw/14fc8def36f2813db7d27871.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "size": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\H2.log",
+    "path": "raw/f0a88642cd49b8b1d9f78b39.receipt.txt",
+    "sha256": "f0a88642cd49b8b1d9f78b393dc6cd63f03a79a8379cdc0570c1d47a78afcf4f",
+    "size": 1113
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\interpretation.json",
+    "path": "raw/9ac475c1d219af2fe87dbd18.receipt.txt",
+    "sha256": "9ac475c1d219af2fe87dbd180718540f3545fcc38dcafd1674a126e26bbafc07",
+    "size": 1604
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\protocol.json",
+    "path": "raw/cb2984375762196b35c3f6be.receipt.txt",
+    "sha256": "cb2984375762196b35c3f6be4efa8158f2cb70245d1f9c224e7798083e520259",
+    "size": 2494
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\run-menu-header-ablation-v2-20260927.ps1",
+    "path": "raw/3234cefb55f99447e61c21a1.receipt.txt",
+    "sha256": "3234cefb55f99447e61c21a19df82ed747fde4b321a0b4f6851e26c16ea43c22",
+    "size": 24165
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\second-A2-B2-exit.txt",
+    "path": "raw/f1b2f662800122bed0ff2556.receipt.txt",
+    "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\second-A2-B2.json",
+    "path": "raw/3ec42b85d464cdcde01479a3.receipt.txt",
+    "sha256": "3ec42b85d464cdcde01479a31f781a599192dc0dd44d2a8d36045797552c0706",
+    "size": 5761
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\second-A2-B2.log",
+    "path": "raw/710abf010b3531013168d595.receipt.txt",
+    "sha256": "710abf010b3531013168d595291a6c5b80e6f1f513c7efa0496027f81dbffd1a",
+    "size": 733
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\second-A2-H2-exit.txt",
+    "path": "raw/f1b2f662800122bed0ff2556.receipt.txt",
+    "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\second-A2-H2.json",
+    "path": "raw/13129d70cffbf67517b4f204.receipt.txt",
+    "sha256": "13129d70cffbf67517b4f204f7dc99b43b35c6fbe91862910cb8b072d181a72f",
+    "size": 5766
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\second-A2-H2.log",
+    "path": "raw/5bde6e897ae53b115ff4c67e.receipt.txt",
+    "sha256": "5bde6e897ae53b115ff4c67e7f46e2dbcd3af9da8793b1180e8701b1c66b350b",
+    "size": 736
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\second-H2-B2-exit.txt",
+    "path": "raw/f1b2f662800122bed0ff2556.receipt.txt",
+    "sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+    "size": 3
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\second-H2-B2.json",
+    "path": "raw/5d7142cf2349c753c125cae2.receipt.txt",
+    "sha256": "5d7142cf2349c753c125cae288317544cf1f71ca67661e9aecb54ad01ad0037f",
+    "size": 5774
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-v2-20260927\\second-H2-B2.log",
+    "path": "raw/5620d966672f6f8367c462b4.receipt.txt",
+    "sha256": "5620d966672f6f8367c462b4ec256fcab301b7c53a4459279b1dba9c4f9f353e",
+    "size": 422
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-probe-dependencies-20260927.log",
+    "path": "raw/89967782571748b6d0984ffa.receipt.txt",
+    "sha256": "89967782571748b6d0984ffa9e0f0accc1a72446c91c10c100bfad5fb6c316f6",
+    "size": 6685
+  },
+  {
+    "source": "Z:\\src\\DxUi-worktrees\\i26-menu-intern-baseline\\include\\DxUi\\DxUi.h",
+    "path": "raw/2c8b8d03585edc7fb050fa23.receipt.txt",
+    "sha256": "2c8b8d03585edc7fb050fa23fec3f9a5e6cd2b29259c5db9bb3940dacdd73d4b",
+    "size": 201936
+  },
+  {
+    "source": "Z:\\src\\DxUi-worktrees\\i26-menu-intern-baseline\\src\\Controls\\DxUi.Menu.cpp",
+    "path": "raw/521ff62e39481f0cfb064a7b.receipt.txt",
+    "sha256": "521ff62e39481f0cfb064a7b71bfef395f6176a1fcb9c3a8ba8de625c2c0ef9f",
+    "size": 271199
+  },
+  {
+    "source": "C:\\Users\\eric\\.codex\\worktrees\\i26-menu-header-probe\\DxUi\\include\\DxUi\\DxUi.h",
+    "path": "raw/81f2d1e5ca1dadeccca412c0.receipt.txt",
+    "sha256": "81f2d1e5ca1dadeccca412c0a6229ab87d7f3c642dba7bc40a8c369a41900b70",
+    "size": 202028
+  },
+  {
+    "source": "C:\\Users\\eric\\.codex\\worktrees\\i26-menu-header-probe\\DxUi\\src\\Controls\\DxUi.Menu.cpp",
+    "path": "raw/521ff62e39481f0cfb064a7b.receipt.txt",
+    "sha256": "521ff62e39481f0cfb064a7b71bfef395f6176a1fcb9c3a8ba8de625c2c0ef9f",
+    "size": 271199
+  },
+  {
+    "source": "Z:\\src\\DxUi-worktrees\\i26-menu-description\\include\\DxUi\\DxUi.h",
+    "path": "raw/81f2d1e5ca1dadeccca412c0.receipt.txt",
+    "sha256": "81f2d1e5ca1dadeccca412c0a6229ab87d7f3c642dba7bc40a8c369a41900b70",
+    "size": 202028
+  },
+  {
+    "source": "Z:\\src\\DxUi-worktrees\\i26-menu-description\\src\\Controls\\DxUi.Menu.cpp",
+    "path": "raw/677fd034f45452c4f265a0ca.receipt.txt",
+    "sha256": "677fd034f45452c4f265a0cac3e4c8d3fbcac5e4498bfddd6461be964d9ce904",
+    "size": 272626
+  },
+  {
+    "source": "@derived\\A-H.patch",
+    "path": "raw/9cdc1ee7cfd98aec9a004654.receipt.txt",
+    "sha256": "9cdc1ee7cfd98aec9a0046543a5e44d38e92cca9c4dbf5fbf446f571bc8c135f",
+    "size": 366
+  },
+  {
+    "source": "@derived\\H-B.patch",
+    "path": "raw/ca5db561db11d73ee8196696.receipt.txt",
+    "sha256": "ca5db561db11d73ee8196696789e006e388de24f3dd49114cd706d564ee82158",
+    "size": 5888
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-closeout-20260927\\curate-menu-header-ablation-closeout-20260927.py",
+    "path": "raw/e0035c74ccd6efeb92f537b4.receipt.txt",
+    "sha256": "e0035c74ccd6efeb92f537b491b1d47ade248f0d7d64430aab69497e94cb23bf",
+    "size": 17840
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-header-ablation-closeout-20260927\\curate-root-reviewed.py",
+    "path": "raw/45510380a5e8ffdb964e56a2.receipt.txt",
+    "sha256": "45510380a5e8ffdb964e56a20c034e08c5f20152c0c04c09aa4f890e380cd5a8",
+    "size": 4804
+  }
+]

@@ -80,10 +80,15 @@ inline void WriteHeapDiagnostic(std::ostream& output)
 
 inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool retention = false, bool heapDiagnostic = false, bool paced = false)
 {
+    // Stage samples stay outside frame timing and help distinguish initialization,
+    // image encoding and retained rendering costs when process totals regress.
+    std::array<PROCESS_MEMORY_COUNTERS_EX, 6> memoryPhases{};
+    memoryPhases[0] = Memory();
     GraphicsFixture gpu;
     gpu.width  = 1280;
     gpu.height = 720;
     Hr(gpu.Create(), "benchmark WARP device");
+    memoryPhases[1] = Memory();
     ComplexUiScene scene;
     scene.model.multilineGrid = multilineGrid;
     if (multilineGrid)
@@ -96,7 +101,8 @@ inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool rete
         scene.grid->SetRowHeightDip(64.0f);
         scene.grid->SetLineClamp(2u);
     }
-    auto& view = scene.view;
+    memoryPhases[2] = Memory();
+    auto& view      = scene.view;
 
     D3D11_TEXTURE2D_DESC readDesc{};
     readDesc.Width = readDesc.Height = readDesc.MipLevels = readDesc.ArraySize = readDesc.SampleDesc.Count = 1;
@@ -122,8 +128,10 @@ inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool rete
         Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "benchmark warm composition");
         complete();
     }
+    memoryPhases[3] = Memory();
     // Capture once outside measurement; reviewable proof that the workload has populated controls.
     Hr(gpu.Save(multilineGrid ? L".build/test-artifacts/complex-ui-multiline-grid.png" : L".build/test-artifacts/complex-ui.png"), "complex UI screenshot");
+    memoryPhases[4] = Memory();
     std::ofstream output{std::filesystem::path(outputPath)};
     Check(bool(output), "benchmark output file");
     output << std::setprecision(10) << "{\"compiler\":" << _MSC_FULL_VER << ",\"fixture\":\""
@@ -250,7 +258,17 @@ inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool rete
     Check(view.Prepare(1280, 720) == S_FALSE, "hidden benchmark preparation skipped");
     Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "hidden benchmark composition skipped");
     Check(view.GetStatistics().preparations == hidden.preparations && view.GetStatistics().composites == hidden.composites, "hidden counters unchanged");
-    output << ",\"hiddenPreparations\":0,\"hiddenComposites\":0";
+    memoryPhases[5] = Memory();
+    output << ",\"hiddenPreparations\":0,\"hiddenComposites\":0,\"memoryPhases\":[";
+    constexpr std::array names{"entry", "device", "scene", "warm", "capture", "hidden"};
+    for (size_t index = 0; index < memoryPhases.size(); ++index)
+    {
+        if (index)
+            output << ',';
+        output << "{\"name\":\"" << names[index] << "\",\"privateBytes\":" << memoryPhases[index].PrivateUsage
+               << ",\"workingSetBytes\":" << memoryPhases[index].WorkingSetSize << '}';
+    }
+    output << ']';
     if (retention)
     {
         view.Controls().SetRoot(nullptr);

@@ -1,0 +1,70 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                    ⚡  DEBUG  /  X64  /  BUILD  ⚡                     │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Debug
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\i26-menu-description\.build\
+
+Compiling DxUi...
+
+  DxUi.Accessibility.cpp
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Debug\DxUi.lib
+  DxUiTests.Menu.cpp
+  EmbeddedTests.cpp
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Debug\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Debug\DxUi.EmbeddedTests.exe
+  DxUiTests.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-menu-description\.build\x64\Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:11
+Output: Z:\src\DxUi-worktrees\i26-menu-description\.build\
+Log: Z:\src\DxUi-worktrees\i26-menu-description\.build\logs\build-x64-Debug-716e78aa580c43d48f32740b072adafb.log
+========================================
+Complex UI clean round 1: 1961.03 completed offscreen FPS; p95 0.5977 ms; private 29134848 bytes
+Complex UI clean round 2: 2010.14 completed offscreen FPS; p95 0.6095 ms; private 28798976 bytes
+Complex UI clean round 3: 2242.2 completed offscreen FPS; p95 0.514 ms; private 29093888 bytes
+Complex UI clean round 4: 2387.76 completed offscreen FPS; p95 0.5019 ms; private 30507008 bytes
+Complex UI clean round 5: 2122.36 completed offscreen FPS; p95 0.5451 ms; private 30457856 bytes
+Complex UI dirty round 1: 351.604 completed offscreen FPS; p95 3.4121 ms; private 30601216 bytes
+Complex UI dirty round 2: 422.948 completed offscreen FPS; p95 2.7293 ms; private 30625792 bytes
+Complex UI dirty round 3: 388.964 completed offscreen FPS; p95 3.0771 ms; private 31485952 bytes
+Complex UI dirty round 4: 427.394 completed offscreen FPS; p95 2.6958 ms; private 32485376 bytes
+Complex UI dirty round 5: 432.508 completed offscreen FPS; p95 2.5916 ms; private 32448512 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-menu-description\.build\reports\Performance-x64-Debug-5a2a280b6f964cd8a7e002848b3bf28c.json
+Running NewControls (x64 Debug)
+PASS NewControls (0 capability skips recorded)
+Running Accessibility (x64 Debug)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 Debug)
+PASS WindowHost (0 capability skips recorded)
+All 3 requested suites passed.

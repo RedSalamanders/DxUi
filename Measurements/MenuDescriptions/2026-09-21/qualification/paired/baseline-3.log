@@ -1,0 +1,12 @@
+Complex UI clean round 1: 2288.25 completed offscreen FPS; p95 0.5965 ms; private 26112000 bytes
+Complex UI clean round 2: 2227.59 completed offscreen FPS; p95 0.61 ms; private 26058752 bytes
+Complex UI clean round 3: 2072.29 completed offscreen FPS; p95 0.6026 ms; private 26066944 bytes
+Complex UI clean round 4: 2277.72 completed offscreen FPS; p95 0.5221 ms; private 25976832 bytes
+Complex UI clean round 5: 2271.44 completed offscreen FPS; p95 0.6121 ms; private 25948160 bytes
+Complex UI dirty round 1: 545.75 completed offscreen FPS; p95 2.0557 ms; private 26669056 bytes
+Complex UI dirty round 2: 530.176 completed offscreen FPS; p95 2.0579 ms; private 26632192 bytes
+Complex UI dirty round 3: 549.626 completed offscreen FPS; p95 2.0295 ms; private 27766784 bytes
+Complex UI dirty round 4: 525.189 completed offscreen FPS; p95 2.2394 ms; private 27803648 bytes
+Complex UI dirty round 5: 486.435 completed offscreen FPS; p95 2.8465 ms; private 27783168 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-menu-baseline\.build\reports\menu-pair-3.json

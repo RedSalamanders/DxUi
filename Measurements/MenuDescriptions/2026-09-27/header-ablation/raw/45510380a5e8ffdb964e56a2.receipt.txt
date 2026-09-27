@@ -1,0 +1,69 @@
+from pathlib import Path
+import importlib.util, json, hashlib, difflib, datetime
+
+here = Path(__file__).resolve().parent
+draft = here / 'curate-menu-header-ablation-closeout-20260927.py'
+spec = importlib.util.spec_from_file_location('draft', draft)
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+
+original_validate = m.validate_runs
+def validate_runs():
+    reports, invocations = original_validate()
+    previous_end = None
+    for name in m.RUNS:
+        run = invocations[name]
+        built = m.read_json(m.V2 / name[0] / 'build-receipt.json')
+        for a, b in [('executableTextSectionSha256','executableTextSectionSha256'), ('executableSha256Before','executableSha256'), ('librarySha256Before','librarySha256')]:
+            assert run[a] == built[b], (name, a)
+        start = datetime.datetime.fromisoformat(run['startedUtc'])
+        end = datetime.datetime.fromisoformat(run['completedUtc'])
+        assert end >= start and (previous_end is None or start >= previous_end), name
+        previous_end = end
+        unpaired = m.V2 / (name + '.json.comparison.json')
+        assert m.sha(unpaired.read_bytes()) == run['unpairedComparisonSha256']
+        assert m.read_json(unpaired)['status'] == 'unpaired'
+    return reports, invocations
+m.validate_runs = validate_runs
+
+def copy_bytes(source, relative, raw_map, *, data=None):
+    payload = source.read_bytes() if data is None else data
+    leaf = Path(relative).name
+    relative = f'raw/reports/{leaf}' if leaf in m.REPORT_NAMES else f'raw/{m.sha(payload).lower()[:24]}.receipt.txt'
+    destination = m.OUT / relative
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    assert not destination.exists() or destination.read_bytes() == payload, relative
+    destination.write_bytes(payload)
+    raw_map.append({'source':str(source),'path':relative,'sha256':m.sha(payload).lower(),'size':len(payload)})
+m.copy_bytes = copy_bytes
+
+def capture_sources(raw_map, library_sets):
+    sources = {}
+    for variant, repo in [('A',m.A_REPO),('H',m.H_REPO),('B',m.B_REPO)]:
+        sources[variant] = {}
+        for rel in ['include/DxUi/DxUi.h','src/Controls/DxUi.Menu.cpp']:
+            payload = (repo / rel).read_bytes()
+            assert m.sha(payload) == library_sets[variant][rel], (variant,rel)
+            sources[variant][rel] = payload
+            copy_bytes(repo / rel, rel + '.source.txt', raw_map, data=payload)
+    for left, right, rel in [('A','H','include/DxUi/DxUi.h'),('H','B','src/Controls/DxUi.Menu.cpp')]:
+        patch = ''.join(difflib.unified_diff(sources[left][rel].decode('utf-8').splitlines(keepends=True), sources[right][rel].decode('utf-8').splitlines(keepends=True), fromfile=left+'/'+rel, tofile=right+'/'+rel))
+        copy_bytes(Path(f'@derived/{left}-{right}.patch'), 'patch.receipt.txt', raw_map, data=patch.encode('utf-8'))
+    copy_bytes(draft, draft.name, raw_map)
+    copy_bytes(Path(__file__), Path(__file__).name, raw_map)
+m.capture_sources = capture_sources
+
+m.write_packet()
+readme = m.OUT / 'README.md'
+text = readme.read_text(encoding='utf-8')
+old = 'H1→H2 has clean private bytes +5.496%, private peak +5.849%, working set +2.692%/peak +2.701%, and dirty compose CPU P95 +55.349%'
+new = 'H1→H2 has clean private bytes +2.833%, private peak +2.804%, and dirty compose CPU P95 +55.349%'
+assert old in text
+text = text.replace(old,new)
+text = text.replace('It does not qualify performance, waive advice, accept a regression, or change the baseline.', 'It does not establish non-regression or change the baseline. Lightweight review/file work and independent applications were not excluded; this is not an idle-only hard-budget result.')
+text = text.replace('Other JSON metadata is stored with `.receipt.txt` suffixes;', 'Other payloads use short content-addressed `.receipt.txt` names to bound Windows checkout paths; identical payloads are stored once and derived patches are explicitly labelled `@derived`;')
+text += '\nAfter reviewing the reported grid and menu costs, the user explicitly answered **"Accept the recorded timing tradeoffs"** on September 27. The owning performance contract records that limited acceptance separately from these unchanged raw comparator failures. Correctness, combined-build/resource, DPI and accessibility qualification remain required. This does not accept unbounded future regression or establish a new baseline.\n'
+readme.write_text(text,encoding='utf-8',newline='\n')
+payloads = sorted(p for p in m.OUT.rglob('*') if p.is_file() and p.name != 'SHA256SUMS')
+(m.OUT/'SHA256SUMS').write_text(''.join(f'{m.sha(p.read_bytes()).lower()}  {p.relative_to(m.OUT).as_posix()}\n' for p in payloads),encoding='ascii',newline='\n')
+print(json.dumps({'payloads':len(payloads),'bytes':sum(p.stat().st_size for p in payloads),'root_reviewed':True}))
