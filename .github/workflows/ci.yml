@@ -127,4 +127,6 @@ jobs:
             .build/paired/*/baseline/.build/logs/*.log
             .build/paired/*/candidate/.build/logs/*.log
             .build/logs/*.log
+          # Worktree build logs live under each worktree's .build directory.
+          include-hidden-files: true
           retention-days: 14

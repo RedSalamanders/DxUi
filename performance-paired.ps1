@@ -159,3 +159,5 @@ foreach ($result in $results) {
 Write-Host "Paired reports: $reports"
 $invalid = @($results | ForEach-Object { $_.comparisons } | Where-Object { $_.status -eq 'invalid-evidence' })
 if ($invalid.Count -gt 0) { throw "Invalid paired evidence: $(($invalid | ForEach-Object { $_.name }) -join ', ')" }
+# A flagged comparison leaves the comparator's exit code in $LASTEXITCODE; it is a finding, not a failure.
+exit 0
