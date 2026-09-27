@@ -1,0 +1,1118 @@
+[
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\logs\\build-ARM64-ASan Debug-1b8d3c3faff04e4b8ba49a5ff77cdee6.log",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/logs/build-ARM64-ASan Debug-1b8d3c3faff04e4b8ba49a5ff77cdee6.log",
+    "sha256": "13ac289a22bea80dff433fd9e0d6a3ba5c3b19f1c1c42c00483c102bedb6863c",
+    "bytes": 28193
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\logs\\test-Accessibility-ARM64-ASan Debug.log",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/logs/test-Accessibility-ARM64-ASan Debug.log",
+    "sha256": "8fd084f3da6a1f487034565101b4b6b7411586888b7cca494b40ca5b260c9956",
+    "bytes": 7461
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\logs\\test-AddressSanitizer-ARM64.log",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/logs/test-AddressSanitizer-ARM64.log",
+    "sha256": "31ba958a36a8491002ead8e006a4ad72efa906755a78fbf1d94343cdca2efe79",
+    "bytes": 5507
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\logs\\test-Embedded-ARM64-ASan Debug.log",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/logs/test-Embedded-ARM64-ASan Debug.log",
+    "sha256": "a200cc71676d57c884e5dddf756084107c4f8c144040d59ef77a426d55f96207",
+    "bytes": 98
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\logs\\test-Grid-ARM64-ASan Debug.log",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/logs/test-Grid-ARM64-ASan Debug.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "bytes": 181
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\logs\\test-Rendering-ARM64-ASan Debug.log",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/logs/test-Rendering-ARM64-ASan Debug.log",
+    "sha256": "def59093acc4b0157bb30dfa79bb1b3156dbfe27021ce60e10d9d51e5d854c28",
+    "bytes": 8240
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\Accessibility-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/Accessibility-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "b2a273545f733f8c7481b86363187ddd2f3a9282f6613d4a91f56b567f105631",
+    "bytes": 6332
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\AddressSanitizer-ARM64.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/AddressSanitizer-ARM64.json.receipt.txt",
+    "sha256": "df81ed018c39b05641db1a5f4412919dd1c576063846e3e991338a23fb940519",
+    "bytes": 469
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\Animation-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/Animation-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "1a0bd57f4dd327d89fc46581cc67938dd202ae00b6867e7c97196f3c91d0ba9b",
+    "bytes": 6328
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\ComboBox-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/ComboBox-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "6237083f931f487137b31a4d0c0a538c3597e108ccab54cba8013274f3b01e63",
+    "bytes": 6327
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\Control-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/Control-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "2a56035964a4a48d2f15d4841daa8fc77a6edae562999303346a3f01daa49ebe",
+    "bytes": 6326
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\Embedded-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/Embedded-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "83538a0a0c6413fb40aae5f61ab6a785da6fcef9f74e1c67512153ddf3d29831",
+    "bytes": 6328
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\ExternalConsumer-ARM64-ASan Debug-annotationsDisabledfalse.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/ExternalConsumer-ARM64-ASan Debug-annotationsDisabledfalse.json.receipt.txt",
+    "sha256": "12a5279e1fba1faf26c4d1e053a797c6e23365bc99b8468242d722e6bb81a83e",
+    "bytes": 1624
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\ExternalConsumer-ARM64-ASan Debug-annotationsDisabledtrue.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/ExternalConsumer-ARM64-ASan Debug-annotationsDisabledtrue.json.receipt.txt",
+    "sha256": "b543133c2d083b51b87931bdcafb9d9b4398aa486b874a284c90035aa3b104f6",
+    "bytes": 1622
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\Foundation-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/Foundation-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "b0c2327daa3f5767d7c6828687053c07d4c55b99f8dd547e5f089fea66471ed7",
+    "bytes": 6332
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\Grid-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/Grid-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "db523f2f8123e945d0386fe42bd80c1bf27ed0cd3e9cdc99bbca1dd2c9980600",
+    "bytes": 6323
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\Menu-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/Menu-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "9553ae1bb735a783070bf35fc684c583846eb33e2b3c5d6d1fc3be8de3b5c027",
+    "bytes": 7195
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\MenuExitLifetime-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/MenuExitLifetime-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "c8f19b360e888f65f3d7cf6381d5b3ecb01b88a8b6690255db3a8e895bc37181",
+    "bytes": 6335
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\MultilineText-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/MultilineText-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "b419f9307d8f4111c3f42d6a4de155e1af66d75640e02920f4f0d366be6fa683",
+    "bytes": 6332
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\NativeTextInput-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/NativeTextInput-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "8e0da567b9c9b9d4dac04e903ecddcaf2ee424a2f8fa44af04630895dcb75897",
+    "bytes": 6334
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\NewControls-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/NewControls-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "a6b58a3f95ecccc423f8b522a7433ba1dc11748fbb30a508dd04fdc75f9d6212",
+    "bytes": 6330
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\Performance-ARM64-ASan Debug-329de42144a94bf880b663889f99eb37.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/Performance-ARM64-ASan Debug-329de42144a94bf880b663889f99eb37.json.receipt.txt",
+    "sha256": "ce468036bb0bbd6717506d873de7981e2f3f10921e17d92983d7faebbb4039b5",
+    "bytes": 8095
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\Performance-ARM64-ASan Debug-329de42144a94bf880b663889f99eb37.json.comparison.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/Performance-ARM64-ASan Debug-329de42144a94bf880b663889f99eb37.json.comparison.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "bytes": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\ReadOnly-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/ReadOnly-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "edeaff2da89a19369c8d0ff297e2e7bd48eacf47227f1c8af85e623d96d87832",
+    "bytes": 6327
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\Rendering-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/Rendering-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "3bcf28f0ea81db985a1abe8b1e109d81d6e3ef2c3198b49fc9862b3c830da681",
+    "bytes": 6328
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\TextField-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/TextField-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "d8836e1c913737c785b7c9d5e4718a887c7be553f82e515506246813abf8a93f",
+    "bytes": 6328
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\Theme-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/Theme-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "5bf2fb0c3f347fb8b1bb79e140b43455322d5743c36e7cda507dbfd39c3172cf",
+    "bytes": 6324
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\Tooltip-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/Tooltip-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "30fbc652dbde76e3e4ca7813f3a36888d95e3b971cb85e0b31e3083e4410544a",
+    "bytes": 6326
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\Tree-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/Tree-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "92e64ec6abc937d2962193383b9c27156268c596ce1210045292932dce37ec53",
+    "bytes": 6323
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-ASan Debug\\reports\\WindowHost-ARM64-ASan Debug.json",
+    "path": "raw/artifacts/native-ARM64-ASan Debug/reports/WindowHost-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "49feead7507b8e96bee708cd0f0a39b673cab046862fa83eb809de21f4618bd9",
+    "bytes": 6329
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\logs\\build-ARM64-Debug-02d912fdb20d4a19879d79cb9e4dff4e.log",
+    "path": "raw/artifacts/native-ARM64-Debug/logs/build-ARM64-Debug-02d912fdb20d4a19879d79cb9e4dff4e.log",
+    "sha256": "d28029774816557bc505d01533cca11d024ef5cfd4a529b5836ae18065aaaae2",
+    "bytes": 27037
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\logs\\test-Accessibility-ARM64-Debug.log",
+    "path": "raw/artifacts/native-ARM64-Debug/logs/test-Accessibility-ARM64-Debug.log",
+    "sha256": "fab320364cf2512d665ebab31f13ece14d69cafe102f4f9b5b925ddb2bb0a6c1",
+    "bytes": 7461
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\logs\\test-Embedded-ARM64-Debug.log",
+    "path": "raw/artifacts/native-ARM64-Debug/logs/test-Embedded-ARM64-Debug.log",
+    "sha256": "28c4a3502d9e185ce0e9d91fd4a17630696ae0d6490a1f4696ee4c8d41ebf28b",
+    "bytes": 97
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\logs\\test-Grid-ARM64-Debug.log",
+    "path": "raw/artifacts/native-ARM64-Debug/logs/test-Grid-ARM64-Debug.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "bytes": 181
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\logs\\test-Rendering-ARM64-Debug.log",
+    "path": "raw/artifacts/native-ARM64-Debug/logs/test-Rendering-ARM64-Debug.log",
+    "sha256": "7ca095802c66fcaee4fc1ad1174fe299418e3c51e1b18593618e90125a227cde",
+    "bytes": 8240
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\Accessibility-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/Accessibility-ARM64-Debug.json.receipt.txt",
+    "sha256": "cc539091fcf49a3f55c15a181e2f722fd7edd526acbffb74d225ef65255b16e3",
+    "bytes": 6237
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\Animation-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/Animation-ARM64-Debug.json.receipt.txt",
+    "sha256": "27feec96c791034972baea4827daedca45a927be4555a75212326efa832b4057",
+    "bytes": 6233
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\ComboBox-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/ComboBox-ARM64-Debug.json.receipt.txt",
+    "sha256": "dc0823a254338f1ffb1cbb670593d1958ce53b5cd2348acd030dfa131118875d",
+    "bytes": 6232
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\Control-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/Control-ARM64-Debug.json.receipt.txt",
+    "sha256": "4cd54ca7dacc1e3b648b2eb3d2775b590b03a8ddae9ab8d944f996d923d7f7bf",
+    "bytes": 6231
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\Embedded-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/Embedded-ARM64-Debug.json.receipt.txt",
+    "sha256": "219a785af82c55ac16654a77f2df5180008dd2e7422b501819f660800a1d5002",
+    "bytes": 6233
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\ExternalConsumer-ARM64-Debug-annotationsDisabledfalse.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/ExternalConsumer-ARM64-Debug-annotationsDisabledfalse.json.receipt.txt",
+    "sha256": "d510965c76c5b79d591a57bc5a5d9f227a24705afa9cc822e287ebeac3091120",
+    "bytes": 1619
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\Foundation-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/Foundation-ARM64-Debug.json.receipt.txt",
+    "sha256": "46840428c177979150fbd612d50a24900b368db58c735d9321d4b07ee388c910",
+    "bytes": 6237
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\Grid-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/Grid-ARM64-Debug.json.receipt.txt",
+    "sha256": "bd4738e3d6dca7c666f1ea6820b8a71655d6b6479452b4a0428915ae7887dce6",
+    "bytes": 6228
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\Menu-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/Menu-ARM64-Debug.json.receipt.txt",
+    "sha256": "459d33a937a0e2ce89dd9b264fb845b9738ab5e1185ef9da8a7368b00d90b8c3",
+    "bytes": 7100
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\MenuExitLifetime-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/MenuExitLifetime-ARM64-Debug.json.receipt.txt",
+    "sha256": "542846f49541b05026c4a2ea389a339f04d95cd642f7dc89ab2efc9d01e466d9",
+    "bytes": 6240
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\MultilineText-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/MultilineText-ARM64-Debug.json.receipt.txt",
+    "sha256": "da3c73c22b6b69e1a69fea169a9bb462146abd3c1a57fffa76eb402b6411dcdf",
+    "bytes": 6237
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\NativeTextInput-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/NativeTextInput-ARM64-Debug.json.receipt.txt",
+    "sha256": "9d46d525c4d21ca685447aca5f76e14d38c65d32ee5ec267615e253e6e0f00ee",
+    "bytes": 6239
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\NewControls-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/NewControls-ARM64-Debug.json.receipt.txt",
+    "sha256": "6aadf9eb8b922e56e5374ccc02bc46c0ae1542f7a39f82c2efda9606f3d1def9",
+    "bytes": 6235
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\Performance-ARM64-Debug-0a60185c27a54414b162bc2bc0ff8642.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/Performance-ARM64-Debug-0a60185c27a54414b162bc2bc0ff8642.json.receipt.txt",
+    "sha256": "3d17fce481d9ecf1b608f08ee6edbd1d9c8a8a66936e2f65f312c58f3a5997c1",
+    "bytes": 8003
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\Performance-ARM64-Debug-0a60185c27a54414b162bc2bc0ff8642.json.comparison.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/Performance-ARM64-Debug-0a60185c27a54414b162bc2bc0ff8642.json.comparison.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "bytes": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\ReadOnly-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/ReadOnly-ARM64-Debug.json.receipt.txt",
+    "sha256": "3d510abeab34924f3ae8b9ca8f2ae79924d06d152a16a2d4fdcc1ac8142546a5",
+    "bytes": 6232
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\Rendering-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/Rendering-ARM64-Debug.json.receipt.txt",
+    "sha256": "d6db62d79016f765ac43c9d31da0cb1bed89cf2027f5aa83cbd052647ddfc3e3",
+    "bytes": 6233
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\TextField-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/TextField-ARM64-Debug.json.receipt.txt",
+    "sha256": "a1c63c2c478a11619f05acdde501c46fce8b2409e44c3c769af2aa6d59fc4bb7",
+    "bytes": 6233
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\Theme-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/Theme-ARM64-Debug.json.receipt.txt",
+    "sha256": "8039a9b6deb147f86c63126e5f2e84de68d002d517c867db760b2302b610e9f2",
+    "bytes": 6229
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\Tooltip-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/Tooltip-ARM64-Debug.json.receipt.txt",
+    "sha256": "ba78a536a6a8b8bdab249e3769ee41fceb81e4189536110171cba2b2ffae3fe9",
+    "bytes": 6231
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\Tree-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/Tree-ARM64-Debug.json.receipt.txt",
+    "sha256": "d993f4b5ad2ea50b7ed73c7eb90a44939a95f069c959c7de78d5db64c29ec74f",
+    "bytes": 6228
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Debug\\reports\\WindowHost-ARM64-Debug.json",
+    "path": "raw/artifacts/native-ARM64-Debug/reports/WindowHost-ARM64-Debug.json.receipt.txt",
+    "sha256": "9e944fffcd4118ab4ea2997ee977a0c824b2f8d80ad1aca0a566cb308b9299a5",
+    "bytes": 6234
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\logs\\build-ARM64-Release-b055e42b4175437482729405694569b8.log",
+    "path": "raw/artifacts/native-ARM64-Release/logs/build-ARM64-Release-b055e42b4175437482729405694569b8.log",
+    "sha256": "7d35eafa7ec80da4018d02032bb2769af37cb48524d7609363fe0135f10615d8",
+    "bytes": 26716
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\logs\\test-Accessibility-ARM64-Release.log",
+    "path": "raw/artifacts/native-ARM64-Release/logs/test-Accessibility-ARM64-Release.log",
+    "sha256": "1292869f1b5f65408e7d7172d61b07790e17c576de67c9e9566fc2d3995c77c8",
+    "bytes": 7461
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\logs\\test-Embedded-ARM64-Release.log",
+    "path": "raw/artifacts/native-ARM64-Release/logs/test-Embedded-ARM64-Release.log",
+    "sha256": "6b07c2e659bd115efb54ee267bd1be5a4ee9152d6fd93dc0e42623e49a0f3043",
+    "bytes": 96
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\logs\\test-Grid-ARM64-Release.log",
+    "path": "raw/artifacts/native-ARM64-Release/logs/test-Grid-ARM64-Release.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "bytes": 181
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\logs\\test-Rendering-ARM64-Release.log",
+    "path": "raw/artifacts/native-ARM64-Release/logs/test-Rendering-ARM64-Release.log",
+    "sha256": "22480097be95c1d0dbd6cf18183b45eff1c64fc533727cdb942264276dceae71",
+    "bytes": 8240
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\Accessibility-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/Accessibility-ARM64-Release.json.receipt.txt",
+    "sha256": "e8a3f2cb413b89733fa58b4f6a3bf358ca6bea063f8f72071d8f0f56803495f6",
+    "bytes": 6233
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\Animation-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/Animation-ARM64-Release.json.receipt.txt",
+    "sha256": "43655539061320bf9d7f68e5df3d624c08c446dfb0996b46acfc718cfd685bcc",
+    "bytes": 6229
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\ComboBox-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/ComboBox-ARM64-Release.json.receipt.txt",
+    "sha256": "227fbddd82f9227d54805de76c2f13928ee040c365e8aa147dfe48fcbd680849",
+    "bytes": 6228
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\Control-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/Control-ARM64-Release.json.receipt.txt",
+    "sha256": "aab35b498c40c1f70552cf31b419637d750b0c9524b47debba5eafaec48778e3",
+    "bytes": 6227
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\Embedded-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/Embedded-ARM64-Release.json.receipt.txt",
+    "sha256": "f05c8230f6787696252cdb3c7b2b643ca95bb67e207292871ef828642ad0c85f",
+    "bytes": 6229
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\ExternalConsumer-ARM64-Release-annotationsDisabledfalse.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/ExternalConsumer-ARM64-Release-annotationsDisabledfalse.json.receipt.txt",
+    "sha256": "a67519f98adfa8974ea722aa81b71406f9ef45b74cbeea6e8301e43bf4e14057",
+    "bytes": 1621
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\Foundation-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/Foundation-ARM64-Release.json.receipt.txt",
+    "sha256": "3d90a50a7550486026d0f9c8a6084cb647b8e24955453416d34e634f43549391",
+    "bytes": 6233
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\Grid-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/Grid-ARM64-Release.json.receipt.txt",
+    "sha256": "f3ab8bd02f422c413e8b86c5083ba5d507225e4b8d68f2a88960daec5f57d7d2",
+    "bytes": 6224
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\Menu-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/Menu-ARM64-Release.json.receipt.txt",
+    "sha256": "9f2351ac19a87e937caca8b088ee522ced8b5e44aa4c343d8b20773e672aecc3",
+    "bytes": 7096
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\MenuExitLifetime-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/MenuExitLifetime-ARM64-Release.json.receipt.txt",
+    "sha256": "9d1574a14f1e203b3dbfa63180ecc65f07ba0d94dcd6b2ae2fb61a00bef42c72",
+    "bytes": 6236
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\MultilineText-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/MultilineText-ARM64-Release.json.receipt.txt",
+    "sha256": "418c90fcabc7a0192a1cda40c4f2e0f0d7744e987df4aff3953b878abfc85fc6",
+    "bytes": 6233
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\NativeTextInput-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/NativeTextInput-ARM64-Release.json.receipt.txt",
+    "sha256": "214ef6dc473730b78442e28580df8a07ee4723dcddbf32c70661064b63d1b8d6",
+    "bytes": 6235
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\NewControls-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/NewControls-ARM64-Release.json.receipt.txt",
+    "sha256": "2e83aa7c359e6cc9cb4750a7e29b87c43030693afdf67e6d14df6142d7372141",
+    "bytes": 6231
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\Performance-ARM64-Release-84e5ba524c46492eb57a37deed71b354.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/Performance-ARM64-Release-84e5ba524c46492eb57a37deed71b354.json.receipt.txt",
+    "sha256": "391467fad3eff6a40e3adbe80ab8c50e624849b5442b8faae38c2b9beae527f8",
+    "bytes": 7993
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\Performance-ARM64-Release-84e5ba524c46492eb57a37deed71b354.json.comparison.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/Performance-ARM64-Release-84e5ba524c46492eb57a37deed71b354.json.comparison.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "bytes": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\ReadOnly-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/ReadOnly-ARM64-Release.json.receipt.txt",
+    "sha256": "75c0084a4c66cdfbf6dadf07a14372bd718cfd2edbab470da42f07d7fadadbc7",
+    "bytes": 6228
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\Rendering-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/Rendering-ARM64-Release.json.receipt.txt",
+    "sha256": "a60943b91ed30f78d7bcc2ccec5fbacf34e32e773cf1d01618b7c1f92798ed96",
+    "bytes": 6229
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\TextField-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/TextField-ARM64-Release.json.receipt.txt",
+    "sha256": "d5351d670376bd18510a188f86b948f9e0c4a735965acdad44db18cf0f2caa52",
+    "bytes": 6229
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\Theme-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/Theme-ARM64-Release.json.receipt.txt",
+    "sha256": "24e46ac14c410c13fb96e01e875c09aee23bba14c80ad0bb1f099e66dbf22e02",
+    "bytes": 6225
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\Tooltip-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/Tooltip-ARM64-Release.json.receipt.txt",
+    "sha256": "8858ebda220d17d107c4c7d1deafb39c1565dc0563794472e689fdf0ccdbdf11",
+    "bytes": 6227
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\Tree-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/Tree-ARM64-Release.json.receipt.txt",
+    "sha256": "54a50788e7cd59f2d0b3d4c16f7e0da7274eae3917afb6e7f8584dad4d789a33",
+    "bytes": 6224
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-ARM64-Release\\reports\\WindowHost-ARM64-Release.json",
+    "path": "raw/artifacts/native-ARM64-Release/reports/WindowHost-ARM64-Release.json.receipt.txt",
+    "sha256": "fb45401c01ba3ab1702fcfa48ae5ecc6748efb1d6d2f89c9e38e616d2228d652",
+    "bytes": 6230
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\logs\\build-x64-ASan Debug-f6b10da40f7b4a0a8c4a414f1a7f2892.log",
+    "path": "raw/artifacts/native-x64-ASan Debug/logs/build-x64-ASan Debug-f6b10da40f7b4a0a8c4a414f1a7f2892.log",
+    "sha256": "b2444f556a2d7533022529183f32aca09b539cfb99e7c8fb78dfed5026c39c9a",
+    "bytes": 27204
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\logs\\test-Accessibility-x64-ASan Debug.log",
+    "path": "raw/artifacts/native-x64-ASan Debug/logs/test-Accessibility-x64-ASan Debug.log",
+    "sha256": "60eb10919aca2b8d166b09ddaf75d886b5e362584afa64e8a181e0992af8df7c",
+    "bytes": 7461
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\logs\\test-AddressSanitizer-x64.log",
+    "path": "raw/artifacts/native-x64-ASan Debug/logs/test-AddressSanitizer-x64.log",
+    "sha256": "8aedd592f30a5e47d4cd22daa9ce6eaa4a147cf6d60b26e43b7a5364c20305cb",
+    "bytes": 5507
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\logs\\test-Embedded-x64-ASan Debug.log",
+    "path": "raw/artifacts/native-x64-ASan Debug/logs/test-Embedded-x64-ASan Debug.log",
+    "sha256": "f2a93124e5e861fe711ae9a10e6c6e2b4aa340feffe8801c54aaa80fc8cf56aa",
+    "bytes": 97
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\logs\\test-Grid-x64-ASan Debug.log",
+    "path": "raw/artifacts/native-x64-ASan Debug/logs/test-Grid-x64-ASan Debug.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "bytes": 181
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\logs\\test-Rendering-x64-ASan Debug.log",
+    "path": "raw/artifacts/native-x64-ASan Debug/logs/test-Rendering-x64-ASan Debug.log",
+    "sha256": "faa61a5b05bf16ffaa0e58d5f147fecbe0f1741e4f81bb664ff5b64d75357274",
+    "bytes": 8240
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\Accessibility-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/Accessibility-x64-ASan Debug.json.receipt.txt",
+    "sha256": "8df07fac1c3e5692ddc1ee7e74976f4823c1eb39091991c0b619ba11e8da19e2",
+    "bytes": 6327
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\AddressSanitizer-x64.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/AddressSanitizer-x64.json.receipt.txt",
+    "sha256": "27da2c9d476ee1c4246fc08c42c3825adab32bcbf73fc4eae026a0e45402aae0",
+    "bytes": 461
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\Animation-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/Animation-x64-ASan Debug.json.receipt.txt",
+    "sha256": "d23652572d47c667e27db85345fb826a65fdf3e42ca059eeb395e84b4858d6b8",
+    "bytes": 6323
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\ComboBox-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/ComboBox-x64-ASan Debug.json.receipt.txt",
+    "sha256": "c1fa43d806654039b1e02c14bb63dfb0fe5199b486eaa95fce57169dab4f3f48",
+    "bytes": 6322
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\Control-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/Control-x64-ASan Debug.json.receipt.txt",
+    "sha256": "c19ff99549ad14c1931a381c03fc1eab6c27af888e9de452cb09c56e42a96842",
+    "bytes": 6321
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\Embedded-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/Embedded-x64-ASan Debug.json.receipt.txt",
+    "sha256": "d944e4942e300fcfd1b764b207af75816e9c8f9bd71eea3fbcd28e8f7a49ffa2",
+    "bytes": 6323
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\ExternalConsumer-x64-ASan Debug-annotationsDisabledfalse.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/ExternalConsumer-x64-ASan Debug-annotationsDisabledfalse.json.receipt.txt",
+    "sha256": "c7a1850b84fa73c9ccd9846818ee7f16a288d535aad58a29a872c7b97beebc25",
+    "bytes": 1618
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\ExternalConsumer-x64-ASan Debug-annotationsDisabledtrue.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/ExternalConsumer-x64-ASan Debug-annotationsDisabledtrue.json.receipt.txt",
+    "sha256": "734b88362c3b99976cefb9d01fb1c0905c4acf74eabbdf396902ac34640a649e",
+    "bytes": 1616
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\Foundation-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/Foundation-x64-ASan Debug.json.receipt.txt",
+    "sha256": "237f557dc72a4888c721f17a046002b4f8cc2377208b3671dbe64081cc1c7ab6",
+    "bytes": 6327
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\Grid-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/Grid-x64-ASan Debug.json.receipt.txt",
+    "sha256": "ab34b96f01964b9c0846956f57bbe8785945ed1d91ecf6e93c6efa639d4f537d",
+    "bytes": 6318
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\Menu-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/Menu-x64-ASan Debug.json.receipt.txt",
+    "sha256": "480245e9e19eada5aae179c9bb41728d84b850bdfd7055027b49278321bd04d3",
+    "bytes": 6318
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\MenuExitLifetime-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/MenuExitLifetime-x64-ASan Debug.json.receipt.txt",
+    "sha256": "8d439fb044bb02575b793769964f37582bf59a5ba675f1e72e443895fb316f21",
+    "bytes": 6330
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\MultilineText-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/MultilineText-x64-ASan Debug.json.receipt.txt",
+    "sha256": "5bc2d624dc350880bffda6193846802ba3660d35d22397135de1f9ac49c56142",
+    "bytes": 6327
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\NativeTextInput-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/NativeTextInput-x64-ASan Debug.json.receipt.txt",
+    "sha256": "cff96760f277dc214a5b6b9164c81889d9e062a4a94f0d0eb03c78732aaad65f",
+    "bytes": 6329
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\NewControls-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/NewControls-x64-ASan Debug.json.receipt.txt",
+    "sha256": "1ed64566372a6fcee3f05f5a3e144ff52dc4f58a196e525dc68901a455ab0075",
+    "bytes": 6325
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\Performance-x64-ASan Debug-c3fdba40a1e240f08459e81287b337c8.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/Performance-x64-ASan Debug-c3fdba40a1e240f08459e81287b337c8.json.receipt.txt",
+    "sha256": "32ecabd156b2730d7d6cbd65d015846a0eb6e64ad8589467dd5bb0e5aeeae24d",
+    "bytes": 8117
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\Performance-x64-ASan Debug-c3fdba40a1e240f08459e81287b337c8.json.comparison.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/Performance-x64-ASan Debug-c3fdba40a1e240f08459e81287b337c8.json.comparison.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "bytes": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\ReadOnly-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/ReadOnly-x64-ASan Debug.json.receipt.txt",
+    "sha256": "a1056c64fd183759e1628b22c96912d3029351ea78ae4d335e22f1368683bf38",
+    "bytes": 6322
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\Rendering-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/Rendering-x64-ASan Debug.json.receipt.txt",
+    "sha256": "06f57c9bd236dc8c97e56422e42522c8a284fda3137e3cb40ba6161ea387c956",
+    "bytes": 6323
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\TextField-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/TextField-x64-ASan Debug.json.receipt.txt",
+    "sha256": "161c2537eb5fb9128da33ff92e29ca3750c80ffb4d23c5bd5a133e7fe4999ae6",
+    "bytes": 6323
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\Theme-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/Theme-x64-ASan Debug.json.receipt.txt",
+    "sha256": "4ee73b69b027026310c08c2ae2dc6b5ba4817ad9eb664a19164687ee5630333c",
+    "bytes": 6319
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\Tooltip-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/Tooltip-x64-ASan Debug.json.receipt.txt",
+    "sha256": "0f1abb404ba3d25c550a2f0407de00698aeeb8b5ff06f15f49ed8304591f5431",
+    "bytes": 6321
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\Tree-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/Tree-x64-ASan Debug.json.receipt.txt",
+    "sha256": "6381396b81a14b77d6fd77ff1325b4d9177ea9d89e3634b0f41b98b4d4a9f609",
+    "bytes": 6318
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-ASan Debug\\reports\\WindowHost-x64-ASan Debug.json",
+    "path": "raw/artifacts/native-x64-ASan Debug/reports/WindowHost-x64-ASan Debug.json.receipt.txt",
+    "sha256": "52a5d611c617dea6e5a50e3314532a0856cd35735098caf94c6d681ee1731e4a",
+    "bytes": 6324
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\logs\\build-x64-Debug-0c70fe857e1e42d38cfe4d3c7f85e8da.log",
+    "path": "raw/artifacts/native-x64-Debug/logs/build-x64-Debug-0c70fe857e1e42d38cfe4d3c7f85e8da.log",
+    "sha256": "208514063b5bea8b2e6485ace32e7e2043b84a7e7213b27ec6e0db6756685ae3",
+    "bytes": 26344
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\logs\\test-Accessibility-x64-Debug.log",
+    "path": "raw/artifacts/native-x64-Debug/logs/test-Accessibility-x64-Debug.log",
+    "sha256": "41f9d0a8a7666a82c54d28a30ff3c4f648b2ed7aa65a5aa5a99d0c3b1e3512f2",
+    "bytes": 7460
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\logs\\test-Embedded-x64-Debug.log",
+    "path": "raw/artifacts/native-x64-Debug/logs/test-Embedded-x64-Debug.log",
+    "sha256": "d10832736dbb070ffc6d2bea1eda152894bd9a7119ed2e7c8ead2d8c81b82804",
+    "bytes": 97
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\logs\\test-Grid-x64-Debug.log",
+    "path": "raw/artifacts/native-x64-Debug/logs/test-Grid-x64-Debug.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "bytes": 181
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\logs\\test-Rendering-x64-Debug.log",
+    "path": "raw/artifacts/native-x64-Debug/logs/test-Rendering-x64-Debug.log",
+    "sha256": "bbb17e3b3455548fceca2e15723fe191109c9b27130f44ac78863518b98c3896",
+    "bytes": 8240
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\Accessibility-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/Accessibility-x64-Debug.json.receipt.txt",
+    "sha256": "79e620cf480eb06d8012202cd8505e82953798f9132e27d34e72255571c0be1a",
+    "bytes": 6235
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\Animation-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/Animation-x64-Debug.json.receipt.txt",
+    "sha256": "1d78bf3e14296277dfd2bf38dac45c740f27b982fcfccb2b70f42e69a7e1f246",
+    "bytes": 6231
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\ComboBox-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/ComboBox-x64-Debug.json.receipt.txt",
+    "sha256": "613b75edcb0ea926f87a77e9d355586f1014681d7c6a265e68de3b730a34fa0e",
+    "bytes": 6230
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\Control-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/Control-x64-Debug.json.receipt.txt",
+    "sha256": "da5d1d939a3ab14c3998ccd2f66c34ffde385a73a6f702f66bb00e72a5da55af",
+    "bytes": 6229
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\Embedded-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/Embedded-x64-Debug.json.receipt.txt",
+    "sha256": "3c557e3f86d6ef73e44e953f15e82fbd9c1c0547d0ee2186b1627366b2ad8d44",
+    "bytes": 6231
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\ExternalConsumer-x64-Debug-annotationsDisabledfalse.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/ExternalConsumer-x64-Debug-annotationsDisabledfalse.json.receipt.txt",
+    "sha256": "dba1aedcb21a94959e4f079e3161c6602e3b139953623dc2cea6b1c0d0c7ae42",
+    "bytes": 1613
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\Foundation-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/Foundation-x64-Debug.json.receipt.txt",
+    "sha256": "a1c67eef1d3772be057a8ec09f1f4031be86f971805233011773eba26de77184",
+    "bytes": 6235
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\Grid-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/Grid-x64-Debug.json.receipt.txt",
+    "sha256": "f0fee14582f2d64dd2925441b7f82811dee0daf34bc5bd5cacb7fd157ab7760f",
+    "bytes": 6226
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\Menu-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/Menu-x64-Debug.json.receipt.txt",
+    "sha256": "1f12d154f72926d455d69c353daad1be2433a70c6c813e203f3501868bee1af5",
+    "bytes": 6226
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\MenuExitLifetime-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/MenuExitLifetime-x64-Debug.json.receipt.txt",
+    "sha256": "d3780caf7e57ff594c5905dce6d8d7ceabc5bd11345618f2bfae348d7678b78a",
+    "bytes": 6238
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\MultilineText-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/MultilineText-x64-Debug.json.receipt.txt",
+    "sha256": "fa573a937b2a2c6ed2143460035a7200f1ac81f5e993150f8a422c10df50bd81",
+    "bytes": 6235
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\NativeTextInput-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/NativeTextInput-x64-Debug.json.receipt.txt",
+    "sha256": "b17ffbc7aaeffa7149343f95dea80145ddc6d4f96bb148553248f91f2745e4f4",
+    "bytes": 6237
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\NewControls-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/NewControls-x64-Debug.json.receipt.txt",
+    "sha256": "2066519e8b402f8141959082c05118e6d8f0300a81794ca122cbc8488640dcb3",
+    "bytes": 6233
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\Performance-x64-Debug-fe4ff18cc02e43b8a5acc91adc08fb9d.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/Performance-x64-Debug-fe4ff18cc02e43b8a5acc91adc08fb9d.json.receipt.txt",
+    "sha256": "8ce532b1968bb4ef4dd45cbd1c914dd5fa3c5c8492757596d98a9bf037649222",
+    "bytes": 8027
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\Performance-x64-Debug-fe4ff18cc02e43b8a5acc91adc08fb9d.json.comparison.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/Performance-x64-Debug-fe4ff18cc02e43b8a5acc91adc08fb9d.json.comparison.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "bytes": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\ReadOnly-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/ReadOnly-x64-Debug.json.receipt.txt",
+    "sha256": "aadc27d7a9b8b07b3c1c03990f0dd37a0fa09d76aa231a1c99faa6f753c854ba",
+    "bytes": 6230
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\Rendering-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/Rendering-x64-Debug.json.receipt.txt",
+    "sha256": "8d6a31772b762f1a3dc68b99eaf9ca10855401f2b9252b8f66f25360554d2e04",
+    "bytes": 6231
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\TextField-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/TextField-x64-Debug.json.receipt.txt",
+    "sha256": "1a233761497bb999c60fde5cffd5d295bd484c039881757af82cb304970d2007",
+    "bytes": 6231
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\Theme-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/Theme-x64-Debug.json.receipt.txt",
+    "sha256": "d86451f9667b164342f1196f36afb8b8645d647c57fbc56cfbb19a59deb1b89e",
+    "bytes": 6227
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\Tooltip-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/Tooltip-x64-Debug.json.receipt.txt",
+    "sha256": "5516ee17638aebb8215c2bb3e60b8c94c24a9f7b4da0f4d126eaadcd2f77e1d9",
+    "bytes": 6229
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\Tree-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/Tree-x64-Debug.json.receipt.txt",
+    "sha256": "4a160250b34bbec8f0c130dd7bb0831352ecacc6f95fcbb812ef46f532eb7af6",
+    "bytes": 6226
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Debug\\reports\\WindowHost-x64-Debug.json",
+    "path": "raw/artifacts/native-x64-Debug/reports/WindowHost-x64-Debug.json.receipt.txt",
+    "sha256": "6bc336183a535415ebe1b44fb9804ac1a6be4bece94b6292498d6f618578ec6a",
+    "bytes": 6232
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\logs\\build-x64-Release-288d52e055c14a77a911bfbc40fb077a.log",
+    "path": "raw/artifacts/native-x64-Release/logs/build-x64-Release-288d52e055c14a77a911bfbc40fb077a.log",
+    "sha256": "1cc7171f01a0c7e12c22958a19b0d544447bddb7acbfbdca5964c12823e11d70",
+    "bytes": 26203
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\logs\\test-Accessibility-x64-Release.log",
+    "path": "raw/artifacts/native-x64-Release/logs/test-Accessibility-x64-Release.log",
+    "sha256": "aeea8eb3a968b74accfa23c48296ececef12abb46b1221dbbaa9e50cd3baefaf",
+    "bytes": 7460
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\logs\\test-Embedded-x64-Release.log",
+    "path": "raw/artifacts/native-x64-Release/logs/test-Embedded-x64-Release.log",
+    "sha256": "0ded84e94d2f0a07dc7e381adf1673ef4f15ba7fdd767417db6bd2775181d3c8",
+    "bytes": 97
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\logs\\test-Grid-x64-Release.log",
+    "path": "raw/artifacts/native-x64-Release/logs/test-Grid-x64-Release.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "bytes": 181
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\logs\\test-Rendering-x64-Release.log",
+    "path": "raw/artifacts/native-x64-Release/logs/test-Rendering-x64-Release.log",
+    "sha256": "9d35ae6380de67f2f055888819ae19d13e10a3c4df89d536d972d137c15b97ab",
+    "bytes": 8240
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Accessibility-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Accessibility-x64-Release.json.receipt.txt",
+    "sha256": "421c9f0b18edef08d47f94da1d2414ef00539c6f5af97ab793aaa1989c05cd2a",
+    "bytes": 6243
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Animation-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Animation-x64-Release.json.receipt.txt",
+    "sha256": "0b58367310f895d30998c3a00de5a4fe3e7dccac254851c0a505dfd5fe94198b",
+    "bytes": 6239
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\ComboBox-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/ComboBox-x64-Release.json.receipt.txt",
+    "sha256": "2ed340e276b0e2a6beaf863f65f720cd007737a467f3373ec3531c7d1b06e95c",
+    "bytes": 6238
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Control-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Control-x64-Release.json.receipt.txt",
+    "sha256": "cab057b291783ef44790a8de3474217ea212284b936892089748f2fd132472b4",
+    "bytes": 6237
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Embedded-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Embedded-x64-Release.json.receipt.txt",
+    "sha256": "9ff2340daa97e57d152a32777f5c075dbf7528513ec3f18942b73a3daee27b33",
+    "bytes": 6239
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\ExternalConsumer-x64-Release-annotationsDisabledfalse.json",
+    "path": "raw/artifacts/native-x64-Release/reports/ExternalConsumer-x64-Release-annotationsDisabledfalse.json.receipt.txt",
+    "sha256": "579b6a3bb0ee26246f4f62b9d8ffa1ce04c542beeb4df9815e9f4a2e9b64135c",
+    "bytes": 1615
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Foundation-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Foundation-x64-Release.json.receipt.txt",
+    "sha256": "f8470d2e60390129aa6e3f49fb80079ea37475b16ceb957447c138beb1f5f587",
+    "bytes": 6243
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Grid-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Grid-x64-Release.json.receipt.txt",
+    "sha256": "90b05837da03db0bea650f820065b4150ba6c8c353325197d3310a0384783b39",
+    "bytes": 6234
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Menu-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Menu-x64-Release.json.receipt.txt",
+    "sha256": "08dc65b4cc4252caa43900e5d31d4638d06385e4c3d4669ee2e0bf14c3b1abb1",
+    "bytes": 6234
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\MenuExitLifetime-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/MenuExitLifetime-x64-Release.json.receipt.txt",
+    "sha256": "50a1d96ee2d795a5e9595c06523c2d4468ea71ebf9a4677392486a35c8b9149d",
+    "bytes": 6246
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\MenuResourceScaling-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/MenuResourceScaling-x64-Release.json.receipt.txt",
+    "sha256": "b9f335cbff2b860386c0244d2fbe7e77b952dd2691d3e9b3455d97882d423448",
+    "bytes": 6245
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\MenuTextLayoutResources-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/MenuTextLayoutResources-x64-Release.json.receipt.txt",
+    "sha256": "a42a55b9a413c161229a6e1eeafd2e5e4983152b9c8f7a1bbf298928cf5880bd",
+    "bytes": 6249
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\MultilineText-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/MultilineText-x64-Release.json.receipt.txt",
+    "sha256": "7090e9e311dc3dc223f6ae21a93cbbd8ad1e9784c0f0130efc3be0c09d79e364",
+    "bytes": 6243
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\NativeTextInput-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/NativeTextInput-x64-Release.json.receipt.txt",
+    "sha256": "72bafb05f96f2896e098a671da7f003838cdeb89b4098ac713399b057fc3f556",
+    "bytes": 6245
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\NewControls-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/NewControls-x64-Release.json.receipt.txt",
+    "sha256": "1f32cb376689f4745da7953e46e8efcb2a225e91f1992739332c52895a883bd4",
+    "bytes": 6241
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Performance-x64-Release-02a2ebf7c4c94ba7aabc8eeece7bf693.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Performance-x64-Release-02a2ebf7c4c94ba7aabc8eeece7bf693.json.receipt.txt",
+    "sha256": "3293e0e075937d92ac66bd5a233c26039c91b51d7e9a2b4ac01dcfdcefa6af54",
+    "bytes": 8029
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Performance-x64-Release-02a2ebf7c4c94ba7aabc8eeece7bf693.json.comparison.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Performance-x64-Release-02a2ebf7c4c94ba7aabc8eeece7bf693.json.comparison.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "bytes": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Performance-x64-Release-d4ac03769d584093852ead5dd965d3fe.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Performance-x64-Release-d4ac03769d584093852ead5dd965d3fe.json.receipt.txt",
+    "sha256": "70c555449f6547b68a1150baf543c31259f23e3d46afc6f986222e41ca23b169",
+    "bytes": 8024
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Performance-x64-Release-d4ac03769d584093852ead5dd965d3fe.json.comparison.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Performance-x64-Release-d4ac03769d584093852ead5dd965d3fe.json.comparison.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "bytes": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\ReadOnly-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/ReadOnly-x64-Release.json.receipt.txt",
+    "sha256": "ae2678a11417e8fea558d8e1de77c1b32c867c9ac21e8d2af0502f93ec5b40db",
+    "bytes": 6238
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Rendering-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Rendering-x64-Release.json.receipt.txt",
+    "sha256": "10185afd4e261b60b8418246912100a7f7f8f3123b693f663083f4d947ea6250",
+    "bytes": 6239
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\TextField-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/TextField-x64-Release.json.receipt.txt",
+    "sha256": "58456607dd2a289c31192e235880f1da4b30693e0a3acddc9690d71f605a7a51",
+    "bytes": 6239
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Theme-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Theme-x64-Release.json.receipt.txt",
+    "sha256": "883aea62b80ea5c24cadadac8b34e15422c00f04797cb1d4fb4e82a3cad25560",
+    "bytes": 6235
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Tooltip-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Tooltip-x64-Release.json.receipt.txt",
+    "sha256": "0d7ec7169649bff9808f92a7472b288e5bb9cf06c9c44bd4c154d729b0f0c82e",
+    "bytes": 6237
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\Tree-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/Tree-x64-Release.json.receipt.txt",
+    "sha256": "4a01d3b9c8d345e1b35a15b24fd7325e7489d0c59ec6994228bcdc319e299be5",
+    "bytes": 6234
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts\\native-x64-Release\\reports\\WindowHost-x64-Release.json",
+    "path": "raw/artifacts/native-x64-Release/reports/WindowHost-x64-Release.json.receipt.txt",
+    "sha256": "7b6c974f68226e9003ae321e409e95b4d8400b06131d4a3196eb43676879cd64",
+    "bytes": 6240
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\artifacts.json",
+    "path": "raw/artifacts.json.receipt.txt",
+    "sha256": "edde7ea758e7c78f003dabc21f549d1e755f2a7193a22a59a633bf1ef0aefdee",
+    "bytes": 4283
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-36332676309\\run.json",
+    "path": "raw/run.json.receipt.txt",
+    "sha256": "3d2bce7f01920234ff6a21a8597ff957691378be8b198c740b82ecc93b81107f",
+    "bytes": 19909
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-ci-closeout-20260927\\audit-combined-ci-36332676309.py",
+    "path": "raw/audit-combined-ci-36332676309.py",
+    "sha256": "b73717a7dac70ca59f7d4767f377e2f8a7e85cd779a20f70e256d90609fa0bc8",
+    "bytes": 19772
+  },
+  {
+    "source": "git:36b2f4b49d42248790fa1a4ad6b6409ac56207dc:.github/workflows/ci.yml",
+    "path": "raw/source/.github/workflows/ci.yml.source.txt",
+    "sha256": "d29505976b561139b0ada7ed2eda88b1a8a761f00061fb5470a3c0677ec9279f",
+    "bytes": 3155
+  },
+  {
+    "source": "git:36b2f4b49d42248790fa1a4ad6b6409ac56207dc:include/DxUi/DxUi.h",
+    "path": "raw/source/include/DxUi/DxUi.h.source.txt",
+    "sha256": "dbe2197dc036ef2398ca9718c0ae0452a72dd67a09f42dc35d98b8d9cdb6054f",
+    "bytes": 199100
+  },
+  {
+    "source": "git:36b2f4b49d42248790fa1a4ad6b6409ac56207dc:include/DxUi/Diagnostics.h",
+    "path": "raw/source/include/DxUi/Diagnostics.h.source.txt",
+    "sha256": "b06896b136e000b20518830e0d1033335c3d4e9e5ed652f9dbeb8f6cca2578b9",
+    "bytes": 775
+  },
+  {
+    "source": "git:36b2f4b49d42248790fa1a4ad6b6409ac56207dc:include/DxUi/Embedded.h",
+    "path": "raw/source/include/DxUi/Embedded.h.source.txt",
+    "sha256": "8bc6500538fb343e5de357bb8cc10486251c3c689b7c29685bf951fbc05f4352",
+    "bytes": 7558
+  },
+  {
+    "source": "git:36b2f4b49d42248790fa1a4ad6b6409ac56207dc:src/Controls/DxUi.Menu.cpp",
+    "path": "raw/source/src/Controls/DxUi.Menu.cpp.source.txt",
+    "sha256": "8d47a068434d2bd17018af5c32afe0d06d05b1ef9d3ae1cd1ef542d08c9c9c1a",
+    "bytes": 266534
+  },
+  {
+    "source": "git:36b2f4b49d42248790fa1a4ad6b6409ac56207dc:src/Controls/DxUi.Grid.cpp",
+    "path": "raw/source/src/Controls/DxUi.Grid.cpp.source.txt",
+    "sha256": "ce0273e54680777b6059dfd29192f411dceb0cd1815f821dacc5332054ca57dd",
+    "bytes": 170194
+  },
+  {
+    "source": "git:36b2f4b49d42248790fa1a4ad6b6409ac56207dc:Tests/Controls/DxUiTests.Rendering.cpp",
+    "path": "raw/source/Tests/Controls/DxUiTests.Rendering.cpp.source.txt",
+    "sha256": "cc25df6d44a56b49c82e00c66dd92f2b9d9bcfc0c0c99b664948dd0a5e482663",
+    "bytes": 97061
+  },
+  {
+    "source": "git:36b2f4b49d42248790fa1a4ad6b6409ac56207dc:Tests/Controls/DxUiTests.Accessibility.cpp",
+    "path": "raw/source/Tests/Controls/DxUiTests.Accessibility.cpp.source.txt",
+    "sha256": "ab72cae742fbb1925f104705345351fc51bad8ac94199037240b499d0ecfc861",
+    "bytes": 297500
+  },
+  {
+    "source": "git:36b2f4b49d42248790fa1a4ad6b6409ac56207dc:Tests/Controls/DxUiTests.Menu.cpp",
+    "path": "raw/source/Tests/Controls/DxUiTests.Menu.cpp.source.txt",
+    "sha256": "1c2b5631750edf9ce136a6a88b25888a8497e794412565b3925459fa83c4a180",
+    "bytes": 290000
+  },
+  {
+    "source": "git:36b2f4b49d42248790fa1a4ad6b6409ac56207dc:Tests/Controls/DxUiTests.MenuResources.h",
+    "path": "raw/source/Tests/Controls/DxUiTests.MenuResources.h.source.txt",
+    "sha256": "bbc4f5886daeca1d873b30c51b5acbc5702784dcfe79349e1dcbf0482e4ada23",
+    "bytes": 16763
+  },
+  {
+    "source": "git:36b2f4b49d42248790fa1a4ad6b6409ac56207dc:Tests/Controls/DxUiTests.cpp",
+    "path": "raw/source/Tests/Controls/DxUiTests.cpp.source.txt",
+    "sha256": "521d1132fd0275c3b13796dedf2446bce75c74a42965c54548976f2a016c10a6",
+    "bytes": 11711
+  }
+]

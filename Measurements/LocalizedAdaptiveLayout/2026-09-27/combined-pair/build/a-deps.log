@@ -1,0 +1,35 @@
+Installing DxUi dependencies (x64-windows)
+Detecting compiler hash for triplet x64-windows...
+Compiler found: C:/Program Files/Microsoft Visual Studio/18/Insiders/VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/cl.exe
+The following packages will be rebuilt:
+  * vcpkg-cmake:x64-windows@2024-04-23
+  * vcpkg-cmake-config:x64-windows@2026-07-21
+    wil:x64-windows@1.0.260126.7
+Additional packages (*) will be modified to complete this operation.
+Restored 3 package(s) from C:\Users\eric\AppData\Local\vcpkg\archives in 35 ms. Use --debug to see more details.
+Removing 1/6 wil:x64-windows
+Elapsed time to handle wil:x64-windows: 5.21 ms
+Removing 2/6 vcpkg-cmake:x64-windows
+Elapsed time to handle vcpkg-cmake:x64-windows: 1 ms
+Removing 3/6 vcpkg-cmake-config:x64-windows
+Elapsed time to handle vcpkg-cmake-config:x64-windows: 1.04 ms
+Installing 4/6 vcpkg-cmake-config:x64-windows@2026-07-21...
+vcpkg-cmake-config:x64-windows@2026-07-21 package ABI: 2308621bd98f7b115fbd8d9b8627acaf6a30aadd5a58426d9d2bfe92e6412ce3
+Elapsed time to handle vcpkg-cmake-config:x64-windows: 1.59 ms
+Installing 5/6 vcpkg-cmake:x64-windows@2024-04-23...
+vcpkg-cmake:x64-windows@2024-04-23 package ABI: ae7ffca35a543a0721da37609b1ea111789e562f68d930471baa1a66388e98ae
+Elapsed time to handle vcpkg-cmake:x64-windows: 1.83 ms
+Installing 6/6 wil:x64-windows@1.0.260126.7...
+wil:x64-windows@1.0.260126.7 package ABI: 6dd6ec42cef974d8dc35191a4403b31957ab787000bdb3e5fe072d4e1a6c4f42
+Elapsed time to handle wil:x64-windows: 5.77 ms
+Installed contents are licensed to you by owners. Microsoft is not responsible for, nor does it grant any licenses to, third-party packages.
+Packages installed in this vcpkg installation declare the following licenses:
+MIT
+wil provides CMake targets:
+
+  # this is heuristically generated, and may not be correct
+  find_package(wil CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE WIL::WIL)
+
+All requested installations completed successfully in: 17.4 ms
+vcpkg dependencies are ready.

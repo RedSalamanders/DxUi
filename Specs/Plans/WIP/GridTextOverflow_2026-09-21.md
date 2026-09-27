@@ -21,6 +21,13 @@ Root combines grid `047414e` and menu `0f35bab` in the existing managed checkout
 Native combined correctness/resource qualification and explicit RedSalamander pin adoption
 remain required. Component receipts alone do not qualify the combined source.
 
+The [combined September 27 packet](../../../Measurements/LocalizedAdaptiveLayout/2026-09-27/README.md)
+now retains six successful native CI profiles at `36b2f4b`, relocated consumers, regenerated
+gallery and the eight-run matched comparison. All twelve original comparison flags remain,
+including noisy same-variant controls; the accepted Grid cost is not silently rebaselined.
+RedSalamander is testing that exact pin in a separate candidate checkout while preserving
+its runnable old-pin baseline. Adoption and final product/resource checks are not yet complete.
+
 ## September 27 cache-bound witness qualification
 
 Root checked a Luna audit and found that the existing mutation/pixel test resets its one-cell

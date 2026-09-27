@@ -1,0 +1,135 @@
+{
+  "createdUtc": "2026-09-27T16:47:35.4429839Z",
+  "AHead": "c52a8f5bfd16ffbc6f786fa31b55b919612a3060",
+  "BHead": "36b2f4b49d42248790fa1a4ad6b6409ac56207dc",
+  "sourceFingerprints": {
+    "B": "7FA151F7FD64F41C42833DAA1392C3C86185B11D6B6B984924D5749F42CB887D",
+    "A": "7FC42D6110ACCD9299F26874424709640995E570D8516ECD9A0BD4BE71C2D364"
+  },
+  "benchmarkToolInputs": [
+    "performance.ps1",
+    "Tools/compare_performance.py",
+    "Tools/Invoke-Python.ps1",
+    "Tests/Embedded/EmbeddedTests.cpp",
+    "Tests/Embedded/BenchmarkMain.h",
+    "Tests/Embedded/ComplexUiBenchmark.h",
+    "Samples/ComplexUi/ComplexUiScene.h",
+    "Samples/EmbeddedControls/GraphicsFixture.h"
+  ],
+  "AInputsBeforeOverlay": [
+    {
+      "path": "performance.ps1",
+      "sha256": "94F39555ECE41906E815D1AF3840BA5D62932BE835E74DA16D02F9D5D8C9B85C"
+    },
+    {
+      "path": "Tools/compare_performance.py",
+      "sha256": "ADAC2E54DC3BA35BC48D7CF66FB7C7D936D73CC0598B100565E177F759925B55"
+    },
+    {
+      "path": "Tools/Invoke-Python.ps1",
+      "sha256": "D1BEF14DCAA150827860ABFF5ACDF5F6A323DA0B60C0F2EC4E9B6D4C13AE2AB4"
+    },
+    {
+      "path": "Tests/Embedded/EmbeddedTests.cpp",
+      "sha256": "AC72EC954A39378B899708E04D46895B752406A72C282D507260519965B61543"
+    },
+    {
+      "path": "Tests/Embedded/BenchmarkMain.h",
+      "sha256": "A4FD25B115B1CEAC6A9CF64FF4EEA94B158501D159DB652C00BD306473A2C702"
+    },
+    {
+      "path": "Tests/Embedded/ComplexUiBenchmark.h",
+      "sha256": "C4D4697C74FA9D5AE204C4AF91F31603283273E8D29EC926333F931579E652FA"
+    },
+    {
+      "path": "Samples/ComplexUi/ComplexUiScene.h",
+      "sha256": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3"
+    },
+    {
+      "path": "Samples/EmbeddedControls/GraphicsFixture.h",
+      "sha256": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+    }
+  ],
+  "BInputs": [
+    {
+      "path": "performance.ps1",
+      "sha256": "7D051AE2D304A839FBA3D80F12F60C6F2651CB37D7F42323D264C71BC407CBCA"
+    },
+    {
+      "path": "Tools/compare_performance.py",
+      "sha256": "ADAC2E54DC3BA35BC48D7CF66FB7C7D936D73CC0598B100565E177F759925B55"
+    },
+    {
+      "path": "Tools/Invoke-Python.ps1",
+      "sha256": "D1BEF14DCAA150827860ABFF5ACDF5F6A323DA0B60C0F2EC4E9B6D4C13AE2AB4"
+    },
+    {
+      "path": "Tests/Embedded/EmbeddedTests.cpp",
+      "sha256": "AC72EC954A39378B899708E04D46895B752406A72C282D507260519965B61543"
+    },
+    {
+      "path": "Tests/Embedded/BenchmarkMain.h",
+      "sha256": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9"
+    },
+    {
+      "path": "Tests/Embedded/ComplexUiBenchmark.h",
+      "sha256": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D"
+    },
+    {
+      "path": "Samples/ComplexUi/ComplexUiScene.h",
+      "sha256": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3"
+    },
+    {
+      "path": "Samples/EmbeddedControls/GraphicsFixture.h",
+      "sha256": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+    }
+  ],
+  "runOrder": [
+    {
+      "s": "Default",
+      "id": "A1",
+      "v": "A"
+    },
+    {
+      "s": "Default",
+      "id": "B1",
+      "v": "B"
+    },
+    {
+      "s": "Default",
+      "id": "B2",
+      "v": "B"
+    },
+    {
+      "s": "Default",
+      "id": "A2",
+      "v": "A"
+    },
+    {
+      "s": "MultilineGridRetention",
+      "id": "A1",
+      "v": "A"
+    },
+    {
+      "s": "MultilineGridRetention",
+      "id": "B1",
+      "v": "B"
+    },
+    {
+      "s": "MultilineGridRetention",
+      "id": "B2",
+      "v": "B"
+    },
+    {
+      "s": "MultilineGridRetention",
+      "id": "A2",
+      "v": "A"
+    }
+  ],
+  "comparisonsPerScenario": "A1/B1,A1/B2,A2/B1,A2/B2,A1/A2,B1/B2",
+  "BBuildProof": "C:/RedSalamander.Perf/evidence/i26-ui/combined-qualification-20260927/local-release-reports/Performance-x64-Release-9d76a0e0928c4b908e4ed17da62106b8.json",
+  "BCompileLog": "C:/Users/eric/.codex/worktrees/fileops-ui-qualified/DxUi/.build/logs/build-x64-Release-31781847b5ff4599a915fae465aa91e2.log",
+  "BExecutableSha256": "F1FB454675F1256FACBE01A73F6B6C03421EAFA33B91F8AD29D5D7A0E5AB3A60",
+  "BLibrarySha256": "E03C0994AE70F7AC77E2722F2012C49CC43DD47E180E6EB83C54BD2E39C46B33",
+  "constraint": "No threshold/flag waiver, rebaseline, causal claim, or qualification."
+}

@@ -1,0 +1,270 @@
+#!/usr/bin/env python3
+"""Curate completed DxUi combined CI 36332676309; external-only output.
+
+Expected staging input: run.json (gh run view --json output), artifacts.json
+(GitHub Actions artifact-list API response), and artifacts/native-{platform}-{config}/
+(unpacked gh run download output). Writes only to C:/RedSalamander.Perf.
+"""
+from __future__ import annotations
+import hashlib, json, os, re, subprocess
+from pathlib import Path
+
+ROOT = Path(r"C:\RedSalamander.Perf\evidence\i26-ui\combined-ci-closeout-20260927")
+DATA = Path(r"C:\RedSalamander.Perf\evidence\i26-ui\combined-ci-36332676309")
+ARTIFACTS = DATA / "artifacts"
+OUT = ROOT / "packet-audit-v3"
+REPO = Path(r"Z:\src\DxUi-worktrees\i26-menu-description")
+RUN_ID = 36332676309
+HEAD = "36b2f4b49d42248790fa1a4ad6b6409ac56207dc"
+PROFILES = [(p, c) for p in ("x64", "ARM64") for c in ("Debug", "Release", "ASan Debug")]
+SUITES = {"Accessibility", "Animation", "ComboBox", "Control", "Embedded", "Foundation", "Grid", "Menu", "MenuExitLifetime", "MultilineText", "NativeTextInput", "NewControls", "ReadOnly", "Rendering", "TextField", "Theme", "Tooltip", "Tree", "WindowHost"}
+FOCUSED = ("Grid", "Rendering", "Embedded", "Accessibility")
+EXTRA_MENU = ("MenuResourceScaling", "MenuTextLayoutResources")
+SOURCE_FILES = (
+    ".github/workflows/ci.yml", "include/DxUi/DxUi.h", "include/DxUi/Diagnostics.h", "include/DxUi/Embedded.h",
+    "src/Controls/DxUi.Menu.cpp", "src/Controls/DxUi.Grid.cpp",
+    "Tests/Controls/DxUiTests.Rendering.cpp", "Tests/Controls/DxUiTests.Accessibility.cpp",
+    "Tests/Controls/DxUiTests.Menu.cpp", "Tests/Controls/DxUiTests.MenuResources.h", "Tests/Controls/DxUiTests.cpp",
+)
+
+
+def native(p: Path) -> str:
+    s = os.path.abspath(str(p))
+    if os.name == "nt" and not s.startswith("\\\\?\\"):
+        return "\\\\?\\" + s
+    return s
+
+def data(p: Path) -> bytes:
+    with open(native(p), "rb") as f: return f.read()
+def load(p: Path): return json.loads(data(p).decode("utf-8-sig"))
+def sha(b: bytes) -> str: return hashlib.sha256(b).hexdigest()
+def norm(p: str) -> str: return p.replace("\\", "/").casefold()
+def skip_count(v) -> int:
+    if isinstance(v, (list, dict)): return len(v)
+    if isinstance(v, int): return v
+    return 0 if v in (None, False, "") else -1
+
+def completed_metadata() -> tuple[dict, dict, list[str]]:
+    run_path, artifacts_path = DATA / "run.json", DATA / "artifacts.json"
+    if not run_path.is_file() or not artifacts_path.is_file():
+        raise RuntimeError("No saved run/artifact metadata; download only after the run completes")
+    run, art = load(run_path), load(artifacts_path)
+    if run.get("databaseId") != RUN_ID or run.get("headSha") != HEAD:
+        raise RuntimeError("Run identity or exact source SHA mismatch")
+    jobs = run.get("jobs", [])
+    if run.get("status") != "completed" or not jobs or any(j.get("status") != "completed" for j in jobs):
+        raise RuntimeError("CI run/jobs are still active or incomplete; refusing to curate")
+    names = {j.get("name") for j in jobs}
+    if "validation" not in names:
+        raise RuntimeError("Validation job metadata is missing")
+    artifacts = art.get("artifacts", []) if isinstance(art, dict) else art
+    return run, {x.get("name"): x for x in artifacts}, []
+
+def find_job(run: dict, platform: str, config: str) -> dict | None:
+    prefix = f"native ({platform},"
+    return next((j for j in run.get("jobs", []) if j.get("name", "").startswith(prefix) and j.get("name", "").endswith(f", {config})")), None)
+
+def report_objects(profile: Path, platform: str, config: str):
+    reports = profile / "reports"
+    if not reports.is_dir(): return [], []
+    suite, others = [], []
+    for p in reports.rglob("*.json"):
+        try: d = load(p)
+        except Exception: continue
+        if not isinstance(d, dict): continue
+        if all(k in d for k in ("suite", "platform", "configuration", "exitCode")) and d.get("platform") == platform and d.get("configuration") == config:
+            suite.append((p, d))
+        else:
+            others.append((p, d))
+    return suite, others
+
+def audit(data_root: Path) -> dict:
+    run = load(data_root / "run.json")
+    artifact_metadata = load(data_root / "artifacts.json")
+    artifact_rows = artifact_metadata.get("artifacts", []) if isinstance(artifact_metadata, dict) else artifact_metadata
+    artifact_names = {x.get("name") for x in artifact_rows}
+    issues, profiles, selected = [], [], [data_root / "run.json", data_root / "artifacts.json"]
+    if run.get("databaseId") != RUN_ID or run.get("headSha") != HEAD:
+        issues.append("run id/head mismatch")
+    if run.get("status") != "completed":
+        issues.append("run not complete")
+    if run.get("conclusion") != "success":
+        issues.append(f"workflow conclusion is {run.get('conclusion')!r}")
+    expected_artifacts = {f"native-{p}-{c}" for p, c in PROFILES}
+    if expected_artifacts != artifact_names:
+        issues.append(f"native artifact metadata identity mismatch: missing={sorted(expected_artifacts-artifact_names)}, extra={sorted(artifact_names-expected_artifacts)}")
+    for item in artifact_rows:
+        if item.get("workflow_run", {}).get("id") != RUN_ID or item.get("workflow_run", {}).get("head_sha") != HEAD:
+            issues.append(f"artifact metadata is not bound to the requested run/head: {item.get('name')}")
+        if not re.fullmatch(r"sha256:[0-9a-f]{64}", str(item.get("digest", ""))):
+            issues.append(f"artifact metadata digest missing/malformed: {item.get('name')}")
+    validation = next((j for j in run.get("jobs", []) if j.get("name") == "validation"), None)
+    if not validation or validation.get("conclusion") != "success": issues.append("validation job did not succeed")
+    job_names = {j.get("name") for j in run.get("jobs", [])}
+    expected_job_names = {"validation"} | {j.get("name") for p,c in PROFILES if (j := find_job(run,p,c)) is not None}
+    if job_names != expected_job_names or len(expected_job_names) != 7:
+        issues.append(f"job matrix identity mismatch: observed={sorted(str(x) for x in job_names)}")
+    fixture_paths = set()
+    for platform, config in PROFILES:
+        label = f"{platform}-{config}"
+        profile = ARTIFACTS / f"native-{label}"
+        if not profile.is_dir():
+            issues.append(f"artifact extraction directory missing: native-{label}")
+            continue
+        arch = "X64" if platform == "x64" else "Arm64"
+        job = find_job(run, platform, config)
+        if not job or job.get("status") != "completed" or job.get("conclusion") != "success":
+            issues.append(f"native job missing/failed: {label}")
+        else:
+            steps = {s.get("name"): s.get("conclusion") for s in job.get("steps", [])}
+            if not any("Run ./test.ps1" in n and config in n and platform in n and v == "success" for n,v in steps.items() if n):
+                issues.append(f"test.ps1 step missing/failed: {label}")
+            if not any("Run ./test-consumer.ps1" in n and config in n and platform in n and "DisableStlAnnotations" not in n and v == "success" for n,v in steps.items() if n):
+                issues.append(f"consumer step missing/failed: {label}")
+            if config == "ASan Debug" and not any("DisableStlAnnotations" in n and v == "success" for n,v in steps.items() if n):
+                issues.append(f"ASan consumer without STL annotations did not pass: {label}")
+            if not any("Run actions/upload-artifact@" in n and v == "success" for n,v in steps.items() if n):
+                issues.append(f"native artifact upload step missing/failed: {label}")
+        suite_reports, other_reports = report_objects(profile, platform, config)
+        standard = [(p,d) for p,d in suite_reports if d.get("suite") in SUITES]
+        extras = [(p,d) for p,d in suite_reports if d.get("suite") in EXTRA_MENU]
+        consumers = [(p,d) for p,d in suite_reports if d.get("suite") == "ExternalConsumer"]
+        probes = [(p,d) for p,d in suite_reports if d.get("suite") == "AddressSanitizer"]
+        recognized = SUITES | set(EXTRA_MENU) | {"ExternalConsumer", "AddressSanitizer"}
+        unknown = [(p,d) for p,d in suite_reports if d.get("suite") not in recognized]
+        names = {d.get("suite") for _,d in standard}
+        if len(standard) != 19 or names != SUITES:
+            issues.append(f"{label}: exact 19-suite identity mismatch; count={len(standard)}, missing={sorted(SUITES-names)}, extra={sorted(names-SUITES)}")
+        if unknown:
+            issues.append(f"{label}: unrecognized suite reports {[d.get('suite') for _,d in unknown]}")
+        if (platform,config) == ("x64","Release"):
+            if {d.get("suite") for _,d in extras} != set(EXTRA_MENU) or len(extras) != 2:
+                issues.append("x64 Release must retain both extra menu resource suites")
+        elif extras:
+            issues.append(f"unexpected extra menu resource reports in {label}")
+        expected_consumer_rows = 2 if config == "ASan Debug" else 1
+        if len(consumers) != expected_consumer_rows:
+            issues.append(f"{label}: expected {expected_consumer_rows} ExternalConsumer receipts, found {len(consumers)}")
+        consumer_modes = {d.get("disableStlAnnotations") for _,d in consumers}
+        if consumer_modes != ({False, True} if config == "ASan Debug" else {False}):
+            issues.append(f"{label}: consumer annotation variants mismatch: {consumer_modes}")
+        for path,d in standard + extras:
+            if d.get("exitCode") != 0:
+                issues.append(f"suite exit failure {label}/{d.get('suite')}: {d.get('exitCode')}")
+            if d.get("platform") != platform or d.get("configuration") != config:
+                issues.append(f"suite target mismatch {label}/{d.get('suite')}")
+            if d.get("nativeArchitecture") != arch:
+                issues.append(f"native architecture mismatch {label}/{d.get('suite')}: {d.get('nativeArchitecture')}")
+            if d.get("sourceCommit") not in (None, HEAD):
+                issues.append(f"source commit mismatch {label}/{d.get('suite')}")
+            sc = skip_count(d.get("skips"))
+            expected_skips = 9 if d.get("suite") == "Menu" and platform == "ARM64" else 0
+            if sc != expected_skips:
+                issues.append(f"suite skip mismatch {label}/{d.get('suite')}: expected {expected_skips}, found {sc}")
+            if expected_skips and (not isinstance(d.get("skips"), list) or any("interactive desktop" not in str(x).lower() for x in d.get("skips", []))):
+                issues.append(f"ARM64 Menu skip reasons are not all interactive-desktop capability skips: {label}")
+            if d.get("suite") in FOCUSED and sc != 0:
+                issues.append(f"focused suite was skipped {label}/{d.get('suite')}")
+            if not re.fullmatch(r"[0-9A-Fa-f]{64}", str(d.get("sha256", ""))):
+                issues.append(f"suite executable hash missing/malformed {label}/{d.get('suite')}")
+            selected.append(path)
+        for path,d in consumers:
+            if d.get("exitCode") != 0 or d.get("platform") != platform or d.get("configuration") != config or d.get("nativeArchitecture") != arch:
+                issues.append(f"consumer receipt outcome/target mismatch {label}: {path.name}")
+            if d.get("commit") != HEAD or d.get("buildIdentity", {}).get("Identity", {}).get("commit") != HEAD:
+                issues.append(f"consumer receipt source head mismatch {label}: {path.name}")
+            identity = d.get("buildIdentity", {}).get("Identity", {})
+            if identity.get("platform") != platform or identity.get("disableStlAnnotations") is not d.get("disableStlAnnotations"):
+                issues.append(f"consumer build identity does not match receipt {label}: {path.name}")
+            if not re.fullmatch(r"[0-9A-Fa-f]{64}", str(d.get("buildIdentity", {}).get("Fingerprint", ""))) or not re.fullmatch(r"[0-9A-Fa-f]{64}", str(d.get("librarySha256", ""))):
+                issues.append(f"consumer fingerprint/library hash missing {label}: {path.name}")
+            fixture = str(d.get("fixture", "")).replace("/", "\\").lower()
+            if "\\.build\\consumers\\" not in fixture or not re.fullmatch(r"[0-9A-Fa-f]{64}", str(d.get("executableSha256", ""))):
+                issues.append(f"consumer receipt lacks relocated fixture/executable identity {label}: {path.name}")
+            if fixture in fixture_paths:
+                issues.append(f"consumer receipts reused a relocated fixture path: {label}: {path.name}")
+            fixture_paths.add(fixture)
+            if d.get("negativeChecks") != 10 or d.get("nativeModuleChecks") != 12:
+                issues.append(f"consumer checks incomplete {label}: {path.name}")
+            selected.append(path)
+        if len(standard) == 19:
+            profiles.append({"platform":platform,"configuration":config,"nativeArchitecture":arch,
+                             "suiteCount":len(standard),"suites":sorted(names),"menuSkips":next((skip_count(d.get('skips')) for _,d in standard if d.get('suite')=='Menu'),None),
+                             "externalConsumerReceipts":len(consumers),"annotationVariants":sorted(str(d.get("disableStlAnnotations")).lower() for _,d in consumers)})
+        if config == "ASan Debug":
+            probe = probes[0] if len(probes) == 1 else None
+            if not probe or probe[1].get("platform") != platform or probe[1].get("configuration") != config or probe[1].get("nativeArchitecture") != arch or not probe[1].get("detected") or probe[1].get("exitCode") == 0:
+                issues.append(f"ASan isolated UAF probe not detected as expected: {label}")
+            elif probe:
+                selected.append(probe[0])
+                probe_log = profile / "logs" / f"test-AddressSanitizer-{platform}.log"
+                if not probe_log.is_file(): issues.append(f"ASan UAF probe log missing: {label}")
+                else: selected.append(probe_log)
+        elif probes:
+            issues.append(f"unexpected AddressSanitizer probe outside ASan profile: {label}")
+        build_logs = list((profile / "logs").glob("build-*.log")) if (profile / "logs").is_dir() else []
+        if len(build_logs) != 1: issues.append(f"expected one build log: {label}, found {len(build_logs)}")
+        for build_log in build_logs:
+            text = data(build_log).decode("utf-8-sig", errors="replace")
+            if f"Building solution configuration \"{config}|{platform}\"" not in text or "Build succeeded." not in text or "0 Warning(s)" not in text or "0 Error(s)" not in text:
+                issues.append(f"build log lacks successful bound configuration or clean diagnostics: {label}")
+        selected.extend(build_logs)
+        if (profile / "logs").is_dir():
+            for suite_name in FOCUSED:
+                log = profile / "logs" / f"test-{suite_name}-{label}.log"
+                if log.is_file(): selected.append(log)
+                else:
+                    issues.append(f"focused/extra suite log missing: {label}/{suite_name}")
+        selected.extend(p for p,_ in other_reports if "performance" in p.name.lower() or "resource" in p.name.lower())
+    # Two extra Release resource suites are an intentionally separate add-on to the nineteen-suite matrix.
+    if len(profiles) != 6: issues.append(f"expected six fully inspected native profiles, found {len(profiles)}")
+    # Preserve complete extracted-artifact hash inventory, including gallery images, without copying images into packet.
+    actual_artifact_dirs = {p.name for p in ARTIFACTS.iterdir() if p.is_dir()}
+    if actual_artifact_dirs != expected_artifacts:
+        issues.append(f"downloaded artifact directory set mismatch: missing={sorted(expected_artifacts-actual_artifact_dirs)}, extra={sorted(actual_artifact_dirs-expected_artifacts)}")
+    inventory=[]
+    for p in sorted(x for x in ARTIFACTS.rglob("*") if x.is_file()):
+        b=data(p); inventory.append({"path":p.relative_to(DATA).as_posix(),"sha256":sha(b),"bytes":len(b)})
+    return {"issues":issues,"profiles":profiles,"selected":sorted(set(selected)),"inventory":inventory,
+            "artifact_count":len(artifact_names),"run":run}
+
+def main():
+    run, _, _ = completed_metadata()
+    result = audit(DATA)
+    if OUT.exists(): raise RuntimeError(f"Refusing to overwrite {OUT}")
+    OUT.mkdir(parents=True)
+    (OUT/"audit.json.receipt.txt").write_text(json.dumps({"run_id":RUN_ID,"head":HEAD,"issues":result["issues"],"profiles":result["profiles"]},indent=2)+"\n",encoding="utf-8")
+    (OUT/"downloaded-files.json.receipt.txt").write_text(json.dumps(result["inventory"],indent=2)+"\n",encoding="utf-8")
+    # Raw packet material is selected by profile/reports/logs only; no duplicate gallery PNGs.
+    mapping=[]
+    for src in result["selected"]+[Path(__file__)]:
+        if not src.is_file(): continue
+        rel=src.relative_to(DATA).as_posix() if src.is_relative_to(DATA) else src.name
+        suffix=Path(rel).suffix.lower()
+        if suffix==".json": rel += ".receipt.txt"
+        dest=OUT/"raw"/rel
+        dest.parent.mkdir(parents=True,exist_ok=True)
+        if dest.exists(): raise RuntimeError(f"Raw artifact path collision; refusing to drop input: {rel}")
+        b=data(src); dest.write_bytes(b)
+        mapping.append({"source":str(src),"path":dest.relative_to(OUT).as_posix(),"sha256":sha(b),"bytes":len(b)})
+    # Exact source objects are read from the tested commit, not from a potentially dirty worktree.
+    for rel in SOURCE_FILES:
+        blob=subprocess.check_output(["git","show",f"{HEAD}:{rel}"],cwd=REPO)
+        dest=OUT/"raw"/"source"/rel
+        dest.parent.mkdir(parents=True,exist_ok=True)
+        dest=dest.with_name(dest.name+".source.txt")
+        if dest.exists(): raise RuntimeError(f"Source snapshot path collision: {dest}")
+        dest.write_bytes(blob)
+        mapping.append({"source":f"git:{HEAD}:{rel}","path":dest.relative_to(OUT).as_posix(),"sha256":sha(blob),"bytes":len(blob)})
+    (OUT/"raw/file-map.json.receipt.txt").write_text(json.dumps(mapping,indent=2)+"\n",encoding="utf-8")
+    (OUT/"raw/review.json.receipt.txt").write_text(json.dumps({"run_id":RUN_ID,"head":HEAD,"issues":result["issues"],"profiles":result["profiles"]},indent=2)+"\n",encoding="utf-8")
+    readme=("Combined DxUi CI 36332676309; source "+HEAD+". Final workflow status: "+str(run.get("conclusion"))+".\n\n"
+      "This packet checks the exact 19-suite identity set in each of six native profiles; x64 Release also executes MenuResourceScaling and MenuTextLayoutResources. The four focused suites (Grid, Rendering, Embedded, Accessibility) have zero skips. ARM64 Menu reports nine interactive-desktop capability skips per profile; they are recorded as skips, not executed tests. ASan UAF probes and relocated ExternalConsumer receipts are checked separately, including both STL-annotation modes in ASan Debug. Any issue list prevents a pass claim.\n\n"
+      "The resource suites retain unpaired performance metrics; they do not establish timing acceptance. CI validates library and relocated-consumer test paths only. It does not establish application UIA/desktop behavior or consumer adoption. See raw receipts and the full extracted-artifact file/hash inventory.\n")
+    (OUT/"README.md").write_text(readme,encoding="utf-8",newline="\n")
+    (OUT/".gitattributes").write_text("* -text\nraw/** -whitespace\n",encoding="ascii",newline="\n")
+    payloads=sorted(p for p in OUT.rglob("*") if p.is_file() and p.name!="SHA256SUMS")
+    (OUT/"SHA256SUMS").write_text("".join(f"{sha(data(p))}  {p.relative_to(OUT).as_posix()}\n" for p in payloads),encoding="ascii",newline="\n")
+    print(f"Staged {len(payloads)} payloads; issues={len(result['issues'])}; any issue means no pass claim.")
+
+if __name__ == "__main__": main()

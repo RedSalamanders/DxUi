@@ -1,0 +1,201 @@
+{
+  "run_id": 36332676309,
+  "head": "36b2f4b49d42248790fa1a4ad6b6409ac56207dc",
+  "issues": [],
+  "profiles": [
+    {
+      "platform": "x64",
+      "configuration": "Debug",
+      "nativeArchitecture": "X64",
+      "suiteCount": 19,
+      "suites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "Menu",
+        "MenuExitLifetime",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "menuSkips": 0,
+      "externalConsumerReceipts": 1,
+      "annotationVariants": [
+        "false"
+      ]
+    },
+    {
+      "platform": "x64",
+      "configuration": "Release",
+      "nativeArchitecture": "X64",
+      "suiteCount": 19,
+      "suites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "Menu",
+        "MenuExitLifetime",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "menuSkips": 0,
+      "externalConsumerReceipts": 1,
+      "annotationVariants": [
+        "false"
+      ]
+    },
+    {
+      "platform": "x64",
+      "configuration": "ASan Debug",
+      "nativeArchitecture": "X64",
+      "suiteCount": 19,
+      "suites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "Menu",
+        "MenuExitLifetime",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "menuSkips": 0,
+      "externalConsumerReceipts": 2,
+      "annotationVariants": [
+        "false",
+        "true"
+      ]
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Debug",
+      "nativeArchitecture": "Arm64",
+      "suiteCount": 19,
+      "suites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "Menu",
+        "MenuExitLifetime",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "menuSkips": 9,
+      "externalConsumerReceipts": 1,
+      "annotationVariants": [
+        "false"
+      ]
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Release",
+      "nativeArchitecture": "Arm64",
+      "suiteCount": 19,
+      "suites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "Menu",
+        "MenuExitLifetime",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "menuSkips": 9,
+      "externalConsumerReceipts": 1,
+      "annotationVariants": [
+        "false"
+      ]
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "ASan Debug",
+      "nativeArchitecture": "Arm64",
+      "suiteCount": 19,
+      "suites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "Menu",
+        "MenuExitLifetime",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "menuSkips": 9,
+      "externalConsumerReceipts": 2,
+      "annotationVariants": [
+        "false",
+        "true"
+      ]
+    }
+  ]
+}

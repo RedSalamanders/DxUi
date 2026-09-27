@@ -1,0 +1,2818 @@
+{
+  "curatedUtc": "2026-09-27T17:08:32.4059663Z",
+  "evidence": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\combined-pair-20260927",
+  "runCount": 8,
+  "comparisonCount": 12,
+  "sourceFingerprints": {
+    "B": "7FA151F7FD64F41C42833DAA1392C3C86185B11D6B6B984924D5749F42CB887D",
+    "A": "7FC42D6110ACCD9299F26874424709640995E570D8516ECD9A0BD4BE71C2D364"
+  },
+  "inputManifest": [
+    {
+      "path": "performance.ps1",
+      "sha256": "7D051AE2D304A839FBA3D80F12F60C6F2651CB37D7F42323D264C71BC407CBCA"
+    },
+    {
+      "path": "Tools/compare_performance.py",
+      "sha256": "ADAC2E54DC3BA35BC48D7CF66FB7C7D936D73CC0598B100565E177F759925B55"
+    },
+    {
+      "path": "Tools/Invoke-Python.ps1",
+      "sha256": "D1BEF14DCAA150827860ABFF5ACDF5F6A323DA0B60C0F2EC4E9B6D4C13AE2AB4"
+    },
+    {
+      "path": "Tests/Embedded/EmbeddedTests.cpp",
+      "sha256": "AC72EC954A39378B899708E04D46895B752406A72C282D507260519965B61543"
+    },
+    {
+      "path": "Tests/Embedded/BenchmarkMain.h",
+      "sha256": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9"
+    },
+    {
+      "path": "Tests/Embedded/ComplexUiBenchmark.h",
+      "sha256": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D"
+    },
+    {
+      "path": "Samples/ComplexUi/ComplexUiScene.h",
+      "sha256": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3"
+    },
+    {
+      "path": "Samples/EmbeddedControls/GraphicsFixture.h",
+      "sha256": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+    }
+  ],
+  "comparisons": [
+    {
+      "name": "Default-A1-B1",
+      "status": "advice-required",
+      "flagged": [
+        "clean/frameP95Ms",
+        "clean/composeCpuP95Ms",
+        "dirty/composeCpuP95Ms",
+        "dirty/privateBytes",
+        "dirty/privatePeakBytes"
+      ]
+    },
+    {
+      "name": "Default-A1-B2",
+      "status": "advice-required",
+      "flagged": [
+        "clean/fps",
+        "clean/frameP50Ms",
+        "clean/frameP95Ms",
+        "clean/composeCpuP95Ms",
+        "dirty/composeCpuP95Ms"
+      ]
+    },
+    {
+      "name": "Default-A2-B1",
+      "status": "advice-required",
+      "flagged": [
+        "dirty/composeCpuP95Ms",
+        "dirty/privateBytes",
+        "dirty/privatePeakBytes",
+        "dirty/workingSetBytes",
+        "dirty/workingSetPeakBytes"
+      ]
+    },
+    {
+      "name": "Default-A2-B2",
+      "status": "advice-required",
+      "flagged": [
+        "clean/fps",
+        "clean/frameP50Ms",
+        "clean/frameP95Ms",
+        "clean/privateBytes",
+        "clean/privatePeakBytes"
+      ]
+    },
+    {
+      "name": "Default-A1-A2",
+      "status": "advice-required",
+      "flagged": [
+        "clean/frameP95Ms",
+        "clean/composeCpuP95Ms",
+        "dirty/composeCpuP95Ms"
+      ]
+    },
+    {
+      "name": "Default-B1-B2",
+      "status": "advice-required",
+      "flagged": [
+        "clean/fps",
+        "clean/frameP50Ms",
+        "clean/frameP95Ms",
+        "clean/privateBytes",
+        "clean/privatePeakBytes",
+        "clean/workingSetBytes",
+        "clean/workingSetPeakBytes"
+      ]
+    },
+    {
+      "name": "MultilineGridRetention-A1-B1",
+      "status": "advice-required",
+      "flagged": [
+        "clean/privateBytes",
+        "clean/privatePeakBytes",
+        "clean/workingSetPeakBytes",
+        "dirty/privateBytes",
+        "dirty/privatePeakBytes",
+        "dirty/workingSetBytes",
+        "dirty/workingSetPeakBytes"
+      ]
+    },
+    {
+      "name": "MultilineGridRetention-A1-B2",
+      "status": "advice-required",
+      "flagged": [
+        "clean/frameP95Ms",
+        "clean/prepareP95Ms",
+        "clean/privateBytes",
+        "clean/privatePeakBytes",
+        "dirty/privateBytes",
+        "dirty/privatePeakBytes",
+        "dirty/workingSetBytes",
+        "dirty/workingSetPeakBytes"
+      ]
+    },
+    {
+      "name": "MultilineGridRetention-A2-B1",
+      "status": "advice-required",
+      "flagged": [
+        "clean/privateBytes",
+        "clean/privatePeakBytes",
+        "clean/workingSetBytes",
+        "clean/workingSetPeakBytes",
+        "dirty/privateBytes",
+        "dirty/privatePeakBytes",
+        "dirty/workingSetBytes",
+        "dirty/workingSetPeakBytes"
+      ]
+    },
+    {
+      "name": "MultilineGridRetention-A2-B2",
+      "status": "advice-required",
+      "flagged": [
+        "clean/prepareP95Ms",
+        "clean/composeCpuP95Ms",
+        "clean/privateBytes",
+        "clean/privatePeakBytes",
+        "clean/workingSetBytes",
+        "clean/workingSetPeakBytes",
+        "dirty/composeCpuP95Ms",
+        "dirty/privateBytes",
+        "dirty/privatePeakBytes",
+        "dirty/workingSetBytes",
+        "dirty/workingSetPeakBytes"
+      ]
+    },
+    {
+      "name": "MultilineGridRetention-A1-A2",
+      "status": "advice-required",
+      "flagged": [
+        "clean/frameP95Ms"
+      ]
+    },
+    {
+      "name": "MultilineGridRetention-B1-B2",
+      "status": "advice-required",
+      "flagged": [
+        "clean/fps",
+        "clean/frameP95Ms",
+        "clean/prepareP95Ms",
+        "dirty/fps",
+        "dirty/frameP50Ms",
+        "dirty/frameP95Ms",
+        "dirty/prepareP95Ms",
+        "dirty/composeCpuP95Ms"
+      ]
+    }
+  ],
+  "observedFourCrossPairMedians": [
+    {
+      "scenario": "Default",
+      "case": "clean",
+      "metric": "composeCpuP95Ms",
+      "medianObservedDelta": 4.99999999999997E-05,
+      "medianObservedChangePercent": 0.6315789473684164,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "clean",
+          "metric": "composeCpuP95Ms",
+          "before": 0.0114,
+          "after": 0.012,
+          "changePercent": 5.263157894736836,
+          "noisePercent": 5.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "clean",
+          "metric": "composeCpuP95Ms",
+          "before": 0.0114,
+          "after": 0.012,
+          "changePercent": 5.263157894736836,
+          "noisePercent": 5.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "clean",
+          "metric": "composeCpuP95Ms",
+          "before": 0.0125,
+          "after": 0.012,
+          "changePercent": -4.0000000000000036,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "clean",
+          "metric": "composeCpuP95Ms",
+          "before": 0.0125,
+          "after": 0.012,
+          "changePercent": -4.0000000000000036,
+          "noisePercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "clean",
+      "metric": "frameP95Ms",
+      "medianObservedDelta": 0.03270000000000001,
+      "medianObservedChangePercent": 6.967485607159385,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "clean",
+          "metric": "frameP95Ms",
+          "before": 0.4541,
+          "after": 0.4779,
+          "changePercent": 5.2411363135873135,
+          "noisePercent": 5.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "clean",
+          "metric": "frameP95Ms",
+          "before": 0.4541,
+          "after": 0.5201,
+          "changePercent": 14.53424355868751,
+          "noisePercent": 5.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "clean",
+          "metric": "frameP95Ms",
+          "before": 0.4785,
+          "after": 0.4779,
+          "changePercent": -0.12539184952977678,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "clean",
+          "metric": "frameP95Ms",
+          "before": 0.4785,
+          "after": 0.5201,
+          "changePercent": 8.693834900731456,
+          "noisePercent": 5.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "clean",
+      "metric": "composeAllocations",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": null,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "clean",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "clean",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "clean",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "clean",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "clean",
+      "metric": "replacementPeakBytes",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": 0.0,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "clean",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "clean",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "clean",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "clean",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "clean",
+      "metric": "privatePeakBytes",
+      "medianObservedDelta": -333824,
+      "medianObservedChangePercent": -1.2342650034649738,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "clean",
+          "metric": "privatePeakBytes",
+          "before": 27504640,
+          "after": 26222592,
+          "changePercent": -4.66120625465376,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "clean",
+          "metric": "privatePeakBytes",
+          "before": 27504640,
+          "after": 27799552,
+          "changePercent": 1.0722263588979875,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "clean",
+          "metric": "privatePeakBytes",
+          "before": 27185152,
+          "after": 26222592,
+          "changePercent": -3.540756365827935,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "clean",
+          "metric": "privatePeakBytes",
+          "before": 27185152,
+          "after": 27799552,
+          "changePercent": 2.2600572547837983,
+          "noisePercent": 2.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "clean",
+      "metric": "cppAllocations",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": null,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "clean",
+          "metric": "cppAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "clean",
+          "metric": "cppAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "clean",
+          "metric": "cppAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "clean",
+          "metric": "cppAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "clean",
+      "metric": "workingSetBytes",
+      "medianObservedDelta": -665600,
+      "medianObservedChangePercent": -1.6157915254153665,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "clean",
+          "metric": "workingSetBytes",
+          "before": 41922560,
+          "after": 39854080,
+          "changePercent": -4.934049829018072,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "clean",
+          "metric": "workingSetBytes",
+          "before": 41922560,
+          "after": 41287680,
+          "changePercent": -1.514411333659016,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "clean",
+          "metric": "workingSetBytes",
+          "before": 40550400,
+          "after": 39854080,
+          "changePercent": -1.7171717171717171,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "clean",
+          "metric": "workingSetBytes",
+          "before": 40550400,
+          "after": 41287680,
+          "changePercent": 1.8181818181818077,
+          "noisePercent": 2.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "clean",
+      "metric": "workingSetPeakBytes",
+      "medianObservedDelta": -638976,
+      "medianObservedChangePercent": -1.549574698827083,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "clean",
+          "metric": "workingSetPeakBytes",
+          "before": 41922560,
+          "after": 39936000,
+          "changePercent": -4.7386419149975545,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "clean",
+          "metric": "workingSetPeakBytes",
+          "before": 41922560,
+          "after": 41287680,
+          "changePercent": -1.514411333659016,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "clean",
+          "metric": "workingSetPeakBytes",
+          "before": 40579072,
+          "after": 39936000,
+          "changePercent": -1.5847380639951503,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "clean",
+          "metric": "workingSetPeakBytes",
+          "before": 40579072,
+          "after": 41287680,
+          "changePercent": 1.7462400323003946,
+          "noisePercent": 2.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "clean",
+      "metric": "fps",
+      "medianObservedDelta": -105.19210150000004,
+      "medianObservedChangePercent": -4.146346575035575,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "clean",
+          "metric": "fps",
+          "before": 2537.443145,
+          "after": 2558.46083,
+          "changePercent": 0.8283017115640501,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "clean",
+          "metric": "fps",
+          "before": 2537.443145,
+          "after": 2312.900782,
+          "changePercent": -8.849158391684874,
+          "noisePercent": 5.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "clean",
+          "metric": "fps",
+          "before": 2544.30267,
+          "after": 2558.46083,
+          "changePercent": 0.5564652416137239,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "clean",
+          "metric": "fps",
+          "before": 2544.30267,
+          "after": 2312.900782,
+          "changePercent": -9.094904105886103,
+          "noisePercent": 5.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "clean",
+      "metric": "surfaceBytes",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": 0.0,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "clean",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "clean",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "clean",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "clean",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "clean",
+      "metric": "privateBytes",
+      "medianObservedDelta": -296960,
+      "medianObservedChangePercent": -1.1032100557892222,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "clean",
+          "metric": "privateBytes",
+          "before": 27488256,
+          "after": 26222592,
+          "changePercent": -4.604380867232905,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "clean",
+          "metric": "privateBytes",
+          "before": 27488256,
+          "after": 27770880,
+          "changePercent": 1.0281627179257846,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "clean",
+          "metric": "privateBytes",
+          "before": 27099136,
+          "after": 26222592,
+          "changePercent": -3.234582829504229,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "clean",
+          "metric": "privateBytes",
+          "before": 27099136,
+          "after": 27770880,
+          "changePercent": 2.4788391777509133,
+          "noisePercent": 2.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "clean",
+      "metric": "prepareP95Ms",
+      "medianObservedDelta": 0.0,
+      "medianObservedChangePercent": 0.0,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "clean",
+          "metric": "prepareP95Ms",
+          "before": 0.0003,
+          "after": 0.0003,
+          "changePercent": 0.0,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "clean",
+          "metric": "prepareP95Ms",
+          "before": 0.0003,
+          "after": 0.0003,
+          "changePercent": 0.0,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "clean",
+          "metric": "prepareP95Ms",
+          "before": 0.0003,
+          "after": 0.0003,
+          "changePercent": 0.0,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "clean",
+          "metric": "prepareP95Ms",
+          "before": 0.0003,
+          "after": 0.0003,
+          "changePercent": 0.0,
+          "noisePercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "clean",
+      "metric": "frameP50Ms",
+      "medianObservedDelta": 0.018850000000000006,
+      "medianObservedChangePercent": 4.930013325891158,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "clean",
+          "metric": "frameP50Ms",
+          "before": 0.3823,
+          "after": 0.3795,
+          "changePercent": -0.7324091027988366,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "clean",
+          "metric": "frameP50Ms",
+          "before": 0.3823,
+          "after": 0.4215,
+          "changePercent": 10.25372743918389,
+          "noisePercent": 5.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "clean",
+          "metric": "frameP50Ms",
+          "before": 0.381,
+          "after": 0.3795,
+          "changePercent": -0.3937007874015741,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "clean",
+          "metric": "frameP50Ms",
+          "before": 0.381,
+          "after": 0.4215,
+          "changePercent": 10.629921259842522,
+          "noisePercent": 5.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "dirty",
+      "metric": "composeCpuP95Ms",
+      "medianObservedDelta": 0.005600000000000001,
+      "medianObservedChangePercent": 31.50033266799734,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "dirty",
+          "metric": "composeCpuP95Ms",
+          "before": 0.0167,
+          "after": 0.0274,
+          "changePercent": 64.07185628742515,
+          "noisePercent": 5.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "dirty",
+          "metric": "composeCpuP95Ms",
+          "before": 0.0167,
+          "after": 0.0185,
+          "changePercent": 10.77844311377245,
+          "noisePercent": 5.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "dirty",
+          "metric": "composeCpuP95Ms",
+          "before": 0.018,
+          "after": 0.0274,
+          "changePercent": 52.222222222222236,
+          "noisePercent": 5.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "dirty",
+          "metric": "composeCpuP95Ms",
+          "before": 0.018,
+          "after": 0.0185,
+          "changePercent": 2.77777777777779,
+          "noisePercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "dirty",
+      "metric": "frameP95Ms",
+      "medianObservedDelta": 0.04214999999999991,
+      "medianObservedChangePercent": 2.1320023349860384,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "dirty",
+          "metric": "frameP95Ms",
+          "before": 1.972,
+          "after": 2.0117,
+          "changePercent": 2.0131845841784957,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "dirty",
+          "metric": "frameP95Ms",
+          "before": 1.972,
+          "after": 2.0261,
+          "changePercent": 2.74340770791075,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "dirty",
+          "metric": "frameP95Ms",
+          "before": 1.9815,
+          "after": 2.0117,
+          "changePercent": 1.524097905627042,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "dirty",
+          "metric": "frameP95Ms",
+          "before": 1.9815,
+          "after": 2.0261,
+          "changePercent": 2.250820085793581,
+          "noisePercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "dirty",
+      "metric": "composeAllocations",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": null,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "dirty",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "dirty",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "dirty",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "dirty",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "dirty",
+      "metric": "replacementPeakBytes",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": 0.0,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "dirty",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "dirty",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "dirty",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "dirty",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "dirty",
+      "metric": "privatePeakBytes",
+      "medianObservedDelta": 710656,
+      "medianObservedChangePercent": 2.4612771494355035,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "dirty",
+          "metric": "privatePeakBytes",
+          "before": 28979200,
+          "after": 30076928,
+          "changePercent": 3.787985865724375,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "dirty",
+          "metric": "privatePeakBytes",
+          "before": 28979200,
+          "after": 28844032,
+          "changePercent": -0.4664310954063611,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "dirty",
+          "metric": "privatePeakBytes",
+          "before": 28520448,
+          "after": 30076928,
+          "changePercent": 5.457417779692664,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "dirty",
+          "metric": "privatePeakBytes",
+          "before": 28520448,
+          "after": 28844032,
+          "changePercent": 1.1345684331466321,
+          "noisePercent": 2.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "dirty",
+      "metric": "cppAllocations",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": 0.0,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "dirty",
+          "metric": "cppAllocations",
+          "before": 2160,
+          "after": 2160,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "dirty",
+          "metric": "cppAllocations",
+          "before": 2160,
+          "after": 2160,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "dirty",
+          "metric": "cppAllocations",
+          "before": 2160,
+          "after": 2160,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "dirty",
+          "metric": "cppAllocations",
+          "before": 2160,
+          "after": 2160,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "dirty",
+      "metric": "workingSetBytes",
+      "medianObservedDelta": 546816,
+      "medianObservedChangePercent": 1.2864692959641544,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "dirty",
+          "metric": "workingSetBytes",
+          "before": 42692608,
+          "after": 43511808,
+          "changePercent": 1.918833349323612,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "dirty",
+          "metric": "workingSetBytes",
+          "before": 42692608,
+          "after": 42229760,
+          "changePercent": -1.0841408423678423,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "dirty",
+          "metric": "workingSetBytes",
+          "before": 41955328,
+          "after": 43511808,
+          "changePercent": 3.7098506296983302,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "dirty",
+          "metric": "workingSetBytes",
+          "before": 41955328,
+          "after": 42229760,
+          "changePercent": 0.6541052426046967,
+          "noisePercent": 2.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "dirty",
+      "metric": "workingSetPeakBytes",
+      "medianObservedDelta": 548864,
+      "medianObservedChangePercent": 1.291350678371661,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "dirty",
+          "metric": "workingSetPeakBytes",
+          "before": 42692608,
+          "after": 43511808,
+          "changePercent": 1.918833349323612,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "dirty",
+          "metric": "workingSetPeakBytes",
+          "before": 42692608,
+          "after": 42233856,
+          "changePercent": -1.074546675621224,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "dirty",
+          "metric": "workingSetPeakBytes",
+          "before": 41955328,
+          "after": 43511808,
+          "changePercent": 3.7098506296983302,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "dirty",
+          "metric": "workingSetPeakBytes",
+          "before": 41955328,
+          "after": 42233856,
+          "changePercent": 0.6638680074197101,
+          "noisePercent": 2.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "dirty",
+      "metric": "fps",
+      "medianObservedDelta": -0.973968549999995,
+      "medianObservedChangePercent": -0.18330355913853125,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "dirty",
+          "metric": "fps",
+          "before": 551.7850246,
+          "after": 546.5884681,
+          "changePercent": -0.9417719344172348,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "dirty",
+          "metric": "fps",
+          "before": 551.7850246,
+          "after": 568.0640095,
+          "changePercent": 2.950240433183371,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "dirty",
+          "metric": "fps",
+          "before": 564.8153901,
+          "after": 546.5884681,
+          "changePercent": -3.227058313119424,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "dirty",
+          "metric": "fps",
+          "before": 564.8153901,
+          "after": 568.0640095,
+          "changePercent": 0.5751648161401723,
+          "noisePercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "dirty",
+      "metric": "surfaceBytes",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": 0.0,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "dirty",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "dirty",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "dirty",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "dirty",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "dirty",
+      "metric": "privateBytes",
+      "medianObservedDelta": 722944,
+      "medianObservedChangePercent": 2.505663771212008,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "dirty",
+          "metric": "privateBytes",
+          "before": 28962816,
+          "after": 30076928,
+          "changePercent": 3.8466977796634216,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "dirty",
+          "metric": "privateBytes",
+          "before": 28962816,
+          "after": 28819456,
+          "changePercent": -0.49497949370669314,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "dirty",
+          "metric": "privateBytes",
+          "before": 28487680,
+          "after": 30076928,
+          "changePercent": 5.578720345075494,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "dirty",
+          "metric": "privateBytes",
+          "before": 28487680,
+          "after": 28819456,
+          "changePercent": 1.164629762760594,
+          "noisePercent": 2.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "dirty",
+      "metric": "prepareP95Ms",
+      "medianObservedDelta": 0.011399999999999966,
+      "medianObservedChangePercent": 0.8789608934940629,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "dirty",
+          "metric": "prepareP95Ms",
+          "before": 1.3207,
+          "after": 1.2879,
+          "changePercent": -2.4835314605890724,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "dirty",
+          "metric": "prepareP95Ms",
+          "before": 1.3207,
+          "after": 1.3316,
+          "changePercent": 0.8253199061103889,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "dirty",
+          "metric": "prepareP95Ms",
+          "before": 1.276,
+          "after": 1.2879,
+          "changePercent": 0.932601880877737,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "dirty",
+          "metric": "prepareP95Ms",
+          "before": 1.276,
+          "after": 1.3316,
+          "changePercent": 4.357366771159854,
+          "noisePercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "Default",
+      "case": "dirty",
+      "metric": "frameP50Ms",
+      "medianObservedDelta": 0.003350000000000075,
+      "medianObservedChangePercent": 0.20749703830334476,
+      "crossPairDeltas": [
+        {
+          "comparison": "Default-A1-B1",
+          "scenario": "dirty",
+          "metric": "frameP50Ms",
+          "before": 1.8056,
+          "after": 1.7955,
+          "changePercent": -0.5593708462560909,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A1-B2",
+          "scenario": "dirty",
+          "metric": "frameP50Ms",
+          "before": 1.8056,
+          "after": 1.741,
+          "changePercent": -3.5777580859548075,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B1",
+          "scenario": "dirty",
+          "metric": "frameP50Ms",
+          "before": 1.7242,
+          "after": 1.7955,
+          "changePercent": 4.135251130959294,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "Default-A2-B2",
+          "scenario": "dirty",
+          "metric": "frameP50Ms",
+          "before": 1.7242,
+          "after": 1.741,
+          "changePercent": 0.9743649228627804,
+          "noisePercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "clean",
+      "metric": "composeCpuP95Ms",
+      "medianObservedDelta": 0.00010000000000000026,
+      "medianObservedChangePercent": 1.0640697849300607,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "clean",
+          "metric": "composeCpuP95Ms",
+          "before": 0.0122,
+          "after": 0.0114,
+          "changePercent": -6.557377049180335,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "clean",
+          "metric": "composeCpuP95Ms",
+          "before": 0.0122,
+          "after": 0.0119,
+          "changePercent": -2.4590163934426257,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "clean",
+          "metric": "composeCpuP95Ms",
+          "before": 0.0109,
+          "after": 0.0114,
+          "changePercent": 4.587155963302747,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "clean",
+          "metric": "composeCpuP95Ms",
+          "before": 0.0109,
+          "after": 0.0119,
+          "changePercent": 9.174311926605515,
+          "noisePercent": 5.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "clean",
+      "metric": "frameP95Ms",
+      "medianObservedDelta": 0.009550000000000003,
+      "medianObservedChangePercent": 1.9653283711512093,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "clean",
+          "metric": "frameP95Ms",
+          "before": 0.4436,
+          "after": 0.4452,
+          "changePercent": 0.36068530207393756,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "clean",
+          "metric": "frameP95Ms",
+          "before": 0.4436,
+          "after": 0.5077,
+          "changePercent": 14.449954914337248,
+          "noisePercent": 5.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "clean",
+          "metric": "frameP95Ms",
+          "before": 0.4902,
+          "after": 0.4452,
+          "changePercent": -9.179926560587525,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "clean",
+          "metric": "frameP95Ms",
+          "before": 0.4902,
+          "after": 0.5077,
+          "changePercent": 3.569971440228481,
+          "noisePercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "clean",
+      "metric": "composeAllocations",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": null,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "clean",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "clean",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "clean",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "clean",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "clean",
+      "metric": "replacementPeakBytes",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": 0.0,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "clean",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "clean",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "clean",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "clean",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "clean",
+      "metric": "privatePeakBytes",
+      "medianObservedDelta": 4036608,
+      "medianObservedChangePercent": 12.506772906444741,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "clean",
+          "metric": "privatePeakBytes",
+          "before": 33382400,
+          "after": 37384192,
+          "changePercent": 11.9877300613497,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "clean",
+          "metric": "privatePeakBytes",
+          "before": 33382400,
+          "after": 35328000,
+          "changePercent": 5.828220858895716,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "clean",
+          "metric": "privatePeakBytes",
+          "before": 31256576,
+          "after": 37384192,
+          "changePercent": 19.60424583933953,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "clean",
+          "metric": "privatePeakBytes",
+          "before": 31256576,
+          "after": 35328000,
+          "changePercent": 13.025815751539781,
+          "noisePercent": 2.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "clean",
+      "metric": "cppAllocations",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": null,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "clean",
+          "metric": "cppAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "clean",
+          "metric": "cppAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "clean",
+          "metric": "cppAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "clean",
+          "metric": "cppAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "clean",
+      "metric": "workingSetBytes",
+      "medianObservedDelta": 1601536,
+      "medianObservedChangePercent": 3.5824633734335865,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "clean",
+          "metric": "workingSetBytes",
+          "before": 46034944,
+          "after": 46915584,
+          "changePercent": 1.912981581991291,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "clean",
+          "metric": "workingSetBytes",
+          "before": 46034944,
+          "after": 46542848,
+          "changePercent": 1.103301005427526,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "clean",
+          "metric": "workingSetBytes",
+          "before": 44220416,
+          "after": 46915584,
+          "changePercent": 6.0948499444238635,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "clean",
+          "metric": "workingSetBytes",
+          "before": 44220416,
+          "after": 46542848,
+          "changePercent": 5.251945164875882,
+          "noisePercent": 2.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "clean",
+      "metric": "workingSetPeakBytes",
+      "medianObservedDelta": 1570816,
+      "medianObservedChangePercent": 3.494977863302551,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "clean",
+          "metric": "workingSetPeakBytes",
+          "before": 46034944,
+          "after": 47034368,
+          "changePercent": 2.1710116558412595,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "clean",
+          "metric": "workingSetPeakBytes",
+          "before": 46034944,
+          "after": 46596096,
+          "changePercent": 1.2189696592223465,
+          "noisePercent": 2.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "clean",
+          "metric": "workingSetPeakBytes",
+          "before": 44453888,
+          "after": 47034368,
+          "changePercent": 5.804846586197354,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "clean",
+          "metric": "workingSetPeakBytes",
+          "before": 44453888,
+          "after": 46596096,
+          "changePercent": 4.818944070763842,
+          "noisePercent": 2.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "clean",
+      "metric": "fps",
+      "medianObservedDelta": -9.485613000000058,
+      "medianObservedChangePercent": -0.3805005670446171,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "clean",
+          "metric": "fps",
+          "before": 2550.109655,
+          "after": 2621.403762,
+          "changePercent": 2.7957271115857107,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "clean",
+          "metric": "fps",
+          "before": 2550.109655,
+          "after": 2483.207311,
+          "changePercent": -2.623508517322959,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "clean",
+          "metric": "fps",
+          "before": 2573.472644,
+          "after": 2621.403762,
+          "changePercent": 1.8625073832337247,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "clean",
+          "metric": "fps",
+          "before": 2573.472644,
+          "after": 2483.207311,
+          "changePercent": -3.5075303096946286,
+          "noisePercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "clean",
+      "metric": "surfaceBytes",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": 0.0,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "clean",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "clean",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "clean",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "clean",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "clean",
+      "metric": "privateBytes",
+      "medianObservedDelta": 3057664,
+      "medianObservedChangePercent": 9.702305739155793,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "clean",
+          "metric": "privateBytes",
+          "before": 33075200,
+          "after": 35438592,
+          "changePercent": 7.145510835913305,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "clean",
+          "metric": "privateBytes",
+          "before": 33075200,
+          "after": 34357248,
+          "changePercent": 3.8761609907120853,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "clean",
+          "metric": "privateBytes",
+          "before": 30605312,
+          "after": 35438592,
+          "changePercent": 15.792291220556741,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "clean",
+          "metric": "privateBytes",
+          "before": 30605312,
+          "after": 34357248,
+          "changePercent": 12.25910064239828,
+          "noisePercent": 2.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "clean",
+      "metric": "prepareP95Ms",
+      "medianObservedDelta": 5.000000000000002E-05,
+      "medianObservedChangePercent": 16.666666666666675,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "clean",
+          "metric": "prepareP95Ms",
+          "before": 0.0003,
+          "after": 0.0003,
+          "changePercent": 0.0,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "clean",
+          "metric": "prepareP95Ms",
+          "before": 0.0003,
+          "after": 0.0004,
+          "changePercent": 33.33333333333335,
+          "noisePercent": 5.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "clean",
+          "metric": "prepareP95Ms",
+          "before": 0.0003,
+          "after": 0.0003,
+          "changePercent": 0.0,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "clean",
+          "metric": "prepareP95Ms",
+          "before": 0.0003,
+          "after": 0.0004,
+          "changePercent": 33.33333333333335,
+          "noisePercent": 5.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "clean",
+      "metric": "frameP50Ms",
+      "medianObservedDelta": 0.0048499999999999654,
+      "medianObservedChangePercent": 1.2958933807473816,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "clean",
+          "metric": "frameP50Ms",
+          "before": 0.3744,
+          "after": 0.3702,
+          "changePercent": -1.121794871794879,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "clean",
+          "metric": "frameP50Ms",
+          "before": 0.3744,
+          "after": 0.3838,
+          "changePercent": 2.5106837606837518,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "clean",
+          "metric": "frameP50Ms",
+          "before": 0.3699,
+          "after": 0.3702,
+          "changePercent": 0.0811030008110114,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "clean",
+          "metric": "frameP50Ms",
+          "before": 0.3699,
+          "after": 0.3838,
+          "changePercent": 3.757772370911039,
+          "noisePercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "dirty",
+      "metric": "composeCpuP95Ms",
+      "medianObservedDelta": 0.0,
+      "medianObservedChangePercent": 0.16953143395337933,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "dirty",
+          "metric": "composeCpuP95Ms",
+          "before": 0.0155,
+          "after": 0.0141,
+          "changePercent": -9.03225806451613,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "dirty",
+          "metric": "composeCpuP95Ms",
+          "before": 0.0155,
+          "after": 0.0151,
+          "changePercent": -2.580645161290318,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "dirty",
+          "metric": "composeCpuP95Ms",
+          "before": 0.0137,
+          "after": 0.0141,
+          "changePercent": 2.9197080291970767,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "dirty",
+          "metric": "composeCpuP95Ms",
+          "before": 0.0137,
+          "after": 0.0151,
+          "changePercent": 10.21897810218979,
+          "noisePercent": 5.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "dirty",
+      "metric": "frameP95Ms",
+      "medianObservedDelta": -9.485850000000001,
+      "medianObservedChangePercent": -52.44495361362843,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "dirty",
+          "metric": "frameP95Ms",
+          "before": 20.0604,
+          "after": 7.8546,
+          "changePercent": -60.84524735299397,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "dirty",
+          "metric": "frameP95Ms",
+          "before": 20.0604,
+          "after": 9.2275,
+          "changePercent": -54.00141572451198,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "dirty",
+          "metric": "frameP95Ms",
+          "before": 15.9934,
+          "after": 7.8546,
+          "changePercent": -50.888491502744884,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "dirty",
+          "metric": "frameP95Ms",
+          "before": 15.9934,
+          "after": 9.2275,
+          "changePercent": -42.304325534282896,
+          "noisePercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "dirty",
+      "metric": "composeAllocations",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": null,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "dirty",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "dirty",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "dirty",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "dirty",
+          "metric": "composeAllocations",
+          "before": 0,
+          "after": 0,
+          "changePercent": null,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "dirty",
+      "metric": "replacementPeakBytes",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": 0.0,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "dirty",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "dirty",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "dirty",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "dirty",
+          "metric": "replacementPeakBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "dirty",
+      "metric": "privatePeakBytes",
+      "medianObservedDelta": 8448000,
+      "medianObservedChangePercent": 25.362749515811934,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "dirty",
+          "metric": "privatePeakBytes",
+          "before": 33570816,
+          "after": 41644032,
+          "changePercent": 24.048316251830173,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "dirty",
+          "metric": "privatePeakBytes",
+          "before": 33570816,
+          "after": 41881600,
+          "changePercent": 24.75597852611029,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "dirty",
+          "metric": "privatePeakBytes",
+          "before": 33058816,
+          "after": 41644032,
+          "changePercent": 25.96952050551358,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "dirty",
+          "metric": "privatePeakBytes",
+          "before": 33058816,
+          "after": 41881600,
+          "changePercent": 26.688142733242472,
+          "noisePercent": 2.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "dirty",
+      "metric": "cppAllocations",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": 0.0,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "dirty",
+          "metric": "cppAllocations",
+          "before": 1080,
+          "after": 1080,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "dirty",
+          "metric": "cppAllocations",
+          "before": 1080,
+          "after": 1080,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "dirty",
+          "metric": "cppAllocations",
+          "before": 1080,
+          "after": 1080,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "dirty",
+          "metric": "cppAllocations",
+          "before": 1080,
+          "after": 1080,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "dirty",
+      "metric": "workingSetBytes",
+      "medianObservedDelta": 1900544,
+      "medianObservedChangePercent": 4.057035853152358,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "dirty",
+          "metric": "workingSetBytes",
+          "before": 46829568,
+          "after": 48500736,
+          "changePercent": 3.5686171608501738,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "dirty",
+          "metric": "workingSetBytes",
+          "before": 46829568,
+          "after": 48988160,
+          "changePercent": 4.609463832764793,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "dirty",
+          "metric": "workingSetBytes",
+          "before": 46858240,
+          "after": 48500736,
+          "changePercent": 3.505244755244763,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "dirty",
+          "metric": "workingSetBytes",
+          "before": 46858240,
+          "after": 48988160,
+          "changePercent": 4.545454545454541,
+          "noisePercent": 2.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "dirty",
+      "metric": "workingSetPeakBytes",
+      "medianObservedDelta": 2095104,
+      "medianObservedChangePercent": 4.458629504993327,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "dirty",
+          "metric": "workingSetPeakBytes",
+          "before": 47026176,
+          "after": 48799744,
+          "changePercent": 3.771448480097561,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "dirty",
+          "metric": "workingSetPeakBytes",
+          "before": 47026176,
+          "after": 49360896,
+          "changePercent": 4.964724327149206,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "dirty",
+          "metric": "workingSetPeakBytes",
+          "before": 46944256,
+          "after": 48799744,
+          "changePercent": 3.9525346828374497,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "dirty",
+          "metric": "workingSetPeakBytes",
+          "before": 46944256,
+          "after": 49360896,
+          "changePercent": 5.147892854026703,
+          "noisePercent": 2.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "dirty",
+      "metric": "fps",
+      "medianObservedDelta": 65.60593737,
+      "medianObservedChangePercent": 113.58015961474175,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "dirty",
+          "metric": "fps",
+          "before": 51.39140957,
+          "after": 134.4761113,
+          "changePercent": 161.67040839156343,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "dirty",
+          "metric": "fps",
+          "before": 51.39140957,
+          "after": 113.0101525,
+          "changePercent": 119.90086173073226,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "dirty",
+          "metric": "fps",
+          "before": 64.88297949,
+          "after": 134.4761113,
+          "changePercent": 107.25945749875123,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "dirty",
+          "metric": "fps",
+          "before": 64.88297949,
+          "after": 113.0101525,
+          "changePercent": 74.17534365452121,
+          "noisePercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "dirty",
+      "metric": "surfaceBytes",
+      "medianObservedDelta": 0,
+      "medianObservedChangePercent": 0.0,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "dirty",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "dirty",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "dirty",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "dirty",
+          "metric": "surfaceBytes",
+          "before": 3686400,
+          "after": 3686400,
+          "changePercent": 0.0,
+          "noisePercent": 0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "dirty",
+      "metric": "privateBytes",
+      "medianObservedDelta": 6934528,
+      "medianObservedChangePercent": 20.97967885025287,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "dirty",
+          "metric": "privateBytes",
+          "before": 33079296,
+          "after": 39727104,
+          "changePercent": 20.096582466567604,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "dirty",
+          "metric": "privateBytes",
+          "before": 33079296,
+          "after": 40247296,
+          "changePercent": 21.66914314016839,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "dirty",
+          "metric": "privateBytes",
+          "before": 33026048,
+          "after": 39727104,
+          "changePercent": 20.29021456033735,
+          "noisePercent": 2.0,
+          "regressed": true
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "dirty",
+          "metric": "privateBytes",
+          "before": 33026048,
+          "after": 40247296,
+          "changePercent": 21.865310678407536,
+          "noisePercent": 2.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "dirty",
+      "metric": "prepareP95Ms",
+      "medianObservedDelta": -9.40815,
+      "medianObservedChangePercent": -53.70120277867733,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "dirty",
+          "metric": "prepareP95Ms",
+          "before": 19.5081,
+          "after": 7.405,
+          "changePercent": -62.04140844059647,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "dirty",
+          "metric": "prepareP95Ms",
+          "before": 19.5081,
+          "after": 8.6788,
+          "changePercent": -55.51181304176214,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "dirty",
+          "metric": "prepareP95Ms",
+          "before": 15.392,
+          "after": 7.405,
+          "changePercent": -51.890592515592516,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "dirty",
+          "metric": "prepareP95Ms",
+          "before": 15.392,
+          "after": 8.6788,
+          "changePercent": -43.614864864864856,
+          "noisePercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGridRetention",
+      "case": "dirty",
+      "metric": "frameP50Ms",
+      "medianObservedDelta": -9.252550000000001,
+      "medianObservedChangePercent": -53.09283651826486,
+      "crossPairDeltas": [
+        {
+          "comparison": "MultilineGridRetention-A1-B1",
+          "scenario": "dirty",
+          "metric": "frameP50Ms",
+          "before": 19.4079,
+          "after": 7.4036,
+          "changePercent": -61.852647633180304,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A1-B2",
+          "scenario": "dirty",
+          "metric": "frameP50Ms",
+          "before": 19.4079,
+          "after": 8.8425,
+          "changePercent": -54.43865642341521,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B1",
+          "scenario": "dirty",
+          "metric": "frameP50Ms",
+          "before": 15.3433,
+          "after": 7.4036,
+          "changePercent": -51.74701661311452,
+          "noisePercent": 5.0,
+          "regressed": false
+        },
+        {
+          "comparison": "MultilineGridRetention-A2-B2",
+          "scenario": "dirty",
+          "metric": "frameP50Ms",
+          "before": 15.3433,
+          "after": 8.8425,
+          "changePercent": -42.36898190089485,
+          "noisePercent": 5.0,
+          "regressed": false
+        }
+      ]
+    }
+  ],
+  "sameVariantControls": [
+    {
+      "name": "Default-A1-A2",
+      "status": "advice-required",
+      "flagged": [
+        "clean/frameP95Ms",
+        "clean/composeCpuP95Ms",
+        "dirty/composeCpuP95Ms"
+      ]
+    },
+    {
+      "name": "Default-B1-B2",
+      "status": "advice-required",
+      "flagged": [
+        "clean/fps",
+        "clean/frameP50Ms",
+        "clean/frameP95Ms",
+        "clean/privateBytes",
+        "clean/privatePeakBytes",
+        "clean/workingSetBytes",
+        "clean/workingSetPeakBytes"
+      ]
+    },
+    {
+      "name": "MultilineGridRetention-A1-A2",
+      "status": "advice-required",
+      "flagged": [
+        "clean/frameP95Ms"
+      ]
+    },
+    {
+      "name": "MultilineGridRetention-B1-B2",
+      "status": "advice-required",
+      "flagged": [
+        "clean/fps",
+        "clean/frameP95Ms",
+        "clean/prepareP95Ms",
+        "dirty/fps",
+        "dirty/frameP50Ms",
+        "dirty/frameP95Ms",
+        "dirty/prepareP95Ms",
+        "dirty/composeCpuP95Ms"
+      ]
+    }
+  ],
+  "acceptedCostContext": [
+    "Previously accepted reference costs (context only): grid +6–7 MiB and +0.025 ms grid frame median; menu +0.049 ms clean frame P95 and +0.165 ms dirty frame P95. These historical figures are not subtracted from this pair and are not causal estimates."
+  ],
+  "interpretationLimit": "All cross-variant pairs and same-variant controls contain advice-required flags. Controls demonstrate variability but do not prove the absence of a new effect. No stable combined-candidate effect is established or ruled out; possible effects outside previously accepted scope remain open. No threshold, flag, or baseline is waived.",
+  "costScopeAssessment": [
+    {
+      "category": "Overlaps previously accepted cost scope",
+      "observations": [
+        "Default clean frameP50Ms +0.01885 ms (+4.93%) versus accepted grid +0.025 ms frame median.",
+        "Default clean frameP95Ms +0.0327 ms (+6.97%) versus accepted menu +0.049 ms clean frame P95.",
+        "Retention dirty privateBytes +6,934,528 bytes (+20.98%, 6.61 MiB) versus accepted grid +6-7 MiB."
+      ],
+      "interpretation": "These combined A/B observations overlap accepted metric/magnitude scope and are not additional costs to add to it; they do not identify component attribution."
+    },
+    {
+      "category": "Outside the stated accepted cost metrics; remains open",
+      "observations": [
+        "Default dirty composeCpuP95Ms +0.0056 ms (+31.50%, 5.6 microseconds).",
+        "Default dirty privateBytes +722,944 bytes (+2.51%, 0.69 MiB).",
+        "Retention workingSetBytes +1,601,536 bytes clean (1.53 MiB) and +1,900,544 bytes dirty (1.81 MiB)."
+      ],
+      "interpretation": "Observed deltas are potential new effects, but current repeat controls and mixed pair results do not establish stability or causality; keep them open."
+    },
+    {
+      "category": "Medians within comparator noise or direction unstable",
+      "observations": [
+        "Default dirty frameP95Ms +2.13% and retention clean frameP50/P95 +1.30%/+1.97%, below the 5% timing guardrail on four-cross-pair medians.",
+        "Retention dirty frameP50/P95 are lower by about 53%, while B1/B2 controls flag dirty FPS/frame-time changes."
+      ],
+      "interpretation": "Do not treat these medians as stable cost or benefit."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+Complex UI clean round 1: 2518.26 completed offscreen FPS; p95 0.6354 ms; private 30588928 bytes
+Complex UI clean round 2: 2624.36 completed offscreen FPS; p95 0.4341 ms; private 30605312 bytes
+Complex UI clean round 3: 2573.47 completed offscreen FPS; p95 0.4902 ms; private 30576640 bytes
+Complex UI clean round 4: 2707.83 completed offscreen FPS; p95 0.4107 ms; private 31256576 bytes
+Complex UI clean round 5: 2519.94 completed offscreen FPS; p95 0.5374 ms; private 31997952 bytes
+Complex UI dirty round 1: 64.883 completed offscreen FPS; p95 15.9934 ms; private 32944128 bytes
+Complex UI dirty round 2: 66.0374 completed offscreen FPS; p95 15.7112 ms; private 33026048 bytes
+Complex UI dirty round 3: 65.4566 completed offscreen FPS; p95 15.9789 ms; private 33058816 bytes
+Complex UI dirty round 4: 64.1176 completed offscreen FPS; p95 16.1936 ms; private 33144832 bytes
+Complex UI dirty round 5: 61.9388 completed offscreen FPS; p95 16.8296 ms; private 29065216 bytes
+Performance comparison: unpaired
+Performance receipt: C:\RedSalamander.Perf\evidence\i26-ui\combined-pair-20260927\A2-MultilineGridRetention.json

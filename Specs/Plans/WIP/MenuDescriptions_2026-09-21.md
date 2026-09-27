@@ -30,7 +30,13 @@ JSON closes each array once. The original five rectangles plus `hasBitmapIcon` a
 is preserved in the public menu debug record; new diagnostics follow that prefix. No command
 identity, focus policy or rendering decision is changed by conflict resolution. Inherited gallery
 images retain their parent provenance until the combined build regenerates them. Combined native
-qualification is pending; neither component's passing receipts establish a combined pass.
+qualification is now recorded in the
+[combined September 27 packet](../../../Measurements/LocalizedAdaptiveLayout/2026-09-27/README.md):
+all six native CI profiles and relocated consumers pass, with ARM64 desktop-capability skips
+retained. The gallery is regenerated and reviewed. Eight matched performance runs preserve
+all twelve `advice-required` comparisons and their same-variant controls; no threshold changes.
+RedSalamander is testing the exact combined pin in an isolated candidate checkout, retaining
+its runnable old-pin baseline. Final resource interpretation and application adoption remain open.
 
 ## September 23 process-local attribution
 

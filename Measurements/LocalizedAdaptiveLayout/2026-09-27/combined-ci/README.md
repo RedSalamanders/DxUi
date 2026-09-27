@@ -1,0 +1,5 @@
+# Combined DxUi CI evidence, compact-path copy
+
+This packet is a byte-preserving compact-path copy of the validated v3 packet. All original v3 payload bytes are under `raw/rNNN.txt` or `raw/rNNN.receipt.txt`; `rename-map.json.receipt.txt` maps each v3 relative path to its compact name and SHA256. `original-SHA256SUMS.txt` retains the v3 manifest byte-for-byte. The new `SHA256SUMS` covers every v4 payload. The complete 342-file extracted-artifact hash inventory is among the preserved receipts; gallery images are represented in that inventory and are not duplicated.
+
+The source run was DxUi CI 36332676309 at `36b2f4b49d42248790fa1a4ad6b6409ac56207dc`. The v3 review records all six native profiles and validation successful, exact 19-suite identity sets, four focused suites with zero skips, nine ARM64 Menu interactive-desktop capability skips per ARM64 profile, the ASan probes and relocated consumer receipts including both STL-annotation modes, and the two additional x64 Release menu resource suites. Those resource metrics are unpaired and are not timing acceptance. CI does not establish application UIA/desktop behavior or adoption.

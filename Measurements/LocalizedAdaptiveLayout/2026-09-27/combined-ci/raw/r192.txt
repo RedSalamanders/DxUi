@@ -1,0 +1,5 @@
+Combined DxUi CI 36332676309; source 36b2f4b49d42248790fa1a4ad6b6409ac56207dc. Final workflow status: success.
+
+This packet checks the exact 19-suite identity set in each of six native profiles; x64 Release also executes MenuResourceScaling and MenuTextLayoutResources. The four focused suites (Grid, Rendering, Embedded, Accessibility) have zero skips. ARM64 Menu reports nine interactive-desktop capability skips per profile; they are recorded as skips, not executed tests. ASan UAF probes and relocated ExternalConsumer receipts are checked separately, including both STL-annotation modes in ASan Debug. Any issue list prevents a pass claim.
+
+The resource suites retain unpaired performance metrics; they do not establish timing acceptance. CI validates library and relocated-consumer test paths only. It does not establish application UIA/desktop behavior or consumer adoption. See raw receipts and the full extracted-artifact file/hash inventory.

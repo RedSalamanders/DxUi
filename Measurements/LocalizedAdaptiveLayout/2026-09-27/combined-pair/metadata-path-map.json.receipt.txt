@@ -1,0 +1,227 @@
+[
+  {
+    "originalPath": "analysis/curated.json",
+    "archivedPath": "analysis/curated.json.receipt.txt",
+    "sha256": "ccbc15e156b8b00714e892b73a0f5079564fa0501ed72f41966d2de8315f3353"
+  },
+  {
+    "originalPath": "build/b-performance.json",
+    "archivedPath": "build/b-performance.json.receipt.txt",
+    "sha256": "c8ad9e6d8d61cfd3f2845cb8040df1cfacf996a17889f86837389e4818763fd9"
+  },
+  {
+    "originalPath": "cmp/d-a1-a2.json",
+    "archivedPath": "cmp/d-a1-a2.json.receipt.txt",
+    "sha256": "5d9d08a3e7c941ea3f2c0f803095655f8e558e59370320954e1aa73dbe66f746"
+  },
+  {
+    "originalPath": "cmp/d-a1-b1.json",
+    "archivedPath": "cmp/d-a1-b1.json.receipt.txt",
+    "sha256": "4328f8094cd9ac34ed222e12f1e4fc3b793453faf47e545ccc23a404b23e3abf"
+  },
+  {
+    "originalPath": "cmp/d-a1-b2.json",
+    "archivedPath": "cmp/d-a1-b2.json.receipt.txt",
+    "sha256": "63f960ccfe2de41c503fca7bd7f9125f90284509d9fd400caf5b06398d23b1d1"
+  },
+  {
+    "originalPath": "cmp/d-a2-b1.json",
+    "archivedPath": "cmp/d-a2-b1.json.receipt.txt",
+    "sha256": "dbf14fab629a7e60c16eb04290a00ade038203f13a345ea65f38e00ef239f07b"
+  },
+  {
+    "originalPath": "cmp/d-a2-b2.json",
+    "archivedPath": "cmp/d-a2-b2.json.receipt.txt",
+    "sha256": "e6001d4fe06fe9ed18a18779b6222ecf8a7087bad73f38d51cda73f420247bbc"
+  },
+  {
+    "originalPath": "cmp/d-b1-b2.json",
+    "archivedPath": "cmp/d-b1-b2.json.receipt.txt",
+    "sha256": "bdb4b6c8ba8f9d65cafb5d4a9c17d27ea97e4232402e364abad24aa0e3c8ee5e"
+  },
+  {
+    "originalPath": "cmp/r-a1-a2.json",
+    "archivedPath": "cmp/r-a1-a2.json.receipt.txt",
+    "sha256": "8601b651bf91db77fd69990c796081b8a1b547f6d2c0f96c50fb60094c568e9d"
+  },
+  {
+    "originalPath": "cmp/r-a1-b1.json",
+    "archivedPath": "cmp/r-a1-b1.json.receipt.txt",
+    "sha256": "6ede61ea89a39af64224b92032072191a9b1f1c095d3b2328ef61cc5d0c06a71"
+  },
+  {
+    "originalPath": "cmp/r-a1-b2.json",
+    "archivedPath": "cmp/r-a1-b2.json.receipt.txt",
+    "sha256": "5d439096611e136d9a4879c87192a03d06079e85d1d0df1d9b08d4d03959816c"
+  },
+  {
+    "originalPath": "cmp/r-a2-b1.json",
+    "archivedPath": "cmp/r-a2-b1.json.receipt.txt",
+    "sha256": "12741d726e789959c2d12e89018987bdc10522622fc8f269f2494a5b32b66017"
+  },
+  {
+    "originalPath": "cmp/r-a2-b2.json",
+    "archivedPath": "cmp/r-a2-b2.json.receipt.txt",
+    "sha256": "ea4f302b94c4a50a268aebf43e2d1f1e7dcb1bd059f77498bf97be781efc34a3"
+  },
+  {
+    "originalPath": "cmp/r-b1-b2.json",
+    "archivedPath": "cmp/r-b1-b2.json.receipt.txt",
+    "sha256": "ab95af7689344676c2d0d3a8ebbdede3a71d512b98e718dc4230782e91eecc02"
+  },
+  {
+    "originalPath": "meta/A-source-before.json",
+    "archivedPath": "meta/A-source-before.json.receipt.txt",
+    "sha256": "24b35d4e79a21e795419baccaea7b40c48127c3df0e1ba630ecf283c342cc19e"
+  },
+  {
+    "originalPath": "meta/A-source-built.json",
+    "archivedPath": "meta/A-source-built.json.receipt.txt",
+    "sha256": "24b35d4e79a21e795419baccaea7b40c48127c3df0e1ba630ecf283c342cc19e"
+  },
+  {
+    "originalPath": "meta/B-inputs-before.json",
+    "archivedPath": "meta/B-inputs-before.json.receipt.txt",
+    "sha256": "335f1af600908d8d8d8aaa22b0aa67927157ea6cb384461df4732bbd8016dbfb"
+  },
+  {
+    "originalPath": "meta/B-source-before.json",
+    "archivedPath": "meta/B-source-before.json.receipt.txt",
+    "sha256": "4da29a5b4658bebde13b8a448ac37d4c18ff340d518b83b572e994bd8137f039"
+  },
+  {
+    "originalPath": "meta/B-source-built.json",
+    "archivedPath": "meta/B-source-built.json.receipt.txt",
+    "sha256": "4da29a5b4658bebde13b8a448ac37d4c18ff340d518b83b572e994bd8137f039"
+  },
+  {
+    "originalPath": "meta/final-inventory.json",
+    "archivedPath": "meta/final-inventory.json.receipt.txt",
+    "sha256": "a655636a58a7aff72709f1e06f6c02796902616aa97e020bc5d22a157b23d3b0"
+  },
+  {
+    "originalPath": "meta/protocol.json",
+    "archivedPath": "meta/protocol.json.receipt.txt",
+    "sha256": "72a6a099a83568e8b2634a47fe70f1d9bc034d24098893fcbdba565544d9894e"
+  },
+  {
+    "originalPath": "runs/a1d.inv.json",
+    "archivedPath": "runs/a1d.inv.json.receipt.txt",
+    "sha256": "dc825dace19b933c84907daa19da5b06000a84d92cfc88b8634caf57405c954e"
+  },
+  {
+    "originalPath": "runs/a1d.json",
+    "archivedPath": "runs/a1d.json.receipt.txt",
+    "sha256": "1a9eb0b2f029ae548dc82ab98d1beb3a0a2352dc91f8800f14367a02d1caecf1"
+  },
+  {
+    "originalPath": "runs/a1d.single.json",
+    "archivedPath": "runs/a1d.single.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "originalPath": "runs/a1r.inv.json",
+    "archivedPath": "runs/a1r.inv.json.receipt.txt",
+    "sha256": "d044394bdfa8fdb56cea7c5e7da4edaab4860dcb9ca5d275c538c2ae07967d77"
+  },
+  {
+    "originalPath": "runs/a1r.json",
+    "archivedPath": "runs/a1r.json.receipt.txt",
+    "sha256": "38fc3a59c28fe4a236c2c8be1e2e29db7cb719fa516ae02fc1649b4faeb39167"
+  },
+  {
+    "originalPath": "runs/a1r.single.json",
+    "archivedPath": "runs/a1r.single.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "originalPath": "runs/a2d.inv.json",
+    "archivedPath": "runs/a2d.inv.json.receipt.txt",
+    "sha256": "bf6a45cfed3baa737a91657e0a06283bfc13d64cb8a537de3136dd46906479a1"
+  },
+  {
+    "originalPath": "runs/a2d.json",
+    "archivedPath": "runs/a2d.json.receipt.txt",
+    "sha256": "5f7c6b5c8968a2afed04ad21e5ded487aa2d8ccb002b1f72696b50d127669a50"
+  },
+  {
+    "originalPath": "runs/a2d.single.json",
+    "archivedPath": "runs/a2d.single.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "originalPath": "runs/a2r.inv.json",
+    "archivedPath": "runs/a2r.inv.json.receipt.txt",
+    "sha256": "00fb1cbecf410196d0e7837604539ce9e6addcdaed18ab5cc922633b0903ea11"
+  },
+  {
+    "originalPath": "runs/a2r.json",
+    "archivedPath": "runs/a2r.json.receipt.txt",
+    "sha256": "76511e2b2b233b6d04c52eb6731a8b51f3d4d3a0e8e388be561c20481fd05602"
+  },
+  {
+    "originalPath": "runs/a2r.single.json",
+    "archivedPath": "runs/a2r.single.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "originalPath": "runs/b1d.inv.json",
+    "archivedPath": "runs/b1d.inv.json.receipt.txt",
+    "sha256": "8e1cff565e26ea748aa485519aab63aabb3e243e22d3abc5d545ea5d91e8b89a"
+  },
+  {
+    "originalPath": "runs/b1d.json",
+    "archivedPath": "runs/b1d.json.receipt.txt",
+    "sha256": "659bd6c60f83503e82185058dc13efbda1a01642112ea5db9b70d1a2c7bcbd0c"
+  },
+  {
+    "originalPath": "runs/b1d.single.json",
+    "archivedPath": "runs/b1d.single.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "originalPath": "runs/b1r.inv.json",
+    "archivedPath": "runs/b1r.inv.json.receipt.txt",
+    "sha256": "9d5f05445d16ed2e1881596094cc8efe2831cd0fba40d7865a7a8e194dea3c6b"
+  },
+  {
+    "originalPath": "runs/b1r.json",
+    "archivedPath": "runs/b1r.json.receipt.txt",
+    "sha256": "f7012474c9bcaaed122529e731f49e9f82f858578a28256f2503557c1ef4efd0"
+  },
+  {
+    "originalPath": "runs/b1r.single.json",
+    "archivedPath": "runs/b1r.single.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "originalPath": "runs/b2d.inv.json",
+    "archivedPath": "runs/b2d.inv.json.receipt.txt",
+    "sha256": "197c1d042057807110752fc2f5321c74d046b93a1aa988f89ae55b85c882003d"
+  },
+  {
+    "originalPath": "runs/b2d.json",
+    "archivedPath": "runs/b2d.json.receipt.txt",
+    "sha256": "5fce340b4e09dbd681800669a0f9bf89631669df4b0496b23ea08a6cafc22e17"
+  },
+  {
+    "originalPath": "runs/b2d.single.json",
+    "archivedPath": "runs/b2d.single.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "originalPath": "runs/b2r.inv.json",
+    "archivedPath": "runs/b2r.inv.json.receipt.txt",
+    "sha256": "0d0d6245754a546d1458646feec5c8073d026c8db7524b5e245d494726f445c2"
+  },
+  {
+    "originalPath": "runs/b2r.json",
+    "archivedPath": "runs/b2r.json.receipt.txt",
+    "sha256": "21e992fb98b528e1ab53195741b38f0df220322cb62ed991b84ab592f98ea563"
+  },
+  {
+    "originalPath": "runs/b2r.single.json",
+    "archivedPath": "runs/b2r.single.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  }
+]

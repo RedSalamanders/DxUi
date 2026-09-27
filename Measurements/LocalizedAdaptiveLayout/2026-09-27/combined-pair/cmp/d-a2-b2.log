@@ -1,0 +1,7 @@
+Performance comparison: advice-required
+REGRESSION clean/fps: 2544.303 -> 2312.901
+REGRESSION clean/frameP50Ms: 0.381 -> 0.421
+REGRESSION clean/frameP95Ms: 0.478 -> 0.520
+REGRESSION clean/privateBytes: 27099136.000 -> 27770880.000
+REGRESSION clean/privatePeakBytes: 27185152.000 -> 27799552.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
