@@ -27,32 +27,32 @@
       "files": {
         "theme-controls-light.png": {
           "name": "theme-controls-light.png",
-          "blob": "ac011c59cce74f0b2bd4fca058c74e79",
-          "size": 307080,
+          "blob": "3e47bb505c69957b698d1c44e1e6fddd",
+          "size": 340094,
           "type": "image/png"
         },
         "theme-controls-dark.png": {
           "name": "theme-controls-dark.png",
-          "blob": "8abf07129db4b5a0d90ccea1be02a44d",
-          "size": 308556,
+          "blob": "bbdd710297b53f92344668c2f70c4b46",
+          "size": 342001,
           "type": "image/png"
         },
         "theme-controls-high-contrast.png": {
           "name": "theme-controls-high-contrast.png",
-          "blob": "889ee0de84bf4196a9f98b6ee868fa39",
-          "size": 298638,
+          "blob": "0fe23b128b889bce273c01df3b13c47f",
+          "size": 331356,
           "type": "image/png"
         },
         "theme-controls-rainbow-light.png": {
           "name": "theme-controls-rainbow-light.png",
-          "blob": "c92bab7522394ac5b91abab5df9d3a62",
-          "size": 309372,
+          "blob": "42a4e75e0a8a972ebd925f3cfb4af5e6",
+          "size": 341722,
           "type": "image/png"
         },
         "theme-controls-rainbow-dark.png": {
           "name": "theme-controls-rainbow-dark.png",
-          "blob": "8f6a3c30da46b622e5583020996f9f32",
-          "size": 310159,
+          "blob": "e0b57817e1c6c748b35ad62b8eeba5b6",
+          "size": 343643,
           "type": "image/png"
         },
         "embedded-controls.png": {
@@ -71,8 +71,8 @@
   },
   "lastChange": {
     "by": "eric-jesover",
-    "at": "2026-09-23T08:52:05Z",
-    "via": "Claude Code · RedSalamanders/DxUi@feature/design-system",
-    "note": "All 30 catalog controls previewed; Theming section from the RedSalamander review; ProgressBar colors corrected."
+    "at": "2026-09-27T19:38:36Z",
+    "via": "Claude Code · RedSalamanders/DxUi@ej/elegant-einstein-lmooqh",
+    "note": "Grid multiline clamp and described MenuBar entries; gallery sheets regenerated from 217e602 with display-independent capture."
   }
 }

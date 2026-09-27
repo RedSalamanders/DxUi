@@ -17,7 +17,8 @@ recorded timing tradeoffs is on `codex/menu-description-layout` (`0f35bab`), whi
 yet contain.
 
 The CI x64 Release job regenerated the gallery from `217e602` with display-independent capture. The
-described-menu tile renders completely in all five reviewed sheets.
+described-menu tile renders completely in all five reviewed sheets. The design system is republished
+with the described MenuBar guideline, preview and the regenerated sheets.
 
 ## September 27 performance record correction
 
@@ -192,7 +193,7 @@ qualification remains in RedSalamander's File Operations plan.
 - [ ] Record explicit consumer pin handoff/rollback.
 - [x] After the main rebase, pass six native CI profiles and regenerate/review the gallery with
   `gallery.ps1 -PublishDocs` (27 September).
-- [ ] Republish the design system with the described MenuBar preview.
+- [x] Republish the design system with the described MenuBar preview (27 September, artifact version 6).
 - [ ] Update domain contracts and move this plan to Done only after all required gates pass.
 
 ## Checkpoint

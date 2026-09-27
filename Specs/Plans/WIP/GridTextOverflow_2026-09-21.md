@@ -23,6 +23,9 @@ increase of at most 7,327,744 bytes. Dirty throughput improves by 70–75%. Allo
 are unchanged, and Default memory does not move. This meets the paired-benchmark condition for
 applying the accepted V11 envelope to this revision; the record states the hosted-runner limitation.
 
+The design system is republished with the updated Grid and MenuBar guidelines, previews and
+stylesheet, and the five regenerated theme sheets are re-uploaded with new asset records.
+
 ## September 27 main merge
 
 Main `6f769ab` (#27's disclosure UIA setup allowance and #24's described native menus) is merged
@@ -161,7 +164,8 @@ Reuse bounded text-layout resources; clean/hidden composition adds no work. No f
 - [x] Update controls documentation/domain contract and regenerate/review gallery; run validators/format (V11).
 - [x] After the main merge, pass the six native CI profiles and regenerate/review the gallery with
   `gallery.ps1 -PublishDocs` (27 September).
-- [ ] Republish the design system with the updated Grid preview.
+- [x] Republish the design system with the updated Grid preview and regenerated gallery (27 September,
+  artifact version 6).
 - [ ] Qualify publication and explicit consumer pin adoption; retain the old consumer pin until qualified.
 - [ ] Move this plan to Done after its own gates pass. The previous localized-layout plan stays Done.
 
