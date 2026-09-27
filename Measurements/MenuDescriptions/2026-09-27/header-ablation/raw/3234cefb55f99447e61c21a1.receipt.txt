@@ -1,0 +1,368 @@
+# Root-reviewed source-ablation experiment. Not qualification or a performance waiver.
+# Six ordinary invocations after fresh x64 Release rebuilds of A, H, and B.
+[CmdletBinding()]
+param(
+    [string] $Evidence = 'C:/RedSalamander.Perf/evidence/i26-ui/menu-header-ablation-v2-20260927',
+    [string] $RetainedBuildA = 'C:/RedSalamander.Perf/evidence/i26-ui/menu-header-ablation-20260927/A',
+    [string] $BaselineRepo = 'Z:/src/DxUi-worktrees/i26-menu-intern-baseline',
+    [string] $HeaderRepo = 'C:/Users/eric/.codex/worktrees/i26-menu-header-probe/DxUi',
+    [string] $CandidateRepo = 'Z:/src/DxUi-worktrees/i26-menu-description',
+    [string] $PythonExe = 'C:/Users/eric/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe'
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+$repos = [ordered]@{
+    A = [IO.Path]::GetFullPath($BaselineRepo)
+    H = [IO.Path]::GetFullPath($HeaderRepo)
+    B = [IO.Path]::GetFullPath($CandidateRepo)
+}
+$expectedHeadA = 'fb857d44f093da3ad62a2cb0cf090e2b5bc13bef'
+$expectedHeadB = '36a1c437fa404c3296aafb6c2d3ac20e8c4566e5'
+$inputPaths = @(
+    'performance.ps1',
+    'Tools/compare_performance.py',
+    'Tools/Invoke-Python.ps1',
+    'Tests/Embedded/EmbeddedTests.cpp',
+    'Tests/Embedded/BenchmarkMain.h',
+    'Tests/Embedded/ComplexUiBenchmark.h',
+    'Samples/ComplexUi/ComplexUiScene.h',
+    'Samples/EmbeddedControls/GraphicsFixture.h'
+)
+$restoredHashes = @{
+    'Tests/Embedded/BenchmarkMain.h' = '7A418A55E91F5C61A1CFD59EDB04C88EF800EFC5BE4AF0B210D2C345250716C9'
+    'Tests/Embedded/ComplexUiBenchmark.h' = '3E374D30FF3D475B3197C32DCFE2DD339F01FD8A8172ABB598C39D1450EBCA6C'
+}
+$runOrder = @('A1', 'H1', 'B1', 'B2', 'H2', 'A2')
+$comparisonSet = [ordered]@{
+    'first-A1-H1' = @('A1', 'H1')
+    'first-H1-B1' = @('H1', 'B1')
+    'first-A1-B1' = @('A1', 'B1')
+    'second-A2-H2' = @('A2', 'H2')
+    'second-H2-B2' = @('H2', 'B2')
+    'second-A2-B2' = @('A2', 'B2')
+    'control-A1-A2' = @('A1', 'A2')
+    'control-H1-H2' = @('H1', 'H2')
+    'control-B1-B2' = @('B1', 'B2')
+}
+
+function Assert([bool] $Condition, [string] $Message) {
+    if (-not $Condition) { throw $Message }
+}
+function Hash([string] $Path) { (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant() }
+function Pe-Text-Hash([string] $Path) {
+    $stream = [IO.File]::OpenRead($Path)
+    $reader = [IO.BinaryReader]::new($stream)
+    try {
+        $stream.Position = 0x3c
+        $peOffset = $reader.ReadInt32()
+        $stream.Position = $peOffset
+        Assert ($reader.ReadUInt32() -eq 0x00004550) "Invalid PE signature: $Path"
+        $null = $reader.ReadUInt16() # machine
+        $sectionCount = $reader.ReadUInt16()
+        $stream.Position = $peOffset + 4 + 16
+        $optionalHeaderSize = $reader.ReadUInt16()
+        $sectionStart = $peOffset + 4 + 20 + $optionalHeaderSize
+        $textHash = $null
+        for ($i = 0; $i -lt $sectionCount; ++$i) {
+            $stream.Position = $sectionStart + ($i * 40)
+            $nameBytes = $reader.ReadBytes(8)
+            $name = [Text.Encoding]::ASCII.GetString($nameBytes).Trim([char]0)
+            $null = $reader.ReadUInt32() # virtual size
+            $null = $reader.ReadUInt32() # virtual address
+            $rawSize = $reader.ReadUInt32()
+            $rawOffset = $reader.ReadUInt32()
+            if ($name -eq '.text') {
+                Assert ($null -eq $textHash) "Multiple .text sections: $Path"
+                $stream.Position = $rawOffset
+                $bytes = $reader.ReadBytes([int]$rawSize)
+                Assert ($bytes.Length -eq $rawSize) "Truncated .text section: $Path"
+                $textHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))
+            }
+        }
+        Assert ($null -ne $textHash) "Missing .text section: $Path"
+        return $textHash
+    } finally { $reader.Dispose(); $stream.Dispose() }
+}
+function Save-Json([string] $Path, $Value) {
+    $Value | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath $Path -Encoding utf8
+}
+function Read-Json([string] $Path) { Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json -AsHashtable }
+function Git-Output([string] $Repo, [string[]] $Arguments) {
+    Push-Location -LiteralPath $Repo
+    try {
+        $result = @(& git @Arguments)
+        Assert ($LASTEXITCODE -eq 0) "git $($Arguments -join ' ') failed in $Repo"
+        return $result
+    } finally { Pop-Location }
+}
+function Input-Manifest([string] $Repo) {
+    @($inputPaths | ForEach-Object {
+        $path = Join-Path $Repo $_
+        Assert (Test-Path -LiteralPath $path -PathType Leaf) "Missing fixture input: $path"
+        [ordered]@{ path = $_; sha256 = Hash $path }
+    })
+}
+function Library-Manifest([string] $Repo) {
+    $files = Git-Output $Repo @('ls-files', '--cached', '--others', '--exclude-standard', '--', 'src', 'include', 'Build', 'Directory.Build.props', 'Directory.Build.targets', 'vcpkg.json', 'vcpkg-tool.json')
+    @($files | Sort-Object -Unique | ForEach-Object {
+        $path = Join-Path $Repo $_
+        Assert (Test-Path -LiteralPath $path -PathType Leaf) "Missing library input: $path"
+        [ordered]@{ path = $_; sha256 = Hash $path }
+    })
+}
+function Manifest-Fingerprint($Items) {
+    $lines = @($Items | ForEach-Object { "$($_.path) $($_.sha256)" })
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($lines -join "`n")))) }
+    finally { $sha.Dispose() }
+}
+function Git-Receipt([string] $Repo, [string] $Folder) {
+    $head = @(Git-Output $Repo @('rev-parse', 'HEAD'))[0].Trim()
+    $head | Set-Content -LiteralPath (Join-Path $Folder 'head.txt') -Encoding utf8
+    $status = Git-Output $Repo @('status', '--porcelain=v1')
+    ($status -join "`n") | Set-Content -LiteralPath (Join-Path $Folder 'status.txt') -Encoding utf8
+    $sourceDiff = Git-Output $Repo @('diff', '--binary', '--', 'src', 'include', 'Build', 'Directory.Build.props', 'Directory.Build.targets', 'vcpkg.json', 'vcpkg-tool.json')
+    ($sourceDiff -join "`n") | Set-Content -LiteralPath (Join-Path $Folder 'library-diff.patch') -Encoding utf8
+    return $head, $status
+}
+function Assert-SameManifest($Left, $Right, [string] $Label) {
+    Assert ($Left.Count -eq $Right.Count) "$Label source inventory size differs"
+    for ($i = 0; $i -lt $Left.Count; ++$i) {
+        Assert ($Left[$i].path -eq $Right[$i].path) "$Label path differs at $i"
+        Assert ($Left[$i].sha256 -eq $Right[$i].sha256) "$Label source differs: $($Left[$i].path)"
+    }
+}
+function Changed-Paths($Left, $Right) {
+    $a = @{}; foreach ($item in $Left) { $a[$item.path] = $item.sha256 }
+    $b = @{}; foreach ($item in $Right) { $b[$item.path] = $item.sha256 }
+    @(@($a.Keys) + @($b.Keys) | Sort-Object -Unique | Where-Object {
+        (-not $a.ContainsKey($_)) -or (-not $b.ContainsKey($_)) -or ($a[$_] -ne $b[$_])
+    })
+}
+function Assert-OnlyChangedPath($Left, $Right, [string] $Expected, [string] $Label) {
+    $changed = @(Changed-Paths $Left $Right)
+    Assert (($changed.Count -eq 1) -and ($changed[0] -eq $Expected)) "$Label delta must be only $Expected; found: $($changed -join ', ')"
+}
+function Assert-ExactHeaderOverlay([string] $AHeader, [string] $HHeader, [string] $BHeader) {
+    $a = (Get-Content -Raw -LiteralPath $AHeader) -replace "`r`n", "`n"
+    $h = (Get-Content -Raw -LiteralPath $HHeader) -replace "`r`n", "`n"
+    $b = (Get-Content -Raw -LiteralPath $BHeader) -replace "`r`n", "`n"
+    $pattern = '(?m)^([ \t]*UINT32 secondaryLineCount[ \t]*=[ \t]*0;\n)([ \t]*bool hasBitmapIcon)'
+    $matches = [regex]::Matches($a, $pattern)
+    Assert ($matches.Count -eq 1) 'Baseline header does not have the expected single overlay anchor'
+    $expected = [regex]::Replace($a, $pattern, {
+        param($match)
+        $match.Groups[1].Value + '    float primaryLayoutWidthDip      = 0.0f;' + "`n" +
+            '    float secondaryLayoutWidthDip    = 0.0f;' + "`n" + $match.Groups[2].Value
+    })
+    Assert ($h -ceq $expected) 'H header is not exactly the two-field candidate-header overlay on A'
+    Assert ($b -ceq $h) 'H and B headers are not byte-equivalent after newline normalization'
+}
+function Compare-Runs([string] $Name, [string] $BeforeName, [string] $AfterName) {
+    $before = Join-Path $Evidence "$BeforeName.json"
+    $after = Join-Path $Evidence "$AfterName.json"
+    $output = Join-Path $Evidence "$Name.json"
+    $log = Join-Path $Evidence "$Name.log"
+    & $PythonExe (Join-Path $repos.B 'Tools/compare_performance.py') $after --baseline $before --output $output *> $log
+    $comparisonExit = $LASTEXITCODE
+    $comparisonExit.ToString() | Set-Content -LiteralPath (Join-Path $Evidence "$Name-exit.txt")
+    Assert (Test-Path -LiteralPath $output -PathType Leaf) "Missing comparison: $Name"
+    $comparison = Read-Json $output
+    Assert ($comparison.status -in @('within-noise-budget', 'advice-required')) "Invalid comparison status: $Name/$($comparison.status)"
+    Assert (($comparisonExit -eq 0) -eq ($comparison.status -eq 'within-noise-budget')) "Comparison exit/status mismatch: $Name"
+    return $comparison
+}
+
+Assert (-not (Test-Path -LiteralPath $Evidence)) "Evidence already exists: $Evidence"
+Assert (Test-Path -LiteralPath $PythonExe -PathType Leaf) "Missing Python runtime: $PythonExe"
+Assert (($repos.A -ne $repos.H) -and ($repos.A -ne $repos.B) -and ($repos.H -ne $repos.B)) 'A, H, and B repositories must differ.'
+
+$heads = @{}
+$statuses = @{}
+$manifests = @{}
+$libraryManifests = @{}
+foreach ($variant in @('A', 'H', 'B')) {
+    Assert (Test-Path -LiteralPath $repos[$variant] -PathType Container) "Missing $variant repository: $($repos[$variant])"
+    $heads[$variant] = @(Git-Output $repos[$variant] @('rev-parse', 'HEAD'))[0].Trim()
+    $statuses[$variant] = @(Git-Output $repos[$variant] @('status', '--porcelain=v1'))
+    $manifests[$variant] = Input-Manifest $repos[$variant]
+    $libraryManifests[$variant] = Library-Manifest $repos[$variant]
+    foreach ($item in $restoredHashes.GetEnumerator()) {
+        $found = Hash (Join-Path $repos[$variant] $item.Key)
+        Assert ($found -eq $item.Value) "Restore original $($item.Key) before running ($variant actual $found)."
+    }
+}
+Assert ($heads.A -eq $expectedHeadA) "Unexpected A HEAD: $($heads.A)"
+Assert ($heads.H -eq $expectedHeadA) "H must be based on clean baseline $expectedHeadA"
+Assert ($heads.B -eq $expectedHeadB) "Unexpected B HEAD: $($heads.B)"
+Assert ($statuses.A.Count -eq 0) 'A baseline worktree must be clean.'
+Assert ($statuses.B.Count -eq 0) 'B candidate worktree must be clean.'
+Assert ($statuses.H.Count -eq 1) 'H must contain exactly one dirty tracked-source path.'
+Assert ($statuses.H[0] -match '^\s*M\s+include/DxUi/DxUi\.h$') "H may modify only include/DxUi/DxUi.h; found: $($statuses.H -join '; ')"
+Assert-OnlyChangedPath $libraryManifests.A $libraryManifests.H 'include/DxUi/DxUi.h' 'A/H'
+Assert-OnlyChangedPath $libraryManifests.H $libraryManifests.B 'src/Controls/DxUi.Menu.cpp' 'H/B'
+Assert-ExactHeaderOverlay (Join-Path $repos.A 'include/DxUi/DxUi.h') (Join-Path $repos.H 'include/DxUi/DxUi.h') (Join-Path $repos.B 'include/DxUi/DxUi.h')
+for ($i = 0; $i -lt $inputPaths.Count; ++$i) {
+    $a = $manifests.A[$i]; $h = $manifests.H[$i]; $b = $manifests.B[$i]
+    Assert (($a.path -eq $h.path) -and ($a.path -eq $b.path)) "Fixture-input name mismatch at $i"
+    Assert (($a.sha256 -eq $h.sha256) -and ($a.sha256 -eq $b.sha256)) "Fixture/tool input differs: $($a.path)"
+}
+
+New-Item -ItemType Directory -Path $Evidence -ErrorAction Stop | Out-Null
+# Git-Receipt needs the destination folder; preserve its preflight receipts now that the destination exists.
+foreach ($variant in @('A', 'H', 'B')) {
+    $folder = Join-Path $Evidence $variant
+    New-Item -ItemType Directory -Path $folder | Out-Null
+    $null = Git-Receipt $repos[$variant] $folder
+    Save-Json (Join-Path $folder 'library-source-hashes.json') $libraryManifests[$variant]
+    Save-Json (Join-Path $folder 'benchmark-inputs.json') $manifests[$variant]
+    foreach ($item in $manifests[$variant]) {
+        $copy = Join-Path (Join-Path $folder 'inputs') $item.path
+        New-Item -ItemType Directory -Path (Split-Path $copy) -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $repos[$variant] $item.path) -Destination $copy
+        Assert ((Hash $copy) -eq $item.sha256) "Copied input changed for $variant/$($item.path)"
+    }
+}
+$driverCopy = Join-Path $Evidence 'run-menu-header-ablation-v2-20260927.ps1'
+Copy-Item -LiteralPath $PSCommandPath -Destination $driverCopy
+Save-Json (Join-Path $Evidence 'protocol.json') ([ordered]@{
+    fixture = 'ordinary-complex-ui-x64-release-header-source-ablation-v1'
+    purpose = 'Balanced source ablation for the repeated clean-frame-P95 flag; not qualification, waiver, or rebaseline.'
+    inferenceLimit = 'H is on a C: managed path while A/B are Z: worktrees. Record executable .text hashes; path/image layout remains a confound, so these comparisons localize timing differences but do not alone prove the header caused them.'
+    declaredRunOrder = $runOrder
+    declaredComparisons = $comparisonSet
+    sourceDeltaAtoH = 'include/DxUi/DxUi.h only; H must equal A plus exactly the two candidate debug-state float fields'
+    sourceDeltaHtoB = 'src/Controls/DxUi.Menu.cpp only'
+    requireIdenticalEightBenchmarkAndFixtureInputs = $true
+    comparatorThresholds = 'Unchanged Tools/compare_performance.py defaults; every saved comparison retained.'
+    recovery = 'V1 built A successfully, then H refused before compilation because its new checkout lacked dependencies. V1 ran no benchmarks. Reuse only that exact verified A build; restore H dependencies through vcpkg-install.ps1 and freshly rebuild H and B. Retain V1 failure unchanged.'
+    retainedBuildA = $RetainedBuildA
+    recordedUtc = [DateTime]::UtcNow.ToString('o')
+    repositories = $repos
+    pythonExe = $PythonExe
+    pythonSha256 = Hash $PythonExe
+    driverSha256 = Hash $driverCopy
+    note = 'Six ordinary performance.ps1 -SkipBuild invocations; no diagnostic frame-stage headers or instrumentation.'
+})
+foreach ($variant in @('A', 'H', 'B')) { Save-Json (Join-Path $Evidence "benchmark-inputs-$variant.json") $manifests[$variant] }
+
+$oldPython = $env:DXUI_PYTHON
+try {
+    $env:DXUI_PYTHON = $PythonExe
+    foreach ($variant in @('A', 'H', 'B')) {
+        $repo = $repos[$variant]
+        $folder = Join-Path $Evidence $variant
+        if ($variant -eq 'A') {
+            Assert (-not (Test-Path -LiteralPath (Join-Path (Split-Path $RetainedBuildA) 'A1.json'))) 'V1 must not have begun benchmark execution.'
+            $saved = Read-Json (Join-Path $RetainedBuildA 'build-receipt.json')
+            Assert ($saved.variant -eq 'A') 'Retained build is not A.'
+            Assert ($saved.rebuiltEmbeddedTestsTranslationUnit) 'Retained A does not prove a fresh compile.'
+            Assert ((Get-Content -Raw -LiteralPath (Join-Path $RetainedBuildA 'build-exit.txt')).Trim() -eq '0') 'Retained A build failed.'
+            Assert ((Get-Content -Raw -LiteralPath (Join-Path $RetainedBuildA 'head.txt')).Trim() -eq $heads.A) 'Retained A HEAD mismatch.'
+            Assert ($saved.librarySourceFingerprint -eq (Manifest-Fingerprint $libraryManifests.A)) 'Retained A source fingerprint mismatch.'
+            Assert-SameManifest (Read-Json (Join-Path $RetainedBuildA 'benchmark-inputs.json')) $manifests.A 'Retained A fixture'
+            Assert-SameManifest (Read-Json (Join-Path $RetainedBuildA 'library-source-hashes.json')) $libraryManifests.A 'Retained A sources'
+            Assert ((Hash (Join-Path $repo '.build/x64/Release/DxUi.EmbeddedTests.exe')) -eq $saved.executableSha256) 'Retained A executable mismatch.'
+            Assert ((Pe-Text-Hash (Join-Path $repo '.build/x64/Release/DxUi.EmbeddedTests.exe')) -eq $saved.executableTextSectionSha256) 'Retained A .text mismatch.'
+            Assert ((Hash (Join-Path $repo '.build/x64/Release/DxUi.lib')) -eq $saved.librarySha256) 'Retained A library mismatch.'
+            Assert ((Hash (Join-Path $RetainedBuildA 'build-console.log')) -eq $saved.buildConsoleSha256) 'Retained A console mismatch.'
+            Assert ((Hash (Join-Path $RetainedBuildA 'build-msbuild.log')) -eq $saved.msbuildLogSha256) 'Retained A MSBuild log mismatch.'
+            foreach ($name in @('build-receipt.json', 'build-console.log', 'build-msbuild.log', 'build-exit.txt')) {
+                Copy-Item -LiteralPath (Join-Path $RetainedBuildA $name) -Destination (Join-Path $folder $name)
+                Assert ((Hash (Join-Path $RetainedBuildA $name)) -eq (Hash (Join-Path $folder $name))) "Retained A copy mismatch: $name"
+            }
+            Save-Json (Join-Path $folder 'build-reuse.json') ([ordered]@{ original = $RetainedBuildA; verifiedUtc = [DateTime]::UtcNow.ToString('o'); reason = 'Resume after H dependency preflight refusal; no previous benchmark invocation.' })
+            continue
+        }
+        $logsFolder = Join-Path $repo '.build/logs'
+        $beforeNames = if (Test-Path -LiteralPath $logsFolder -PathType Container) {
+            @(Get-ChildItem -LiteralPath $logsFolder -Filter 'build-x64-Release-*.log' -File | ForEach-Object Name)
+        } else { @() }
+        $buildStarted = [DateTime]::UtcNow
+        $buildConsole = Join-Path $folder 'build-console.log'
+        try {
+            & (Join-Path $repo 'build.ps1') -Configuration Release -Platform x64 -Rebuild *> $buildConsole
+            Assert $? "Build script failed for $variant"
+        } catch {
+            ($_ | Out-String) | Add-Content -LiteralPath $buildConsole
+            '1' | Set-Content -LiteralPath (Join-Path $folder 'build-exit.txt')
+            throw
+        }
+        '0' | Set-Content -LiteralPath (Join-Path $folder 'build-exit.txt')
+        $newLogs = @(Get-ChildItem -LiteralPath $logsFolder -Filter 'build-x64-Release-*.log' -File | Where-Object { $_.Name -notin $beforeNames })
+        Assert ($newLogs.Count -eq 1) "Expected one fresh MSBuild log for $variant, found $($newLogs.Count)"
+        $msbuildLog = Join-Path $folder 'build-msbuild.log'
+        Copy-Item -LiteralPath $newLogs[0].FullName -Destination $msbuildLog
+        $msbuildText = Get-Content -Raw -LiteralPath $msbuildLog
+        Assert ($msbuildText -match '(?m)CL\.exe[^\r\n]*EmbeddedTests\.cpp') "Rebuild did not prove EmbeddedTests.cpp compilation for $variant"
+        $exe = Join-Path $repo '.build/x64/Release/DxUi.EmbeddedTests.exe'
+        $lib = Join-Path $repo '.build/x64/Release/DxUi.lib'
+        Assert ((Test-Path -LiteralPath $exe -PathType Leaf) -and (Test-Path -LiteralPath $lib -PathType Leaf)) "Missing Release outputs for $variant"
+        $buildReceipt = [ordered]@{
+            variant = $variant; startedUtc = $buildStarted.ToString('o'); completedUtc = [DateTime]::UtcNow.ToString('o')
+            rebuiltEmbeddedTestsTranslationUnit = $true; buildConsoleSha256 = Hash $buildConsole
+            msbuildLogOriginalName = $newLogs[0].Name; msbuildLogSha256 = Hash $msbuildLog
+            executableSha256 = Hash $exe; executableTextSectionSha256 = Pe-Text-Hash $exe; librarySha256 = Hash $lib
+            librarySourceFingerprint = Manifest-Fingerprint $libraryManifests[$variant]
+        }
+        Save-Json (Join-Path $folder 'build-receipt.json') $buildReceipt
+        foreach ($item in $manifests[$variant]) { Assert ((Hash (Join-Path $repo $item.path)) -eq $item.sha256) "Input changed during $variant rebuild: $($item.path)" }
+    }
+
+    foreach ($run in $runOrder) {
+        $variant = $run.Substring(0, 1); $repo = $repos[$variant]; $folder = Join-Path $Evidence $variant
+        $exe = Join-Path $repo '.build/x64/Release/DxUi.EmbeddedTests.exe'
+        $lib = Join-Path $repo '.build/x64/Release/DxUi.lib'
+        $built = Read-Json (Join-Path $folder 'build-receipt.json')
+        $beforeExe = Hash $exe; $beforeLib = Hash $lib
+        $beforeText = Pe-Text-Hash $exe
+        Assert (($beforeExe -eq $built.executableSha256) -and ($beforeLib -eq $built.librarySha256) -and ($beforeText -eq $built.executableTextSectionSha256)) "Binary or .text section changed before $run"
+        foreach ($item in $manifests[$variant]) { Assert ((Hash (Join-Path $repo $item.path)) -eq $item.sha256) "Input changed before ${run}: $($item.path)" }
+        $reportPath = Join-Path $Evidence "$run.json"; $logPath = Join-Path $Evidence "$run.log"
+        $started = [DateTime]::UtcNow
+        try {
+            & (Join-Path $repo 'performance.ps1') -Configuration Release -Platform x64 -SkipBuild -OutputPath $reportPath *> $logPath
+            Assert $? "performance.ps1 failed for $run"
+            Assert (Test-Path -LiteralPath $reportPath -PathType Leaf) "Missing $run report"
+            $receipt = Read-Json $reportPath; $unpairedPath = "$reportPath.comparison.json"
+            Assert (Test-Path -LiteralPath $unpairedPath -PathType Leaf) "Missing $run unpaired comparison"
+            Assert ((Read-Json $unpairedPath).status -eq 'unpaired') "Unexpected $run comparison status"
+            $afterExe = Hash $exe; $afterLib = Hash $lib; $afterText = Pe-Text-Hash $exe
+            Assert (($beforeExe -eq $afterExe) -and ($beforeLib -eq $afterLib) -and ($beforeText -eq $afterText)) "Binary or .text section changed during $run"
+            Assert ($receipt.executableSha256 -eq $beforeExe) "Receipt executable hash mismatch for $run"
+            Assert ($receipt.sourceFingerprint -eq $built.librarySourceFingerprint) "Compiled source fingerprint changed for $run"
+            Assert (($receipt.configuration -eq 'Release') -and ($receipt.platform -eq 'x64') -and $receipt.buildSkipped) "Wrong $run execution mode"
+            Assert ($receipt.sourceCommit -eq (Get-Content -Raw -LiteralPath (Join-Path $folder 'head.txt')).Trim()) "Source HEAD changed for $run"
+            foreach ($item in $manifests[$variant]) { if ($receipt.benchmarkInputs.ContainsKey($item.path)) { Assert ($receipt.benchmarkInputs[$item.path] -eq $item.sha256) "Receipt input mismatch for $run/$($item.path)" } }
+            Save-Json (Join-Path $Evidence "$run-invocation.json") ([ordered]@{
+                run = $run; variant = $variant; startedUtc = $started.ToString('o'); completedUtc = [DateTime]::UtcNow.ToString('o')
+                executableSha256Before = $beforeExe; executableSha256After = $afterExe
+                executableTextSectionSha256 = $afterText
+                librarySha256Before = $beforeLib; librarySha256After = $afterLib
+                reportSha256 = Hash $reportPath; unpairedComparisonSha256 = Hash $unpairedPath
+                receiptCompletedUtc = $receipt.completedUtc; sourceCommit = $receipt.sourceCommit
+                sourceFingerprint = $receipt.sourceFingerprint; benchmarkSha256 = $receipt.benchmarkSha256
+            })
+            '0' | Set-Content -LiteralPath (Join-Path $Evidence "$run-exit.txt")
+        } catch {
+            ($_ | Out-String) | Add-Content -LiteralPath $logPath
+            '1' | Set-Content -LiteralPath (Join-Path $Evidence "$run-exit.txt")
+            throw
+        }
+    }
+
+    $comparisons = [ordered]@{}
+    foreach ($name in $comparisonSet.Keys) { $pair = $comparisonSet[$name]; $comparisons[$name] = Compare-Runs $name $pair[0] $pair[1] }
+    Save-Json (Join-Path $Evidence 'interpretation.json') ([ordered]@{
+        rule = 'Preserve all pair and same-variant control comparisons. Thresholds are unchanged. This experiment localizes differences; it does not establish cause, qualification, waiver, or acceptance and makes no baseline change.'
+        runOrder = $runOrder; comparisons = $comparisonSet; statuses = @($comparisons.Keys | ForEach-Object { [ordered]@{ name = $_; status = $comparisons[$_].status } })
+    })
+    $files = @(Get-ChildItem -LiteralPath $Evidence -File -Recurse | Sort-Object FullName | ForEach-Object {
+        [ordered]@{ path = $_.FullName.Substring($Evidence.Length + 1).Replace('\', '/'); size = $_.Length; sha256 = Hash $_.FullName }
+    })
+    Save-Json (Join-Path $Evidence 'file-hashes.json') $files
+    Write-Output "Completed exactly six ordinary runs: $($runOrder -join ', '). Evidence: $Evidence"
+} finally { $env:DXUI_PYTHON = $oldPython }
+
+

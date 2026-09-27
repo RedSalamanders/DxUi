@@ -3,6 +3,26 @@
 Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
 Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.
 
+## September 27 timing decision and source ablation
+
+The user explicitly accepts the recorded grid/menu timing tradeoffs. The menu acceptance is
+now bounded in [the owning performance contract](../../Core/Core_PerformanceAndResources.md#i26-described-menu-timing-tradeoff);
+original flags and thresholds stay unchanged. No further timing-advice question is needed
+for these recorded costs; new regressions and all other required gates remain separate.
+
+The [six-run source-ablation packet](../../../Measurements/MenuDescriptions/2026-09-27/header-ablation/README.md)
+retains A1/H1/B1/B2/H2/A2, all nine comparisons and the failed H dependency setup. A's successful
+fresh build is reused only after source, fixture, log and binary checks; H/B are freshly rebuilt.
+The eight fixture/tool inputs match. H adds only two debug-header fields over fb857d4; B is
+the unchanged qualified 36a1c43 menu source. Clean P95 A/H rises 7.442%/9.230%, H/B changes
+-3.643%/+1.595%, and A/B rises 3.528%/10.972%. Different .text hashes and C:/Z: checkout paths
+prevent a causal conclusion. Root corrected the cheaper-model curator's binary binding,
+source-byte handling, archive paths and control-number transcription before execution.
+
+Next: merge the qualified grid/menu components in the existing managed combined checkout,
+run the required combined qualification, and only then adopt its exact pin in RedSalamander.
+The consumer is not implicitly changed by this library evidence/contract update.
+
 ## September 23 process-local attribution
 
 The [nine-phase heap diagnostic](../../../Measurements/MenuDescriptions/2026-09-23/common-heap-phases/README.md)
@@ -37,9 +57,9 @@ pairs, while the A/A and B/B controls improve. This repeated timing flag remains
 Dirty private-memory flags occur only in pair two and also in the B/B control; these four runs do
 not establish a stable candidate memory increase. Allocations and surfaces are unchanged.
 
-The user has been asked whether to continue causal investigation or accept only the measured
-clean-frame timing cost. No answer or waiver is recorded. The accepted V11 grid memory cost is
-separate and cannot qualify this menu candidate. No benchmark threshold or baseline was changed.
+At that checkpoint the user had been asked about the measured timing cost. The explicit
+September 27 timing acceptance above supersedes that pending question. The accepted V11 grid
+memory cost remains separate. No benchmark threshold or baseline was changed.
 The process-local heap evidence and 36% lower live menu shaping storage remain independent facts;
 no causal claim about the shared-scene timing follows from them.
 

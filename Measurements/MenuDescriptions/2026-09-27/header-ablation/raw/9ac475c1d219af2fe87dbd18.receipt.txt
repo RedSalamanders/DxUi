@@ -1,0 +1,87 @@
+{
+  "rule": "Preserve all pair and same-variant control comparisons. Thresholds are unchanged. This experiment localizes differences; it does not establish cause, qualification, waiver, or acceptance and makes no baseline change.",
+  "runOrder": [
+    "A1",
+    "H1",
+    "B1",
+    "B2",
+    "H2",
+    "A2"
+  ],
+  "comparisons": {
+    "first-A1-H1": [
+      "A1",
+      "H1"
+    ],
+    "first-H1-B1": [
+      "H1",
+      "B1"
+    ],
+    "first-A1-B1": [
+      "A1",
+      "B1"
+    ],
+    "second-A2-H2": [
+      "A2",
+      "H2"
+    ],
+    "second-H2-B2": [
+      "H2",
+      "B2"
+    ],
+    "second-A2-B2": [
+      "A2",
+      "B2"
+    ],
+    "control-A1-A2": [
+      "A1",
+      "A2"
+    ],
+    "control-H1-H2": [
+      "H1",
+      "H2"
+    ],
+    "control-B1-B2": [
+      "B1",
+      "B2"
+    ]
+  },
+  "statuses": [
+    {
+      "name": "first-A1-H1",
+      "status": "advice-required"
+    },
+    {
+      "name": "first-H1-B1",
+      "status": "advice-required"
+    },
+    {
+      "name": "first-A1-B1",
+      "status": "advice-required"
+    },
+    {
+      "name": "second-A2-H2",
+      "status": "advice-required"
+    },
+    {
+      "name": "second-H2-B2",
+      "status": "advice-required"
+    },
+    {
+      "name": "second-A2-B2",
+      "status": "advice-required"
+    },
+    {
+      "name": "control-A1-A2",
+      "status": "advice-required"
+    },
+    {
+      "name": "control-H1-H2",
+      "status": "advice-required"
+    },
+    {
+      "name": "control-B1-B2",
+      "status": "advice-required"
+    }
+  ]
+}

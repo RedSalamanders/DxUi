@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+"""Curate the menu-header source ablation into an external, reviewable packet.
+
+Draft only: writes a staging packet under C:/RedSalamander.Perf. Does not build,
+run a benchmark, modify a checkout, or write into the repository.
+"""
+from __future__ import annotations
+
+import difflib
+import hashlib
+import json
+import math
+import shutil
+import statistics
+import subprocess
+from pathlib import Path
+
+V1 = Path(r"C:\RedSalamander.Perf\evidence\i26-ui\menu-header-ablation-20260927")
+V2 = Path(r"C:\RedSalamander.Perf\evidence\i26-ui\menu-header-ablation-v2-20260927")
+RECOVERY_LOG = Path(r"C:\RedSalamander.Perf\evidence\i26-ui\menu-header-probe-dependencies-20260927.log")
+A_REPO = Path(r"Z:\src\DxUi-worktrees\i26-menu-intern-baseline")
+H_REPO = Path(r"C:\Users\eric\.codex\worktrees\i26-menu-header-probe\DxUi")
+B_REPO = Path(r"Z:\src\DxUi-worktrees\i26-menu-description")
+OUT = Path(r"C:\RedSalamander.Perf\evidence\i26-ui\menu-header-ablation-closeout-20260927\packet-draft")
+
+HEADS = {
+    "A": "fb857d44f093da3ad62a2cb0cf090e2b5bc13bef",
+    "H": "fb857d44f093da3ad62a2cb0cf090e2b5bc13bef",
+    "B": "36a1c437fa404c3296aafb6c2d3ac20e8c4566e5",
+}
+RUNS = ["A1", "H1", "B1", "B2", "H2", "A2"]
+PAIRS = {
+    "first-A1-H1": ("A1", "H1"), "first-H1-B1": ("H1", "B1"), "first-A1-B1": ("A1", "B1"),
+    "second-A2-H2": ("A2", "H2"), "second-H2-B2": ("H2", "B2"), "second-A2-B2": ("A2", "B2"),
+    "control-A1-A2": ("A1", "A2"), "control-H1-H2": ("H1", "H2"), "control-B1-B2": ("B1", "B2"),
+}
+REPORT_NAMES = {f"{v}{n}.json" for v in "ABH" for n in (1, 2)}
+
+
+def fail(message: str) -> None:
+    raise RuntimeError(message)
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest().upper()
+
+
+def read_json(path: Path):
+    return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def verify_declared_v2_hashes() -> None:
+    manifest = read_json(V2 / "file-hashes.json")
+    if not isinstance(manifest, list) or not manifest:
+        fail("V2 file-hashes.json has an unexpected schema")
+    for item in manifest:
+        source = V2.joinpath(*Path(item["path"]).parts)
+        if not source.is_file():
+            fail(f"V2 hash inventory source is missing: {item['path']}")
+        payload = source.read_bytes()
+        if len(payload) != item["size"] or sha(payload) != item["sha256"].upper():
+            fail(f"V2 file-hashes.json mismatch: {item['path']}")
+
+
+def load_variant(variant: str) -> tuple[dict, dict, dict]:
+    root = V2 / variant
+    report = read_json(V2 / f"{variant}1.json")
+    inputs = read_json(root / "benchmark-inputs.json")
+    source_inventory = read_json(root / "library-source-hashes.json")
+    return report, {x["path"]: x["sha256"].upper() for x in inputs}, {x["path"]: x["sha256"].upper() for x in source_inventory}
+
+
+def validate_runs() -> tuple[dict[str, dict], dict[str, dict]]:
+    if [x["run"] for x in (read_json(V2 / f"{n}-invocation.json") for n in RUNS)] != RUNS:
+        fail("Six invocation records are missing or out of declared order")
+    reports: dict[str, dict] = {}
+    invocations: dict[str, dict] = {}
+    benchmark_sets = []
+    library_sets = {}
+    text_hashes = {"A": set(), "H": set(), "B": set()}
+    executable_hashes = {"A": set(), "H": set(), "B": set()}
+    for name in RUNS:
+        variant = name[0]
+        invocation = read_json(V2 / f"{name}-invocation.json")
+        report = read_json(V2 / f"{name}.json")
+        if invocation.get("run") != name or invocation.get("variant") != variant:
+            fail(f"Invocation identity mismatch: {name}")
+        if invocation.get("sourceCommit") != HEADS[variant] or report.get("sourceCommit") != HEADS[variant]:
+            fail(f"Source head mismatch: {name}")
+        if report.get("platform") != "x64" or report.get("nativeArchitecture") != "X64" or report.get("configuration") != "Release":
+            fail(f"Unexpected target/configuration: {name}")
+        if report.get("fixture") != "dxui-complex-ui-v2" or report.get("renderer") != "WARP" or not report.get("buildSkipped"):
+            fail(f"Not an ordinary SkipBuild WARP report: {name}")
+        if invocation.get("executableSha256Before") != invocation.get("executableSha256After"):
+            fail(f"Executable changed during benchmark: {name}")
+        if invocation.get("librarySha256Before") != invocation.get("librarySha256After"):
+            fail(f"DxUi library changed during benchmark: {name}")
+        if invocation.get("reportSha256", "").upper() != sha((V2 / f"{name}.json").read_bytes()):
+            fail(f"Report hash mismatch: {name}")
+        if invocation.get("executableSha256Before") != report.get("executableSha256"):
+            fail(f"Executable SHA mismatch: {name}")
+        if invocation.get("benchmarkSha256") != report.get("benchmarkSha256"):
+            fail(f"Benchmark input fingerprint mismatch: {name}")
+        if invocation.get("sourceFingerprint") != report.get("sourceFingerprint"):
+            fail(f"Source fingerprint mismatch: {name}")
+        if (V2 / f"{name}-exit.txt").read_text(encoding="ascii").strip() != "0":
+            fail(f"Benchmark command failed: {name}")
+        text_hashes[variant].add(invocation["executableTextSectionSha256"])
+        executable_hashes[variant].add(invocation["executableSha256Before"])
+        invocations[name], reports[name] = invocation, report
+        if name.endswith("1"):
+            inputs = read_json(V2 / variant / "benchmark-inputs.json")
+            benchmark_sets.append({x["path"]: x["sha256"].upper() for x in inputs})
+            library_sets[variant] = {x["path"]: x["sha256"].upper() for x in read_json(V2 / variant / "library-source-hashes.json")}
+    if not all(x == benchmark_sets[0] for x in benchmark_sets[1:]) or len(benchmark_sets[0]) != 8:
+        fail("The three variants do not share the exact eight declared benchmark/tool inputs")
+    if any(len(text_hashes[v]) != 1 or len(executable_hashes[v]) != 1 for v in "ABH"):
+        fail("Same-variant runs do not retain stable binary identities")
+    if len({next(iter(text_hashes[v])) for v in "ABH"}) != 3:
+        fail("Expected A/H/B executable .text hashes to differ; do not publish an ablation without this check")
+    if len({next(iter(executable_hashes[v])) for v in "ABH"}) != 3:
+        fail("Expected A/H/B executable hashes to differ")
+    path_a = set(library_sets["A"])
+    if path_a != set(library_sets["H"]) or path_a != set(library_sets["B"]):
+        fail("Variant source inventory paths differ")
+    delta_ah = {p for p in path_a if library_sets["A"][p] != library_sets["H"][p]}
+    delta_hb = {p for p in path_a if library_sets["H"][p] != library_sets["B"][p]}
+    if delta_ah != {"include/DxUi/DxUi.h"} or delta_hb != {"src/Controls/DxUi.Menu.cpp"}:
+        fail(f"Unexpected source inventory delta: A-H={sorted(delta_ah)} H-B={sorted(delta_hb)}")
+    return reports, invocations
+
+
+def scenario_medians(report: dict) -> dict[tuple[str, str], float]:
+    return {(scene["name"], metric): statistics.median(float(row[metric]) for row in scene["rounds"])
+            for scene in report["scenarios"] for metric in scene["rounds"][0]}
+
+
+def validate_comparisons(reports: dict[str, dict]) -> dict[str, dict]:
+    comparators = {}
+    for name, (before_name, after_name) in PAIRS.items():
+        path = V2 / f"{name}.json"
+        result = read_json(path)
+        if result.get("status") != "advice-required":
+            fail(f"Expected unchanged comparator advice-required status: {name}")
+        before = scenario_medians(reports[before_name])
+        after = scenario_medians(reports[after_name])
+        if len(result.get("changes", [])) != 26:
+            fail(f"Unexpected comparator metric count: {name}")
+        for change in result["changes"]:
+            key = (change["scenario"], change["metric"])
+            if key not in before or key not in after:
+                fail(f"Comparator references absent report metric: {name} {key}")
+            if not math.isclose(float(change["before"]), before[key], rel_tol=0, abs_tol=1e-12):
+                fail(f"Comparator before median mismatches report: {name} {key}")
+            if not math.isclose(float(change["after"]), after[key], rel_tol=0, abs_tol=1e-12):
+                fail(f"Comparator after median mismatches report: {name} {key}")
+            expected = None if before[key] == 0 else (after[key] - before[key]) / before[key] * 100.0
+            actual = change.get("changePercent")
+            if expected is None:
+                if actual is not None:
+                    fail(f"Comparator zero-baseline percentage mismatch: {name} {key}")
+            elif not math.isclose(float(actual), expected, rel_tol=1e-10, abs_tol=1e-10):
+                fail(f"Comparator percent mismatches report medians: {name} {key}")
+        comparators[name] = result
+    return comparators
+
+
+def copy_bytes(source: Path, relative: str, raw_map: list[dict], *, data: bytes | None = None) -> None:
+    payload = source.read_bytes() if data is None else data
+    destination = OUT / relative
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(payload)
+    raw_map.append({"source": str(source), "path": relative.replace("\\", "/"), "sha256": sha(payload).lower(), "size": len(payload)})
+
+
+def staged_name(prefix: str, rel: Path) -> str:
+    text = rel.as_posix()
+    if rel.name.lower().endswith(".json") and rel.name not in REPORT_NAMES:
+        text += ".receipt.txt"
+    return f"raw/{prefix}/{text}"
+
+
+def copy_tree(root: Path, prefix: str, raw_map: list[dict]) -> None:
+    for source in sorted(x for x in root.rglob("*") if x.is_file()):
+        rel = source.relative_to(root)
+        if prefix == "v2" and rel.as_posix() == "file-hashes.json":
+            copy_bytes(source, "raw/v2/file-hashes.json.receipt.txt", raw_map)
+        elif prefix == "v2" and rel.name in REPORT_NAMES and rel.parent == Path("."):
+            copy_bytes(source, f"raw/reports/{rel.name}", raw_map)
+        else:
+            copy_bytes(source, staged_name(prefix, rel), raw_map)
+
+
+def git_blob(repo: Path, commit: str, relative: str) -> bytes:
+    result = subprocess.run(["git", "-C", str(repo), "show", f"{commit}:{relative}"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return result.stdout
+
+
+def capture_sources(raw_map: list[dict], library_sets: dict[str, dict]) -> None:
+    sources = {
+        "A": {"include/DxUi/DxUi.h": git_blob(A_REPO, HEADS["A"], "include/DxUi/DxUi.h"),
+              "src/Controls/DxUi.Menu.cpp": git_blob(A_REPO, HEADS["A"], "src/Controls/DxUi.Menu.cpp")},
+        "H": {"include/DxUi/DxUi.h": (H_REPO / "include/DxUi/DxUi.h").read_bytes(),
+              "src/Controls/DxUi.Menu.cpp": git_blob(A_REPO, HEADS["A"], "src/Controls/DxUi.Menu.cpp")},
+        "B": {"include/DxUi/DxUi.h": git_blob(B_REPO, HEADS["B"], "include/DxUi/DxUi.h"),
+              "src/Controls/DxUi.Menu.cpp": git_blob(B_REPO, HEADS["B"], "src/Controls/DxUi.Menu.cpp")},
+    }
+    for variant, entries in sources.items():
+        for rel, payload in entries.items():
+            if sha(payload) != library_sets[variant][rel]:
+                fail(f"Source snapshot is not bound to variant inventory: {variant}/{rel}")
+            origin = H_REPO / rel if variant == "H" and rel.endswith("DxUi.h") else (A_REPO if variant in ("A", "H") else B_REPO) / rel
+            copy_bytes(origin, f"raw/source-snapshots/{variant}/{rel}.source.txt", raw_map, data=payload)
+    for left, right, rel, label in [("A", "H", "include/DxUi/DxUi.h", "A-to-H-header.patch"),
+                                    ("H", "B", "src/Controls/DxUi.Menu.cpp", "H-to-B-menu-cpp.patch")]:
+        old = sources[left][rel].decode("utf-8").splitlines(keepends=True)
+        new = sources[right][rel].decode("utf-8").splitlines(keepends=True)
+        patch = "".join(difflib.unified_diff(old, new, fromfile=f"{left}/{rel}", tofile=f"{right}/{rel}"))
+        copy_bytes(V2 / "protocol.json", f"raw/source-snapshots/{label}", raw_map, data=patch.encode("utf-8"))
+
+
+def write_packet() -> None:
+    if OUT.exists():
+        fail(f"Refusing to overwrite existing staging packet: {OUT}")
+    verify_declared_v2_hashes()
+    reports, invocations = validate_runs()
+    comparisons = validate_comparisons(reports)
+    # V1 is evidence of a failed dependency preflight, not benchmark data.
+    a1 = read_json(V1 / "A/build-receipt.json")
+    a2 = read_json(V2 / "A/build-receipt.json")
+    if sha((V1 / "A/build-receipt.json").read_bytes()) != sha((V2 / "A/build-receipt.json").read_bytes()):
+        fail("V2 did not reuse the exact V1 A build receipt")
+    if not (V1 / "H/build-exit.txt").is_file() or (V1 / "H/build-exit.txt").read_text(encoding="ascii").strip() == "0":
+        fail("V1 H dependency preflight refusal not evidenced")
+    if any(V1.rglob("*-invocation.json")) or any((V1 / x).exists() for x in ["A1.json", "H1.json", "B1.json"]):
+        fail("V1 unexpectedly contains benchmark invocations or reports")
+    OUT.mkdir(parents=True)
+    raw_map: list[dict] = []
+    copy_tree(V1, "v1-setup-failure", raw_map)
+    copy_tree(V2, "v2-completed", raw_map)
+    copy_bytes(RECOVERY_LOG, "raw/recovery/menu-header-probe-dependencies-20260927.log", raw_map)
+    library_sets = {v: {x["path"]: x["sha256"].upper() for x in read_json(V2 / v / "library-source-hashes.json")} for v in "AHB"}
+    capture_sources(raw_map, library_sets)
+    map_payload = (json.dumps(raw_map, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+    (OUT / "raw").mkdir(parents=True, exist_ok=True)
+    (OUT / "raw/original-file-map.json.receipt.txt").write_bytes(map_payload)
+
+    metric_rows = []
+    for name, (before, after) in PAIRS.items():
+        changes = comparisons[name]["changes"]
+        p95 = next(x["changePercent"] for x in changes if x["scenario"] == "clean" and x["metric"] == "frameP95Ms")
+        flags = sum(bool(x["regressed"]) for x in changes)
+        metric_rows.append(f"| {name} | {before} → {after} | {p95:+.3f}% | {flags} | advice-required |")
+    readme = """# Ordinary ComplexUi menu header source ablation, 27 September 2026
+
+This packet retains a balanced six-invocation x64 Release WARP ablation of the clean-frame-P95 signal. The execution order was A1, H1, B1, B2, H2, A2. All six ordinary `performance.ps1 -SkipBuild` invocations exited successfully. A reused its exact verified V1 build; V1's later H dependency-preflight refusal is retained and V1 ran no benchmark. H dependencies were restored and H/B were freshly built. The prior V1 failure is setup evidence, not a benchmark failure or result.
+
+A is `fb857d44f093da3ad62a2cb0cf090e2b5bc13bef`; H starts at the same commit with only the two candidate debug-state float fields added to `include/DxUi/DxUi.h`; B is `36a1c437fa404c3296aafb6c2d3ac20e8c4566e5`, changing `src/Controls/DxUi.Menu.cpp` relative to H. The three 63-file library source inventories confirm only those sequential deltas, and the A/H/B executable `.text` hashes are all distinct. Eight benchmark/tool inputs match byte-for-byte across variants.
+
+| Comparison | Pair | Clean frame P95 | Comparator flags | Status |
+|---|---|---:|---:|---|
+""" + "\n".join(metric_rows) + """
+
+The A→H clean frame-P95 increase repeats at +7.442% and +9.230%. H→B changes are −3.643% and +1.595%; A→B is +3.528% and +10.972%. The latter crosses the existing 5% timing threshold only in the second pair. Every saved comparator result is `advice-required`; this reflects one or more metric flags in each comparison, not failed benchmark executions and not a waiver.
+
+Same-variant controls also carry flags: A1→A2 has dirty prepare P95 +5.161% and dirty compose CPU P95 +16.848%; H1→H2 has clean private bytes +5.496%, private peak +5.849%, working set +2.692%/peak +2.701%, and dirty compose CPU P95 +55.349%; B1→B2 has dirty frame P95 +5.977%, prepare P95 +6.948%, and compose CPU P95 +12.500%. These controls show timing/resource movement within variants. They do not cancel the repeated A→H clean frame-P95 flag.
+
+The H executable was built from a C: managed worktree while A/B used Z: worktrees. Despite the distinct `.text` hashes and controlled source deltas, this C:/Z: image/path difference remains a confound. The ablation localizes where the saved measurements move but does not establish that the header change caused the repeated flag. It does not qualify performance, waive advice, accept a regression, or change the baseline. The fixture measures completed offscreen WARP frames with blocking one-pixel readback; it does not measure swap-chain presentation or vsync. The unchanged comparator thresholds remain authoritative.
+
+`raw/reports/*.json` are the six standard benchmark reports. Other JSON metadata is stored with `.receipt.txt` suffixes; `raw/original-file-map.json.receipt.txt` maps each retained source path to its staged path, SHA256 and byte size. V1 setup-failure records, the dependency-restore log, six invocation receipts, all nine comparator outputs, logs, inputs, manifests, build records, source snapshots/deltas and the original V2 file-hash inventory are retained. `SHA256SUMS` binds every staged payload except the manifest itself.
+"""
+    (OUT / "README.md").write_text(readme, encoding="utf-8", newline="\n")
+    (OUT / ".gitattributes").write_text("* -text\n", encoding="ascii", newline="\n")
+    payloads = sorted(p for p in OUT.rglob("*") if p.is_file() and p.name != "SHA256SUMS")
+    sums = "".join(f"{sha(p.read_bytes()).lower()}  {p.relative_to(OUT).as_posix()}\n" for p in payloads)
+    (OUT / "SHA256SUMS").write_text(sums, encoding="ascii", newline="\n")
+    print(f"Draft packet staged: {OUT} ({len(payloads)} payloads, {sum(p.stat().st_size for p in payloads):,} bytes)")
+    print("Curator is designed for review before execution; this draft was not run.")
+
+
+if __name__ == "__main__":
+    write_packet()
+
+

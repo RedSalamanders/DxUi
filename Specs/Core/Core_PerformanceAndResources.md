@@ -52,6 +52,26 @@ It covers the named offscreen fixture only; hardware presentation and long-run r
 still require their own evidence. Consumer measurements and their accepted costs remain
 in the corresponding product repositories.
 
+### I26 described-menu timing tradeoff
+
+On 2026-09-27 the user explicitly answered **"Accept the recorded timing tradeoffs"**
+after reviewing the grid and described-menu measurements. For this menu candidate,
+the accepted timing envelope is the recorded clean-frame P95 increase up to 0.0492 ms
+in the [September 23 crossover](../../Measurements/MenuDescriptions/2026-09-23/common-crossover/README.md)
+and the recorded timing differences in the
+[September 27 source ablation](../../Measurements/MenuDescriptions/2026-09-27/header-ablation/README.md),
+including dirty-frame P95 up to 0.1649 ms above its paired baseline. The qualified source
+is `36a1c437fa404c3296aafb6c2d3ac20e8c4566e5`; the production benefit is readable primary/path
+menu rows and popup-local text sharing (575,310 to 367,894 live heap bytes for the measured
+twelve-entry repeated-caption fixture). These offscreen WARP measurements do not establish
+presented latency or causality; the header-only variant and same-binary controls also vary.
+
+Keep all original samples, comparator flags and thresholds. This explicitly accepts these
+recorded timing costs for this implementation; it does not assert non-regression, reset a
+baseline, accept additional process-memory growth or admit future regressions. Correctness,
+combined-library and consumer build/resource qualification, DPI and accessibility gates remain
+required. The grid's separate memory and timing decisions remain in its owning record.
+
 ### Ongoing validation and resource budgets
 
 Every `test.ps1` invocation MUST report complex-UI FPS and memory, including filtered suites, and each suite receipt
