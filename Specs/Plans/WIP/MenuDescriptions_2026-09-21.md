@@ -32,6 +32,16 @@ The correction adds no public API, paint/layout rule or gallery visual. Existing
 therefore remain applicable; native CI still regenerates the normal gallery as a validation gate.
 Current external evidence: `C:/RedSalamander.Perf/evidence/i26-ui/menu-plain-uia-20260927`.
 
+Local Debug and ASan Debug each pass all 18 nonactivating suites at `15be545`. Native CI
+`36349046872` additionally catches an ordinary-menu first-Down regression: generic host activation
+selects the first newly exposed semantic child before menu keyboard dispatch. This is a keyboard
+assertion, not a sanitizer memory diagnostic (the sanitizer's deliberate detection probe succeeds).
+The correction preserves an empty menu-owned selection on native focus arrival; existing selected
+rows still use the host's normal focus restoration. A plain/described nonactivating regression first
+fails on `15be545`, then passes with first/second Down and acknowledged focus reentry. The focused
+Release MenuAccessibility/NewControls/Accessibility/WindowHost suites pass. New full-profile CI and
+consumer qualification remain required. The previous native failures remain retained.
+
 ## September 27 timing decision and source ablation
 
 The user explicitly accepts the recorded grid/menu timing tradeoffs. The menu acceptance is

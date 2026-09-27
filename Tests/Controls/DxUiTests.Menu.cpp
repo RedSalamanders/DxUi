@@ -6102,6 +6102,65 @@ void TestPlainMenuAccessibilityScrollsFocusedRow()
     Require(dismissed && WaitForWindowDestroyed(popup), "plain scrolling menu tears down through normal dismissal");
 }
 
+void TestMenuNativeFocusPreservesEmptySelection()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    for (const bool described : {false, true})
+    {
+        std::vector<MenuFlyoutItem> items{{.kind = MenuItemKind::Info, .text = L"Focus policy information"},
+                                          {.text = L"First focus policy command", .commandId = 9491},
+                                          {.kind = MenuItemKind::Info, .text = L"More information"},
+                                          {.text = L"Second focus policy command", .commandId = 9492}};
+        if (described)
+            items[1].secondaryText = L"A description does not select the command.";
+        bool closed        = false;
+        const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "focus policy anchor maps to screen");
+        Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&](std::optional<int>) noexcept { closed = true; }),
+                "focus policy menu opens");
+        const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+        Require(popup != nullptr, "focus policy menu is fixture owned");
+        const auto dismiss     = wil::scope_exit([&]() noexcept
+        {
+            if (IsWindow(popup))
+                SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+        });
+        const HWND nativeFocus = GetFocus();
+        // Deliver an owned outside-client move, without moving the desktop cursor,
+        // so the initial stationary-pointer hover cannot choose a starting row.
+        SendMessageW(popup, WM_MOUSEMOVE, 0, MAKELPARAM(-20, -20));
+        SendMessageW(popup, WM_SETFOCUS, 0, 0);
+        ContextMenuPopupDebugState state{};
+        Require(DebugGetContextMenuPopupState(popup, state) && ! state.keyboardIndex && ! state.hoveredIndex && GetFocus() == nativeFocus,
+                "native focus notification preserves an explicitly empty menu selection for plain and described rows");
+        SendMessageW(popup, WM_KEYDOWN, VK_DOWN, 0);
+        Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == 1u && GetFocus() == nativeFocus,
+                "first Down selects the first actionable row after native focus notification");
+        SendMessageW(popup, WM_KILLFOCUS, reinterpret_cast<WPARAM>(owner.Hwnd()), 0);
+        SendMessageW(popup, WM_SETFOCUS, 0, 0);
+        Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == 1u && GetFocus() == nativeFocus,
+                "native focus restoration preserves an existing deliberate row selection");
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+        root.attach(CreateWindowHostAccessibilityProvider(popup));
+        Require(root != nullptr, "focus restoration exposes the existing menu UIA root");
+        wil::com_ptr_nothrow<IRawElementProviderFragment> focused;
+        RequireSucceeded(root->GetFocus(focused.put()), "restored logical focus is published through UIA");
+        Require(focused != nullptr, "the deliberately selected row keeps its logical focus provider");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> focusedSimple;
+        RequireSucceeded(focused.query_to(focusedSimple.put()), "restored row exposes focus properties");
+        wil::unique_variant hasFocus;
+        RequireSucceeded(focusedSimple->GetPropertyValue(UIA_HasKeyboardFocusPropertyId, &hasFocus), "restored row focus state is readable");
+        Require(hasFocus.vt == VT_BOOL && hasFocus.boolVal == VARIANT_TRUE,
+                "native focus reentry re-acknowledges the selected semantic row instead of merely retaining its index");
+        SendMessageW(popup, WM_KEYDOWN, VK_DOWN, 0);
+        Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == 3u && GetFocus() == nativeFocus && ! closed,
+                "second Down skips the information row without native focus takeover or command invocation");
+        SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+        owner.PumpMessages();
+        Require(closed && WaitForWindowDestroyed(popup), "focus policy fixture closes normally");
+    }
+}
+
 void TestDescribedMenuPointerAndCancelledQueuedInvoke()
 {
     using namespace DxUi;
@@ -6212,6 +6271,8 @@ void RunMenuAccessibilityTests()
     TestPlainMenuAccessibilityInvokesAndDisconnects();
     std::cerr << "  [START] TestPlainMenuAccessibilityScrollsFocusedRow\n" << std::flush;
     TestPlainMenuAccessibilityScrollsFocusedRow();
+    std::cerr << "  [START] TestMenuNativeFocusPreservesEmptySelection\n" << std::flush;
+    TestMenuNativeFocusPreservesEmptySelection();
 }
 
 void RunMenuDescriptionTests()

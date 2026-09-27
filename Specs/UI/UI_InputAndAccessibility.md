@@ -28,6 +28,9 @@ uses its root popup for native keyboard dispatch and restores the previously foc
 on dismissal while it still owns focus. Logical entry navigation does not change that session's
 native focus target. Explicit UIA focus of a native MenuItem follows that same rule for both root
 menus and submenus, independently of their activation style; embedded host focus stays with its bridge.
+Native activation does not invent an initial menu selection. With no deliberately selected row,
+the first Down selects the first actionable entry; an existing selection survives focus reentry
+and restores its acknowledged UIA focus state. Plain and described rows share this policy.
 Bounds follow the visible scrolled row geometry and DPI reflow. Menu commands remain navigable
 when fully clipped, report `IsOffscreen=true`, and their UIA focus
 request scrolls them into view. A row-geometry change republishes the native snapshot even when

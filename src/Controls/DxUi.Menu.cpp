@@ -2136,6 +2136,16 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             return 0;
         }
 
+        if (msg == WM_SETFOCUS && ! popup->keyboardIndex.has_value())
+        {
+            // Native activation gives the popup keyboard dispatch, not an implicit
+            // first command. The menu owns initial selection; generic host focus
+            // would select the first new semantic child before the first Down key.
+            // Existing selected rows still use normal host focus restoration below.
+            SynchronizeMenuAccessibility(*popup);
+            return 0;
+        }
+
         bool handled   = false;
         LRESULT result = popup->host.HandleMessage(hwnd, msg, wp, lp, handled);
         if (handled)
