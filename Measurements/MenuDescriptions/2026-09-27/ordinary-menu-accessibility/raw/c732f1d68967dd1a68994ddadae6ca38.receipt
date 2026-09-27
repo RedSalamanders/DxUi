@@ -1,0 +1,49 @@
+--- a/Tests/Controls/DxUiTests.Menu.cpp
++++ b/Tests/Controls/DxUiTests.Menu.cpp
+@@ -5212,6 +5212,8 @@
+     const bool shown       = ContextMenu::ShowAsync(
+         ownerWindow.Hwnd(), menuPoint, items, ownerWindow.Host().GetTheme(), [&](std::optional<int>) noexcept { callbackInvoked = true; }, callbacks);
+     const uint64_t openToFirstPaintUs = DxUi::Debug::Perf::ElapsedUs(openStarted);
++    std::cout << "{\"fixture\":\"dxui-large-menu-end-v1\",\"stage\":\"open\",\"rows\":" << kItemCount
++              << ",\"openToFirstPaintUs\":" << openToFirstPaintUs << ",\"shown\":" << (shown ? "true" : "false") << "}\n" << std::flush;
+     Require(shown, "large async context menu opens");
+     Require(openToFirstPaintUs < 5'000'000u, "large context menu open-to-first-paint remains bounded");
+ 
+@@ -5230,14 +5232,23 @@
+ 
+     const auto endStarted = std::chrono::steady_clock::now();
+     SendMessageW(popupHwnd, WM_KEYDOWN, VK_END, 0);
++    const uint64_t endDispatchUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
+     ownerWindow.PumpMessages();
++    const uint64_t endPumpedUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
+     ContextMenuPopupDebugState endState{};
+-    Require(WaitForContextMenuPopupState(popupHwnd,
++    const bool lastRowResolved = WaitForContextMenuPopupState(popupHwnd,
+                                          [](const ContextMenuPopupDebugState& state) noexcept
+     { return state.keyboardIndex == std::optional<size_t>{kItemCount - 1u} && state.scrollOffsetDip > 0.0f; },
+-                                         endState),
+-            "large context menu resolves the last row through cached offsets");
++                                         endState);
+     const uint64_t endToVisibleUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
++    // Retain actual timings even when a bounded-latency assertion fails. These
++    // subintervals isolate synchronous input from pumping and full debug-state reads.
++    std::cout << "{\"fixture\":\"dxui-large-menu-end-v1\",\"stage\":\"end\",\"rows\":" << kItemCount
++              << ",\"dispatchUs\":" << endDispatchUs << ",\"pumpUs\":" << (endPumpedUs - endDispatchUs)
++              << ",\"queryUs\":" << (endToVisibleUs - endPumpedUs) << ",\"endToVisibleUs\":" << endToVisibleUs
++              << ",\"lastRowResolved\":" << (lastRowResolved ? "true" : "false")
++              << ",\"paintedRows\":" << endState.lastPaintedItemCount << "}\n" << std::flush;
++    Require(lastRowResolved, "large context menu resolves the last row through cached offsets");
+     Require(endToVisibleUs < 1'000'000u, "large context menu End-to-visible latency remains bounded");
+     Require(endState.lastPaintedItemCount <= 32u, "large context menu scrolled paint remains limited to viewport rows");
+ 
+@@ -6273,6 +6284,10 @@
+     TestPlainMenuAccessibilityScrollsFocusedRow();
+     std::cerr << "  [START] TestMenuNativeFocusPreservesEmptySelection\n" << std::flush;
+     TestMenuNativeFocusPreservesEmptySelection();
++    // Reuse the exact large-model bound in the nonactivating lane. The fixture
++    // sends owned HWND messages and never injects desktop input.
++    std::cerr << "  [START] TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets\n" << std::flush;
++    TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets();
+ }
+ 
+ void RunMenuDescriptionTests()

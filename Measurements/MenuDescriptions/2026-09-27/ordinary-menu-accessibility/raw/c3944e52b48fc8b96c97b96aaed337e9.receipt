@@ -1,0 +1,27 @@
+[
+  {
+    "Algorithm": "SHA256",
+    "Hash": "560BF344ED350565E26CB196044681A8FA0F72196DE8EF72B444B4F1796F125B",
+    "Path": "C:\\Users\\eric\\.codex\\worktrees\\fileops-ui-qualified\\DxUi\\Tests\\Controls\\DxUiTests.Menu.cpp"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "8804D2FE112A7DB5EF66D7FC6C86A3101C572F4B7D8D6F2968CDE16D4C10FFFA",
+    "Path": "C:\\Users\\eric\\.codex\\worktrees\\fileops-ui-qualified\\DxUi\\Tests\\Controls\\DxUiTests.cpp"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "124C8D0B62AF9E82D1A2CAC6123FD18EB5506B865D3F2428DDE6186AF7F2F181",
+    "Path": "C:\\Users\\eric\\.codex\\worktrees\\fileops-ui-qualified\\DxUi\\src\\Controls\\DxUi.Menu.cpp"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "8A3F0CA4F1558CAAC010F8A2ED937A7618EFE30C8BBB97226622C700C547FBDC",
+    "Path": "C:\\Users\\eric\\.codex\\worktrees\\fileops-ui-qualified\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "A97ED6017CE7441B3A20C70E4232EBFAD104D3E76FABD4E745CC9A2B99B7DC8D",
+    "Path": "C:\\Users\\eric\\.codex\\worktrees\\fileops-ui-qualified\\DxUi\\.build\\x64\\Release\\DxUi.lib"
+  }
+]

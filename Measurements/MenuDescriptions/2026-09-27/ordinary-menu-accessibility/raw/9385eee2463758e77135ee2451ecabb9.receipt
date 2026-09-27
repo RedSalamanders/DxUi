@@ -1,0 +1,5 @@
+    [TRACE] attached host dtor: hwnd reset
+  [START] TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets
+{"fixture":"dxui-large-menu-end-v1","stage":"open","rows":4096,"openToFirstPaintUs":3090947,"shown":true}
+{"fixture":"dxui-large-menu-end-v1","stage":"end","rows":4096,"dispatchUs":878505,"pumpUs":10203,"queryUs":133837,"endToVisibleUs":1022545,"lastRowResolved":true,"paintedRows":8}
+FAILED: large context menu End-to-visible latency remains bounded

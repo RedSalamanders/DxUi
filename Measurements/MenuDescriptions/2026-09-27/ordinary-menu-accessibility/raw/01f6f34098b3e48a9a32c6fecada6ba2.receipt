@@ -1,0 +1,167 @@
+﻿Build started 27/09/2026 22:46:56.
+Logging verbosity is set to: Normal.
+     1>Project "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\DxUi.sln" on node 1 (Build target(s)).
+     1>ValidateSolutionConfiguration:
+         Building solution configuration "Release|x64".
+     1>Project "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\DxUi.sln" (1) is building "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\src\DxUi.vcxproj" (2) on node 1 (default targets).
+     2>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+       InitializeBuildStatus:
+         Creating "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+         Touching "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.tlog\unsuccessfulbuild".
+       FxCompile:
+         All outputs are up-to-date.
+         All outputs are up-to-date.
+       ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+       ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /I"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\\" /I"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\include" /I"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\vcpkg_installed\x64\x64-windows\include" /Zi /nologo /W4 /WX /diagnostics:column /sdl /O2 /D NDEBUG /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\\" /Fd"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor Controls\DxUi.Accessibility.cpp Controls\DxUi.Menu.cpp
+         DxUi.Accessibility.cpp
+         DxUi.Menu.cpp
+         Generating Code...
+       Lib:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\Lib.exe /OUT:"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.lib" /NOLOGO /MACHINE:X64 "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\ControlCatalog.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\NativeMenuInterop.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\Embedded.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\FrameRuntime.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.Accessibility.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.ComboBox.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.Controls.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.Grid.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.Menu.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.NativeTextInput.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.PointerInput.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.Scrollbar.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.SingleLineTextEditing.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.TextInput.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.TextStoreACP.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\TextInputServices.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\TextClipboard.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.Theme.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.Tree.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.Typeahead.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.WindowHost.obj"
+         DxUi.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.lib
+       FinalizeBuildStatus:
+         Deleting file "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.tlog\unsuccessfulbuild".
+         Touching "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi\DxUi.tlog\DxUi.lastbuildstate".
+     2>Done Building Project "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\src\DxUi.vcxproj" (default targets).
+     1>Project "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\DxUi.sln" (1) is building "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\Samples\EmbeddedControls\DxUi.EmbeddedControls.vcxproj" (4) on node 2 (default targets).
+     4>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+     1>Project "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\DxUi.sln" (1) is building "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\Tests\Foundation\DxUi.FoundationTests.vcxproj" (5) on node 4 (default targets).
+     5>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+     1>Project "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\DxUi.sln" (1) is building "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\Tests\Controls\DxUi.ControlTests.vcxproj" (6) on node 3 (default targets).
+     6>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+     1>Project "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\DxUi.sln" (1) is building "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\Tests\Embedded\DxUi.EmbeddedTests.vcxproj" (3) on node 5 (default targets).
+     3>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+     4>InitializeBuildStatus:
+         Creating "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+     3>InitializeBuildStatus:
+         Creating "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+     5>InitializeBuildStatus:
+         Creating "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+     4>InitializeBuildStatus:
+         Touching "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\unsuccessfulbuild".
+     5>InitializeBuildStatus:
+         Touching "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\unsuccessfulbuild".
+     3>InitializeBuildStatus:
+         Touching "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\unsuccessfulbuild".
+     6>InitializeBuildStatus:
+         Creating "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+         Touching "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\unsuccessfulbuild".
+     4>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+     3>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+     4>ComputeStdModulesCompileInputs:
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+     3>ComputeStdModulesCompileInputs:
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+     4>ComputeStdModulesCompileInputs:
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+     3>ComputeStdModulesCompileInputs:
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+     6>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+     5>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+     4>ClCompile:
+         All outputs are up-to-date.
+     3>ClCompile:
+         All outputs are up-to-date.
+     5>ClCompile:
+         All outputs are up-to-date.
+     4>Link:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.EmbeddedControls.exe" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.EmbeddedControls.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.EmbeddedControls.lib" /MACHINE:X64 "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\Main.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.lib"
+     3>Link:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.EmbeddedTests.exe" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.EmbeddedTests.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.EmbeddedTests.lib" /MACHINE:X64 "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\EmbeddedTests.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.lib"
+     5>Link:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.FoundationTests.exe" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.FoundationTests.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.FoundationTests.lib" /MACHINE:X64 "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.FoundationTests\FoundationTests.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.FoundationTests\PublicHelpersTests.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.lib"
+     6>ClCompile:
+         All outputs are up-to-date.
+       Link:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.ControlTests.exe" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.ControlTests.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.ControlTests.lib" /MACHINE:X64 "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Accessibility.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Animation.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.ComboBox.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Controls.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Gallery.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Grid.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Menu.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.MultilineText.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.NativeTextInput.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.NewControls.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.ReadOnly.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Rendering.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.TextField.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Theme.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Tooltip.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Tree.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.WindowHost.obj"
+         "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.lib"
+     4>Link:
+         DxUi.EmbeddedControls.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.EmbeddedControls.exe
+       FinalizeBuildStatus:
+         Deleting file "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\unsuccessfulbuild".
+         Touching "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\DxUi.EmbeddedControls.lastbuildstate".
+     4>Done Building Project "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\Samples\EmbeddedControls\DxUi.EmbeddedControls.vcxproj" (default targets).
+     5>Link:
+         DxUi.FoundationTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.FoundationTests.exe
+       FinalizeBuildStatus:
+         Deleting file "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\unsuccessfulbuild".
+         Touching "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\DxUi.FoundationTests.lastbuildstate".
+     5>Done Building Project "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\Tests\Foundation\DxUi.FoundationTests.vcxproj" (default targets).
+     6>Link:
+         DxUi.ControlTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.ControlTests.exe
+       FinalizeBuildStatus:
+         Deleting file "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\unsuccessfulbuild".
+         Touching "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\DxUi.ControlTests.lastbuildstate".
+     6>Done Building Project "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\Tests\Controls\DxUi.ControlTests.vcxproj" (default targets).
+     3>Link:
+         DxUi.EmbeddedTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Release\DxUi.EmbeddedTests.exe
+       FinalizeBuildStatus:
+         Deleting file "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\unsuccessfulbuild".
+         Touching "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\DxUi.EmbeddedTests.lastbuildstate".
+     3>Done Building Project "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\Tests\Embedded\DxUi.EmbeddedTests.vcxproj" (default targets).
+     1>Done Building Project "C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\DxUi.sln" (Build target(s)).
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:09.21

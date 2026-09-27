@@ -1,0 +1,29 @@
+# Navigation capacity and in-place construction proposal
+
+Frozen external proposal against DxUi `d45c3610a586fab926a98a8656bb337792a38b6c` plus the root's current temporary stage diagnostics. The only production target is `src/Controls/DxUi.Accessibility.cpp`. `changed-targets.json` records the exact baseline raw and LF-normalized hashes, normalized candidate hash, and patch hash. `baseline.cpp` and `candidate.cpp` are review artifacts; apply the patch, not a whole-file replacement.
+
+## Evidence and bounded change
+
+Root's paired diagnostic run attributes End dispatch primarily to snapshot navigation: row bounds 758 us, focus synchronization 849,823 us, navigation 766,160 us, point hits 2,316 us, focus path 612 us, window state 161 us, publication/retirement 79,122 us. End total was 990,118 us after a prior 1,244,850 us failure of the unchanged 1,000,000 us bound. Open was approximately 3.392 seconds. Those observations establish stage attribution, not a measured candidate speedup.
+
+The existing builder default-constructs a rich local navigation record, moves it into an unreserved vector, and repeatedly moves prior records as that vector grows. Each record contains six strings and nine vectors. Debug STL proxy allocation during construction/moves is the source-backed allocation hypothesis; exact allocation counts have not been measured.
+
+The patch performs one private count traversal, reserves exactly that many entries in `semanticControlOrder` and `controlNavigationRecords`, then constructs each rich record directly in its final vector slot. The pre-count mirrors the existing null/visibility check, semantic predicate, traversal through semantic and nonsemantic Panels, null-child skipping, and `TryAppendPathIndex` depth/index admission. It does not reserve for hidden, nonsemantic, or unrepresentable-path nodes. Offscreen controls remain admitted because viewport clipping does not change their semantic visibility. No node names, paths, order, provider identities, properties, selection, or snapshot publication rules change.
+
+Do not count through `FindFirstSemanticControl`/`FindNextSemanticControl`: that traversal skips descendants beneath a semantic Panel, whereas the snapshot builder retains them. The dedicated private count deliberately follows the builder instead.
+
+## Ownership and resource behavior
+
+The mutable snapshot is still private until its existing final publication. A partially populated emplaced record is never exposed if construction throws; the unpublished snapshot is destroyed by its existing owning scope. The record reference is used only within the semantic-control block, ends before descendant recursion, and none of its field-population helpers appends to the outer navigation vector. The implementation does not retain references across later emplacements.
+
+For a stable retained tree, each output vector now needs one backing allocation instead of geometric growth; every rich navigation record is default-constructed once in its final slot, with no temporary or relocation moves. Existing field values and their unavoidable string/vector proxy costs remain. The count adds a bounded O(admitted tree nodes) read-only traversal with the same recursion/path depth limit as the builder and no heap allocation. Exact capacity also removes geometric retained-capacity slack. This is not a compact-record redesign and does not eliminate the measured immutable old-snapshot retirement cost.
+
+Count/reserve runs inside the existing diagnostic navigation timer. Temporary instrumentation is unchanged and must remain during paired attribution, then be removed separately by the root. This patch contains production changes only.
+
+## Validation scope
+
+Author ran only read-only source review and `git apply --check --ignore-space-change`, which passes. No repository writes, builds, tests, or native execution were performed. There is no candidate performance claim yet.
+
+No additional implementation-mirroring test is proposed. Existing `TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets` now runs in the owned nonactivating MenuAccessibility suite, retains 4096 semantic rows and the unchanged one-second End gate, and emits timing before assertion. `TestAccessibilityStatusRootExposesChildrenAndNonFocusingInvoke` directly protects descendants of a semantic Panel; provider traversal/concurrent-root-replacement, tree/grid metadata, focus and offscreen-row tests protect navigation and immutable publication behavior.
+
+Root validation should compare the frozen baseline and candidate on that exact 4096 fixture/configuration with stage diagnostics, then run MenuAccessibility and Accessibility (including embedded/provider behavior), the existing required configurations and checks. Preserve no-activation foreground/native-focus invariants. Retain all samples; do not relax latency thresholds or infer native CI success from local nonactivating results.

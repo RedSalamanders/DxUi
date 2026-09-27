@@ -1,0 +1,5 @@
+{"fixture":"dxui-large-menu-end-v1","stage":"open","rows":4096,"openToFirstPaintUs":2400622,"shown":true}
+{"fixture":"dxui-large-menu-end-v1","stage":"focus-check","beforePid":18568,"currentPid":68092,"testPid":103304,"beforeHwnd":11213542,"currentHwnd":2953598,"nativeFocusUnchanged":true}
+{"fixture":"dxui-large-menu-end-v1","stage":"end","rows":4096,"dispatchUs":629179,"pumpUs":47754,"queryUs":338682,"endToVisibleUs":1015615,"lastRowResolved":true,"paintedRows":8}
+{"fixture":"dxui-large-menu-end-v1","stage":"focus-check","beforePid":18568,"currentPid":68092,"testPid":103304,"beforeHwnd":11213542,"currentHwnd":2953598,"nativeFocusUnchanged":true}
+FAILED: large context menu End-to-visible latency remains bounded

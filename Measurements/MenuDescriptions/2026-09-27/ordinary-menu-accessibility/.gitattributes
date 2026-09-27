@@ -1,0 +1,3 @@
+# Preserve raw measurement and CI receipt bytes.
+* -text
+raw/** -whitespace

@@ -1,0 +1,24 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+Complex UI clean round 1: 2424.68 completed offscreen FPS; p95 0.5718 ms; private 28012544 bytes
+Complex UI clean round 2: 2498.02 completed offscreen FPS; p95 0.4335 ms; private 27926528 bytes
+Complex UI clean round 3: 2521.05 completed offscreen FPS; p95 0.4281 ms; private 27955200 bytes
+Complex UI clean round 4: 2579.98 completed offscreen FPS; p95 0.4272 ms; private 27901952 bytes
+Complex UI clean round 5: 2651.25 completed offscreen FPS; p95 0.4323 ms; private 28237824 bytes
+Complex UI dirty round 1: 568.629 completed offscreen FPS; p95 1.9587 ms; private 28778496 bytes
+Complex UI dirty round 2: 568.819 completed offscreen FPS; p95 1.9714 ms; private 28901376 bytes
+Complex UI dirty round 3: 572.411 completed offscreen FPS; p95 1.8939 ms; private 28905472 bytes
+Complex UI dirty round 4: 580.88 completed offscreen FPS; p95 1.8501 ms; private 29003776 bytes
+Complex UI dirty round 5: 581.386 completed offscreen FPS; p95 1.9244 ms; private 29077504 bytes
+Performance comparison: advice-required
+REGRESSION clean/composeCpuP95Ms: 0.011 -> 0.012
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.

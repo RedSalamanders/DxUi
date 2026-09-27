@@ -1,0 +1,14 @@
+# d45 exact-head CI audit
+
+Run 36349836006 at `d45c3610a586fab926a98a8656bb337792a38b6c`. The validation job passed, but the native six-profile matrix failed because x64 ASan Debug Menu fails `TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets`: `End-to-visible latency remains bounded`. MenuAccessibility passes in that profile. The failed job exits before external consumer and gallery. This is not a six-profile qualification pass. Formatting CI is separate.
+
+| Profile | Suites | Failed suite | Skips | Consumer receipts | Gallery files |
+|---|---:|---|---:|---:|---:|
+| native-x64-Release | 22 | none | 0 | 1 | 8 |
+| native-x64-Debug | 20 | none | 0 | 1 | 8 |
+| native-x64-ASan-Debug | 20 | Menu | 0 | 0 | 0 |
+| native-ARM64-Release | 20 | none | 9 | 1 | 8 |
+| native-ARM64-Debug | 20 | none | 9 | 1 | 8 |
+| native-ARM64-ASan-Debug | 20 | none | 9 | 2 | 8 |
+
+Seven retained performance receipts (two in x64 Release, one in each other profile) are clean-source, exact-head, native-architecture, 5 rounds × 40 frames for both clean and dirty scenarios, with one shared benchmark fingerprint. ARM64 Menu has nine interactive-desktop skips per profile; they are explicit and do not assert focus routing. The x64 profiles have no skips. All six retained external-consumer receipts exit 0, including the ARM64 ASan annotations-disabled run. Five successful profiles have eight gallery files each and a completed generation log; failed x64 ASan has neither consumer nor gallery. Both ASan probe receipts report detection. Extracted artifact file hashes and every skip reason are in `audit.json`; GitHub artifact IDs/digests and job conclusions are in `run-artifacts.json` and `run-status.json`.

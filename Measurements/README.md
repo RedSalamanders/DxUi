@@ -10,6 +10,9 @@ Application adoption measurements belong in their application's repository.
 - [Described native menus, 2026-09-21](MenuDescriptions/2026-09-21/README.md): wrapped French
   entries, menu/UIA lifecycle coverage, stage and open/close memory attribution; recorded timing costs
   are accepted, with combined qualification and consumer handoff still required.
+- [Ordinary-menu accessibility, 2026-09-27](MenuDescriptions/2026-09-27/ordinary-menu-accessibility/README.md):
+  accepted measured semantic-row heap cost, full ABBA/correction evidence, d45's failed native ASan
+  latency gate and forced-rebuild snapshot optimization comparison; final qualification remains open.
 
 - [Complex UI, 2026-09-05](ComplexUi/2026-09-05/README.md): Release baseline and matched repeat, complete raw rounds,
   comparison and rendered scene.

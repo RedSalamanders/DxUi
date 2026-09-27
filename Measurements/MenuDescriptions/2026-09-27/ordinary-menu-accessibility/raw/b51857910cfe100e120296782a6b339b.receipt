@@ -1,0 +1,35 @@
+{
+  "nativeModuleChecks": 12,
+  "fixture": "C:\\a\\DxUi\\DxUi\\.build\\consumers\\05fb035f5335",
+  "nativeArchitecture": "Arm64",
+  "suite": "ExternalConsumer",
+  "disableStlAnnotations": false,
+  "commit": "d45c3610a586fab926a98a8656bb337792a38b6c",
+  "configuration": "Release",
+  "buildIdentity": {
+    "Fingerprint": "c3df60121bdf2ee08257e816891a8b672ecded763e69992943d5eec7513cccea",
+    "Identity": {
+      "commit": "d45c3610a586fab926a98a8656bb337792a38b6c",
+      "apiRevision": 2,
+      "platform": "ARM64",
+      "toolset": "v145",
+      "vcToolsVersion": "14.51.36231",
+      "windowsSdkVersion": "10.0.26100.0",
+      "runtimeFamily": "MD",
+      "preferredToolArchitecture": "x86",
+      "disableStlAnnotations": false,
+      "msbuildSha256": "951A276306A0710F6DA81692784A050A4C2C6452A753FA4AFA124AE35E230A1C",
+      "compilerSha256": "56A2528F09169AE54F398C30D883FF2A3EAA7AEC5630F560AF9AECA5E2986F2E",
+      "linkerSha256": "43BA0111B47D1C0B2CFEEDC25FECD226C837FD80F17948D55BF35B066B819E89",
+      "windowsHeaderSha256": "B337D661D03A4ABEFB7B86A2742CE1AD5D19B57CD8B858BD13E7BBCC1DBEEAAA",
+      "kernel32Sha256": "5A4A1E63AD1692F0767DC911D608E981E6E7B24B3EC2684429A61ADD648327F4",
+      "ucrtSha256": "C2C1328647F4454F71A68E8E194F89EEF7D3FDF2661192AB8D87FBA395EE13FA"
+    }
+  },
+  "exitCode": 0,
+  "negativeChecks": 10,
+  "executableSha256": "9A192327657FE5BC17F39DDEF9F7E211A1640473AA452486DD65DDFDBB27ABC6",
+  "completedUtc": "2026-09-27T21:17:49.9283225Z",
+  "librarySha256": "41AC1BF1A0986AF3B6256C1093A98F11E9FE320CDA573B80D74539DAB1203D48",
+  "platform": "ARM64"
+}

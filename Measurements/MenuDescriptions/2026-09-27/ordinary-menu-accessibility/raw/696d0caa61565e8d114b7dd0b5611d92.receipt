@@ -1,0 +1,31 @@
+$ErrorActionPreference='Stop'
+$repo='C:/Users/eric/.codex/worktrees/fileops-ui-qualified/DxUi'
+$base='C:/RedSalamander.Perf/evidence/i26-ui/menu-plain-uia-20260927/ci-d45-diagnosis'
+Set-Location -LiteralPath $repo
+$target=Join-Path $repo 'src/Controls/DxUi.Accessibility.cpp'
+$baseline="$base/stages-asan/source/src/Controls/DxUi.Accessibility.cpp"
+$expected=@(Get-Content "$base/stages-asan/source-hashes.json" -Raw|ConvertFrom-Json|Where-Object path -eq 'src/Controls/DxUi.Accessibility.cpp')
+if($expected.Count -ne 1 -or (Get-FileHash -LiteralPath $baseline).Hash -ne $expected[0].sha256){throw 'Baseline source hash mismatch'}
+$candidate=[IO.File]::ReadAllBytes($target)
+$candidateHash=(Get-FileHash -LiteralPath $target).Hash
+if(-not([Text.Encoding]::UTF8.GetString($candidate).Contains('CountAccessibilitySnapshotNavigation'))){throw 'Candidate optimization absent'}
+[IO.File]::WriteAllBytes("$base/navigation-candidate-frozen.cpp",$candidate)
+$template=(Get-Content "$base/run-stages-asan.ps1" -Raw).Replace("-Platform x64 *> `"`$out/build.log`"", "-Platform x64 -Rebuild *> `"`$out/build.log`"")
+foreach($name in @('rebuilt-navigation-a','rebuilt-navigation-b')){
+ $script=$template.Replace('/stages-asan''',"/$name'")
+ [IO.File]::WriteAllText("$base/run-$name.ps1",$script,[Text.UTF8Encoding]::new($false))
+}
+try {
+ Copy-Item -LiteralPath $baseline -Destination $target
+ & pwsh -NoProfile -File "$base/run-rebuilt-navigation-a.ps1" *> "$base/rebuilt-navigation-a-driver.log"
+ $aCode=$LASTEXITCODE
+} finally {
+ [IO.File]::WriteAllBytes($target,$candidate)
+ if((Get-FileHash -LiteralPath $target).Hash -ne $candidateHash){throw 'Candidate restore differs'}
+}
+& pwsh -NoProfile -File "$base/run-rebuilt-navigation-b.ps1" *> "$base/rebuilt-navigation-b-driver.log"
+$bCode=$LASTEXITCODE
+[ordered]@{baselineExit=$aCode;candidateExit=$bCode;restoredCandidateSha256=$candidateHash} | ConvertTo-Json | Set-Content "$base/rebuilt-navigation-pair-result.json"
+Get-Content "$base/rebuilt-navigation-a/test.log" | Select-String 'dxui-large-menu-end|FAILED'
+Get-Content "$base/rebuilt-navigation-b/test.log" | Select-String 'dxui-large-menu-end|FAILED'
+if($bCode -ne 0){throw 'Candidate did not pass'}

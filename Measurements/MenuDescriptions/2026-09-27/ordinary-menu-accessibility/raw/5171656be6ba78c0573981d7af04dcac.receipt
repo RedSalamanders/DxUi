@@ -1,0 +1,8 @@
+[
+  {
+    "path": "Tests/Controls/DxUiTests.Menu.cpp",
+    "baselineRawSha256": "335113180096e113bcba6d515de34767ab6bb9b0f0087f352417b4db810464cd",
+    "baselineNormalizedSha256": "48ef447dcd249fb981887020a7c7c4d68f1f72ab43c27857bb71be05938a7d86",
+    "candidateNormalizedSha256": "a116918fa5964e6aa81a0465a1a6f6d1846f161f7954c5ec6dc3cb601371fba2"
+  }
+]

@@ -1,0 +1,58 @@
+from pathlib import Path
+import difflib,hashlib,json
+root=Path('C:/Users/eric/.codex/worktrees/fileops-ui-qualified/DxUi')
+out=Path('C:/RedSalamander.Perf/evidence/i26-ui/menu-plain-uia-20260927/ci-d45-diagnosis')
+name='Tests/Controls/DxUiTests.Menu.cpp'
+data=(root/name).read_bytes();before=data.decode('utf-8-sig').replace('\r\n','\n');s=before
+start=s.index('void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()');end=s.index('void TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion()',start)
+body=s[start:end]
+needle='''    Require(shown, "large async context menu opens");'''
+assert body.count(needle)==1
+body=body.replace(needle,'''    std::cout << "{\\"fixture\\":\\"dxui-large-menu-end-v1\\",\\"stage\\":\\"open\\",\\"rows\\":" << kItemCount
+              << ",\\"openToFirstPaintUs\\":" << openToFirstPaintUs << ",\\"shown\\":" << (shown ? "true" : "false") << "}\\n" << std::flush;
+'''+needle,1)
+needle='''    SendMessageW(popupHwnd, WM_KEYDOWN, VK_END, 0);
+    ownerWindow.PumpMessages();
+    ContextMenuPopupDebugState endState{};
+    Require(WaitForContextMenuPopupState(popupHwnd,
+                                         [](const ContextMenuPopupDebugState& state) noexcept
+    { return state.keyboardIndex == std::optional<size_t>{kItemCount - 1u} && state.scrollOffsetDip > 0.0f; },
+                                         endState),
+            "large context menu resolves the last row through cached offsets");
+    const uint64_t endToVisibleUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
+    Require(endToVisibleUs < 1'000'000u, "large context menu End-to-visible latency remains bounded");'''
+assert body.count(needle)==1
+body=body.replace(needle,'''    SendMessageW(popupHwnd, WM_KEYDOWN, VK_END, 0);
+    const uint64_t endDispatchUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
+    ownerWindow.PumpMessages();
+    const uint64_t endPumpedUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
+    ContextMenuPopupDebugState endState{};
+    const bool lastRowResolved = WaitForContextMenuPopupState(popupHwnd,
+                                         [](const ContextMenuPopupDebugState& state) noexcept
+    { return state.keyboardIndex == std::optional<size_t>{kItemCount - 1u} && state.scrollOffsetDip > 0.0f; },
+                                         endState);
+    const uint64_t endToVisibleUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
+    // Retain actual timings even when a bounded-latency assertion fails. These
+    // subintervals isolate synchronous input from pumping and full debug-state reads.
+    std::cout << "{\\"fixture\\":\\"dxui-large-menu-end-v1\\",\\"stage\\":\\"end\\",\\"rows\\":" << kItemCount
+              << ",\\"dispatchUs\\":" << endDispatchUs << ",\\"pumpUs\\":" << (endPumpedUs - endDispatchUs)
+              << ",\\"queryUs\\":" << (endToVisibleUs - endPumpedUs) << ",\\"endToVisibleUs\\":" << endToVisibleUs
+              << ",\\"lastRowResolved\\":" << (lastRowResolved ? "true" : "false")
+              << ",\\"paintedRows\\":" << endState.lastPaintedItemCount << "}\\n" << std::flush;
+    Require(lastRowResolved, "large context menu resolves the last row through cached offsets");
+    Require(endToVisibleUs < 1'000'000u, "large context menu End-to-visible latency remains bounded");''',1)
+s=s[:start]+body+s[end:]
+needle='''    TestMenuNativeFocusPreservesEmptySelection();
+}'''
+assert s.count(needle)==1
+s=s.replace(needle,'''    TestMenuNativeFocusPreservesEmptySelection();
+    // Reuse the exact large-model bound in the nonactivating lane. The fixture
+    // sends owned HWND messages and never injects desktop input.
+    std::cerr << "  [START] TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets\\n" << std::flush;
+    TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets();
+}''',1)
+p=out/'baseline'/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data)
+p=out/'candidate'/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(s,encoding='utf-8',newline='\n')
+patch=''.join(difflib.unified_diff(before.splitlines(True),s.splitlines(True),fromfile='a/'+name,tofile='b/'+name));(out/'large-end-witness.patch').write_text(patch,encoding='utf-8',newline='\n')
+(out/'changed-targets.json').write_text(json.dumps([{'path':name,'baselineRawSha256':hashlib.sha256(data).hexdigest(),'baselineNormalizedSha256':hashlib.sha256(before.encode()).hexdigest(),'candidateNormalizedSha256':hashlib.sha256(s.encode()).hexdigest()}],indent=2)+'\n',encoding='utf-8')
+print(hashlib.sha256((out/'large-end-witness.patch').read_bytes()).hexdigest())

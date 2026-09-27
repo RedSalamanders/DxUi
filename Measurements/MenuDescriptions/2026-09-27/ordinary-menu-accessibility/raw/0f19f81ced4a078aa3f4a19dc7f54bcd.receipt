@@ -1,0 +1,8 @@
+{
+  "startedUtc": "2026-09-27T20:31:45.2336659+00:00",
+  "completedUtc": "2026-09-27T20:31:47.2653363+00:00",
+  "expectedSemanticFailure": false,
+  "exception": "",
+  "receiptValidated": true,
+  "pairedComparisonPending": true
+}

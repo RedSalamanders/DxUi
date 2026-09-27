@@ -1,0 +1,90 @@
+from pathlib import Path
+import difflib,hashlib,json
+root=Path('C:/Users/eric/.codex/worktrees/fileops-ui-qualified/DxUi');out=Path('C:/RedSalamander.Perf/evidence/i26-ui/menu-plain-uia-20260927/ci-d45-diagnosis/stage-diagnostics')
+files=['src/Controls/DxUi.Menu.cpp','src/Controls/DxUi.Accessibility.cpp'];before={};after={}
+for f in files:
+ data=(root/f).read_bytes();s=data.decode('utf-8-sig').replace('\r\n','\n');before[f]=s;after[f]=s
+ p=out/'baseline'/f;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data)
+s=after[files[0]];a=s.index('void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept\n{');b=s.index('// Popup positioning with screen-edge flip',a);body=s[a:b]
+needle='    bool boundsChanged  = false;'
+assert body.count(needle)==1
+body=body.replace(needle,'''#if DXUI_ENABLE_DIAGNOSTICS
+    const bool captureLargeStages = children.size() >= 4096u && Debug::Perf::IsCaptureEnabled();
+    const auto rowBoundsStarted = captureLargeStages ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+#endif
+'''+needle,1)
+needle='    Control* focus = popup.keyboardIndex'
+assert body.count(needle)==1
+body=body.replace(needle,'''#if DXUI_ENABLE_DIAGNOSTICS
+    const uint64_t rowBoundsUs = captureLargeStages ? Debug::Perf::ElapsedUs(rowBoundsStarted) : 0u;
+    const auto focusSyncStarted = captureLargeStages ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+#endif
+'''+needle,1)
+needle='        popup.host.RefreshAccessibilitySnapshot();\n}'
+assert body.count(needle)==1
+body=body.replace(needle,'''        popup.host.RefreshAccessibilitySnapshot();
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (captureLargeStages)
+    {
+        const uint64_t focusSyncUs = Debug::Perf::ElapsedUs(focusSyncStarted);
+        Debug::Perf::Emit(L"dxui.menu.diagnostic.row_bounds_us", L"large4096", rowBoundsUs, children.size(), boundsChanged ? 1u : 0u, S_OK);
+        Debug::Perf::Emit(L"dxui.menu.diagnostic.focus_sync_us", L"large4096", focusSyncUs, children.size(), popup.keyboardIndex.value_or(SIZE_MAX), S_OK);
+    }
+#endif
+}''',1)
+s=s[:a]+body+s[b:];after[files[0]]=s
+s=after[files[1]];a=s.index('void PublishWindowHostAccessibilitySnapshot(WindowHostAccessibilityTarget& target, ControlHost& host)\n{');b=s.index('[[nodiscard]] std::shared_ptr<const AccessibilitySnapshot> CaptureAccessibilitySnapshot',a);body=s[a:b]
+needle='    snapshot->hasRetainedRoot  = root != nullptr;'
+assert body.count(needle)==1
+body=body.replace(needle,needle+'''
+#if DXUI_ENABLE_DIAGNOSTICS
+    const auto* diagnosticPanel = Debug::Perf::IsCaptureEnabled() ? dynamic_cast<const Panel*>(root) : nullptr;
+    const size_t diagnosticRows = diagnosticPanel ? diagnosticPanel->GetChildren().size() : 0u;
+    const bool captureLargeStages = ! target.embedded && diagnosticRows >= 4096u && diagnosticPanel->GetChildren().front() &&
+        diagnosticPanel->GetChildren().front()->GetAccessibilityRole() == AccessibilityRole::MenuItem && Debug::Perf::IsCaptureEnabled();
+    auto diagnosticStageStarted = captureLargeStages ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+    uint64_t navigationUs = 0u;
+    uint64_t collapseUs = 0u;
+    uint64_t pointHitsUs = 0u;
+    uint64_t focusPathUs = 0u;
+    uint64_t windowStateUs = 0u;
+#endif''',1)
+for needle,var in [
+('    if (root && ! target.embedded)\n','navigationUs'),
+('    AppendAccessibilitySnapshotPointHits(host, root, ControlPath{}, *snapshot);','collapseUs'),
+('    Control* const focused = host.GetFocusControl();','pointHitsUs'),
+('    wchar_t windowText[128]{};','focusPathUs'),
+('    PublishAccessibilitySnapshot(target, std::move(snapshot));','windowStateUs')]:
+ assert body.count(needle)==1,needle
+ body=body.replace(needle,'''#if DXUI_ENABLE_DIAGNOSTICS
+    if (captureLargeStages)
+    {
+        '''+var+''' = Debug::Perf::ElapsedUs(diagnosticStageStarted);
+        diagnosticStageStarted = std::chrono::steady_clock::now();
+    }
+#endif
+'''+needle,1)
+needle='    PublishAccessibilitySnapshot(target, std::move(snapshot));'
+assert body.count(needle)==1
+body=body.replace(needle,needle+'''
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (captureLargeStages)
+    {
+        const uint64_t publishRetireUs = Debug::Perf::ElapsedUs(diagnosticStageStarted);
+        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_navigation_us", L"large4096", navigationUs, diagnosticRows, 0u, S_OK);
+        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_collapse_us", L"large4096", collapseUs, diagnosticRows, 0u, S_OK);
+        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_point_hits_us", L"large4096", pointHitsUs, diagnosticRows, 0u, S_OK);
+        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_focus_path_us", L"large4096", focusPathUs, diagnosticRows, 0u, S_OK);
+        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_window_state_us", L"large4096", windowStateUs, diagnosticRows, 0u, S_OK);
+        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_publish_retire_us", L"large4096", publishRetireUs, diagnosticRows, 0u, S_OK);
+    }
+#endif''',1)
+s=s[:a]+body+s[b:];after[files[1]]=s
+patch=[];manifest=[]
+for f in files:
+ p=out/'candidate'/f;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(after[f],encoding='utf-8',newline='\n')
+ patch.extend(difflib.unified_diff(before[f].splitlines(True),after[f].splitlines(True),fromfile='a/'+f,tofile='b/'+f))
+ manifest.append({'path':f,'baselineRawSha256':hashlib.sha256((out/'baseline'/f).read_bytes()).hexdigest(),'baselineNormalizedSha256':hashlib.sha256(before[f].encode()).hexdigest(),'candidateNormalizedSha256':hashlib.sha256(after[f].encode()).hexdigest()})
+(out/'stage-diagnostics.patch').write_text(''.join(patch),encoding='utf-8',newline='\n');(out/'changed-targets.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
+print(hashlib.sha256((out/'stage-diagnostics.patch').read_bytes()).hexdigest())
+

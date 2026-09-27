@@ -1,0 +1,46 @@
+--- a/Tests/Controls/DxUiTests.Menu.cpp
++++ b/Tests/Controls/DxUiTests.Menu.cpp
+@@ -5189,6 +5189,13 @@
+ {
+     using namespace DxUi;
+ 
++    const bool nonactivating = ! DxUiTestWindowsCanActivateFlag();
++    if (nonactivating)
++        Require(TestSupport::ScopedWindowActivationBlocker::IsActiveForCurrentThread(),
++                "large menu nonactivating lane requires the established activation blocker");
++    const HWND foregroundBefore = GetForegroundWindow();
++    const HWND nativeFocusBefore = GetFocus();
++
+     constexpr size_t kItemCount = 4096u;
+     std::vector<MenuFlyoutItem> items;
+     items.reserve(kItemCount);
+@@ -5216,6 +5223,9 @@
+               << ",\"shown\":" << (shown ? "true" : "false") << "}\n"
+               << std::flush;
+     Require(shown, "large async context menu opens");
++    if (nonactivating)
++        Require(GetForegroundWindow() == foregroundBefore && GetFocus() == nativeFocusBefore,
++                "large menu opening preserves foreground and native focus under the activation blocker");
+     Require(openToFirstPaintUs < 5'000'000u, "large context menu open-to-first-paint remains bounded");
+ 
+     const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Folder 0000");
+@@ -5248,6 +5258,9 @@
+               << ",\"endToVisibleUs\":" << endToVisibleUs << ",\"lastRowResolved\":" << (lastRowResolved ? "true" : "false")
+               << ",\"paintedRows\":" << endState.lastPaintedItemCount << "}\n"
+               << std::flush;
++    if (nonactivating)
++        Require(GetForegroundWindow() == foregroundBefore && GetFocus() == nativeFocusBefore,
++                "large menu End navigation preserves foreground and native focus under the activation blocker");
+     Require(lastRowResolved, "large context menu resolves the last row through cached offsets");
+     Require(endToVisibleUs < 1'000'000u, "large context menu End-to-visible latency remains bounded");
+     Require(endState.lastPaintedItemCount <= 32u, "large context menu scrolled paint remains limited to viewport rows");
+@@ -5279,6 +5292,9 @@
+     }
+     Require(callbackInvoked, "large context menu closes through Escape");
+     Require(WaitForWindowDestroyed(popupHwnd), "large context menu popup is destroyed after Escape");
++    if (nonactivating)
++        Require(GetForegroundWindow() == foregroundBefore && GetFocus() == nativeFocusBefore,
++                "large menu teardown preserves foreground and native focus under the activation blocker");
+ }
+ 
+ void TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion()

@@ -1,0 +1,738 @@
+[
+  {
+    "run": "A1",
+    "cohort": "baseline",
+    "rows": 12,
+    "cycle": 0,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 67063808,
+      "workingSetBytes": 43249664,
+      "heapBusyBytes": 7719371,
+      "handles": 499,
+      "gdi": 4,
+      "user": 3
+    },
+    "closedMinusBefore": {
+      "privateBytes": 66871296,
+      "workingSetBytes": 43962368,
+      "heapBusyBytes": 7459357,
+      "handles": 497,
+      "gdi": 4,
+      "user": 2
+    }
+  },
+  {
+    "run": "A1",
+    "cohort": "baseline",
+    "rows": 12,
+    "cycle": 1,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 983040,
+      "workingSetBytes": 1105920,
+      "heapBusyBytes": 145700,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 798720,
+      "workingSetBytes": 929792,
+      "heapBusyBytes": -137782,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "A1",
+    "cohort": "baseline",
+    "rows": 12,
+    "cycle": 2,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 811008,
+      "workingSetBytes": 557056,
+      "heapBusyBytes": 317708,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 602112,
+      "workingSetBytes": 372736,
+      "heapBusyBytes": 37466,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "A1",
+    "cohort": "baseline",
+    "rows": 12,
+    "cycle": 3,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 356352,
+      "workingSetBytes": 348160,
+      "heapBusyBytes": 283173,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 151552,
+      "workingSetBytes": 167936,
+      "heapBusyBytes": 2931,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "A1",
+    "cohort": "baseline",
+    "rows": 128,
+    "cycle": 0,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 565248,
+      "workingSetBytes": 561152,
+      "heapBusyBytes": 422816,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 360448,
+      "workingSetBytes": 385024,
+      "heapBusyBytes": 65760,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "A1",
+    "cohort": "baseline",
+    "rows": 128,
+    "cycle": 1,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 221184,
+      "workingSetBytes": 192512,
+      "heapBusyBytes": 380211,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 16384,
+      "workingSetBytes": 16384,
+      "heapBusyBytes": 27043,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "A1",
+    "cohort": "baseline",
+    "rows": 128,
+    "cycle": 2,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 204800,
+      "workingSetBytes": 176128,
+      "heapBusyBytes": 378917,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 0,
+      "workingSetBytes": 0,
+      "heapBusyBytes": 25749,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "A1",
+    "cohort": "baseline",
+    "rows": 128,
+    "cycle": 3,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 233472,
+      "workingSetBytes": 192512,
+      "heapBusyBytes": 427598,
+      "handles": 11,
+      "gdi": 0,
+      "user": 2
+    },
+    "closedMinusBefore": {
+      "privateBytes": 28672,
+      "workingSetBytes": 16384,
+      "heapBusyBytes": 71190,
+      "handles": 5,
+      "gdi": 0,
+      "user": 1
+    }
+  },
+  {
+    "run": "A2",
+    "cohort": "baseline",
+    "rows": 12,
+    "cycle": 0,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 67559424,
+      "workingSetBytes": 43446272,
+      "heapBusyBytes": 7716997,
+      "handles": 499,
+      "gdi": 4,
+      "user": 3
+    },
+    "closedMinusBefore": {
+      "privateBytes": 67375104,
+      "workingSetBytes": 44175360,
+      "heapBusyBytes": 7456983,
+      "handles": 497,
+      "gdi": 4,
+      "user": 2
+    }
+  },
+  {
+    "run": "A2",
+    "cohort": "baseline",
+    "rows": 12,
+    "cycle": 1,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 1339392,
+      "workingSetBytes": 1503232,
+      "heapBusyBytes": 148890,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 1134592,
+      "workingSetBytes": 1327104,
+      "heapBusyBytes": -134592,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "A2",
+    "cohort": "baseline",
+    "rows": 12,
+    "cycle": 2,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 380928,
+      "workingSetBytes": 372736,
+      "heapBusyBytes": 318356,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 188416,
+      "workingSetBytes": 196608,
+      "heapBusyBytes": 38114,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "A2",
+    "cohort": "baseline",
+    "rows": 12,
+    "cycle": 3,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 229376,
+      "workingSetBytes": 229376,
+      "heapBusyBytes": 282525,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 40960,
+      "workingSetBytes": 57344,
+      "heapBusyBytes": 2283,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "A2",
+    "cohort": "baseline",
+    "rows": 128,
+    "cycle": 0,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 270336,
+      "workingSetBytes": 258048,
+      "heapBusyBytes": 422816,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 81920,
+      "workingSetBytes": 86016,
+      "heapBusyBytes": 65760,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "A2",
+    "cohort": "baseline",
+    "rows": 128,
+    "cycle": 1,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 495616,
+      "workingSetBytes": 262144,
+      "heapBusyBytes": 382932,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 303104,
+      "workingSetBytes": 86016,
+      "heapBusyBytes": 26524,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "A2",
+    "cohort": "baseline",
+    "rows": 128,
+    "cycle": 2,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 212992,
+      "workingSetBytes": 196608,
+      "heapBusyBytes": 382157,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 20480,
+      "workingSetBytes": 20480,
+      "heapBusyBytes": 25749,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "A2",
+    "cohort": "baseline",
+    "rows": 128,
+    "cycle": 3,
+    "children": 0,
+    "openMinusBefore": {
+      "privateBytes": 503808,
+      "workingSetBytes": 524288,
+      "heapBusyBytes": 428117,
+      "handles": 11,
+      "gdi": 0,
+      "user": 2
+    },
+    "closedMinusBefore": {
+      "privateBytes": 311296,
+      "workingSetBytes": 348160,
+      "heapBusyBytes": 71709,
+      "handles": 5,
+      "gdi": 0,
+      "user": 1
+    }
+  },
+  {
+    "run": "B4",
+    "cohort": "candidate",
+    "rows": 12,
+    "cycle": 0,
+    "children": 12,
+    "openMinusBefore": {
+      "privateBytes": 67035136,
+      "workingSetBytes": 43405312,
+      "heapBusyBytes": 7739960,
+      "handles": 499,
+      "gdi": 4,
+      "user": 3
+    },
+    "closedMinusBefore": {
+      "privateBytes": 66846720,
+      "workingSetBytes": 44167168,
+      "heapBusyBytes": 7457543,
+      "handles": 497,
+      "gdi": 4,
+      "user": 2
+    }
+  },
+  {
+    "run": "B4",
+    "cohort": "candidate",
+    "rows": 12,
+    "cycle": 1,
+    "children": 12,
+    "openMinusBefore": {
+      "privateBytes": 1626112,
+      "workingSetBytes": 1703936,
+      "heapBusyBytes": 171293,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 1425408,
+      "workingSetBytes": 1523712,
+      "heapBusyBytes": -134592,
+      "handles": 1,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "B4",
+    "cohort": "candidate",
+    "rows": 12,
+    "cycle": 2,
+    "children": 12,
+    "openMinusBefore": {
+      "privateBytes": 266240,
+      "workingSetBytes": 266240,
+      "heapBusyBytes": 340111,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 69632,
+      "workingSetBytes": 94208,
+      "heapBusyBytes": 37466,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "B4",
+    "cohort": "candidate",
+    "rows": 12,
+    "cycle": 3,
+    "children": 12,
+    "openMinusBefore": {
+      "privateBytes": 212992,
+      "workingSetBytes": 200704,
+      "heapBusyBytes": 304928,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 8192,
+      "workingSetBytes": 20480,
+      "heapBusyBytes": 2283,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "B4",
+    "cohort": "candidate",
+    "rows": 128,
+    "cycle": 0,
+    "children": 128,
+    "openMinusBefore": {
+      "privateBytes": 1236992,
+      "workingSetBytes": 557056,
+      "heapBusyBytes": 654482,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 1032192,
+      "workingSetBytes": 380928,
+      "heapBusyBytes": 66408,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "B4",
+    "cohort": "candidate",
+    "rows": 128,
+    "cycle": 1,
+    "children": 128,
+    "openMinusBefore": {
+      "privateBytes": 212992,
+      "workingSetBytes": 593920,
+      "heapBusyBytes": 613950,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": -909312,
+      "workingSetBytes": -335872,
+      "heapBusyBytes": 26524,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "B4",
+    "cohort": "candidate",
+    "rows": 128,
+    "cycle": 2,
+    "children": 128,
+    "openMinusBefore": {
+      "privateBytes": 1015808,
+      "workingSetBytes": 1069056,
+      "heapBusyBytes": 613175,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": -172032,
+      "workingSetBytes": -12288,
+      "heapBusyBytes": 25749,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "B4",
+    "cohort": "candidate",
+    "rows": 128,
+    "cycle": 3,
+    "children": 128,
+    "openMinusBefore": {
+      "privateBytes": 1474560,
+      "workingSetBytes": 1204224,
+      "heapBusyBytes": 656414,
+      "handles": 11,
+      "gdi": 0,
+      "user": 2
+    },
+    "closedMinusBefore": {
+      "privateBytes": 229376,
+      "workingSetBytes": 229376,
+      "heapBusyBytes": 72228,
+      "handles": 5,
+      "gdi": 0,
+      "user": 1
+    }
+  },
+  {
+    "run": "B5",
+    "cohort": "candidate",
+    "rows": 12,
+    "cycle": 0,
+    "children": 12,
+    "openMinusBefore": {
+      "privateBytes": 66834432,
+      "workingSetBytes": 43483136,
+      "heapBusyBytes": 7739960,
+      "handles": 499,
+      "gdi": 4,
+      "user": 3
+    },
+    "closedMinusBefore": {
+      "privateBytes": 66637824,
+      "workingSetBytes": 44204032,
+      "heapBusyBytes": 7457543,
+      "handles": 497,
+      "gdi": 4,
+      "user": 2
+    }
+  },
+  {
+    "run": "B5",
+    "cohort": "candidate",
+    "rows": 12,
+    "cycle": 1,
+    "children": 12,
+    "openMinusBefore": {
+      "privateBytes": 1495040,
+      "workingSetBytes": 1617920,
+      "heapBusyBytes": 171293,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 1306624,
+      "workingSetBytes": 1454080,
+      "heapBusyBytes": -134592,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "B5",
+    "cohort": "candidate",
+    "rows": 12,
+    "cycle": 2,
+    "children": 12,
+    "openMinusBefore": {
+      "privateBytes": 372736,
+      "workingSetBytes": 372736,
+      "heapBusyBytes": 340759,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 184320,
+      "workingSetBytes": 208896,
+      "heapBusyBytes": 38114,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "B5",
+    "cohort": "candidate",
+    "rows": 12,
+    "cycle": 3,
+    "children": 12,
+    "openMinusBefore": {
+      "privateBytes": 245760,
+      "workingSetBytes": 233472,
+      "heapBusyBytes": 307266,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 57344,
+      "workingSetBytes": 69632,
+      "heapBusyBytes": 1245,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "B5",
+    "cohort": "candidate",
+    "rows": 128,
+    "cycle": 0,
+    "children": 128,
+    "openMinusBefore": {
+      "privateBytes": 663552,
+      "workingSetBytes": 401408,
+      "heapBusyBytes": 654872,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 466944,
+      "workingSetBytes": 229376,
+      "heapBusyBytes": 66798,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "B5",
+    "cohort": "candidate",
+    "rows": 128,
+    "cycle": 1,
+    "children": 128,
+    "openMinusBefore": {
+      "privateBytes": 466944,
+      "workingSetBytes": 606208,
+      "heapBusyBytes": 613950,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": -688128,
+      "workingSetBytes": -442368,
+      "heapBusyBytes": 26524,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "B5",
+    "cohort": "candidate",
+    "rows": 128,
+    "cycle": 2,
+    "children": 128,
+    "openMinusBefore": {
+      "privateBytes": 1155072,
+      "workingSetBytes": 970752,
+      "heapBusyBytes": 610454,
+      "handles": 6,
+      "gdi": 0,
+      "user": 1
+    },
+    "closedMinusBefore": {
+      "privateBytes": 958464,
+      "workingSetBytes": 802816,
+      "heapBusyBytes": 26268,
+      "handles": 0,
+      "gdi": 0,
+      "user": 0
+    }
+  },
+  {
+    "run": "B5",
+    "cohort": "candidate",
+    "rows": 128,
+    "cycle": 3,
+    "children": 128,
+    "openMinusBefore": {
+      "privateBytes": 258048,
+      "workingSetBytes": 258048,
+      "heapBusyBytes": 658616,
+      "handles": 11,
+      "gdi": 0,
+      "user": 2
+    },
+    "closedMinusBefore": {
+      "privateBytes": 69632,
+      "workingSetBytes": 94208,
+      "heapBusyBytes": 71190,
+      "handles": 5,
+      "gdi": 0,
+      "user": 1
+    }
+  }
+]

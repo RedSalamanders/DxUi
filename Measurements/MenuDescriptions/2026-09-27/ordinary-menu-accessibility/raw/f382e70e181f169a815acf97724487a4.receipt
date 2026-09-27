@@ -1,0 +1,15 @@
+# Plain menu UIA proposal (unapplied)
+
+Input checkout: `C:/Users/eric/.codex/worktrees/fileops-ui-qualified/DxUi`.
+
+Source hashes before drafting:
+
+- `src/Controls/DxUi.Menu.cpp`: `677FD034F45452C4F265A0CAC3E4C8D3FBCAC5E4498BFDDD6461BE964D9CE904`
+- `Tests/Controls/DxUiTests.Menu.cpp`: `FC323103E1CE737F223AC71E96D0A4FE2787E11FCDA4420CCD6014A64C2B0662`
+- `Tests/Controls/DxUiTests.cpp`: `7F2588FC4D22CCA7B408F899F4F5AD64A7C658728C09ADC3C0939CBF5137BB6C`
+
+Apply only the test/registration portions first and run `DxUiTests --suite=MenuAccessibility --no-activate` to retain the expected failure at missing first child. Then apply the production portion and repeat in a fresh process. This draft was not built or run. `MenuResources` already emits matched plain-mode memory/handle samples; `MenuTextLayoutResources` has no menu or UIA tree and cannot attribute the new row objects.
+
+The patches are split as `test-only.patch`, `resource-addendum.patch` (against the test-only checkout), and `production.patch`. Each was checked with `git apply --recount --check`; apply with `git apply --recount`. Run the resource addendum before the pre-fix semantic case to retain an old-pin resource receipt. It records 12/128-row plain menus, four open/close cycles each, matching source text, anchor, theme, 300-DIP maximum height, 456-DIP minimum width, physical geometry, bounded UIA navigation, and process/heap observations. The resource numbers are descriptive observations, with no asserted cost threshold or attribution of whole-process memory to individual rows.
+
+Contract follow-up: `Specs/UI/UI_InputAndAccessibility.md` lines 25–34 currently say “Described native menus”; after qualification, clarify that full UIA roles, names, bounds, invocation, and disconnect apply to ordinary one-line menus as well. Review `Specs/UI/UI_ControlsAndLayout.md` 78–82 for the same semantic requirement. No gallery visual change is expected because the patch leaves layout and drawing untouched, but the repository's docs/gallery gate still applies.

@@ -1,0 +1,30 @@
+{
+  "purpose": "Exclude stale copied suite evidence without changing original files",
+  "acceptedResourceRuns": ["A1", "A2", "B4", "B5"],
+  "excludedSuiteRuns": {
+    "B1": {
+      "reason": "test.ps1 stopped in its preliminary performance comparison; copied suite.log and receipt.json are from A2, before B1 started",
+      "copiedReceiptExecutableSha256": "ABE0544621B7CF5214638482E15FFCBA9B18F3D93DF552891F7F1952F8983884",
+      "B1InventoryExecutableSha256": "CEE08D132711C5D6C43605069C22D6773794CB3277CCFEB3B7877B3ABEB45ADF",
+      "actualPerformanceReport": "excluded-aborted-performance/Performance-x64-Release-15c8ecc9fec94edaac17cfc43cd69da9.json",
+      "actualComparison": "excluded-aborted-performance/Performance-x64-Release-15c8ecc9fec94edaac17cfc43cd69da9.json.comparison.json"
+    },
+    "B2": {
+      "reason": "test.ps1 stopped in its preliminary performance comparison; copied suite.log and receipt.json are from A2, before B2 started",
+      "copiedReceiptExecutableSha256": "ABE0544621B7CF5214638482E15FFCBA9B18F3D93DF552891F7F1952F8983884",
+      "B2InventoryExecutableSha256": "8A3F0CA4F1558CAAC010F8A2ED937A7618EFE30C8BBB97226622C700C547FBDC",
+      "actualPerformanceReport": "excluded-aborted-performance/Performance-x64-Release-577a35a1de8f4649b831cfeb55bf187e.json",
+      "actualComparison": "excluded-aborted-performance/Performance-x64-Release-577a35a1de8f4649b831cfeb55bf187e.json.comparison.json"
+    },
+    "B3": {
+      "reason": "suite passed, but collector datetime conversion failed; no complete accepted collector receipt"
+    }
+  },
+  "originalEvidenceUntouched": true,
+  "copiedAbortedReportSha256": {
+    "Performance-x64-Release-15c8ecc9fec94edaac17cfc43cd69da9.json": "FEB22E62EECA56B776184F2D50DBC43C2A4ACFD2097C99475AB1414A3076C22B",
+    "Performance-x64-Release-15c8ecc9fec94edaac17cfc43cd69da9.json.comparison.json": "519573BDDF2CD3BE5F7F148B05C9D076606D103F540E745CACC8DAE54E34F084",
+    "Performance-x64-Release-577a35a1de8f4649b831cfeb55bf187e.json": "E2E5738534A34CCDA00528A173DE3C90AD683AF92DB0B2D283634A9E71693A42",
+    "Performance-x64-Release-577a35a1de8f4649b831cfeb55bf187e.json.comparison.json": "37438173BFC13D80EDEE356BF18110BAB75AA3FA3366B32FCDB0D011896053A9"
+  }
+}

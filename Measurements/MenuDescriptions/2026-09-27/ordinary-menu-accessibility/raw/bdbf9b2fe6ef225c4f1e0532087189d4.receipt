@@ -1,0 +1,24 @@
+$ErrorActionPreference='Stop'
+$repo='C:/Users/eric/.codex/worktrees/fileops-ui-qualified/DxUi'
+$out='C:/RedSalamander.Perf/evidence/i26-ui/menu-plain-uia-20260927/ci-d45-diagnosis/local-asan'
+Set-Location -LiteralPath $repo
+if(Test-Path -LiteralPath $out){throw 'Fresh evidence required'}
+New-Item -ItemType Directory -Path $out | Out-Null
+if((git rev-parse HEAD).Trim() -ne 'd45c3610a586fab926a98a8656bb337792a38b6c'){throw 'Unexpected baseline'}
+$changed=@(git diff --name-only)
+if($changed.Count -ne 1 -or $changed[0] -ne 'Tests/Controls/DxUiTests.Menu.cpp'){throw 'Unexpected source edits'}
+git diff --binary --output="$out/fixture.patch"
+Copy-Item -LiteralPath 'Tests/Controls/DxUiTests.Menu.cpp' -Destination "$out/fixture.cpp"
+Get-FileHash "$out/fixture.cpp","$out/fixture.patch" | ConvertTo-Json | Set-Content "$out/source-hashes.json"
+$started=[DateTimeOffset]::UtcNow
+$errorText=''
+try { & ./test.ps1 -Configuration 'ASan Debug' -Platform x64 -Suites MenuAccessibility *> "$out/test.log" } catch { $errorText=$_.Exception.Message }
+$receipt='.build/reports/MenuAccessibility-x64-ASan Debug.json'
+if(Test-Path -LiteralPath $receipt){
+  $r=Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
+  if(([DateTimeOffset]$r.completedUtc) -lt $started -or $r.sha256 -ne (Get-FileHash $r.executable).Hash){throw 'Stale receipt'}
+  Copy-Item -LiteralPath $receipt,'.build/logs/test-MenuAccessibility-x64-ASan Debug.log',$r.performanceReport,($r.performanceReport+'.comparison.json') -Destination $out
+}
+[ordered]@{sourceCommit=(git rev-parse HEAD).Trim();startedUtc=$started.ToString('o');completedUtc=[DateTimeOffset]::UtcNow.ToString('o');exception=$errorText} | ConvertTo-Json | Set-Content "$out/invocation.json"
+Get-Content -LiteralPath "$out/test-MenuAccessibility-x64-ASan Debug.log" -Tail 12
+if($errorText){throw $errorText}

@@ -1,0 +1,12 @@
+Complex UI clean round 1: 2611.99 completed offscreen FPS; p95 0.4144 ms; private 26787840 bytes
+Complex UI clean round 2: 2502.47 completed offscreen FPS; p95 0.4503 ms; private 26750976 bytes
+Complex UI clean round 3: 2578.4 completed offscreen FPS; p95 0.4242 ms; private 27279360 bytes
+Complex UI clean round 4: 2698.49 completed offscreen FPS; p95 0.4105 ms; private 28504064 bytes
+Complex UI clean round 5: 2616.38 completed offscreen FPS; p95 0.4231 ms; private 28459008 bytes
+Complex UI dirty round 1: 580.581 completed offscreen FPS; p95 1.925 ms; private 29810688 bytes
+Complex UI dirty round 2: 587.109 completed offscreen FPS; p95 1.8931 ms; private 29855744 bytes
+Complex UI dirty round 3: 544.816 completed offscreen FPS; p95 2.4888 ms; private 29859840 bytes
+Complex UI dirty round 4: 578.833 completed offscreen FPS; p95 1.9008 ms; private 29822976 bytes
+Complex UI dirty round 5: 563.316 completed offscreen FPS; p95 1.9168 ms; private 29741056 bytes
+Performance comparison: unpaired
+Performance receipt: C:\RedSalamander.Perf\evidence\i26-ui\menu-plain-uia-20260927\final-abba-20260927\C2\performance.json

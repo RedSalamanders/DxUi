@@ -458,6 +458,7 @@ struct AccessibilitySnapshot
 void AppendAccessibilitySnapshotPointHits(ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot);
 void AppendAccessibilitySnapshotPointHits(
     ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot, const AccessibilityPointHitBuildContext& context);
+[[nodiscard]] size_t CountAccessibilitySnapshotNavigation(const Control* current, const ControlPath& basePath) noexcept;
 void AppendAccessibilitySnapshotNavigation(
     ControlHost& host, const Control* root, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot);
 [[nodiscard]] const AccessibilityPointHitSnapshot* FindSnapshotPointHit(const AccessibilitySnapshot& snapshot, D2D1_POINT_2F pointDip) noexcept;
@@ -582,16 +583,19 @@ void PublishEmptyAccessibilitySnapshot(WindowHostAccessibilityTarget& target) no
 
 void PublishWindowHostAccessibilitySnapshot(WindowHostAccessibilityTarget& target, ControlHost& host)
 {
-    auto snapshot              = std::make_shared<AccessibilitySnapshot>();
-    snapshot->hwnd             = target.hwnd;
-    snapshot->buildThreadId    = GetCurrentThreadId();
-    snapshot->windowThreadId   = target.hwnd ? GetWindowThreadProcessId(target.hwnd, nullptr) : 0u;
-    snapshot->alive            = true;
-    snapshot->embedded         = target.embedded;
-    snapshot->placement        = target.placement;
-    snapshot->pixelsToDipScale = USER_DEFAULT_SCREEN_DPI / host.GetDpi();
-    const Control* const root  = host.GetRoot();
-    snapshot->hasRetainedRoot  = root != nullptr;
+    auto snapshot                = std::make_shared<AccessibilitySnapshot>();
+    snapshot->hwnd               = target.hwnd;
+    snapshot->buildThreadId      = GetCurrentThreadId();
+    snapshot->windowThreadId     = target.hwnd ? GetWindowThreadProcessId(target.hwnd, nullptr) : 0u;
+    snapshot->alive              = true;
+    snapshot->embedded           = target.embedded;
+    snapshot->placement          = target.placement;
+    snapshot->pixelsToDipScale   = USER_DEFAULT_SCREEN_DPI / host.GetDpi();
+    const Control* const root    = host.GetRoot();
+    snapshot->hasRetainedRoot    = root != nullptr;
+    const size_t navigationCount = CountAccessibilitySnapshotNavigation(root, ControlPath{});
+    snapshot->semanticControlOrder.reserve(navigationCount);
+    snapshot->controlNavigationRecords.reserve(navigationCount);
     AppendAccessibilitySnapshotNavigation(host, root, root, ControlPath{}, *snapshot);
     if (root && ! target.embedded)
     {
@@ -1181,6 +1185,38 @@ std::optional<D2D1_RECT_F> FindSnapshotFragmentBounds(const AccessibilitySnapsho
     return std::nullopt;
 }
 
+[[nodiscard]] size_t CountAccessibilitySnapshotNavigation(const Control* current, const ControlPath& basePath) noexcept
+{
+    if (! current || ! current->IsVisible())
+    {
+        return 0u;
+    }
+
+    // Match the builder's semantic visibility and representable-path limits, including
+    // children of semantic panels and visible controls outside the current viewport.
+    size_t count = IsSemanticAccessibilityControl(current) ? 1u : 0u;
+    if (const auto* panel = dynamic_cast<const Panel*>(current))
+    {
+        const auto children = panel->GetChildren();
+        for (size_t index = 0u; index < children.size(); ++index)
+        {
+            if (! children[index])
+            {
+                continue;
+            }
+
+            ControlPath childPath{};
+            if (! TryAppendPathIndex(basePath, index, childPath))
+            {
+                continue;
+            }
+
+            count += CountAccessibilitySnapshotNavigation(children[index].get(), childPath);
+        }
+    }
+    return count;
+}
+
 void AppendAccessibilitySnapshotNavigation(
     ControlHost& host, const Control* root, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot)
 {
@@ -1193,8 +1229,8 @@ void AppendAccessibilitySnapshotNavigation(
     {
         snapshot.semanticControlOrder.push_back(basePath);
 
-        AccessibilityControlNavigationSnapshot record{};
-        record.path = basePath;
+        auto& record = snapshot.controlNavigationRecords.emplace_back();
+        record.path  = basePath;
         if (host.IsEmbedded())
         {
             record.controlLifetime = GetControlLifetimeToken(*current);
@@ -1456,7 +1492,6 @@ void AppendAccessibilitySnapshotNavigation(
 
         record.controlSupportsSelection = record.isTree || record.isGrid;
         record.controlSupportsTable     = record.isGrid && record.gridColumnCount > 0u;
-        snapshot.controlNavigationRecords.push_back(std::move(record));
     }
 
     if (const auto* panel = dynamic_cast<const Panel*>(current))

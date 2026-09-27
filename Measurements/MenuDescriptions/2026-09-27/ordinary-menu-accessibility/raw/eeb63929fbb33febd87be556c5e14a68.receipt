@@ -1,0 +1,212 @@
+# Performance and resources
+
+Status: normative current contract
+Last reviewed: 2026-09-07
+
+Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
+targets are acceptance contracts, not claims of current support.
+
+## Mandatory performance policy
+
+Speed and low memory consumption are primary library requirements for every design, implementation, review and test.
+Among correct designs, minimize steady-state CPU/GPU time, private/resident memory, allocations and copies,
+synchronization, thread/handle count, wake-ups and graphics submissions. Preserve correctness, accessibility,
+security and visual quality; do not trade them away for an unmeasured optimization. All consumers share this policy.
+
+Before changing implementation, measure the existing code with the same workload that will measure the candidate.
+Retain the original baseline and measure again after the change. Record exact source/content and executable/fixture
+fingerprints, compiler/dependencies, architecture/configuration, hardware/OS/driver, power policy, resolution/DPI,
+visible controls/data size and repetitions. Run serially on the same quiet fixture. Cross-machine, changed-workload,
+Debug/Release or x64/ARM64 comparisons cannot establish non-regression. If a new benchmark is required, run the same
+harness against both implementations. A missing baseline is explicitly unpaired and cannot close an implementation
+performance gate. Documentation/tool-only changes that leave compiled library inputs unchanged record that fact.
+
+DxUi MUST NOT accept a confirmed performance or memory regression silently. Compare FPS, frame/input percentiles,
+preparation and composition costs, allocations/bytes, surface/cache residency and peaks, private bytes/working set,
+resource counts, idle activity and long-run retention. Keep all samples and investigate repeatable degradation,
+including trends smaller than automated noise bands. `performance.ps1` compares five-round medians, with 5% timing/FPS
+and 2% process-memory investigation bands; deterministic surface/allocation budgets allow no growth. Those bands
+address measurement noise, not a permitted regression budget. Repeat suspicious results against the retained baseline.
+Never relax a threshold, omit a workload or replace the baseline merely to make a test pass.
+
+On confirmed degradation, stop accepting/merging the affected development, present the measured deltas and suspected
+cause, ask the developer for advice, and propose options with quantified costs: optimize the affected path/caches,
+reduce optional scope, or defer/revert the change. Any explicitly approved tradeoff needs durable rationale and the
+chosen resource budget in this contract or its owning domain; a WIP note alone cannot waive a requirement.
+
+### I26 accepted multiline Grid memory tradeoff
+
+On 2026-09-23 the user explicitly accepted the measured V11 multiline Grid process-memory
+cost to retain complete-line clipping, omission markers and readable Issues summaries.
+The observed fixed-fixture Release median rises from 33,214,464 to 40,226,816 private bytes
+(+7,012,352 bytes); paced retention rises from 29,743,104 to 36,831,232 bytes. The accepted
+envelope is those recorded approximately 6–7 MiB costs, alongside the measured multiline
+offscreen throughput improvement from 61.974 to 122.243 FPS. Preserve the
+[original qualification](../../Measurements/GridTextOverflow/2026-09-21/qualification/Release/README.md)
+and [heap attribution](../../Measurements/GridTextOverflow/2026-09-21/heap-attribution/README.md).
+Process private bytes are not equivalent to live cache storage; attribution includes native
+heap capacity and does not establish a settled long-run bound.
+
+This decision does not accept the rejected associative-cache experiment, separate common-path
+timing/memory flags, menu benchmark differences, or additional growth. Existing investigation
+bands and deterministic allocation/surface/hidden-work budgets remain unchanged. It neither
+updates a consumer pin nor replaces the remaining functional and integrated qualification.
+
+On 2026-09-27 the user additionally answered **"Accept the recorded timing tradeoffs"**.
+For this same V11 multiline fixture, that accepts the recorded clean-frame median increase
+from 0.3936 to 0.4182 ms (+0.0246 ms), and dirty CPU-composition P95 from 0.0152 to
+0.0182 ms (+0.0030 ms), alongside the roughly doubled dirty offscreen throughput above.
+This supplements the earlier memory decision; it does not change the original comparator
+flags, investigation bands or baseline. Correctness, combined-build/resource, DPI and
+accessibility gates remain required. Additional regressions require separate investigation.
+
+### I19 accepted resource trade-off
+
+On 2026-09-13 the user accepted the measured static-library adoption trade-off and
+requested closeout. The [matched library record](../../Measurements/SharedLibrary/2026-09-13-local/README.md)
+retains all original comparisons, including investigation-band failures and baseline variation.
+The accepted envelope is the observed I19 result on that fixed fixture: Release clean peak
+private memory increases by a median 731,136 bytes, while surface storage, composition
+allocations and hidden work remain unchanged. Release dirty completed throughput changes
+by +0.02%; Debug dirty throughput changes by -1.65%. This is an explicit acceptance of
+the recorded costs for canonical source ownership and the clipboard, module-lifetime and
+font-refresh corrections, not a claim that every metric is unchanged.
+
+The existing deterministic budgets and investigation bands remain in force. This decision
+does not admit additional growth in later revisions or replace the retained baseline.
+It covers the named offscreen fixture only; hardware presentation and long-run retention
+still require their own evidence. Consumer measurements and their accepted costs remain
+in the corresponding product repositories.
+
+### I26 described-menu timing tradeoff
+
+On 2026-09-27 the user explicitly answered **"Accept the recorded timing tradeoffs"**
+after reviewing the grid and described-menu measurements. For this menu candidate,
+the accepted timing envelope is the recorded clean-frame P95 increase up to 0.0492 ms
+in the [September 23 crossover](../../Measurements/MenuDescriptions/2026-09-23/common-crossover/README.md)
+and the recorded timing differences in the
+[September 27 source ablation](../../Measurements/MenuDescriptions/2026-09-27/header-ablation/README.md),
+including dirty-frame P95 up to 0.1649 ms above its paired baseline. The qualified source
+is `36a1c437fa404c3296aafb6c2d3ac20e8c4566e5`; the production benefit is readable primary/path
+menu rows and popup-local text sharing (575,310 to 367,894 live heap bytes for the measured
+twelve-entry repeated-caption fixture). These offscreen WARP measurements do not establish
+presented latency or causality; the header-only variant and same-binary controls also vary.
+
+Keep all original samples, comparator flags and thresholds. This explicitly accepts these
+recorded timing costs for this implementation; it does not assert non-regression, reset a
+baseline, accept additional process-memory growth or admit future regressions. Correctness,
+combined-library and consumer build/resource qualification, DPI and accessibility gates remain
+required. The grid's separate memory and timing decisions remain in its owning record.
+
+### I26 ordinary-menu accessibility memory tradeoff
+
+On 2026-09-27 the user explicitly answered **"Accept this accessibility cost"** for exposing
+ordinary menu commands through the existing retained accessibility tree. The prior implementation
+incorrectly exposed no children when rows had no descriptions. The matched four-cycle fixture
+records about 23 KiB additional live heap for twelve entries and 226 KiB for 128 entries
+(roughly 1.8–1.9 KiB per entry), with no corresponding retained-heap increase after closing in
+those cycles. This admits that measured live cost for usable command names, roles, states,
+navigation and invocation; it does not establish a long-run retention bound or accept future growth.
+
+The original ABBA resources, same-variant controls and performance flags remain retained under
+the ordinary-menu correction in the [active menu plan](../Plans/WIP/MenuDescriptions_2026-09-21.md).
+Do not silently rebaseline. The existing 4,096-row responsiveness bounds, correctness, native
+qualification and independent consumer adoption remain required. Earlier grid memory and
+grid/menu timing decisions retain their separate scope.
+
+### Ongoing validation and resource budgets
+
+Every `test.ps1` invocation MUST report complex-UI FPS and memory, including filtered suites, and each suite receipt
+must include the measurement or its linked receipt. A failing/missing benchmark fails the test entrypoint. Unit-test
+execution rate and CPU command-submission rate must never be labeled rendered FPS. Hidden/static idle views have no
+requested frames (report zero work rather than an artificial FPS loop). The default executable fixture measures
+1280x720/96-DPI completed offscreen WARP frames with 83 controls, 1,000-row Grid/Tree models, 20 warm-up frames and
+five 40-frame rounds each for clean and changing content. Dirty work updates sliders/progress and scrolls the grid.
+One reusable staging pixel synchronizes GPU completion outside production code; report its cost in total FPS.
+Record p50/p95 frame time, p95 preparation/CPU composition, C++ allocations, exact surface bytes/replacement peak,
+process private bytes/working set and sampled peaks/growth. Composition allocation and extra surface creation are
+hard failures, and hidden preparation/composition must remain zero. Whole-frame C++ allocations are gated as well:
+clean rounds must record zero, and dirty rounds may not exceed 64 allocations per frame in Release (2,560 per
+40-frame round; 54 per frame measured on 2026-09-07) or 320 per frame in Debug (12,800 per round; 257 measured),
+where the Debug STL allocates one container proxy per std::vector/std::wstring. The receipt records
+`dirtyAllocationCeilingPerFrame`. A ceiling is never raised to pass; a failing gate reports the measured count for
+advice. The benchmark does not establish displayed FPS.
+
+Benchmark receipts also record process-memory phases at entry, device creation, scene
+creation, warm-up, screenshot encoding and the hidden state. These untimed samples help
+locate changes; they do not replace matched frame/retention comparisons. The opt-in
+`MenuResources` control suite records 96 open/render/capture/close cycles for twelve
+plain or described entries at matched 456-by-300-DIP viewport constraints, including
+private/working-set bytes and process/GDI/USER handles. Report screenshot-buffer cost
+separately from the open product menu; a short cycling run alone cannot establish a
+long-run retention bound. The identical probe can characterize plain menus on the old
+implementation and reports described mode as unsupported there.
+The benchmark executable's opt-in `--benchmark-retention <output-prefix>` repeats
+sixty complete create/render/hide/destroy cycles in one process, retaining each inner
+report. Bind that diagnostic's executable/source/fixture hashes and keep its raw rounds;
+it does not replace the default acceptance comparison or a controlled long-duration soak.
+
+Shipping/consumer acceptance additionally requires a named hardware fixture and actual presented complex-UI FPS,
+frame pacing and p50/p95/p99 latency at the target refresh rate (at least 60 FPS / 16.67 ms per frame for a 60 Hz
+consumer while actively updating). Include 96/144/192 DPI, large data sets, typing/dragging, animation, scrolling,
+multiple simultaneous views, resize/DPI transitions, allocation failure and device recovery. Record workload/driver
+and CPU/GPU/total frame costs separately. WARP coverage and a clean composite alone cannot satisfy these gates.
+Run retention/soak checks long enough to distinguish bounded warm caches from sustained growth; report samples,
+duration, maximum views/data and start/steady/peak/end resources. Do not claim a hardware or long-run pass from
+the short default benchmark. Match new development to a targeted measured workload as well as the common fixture.
+
+Optional heap-attribution fixtures may enumerate and walk process heaps outside timed rounds,
+with bounded storage and individual heap locks. Report per-heap failures and distinguish busy/free
+heap blocks from process-private memory and working set; their totals are not interchangeable.
+Do not purge heaps or trim working sets to hide retention. A separately identified fixture may
+pace retention frames to compare wall-clock allocation rates, but must leave measured FPS rounds
+unpaced and must not replace ordinary unpaced performance/resource acceptance. Diagnostic timing
+includes sampling overhead. [The grid investigation](../../Measurements/GridTextOverflow/2026-09-21/heap-attribution/README.md)
+records the implemented opt-in diagnostics and their unresolved conclusions.
+
+Steady-state hot paths use bounded reusable storage; cache derived state and batch compatible work. Never allocate,
+shape text, create targets, traverse layout, do I/O, block or read back in clean composition. Coalesce dirty state and
+prepare only changed visible content. Hidden, minimized, occluded, suspended, display-off and idle work is event-blocked,
+with no embedded timer/worker/polling loop. Share immutable resources per device generation; explicitly bound queues,
+caches, textures, replacement peaks and concurrent instances. Checked arithmetic/capacity failures must fail cleanly,
+release ownership and retain coherent visual/input state. Destroy device-generation resources together on recovery.
+
+## Independent measurement ownership
+
+DxUi owns its samples, synthetic data, benchmark workloads and baseline receipts. They MUST build and run using
+this repository, the Windows SDK and pinned library dependencies alone. No consumer checkout, plugin, settings,
+AV endpoint or application service is required. Inspiration from application layouts is allowed; executable fixtures
+and their acceptance criteria remain library-owned. The runnable complex sample and timed benchmark use the same
+`Samples/ComplexUi/ComplexUiScene.h` scene. Every fixture change requires a new identity and matched fixture hashes.
+A harness-only change (assertions or receipt fields) keeps the workload identity but changes the fixture hash, so the
+matched baseline is measured with the final harness on the previous implementation before the candidate is compared.
+
+Application-specific adoption reports, configurations, endpoint workloads and budgets belong in that application's
+repository. Do not store them in DxUi docs or use them as a substitute for independent library evidence. Conversely,
+DxUi offscreen throughput does not establish the complete application's presentation, input or service latency.
+Reviewed independent raw receipts may be retained under `Measurements/`, with a README explaining the scenario,
+source identity, all noisy runs and limits. Intermediate runs remain under `.build`; docs link to the retained evidence.
+
+Measure the full sum of simultaneous views at 96/144/192 DPI, including shared-pool and replacement costs. One
+1280x720 BGRA surface is 3,686,400 bytes (3.52 MiB), excluding driver overhead; physical extents determine residency.
+A hidden or zero-extent view holds no surface and reports `surfaceBytes` 0: a consumer reclaims a collapsed view's
+surface by hiding it, and the next visible sized preparation allocates exactly one replacement.
+Applications must admit their aggregate view cost using their own instance bounds. Allocation counters distinguish
+library-controlled work from OS/driver internals; both remain measured. A single composite draw does not make dirty
+preparation free. Never impose one application's module topology, two-view layout or endpoint latency on all consumers.
+
+### Single-library implementation budgets
+
+EmbeddedHost has at most one cached surface (64 MiB maximum) while visible with a nonzero extent, and none while
+hidden or zero-sized. A resize allocates the replacement before releasing the previous surface, so the single-surface
+cap bounds the transactional replacement peak to 128 MiB per view by construction; `replacementPeakBytes` reports it.
+Immutable composition state, the D2D device and the DWrite factory are shared through GraphicsDevice. A consumer
+using tile/raised views admits their summed surface cost. Composite is a single triangle with shader constants
+derived from SV_VertexID and needs no per-view vertex/index/dynamic constant buffer. Hidden state performs no timer
+subscription; native WindowHost alone uses the event-driven animation dispatcher. Animation ticks add no raster work
+by themselves: `AdvanceAnimation` never marks the view dirty, and every `Tick` that changes visual state invalidates.
+Per-host caches are bounded to 256 solid brushes and 96 configured text formats; a cache beyond its bound is cleared
+at the start of the next embedded preparation or native paint, never mid-paint, so steady-state residency stays
+proportional to the painted working set. Diagnostics are borrowed and optional; composition does not emit them.
+The private window-message payload registry is bounded to 128 windows and 128 queued payloads; saturation fails
+immediately and releases transferred ownership. Teardown invalidates queued tokens and drains outside its lock.

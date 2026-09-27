@@ -95,6 +95,13 @@ zero. WARP numbers cannot stand in for native graphics hardware, physical input 
 
 ## Dedicated library evidence
 
+The [ordinary-menu accessibility packet](../Measurements/MenuDescriptions/2026-09-27/ordinary-menu-accessibility/README.md)
+retains the accepted 23/226 KiB live-heap cost for 12/128 entries, original comparator
+flags, stale-receipt corrections and d45's native ASan latency failure. Its forced-rebuild
+snapshot comparison reduces 4,096-row End-to-visible from 1.023 to 0.344 seconds under
+the same one-second limit. Instrumented diagnosis and final-source qualification are
+separate; the packet does not claim a final six-profile or consumer pass.
+
 The [no-capture menu scaling record](../Measurements/MenuDescriptions/2026-09-21/scaling-v1/README.md)
 retains the first 320-cycle probe and its non-monotonic private-memory changes.
 The current v4 diagnostic retains live/free process-heap counters; partial heap
@@ -111,9 +118,10 @@ This suite and `MenuResources` require foreground interaction. Local runs use th
 authorized warning and desktop lease with focus/cursor restoration; `--no-activate`
 is rejected. V4 records all 320 native extents from a visible owned parent on one
 monitor. Earlier locally failed activation-blocked runs remain invalid evidence.
-The first description enables a whole-menu semantic tree; later descriptions add
-text layouts. A process-memory delta divided by the number of entries is therefore
-not a measurement of one entry's allocation. Treat this as attribution evidence,
+In the original implementation, the first description enabled a whole-menu semantic
+tree; later descriptions added text layouts. Ordinary menus now expose the same
+accessible commands even without descriptions. A process-memory delta divided by the number of entries is therefore
+not a measurement of one entry's allocation. Treat the original probe as attribution evidence,
 not a substitute for the required matched-source performance comparison.
 
 `./test.ps1 -Configuration Release -Suites MenuTextLayoutResources` isolates the
@@ -173,6 +181,12 @@ Run `validate-skills.ps1`, `validate-specs.ps1`, `validate-dependencies.ps1`, `f
 `python -m unittest discover -s Tools/tests -v`. Run x64 Debug/Release suites and build ARM64 Debug/Release for code
 changes; native ARM64 CI must also pass. Use `gallery.ps1 -PublishDocs` after visual/control changes and review all
 generated sheets. Full IME, touch and screen-reader adoption checks remain explicit manual gates.
+
+`MenuAccessibility` includes the existing 4,096-entry opening and End-to-visible bounds
+under the no-activation blocker, with timings retained even on failure. It preserves
+native focus and rejects foreground acquisition by the test process; a user switching
+between unrelated windows is recorded without stealing focus back. This complements
+the native `Menu` suite and does not replace real keyboard or assistive-technology checks.
 
 [Formatting CI](../.github/workflows/format.yml) checks pushes/PRs and uploads a ready-to-apply patch. To reformat a
 branch remotely, run its manual workflow with `apply_changes` enabled. It commits formatting on the selected

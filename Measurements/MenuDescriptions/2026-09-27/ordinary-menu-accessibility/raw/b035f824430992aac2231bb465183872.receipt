@@ -1,0 +1,18 @@
+# Final ordinary-menu UIA ABBA analysis, 2026-09-27
+
+The direct `MenuAccessibility --no-activate` suite reproduced the exact missing-first-child failure on both historical-baseline builds (A3, A4; expected exit 1), and passed on both candidate fresh processes (C1, C2; exit 0). Each process recorded 24 resource observations: four cycles each of 12 and 128 ordinary one-line rows at 476 × 322 px and 96 DPI. A3/A4 observed zero UIA children; C1/C2 observed exactly 12/128. The baseline source bytes came from `4919471cf1c3245f1cfa2448fe0c6e88bea8ef9a`; the candidate source was restored byte-for-byte and rebuilt after A4. `driver-result.json` records source, test, executable, performance and suite-log hashes. C1 and C2 reused the same ControlTests and EmbeddedTests binary hashes; A3/A4 had identical source fingerprints but separately built executable hashes.
+
+The new live heap cost is repeatable. The table uses enumerated process-heap **busy bytes** at open minus the immediately preceding closed state, warm cycles 1–3 (three observations per run). It does not describe GPU surfaces or per-frame allocations.
+
+| Run | 12-row open heap mean | 128-row open heap mean | 128-row closed heap mean |
+| --- | ---: | ---: | ---: |
+| A3 baseline | 249,708 B | 397,389 B | 40,981 B |
+| C1 candidate | 272,311 B | 628,753 B | 41,327 B |
+| C2 candidate | 272,111 B | 628,753 B | 41,327 B |
+| A4 baseline | 248,844 B | 396,930 B | 41,602 B |
+
+Across the two runs per variant, the candidate adds **22,935 B at 12 rows** and **231,594 B (0.221 MiB) at 128 rows** while open, roughly 1.8–1.9 KiB per row at these sizes. The 128-row closed heap mean differs by only **36 B** between variants (41,292 B baseline; 41,327 B candidate), so this four-cycle fixture finds no comparable persistent heap increase after close. Process-private warm-open means differ by -94,208 B at 12 rows and +328,363 B at 128; their run-to-run spread is much larger than the heap difference, so private bytes do not give a precise per-row cost. `abba-resource-observations.json` retains every process-private, heap, handle, geometry and child-count sample delta.
+
+The four baseline→candidate comparisons from the repository's unchanged `compare_performance.py` all say `advice-required`. The two new **same-variant controls also say `advice-required`**: A3→A4 flags ten metrics, including clean `composeCpuP95Ms` 0.0112→0.0122 ms (+8.93%), and C1→C2 flags five, including dirty `composeCpuP95Ms` 0.0252→0.0295 ms (+17.06%) and dirty private bytes +6.15%. All six raw comparator JSONs and console logs are retained in `offline-comparisons/`; `abba-comparison-summary.json` extracts every flagged metric without changing those reports.
+
+The cross-variant flag directions do not isolate a candidate-induced common-benchmark regression. Clean compose p95 is 0.0112 ms on A3, 0.0123/0.0119 on C1/C2, and 0.0122 on A4: both candidate runs exceed A3's threshold, while the later baseline rises similarly. Dirty compose p95 is 0.0313 ms on A3, 0.0252/0.0295 on C1/C2, and 0.0217 on A4: C1/C2 exceed A4, while C1→C2 itself changes by 17%. A3→C1's dirty prepare p95 flag (+5.31%) is also bracketed by A3→A4 baseline drift (+8.28%). The selected clean/dirty private-memory flags likewise change with run order, including the C1→C2 same-binary +6.15% dirty change. Thus the common WARP metric **has not passed a stable paired non-regression determination**; the comparator's advice flags are preserved, and the same-variant controls bound their interpretation. The menu-specific heap increase is the confirmed cost requiring developer advice on optimization, scope, or deferral; there is no broader waiver in this evidence.

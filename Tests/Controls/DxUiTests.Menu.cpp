@@ -5189,6 +5189,38 @@ void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()
 {
     using namespace DxUi;
 
+    const bool nonactivating = ! DxUiTestWindowsCanActivateFlag();
+    if (nonactivating)
+        Require(TestSupport::ScopedWindowActivationBlocker::IsActiveForCurrentThread(),
+                "large menu nonactivating lane requires the established activation blocker");
+    const HWND foregroundBefore   = GetForegroundWindow();
+    const HWND nativeFocusBefore  = GetFocus();
+    DWORD foregroundProcessBefore = 0u;
+    if (foregroundBefore)
+        GetWindowThreadProcessId(foregroundBefore, &foregroundProcessBefore);
+    const auto requireNoActivation = [&](const char* message)
+    {
+        if (! nonactivating)
+            return;
+        const HWND foregroundNow   = GetForegroundWindow();
+        DWORD foregroundProcessNow = 0u;
+        if (foregroundNow)
+            GetWindowThreadProcessId(foregroundNow, &foregroundProcessNow);
+        // The user may switch between unrelated windows during a nonactivating run.
+        // Only a new foreground owned by this fixture is an activation violation.
+        const HWND nativeFocusNow      = GetFocus();
+        const bool sameForeground      = foregroundNow == foregroundBefore && foregroundProcessNow == foregroundProcessBefore;
+        const bool foregroundPreserved = sameForeground || foregroundProcessNow != GetCurrentProcessId();
+        if (! sameForeground || nativeFocusNow != nativeFocusBefore)
+            std::cout << "{\"fixture\":\"dxui-large-menu-end-v1\",\"stage\":\"focus-check\",\"beforePid\":" << foregroundProcessBefore
+                      << ",\"currentPid\":" << foregroundProcessNow << ",\"testPid\":" << GetCurrentProcessId()
+                      << ",\"beforeHwnd\":" << reinterpret_cast<uintptr_t>(foregroundBefore)
+                      << ",\"currentHwnd\":" << reinterpret_cast<uintptr_t>(foregroundNow)
+                      << ",\"nativeFocusUnchanged\":" << (nativeFocusNow == nativeFocusBefore ? "true" : "false") << "}\n"
+                      << std::flush;
+        Require(foregroundPreserved && nativeFocusNow == nativeFocusBefore, message);
+    };
+
     constexpr size_t kItemCount = 4096u;
     std::vector<MenuFlyoutItem> items;
     items.reserve(kItemCount);
@@ -5212,7 +5244,11 @@ void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()
     const bool shown       = ContextMenu::ShowAsync(
         ownerWindow.Hwnd(), menuPoint, items, ownerWindow.Host().GetTheme(), [&](std::optional<int>) noexcept { callbackInvoked = true; }, callbacks);
     const uint64_t openToFirstPaintUs = DxUi::Debug::Perf::ElapsedUs(openStarted);
+    std::cout << "{\"fixture\":\"dxui-large-menu-end-v1\",\"stage\":\"open\",\"rows\":" << kItemCount << ",\"openToFirstPaintUs\":" << openToFirstPaintUs
+              << ",\"shown\":" << (shown ? "true" : "false") << "}\n"
+              << std::flush;
     Require(shown, "large async context menu opens");
+    requireNoActivation("large menu opening cannot take foreground or native focus under the activation blocker");
     Require(openToFirstPaintUs < 5'000'000u, "large context menu open-to-first-paint remains bounded");
 
     const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Folder 0000");
@@ -5230,14 +5266,23 @@ void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()
 
     const auto endStarted = std::chrono::steady_clock::now();
     SendMessageW(popupHwnd, WM_KEYDOWN, VK_END, 0);
+    const uint64_t endDispatchUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
     ownerWindow.PumpMessages();
+    const uint64_t endPumpedUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
     ContextMenuPopupDebugState endState{};
-    Require(WaitForContextMenuPopupState(popupHwnd,
-                                         [](const ContextMenuPopupDebugState& state) noexcept
-    { return state.keyboardIndex == std::optional<size_t>{kItemCount - 1u} && state.scrollOffsetDip > 0.0f; },
-                                         endState),
-            "large context menu resolves the last row through cached offsets");
+    const bool lastRowResolved    = WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+        return state.keyboardIndex == std::optional<size_t>{kItemCount - 1u} && state.scrollOffsetDip > 0.0f;
+    }, endState);
     const uint64_t endToVisibleUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
+    // Retain actual timings even when a bounded-latency assertion fails. These
+    // subintervals isolate synchronous input from pumping and full debug-state reads.
+    std::cout << "{\"fixture\":\"dxui-large-menu-end-v1\",\"stage\":\"end\",\"rows\":" << kItemCount << ",\"dispatchUs\":" << endDispatchUs
+              << ",\"pumpUs\":" << (endPumpedUs - endDispatchUs) << ",\"queryUs\":" << (endToVisibleUs - endPumpedUs)
+              << ",\"endToVisibleUs\":" << endToVisibleUs << ",\"lastRowResolved\":" << (lastRowResolved ? "true" : "false")
+              << ",\"paintedRows\":" << endState.lastPaintedItemCount << "}\n"
+              << std::flush;
+    requireNoActivation("large menu End navigation cannot take foreground or native focus under the activation blocker");
+    Require(lastRowResolved, "large context menu resolves the last row through cached offsets");
     Require(endToVisibleUs < 1'000'000u, "large context menu End-to-visible latency remains bounded");
     Require(endState.lastPaintedItemCount <= 32u, "large context menu scrolled paint remains limited to viewport rows");
 
@@ -5268,6 +5313,7 @@ void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()
     }
     Require(callbackInvoked, "large context menu closes through Escape");
     Require(WaitForWindowDestroyed(popupHwnd), "large context menu popup is destroyed after Escape");
+    requireNoActivation("large menu teardown cannot take foreground or native focus under the activation blocker");
 }
 
 void TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion()
@@ -6273,6 +6319,10 @@ void RunMenuAccessibilityTests()
     TestPlainMenuAccessibilityScrollsFocusedRow();
     std::cerr << "  [START] TestMenuNativeFocusPreservesEmptySelection\n" << std::flush;
     TestMenuNativeFocusPreservesEmptySelection();
+    // Reuse the exact large-model bound in the nonactivating lane. The fixture
+    // sends owned HWND messages and never injects desktop input.
+    std::cerr << "  [START] TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets\n" << std::flush;
+    TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets();
 }
 
 void RunMenuDescriptionTests()

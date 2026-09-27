@@ -1,0 +1,38 @@
+[
+  {
+    "cohort": "baseline",
+    "rows": 12,
+    "count": 6,
+    "openPrivateMean": 683349.0,
+    "openHeapBusyMean": 249392.0,
+    "closedPrivateMean": 486059.0,
+    "closedHeapBusyMean": -31930.0
+  },
+  {
+    "cohort": "candidate",
+    "rows": 12,
+    "count": 6,
+    "openPrivateMean": 703147.0,
+    "openHeapBusyMean": 272608.0,
+    "closedPrivateMean": 508587.0,
+    "closedHeapBusyMean": -31679.0
+  },
+  {
+    "cohort": "baseline",
+    "rows": 128,
+    "count": 6,
+    "openPrivateMean": 311979.0,
+    "openHeapBusyMean": 396655.0,
+    "closedPrivateMean": 113323.0,
+    "closedHeapBusyMean": 41327.0
+  },
+  {
+    "cohort": "candidate",
+    "rows": 128,
+    "count": 6,
+    "openPrivateMean": 763904.0,
+    "openHeapBusyMean": 627760.0,
+    "closedPrivateMean": -85333.0,
+    "closedHeapBusyMean": 41414.0
+  }
+]

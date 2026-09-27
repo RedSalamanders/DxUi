@@ -1,0 +1,17 @@
+[
+  {
+    "Algorithm": "SHA256",
+    "Hash": "5C7B1EB3ECCB740A0A779EB206AF7D4C9DF65669DB9276BEB97C2952C5BEE2D3",
+    "Path": "C:\\Users\\eric\\.codex\\worktrees\\fileops-ui-qualified\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "966B0346BBFAFECDF14BE50F7D3550305A91C7A2D64940A47949C700FEE158EC",
+    "Path": "C:\\Users\\eric\\.codex\\worktrees\\fileops-ui-qualified\\DxUi\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "8BE9501697F0EF7B2D85DC62C67C75CB82147C05EF27A5AA11A3E8C89767A971",
+    "Path": "C:\\Users\\eric\\.codex\\worktrees\\fileops-ui-qualified\\DxUi\\.build\\x64\\Release\\DxUi.lib"
+  }
+]

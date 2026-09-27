@@ -1,0 +1,179 @@
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	﻿2026-09-27T20:56:50.0711081Z ##[group]Run ./test.ps1 -Configuration "ASan Debug" -Platform x64
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.0711666Z ^[[36;1m./test.ps1 -Configuration "ASan Debug" -Platform x64^[[0m
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.0821329Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.0821783Z env:
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.0822124Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.14.7\x64
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.0822618Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.14.7\x64/lib/pkgconfig
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.0823116Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.7\x64
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.0823556Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.7\x64
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.0823967Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.14.7\x64
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.0824379Z ##[endgroup]
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.5259571Z PASS DxUi update advisory: same
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.5431246Z PASS DxUi update advisory: green
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.5451035Z PASS DxUi update advisory: pending
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.5469911Z PASS DxUi update advisory: failed
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.5488192Z PASS DxUi update advisory: absent
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.5510824Z PASS DxUi update advisory: divergent
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.5535337Z PASS DxUi update advisory: ahead
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.5799099Z PASS DxUi update advisory: offline
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.5820453Z PASS DxUi update advisory: wrong-run
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:50.5846009Z PASS DxUi update advisory: malformed
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.6677688Z PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7039426Z ╭────────────────────────────────────────────────────────────────────────╮
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7143907Z │                                                                        │
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7150364Z │                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7158554Z │                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7164489Z │                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7171469Z │                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7176530Z │                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7181944Z │                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7187691Z │                                                                        │
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7193305Z │      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7205257Z │                  ⚡  ASAN DEBUG  /  X64  /  BUILD  ⚡                  │
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7211941Z │                                                                        │
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7217572Z ╰────────────────────────────────────────────────────────────────────────╯
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7223484Z 
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.7235151Z Locating Visual Studio and MSBuild...
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.8583593Z Build configuration:
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.8589123Z   Configuration: ASan Debug
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.8596131Z   Platform:      x64
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.8601345Z   Target:        Build
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.8607710Z   Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Enterprise
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.8612523Z   Output:        D:\a\DxUi\DxUi\.build\
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.8618586Z 
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:55.8623768Z Compiling DxUi...
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:56.0037595Z 
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:58.9504307Z   compilation header save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositeVS.h
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:58.9513408Z   compilation object save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositeVS.cso
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:59.0523772Z   compilation header save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositePS.h
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:59.0532328Z   compilation object save succeeded; see D:\a\DxUi\DxUi\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositePS.cso
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:56:59.6968170Z   ControlCatalog.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:07.3668694Z   NativeMenuInterop.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:10.3986416Z   Embedded.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:13.3892051Z   FrameRuntime.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:13.9222793Z   DxUi.Accessibility.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:18.1495241Z   DxUi.ComboBox.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:21.5431923Z   DxUi.Controls.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:25.6617078Z   DxUi.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:28.9260792Z   DxUi.Grid.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:33.0407064Z   DxUi.Menu.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:37.7875018Z   DxUi.NativeTextInput.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:41.0234101Z   DxUi.PointerInput.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:41.5400981Z   DxUi.Scrollbar.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:44.4479297Z   DxUi.SingleLineTextEditing.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:47.4708522Z   DxUi.TextInput.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:50.6837565Z   DxUi.TextStoreACP.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:53.7787613Z   TextInputServices.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:56.8332302Z   TextClipboard.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:57:59.6700462Z   DxUi.Theme.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:02.6644264Z   DxUi.Tree.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:05.7362128Z   Generating Code...
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:14.4418171Z   Compiling...
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:14.4426106Z   DxUi.Typeahead.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:17.2471172Z   DxUi.WindowHost.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:21.8728483Z   Generating Code...
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:23.8228262Z   DxUi.vcxproj -> D:\a\DxUi\DxUi\.build\x64\ASan Debug\DxUi.lib
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:24.1847894Z   FoundationTests.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:24.2234996Z   Main.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:24.2437939Z   DxUiTests.Accessibility.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:24.3565237Z   EmbeddedTests.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:25.2664156Z   PublicHelpersTests.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:30.5792942Z   Generating Code...
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:32.5581774Z   DxUiTests.Animation.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:33.2161527Z   DxUi.FoundationTests.vcxproj -> D:\a\DxUi\DxUi\.build\x64\ASan Debug\DxUi.FoundationTests.exe
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:33.2170872Z   DxUi.EmbeddedControls.vcxproj -> D:\a\DxUi\DxUi\.build\x64\ASan Debug\DxUi.EmbeddedControls.exe
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:33.6548570Z   DxUi.EmbeddedTests.vcxproj -> D:\a\DxUi\DxUi\.build\x64\ASan Debug\DxUi.EmbeddedTests.exe
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:36.9562927Z   DxUiTests.ComboBox.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:40.8130359Z   DxUiTests.Controls.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:44.9239598Z   DxUiTests.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:48.6916009Z   DxUiTests.Gallery.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:53.1238611Z   DxUiTests.Grid.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:58:57.0488361Z   DxUiTests.Menu.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:02.7785132Z   DxUiTests.MultilineText.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:06.6918317Z   DxUiTests.NativeTextInput.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:11.2028451Z   DxUiTests.NewControls.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:15.2655354Z   DxUiTests.ReadOnly.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:18.7760320Z   DxUiTests.Rendering.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:22.5617189Z   DxUiTests.TextField.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:26.1331493Z   DxUiTests.Theme.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:29.5891628Z   DxUiTests.Tooltip.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:33.1206559Z   DxUiTests.Tree.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:36.6383342Z   DxUiTests.WindowHost.cpp
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:41.0243242Z   Generating Code...
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:55.4109903Z   DxUi.ControlTests.vcxproj -> D:\a\DxUi\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:55.4749569Z 
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:55.4756088Z ========================================
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:55.4789369Z DxUi build passed in 02:59
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:55.4794450Z Output: D:\a\DxUi\DxUi\.build\
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:55.4798789Z Log: D:\a\DxUi\DxUi\.build\logs\build-x64-ASan Debug-4d8c87fdc5a04618a5949aac6da27f8f.log
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T20:59:55.4803390Z ========================================
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:02.4577724Z Complex UI clean round 1: 277.623 completed offscreen FPS; p95 3.7742 ms; private 187285504 bytes
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:02.4578967Z Complex UI clean round 2: 280.432 completed offscreen FPS; p95 3.7405 ms; private 190889984 bytes
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:02.4579565Z Complex UI clean round 3: 278.178 completed offscreen FPS; p95 3.7919 ms; private 193130496 bytes
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:02.4580184Z Complex UI clean round 4: 263.228 completed offscreen FPS; p95 4.6453 ms; private 194789376 bytes
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:02.4581833Z Complex UI clean round 5: 281.465 completed offscreen FPS; p95 3.651 ms; private 197033984 bytes
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:02.4582425Z Complex UI dirty round 1: 41.9747 completed offscreen FPS; p95 25.3557 ms; private 336531456 bytes
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:02.4583005Z Complex UI dirty round 2: 40.3028 completed offscreen FPS; p95 31.3361 ms; private 472875008 bytes
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:02.4583629Z Complex UI dirty round 3: 40.8637 completed offscreen FPS; p95 28.7101 ms; private 502046720 bytes
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:02.4584325Z Complex UI dirty round 4: 42.6937 completed offscreen FPS; p95 26.8068 ms; private 512389120 bytes
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:02.4584927Z Complex UI dirty round 5: 43.1142 completed offscreen FPS; p95 26.8619 ms; private 513503232 bytes
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:04.0726958Z Performance comparison: unpaired
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:04.0878520Z Performance receipt: D:\a\DxUi\DxUi\.build\reports\Performance-x64-ASan Debug-b966d406e642415fa739743055290da3.json
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:04.4993601Z PASS AddressSanitizer detection probe (isolated expected failure)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:04.5013152Z Running Foundation (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:05.2434827Z PASS Foundation (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:05.2443106Z Running Embedded (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:07.2696316Z PASS Embedded (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:07.2703106Z Running Grid (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:08.1253642Z PASS Grid (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:08.1261961Z Running Theme (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:08.2200901Z PASS Theme (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:08.2207942Z Running Control (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:08.9881021Z PASS Control (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:08.9888232Z Running MenuAccessibility (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:11.4441349Z PASS MenuAccessibility (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:11.4448925Z Running Menu (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.0410233Z   [START] TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.0411191Z     [TRACE] attached host dtor: begin
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.0411740Z     [TRACE] attached host dtor: host detached
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.0412663Z     [TRACE] attached host dtor: hwnd reset
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.0413351Z   [DONE] TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.0414109Z   [START] TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.0414781Z     [TRACE] attached host dtor: begin
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.0416243Z     [TRACE] attached host dtor: host detached
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.0416814Z     [TRACE] attached host dtor: hwnd reset
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.0417580Z   [DONE] TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.0418355Z   [START] TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.0419038Z FAILED: large context menu End-to-visible latency remains bounded
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.0426834Z Running MenuExitLifetime (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.6341635Z PASS MenuExitLifetime (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:23.6349213Z Running NewControls (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:25.9604967Z PASS NewControls (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:25.9611843Z Running TextField (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:29.5755281Z PASS TextField (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:29.5765467Z Running NativeTextInput (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:35.6658760Z PASS NativeTextInput (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:35.6669666Z Running MultilineText (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:37.3681848Z PASS MultilineText (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:37.3689033Z Running ReadOnly (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:38.3596876Z PASS ReadOnly (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:38.3605341Z Running ComboBox (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:40.1664425Z PASS ComboBox (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:40.1668601Z Running Tree (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:40.9701403Z PASS Tree (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:40.9711193Z Running Tooltip (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:41.9546217Z PASS Tooltip (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:41.9555664Z Running Rendering (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:59.5961922Z PASS Rendering (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:00:59.5970260Z Running Animation (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:01:01.1082513Z PASS Animation (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:01:01.1091202Z Running Accessibility (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:01:06.4685587Z PASS Accessibility (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:01:06.4691381Z Running WindowHost (x64 ASan Debug)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:01:07.6944758Z PASS WindowHost (0 capability skips recorded)
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:01:07.7539309Z ^[[31;1mException: ^[[0mD:\a\DxUi\DxUi\test.ps1:66^[[0m
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:01:07.7540560Z ^[[31;1m^[[0m^[[36;1mLine |^[[0m
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:01:07.7541789Z ^[[31;1m^[[0m^[[36;1m^[[36;1m  66 | ^[[0m … es.Count) { ^[[36;1mthrow "DxUi failed suites: $($failures -join ', '). See .^[[0m …^[[0m
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:01:07.7542728Z ^[[31;1m^[[0m^[[36;1m^[[36;1m^[[0m^[[36;1m^[[0m^[[36;1m     | ^[[31;1m               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^[[0m
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:01:07.7543788Z ^[[31;1m^[[0m^[[36;1m^[[36;1m^[[0m^[[36;1m^[[0m^[[36;1m^[[31;1m^[[31;1m^[[36;1m     | ^[[31;1mDxUi failed suites: Menu. See .build/logs and .build/reports.^[[0m
+native (x64, windows-2025-vs2026, ASan Debug)	Run ./test.ps1 -Configuration "ASan Debug" -Platform x64	2026-09-27T21:01:07.7897322Z ##[error]Process completed with exit code 1.

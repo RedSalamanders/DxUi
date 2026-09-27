@@ -98,6 +98,29 @@ baseline, accept additional process-memory growth or admit future regressions. C
 combined-library and consumer build/resource qualification, DPI and accessibility gates remain
 required. The grid's separate memory and timing decisions remain in its owning record.
 
+### I26 ordinary-menu accessibility memory tradeoff
+
+On 2026-09-27 the user explicitly answered **"Accept this accessibility cost"** for exposing
+ordinary menu commands through the existing retained accessibility tree. The prior implementation
+incorrectly exposed no children when rows had no descriptions. The matched four-cycle fixture
+records about 23 KiB additional live heap for twelve entries and 226 KiB for 128 entries
+(roughly 1.8–1.9 KiB per entry), with no corresponding retained-heap increase after closing in
+those cycles. This admits that measured live cost for usable command names, roles, states,
+navigation and invocation; it does not establish a long-run retention bound or accept future growth.
+
+The original ABBA resources, same-variant controls and performance flags remain retained under
+the ordinary-menu correction in the [active menu plan](../Plans/WIP/MenuDescriptions_2026-09-21.md).
+Do not silently rebaseline. The existing 4,096-row responsiveness bounds, correctness, native
+qualification and independent consumer adoption remain required. Earlier grid memory and
+grid/menu timing decisions retain their separate scope.
+
+Accessibility snapshot construction reserves storage for the representable visible semantic tree
+before populating its navigation records in place. This must preserve descendants of semantic
+containers, preorder, path limits and offscreen menu commands; viewport clipping is not permission
+to omit accessible commands. The existing 4,096-item menu fixture retains its five-second opening
+and one-second End-to-visible bounds in both native and nonactivating coverage. Temporary timing
+probes are not part of the production implementation.
+
 ### Ongoing validation and resource budgets
 
 Every `test.ps1` invocation MUST report complex-UI FPS and memory, including filtered suites, and each suite receipt

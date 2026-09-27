@@ -1,0 +1,14 @@
+{
+  "repository": "C:\\Users\\eric\\.codex\\worktrees\\fileops-ui-qualified\\DxUi",
+  "head": "d45c3610a586fab926a98a8656bb337792a38b6c",
+  "targets": [
+    {
+      "path": "src/Controls/DxUi.Accessibility.cpp",
+      "baselineRawSha256": "f55d03f59f9ed7f3b6722a496a47a28dc0bee00e4491bd2f588523d229aea6e7",
+      "baselineLfSha256": "2e6dcedc437721dd7980bbc0f4cc82707d49f76278f1c374ca7486a4a7fa975e",
+      "candidateLfSha256": "80e869245d6ad9a13075d9c02697151729f04584a154bd26f4b54bf16c514e7a"
+    }
+  ],
+  "patchSha256": "c57492cbf3443ae32ea266db7d8bffe21ab478a307754b3273b287e7fc201d9c",
+  "note": "Baseline includes root temporary stage diagnostics; this patch adds only production capacity/in-place construction changes. No builds or native tests run by author."
+}

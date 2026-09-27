@@ -1,0 +1,205 @@
+[
+  {
+    "pair": "A3-to-C1",
+    "status": "advice-required",
+    "sha256": "9535CACF924C3F8DBE9926E06357E639B0C44632C78E2282F977AEA9EC918E66",
+    "flags": [
+      {
+        "scenario": "clean",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0112,
+        "after": 0.0123,
+        "changePercent": 9.82142857142858
+      },
+      {
+        "scenario": "clean",
+        "metric": "privatePeakBytes",
+        "before": 27095040,
+        "after": 28000256,
+        "changePercent": 3.340891912320476
+      },
+      {
+        "scenario": "dirty",
+        "metric": "prepareP95Ms",
+        "before": 1.2665,
+        "after": 1.3338,
+        "changePercent": 5.313857086458751
+      }
+    ]
+  },
+  {
+    "pair": "A3-to-C2",
+    "status": "advice-required",
+    "sha256": "47F70F9EB9D54E6589F6252858AE0484FE66E9496273869B220CFE0E0C5F9782",
+    "flags": [
+      {
+        "scenario": "clean",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0112,
+        "after": 0.0119,
+        "changePercent": 6.25
+      }
+    ]
+  },
+  {
+    "pair": "A4-to-C1",
+    "status": "advice-required",
+    "sha256": "953DB55E3DDAF348CA4E270371F50974F45345668757E4A25CE192F965911B32",
+    "flags": [
+      {
+        "scenario": "dirty",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0217,
+        "after": 0.0252,
+        "changePercent": 16.129032258064523
+      }
+    ]
+  },
+  {
+    "pair": "A4-to-C2",
+    "status": "advice-required",
+    "sha256": "BB2DFB731FA4AB636D6D19BF33B8F7BD76A9E23568E506A4CAD60D4458AC26D4",
+    "flags": [
+      {
+        "scenario": "dirty",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0217,
+        "after": 0.0295,
+        "changePercent": 35.944700460829495
+      },
+      {
+        "scenario": "dirty",
+        "metric": "privateBytes",
+        "before": 29044736,
+        "after": 29822976,
+        "changePercent": 2.6794528275278617
+      },
+      {
+        "scenario": "dirty",
+        "metric": "privatePeakBytes",
+        "before": 29057024,
+        "after": 29868032,
+        "changePercent": 2.7910910628700325
+      }
+    ]
+  },
+  {
+    "pair": "A3-to-A4",
+    "status": "advice-required",
+    "sha256": "D8FF5D64E18BCBFF115863CA77F52C0C5F4A1AA05BD4C0699114FBF74580C216",
+    "flags": [
+      {
+        "scenario": "clean",
+        "metric": "frameP50Ms",
+        "before": 0.3659,
+        "after": 0.3844,
+        "changePercent": 5.056026236676692
+      },
+      {
+        "scenario": "clean",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0112,
+        "after": 0.0122,
+        "changePercent": 8.928571428571441
+      },
+      {
+        "scenario": "clean",
+        "metric": "privateBytes",
+        "before": 27095040,
+        "after": 28127232,
+        "changePercent": 3.809523809523818
+      },
+      {
+        "scenario": "clean",
+        "metric": "privatePeakBytes",
+        "before": 27095040,
+        "after": 28184576,
+        "changePercent": 4.021164021164014
+      },
+      {
+        "scenario": "clean",
+        "metric": "workingSetBytes",
+        "before": 40951808,
+        "after": 41816064,
+        "changePercent": 2.110422084416874
+      },
+      {
+        "scenario": "clean",
+        "metric": "workingSetPeakBytes",
+        "before": 40951808,
+        "after": 41824256,
+        "changePercent": 2.130426085217052
+      },
+      {
+        "scenario": "dirty",
+        "metric": "fps",
+        "before": 583.1600862,
+        "after": 548.8067569,
+        "changePercent": -5.89089173160906
+      },
+      {
+        "scenario": "dirty",
+        "metric": "frameP50Ms",
+        "before": 1.6829,
+        "after": 1.808,
+        "changePercent": 7.433596767484696
+      },
+      {
+        "scenario": "dirty",
+        "metric": "frameP95Ms",
+        "before": 1.9008,
+        "after": 2.022,
+        "changePercent": 6.376262626262608
+      },
+      {
+        "scenario": "dirty",
+        "metric": "prepareP95Ms",
+        "before": 1.2665,
+        "after": 1.3714,
+        "changePercent": 8.282668772206868
+      }
+    ]
+  },
+  {
+    "pair": "C1-to-C2",
+    "status": "advice-required",
+    "sha256": "E61B95CD816C1238C53DC916C0F5F2F3FA9299AB3F3BADEC596C922171DCFF20",
+    "flags": [
+      {
+        "scenario": "dirty",
+        "metric": "composeCpuP95Ms",
+        "before": 0.0252,
+        "after": 0.0295,
+        "changePercent": 17.06349206349205
+      },
+      {
+        "scenario": "dirty",
+        "metric": "privateBytes",
+        "before": 28094464,
+        "after": 29822976,
+        "changePercent": 6.1525003644846255
+      },
+      {
+        "scenario": "dirty",
+        "metric": "privatePeakBytes",
+        "before": 28139520,
+        "after": 29868032,
+        "changePercent": 6.14264919941776
+      },
+      {
+        "scenario": "dirty",
+        "metric": "workingSetBytes",
+        "before": 41639936,
+        "after": 42852352,
+        "changePercent": 2.9116663387763086
+      },
+      {
+        "scenario": "dirty",
+        "metric": "workingSetPeakBytes",
+        "before": 41639936,
+        "after": 42852352,
+        "changePercent": 2.9116663387763086
+      }
+    ]
+  }
+]

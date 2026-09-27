@@ -1,0 +1,132 @@
+--- a/src/Controls/DxUi.Menu.cpp
++++ b/src/Controls/DxUi.Menu.cpp
+@@ -3042,6 +3042,10 @@
+         return;
+     const auto children = root->GetChildren();
+     const auto viewport = popup.GetViewportRect();
++#if DXUI_ENABLE_DIAGNOSTICS
++    const bool captureLargeStages = children.size() >= 4096u && Debug::Perf::IsCaptureEnabled();
++    const auto rowBoundsStarted = captureLargeStages ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
++#endif
+     bool boundsChanged  = false;
+     for (size_t i = 0; i < children.size(); ++i)
+     {
+@@ -3055,6 +3059,10 @@
+             boundsChanged || previous.left != rect.left || previous.top != rect.top || previous.right != rect.right || previous.bottom != rect.bottom;
+         children[i]->SetBounds(rect);
+     }
++#if DXUI_ENABLE_DIAGNOSTICS
++    const uint64_t rowBoundsUs = captureLargeStages ? Debug::Perf::ElapsedUs(rowBoundsStarted) : 0u;
++    const auto focusSyncStarted = captureLargeStages ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
++#endif
+     Control* focus = popup.keyboardIndex && *popup.keyboardIndex < children.size() ? children[*popup.keyboardIndex].get() : nullptr;
+     // Keep the session's native focus target while tracking logical entry focus:
+     // modal menus use their owner; async menus activate their root for keyboard dispatch.
+@@ -3064,6 +3072,14 @@
+         // Scrolling can move rows after focus has already published its snapshot.
+         // Publish geometry once per change; unchanged hover/paint does no snapshot work.
+         popup.host.RefreshAccessibilitySnapshot();
++#if DXUI_ENABLE_DIAGNOSTICS
++    if (captureLargeStages)
++    {
++        const uint64_t focusSyncUs = Debug::Perf::ElapsedUs(focusSyncStarted);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.row_bounds_us", L"large4096", rowBoundsUs, children.size(), boundsChanged ? 1u : 0u, S_OK);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.focus_sync_us", L"large4096", focusSyncUs, children.size(), popup.keyboardIndex.value_or(SIZE_MAX), S_OK);
++    }
++#endif
+ }
+ 
+ // ---------------------------------------------------------------------------
+--- a/src/Controls/DxUi.Accessibility.cpp
++++ b/src/Controls/DxUi.Accessibility.cpp
+@@ -592,7 +592,26 @@
+     snapshot->pixelsToDipScale = USER_DEFAULT_SCREEN_DPI / host.GetDpi();
+     const Control* const root  = host.GetRoot();
+     snapshot->hasRetainedRoot  = root != nullptr;
++#if DXUI_ENABLE_DIAGNOSTICS
++    const auto* diagnosticPanel = Debug::Perf::IsCaptureEnabled() ? dynamic_cast<const Panel*>(root) : nullptr;
++    const size_t diagnosticRows = diagnosticPanel ? diagnosticPanel->GetChildren().size() : 0u;
++    const bool captureLargeStages = ! target.embedded && diagnosticRows >= 4096u && diagnosticPanel->GetChildren().front() &&
++        diagnosticPanel->GetChildren().front()->GetAccessibilityRole() == AccessibilityRole::MenuItem && Debug::Perf::IsCaptureEnabled();
++    auto diagnosticStageStarted = captureLargeStages ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
++    uint64_t navigationUs = 0u;
++    uint64_t collapseUs = 0u;
++    uint64_t pointHitsUs = 0u;
++    uint64_t focusPathUs = 0u;
++    uint64_t windowStateUs = 0u;
++#endif
+     AppendAccessibilitySnapshotNavigation(host, root, root, ControlPath{}, *snapshot);
++#if DXUI_ENABLE_DIAGNOSTICS
++    if (captureLargeStages)
++    {
++        navigationUs = Debug::Perf::ElapsedUs(diagnosticStageStarted);
++        diagnosticStageStarted = std::chrono::steady_clock::now();
++    }
++#endif
+     if (root && ! target.embedded)
+     {
+         ControlPath collapsedRootPath{};
+@@ -601,8 +620,22 @@
+                                              (snapshot->semanticControlOrder.size() == 1u || explicitStatusRoot) &&
+                                              AreControlPathsEqual(snapshot->semanticControlOrder.front(), collapsedRootPath);
+     }
++#if DXUI_ENABLE_DIAGNOSTICS
++    if (captureLargeStages)
++    {
++        collapseUs = Debug::Perf::ElapsedUs(diagnosticStageStarted);
++        diagnosticStageStarted = std::chrono::steady_clock::now();
++    }
++#endif
+     AppendAccessibilitySnapshotPointHits(host, root, ControlPath{}, *snapshot);
+ 
++#if DXUI_ENABLE_DIAGNOSTICS
++    if (captureLargeStages)
++    {
++        pointHitsUs = Debug::Perf::ElapsedUs(diagnosticStageStarted);
++        diagnosticStageStarted = std::chrono::steady_clock::now();
++    }
++#endif
+     Control* const focused = host.GetFocusControl();
+     if (root && focused && IsSemanticAccessibilityControl(focused))
+     {
+@@ -640,6 +673,13 @@
+         }
+     }
+ 
++#if DXUI_ENABLE_DIAGNOSTICS
++    if (captureLargeStages)
++    {
++        focusPathUs = Debug::Perf::ElapsedUs(diagnosticStageStarted);
++        diagnosticStageStarted = std::chrono::steady_clock::now();
++    }
++#endif
+     wchar_t windowText[128]{};
+     const int length = target.hwnd ? GetWindowTextW(target.hwnd, windowText, static_cast<int>(std::size(windowText))) : 0;
+     snapshot->windowName.assign(windowText, static_cast<size_t>((std::max)(0, length)));
+@@ -652,7 +692,26 @@
+         for (auto& record : snapshot->controlNavigationRecords)
+             record.controlHasFocus = false;
+     }
++#if DXUI_ENABLE_DIAGNOSTICS
++    if (captureLargeStages)
++    {
++        windowStateUs = Debug::Perf::ElapsedUs(diagnosticStageStarted);
++        diagnosticStageStarted = std::chrono::steady_clock::now();
++    }
++#endif
+     PublishAccessibilitySnapshot(target, std::move(snapshot));
++#if DXUI_ENABLE_DIAGNOSTICS
++    if (captureLargeStages)
++    {
++        const uint64_t publishRetireUs = Debug::Perf::ElapsedUs(diagnosticStageStarted);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_navigation_us", L"large4096", navigationUs, diagnosticRows, 0u, S_OK);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_collapse_us", L"large4096", collapseUs, diagnosticRows, 0u, S_OK);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_point_hits_us", L"large4096", pointHitsUs, diagnosticRows, 0u, S_OK);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_focus_path_us", L"large4096", focusPathUs, diagnosticRows, 0u, S_OK);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_window_state_us", L"large4096", windowStateUs, diagnosticRows, 0u, S_OK);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_publish_retire_us", L"large4096", publishRetireUs, diagnosticRows, 0u, S_OK);
++    }
++#endif
+ }
+ 
+ [[nodiscard]] std::shared_ptr<const AccessibilitySnapshot> CaptureAccessibilitySnapshot(WindowHostAccessibilityTarget* target, HWND hwnd)

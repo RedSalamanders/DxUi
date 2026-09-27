@@ -1,0 +1,14 @@
+[
+  {
+    "path": "Tests/Controls/DxUiTests.Menu.cpp",
+    "sha256": "4523E2655A3600A7ACA005EBF0E3C8A3E28286FB5DF5A72C189324B0CDAFCD8C"
+  },
+  {
+    "path": "src/Controls/DxUi.Accessibility.cpp",
+    "sha256": "F55D03F59F9ED7F3B6722A496A47A28DC0BEE00E4491BD2F588523D229AEA6E7"
+  },
+  {
+    "path": "src/Controls/DxUi.Menu.cpp",
+    "sha256": "9EF3D9CFC80F5674BE319C599AB8664C72F73658BF4C47FBE957B27C48F58B12"
+  }
+]

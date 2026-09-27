@@ -1,0 +1,64 @@
+from pathlib import Path
+import difflib, hashlib, json
+repo=Path(r'C:/Users/eric/.codex/worktrees/fileops-ui-qualified/DxUi')
+out=Path(r'C:/RedSalamander.Perf/evidence/i26-ui/menu-plain-uia-20260927/ci-d45-diagnosis/navigation-capacity-proposal')
+rel='src/Controls/DxUi.Accessibility.cpp'
+raw=(repo/rel).read_bytes()
+base=raw.decode('utf-8').replace('\r\n','\n')
+candidate=base
+
+def replace_once(old,new):
+    global candidate
+    assert candidate.count(old)==1, (old[:100],candidate.count(old))
+    candidate=candidate.replace(old,new,1)
+
+signature='void AppendAccessibilitySnapshotNavigation(\n    ControlHost& host, const Control* root, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot)'
+replace_once(signature+';', '[[nodiscard]] size_t CountAccessibilitySnapshotNavigation(const Control* current, const ControlPath& basePath) noexcept;\n'+signature+';')
+replace_once('    AppendAccessibilitySnapshotNavigation(host, root, root, ControlPath{}, *snapshot);', '''    const size_t navigationCount = CountAccessibilitySnapshotNavigation(root, ControlPath{});
+    snapshot->semanticControlOrder.reserve(navigationCount);
+    snapshot->controlNavigationRecords.reserve(navigationCount);
+    AppendAccessibilitySnapshotNavigation(host, root, root, ControlPath{}, *snapshot);''')
+helper='''[[nodiscard]] size_t CountAccessibilitySnapshotNavigation(const Control* current, const ControlPath& basePath) noexcept
+{
+    if (! current || ! current->IsVisible())
+    {
+        return 0u;
+    }
+
+    // Match the builder's semantic visibility and representable-path limits, including
+    // children of semantic panels and visible controls outside the current viewport.
+    size_t count = IsSemanticAccessibilityControl(current) ? 1u : 0u;
+    if (const auto* panel = dynamic_cast<const Panel*>(current))
+    {
+        const auto children = panel->GetChildren();
+        for (size_t index = 0u; index < children.size(); ++index)
+        {
+            if (! children[index])
+            {
+                continue;
+            }
+
+            ControlPath childPath{};
+            if (! TryAppendPathIndex(basePath, index, childPath))
+            {
+                continue;
+            }
+
+            count += CountAccessibilitySnapshotNavigation(children[index].get(), childPath);
+        }
+    }
+    return count;
+}
+
+'''
+replace_once(signature+'\n{',helper+signature+'\n{')
+replace_once('        AccessibilityControlNavigationSnapshot record{};\n        record.path = basePath;', '        auto& record = snapshot.controlNavigationRecords.emplace_back();\n        record.path  = basePath;')
+replace_once('        snapshot.controlNavigationRecords.push_back(std::move(record));\n','')
+(out/'baseline.cpp').write_text(base,encoding='utf-8',newline='\n')
+(out/'candidate.cpp').write_text(candidate,encoding='utf-8',newline='\n')
+patch=''.join(difflib.unified_diff(base.splitlines(keepends=True),candidate.splitlines(keepends=True),fromfile='a/'+rel,tofile='b/'+rel))
+(out/'navigation-capacity.patch').write_text(patch,encoding='utf-8',newline='\n')
+sha=lambda b:hashlib.sha256(b).hexdigest()
+manifest={'repository':str(repo),'head':'d45c3610a586fab926a98a8656bb337792a38b6c','targets':[{'path':rel,'baselineRawSha256':sha(raw),'baselineLfSha256':sha(base.encode()),'candidateLfSha256':sha(candidate.encode())}],'patchSha256':sha(patch.encode()),'note':'Baseline includes root temporary stage diagnostics; this patch adds only production capacity/in-place construction changes. No builds or native tests run by author.'}
+(out/'changed-targets.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
+print(json.dumps(manifest,indent=2))

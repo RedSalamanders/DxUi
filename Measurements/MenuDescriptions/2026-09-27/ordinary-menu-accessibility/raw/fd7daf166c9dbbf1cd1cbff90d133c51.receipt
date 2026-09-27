@@ -1,0 +1,12 @@
+[
+  {
+    "Algorithm": "SHA256",
+    "Hash": "4523E2655A3600A7ACA005EBF0E3C8A3E28286FB5DF5A72C189324B0CDAFCD8C",
+    "Path": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-plain-uia-20260927\\ci-d45-diagnosis\\local-asan\\fixture.cpp"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "F87E928867409CCAB7FF259416CD76A7C12D15566F784A0D92D15B51CCE9240B",
+    "Path": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-plain-uia-20260927\\ci-d45-diagnosis\\local-asan\\fixture.patch"
+  }
+]

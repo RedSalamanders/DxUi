@@ -1,0 +1,25 @@
+$ErrorActionPreference='Stop'
+$repo='C:/Users/eric/.codex/worktrees/fileops-ui-qualified/DxUi'
+$out='C:/RedSalamander.Perf/evidence/i26-ui/menu-plain-uia-20260927/ci-d45-diagnosis/paired-navigation-b'
+Set-Location -LiteralPath $repo
+if(Test-Path -LiteralPath $out){throw 'Fresh evidence required'}
+New-Item -ItemType Directory -Path $out | Out-Null
+if((git rev-parse HEAD).Trim() -ne 'd45c3610a586fab926a98a8656bb337792a38b6c'){throw 'Unexpected baseline'}
+git diff --binary --output="$out/diagnostic-source.patch"
+$paths=@(git diff --name-only)
+$hashes=@(foreach($path in $paths){
+  $dest=Join-Path "$out/source" $path
+  New-Item -ItemType Directory -Path (Split-Path $dest) -Force | Out-Null
+  Copy-Item -LiteralPath $path -Destination $dest
+  [ordered]@{path=$path;sha256=(Get-FileHash -LiteralPath $path).Hash}
+})
+$hashes | ConvertTo-Json | Set-Content "$out/source-hashes.json"
+& ./build.ps1 -Configuration 'ASan Debug' -Platform x64 *> "$out/build.log"
+if($LASTEXITCODE -ne 0){throw 'Diagnostic build failed'}
+$exe="$repo/.build/x64/ASan Debug/DxUi.ControlTests.exe"
+$started=[DateTimeOffset]::UtcNow
+& $exe --suite=MenuAccessibility --no-activate "--perf-jsonl=$out/perf.jsonl" *> "$out/test.log"
+$code=$LASTEXITCODE
+[ordered]@{sourceCommit=(git rev-parse HEAD).Trim();startedUtc=$started.ToString('o');completedUtc=[DateTimeOffset]::UtcNow.ToString('o');executableSha256=(Get-FileHash -LiteralPath $exe).Hash;exitCode=$code;scope='Temporary stage attribution; not acceptance or pin qualification'} | ConvertTo-Json | Set-Content "$out/invocation.json"
+Get-Content -LiteralPath "$out/test.log" -Tail 5
+exit $code

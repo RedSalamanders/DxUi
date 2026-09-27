@@ -1,0 +1,7 @@
+{
+  "excludedBaseline": "paired-navigation-a",
+  "reason": "Copy-Item preserved the older source timestamp; incremental build log did not compile DxUi.Accessibility.cpp. Source hash alone cannot qualify this as an old-code executable.",
+  "candidate": "paired-navigation-b",
+  "candidateResult": "Real candidate compiled and failed total bound at1015615us; retains external foreground change and all stage timings.",
+  "next": "Force Rebuild for both fresh variants; preserve all prior records."
+}

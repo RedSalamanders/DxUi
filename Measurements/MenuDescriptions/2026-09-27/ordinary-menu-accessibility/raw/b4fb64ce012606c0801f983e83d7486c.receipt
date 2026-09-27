@@ -1,0 +1,14 @@
+[
+  {
+    "path": "src/Controls/DxUi.Menu.cpp",
+    "baselineRawSha256": "4a2a184c9077210cd474d630e7ea382cafe43b9934375c56623f4ed90eab78a4",
+    "baselineNormalizedSha256": "ddcef9f69b47b9b806e3fa8c5d58727cd273c43715cf81e299998506d46abc7d",
+    "candidateNormalizedSha256": "2ed5de5960e3e7d27c1b76a17061ad9f6fd2de0aa84bc76c843fb43e6c86e057"
+  },
+  {
+    "path": "src/Controls/DxUi.Accessibility.cpp",
+    "baselineRawSha256": "044eb78ec2ad3ec3caef8e3ed3bc3b16aa6b695f59774f287eae1d8c2d6b590e",
+    "baselineNormalizedSha256": "c5d538641b7d653bd6a9dffffba91289fd2a347d747767a3045caf0a9c5b2401",
+    "candidateNormalizedSha256": "507fb454816f137c15572b4b5d1f86951aa93c51fa6155f53574c9e04e82bfdc"
+  }
+]

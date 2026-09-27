@@ -1,0 +1,223 @@
+diff --git a/Tests/Controls/DxUiTests.Menu.cpp b/Tests/Controls/DxUiTests.Menu.cpp
+index 84907c9..5298b14 100644
+--- a/Tests/Controls/DxUiTests.Menu.cpp
++++ b/Tests/Controls/DxUiTests.Menu.cpp
+@@ -5189,6 +5189,13 @@ void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()
+ {
+     using namespace DxUi;
+ 
++    const bool nonactivating = ! DxUiTestWindowsCanActivateFlag();
++    if (nonactivating)
++        Require(TestSupport::ScopedWindowActivationBlocker::IsActiveForCurrentThread(),
++                "large menu nonactivating lane requires the established activation blocker");
++    const HWND foregroundBefore  = GetForegroundWindow();
++    const HWND nativeFocusBefore = GetFocus();
++
+     constexpr size_t kItemCount = 4096u;
+     std::vector<MenuFlyoutItem> items;
+     items.reserve(kItemCount);
+@@ -5212,7 +5219,13 @@ void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()
+     const bool shown       = ContextMenu::ShowAsync(
+         ownerWindow.Hwnd(), menuPoint, items, ownerWindow.Host().GetTheme(), [&](std::optional<int>) noexcept { callbackInvoked = true; }, callbacks);
+     const uint64_t openToFirstPaintUs = DxUi::Debug::Perf::ElapsedUs(openStarted);
++    std::cout << "{\"fixture\":\"dxui-large-menu-end-v1\",\"stage\":\"open\",\"rows\":" << kItemCount << ",\"openToFirstPaintUs\":" << openToFirstPaintUs
++              << ",\"shown\":" << (shown ? "true" : "false") << "}\n"
++              << std::flush;
+     Require(shown, "large async context menu opens");
++    if (nonactivating)
++        Require(GetForegroundWindow() == foregroundBefore && GetFocus() == nativeFocusBefore,
++                "large menu opening preserves foreground and native focus under the activation blocker");
+     Require(openToFirstPaintUs < 5'000'000u, "large context menu open-to-first-paint remains bounded");
+ 
+     const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Folder 0000");
+@@ -5230,14 +5243,25 @@ void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()
+ 
+     const auto endStarted = std::chrono::steady_clock::now();
+     SendMessageW(popupHwnd, WM_KEYDOWN, VK_END, 0);
++    const uint64_t endDispatchUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
+     ownerWindow.PumpMessages();
++    const uint64_t endPumpedUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
+     ContextMenuPopupDebugState endState{};
+-    Require(WaitForContextMenuPopupState(popupHwnd,
+-                                         [](const ContextMenuPopupDebugState& state) noexcept
+-    { return state.keyboardIndex == std::optional<size_t>{kItemCount - 1u} && state.scrollOffsetDip > 0.0f; },
+-                                         endState),
+-            "large context menu resolves the last row through cached offsets");
++    const bool lastRowResolved    = WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
++        return state.keyboardIndex == std::optional<size_t>{kItemCount - 1u} && state.scrollOffsetDip > 0.0f;
++    }, endState);
+     const uint64_t endToVisibleUs = DxUi::Debug::Perf::ElapsedUs(endStarted);
++    // Retain actual timings even when a bounded-latency assertion fails. These
++    // subintervals isolate synchronous input from pumping and full debug-state reads.
++    std::cout << "{\"fixture\":\"dxui-large-menu-end-v1\",\"stage\":\"end\",\"rows\":" << kItemCount << ",\"dispatchUs\":" << endDispatchUs
++              << ",\"pumpUs\":" << (endPumpedUs - endDispatchUs) << ",\"queryUs\":" << (endToVisibleUs - endPumpedUs)
++              << ",\"endToVisibleUs\":" << endToVisibleUs << ",\"lastRowResolved\":" << (lastRowResolved ? "true" : "false")
++              << ",\"paintedRows\":" << endState.lastPaintedItemCount << "}\n"
++              << std::flush;
++    if (nonactivating)
++        Require(GetForegroundWindow() == foregroundBefore && GetFocus() == nativeFocusBefore,
++                "large menu End navigation preserves foreground and native focus under the activation blocker");
++    Require(lastRowResolved, "large context menu resolves the last row through cached offsets");
+     Require(endToVisibleUs < 1'000'000u, "large context menu End-to-visible latency remains bounded");
+     Require(endState.lastPaintedItemCount <= 32u, "large context menu scrolled paint remains limited to viewport rows");
+ 
+@@ -5268,6 +5292,9 @@ void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()
+     }
+     Require(callbackInvoked, "large context menu closes through Escape");
+     Require(WaitForWindowDestroyed(popupHwnd), "large context menu popup is destroyed after Escape");
++    if (nonactivating)
++        Require(GetForegroundWindow() == foregroundBefore && GetFocus() == nativeFocusBefore,
++                "large menu teardown preserves foreground and native focus under the activation blocker");
+ }
+ 
+ void TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion()
+@@ -6273,6 +6300,10 @@ void RunMenuAccessibilityTests()
+     TestPlainMenuAccessibilityScrollsFocusedRow();
+     std::cerr << "  [START] TestMenuNativeFocusPreservesEmptySelection\n" << std::flush;
+     TestMenuNativeFocusPreservesEmptySelection();
++    // Reuse the exact large-model bound in the nonactivating lane. The fixture
++    // sends owned HWND messages and never injects desktop input.
++    std::cerr << "  [START] TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets\n" << std::flush;
++    TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets();
+ }
+ 
+ void RunMenuDescriptionTests()
+diff --git a/src/Controls/DxUi.Accessibility.cpp b/src/Controls/DxUi.Accessibility.cpp
+index d2d2b4b..40a89fb 100644
+--- a/src/Controls/DxUi.Accessibility.cpp
++++ b/src/Controls/DxUi.Accessibility.cpp
+@@ -592,7 +592,27 @@ void PublishWindowHostAccessibilitySnapshot(WindowHostAccessibilityTarget& targe
+     snapshot->pixelsToDipScale = USER_DEFAULT_SCREEN_DPI / host.GetDpi();
+     const Control* const root  = host.GetRoot();
+     snapshot->hasRetainedRoot  = root != nullptr;
++#if DXUI_ENABLE_DIAGNOSTICS
++    const auto* diagnosticPanel   = Debug::Perf::IsCaptureEnabled() ? dynamic_cast<const Panel*>(root) : nullptr;
++    const size_t diagnosticRows   = diagnosticPanel ? diagnosticPanel->GetChildren().size() : 0u;
++    const bool captureLargeStages = ! target.embedded && diagnosticRows >= 4096u && diagnosticPanel->GetChildren().front() &&
++                                    diagnosticPanel->GetChildren().front()->GetAccessibilityRole() == AccessibilityRole::MenuItem &&
++                                    Debug::Perf::IsCaptureEnabled();
++    auto diagnosticStageStarted   = captureLargeStages ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
++    uint64_t navigationUs         = 0u;
++    uint64_t collapseUs           = 0u;
++    uint64_t pointHitsUs          = 0u;
++    uint64_t focusPathUs          = 0u;
++    uint64_t windowStateUs        = 0u;
++#endif
+     AppendAccessibilitySnapshotNavigation(host, root, root, ControlPath{}, *snapshot);
++#if DXUI_ENABLE_DIAGNOSTICS
++    if (captureLargeStages)
++    {
++        navigationUs           = Debug::Perf::ElapsedUs(diagnosticStageStarted);
++        diagnosticStageStarted = std::chrono::steady_clock::now();
++    }
++#endif
+     if (root && ! target.embedded)
+     {
+         ControlPath collapsedRootPath{};
+@@ -601,8 +621,22 @@ void PublishWindowHostAccessibilitySnapshot(WindowHostAccessibilityTarget& targe
+                                              (snapshot->semanticControlOrder.size() == 1u || explicitStatusRoot) &&
+                                              AreControlPathsEqual(snapshot->semanticControlOrder.front(), collapsedRootPath);
+     }
++#if DXUI_ENABLE_DIAGNOSTICS
++    if (captureLargeStages)
++    {
++        collapseUs             = Debug::Perf::ElapsedUs(diagnosticStageStarted);
++        diagnosticStageStarted = std::chrono::steady_clock::now();
++    }
++#endif
+     AppendAccessibilitySnapshotPointHits(host, root, ControlPath{}, *snapshot);
+ 
++#if DXUI_ENABLE_DIAGNOSTICS
++    if (captureLargeStages)
++    {
++        pointHitsUs            = Debug::Perf::ElapsedUs(diagnosticStageStarted);
++        diagnosticStageStarted = std::chrono::steady_clock::now();
++    }
++#endif
+     Control* const focused = host.GetFocusControl();
+     if (root && focused && IsSemanticAccessibilityControl(focused))
+     {
+@@ -640,6 +674,13 @@ void PublishWindowHostAccessibilitySnapshot(WindowHostAccessibilityTarget& targe
+         }
+     }
+ 
++#if DXUI_ENABLE_DIAGNOSTICS
++    if (captureLargeStages)
++    {
++        focusPathUs            = Debug::Perf::ElapsedUs(diagnosticStageStarted);
++        diagnosticStageStarted = std::chrono::steady_clock::now();
++    }
++#endif
+     wchar_t windowText[128]{};
+     const int length = target.hwnd ? GetWindowTextW(target.hwnd, windowText, static_cast<int>(std::size(windowText))) : 0;
+     snapshot->windowName.assign(windowText, static_cast<size_t>((std::max)(0, length)));
+@@ -652,7 +693,26 @@ void PublishWindowHostAccessibilitySnapshot(WindowHostAccessibilityTarget& targe
+         for (auto& record : snapshot->controlNavigationRecords)
+             record.controlHasFocus = false;
+     }
++#if DXUI_ENABLE_DIAGNOSTICS
++    if (captureLargeStages)
++    {
++        windowStateUs          = Debug::Perf::ElapsedUs(diagnosticStageStarted);
++        diagnosticStageStarted = std::chrono::steady_clock::now();
++    }
++#endif
+     PublishAccessibilitySnapshot(target, std::move(snapshot));
++#if DXUI_ENABLE_DIAGNOSTICS
++    if (captureLargeStages)
++    {
++        const uint64_t publishRetireUs = Debug::Perf::ElapsedUs(diagnosticStageStarted);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_navigation_us", L"large4096", navigationUs, diagnosticRows, 0u, S_OK);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_collapse_us", L"large4096", collapseUs, diagnosticRows, 0u, S_OK);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_point_hits_us", L"large4096", pointHitsUs, diagnosticRows, 0u, S_OK);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_focus_path_us", L"large4096", focusPathUs, diagnosticRows, 0u, S_OK);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_window_state_us", L"large4096", windowStateUs, diagnosticRows, 0u, S_OK);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.snapshot_publish_retire_us", L"large4096", publishRetireUs, diagnosticRows, 0u, S_OK);
++    }
++#endif
+ }
+ 
+ [[nodiscard]] std::shared_ptr<const AccessibilitySnapshot> CaptureAccessibilitySnapshot(WindowHostAccessibilityTarget* target, HWND hwnd)
+diff --git a/src/Controls/DxUi.Menu.cpp b/src/Controls/DxUi.Menu.cpp
+index fc1f297..e2df203 100644
+--- a/src/Controls/DxUi.Menu.cpp
++++ b/src/Controls/DxUi.Menu.cpp
+@@ -3042,7 +3042,11 @@ void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
+         return;
+     const auto children = root->GetChildren();
+     const auto viewport = popup.GetViewportRect();
+-    bool boundsChanged  = false;
++#if DXUI_ENABLE_DIAGNOSTICS
++    const bool captureLargeStages = children.size() >= 4096u && Debug::Perf::IsCaptureEnabled();
++    const auto rowBoundsStarted   = captureLargeStages ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
++#endif
++    bool boundsChanged = false;
+     for (size_t i = 0; i < children.size(); ++i)
+     {
+         auto rect   = GetVisibleItemRect(popup, i);
+@@ -3055,6 +3059,10 @@ void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
+             boundsChanged || previous.left != rect.left || previous.top != rect.top || previous.right != rect.right || previous.bottom != rect.bottom;
+         children[i]->SetBounds(rect);
+     }
++#if DXUI_ENABLE_DIAGNOSTICS
++    const uint64_t rowBoundsUs  = captureLargeStages ? Debug::Perf::ElapsedUs(rowBoundsStarted) : 0u;
++    const auto focusSyncStarted = captureLargeStages ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
++#endif
+     Control* focus = popup.keyboardIndex && *popup.keyboardIndex < children.size() ? children[*popup.keyboardIndex].get() : nullptr;
+     // Keep the session's native focus target while tracking logical entry focus:
+     // modal menus use their owner; async menus activate their root for keyboard dispatch.
+@@ -3064,6 +3072,14 @@ void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
+         // Scrolling can move rows after focus has already published its snapshot.
+         // Publish geometry once per change; unchanged hover/paint does no snapshot work.
+         popup.host.RefreshAccessibilitySnapshot();
++#if DXUI_ENABLE_DIAGNOSTICS
++    if (captureLargeStages)
++    {
++        const uint64_t focusSyncUs = Debug::Perf::ElapsedUs(focusSyncStarted);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.row_bounds_us", L"large4096", rowBoundsUs, children.size(), boundsChanged ? 1u : 0u, S_OK);
++        Debug::Perf::Emit(L"dxui.menu.diagnostic.focus_sync_us", L"large4096", focusSyncUs, children.size(), popup.keyboardIndex.value_or(SIZE_MAX), S_OK);
++    }
++#endif
+ }
+ 
+ // ---------------------------------------------------------------------------

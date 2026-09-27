@@ -31,6 +31,9 @@ paired final-source resources/performance and explicit consumer pin adoption rem
 The correction adds no public API, paint/layout rule or gallery visual. Existing gallery pixels
 therefore remain applicable; native CI still regenerates the normal gallery as a validation gate.
 Current external evidence: `C:/RedSalamander.Perf/evidence/i26-ui/menu-plain-uia-20260927`.
+The reviewed [ordinary-menu packet](../../../Measurements/MenuDescriptions/2026-09-27/ordinary-menu-accessibility/README.md)
+now preserves 693 original mapped files with byte hashes, exact portable verification, all excluded
+observations and the later forced-rebuild investigation. Consumer evidence stays in RedSalamander.
 
 Local Debug and ASan Debug each pass all 18 nonactivating suites at `15be545`. Native CI
 `36349046872` additionally catches an ordinary-menu first-Down regression: generic host activation
@@ -41,6 +44,43 @@ rows still use the host's normal focus restoration. A plain/described nonactivat
 fails on `15be545`, then passes with first/second Down and acknowledged focus reentry. The focused
 Release MenuAccessibility/NewControls/Accessibility/WindowHost suites pass. New full-profile CI and
 consumer qualification remain required. The previous native failures remain retained.
+
+At `d45c3610`, all 18 local nonactivating suites pass in each x64 configuration. Native CI
+`36349836006` passes x64 Debug and Release but ASan hits the existing 4,096-row End-to-visible
+one-second limit. The identical fixture is now also reachable behind the established activation
+blocker; it rejects test-process foreground acquisition or native-focus changes and prints timing
+before any bound failure. External-to-external foreground changes are recorded without failing or
+restoring another application's focus.
+Local ASan reproduces 1,244,850 us total (1,097,268 dispatch, 8,673 pumping, 138,909 query), with
+the correct last row and eight painted rows. A separately frozen temporary stage diagnostic
+attributes a subsequent 990,118-us observation chiefly to navigation-snapshot construction
+(766,160 us), plus old-snapshot retirement (79,122 us). This near-threshold pass does not resolve
+the failure. Optimize snapshot construction and qualify the final source without those temporary
+diagnostics; keep the original bounds and all semantic rows.
+
+The forced-rebuild comparison reproduces 1,022,545 us End-to-visible on the original snapshot
+builder versus 344,345 us after reserving the exact semantic-node capacity and constructing records
+in place. Opening changes from 3,090,947 to 1,087,745 us; both resolve the last row and paint eight.
+The pre-count follows the builder's visibility/path limits, including descendants of semantic panels
+and offscreen menu rows. Independent review confirms record references end before recursion and
+publication remains private until complete. Temporary stage probes are now removed; final source
+must pass the three local profiles and a new six-profile native CI run before adoption.
+An earlier incremental A observation is excluded: copying an older timestamp did not rebuild its
+object file. Both valid comparison variants use `build.ps1 -Rebuild`; original failed and interrupted
+runs and the correction remain under `menu-plain-uia-20260927/ci-d45-diagnosis`.
+
+The source without production probes passes all 18 nonactivating suites in each x64 ASan Debug,
+Release and Debug configuration (54 fresh, executable-hash-checked receipts). ASan opening is
+1,114,133 us and End-to-visible 371,768 us; Release is 46,931/6,686 us. Required static validators
+and formatting pass. These final local profiles are under `profiles-navigation-final`; native CI
+and final combined resource/consumer acceptance still remain separate gates.
+
+The user explicitly accepts the measured ordinary-menu live-heap cost: approximately 23 KiB for
+twelve entries and 226 KiB for 128, with no corresponding retained increase in the four-cycle
+fixture. The [owning resource contract](../../Core/Core_PerformanceAndResources.md#i26-ordinary-menu-accessibility-memory-tradeoff)
+records this bounded decision. It does not waive the large-menu failure or native/consumer gates.
+The isolated RedSalamander V9 candidate passes its real destination-menu Copy/Move output journey
+and nine overlap/live-output regressions; its primary pin remains unchanged pending qualification.
 
 ## September 27 timing decision and source ablation
 

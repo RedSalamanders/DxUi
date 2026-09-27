@@ -1,0 +1,6 @@
+{
+  "startedUtc": "2026-09-27T20:20:01.1366399+00:00",
+  "completedUtc": "2026-09-27T20:20:03.3896833+00:00",
+  "expectedSemanticFailure": true,
+  "exception": "DxUi failed suites: MenuAccessibility. See .build/logs and .build/reports."
+}

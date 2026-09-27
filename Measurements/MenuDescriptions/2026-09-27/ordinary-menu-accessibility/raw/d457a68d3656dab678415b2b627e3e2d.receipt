@@ -1,0 +1,11 @@
+# Temporary large-menu stage attribution
+
+External diagnostic-only patch. Requires a diagnostics-enabled build and an enabled existing Debug::Perf capture (test executable --perf-jsonl=<owned evidence path>). With capture disabled the diagnostics do not read clocks or emit records. No per-row output, no semantic or scheduling change.
+
+For native menus with at least4096 semantic root children, SynchronizeMenuAccessibility emits row_bounds_us and focus_sync_us (the latter contains any snapshot work). Snapshot construction emits navigation_us, collapse_us, point_hits_us, focus_path_us, window_state_us, and publish_retire_us under dxui.menu.diagnostic.*. The publish stage includes atomic shared-owner replacement and destruction of the superseded snapshot if it has no remaining readers. All stages use the same existing perf sink. Events emit after the measured stages; the enclosing focus metric consequently includes the bounded nested event emission overhead. value0 is root row count; sync value1 is boundsChanged or selected keyboard index. Open/sizing may produce earlier groups; the End sync group has keyboard index4095.
+
+The snapshot trigger is diagnostics plus capture-enabled, native target,4096or more direct children, first child non-null and MenuItem-role. It uses no new test hook/public API. This temporary instrumentation should be removed after attribution; do not treat timings as uninstrumented paired performance qualification.
+
+Changed files: src/Controls/DxUi.Menu.cpp and src/Controls/DxUi.Accessibility.cpp. Baseline and candidate hashes are retained in changed-targets.json. Apply-check passed. No repo edits/build/native execution by this agent. Candidate algorithmic optimization is intentionally not included before root observes stage evidence.
+
+Patch SHA256: D56272C6780CE229623FFB364082B3AC9C4E09E72EC25837AC10D650C0D947D9

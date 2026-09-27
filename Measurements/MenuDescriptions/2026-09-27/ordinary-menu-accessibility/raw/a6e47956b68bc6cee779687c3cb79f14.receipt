@@ -1,0 +1,6 @@
+{
+  "sourceCommit": "d45c3610a586fab926a98a8656bb337792a38b6c",
+  "startedUtc": "2026-09-27T21:09:53.2158126+00:00",
+  "completedUtc": "2026-09-27T21:10:13.7655845+00:00",
+  "exception": "DxUi failed suites: MenuAccessibility. See .build/logs and .build/reports."
+}

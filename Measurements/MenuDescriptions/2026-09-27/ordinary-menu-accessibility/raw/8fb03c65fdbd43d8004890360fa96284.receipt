@@ -1,0 +1,73 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                  ⚡  ASAN DEBUG  /  X64  /  BUILD  ⚡                  │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: ASan Debug
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\ASan Debug\DxUi.lib
+  DxUi.EmbeddedTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\ASan Debug\DxUi.EmbeddedTests.exe
+  DxUi.EmbeddedControls.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\ASan Debug\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\ASan Debug\DxUi.FoundationTests.exe
+  DxUiTests.Menu.cpp
+  DxUi.ControlTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:06
+Output: C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\
+Log: C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\logs\build-x64-ASan Debug-bdd252d13b124122affaabbf38b1214d.log
+========================================
+Complex UI clean round 1: 2232.34 completed offscreen FPS; p95 0.5667 ms; private 212500480 bytes
+Complex UI clean round 2: 2323.34 completed offscreen FPS; p95 0.5501 ms; private 216690688 bytes
+Complex UI clean round 3: 2342.67 completed offscreen FPS; p95 0.5499 ms; private 219230208 bytes
+Complex UI clean round 4: 2270.99 completed offscreen FPS; p95 0.6505 ms; private 222068736 bytes
+Complex UI clean round 5: 2390.09 completed offscreen FPS; p95 0.4837 ms; private 224907264 bytes
+Complex UI dirty round 1: 97.895 completed offscreen FPS; p95 11.1213 ms; private 367902720 bytes
+Complex UI dirty round 2: 91.6406 completed offscreen FPS; p95 12.6785 ms; private 502464512 bytes
+Complex UI dirty round 3: 88.7592 completed offscreen FPS; p95 13.6981 ms; private 533643264 bytes
+Complex UI dirty round 4: 90.9486 completed offscreen FPS; p95 13.1663 ms; private 536006656 bytes
+Complex UI dirty round 5: 86.789 completed offscreen FPS; p95 14.7481 ms; private 537952256 bytes
+Performance comparison: unpaired
+Performance receipt: C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\reports\Performance-x64-ASan Debug-8bc8e06a52444ed6bd04a0619883c30c.json
+PASS AddressSanitizer detection probe (isolated expected failure)
+Running MenuAccessibility (x64 ASan Debug)
+  [START] TestPlainMenuAccessibilityScrollsFocusedRow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [START] TestMenuNativeFocusPreservesEmptySelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [START] TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets
+{"fixture":"dxui-large-menu-end-v1","stage":"open","rows":4096,"openToFirstPaintUs":3971199,"shown":true}
+{"fixture":"dxui-large-menu-end-v1","stage":"end","rows":4096,"dispatchUs":1097268,"pumpUs":8673,"queryUs":138909,"endToVisibleUs":1244850,"lastRowResolved":true,"paintedRows":8}
+FAILED: large context menu End-to-visible latency remains bounded

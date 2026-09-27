@@ -1,0 +1,37 @@
+from pathlib import Path
+import difflib,hashlib,json
+r=Path('C:/Users/eric/.codex/worktrees/fileops-ui-qualified/DxUi');o=Path('C:/RedSalamander.Perf/evidence/i26-ui/menu-plain-uia-20260927/ci-d45-diagnosis')
+f='Tests/Controls/DxUiTests.Menu.cpp';data=(r/f).read_bytes();before=data.decode('utf-8-sig').replace('\r\n','\n');s=before
+a=s.index('void TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets()');b=s.index('void TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion()',a);body=s[a:b]
+needle='    using namespace DxUi;\n'
+assert body.count(needle)==1
+body=body.replace(needle,needle+'''
+    const bool nonactivating = ! DxUiTestWindowsCanActivateFlag();
+    if (nonactivating)
+        Require(TestSupport::ScopedWindowActivationBlocker::IsActiveForCurrentThread(),
+                "large menu nonactivating lane requires the established activation blocker");
+    const HWND foregroundBefore = GetForegroundWindow();
+    const HWND nativeFocusBefore = GetFocus();
+''',1)
+needle='    Require(shown, "large async context menu opens");'
+assert body.count(needle)==1
+body=body.replace(needle,needle+'''
+    if (nonactivating)
+        Require(GetForegroundWindow() == foregroundBefore && GetFocus() == nativeFocusBefore,
+                "large menu opening preserves foreground and native focus under the activation blocker");''',1)
+needle='    Require(lastRowResolved, "large context menu resolves the last row through cached offsets");'
+assert body.count(needle)==1
+body=body.replace(needle,'''    if (nonactivating)
+        Require(GetForegroundWindow() == foregroundBefore && GetFocus() == nativeFocusBefore,
+                "large menu End navigation preserves foreground and native focus under the activation blocker");
+'''+needle,1)
+needle='    Require(WaitForWindowDestroyed(popupHwnd), "large context menu popup is destroyed after Escape");'
+assert body.count(needle)==1
+body=body.replace(needle,needle+'''
+    if (nonactivating)
+        Require(GetForegroundWindow() == foregroundBefore && GetFocus() == nativeFocusBefore,
+                "large menu teardown preserves foreground and native focus under the activation blocker");''',1)
+s=s[:a]+body+s[b:]
+(o/'large-focus-invariants.patch').write_text(''.join(difflib.unified_diff(before.splitlines(True),s.splitlines(True),fromfile='a/'+f,tofile='b/'+f)),encoding='utf-8',newline='\n')
+(o/'focus-invariants-manifest.json').write_text(json.dumps({'path':f,'baselineRawSha256':hashlib.sha256(data).hexdigest(),'baselineNormalizedSha256':hashlib.sha256(before.encode()).hexdigest(),'candidateNormalizedSha256':hashlib.sha256(s.encode()).hexdigest()},indent=2)+'\n')
+print(hashlib.sha256((o/'large-focus-invariants.patch').read_bytes()).hexdigest())
