@@ -3,6 +3,30 @@
 Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
 Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.
 
+## September 27 performance record correction
+
+At the developer's direction this corrects the timing record. The repeated clean-frame p95 flag
+(+11.192%/+7.997%) from the September 23 ordinary crossover is not a cost of described menus
+against main. Both of its variants are described-menu builds: `fb857d4` already contains described
+entries, and its library sources differ from `58bdf2f` only by popup-local text sharing
+(`f72941b`: description preparation plus two debug-state fields). The ComplexUi scene opens no
+menu popup. The flag is therefore no longer a gate or a pending decision. Its packet keeps the raw
+numbers and failed comparisons, as do the other described-to-described timing records (the first
+sharing comparison and the September 21 reflow ABBA).
+
+The matched comparison against unchanged main is the September 21 alternating qualification:
+three Release pairs of `78b3de3` against the described candidate, all with one benchmark hash. The
+comparator never flags clean frame p95 (+0.6%, -2.6%, -8.3%); the unchanged binary alone moves it
++10.5% between adjacent runs and is flagged. Dirty timing flags appear only in pairs one and three
+(frame P50/P95 in pair one, composition CPU in both), and the same-binary controls raise the same
+metrics. The repeated finding is clean private memory, flagged in all three pairs: +823,296,
++1,175,552 and +1,175,552 bytes (+3.2%, +4.6%, +4.5%); clean working set is also flagged in pairs
+two and three. Adjacent unchanged runs stay within 1.3%, while the candidate's own adjacent runs
+differ by up to 2.6%. In the sixty-cycle retention diagnostic the medians converge (34,385,920
+versus 34,357,248 bytes), which points to allocator and runtime variation, but that diagnostic is
+not an acceptance run. This clean private-memory flag is the open resource decision. No memory
+waiver is recorded, and no threshold, baseline or benchmark input changed.
+
 ## September 26 native CI correction
 
 Native CI on `7836afe` (runs 36230468191 and 36230470803) failed all three x64 profiles in the
@@ -17,9 +41,10 @@ The replacement test therefore focuses the Slider row of a nonactivating asynchr
 where a native transfer would activate the submenu and deactivate the root, ending the session.
 It checks three things: the session stays open, the root keeps Win32 focus, and the row becomes the
 logical keyboard target. ARM64 passed because its Menu lane records both new activating tests as
-interactive-desktop skips. The failing x64 runs are retained as evidence. The failure also stopped
-the x64 Menu lane early, so the MenuItem-role test and the rest of that activating lane have not
-yet run on this branch.
+interactive-desktop skips. The failing x64 runs are retained as evidence. On `13dc7b3` the x64
+Menu lane, including the MenuItem-role test, passes in every profile; one x64 Release run then
+failed the known disclosure UIA setup flake. `56e4a3a` ports the setup allowance from pull request
+27 unchanged, and all six profiles pass in both of its CI runs (`36234852140`, `36234853642`).
 
 ## September 26 review fixes
 
@@ -69,7 +94,8 @@ The evidence archive is pruned from 1,593 files (18.2 MB) to 450 (2.1 MB): logs,
 source snapshots and unlinked `raw/` files are removed, READMEs state their removed counts, and the
 byte-exact originals stay on `codex/menu-description-layout` at `36a1c43`. No measured value,
 threshold or conclusion changed. **The repeated clean-frame p95 flag below remains unresolved; no
-timing waiver is recorded.** Python validators and pinned clang-format pass; no native build, test,
+timing waiver is recorded.** (Superseded on 27 September: that flag compared two described-menu
+builds; see the correction above.) Python validators and pinned clang-format pass; no native build, test,
 gallery or benchmark ran for the rebase.
 
 ## September 23 process-local attribution
@@ -111,6 +137,10 @@ clean-frame timing cost. No answer or waiver is recorded. The accepted V11 grid 
 separate and cannot qualify this menu candidate. No benchmark threshold or baseline was changed.
 The process-local heap evidence and 36% lower live menu shaping storage remain independent facts;
 no causal claim about the shared-scene timing follows from them.
+
+**Corrected 27 September:** both variants are described-menu builds, so this is not a
+described-menu-versus-main timing flag, and the pending timing question is closed (see the
+September 27 correction).
 
 ## Contract and scope
 

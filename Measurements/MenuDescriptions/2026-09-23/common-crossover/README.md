@@ -26,3 +26,11 @@ This fixture is an offscreen WARP ComplexUi scene with blocking one-pixel readba
 directory were removed from the main-line copy to bound repository size. Their byte-exact
 originals remain at the same paths on `codex/menu-description-layout` commit `36a1c43`;
 see the [series index](../../2026-09-21/README.md).
+
+**Correction (2026-09-27):** Variant A is not a plain-menu baseline. `fb857d4` already contains
+described entries, and A and B differ only by popup-local text sharing (`f72941b`). The ComplexUi
+scene opens no menu popup. This crossover therefore does not measure described menus against
+unchanged main, and its clean P95 flag is not a cost of the described-menu feature. The matched
+comparison against unchanged `78b3de3` is the common-scene investigation in the
+[series index](../../2026-09-21/README.md), where clean frame P95 is never flagged. The
+measurements above are unchanged.
