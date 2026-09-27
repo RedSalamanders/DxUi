@@ -33,12 +33,22 @@ the public `secondaryText`/`accessibleName` fields stay as they are.
 The leading hypothesis is allocator capacity that varies with binary layout and thread timing
 rather than retained data. It is not yet shown.
 
+## Progress
+
+On 27 September the first
+[hosted paired set](../../../Measurements/MenuDescriptions/2026-09-27/paired-hosted/README.md) compared
+`e47c836` with `6f769ab` in the Default scenario. No memory metric flags: clean private memory moves by
+-0.50% and -0.70%, so the waived increase does not reproduce there. Timing flags also appear in both
+same-source controls and are runner noise. One hosted set cannot remove the waiver; the quiet local
+sets below decide it.
+
 ## Execution
 
 - [ ] Re-measure on main with `performance-paired.ps1 -BaselineRevision e47c836 -CandidateRevision 6f769ab
   -Scenario Default`. The two revisions differ only by #24's library change. Run at least two
   A1/B1/B2/A2 sets on a quiet local machine and one hosted CI dispatch, labelled as hosted. Keep every
-  comparison; the September 21 evidence stays as recorded.
+  comparison; the September 21 evidence stays as recorded. The hosted set is done (see Progress);
+  the quiet local sets remain.
 - [ ] Add a placebo control: `e47c836` plus an inert, unreferenced change of similar code size. If it
   reproduces a comparable clean private-memory flag, the waived difference is layout or allocator
   variation rather than a cost of the feature.

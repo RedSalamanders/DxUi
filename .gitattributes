@@ -13,3 +13,5 @@ Measurements/GridTextOverflow/2026-09-21/native-isolation/raw/** -text -whitespa
 Measurements/GridTextOverflow/2026-09-21/native-ci/raw/** -text -whitespace
 Measurements/GridTextOverflow/2026-09-27/paired-hosted/*.json -text -whitespace
 Measurements/GridTextOverflow/2026-09-27/paired-hosted/*.receipt.txt -text -whitespace
+Measurements/MenuDescriptions/2026-09-27/paired-hosted/*.json -text -whitespace
+Measurements/MenuDescriptions/2026-09-27/paired-hosted/*.receipt.txt -text -whitespace

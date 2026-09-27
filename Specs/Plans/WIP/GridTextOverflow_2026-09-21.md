@@ -14,7 +14,10 @@ Gallery capture no longer depends on the desktop size (`9fe19cc`). The x64 Relea
 the gallery from `217e602`, and all five sheets were reviewed and published. They show the clamped French
 multiline cell with its ellipsis directly after the last visible character. In the high-contrast sheet
 the Grid tile's IconText and ColorSwatch rows show no text. The previously published sheet shows the
-same, so this work did not cause it; it remains an open high-contrast issue.
+same, so this work did not cause it; it remains an open high-contrast issue. A second CI run at
+unchanged gallery inputs reproduced five sheets byte for byte. Rainbow light differed only in the
+ProgressBar / Indeterminate tile, whose animated segment depends on capture timing; that tile is
+not yet deterministic.
 
 A [hosted paired benchmark](../../../Measurements/GridTextOverflow/2026-09-27/paired-hosted/README.md)
 compares `6f769ab` with the merged grid in one A1/B1/B2/A2 set per scenario. Multiline dirty private
