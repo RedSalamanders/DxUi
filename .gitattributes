@@ -11,3 +11,5 @@
 Measurements/GridTextOverflow/2026-09-21/heap-attribution/raw/** -text -whitespace
 Measurements/GridTextOverflow/2026-09-21/native-isolation/raw/** -text -whitespace
 Measurements/GridTextOverflow/2026-09-21/native-ci/raw/** -text -whitespace
+Measurements/GridTextOverflow/2026-09-27/paired-hosted/*.json -text -whitespace
+Measurements/GridTextOverflow/2026-09-27/paired-hosted/*.receipt.txt -text -whitespace

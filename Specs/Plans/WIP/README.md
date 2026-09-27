@@ -2,9 +2,9 @@
 
 | Status | Plan | Next action |
 |---|---|---|
-| ACTIVE | [Bounded grid text and clipping](GridTextOverflow_2026-09-21.md) | V11 memory tradeoff accepted, main merged and six native CI profiles green; regenerate the gallery, run the paired multiline benchmark and republish the design system, then consumer qualification before explicit pin adoption. |
+| ACTIVE | [Bounded grid text and clipping](GridTextOverflow_2026-09-21.md) | Merged to main (#22); gallery regenerated and the paired multiline benchmark within the accepted V11 envelope. Republish the design system, then consumer qualification before explicit pin adoption. |
 | HOLD | [TreeReorder_2026-09-21.md](TreeReorder_2026-09-21.md) | Drag-reorder is in `Tree`. Multi-select remains. Not a second tree in the app. |
-| ACTIVE | [Described native menu entries](MenuDescriptions_2026-09-21.md) | Merged to main (#24); memory waiver recorded 2026-09-27 with an optimization plan. Directed input restoration, gallery regeneration, design-system republish and consumer handoff remain. |
+| ACTIVE | [Described native menu entries](MenuDescriptions_2026-09-21.md) | Merged to main (#24); memory waiver recorded 2026-09-27 with an optimization plan. Directed input restoration, design-system republish and consumer handoff remain. |
 | ACTIVE | [Described-menu memory optimization](MenuDescriptionMemory_2026-09-27.md) | Re-measure the waived clean private-memory increase on main with paired runs and a placebo control, then optimize it or present the attribution. |
 
 Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md`,

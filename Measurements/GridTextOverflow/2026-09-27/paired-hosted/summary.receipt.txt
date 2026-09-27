@@ -1,0 +1,268 @@
+{
+  "command": "performance-paired.ps1",
+  "baselineRevision": "6f769abb965af7702504074f3e7b4fd299d6332e",
+  "baselineCommit": "6f769abb965af7702504074f3e7b4fd299d6332e",
+  "candidateCommit": "217e602b6defa1275d9ac424acebca82303ccf8e",
+  "candidateDirty": false,
+  "configuration": "Release",
+  "platform": "x64",
+  "machine": "runnervm99s1a",
+  "completedUtc": "2026-09-27T19:29:32.4536143Z",
+  "order": "A1, B1, B2, A2",
+  "harness": {
+    "performance.ps1": "9B90EC487B307421698DA79D99E8CD55AFB56E904B926F7F7E1A290BB6C871E8",
+    "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+    "Tests/Embedded/ComplexUiBenchmark.h": "74092996D755B0774E086DBD732C4D069F5D7D3C130322FC3BA2A8676D093769",
+    "Tests/Support/HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "scenarios": [
+    {
+      "scenario": "Default",
+      "runs": {
+        "A1": {
+          "sourceCommit": "6f769abb965af7702504074f3e7b4fd299d6332e",
+          "sourceDirty": true,
+          "executableSha256": "54FF93805CF52FDB01FA01BC09622294BAAF92918874CD5FC5D3174539B40B46",
+          "benchmarkSha256": "2DB9197762399AB0CAB31130A23C07E5640308614600B8418EB8B25B3079C983",
+          "medians": {
+            "clean": {
+              "fps": 462.4641012,
+              "frameP95Ms": 2.6576,
+              "privateBytes": 23203840.0,
+              "workingSetBytes": 37986304.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 224.9406297,
+              "frameP95Ms": 4.9,
+              "privateBytes": 23621632.0,
+              "workingSetBytes": 38330368.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B1": {
+          "sourceCommit": "217e602b6defa1275d9ac424acebca82303ccf8e",
+          "sourceDirty": false,
+          "executableSha256": "390E394127CDE2F8917B955D0A1C99EDA3E00801A0282231BBF8D9B2A4CB1ABE",
+          "benchmarkSha256": "2DB9197762399AB0CAB31130A23C07E5640308614600B8418EB8B25B3079C983",
+          "medians": {
+            "clean": {
+              "fps": 319.8914928,
+              "frameP95Ms": 4.2104,
+              "privateBytes": 22720512.0,
+              "workingSetBytes": 37122048.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 195.8350775,
+              "frameP95Ms": 6.173,
+              "privateBytes": 23310336.0,
+              "workingSetBytes": 37564416.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B2": {
+          "sourceCommit": "217e602b6defa1275d9ac424acebca82303ccf8e",
+          "sourceDirty": false,
+          "executableSha256": "390E394127CDE2F8917B955D0A1C99EDA3E00801A0282231BBF8D9B2A4CB1ABE",
+          "benchmarkSha256": "2DB9197762399AB0CAB31130A23C07E5640308614600B8418EB8B25B3079C983",
+          "medians": {
+            "clean": {
+              "fps": 332.1494972,
+              "frameP95Ms": 4.8881,
+              "privateBytes": 22966272.0,
+              "workingSetBytes": 36343808.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 200.9194072,
+              "frameP95Ms": 6.2925,
+              "privateBytes": 23515136.0,
+              "workingSetBytes": 36679680.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A2": {
+          "sourceCommit": "6f769abb965af7702504074f3e7b4fd299d6332e",
+          "sourceDirty": true,
+          "executableSha256": "54FF93805CF52FDB01FA01BC09622294BAAF92918874CD5FC5D3174539B40B46",
+          "benchmarkSha256": "2DB9197762399AB0CAB31130A23C07E5640308614600B8418EB8B25B3079C983",
+          "medians": {
+            "clean": {
+              "fps": 324.7725983,
+              "frameP95Ms": 4.04,
+              "privateBytes": 22867968.0,
+              "workingSetBytes": 36470784.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 230.9983634,
+              "frameP95Ms": 4.545,
+              "privateBytes": 23453696.0,
+              "workingSetBytes": 36737024.0,
+              "cppAllocations": 2160.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        }
+      },
+      "comparisons": [
+        {
+          "name": "Default-B1-vs-A1",
+          "status": "advice-required",
+          "file": "Default-B1-vs-A1.comparison.json"
+        },
+        {
+          "name": "Default-B2-vs-A2",
+          "status": "advice-required",
+          "file": "Default-B2-vs-A2.comparison.json"
+        },
+        {
+          "name": "Default-A2-vs-A1-control",
+          "status": "advice-required",
+          "file": "Default-A2-vs-A1-control.comparison.json"
+        },
+        {
+          "name": "Default-B2-vs-B1-control",
+          "status": "advice-required",
+          "file": "Default-B2-vs-B1-control.comparison.json"
+        }
+      ]
+    },
+    {
+      "scenario": "MultilineGrid",
+      "runs": {
+        "A1": {
+          "sourceCommit": "6f769abb965af7702504074f3e7b4fd299d6332e",
+          "sourceDirty": true,
+          "executableSha256": "54FF93805CF52FDB01FA01BC09622294BAAF92918874CD5FC5D3174539B40B46",
+          "benchmarkSha256": "2DB9197762399AB0CAB31130A23C07E5640308614600B8418EB8B25B3079C983",
+          "medians": {
+            "clean": {
+              "fps": 473.5022237,
+              "frameP95Ms": 2.6004,
+              "privateBytes": 28393472.0,
+              "workingSetBytes": 42446848.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 58.78483516,
+              "frameP95Ms": 19.0826,
+              "privateBytes": 29581312.0,
+              "workingSetBytes": 43384832.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B1": {
+          "sourceCommit": "217e602b6defa1275d9ac424acebca82303ccf8e",
+          "sourceDirty": false,
+          "executableSha256": "390E394127CDE2F8917B955D0A1C99EDA3E00801A0282231BBF8D9B2A4CB1ABE",
+          "benchmarkSha256": "2DB9197762399AB0CAB31130A23C07E5640308614600B8418EB8B25B3079C983",
+          "medians": {
+            "clean": {
+              "fps": 428.4664543,
+              "frameP95Ms": 2.6053,
+              "privateBytes": 30392320.0,
+              "workingSetBytes": 43171840.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 102.8007552,
+              "frameP95Ms": 11.2337,
+              "privateBytes": 33783808.0,
+              "workingSetBytes": 43331584.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "B2": {
+          "sourceCommit": "217e602b6defa1275d9ac424acebca82303ccf8e",
+          "sourceDirty": false,
+          "executableSha256": "390E394127CDE2F8917B955D0A1C99EDA3E00801A0282231BBF8D9B2A4CB1ABE",
+          "benchmarkSha256": "2DB9197762399AB0CAB31130A23C07E5640308614600B8418EB8B25B3079C983",
+          "medians": {
+            "clean": {
+              "fps": 485.5264563,
+              "frameP95Ms": 2.1373,
+              "privateBytes": 30183424.0,
+              "workingSetBytes": 42684416.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 107.2314188,
+              "frameP95Ms": 10.2896,
+              "privateBytes": 31723520.0,
+              "workingSetBytes": 42754048.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        },
+        "A2": {
+          "sourceCommit": "6f769abb965af7702504074f3e7b4fd299d6332e",
+          "sourceDirty": true,
+          "executableSha256": "54FF93805CF52FDB01FA01BC09622294BAAF92918874CD5FC5D3174539B40B46",
+          "benchmarkSha256": "2DB9197762399AB0CAB31130A23C07E5640308614600B8418EB8B25B3079C983",
+          "medians": {
+            "clean": {
+              "fps": 484.5929722,
+              "frameP95Ms": 2.2568,
+              "privateBytes": 27447296.0,
+              "workingSetBytes": 40742912.0,
+              "cppAllocations": 0.0,
+              "surfaceBytes": 3686400.0
+            },
+            "dirty": {
+              "fps": 62.98410171,
+              "frameP95Ms": 16.6119,
+              "privateBytes": 28651520.0,
+              "workingSetBytes": 41721856.0,
+              "cppAllocations": 1080.0,
+              "surfaceBytes": 3686400.0
+            }
+          }
+        }
+      },
+      "comparisons": [
+        {
+          "name": "MultilineGrid-B1-vs-A1",
+          "status": "advice-required",
+          "file": "MultilineGrid-B1-vs-A1.comparison.json"
+        },
+        {
+          "name": "MultilineGrid-B2-vs-A2",
+          "status": "advice-required",
+          "file": "MultilineGrid-B2-vs-A2.comparison.json"
+        },
+        {
+          "name": "MultilineGrid-A2-vs-A1-control",
+          "status": "within-noise-budget",
+          "file": "MultilineGrid-A2-vs-A1-control.comparison.json"
+        },
+        {
+          "name": "MultilineGrid-B2-vs-B1-control",
+          "status": "advice-required",
+          "file": "MultilineGrid-B2-vs-B1-control.comparison.json"
+        }
+      ]
+    }
+  ]
+}

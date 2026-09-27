@@ -16,6 +16,9 @@ not waived, and the optimization plan measures it again. The user's separate acc
 recorded timing tradeoffs is on `codex/menu-description-layout` (`0f35bab`), which main does not
 yet contain.
 
+The CI x64 Release job regenerated the gallery from `217e602` with display-independent capture. The
+described-menu tile renders completely in all five reviewed sheets.
+
 ## September 27 performance record correction
 
 At the developer's direction this corrects the timing record. The repeated clean-frame p95 flag
@@ -187,8 +190,9 @@ qualification remains in RedSalamander's File Operations plan.
 - [x] Run all six native configuration profiles on the sharing candidate, retaining ARM64 desktop skips.
 - [x] Resolve resource gates: the memory waiver above, recorded 2026-09-27.
 - [ ] Record explicit consumer pin handoff/rollback.
-- [ ] After the main rebase, pass six native CI profiles, regenerate/review the gallery with
-  `gallery.ps1 -PublishDocs` and republish the design system with the described MenuBar preview.
+- [x] After the main rebase, pass six native CI profiles and regenerate/review the gallery with
+  `gallery.ps1 -PublishDocs` (27 September).
+- [ ] Republish the design system with the described MenuBar preview.
 - [ ] Update domain contracts and move this plan to Done only after all required gates pass.
 
 ## Checkpoint

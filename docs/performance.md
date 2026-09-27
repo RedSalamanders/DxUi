@@ -163,7 +163,9 @@ Only an actual successful job and its receipts establish a runtime pass; configu
 The [grid candidate's native receipts](../Measurements/GridTextOverflow/2026-09-21/native-ci/README.md)
 cover all six x64/ARM64 profiles, preserve an intermittent accessibility setup failure
 and identify ARM64 Menu desktop-capability skips. These functional receipts do not
-close the candidate's separately measured resource regression.
+close the candidate's separately measured resource regression. A
+[hosted paired benchmark](../Measurements/GridTextOverflow/2026-09-27/paired-hosted/README.md) of the
+merged grid stays within the accepted V11 memory envelope.
 
 ## Other checks and formatting
 
