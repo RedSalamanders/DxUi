@@ -7,6 +7,36 @@ Implemented capabilities are listed in [capabilities.json](../../capabilities.js
 targets are acceptance contracts, not claims of current support.
 
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
+
+The opt-in `MenuResourceScaling` control suite characterizes described-menu memory
+without bitmap capture. It rotates and reverses cases across 32 cycles, varying
+0/1/2/4/8/12 descriptions in a fixed twelve-entry menu and comparing plain/described
+12/24/48-entry menus. All cases must retain the same window extent; report DPI and
+before/rendered/closed process and handle counters. The caller's item vector is
+already built at the before sample. Object `sizeof` values exclude native resources
+and dynamic allocations. Process-private deltas are not per-entry allocation sizes.
+Fixture v2 additionally samples busy/free bytes, entry overhead and region counters
+from process heaps using the bounded shared `Tests/Support/HeapDiagnostic.h` helper.
+It records errors per heap, allocates nothing while walking and holds only one heap
+lock at a time. These totals exclude non-heap native allocations and cannot identify
+call stacks or attribute a native text-layout object's exact cost. Heap sampling is
+diagnostic work outside timed rendering; retain v1 separately rather than replacing it.
+Release x64 CI retains this diagnostic even if another native suite fails; its
+results do not waive that failure or establish before/after source non-regression.
+Fixture v4 places a visible, owned parent on one native monitor and records the
+actual pixel extent and DPI for every opening. `MenuResources` and
+`MenuResourceScaling` require normal foreground menu interaction; `--no-activate`
+is rejected. Locally use the authorized warning/desktop-lease harness and verify
+focus and physical cursor restoration. A blocked activation path can leave a
+temporary 1-by-1 HWND despite correct internal layout, invalidating the measurement.
+Do not change the general activation guard or count failed v2/v3 samples as passes.
+`MenuTextLayoutResources` separately measures creation, metric computation and
+release for twelve primary layouts, twelve secondary layouts and their pairs.
+It uses the same French strings and Body/Small formats, at a declared 396-DIP
+width, with no popup, semantic tree or paint. The 32 rotated cycles distinguish
+native layout costs from the rest of a menu; they are not a substitute for actual
+menu resource measurements. This opt-in diagnostic remains nonactivating and its
+Release CI run retains the common benchmark receipt.
 `test.ps1` builds the selected configuration, runs Foundation, Embedded and all inherited control suites and records a JSON receipt with
 architecture, configuration, time and executable path under `.build/reports`. Failures propagate as nonzero exits.
 Every invocation also runs the populated complex-UI benchmark through `performance.ps1` and includes FPS/memory
@@ -30,6 +60,10 @@ Interactive menu drivers wait for the popup's modal capture after visibility and
 asserting a retained painted hover, their physical cursor agrees with the delivered point so OS-generated moves
 cannot undo the fixture's input. Restore that cursor only while it still has the test's position; do not overwrite
 human movement. Failed hover assertions must report a failure, including outside-dismiss tests.
+Cursor fixtures retain the original and actual aligned positions in physical coordinates,
+and restore only while the cursor still has that aligned position. Popup-context alignment
+must not apply a second DPI conversion. An outer harness verifies restoration and must not
+force the saved cursor position over unexpected movement merely to make the check pass.
 
 Embedded WARP fixtures cover DPI, dirty/clean/hidden behavior, paint-dirty pointer Down after hover or keyboard
 focus, alpha, hostile state, negative origins, device loss,
@@ -93,6 +127,13 @@ The interactive owner-message-flood fixture aligns the physical cursor with its 
 Windows-generated capture moves must describe the same position. It restores the original position only
 if the pointer remains at the fixture target, preserving intervening human movement. The 2,000-message
 flood, hover/paint assertions and 800 ms hover/invocation bounds remain unchanged.
+
+The native disclosure automation client subscribes from its own MTA thread while the owner thread pumps.
+Cold client setup (COM, `ElementFromHandle` and property-event subscription) has a separate 20-second
+allowance, because hosted x64 runners have exceeded the former 3000 ms bound. Acknowledged expansion, collapse
+and unsubscribe keep their 3000 ms deadlines. Every run logs the setup stage, HRESULT, stage durations and
+longest owner-thread pump, which separates a stalled provider thread from slow UIA client initialization.
+This is a bounded setup allowance, not a root-cause fix.
 
 ## Independent library workloads
 

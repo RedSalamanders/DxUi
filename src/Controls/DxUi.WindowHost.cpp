@@ -1592,7 +1592,7 @@ void ControlHost::ResetInteractionState() noexcept
     Invalidate();
 }
 
-void ControlHost::SetFocusControl(Control* control) noexcept
+void ControlHost::SetFocusControl(Control* control, bool transferNativeFocus) noexcept
 {
     PruneStaleInteractionState();
     const auto validateFocusTarget = [this](Control* candidate, const std::weak_ptr<int>& lifetime) noexcept -> Control*
@@ -1660,7 +1660,7 @@ void ControlHost::SetFocusControl(Control* control) noexcept
     {
         ActivateTextInput(_focusedControl);
     }
-    else if (_hwnd && _focusedControl && GetFocus() != _hwnd)
+    else if (transferNativeFocus && _hwnd && _focusedControl && GetFocus() != _hwnd)
     {
         SetFocus(_hwnd);
     }

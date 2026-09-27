@@ -4,6 +4,9 @@ This directory retains reviewed evidence from DxUi's own samples and benchmarks.
 interfaces, but use synthetic data and require no RedXe or RedSalamander checkout, plugin, settings or services.
 Application adoption measurements belong in their application's repository.
 
+- [Described native menus, 2026-09-21](MenuDescriptions/2026-09-21/README.md): wrapped French
+  entries, menu/UIA lifecycle coverage, stage and open/close memory attribution; resource
+  acceptance and native platform/consumer handoff remain open.
 - [Grid native CI, 2026-09-21](GridTextOverflow/2026-09-21/native-ci/README.md): six native profiles,
   retained accessibility classification retry and explicit ARM64 Menu capability skips; resource approval remains open.
 

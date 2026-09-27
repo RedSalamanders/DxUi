@@ -1,5 +1,6 @@
 #pragma once
 #include "../../Samples/ComplexUi/ComplexUiScene.h"
+#include "../Support/HeapDiagnostic.h"
 #include <algorithm>
 #include <array>
 #include <fstream>
@@ -28,62 +29,25 @@ inline PROCESS_MEMORY_COUNTERS_EX Memory()
     return memory;
 }
 
-// Opt-in diagnostic outside timed rounds. Walk only this process's heaps, one
-// lock at a time; no output or allocations while locked. Unsupported heaps are
-// reported explicitly, so partial accounting cannot be mistaken for total use.
+// Opt-in diagnostic outside timed rounds. The shared helper walks only this
+// process's heaps, one lock at a time with no output or allocations while
+// walking, and reports per-heap errors so partial accounting is never total use.
 inline void WriteHeapDiagnostic(std::ostream& output)
 {
-    std::array<HANDLE, 128> heaps{};
-    const DWORD count = GetProcessHeaps(static_cast<DWORD>(heaps.size()), heaps.data());
-    Check(count > 0u && count <= heaps.size(), "diagnostic heap enumeration fits bounded storage");
-    output << ",\"heaps\":[";
-    for (DWORD i = 0u; i < count; ++i)
-    {
-        uint64_t busy = 0u, free = 0u, overhead = 0u, committed = 0u, uncommitted = 0u;
-        DWORD error = ERROR_SUCCESS;
-        if (HeapLock(heaps[i]))
-        {
-            const auto unlock = wil::scope_exit([&] { HeapUnlock(heaps[i]); });
-            PROCESS_HEAP_ENTRY entry{};
-            while (HeapWalk(heaps[i], &entry))
-            {
-                if ((entry.wFlags & PROCESS_HEAP_ENTRY_BUSY) != 0u)
-                {
-                    busy += entry.cbData;
-                    overhead += entry.cbOverhead;
-                }
-                else if ((entry.wFlags & PROCESS_HEAP_REGION) != 0u)
-                {
-                    committed += entry.Region.dwCommittedSize;
-                    uncommitted += entry.Region.dwUnCommittedSize;
-                }
-                else if ((entry.wFlags & PROCESS_HEAP_UNCOMMITTED_RANGE) == 0u)
-                {
-                    free += entry.cbData;
-                    overhead += entry.cbOverhead;
-                }
-            }
-            error = GetLastError();
-            if (error == ERROR_NO_MORE_ITEMS)
-                error = ERROR_SUCCESS;
-        }
-        else
-            error = GetLastError();
-        if (i != 0u)
-            output << ',';
-        output << "{\"heap\":" << reinterpret_cast<uintptr_t>(heaps[i]) << ",\"busyBytes\":" << busy << ",\"freeBytes\":" << free
-               << ",\"entryOverheadBytes\":" << overhead << ",\"regionCommittedBytes\":" << committed << ",\"regionUncommittedBytes\":" << uncommitted
-               << ",\"error\":" << error << '}';
-    }
-    output << ']';
+    DxUiTestSupport::WriteHeapDiagnostic(output, [](bool ok, const char* reason) { Check(ok, reason); });
 }
 
 inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool retention = false, bool heapDiagnostic = false, bool paced = false)
 {
+    // Stage samples stay outside frame timing and help distinguish initialization,
+    // image encoding and retained rendering costs when process totals regress.
+    std::array<PROCESS_MEMORY_COUNTERS_EX, 6> memoryPhases{};
+    memoryPhases[0] = Memory();
     GraphicsFixture gpu;
     gpu.width  = 1280;
     gpu.height = 720;
     Hr(gpu.Create(), "benchmark WARP device");
+    memoryPhases[1] = Memory();
     ComplexUiScene scene;
     scene.model.multilineGrid = multilineGrid;
     if (multilineGrid)
@@ -96,7 +60,8 @@ inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool rete
         scene.grid->SetRowHeightDip(64.0f);
         scene.grid->SetLineClamp(2u);
     }
-    auto& view = scene.view;
+    memoryPhases[2] = Memory();
+    auto& view      = scene.view;
 
     D3D11_TEXTURE2D_DESC readDesc{};
     readDesc.Width = readDesc.Height = readDesc.MipLevels = readDesc.ArraySize = readDesc.SampleDesc.Count = 1;
@@ -122,8 +87,10 @@ inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool rete
         Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "benchmark warm composition");
         complete();
     }
+    memoryPhases[3] = Memory();
     // Capture once outside measurement; reviewable proof that the workload has populated controls.
     Hr(gpu.Save(multilineGrid ? L".build/test-artifacts/complex-ui-multiline-grid.png" : L".build/test-artifacts/complex-ui.png"), "complex UI screenshot");
+    memoryPhases[4] = Memory();
     std::ofstream output{std::filesystem::path(outputPath)};
     Check(bool(output), "benchmark output file");
     output << std::setprecision(10) << "{\"compiler\":" << _MSC_FULL_VER << ",\"fixture\":\""
@@ -250,7 +217,17 @@ inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool rete
     Check(view.Prepare(1280, 720) == S_FALSE, "hidden benchmark preparation skipped");
     Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "hidden benchmark composition skipped");
     Check(view.GetStatistics().preparations == hidden.preparations && view.GetStatistics().composites == hidden.composites, "hidden counters unchanged");
-    output << ",\"hiddenPreparations\":0,\"hiddenComposites\":0";
+    memoryPhases[5] = Memory();
+    output << ",\"hiddenPreparations\":0,\"hiddenComposites\":0,\"memoryPhases\":[";
+    constexpr std::array names{"entry", "device", "scene", "warm", "capture", "hidden"};
+    for (size_t index = 0; index < memoryPhases.size(); ++index)
+    {
+        if (index)
+            output << ',';
+        output << "{\"name\":\"" << names[index] << "\",\"privateBytes\":" << memoryPhases[index].PrivateUsage
+               << ",\"workingSetBytes\":" << memoryPhases[index].WorkingSetSize << '}';
+    }
+    output << ']';
     if (retention)
     {
         view.Controls().SetRoot(nullptr);

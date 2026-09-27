@@ -8,6 +8,18 @@ The consumer's French Issues grid exposed a generic defect: `SetLineClamp` enabl
 does not limit visible lines or produce an omission marker. Partially visible cells also lay out
 against their clipped rectangle, changing text placement as they cross the viewport boundary.
 
+## September 27 main merge
+
+Main `6f769ab` (#27's disclosure UIA setup allowance and #24's described native menus) is merged
+into this slice. Both branches changed the complex-UI benchmark. The merged harness keeps every
+multiline scenario and main's `--benchmark-retention` mode. Every fixture now records main's
+memory phases; the retention fixtures take their hidden phase after the scroll passes. Grid heap
+walks call main's shared `Tests/Support/HeapDiagnostic.h`, which samples every heap before writing,
+and `performance.ps1` hashes that helper as a benchmark input. Harness hashes therefore differ from
+every earlier grid receipt, so the paired multiline benchmark must measure both sides on this
+harness. The merge changes C++ test code, so it needs its own native CI run; the pull request
+records the result. Neither branch regenerated the gallery; one regeneration after both covers them.
+
 ## September 26 review fixes
 
 Main `c36413b` (#23, #25, #26) is merged. A static review of the pull request found three

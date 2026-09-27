@@ -1,0 +1,107 @@
+diff --git a/Tests/Embedded/BenchmarkMain.h b/Tests/Embedded/BenchmarkMain.h
+index 49801a8..330f379 100644
+--- a/Tests/Embedded/BenchmarkMain.h
++++ b/Tests/Embedded/BenchmarkMain.h
+@@ -8,6 +8,19 @@ int wmain(int argc, wchar_t** argv)
+         ComplexUiBenchmark::Run(argv[2]);
+         return 0;
+     }
++    if (argc == 4 && std::wstring_view(argv[1]) == L"--benchmark-heap-phases")
++    {
++        Check(std::filesystem::path(argv[2]) != std::filesystem::path(argv[3]), "benchmark report and heap sidecar paths differ");
++        std::ofstream phases{std::filesystem::path(argv[3])};
++        Check(bool(phases), "benchmark heap sidecar opened");
++        ComplexUiBenchmark::Run(argv[2], &phases);
++        // Run locals (scene, graphics, capture and report) have been destroyed.
++        // The process, COM apartment and sidecar stream remain alive.
++        ComplexUiBenchmark::HeapPhase(phases, "after-run-teardown", 8);
++        phases.close();
++        Check(bool(phases), "benchmark heap sidecar closed");
++        return 0;
++    }
+     if (argc == 3 && std::wstring_view(argv[1]) == L"--benchmark-retention")
+     {
+         // Fixed repeated create/render/hide/destroy cycles distinguish persistent
+diff --git a/Tests/Embedded/ComplexUiBenchmark.h b/Tests/Embedded/ComplexUiBenchmark.h
+index f7d1189..30da0cb 100644
+--- a/Tests/Embedded/ComplexUiBenchmark.h
++++ b/Tests/Embedded/ComplexUiBenchmark.h
+@@ -1,5 +1,6 @@
+ #pragma once
+ #include "../../Samples/ComplexUi/ComplexUiScene.h"
++#include "../Support/HeapDiagnostic.h"
+ #include <algorithm>
+ #include <array>
+ #include <fstream>
+@@ -27,21 +28,41 @@ inline PROCESS_MEMORY_COUNTERS_EX Memory()
+     return memory;
+ }
+ 
+-inline void Run(const wchar_t* outputPath)
++// Optional sidecar only. WriteHeapDiagnostic enumerates at most 128 heaps using
++// stack storage; it emits output only after releasing all heap locks.
++inline void HeapPhase(std::ostream& output, const char* phase, size_t index)
+ {
++    const auto memory = Memory();
++    output << "{\"fixture\":\"dxui-complex-ui-heap-phases-v1\",\"sample\":" << index << ",\"phase\":\"" << phase
++           << "\",\"privateBytes\":" << memory.PrivateUsage << ",\"workingSetBytes\":" << memory.WorkingSetSize;
++    DxUiTestSupport::WriteHeapDiagnostic(output, [](bool valid, const char* reason) { Check(valid, reason); });
++    output << "}\n";
++    Check(bool(output), "benchmark heap phase written");
++}
++
++inline void Run(const wchar_t* outputPath, std::ostream* heapPhases = nullptr)
++{
++    const auto sampleHeap = [&](const char* phase, size_t index)
++    {
++        if (heapPhases)
++            HeapPhase(*heapPhases, phase, index);
++    };
+     // Stage samples stay outside frame timing and help distinguish initialization,
+     // image encoding and retained rendering costs when process totals regress.
+     std::array<PROCESS_MEMORY_COUNTERS_EX, 6> memoryPhases{};
+     memoryPhases[0] = Memory();
++    sampleHeap("entry", 0);
+     GraphicsFixture gpu;
+     gpu.width  = 1280;
+     gpu.height = 720;
+     Hr(gpu.Create(), "benchmark WARP device");
+     memoryPhases[1] = Memory();
++    sampleHeap("device", 1);
+     ComplexUiScene scene;
+     Hr(scene.Initialize(gpu.device.get()), "benchmark independent scene");
+     memoryPhases[2] = Memory();
+-    auto& view      = scene.view;
++    sampleHeap("scene", 2);
++    auto& view = scene.view;
+ 
+     D3D11_TEXTURE2D_DESC readDesc{};
+     readDesc.Width = readDesc.Height = readDesc.MipLevels = readDesc.ArraySize = readDesc.SampleDesc.Count = 1;
+@@ -68,9 +89,11 @@ inline void Run(const wchar_t* outputPath)
+         complete();
+     }
+     memoryPhases[3] = Memory();
++    sampleHeap("warm", 3);
+     // Capture once outside measurement; reviewable proof that the workload has populated controls.
+     Hr(gpu.Save(L".build/test-artifacts/complex-ui.png"), "complex UI screenshot");
+     memoryPhases[4] = Memory();
++    sampleHeap("capture", 4);
+     std::ofstream output{std::filesystem::path(outputPath)};
+     Check(bool(output), "benchmark output file");
+     output << std::setprecision(10) << "{\"compiler\":" << _MSC_FULL_VER
+@@ -142,6 +165,7 @@ inline void Run(const wchar_t* outputPath)
+                       << frameMs[37] << " ms; private " << memoryAfter.PrivateUsage << " bytes\n";
+         }
+         output << "]}";
++        sampleHeap(dirty ? "after-dirty" : "after-clean", static_cast<size_t>(5 + dirty));
+     }
+     view.SetVisible(false);
+     const auto hidden = view.GetStatistics();
+@@ -150,6 +174,7 @@ inline void Run(const wchar_t* outputPath)
+     Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "hidden benchmark composition skipped");
+     Check(view.GetStatistics().preparations == hidden.preparations && view.GetStatistics().composites == hidden.composites, "hidden counters unchanged");
+     memoryPhases[5] = Memory();
++    sampleHeap("hidden", 7);
+     output << "],\"hiddenPreparations\":0,\"hiddenComposites\":0,\"memoryPhases\":[";
+     constexpr std::array names{"entry", "device", "scene", "warm", "capture", "hidden"};
+     for (size_t index = 0; index < memoryPhases.size(); ++index)

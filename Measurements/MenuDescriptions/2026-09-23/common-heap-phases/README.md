@@ -1,0 +1,12 @@
+# Process-local heap phases of the unchanged complex UI
+
+Identical opt-in instrumentation was rebuilt against baseline `fb857d44` and candidate `1cb1188a` (production `f72941b`). Both runs have nine valid, error-free process-local heap samples. No system tracing, privileged configuration or desktop input was used. Timings from these diagnostic runs are excluded from acceptance. The input manifests bind the identical five fixture/diagnostic sources; executable and library hashes accompany the build logs.
+
+At the end of dirty rendering, candidate private memory is 438,272 bytes higher, but live heap bytes are 32,602 lower. Its enumerated heap commitment is 528,384 bytes higher and free space 451,296 higher. After teardown, live heap bytes differ by only -338, while candidate free space remains 534,656 higher and commitment 528,384 higher (private memory +651,264). This pair points to retained allocator capacity rather than retained live menu-layout objects. The fixture creates no described menu; the changed description-interning map is not called by that scene. Heap addresses are compared only within a process.
+
+This does not retroactively attribute every earlier private-memory sample or dismiss the existing benchmark flags. The next falsifiable check separates CPU preparation/composition from GPU completion waits and includes a same-binary control. The grid cost accepted by the user remains separate; no menu resource waiver or consumer adoption is implied. [Exact phase totals and limitations](analysis.md).
+
+**Archive pruning (2026-09-25):** 10 verbose logs and raw receipt copies (21 KB) under this
+directory were removed from the main-line copy to bound repository size. Their byte-exact
+originals remain at the same paths on `codex/menu-description-layout` commit `36a1c43`;
+see the [series index](../../2026-09-21/README.md).

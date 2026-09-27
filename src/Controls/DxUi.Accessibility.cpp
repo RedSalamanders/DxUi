@@ -3036,6 +3036,10 @@ struct TextRangeSpanMoveResult
 
 [[nodiscard]] CONTROLTYPEID GetControlTypeId(const Control* control) noexcept
 {
+    if (control && control->GetAccessibilityRole() == AccessibilityRole::MenuItem)
+    {
+        return UIA_MenuItemControlTypeId;
+    }
     if (control && control->GetAccessibilityRole() == AccessibilityRole::Status)
     {
         return UIA_StatusBarControlTypeId;
@@ -7628,9 +7632,14 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
     Control* control = ResolveMutableControl();
     if (control && control->IsFocusable())
     {
-        if (! _target->embedded)
+        // Native menu popups track logical row focus while the menu session keeps its Win32
+        // focus target: the root popup, which modal and asynchronous tracking both activate.
+        // Submenus never activate. This follows the popup host, so every focusable row qualifies,
+        // including sliders, and ordinary controls that use the MenuItem role keep native focus transfer.
+        const bool nativeMenuRow = ! _target->embedded && IsNativeMenuPopupWindow(_hwnd);
+        if (! _target->embedded && ! nativeMenuRow)
             ::SetFocus(_hwnd);
-        host->SetFocusControl(control);
+        host->SetFocusControl(control, ! nativeMenuRow);
     }
     return S_OK;
 }
