@@ -5478,7 +5478,20 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
         case UIA_IsEnabledPropertyId: *outValue = VariantFromBool(record->controlVisible && record->controlEnabled); return S_OK;
         case UIA_IsKeyboardFocusablePropertyId: *outValue = VariantFromBool(record->controlVisible && record->controlFocusable); return S_OK;
         case UIA_HasKeyboardFocusPropertyId: *outValue = VariantFromBool(record->controlVisible && record->controlHasFocus); return S_OK;
-        case UIA_IsOffscreenPropertyId: *outValue = VariantFromBool(! record->controlVisible); return S_OK;
+        case UIA_IsOffscreenPropertyId:
+        {
+            bool offscreen = ! record->controlVisible;
+            if (! offscreen && _target && ! _target->embedded && record->controlTypeId == UIA_MenuItemControlTypeId)
+            {
+                // Native menu rows remain semantic children while scrolled out so
+                // UIA focus can reveal them. Their retained bounds are viewport-clipped;
+                // do not confuse semantic visibility with on-screen geometry.
+                const auto bounds = FindSnapshotFragmentBounds(*snapshot, _kind, _path, 0u, 0u, 0u);
+                offscreen         = ! bounds || bounds->right <= bounds->left || bounds->bottom <= bounds->top;
+            }
+            *outValue = VariantFromBool(offscreen);
+            return S_OK;
+        }
         case UIA_IsPasswordPropertyId: *outValue = VariantFromBool(record->controlVisible && record->controlIsPassword); return S_OK;
         case UIA_ValueValuePropertyId:
             if (record->controlVisible && record->controlSupportsValue)

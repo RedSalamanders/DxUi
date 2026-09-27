@@ -22,13 +22,16 @@ order; full-value access must not require duplicate hidden announcements. Repeat
 does not produce repeated notifications. Application navigation supplies its own stable target and
 stale-completion policy; the library does not choose the destination or steal focus on completion.
 
-Described native menus expose full per-entry names and MenuItem roles, exact command invocation
+Native menus, including menus with no secondary descriptions, expose full per-entry names and MenuItem roles, exact command invocation
 and acknowledged checked state. Modal menu tracking retains owner focus; an asynchronous menu
 uses its root popup for native keyboard dispatch and restores the previously focused owner control
 on dismissal while it still owns focus. Logical entry navigation does not change that session's
 native focus target. Explicit UIA focus of a native MenuItem follows that same rule for both root
 menus and submenus, independently of their activation style; embedded host focus stays with its bridge.
-Bounds follow the visible scrolled row geometry and DPI reflow. Posted UIA
+Bounds follow the visible scrolled row geometry and DPI reflow. Menu commands remain navigable
+when fully clipped, report `IsOffscreen=true`, and their UIA focus
+request scrolls them into view. A row-geometry change republishes the native snapshot even when
+the focused control is unchanged; unchanged geometry does not add snapshot work. Posted UIA
 actions carry popup-instance identity so HWND reuse cannot dispatch an old action into a new menu;
 retained providers disconnect on teardown. Implementation and validation are tracked in the
 [menu description plan](../Plans/WIP/MenuDescriptions_2026-09-21.md).

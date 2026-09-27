@@ -2979,8 +2979,6 @@ private:
 [[nodiscard]] bool PopulateMenuAccessibility(MenuContentControl& content, MenuPopup& popup) noexcept
 try
 {
-    if (popup.descriptionLayouts.empty())
-        return true;
     for (size_t i = 0; i < popup.itemCount; ++i)
     {
         const auto& item = popup.items[i];
@@ -3029,13 +3027,12 @@ catch (const std::bad_alloc&)
 
 void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
 {
-    if (popup.descriptionLayouts.empty())
-        return;
     auto* root = dynamic_cast<MenuContentControl*>(popup.host.GetRoot());
     if (! root || root->GetChildren().size() != popup.itemCount)
         return;
     const auto children = root->GetChildren();
     const auto viewport = popup.GetViewportRect();
+    bool boundsChanged  = false;
     for (size_t i = 0; i < children.size(); ++i)
     {
         auto rect   = GetVisibleItemRect(popup, i);
@@ -3043,6 +3040,9 @@ void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
         rect.bottom = (std::min)(rect.bottom, viewport.bottom);
         if (rect.bottom < rect.top)
             rect = D2D1::RectF();
+        const auto previous = children[i]->GetBounds();
+        boundsChanged =
+            boundsChanged || previous.left != rect.left || previous.top != rect.top || previous.right != rect.right || previous.bottom != rect.bottom;
         children[i]->SetBounds(rect);
     }
     Control* focus = popup.keyboardIndex && *popup.keyboardIndex < children.size() ? children[*popup.keyboardIndex].get() : nullptr;
@@ -3050,6 +3050,10 @@ void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
     // modal menus use their owner; async menus activate their root for keyboard dispatch.
     if (popup.host.GetFocusControl() != focus)
         popup.host.SetFocusControl(focus, false);
+    else if (boundsChanged)
+        // Scrolling can move rows after focus has already published its snapshot.
+        // Publish geometry once per change; unchanged hover/paint does no snapshot work.
+        popup.host.RefreshAccessibilitySnapshot();
 }
 
 // ---------------------------------------------------------------------------

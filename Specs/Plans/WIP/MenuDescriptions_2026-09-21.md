@@ -3,6 +3,35 @@
 Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
 Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.
 
+## September 27 ordinary-menu accessibility correction
+
+The consumer's real provider destination-menu test found that `36b2f4b` exposes no UIA children
+when every entry has empty `secondaryText`. Root confirms that accessibility population and
+synchronization incorrectly depend on the description-layout vector. Ordinary and described
+entries need the same semantic row contract; adding artificial consumer descriptions is not a fix.
+The unchanged combined Release performance baseline is retained before production edits. A focused
+nonactivating regression, library correction and independent qualification are in progress. This
+is a new correction, not covered by the earlier six-profile receipts or timing acceptance.
+
+This change targets semantic rows and dispatch only. Review existing gallery pixels for unexpected
+changes; the intended paint/layout contract is unchanged. Consumer pin adoption remains explicit.
+
+The old-code plain-menu controls fail the first-child assertion; fresh candidate B4/B5 pass the
+full identity, checked/disabled/noncommand, exact Invoke and teardown checks. B1/B2 collectors
+copied stale old-code suite receipts after `performance.ps1` stopped their invocations before the
+suite loop. Those copied receipts are explicitly excluded; actual failed performance reports and
+all originals remain retained. Collectors now bind receipt completion time and executable SHA.
+Independent review adds a 128-row scroll regression: it first fails the clipped-row offscreen
+property, then exposes a missing snapshot update after logical focus scrolls a row into view.
+The narrow native MenuItem offscreen correction and geometry-change-only snapshot refresh now
+pass both the ordinary-menu and general Accessibility suites. The first broad run's unrelated
+TextRange worker-start failure remains retained; the focused rerun passes. Remaining profiles,
+paired final-source resources/performance and explicit consumer pin adoption remain open.
+
+The correction adds no public API, paint/layout rule or gallery visual. Existing gallery pixels
+therefore remain applicable; native CI still regenerates the normal gallery as a validation gate.
+Current external evidence: `C:/RedSalamander.Perf/evidence/i26-ui/menu-plain-uia-20260927`.
+
 ## September 27 timing decision and source ablation
 
 The user explicitly accepts the recorded grid/menu timing tradeoffs. The menu acceptance is

@@ -47,7 +47,7 @@ parent locations or other descriptive text.
 Supply `accessibleName` when the complete spoken identity differs from the two displayed fields.
 Otherwise UIA exposes the decoded primary label followed by its secondary text. Command IDs remain
 the selection authority; repeated primary labels are supported. Description layout is prepared on
-open/DPI reflow and reused during paint. Described menu entries expose native MenuItem/Invoke and
+open/DPI reflow and reused during paint. Native menu entries must expose MenuItem/Invoke and
 the acknowledged checked state. Queued invocations expire with that popup instance.
 Equal text/font/width combinations share native shaping storage within that popup; commands and
 accessible names remain independent. The temporary lookup is discarded after preparation, and

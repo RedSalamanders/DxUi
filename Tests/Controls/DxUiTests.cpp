@@ -22,6 +22,7 @@ void RunRenderingTests();
 void RunAnimationTests();
 void RunAccessibilityTests();
 void RunMenuTests();
+void RunMenuAccessibilityTests();
 void RunMenuResourceTests();
 void RunMenuResourceScalingTests();
 void RunMenuTextLayoutResourceTests();
@@ -273,6 +274,11 @@ int wmain(int argc, wchar_t** argv)
     if (shouldRunSuite("Control"))
     {
         runSuite("Control", RunControlTests);
+        ranAnySuite = true;
+    }
+    if (shouldRunSuite("MenuAccessibility"))
+    {
+        runSuite("MenuAccessibility", RunMenuAccessibilityTests);
         ranAnySuite = true;
     }
     if (shouldRunSuite("Menu"))

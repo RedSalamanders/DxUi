@@ -5,6 +5,7 @@
 #include <DxUi/Diagnostics.h>
 #include <cstdio>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -5913,6 +5914,194 @@ void TestDescribedMenuAccessibilityInvokesAndDisconnects()
     Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "retained menu provider disconnects after teardown");
 }
 
+void TestPlainMenuAccessibilityInvokesAndDisconnects()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    const std::vector<MenuFlyoutItem> items{
+        {.kind = MenuItemKind::Radio, .text = L"First", .checked = true, .commandId = 8951, .accessibleName = L"dummy:/first"},
+        {.text = L"Unavailable", .enabled = false, .commandId = 8952},
+        {.kind = MenuItemKind::Info, .text = L"Information only"},
+        {.kind = MenuItemKind::Radio, .text = L"Second", .commandId = 8953, .accessibleName = L"dummy:/second"}};
+    int callbackCount = 0;
+    std::optional<int> result;
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "plain UIA menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(),
+                                   anchor,
+                                   items,
+                                   owner.Host().GetTheme(),
+                                   [&](std::optional<int> chosen) noexcept
+    {
+        ++callbackCount;
+        result = chosen;
+    }),
+            "plain UIA menu opens");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"First");
+    Require(popup != nullptr, "plain UIA menu is owned by the fixture");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        if (IsWindow(popup))
+            SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    });
+    ContextMenuPopupDebugState state{};
+    Require(DebugGetContextMenuPopupState(popup, state) && state.itemSecondaryTexts.size() == items.size() &&
+                std::all_of(state.itemSecondaryTexts.begin(), state.itemSecondaryTexts.end(), [](const auto& value) noexcept { return value.empty(); }) &&
+                state.descriptionPreparationCount == 0u,
+            "plain UIA fixture contains no described row or description-layout allocation");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(popup));
+    Require(root != nullptr, "plain menu publishes its native UIA root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
+    RequireSucceeded(root.query_to(fragment.put()), "plain menu root exposes fragment navigation");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> first;
+    RequireSucceeded(fragment->Navigate(NavigateDirection_FirstChild, first.put()), "plain menu first-child lookup succeeds");
+    Require(first != nullptr, "plain menu exposes its first command as a UIA child");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> firstSimple;
+    RequireSucceeded(first.query_to(firstSimple.put()), "plain checked command exposes properties");
+    wil::com_ptr_nothrow<IUnknown> checkedPattern;
+    RequireSucceeded(firstSimple->GetPatternProvider(UIA_TogglePatternId, checkedPattern.put()), "plain checked command exposes Toggle");
+    Require(checkedPattern != nullptr, "plain checked command has a Toggle provider");
+    wil::com_ptr_nothrow<IToggleProvider> checked;
+    RequireSucceeded(checkedPattern.query_to(checked.put()), "plain checked command exposes Toggle state");
+    ToggleState checkedState = ToggleState_Off;
+    RequireSucceeded(checked->get_ToggleState(&checkedState), "plain checked state is readable");
+    Require(checkedState == ToggleState_On, "plain UIA checked state matches the displayed radio item");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragment> disabled;
+    RequireSucceeded(first->Navigate(NavigateDirection_NextSibling, disabled.put()), "disabled plain item is reachable");
+    Require(disabled != nullptr, "disabled plain item remains in the semantic order");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> disabledSimple;
+    RequireSucceeded(disabled.query_to(disabledSimple.put()), "disabled plain item exposes properties");
+    wil::unique_variant enabled;
+    RequireSucceeded(disabledSimple->GetPropertyValue(UIA_IsEnabledPropertyId, &enabled), "disabled plain state is readable");
+    Require(enabled.vt == VT_BOOL && enabled.boolVal == VARIANT_FALSE, "plain UIA reports the disabled command accurately");
+    wil::com_ptr_nothrow<IUnknown> disabledPattern;
+    RequireSucceeded(disabledSimple->GetPatternProvider(UIA_InvokePatternId, disabledPattern.put()), "disabled plain Invoke lookup succeeds");
+    Require(disabledPattern != nullptr, "disabled plain command retains its semantic Invoke pattern");
+    wil::com_ptr_nothrow<IInvokeProvider> disabledInvoke;
+    RequireSucceeded(disabledPattern.query_to(disabledInvoke.put()), "disabled plain Invoke provider is queryable");
+    Require(FAILED(disabledInvoke->Invoke()) && callbackCount == 0 && IsWindow(popup), "disabled plain command cannot dispatch or close the menu");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragment> info;
+    RequireSucceeded(disabled->Navigate(NavigateDirection_NextSibling, info.put()), "plain noncommand is reachable");
+    Require(info != nullptr, "plain noncommand remains in the semantic order");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> infoSimple;
+    RequireSucceeded(info.query_to(infoSimple.put()), "plain noncommand exposes properties");
+    wil::com_ptr_nothrow<IUnknown> infoInvoke;
+    RequireSucceeded(infoSimple->GetPatternProvider(UIA_InvokePatternId, infoInvoke.put()), "plain noncommand Invoke lookup succeeds");
+    Require(! infoInvoke, "plain noncommand has no Invoke pattern");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragment> target;
+    RequireSucceeded(info->Navigate(NavigateDirection_NextSibling, target.put()), "target plain command is reachable");
+    Require(target != nullptr, "target plain command exists");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> targetSimple;
+    RequireSucceeded(target.query_to(targetSimple.put()), "target plain command exposes properties");
+    wil::unique_variant name;
+    RequireSucceeded(targetSimple->GetPropertyValue(UIA_NamePropertyId, &name), "plain command full identity is readable");
+    Require(name.vt == VT_BSTR && name.bstrVal && items[3].accessibleName == std::wstring_view(name.bstrVal, SysStringLen(name.bstrVal)),
+            "plain command keeps its exact accessible name");
+    wil::unique_variant type;
+    RequireSucceeded(targetSimple->GetPropertyValue(UIA_ControlTypePropertyId, &type), "plain command role is readable");
+    Require(type.vt == VT_I4 && type.lVal == UIA_MenuItemControlTypeId, "plain command has the MenuItem role");
+    ContextMenuPopupItemLayoutDebugState layout{};
+    Require(DebugGetContextMenuPopupItemLayout(popup, 3u, layout), "plain command exposes retained row geometry");
+    UiaRect bounds{};
+    RequireSucceeded(target->get_BoundingRectangle(&bounds), "plain command exposes UIA bounds");
+    const double scale = static_cast<double>(state.dpi) / 96.0;
+    Require(bounds.width > 0.0 && bounds.height > 0.0 && std::abs(bounds.left - (state.windowRectPx.left + layout.itemRectDip.left * scale)) <= 2.0 &&
+                std::abs(bounds.top - (state.windowRectPx.top + layout.itemRectDip.top * scale)) <= 2.0 &&
+                std::abs(bounds.width - ((layout.itemRectDip.right - layout.itemRectDip.left) * scale)) <= 2.0 &&
+                std::abs(bounds.height - ((layout.itemRectDip.bottom - layout.itemRectDip.top) * scale)) <= 2.0,
+            "plain UIA bounds match the retained visible row and DPI");
+    const HWND nativeFocus = GetFocus();
+    RequireSucceeded(target->SetFocus(), "plain MenuItem accepts logical UIA focus");
+    ContextMenuPopupDebugState focused{};
+    Require(DebugGetContextMenuPopupState(popup, focused) && focused.keyboardIndex == 3u && GetFocus() == nativeFocus,
+            "plain UIA focus chooses the exact row without changing native session focus");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(targetSimple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "plain command Invoke lookup succeeds");
+    Require(pattern != nullptr, "plain command exposes Invoke");
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    RequireSucceeded(pattern.query_to(invoke.put()), "plain command Invoke provider is queryable");
+    RequireSucceeded(invoke->Invoke(), "plain command queues its real action");
+    Require(callbackCount == 0 && IsWindow(popup), "plain UIA Invoke defers the callback until dispatch");
+    owner.PumpMessages();
+    Require(callbackCount == 1 && result == 8953 && WaitForWindowDestroyed(popup), "plain UIA dispatch invokes exactly one selected command");
+    Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "retained plain-menu provider disconnects after teardown");
+}
+
+void TestPlainMenuAccessibilityScrollsFocusedRow()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    constexpr size_t rowCount = 128u;
+    std::vector<MenuFlyoutItem> items;
+    items.reserve(rowCount);
+    for (size_t index = 0u; index < rowCount; ++index)
+        items.push_back(MenuFlyoutItem{.text = std::format(L"Scroll row {}", index), .commandId = static_cast<int>(9300u + index)});
+    ContextMenuSessionCallbacks callbacks{};
+    callbacks.maxRootHeightDip = 300.0f;
+    const POINT anchor         = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "plain scroll UIA anchor maps to screen");
+    bool dismissed             = false;
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&](std::optional<int>) noexcept { dismissed = true; }, callbacks),
+            "plain scrolling menu opens without foreground input");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Scroll row 0");
+    Require(popup != nullptr, "plain scrolling menu is owned by fixture");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        if (IsWindow(popup))
+            SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    });
+    ContextMenuPopupDebugState initial{};
+    Require(DebugGetContextMenuPopupState(popup, initial) && initial.itemTexts.size() == rowCount && initial.descriptionPreparationCount == 0u,
+            "scrolling accessibility fixture uses ordinary rows without description layouts");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    root.attach(CreateWindowHostAccessibilityProvider(popup));
+    Require(root != nullptr, "plain scrolling menu publishes its native root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
+    RequireSucceeded(root.query_to(fragment.put()), "scrolling root exposes fragment navigation");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> last;
+    RequireSucceeded(fragment->Navigate(NavigateDirection_LastChild, last.put()), "clipped last row remains navigable");
+    Require(last != nullptr, "clipped last command remains a semantic child");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> lastSimple;
+    RequireSucceeded(last.query_to(lastSimple.put()), "clipped last row exposes properties");
+    wil::unique_variant name;
+    RequireSucceeded(lastSimple->GetPropertyValue(UIA_NamePropertyId, &name), "clipped last row identity is readable");
+    Require(name.vt == VT_BSTR && name.bstrVal && std::wstring_view(name.bstrVal, SysStringLen(name.bstrVal)) == L"Scroll row 127",
+            "last semantic child is the initially clipped final command");
+    wil::unique_variant initialOffscreen;
+    RequireSucceeded(lastSimple->GetPropertyValue(UIA_IsOffscreenPropertyId, &initialOffscreen), "clipped row offscreen state is readable");
+    UiaRect initialBounds{};
+    RequireSucceeded(last->get_BoundingRectangle(&initialBounds), "clipped row bounds are readable");
+    Require(initialOffscreen.vt == VT_BOOL && initialOffscreen.boolVal == VARIANT_TRUE && (initialBounds.width <= 0.0 || initialBounds.height <= 0.0),
+            "clipped ordinary command reports offscreen with no visible rectangle");
+    const HWND nativeFocus = GetFocus();
+    RequireSucceeded(last->SetFocus(), "UIA focus requests the existing menu scroll mechanism");
+    owner.PumpMessages();
+    wil::unique_variant revealedOffscreen;
+    RequireSucceeded(lastSimple->GetPropertyValue(UIA_IsOffscreenPropertyId, &revealedOffscreen), "revealed row offscreen state refreshes");
+    UiaRect revealedBounds{};
+    RequireSucceeded(last->get_BoundingRectangle(&revealedBounds), "revealed row bounds refresh");
+    ContextMenuPopupDebugState revealed{};
+    Require(DebugGetContextMenuPopupState(popup, revealed) && revealed.keyboardIndex == rowCount - 1u, "logical UIA focus selects the last command");
+    Require(revealedOffscreen.vt == VT_BOOL && revealedOffscreen.boolVal == VARIANT_FALSE, "logical UIA focus publishes the revealed row as onscreen");
+    Require(revealedBounds.width > 0.0 && revealedBounds.height > 0.0, "logical UIA focus publishes the revealed row rectangle");
+    Require(GetFocus() == nativeFocus && ! dismissed, "logical UIA focus preserves native focus and does not invoke a command");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> first;
+    RequireSucceeded(fragment->Navigate(NavigateDirection_FirstChild, first.put()), "first row remains navigable after scrolling away");
+    Require(first != nullptr, "scrolling preserves the first semantic child");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> firstSimple;
+    RequireSucceeded(first.query_to(firstSimple.put()), "first row remains queryable after scrolling");
+    wil::unique_variant firstOffscreen;
+    RequireSucceeded(firstSimple->GetPropertyValue(UIA_IsOffscreenPropertyId, &firstOffscreen), "scrolled-away first row state refreshes");
+    Require(firstOffscreen.vt == VT_BOOL && firstOffscreen.boolVal == VARIANT_TRUE,
+            "scrolling to the last row marks the first command offscreen without removing it");
+    SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    owner.PumpMessages();
+    Require(dismissed && WaitForWindowDestroyed(popup), "plain scrolling menu tears down through normal dismissal");
+}
+
 void TestDescribedMenuPointerAndCancelledQueuedInvoke()
 {
     using namespace DxUi;
@@ -6014,6 +6203,17 @@ void TestDescribedMenuSubmenuKeepsSessionAndIdentity()
 
 } // namespace
 
+void ObservePlainMenuAccessibilityResources();
+
+void RunMenuAccessibilityTests()
+{
+    ObservePlainMenuAccessibilityResources();
+    std::cerr << "  [START] TestPlainMenuAccessibilityInvokesAndDisconnects\n" << std::flush;
+    TestPlainMenuAccessibilityInvokesAndDisconnects();
+    std::cerr << "  [START] TestPlainMenuAccessibilityScrollsFocusedRow\n" << std::flush;
+    TestPlainMenuAccessibilityScrollsFocusedRow();
+}
+
 void RunMenuDescriptionTests()
 {
     std::cerr << "  [START] TestDescribedAsyncMenuRestoresFocusedOwnerChild\n" << std::flush;
@@ -6029,6 +6229,91 @@ void RunMenuDescriptionTests()
 }
 
 #include "DxUiTests.MenuResources.h"
+
+// This observation intentionally precedes the first-child correctness assertion:
+// the unchanged plain-menu baseline has no semantic children but still yields
+// matching open/close memory and geometry receipts in the no-activation lane.
+void ObservePlainMenuAccessibilityResources()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    constexpr std::array<size_t, 2u> rowCounts{12u, 128u};
+    constexpr float maxHeightDip = 300.0f;
+    constexpr float minWidthDip  = 456.0f;
+    const auto sample            = [=](size_t rowCount, int cycle, const char* phase, const ContextMenuPopupDebugState* geometry, size_t childCount)
+    {
+        PROCESS_MEMORY_COUNTERS_EX memory{};
+        memory.cb     = sizeof(memory);
+        DWORD handles = 0u;
+        Require(GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory), sizeof(memory)) != FALSE &&
+                    GetProcessHandleCount(GetCurrentProcess(), &handles) != FALSE,
+                "plain menu resource counters are available");
+        const int widthPx  = geometry ? geometry->windowRectPx.right - geometry->windowRectPx.left : 0;
+        const int heightPx = geometry ? geometry->windowRectPx.bottom - geometry->windowRectPx.top : 0;
+        const UINT dpi     = geometry ? geometry->dpi : 0u;
+        std::cout << "{\"fixture\":\"dxui-plain-menu-uia-resources-v1\",\"rows\":" << rowCount << ",\"cycle\":" << cycle << ",\"phase\":\"" << phase
+                  << "\",\"maxRootHeightDip\":" << maxHeightDip << ",\"minRootWidthDip\":" << minWidthDip << ",\"widthPx\":" << widthPx
+                  << ",\"heightPx\":" << heightPx << ",\"dpi\":" << dpi << ",\"uiaChildrenVisited\":" << childCount
+                  << ",\"privateBytes\":" << memory.PrivateUsage << ",\"workingSetBytes\":" << memory.WorkingSetSize << ",\"handles\":" << handles
+                  << ",\"gdi\":" << GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS) << ",\"user\":" << GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS);
+        DxUiTestSupport::WriteHeapDiagnostic(std::cout, [](bool ok, const char* reason) { Require(ok, reason); });
+        std::cout << "}\n";
+    };
+    for (const size_t rowCount : rowCounts)
+    {
+        std::vector<MenuFlyoutItem> items;
+        items.reserve(rowCount);
+        for (size_t index = 0u; index < rowCount; ++index)
+            items.push_back(MenuFlyoutItem{.kind = MenuItemKind::Radio, .text = L"Destination déjà présente", .commandId = static_cast<int>(9000u + index)});
+        ContextMenuSessionCallbacks callbacks{};
+        callbacks.maxRootHeightDip = maxHeightDip;
+        callbacks.minRootWidthDip  = minWidthDip;
+        const POINT anchor         = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "plain resource menu anchor maps to screen");
+        for (int cycle = 0; cycle < 4; ++cycle)
+        {
+            sample(rowCount, cycle, "before", nullptr, 0u);
+            bool closed = false;
+            Require(
+                ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&](std::optional<int>) noexcept { closed = true; }, callbacks),
+                "plain resource menu opens without foreground input");
+            const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Destination déjà présente");
+            Require(popup != nullptr, "plain resource menu is owned by fixture");
+            const auto dismiss = wil::scope_exit([&]() noexcept
+            {
+                if (IsWindow(popup))
+                    SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+            });
+            ContextMenuPopupDebugState geometry{};
+            Require(DebugGetContextMenuPopupState(popup, geometry) && geometry.itemTexts.size() == rowCount && geometry.itemSecondaryTexts.size() == rowCount &&
+                        std::all_of(
+                            geometry.itemSecondaryTexts.begin(), geometry.itemSecondaryTexts.end(), [](const auto& value) noexcept { return value.empty(); }) &&
+                        geometry.descriptionPreparationCount == 0u,
+                    "resource observation stays on the same ordinary one-line menu workload");
+            size_t childCount = 0u;
+            {
+                wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+                root.attach(CreateWindowHostAccessibilityProvider(popup));
+                Require(root != nullptr, "plain resource menu publishes UIA root on both sides of pair");
+                wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
+                RequireSucceeded(root.query_to(fragment.put()), "plain resource UIA root navigates");
+                wil::com_ptr_nothrow<IRawElementProviderFragment> row;
+                RequireSucceeded(fragment->Navigate(NavigateDirection_FirstChild, row.put()), "plain resource first-child query succeeds");
+                while (row && childCount < rowCount)
+                {
+                    ++childCount;
+                    wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+                    RequireSucceeded(row->Navigate(NavigateDirection_NextSibling, next.put()), "plain resource sibling query succeeds");
+                    row = std::move(next);
+                }
+                sample(rowCount, cycle, "open", &geometry, childCount);
+            }
+            SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+            owner.PumpMessages();
+            Require(closed && WaitForWindowDestroyed(popup), "plain resource menu closes before next sample");
+            sample(rowCount, cycle, "closed", &geometry, childCount);
+        }
+    }
+}
 
 void RunMenuTests()
 {
