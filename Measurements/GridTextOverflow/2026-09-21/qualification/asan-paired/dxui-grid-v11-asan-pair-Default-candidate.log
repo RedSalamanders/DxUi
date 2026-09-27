@@ -1,0 +1,12 @@
+Complex UI clean round 1: 1939.55 completed offscreen FPS; p95 0.701 ms; private 211185664 bytes
+Complex UI clean round 2: 1906.14 completed offscreen FPS; p95 0.7061 ms; private 215670784 bytes
+Complex UI clean round 3: 2094.61 completed offscreen FPS; p95 0.5836 ms; private 218263552 bytes
+Complex UI clean round 4: 2018.46 completed offscreen FPS; p95 0.6681 ms; private 221405184 bytes
+Complex UI clean round 5: 2050.5 completed offscreen FPS; p95 0.5906 ms; private 224284672 bytes
+Complex UI dirty round 1: 95.1734 completed offscreen FPS; p95 11.1068 ms; private 366985216 bytes
+Complex UI dirty round 2: 93.4531 completed offscreen FPS; p95 11.2622 ms; private 502779904 bytes
+Complex UI dirty round 3: 97.1154 completed offscreen FPS; p95 12.1137 ms; private 534249472 bytes
+Complex UI dirty round 4: 98.4612 completed offscreen FPS; p95 12.4219 ms; private 536612864 bytes
+Complex UI dirty round 5: 96.7671 completed offscreen FPS; p95 12.7724 ms; private 538636288 bytes
+Performance comparison: within-noise-budget
+Performance receipt: C:\RedSalamander.Perf\evidence\i26-ui\dxui-grid-v11-asan-pair-Default-candidate.json

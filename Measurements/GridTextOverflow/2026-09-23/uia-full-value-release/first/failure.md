@@ -1,0 +1,1 @@
+The first new UIA witness failed its selected-state check: direct selection-model mutation omitted the required NotifyDataChanged notification. Grid, Rendering and Embedded passed with zero skips. The test wrapper propagated test.ps1 exception before its archival block; root archived the exact executable-bound suite receipts before any next run.

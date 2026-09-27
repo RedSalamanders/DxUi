@@ -1,0 +1,15 @@
+diff --git a/src/Controls/DxUi.Grid.cpp b/src/Controls/DxUi.Grid.cpp
+index 6707e91..5b69ddb 100644
+--- a/src/Controls/DxUi.Grid.cpp
++++ b/src/Controls/DxUi.Grid.cpp
+@@ -2038,8 +2038,9 @@ void Grid::DrawCellText(ControlHost& host, const GridCellData& cellData, const D
+     if (cache.layout && cache.paintHeight > 0.0f)
+     {
+         const auto origin = D2D1::Point2F(bounds.left, bounds.top + (height - cache.paintHeight) * 0.5f);
++        (void)origin; // Diagnostic isolation: retain layout work, suppress glyph submission.
+         if (auto* brush = host.GetSolidBrush(color))
+-            host.GetDeviceContext()->DrawTextLayout(origin, cache.layout.get(), brush, kTextDrawOptions);
++            (void)brush;
+     }
+ }
+ 

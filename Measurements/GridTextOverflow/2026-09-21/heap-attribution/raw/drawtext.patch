@@ -1,0 +1,22 @@
+diff --git a/src/Controls/DxUi.Grid.cpp b/src/Controls/DxUi.Grid.cpp
+index 6707e91..760e714 100644
+--- a/src/Controls/DxUi.Grid.cpp
++++ b/src/Controls/DxUi.Grid.cpp
+@@ -2039,7 +2039,16 @@ void Grid::DrawCellText(ControlHost& host, const GridCellData& cellData, const D
+     {
+         const auto origin = D2D1::Point2F(bounds.left, bounds.top + (height - cache.paintHeight) * 0.5f);
+         if (auto* brush = host.GetSolidBrush(color))
+-            host.GetDeviceContext()->DrawTextLayout(origin, cache.layout.get(), brush, kTextDrawOptions);
++        {
++            const auto& text = cache.displayText.empty() ? cache.text : cache.displayText;
++            host.GetDeviceContext()->DrawTextW(text.data(),
++                                               static_cast<UINT32>(text.size()),
++                                               cache.layout.get(),
++                                               D2D1::RectF(origin.x, origin.y, origin.x + width, origin.y + cache.paintHeight),
++                                               brush,
++                                               kTextDrawOptions,
++                                               DWRITE_MEASURING_MODE_NATURAL);
++        }
+     }
+ }
+ 

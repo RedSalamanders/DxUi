@@ -1,0 +1,23 @@
+[
+  {
+    "suite": "Grid",
+    "exitCode": 0,
+    "executableSha256": "F91C6215A77A12A8EC1D4D4E2B8D6C2F1213A24ED0E188D6D153CF8768790912",
+    "skips": [],
+    "qualification": "supplementary functional only; paired test.ps1 remains failed"
+  },
+  {
+    "suite": "Embedded",
+    "exitCode": 0,
+    "executableSha256": "2B1DED359EA87B0B58BBFC4AEE535227FFA4E0665E034260AFD0FE9C9B26AA5A",
+    "skips": [],
+    "qualification": "supplementary functional only; paired test.ps1 remains failed"
+  },
+  {
+    "suite": "Rendering",
+    "exitCode": 0,
+    "executableSha256": "F91C6215A77A12A8EC1D4D4E2B8D6C2F1213A24ED0E188D6D153CF8768790912",
+    "skips": [],
+    "qualification": "supplementary functional only; paired test.ps1 remains failed"
+  }
+]

@@ -1,0 +1,12 @@
+Complex UI clean round 1: 2393.46 completed offscreen FPS; p95 0.4936 ms; private 26464256 bytes
+Complex UI clean round 2: 2386.55 completed offscreen FPS; p95 0.5076 ms; private 26349568 bytes
+Complex UI clean round 3: 2294.64 completed offscreen FPS; p95 0.6016 ms; private 26333184 bytes
+Complex UI clean round 4: 2318.91 completed offscreen FPS; p95 0.5313 ms; private 26284032 bytes
+Complex UI clean round 5: 2477.04 completed offscreen FPS; p95 0.4759 ms; private 26247168 bytes
+Complex UI dirty round 1: 526.477 completed offscreen FPS; p95 2.1504 ms; private 27029504 bytes
+Complex UI dirty round 2: 530.802 completed offscreen FPS; p95 2.169 ms; private 27398144 bytes
+Complex UI dirty round 3: 469.782 completed offscreen FPS; p95 2.7827 ms; private 27860992 bytes
+Complex UI dirty round 4: 513.4 completed offscreen FPS; p95 2.1713 ms; private 27869184 bytes
+Complex UI dirty round 5: 552.017 completed offscreen FPS; p95 2.0726 ms; private 27942912 bytes
+Performance comparison: unpaired
+Performance receipt: C:\RedSalamander.Perf\evidence\i26-ui\dxui-grid-cache8-before-Default.json

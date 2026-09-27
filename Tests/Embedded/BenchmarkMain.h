@@ -8,6 +8,26 @@ int wmain(int argc, wchar_t** argv)
         ComplexUiBenchmark::Run(argv[2]);
         return 0;
     }
+    if (argc == 3 && std::wstring_view(argv[1]) == L"--benchmark-multiline-grid")
+    {
+        ComplexUiBenchmark::Run(argv[2], true);
+        return 0;
+    }
+    if (argc == 3 && std::wstring_view(argv[1]) == L"--benchmark-multiline-grid-retention")
+    {
+        ComplexUiBenchmark::Run(argv[2], true, true);
+        return 0;
+    }
+    if (argc == 3 && std::wstring_view(argv[1]) == L"--benchmark-multiline-grid-heap")
+    {
+        ComplexUiBenchmark::Run(argv[2], true, true, true);
+        return 0;
+    }
+    if (argc == 3 && std::wstring_view(argv[1]) == L"--benchmark-multiline-grid-heap-paced")
+    {
+        ComplexUiBenchmark::Run(argv[2], true, true, true, true);
+        return 0;
+    }
     if (argc == 3 && std::wstring_view(argv[1]) == L"--benchmark-retention")
     {
         // Fixed repeated create/render/hide/destroy cycles distinguish persistent

@@ -1,0 +1,1447 @@
+[
+  {
+    "path": "native-ARM64-ASan/reports/Accessibility-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "94893F3F8BE740BF3A4E249C14C1B18CFCE55E832F145B8F8F1B17B70E1BCFA1",
+    "bytes": 6333
+  },
+  {
+    "path": "native-ARM64-ASan/reports/AddressSanitizer-ARM64.json.receipt.txt",
+    "sha256": "109C1F3B7C275CF823B2E47BE2EEA220AED96BA1C3DFDA1ADF01EB9CAA463F34",
+    "bytes": 469
+  },
+  {
+    "path": "native-ARM64-ASan/reports/Animation-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "30E35763AF79C00F6BCA3AB8F3683122807A7FEDDD5BF52FD6A533DC9B1EBF24",
+    "bytes": 6329
+  },
+  {
+    "path": "native-ARM64-ASan/reports/ComboBox-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "70BF47FC69716C5D5CD6FBF42FCD44389E38BB7D4D59543F64C6D4F7AF72C84C",
+    "bytes": 6328
+  },
+  {
+    "path": "native-ARM64-ASan/reports/Control-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "D2D16289A89064A23888105BB2C52F228525E060AE1841CC06A0544927D0A1BE",
+    "bytes": 6327
+  },
+  {
+    "path": "native-ARM64-ASan/reports/Embedded-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "653F6169146B73FEC1F92F2B7582BCCFB5FD22CE9C8CF3FA1B9D7936FB02DBDA",
+    "bytes": 6329
+  },
+  {
+    "path": "native-ARM64-ASan/reports/ExternalConsumer-ARM64-ASan Debug-annotationsDisabledfalse.json.receipt.txt",
+    "sha256": "D0B26120124379EE6764770833AA5373186888A46019487B9446061B78545D19",
+    "bytes": 1624
+  },
+  {
+    "path": "native-ARM64-ASan/reports/ExternalConsumer-ARM64-ASan Debug-annotationsDisabledtrue.json.receipt.txt",
+    "sha256": "73E814AA6FED9BCFB405512D1E004BDE5F0053790781FEB8FCC769E4F7963759",
+    "bytes": 1622
+  },
+  {
+    "path": "native-ARM64-ASan/reports/Foundation-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "5FF61573BC2F87CEADBF3312428248772130C4575AFE446888179EFA7F91A386",
+    "bytes": 6333
+  },
+  {
+    "path": "native-ARM64-ASan/reports/Grid-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "DD65846CF40C5A8A10FAC71304737DDAE6DBE5AEC54AA38D49D3EB06E2D304B8",
+    "bytes": 6324
+  },
+  {
+    "path": "native-ARM64-ASan/reports/Menu-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "847BA4C1A3D63AA551F2826A23563F73FC53111843C54C1EDCA58434874C1514",
+    "bytes": 7196
+  },
+  {
+    "path": "native-ARM64-ASan/reports/MultilineText-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "0926CB7DB2EDDE12FD060F6F11623AC04480C35FF1795FD3D644EDE8C1A28812",
+    "bytes": 6333
+  },
+  {
+    "path": "native-ARM64-ASan/reports/NativeTextInput-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "B00629B2BDC699DE05DD84AFDD15A485ACA5C6ABB6F446A772619F12373218AB",
+    "bytes": 6335
+  },
+  {
+    "path": "native-ARM64-ASan/reports/NewControls-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "DC7B90DA4BBDC28258E2E791098016F47B5BE237D634D25D8831C62A5C19CA4C",
+    "bytes": 6331
+  },
+  {
+    "path": "native-ARM64-ASan/reports/Performance-ARM64-ASan Debug-c46b516da45141ecb55c1079269074bc.json.receipt.txt",
+    "sha256": "44E017BD26C38FA6295709DD88660EB50917D9816EFB14E7A94FFA345C0B766F",
+    "bytes": 7420
+  },
+  {
+    "path": "native-ARM64-ASan/reports/Performance-ARM64-ASan Debug-c46b516da45141ecb55c1079269074bc.json.comparison.json.receipt.txt",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "bytes": 48
+  },
+  {
+    "path": "native-ARM64-ASan/reports/ReadOnly-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "0A663F65AF9169DD9148BE025D7385CFD7AD2439E5FD477E2AF88A5372465DA9",
+    "bytes": 6328
+  },
+  {
+    "path": "native-ARM64-ASan/reports/Rendering-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "FA0EA5FA829AD63920326F196A5A5524168FFB1903D026CA3C9C525400F34AEF",
+    "bytes": 6329
+  },
+  {
+    "path": "native-ARM64-ASan/reports/TextField-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "B2FAF331CCF78FB4F1B4B58219B65EEB1E1E159F50C0CC1C8B6FDC3843B32992",
+    "bytes": 6329
+  },
+  {
+    "path": "native-ARM64-ASan/reports/Theme-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "CE3357B781F225C0C5A05A015D8966F193D18C489E73476424CBF3D9EC4A4F1B",
+    "bytes": 6325
+  },
+  {
+    "path": "native-ARM64-ASan/reports/Tooltip-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "3F1A0B14A7C2EB47FE16B56BA0E337B5A360103825608ECE2C2FB1910CD4BEC2",
+    "bytes": 6327
+  },
+  {
+    "path": "native-ARM64-ASan/reports/Tree-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "FCB01E889B61B6CFDAA4B61564685B599A4D7CF210775E72DA9CEA0262E372E5",
+    "bytes": 6324
+  },
+  {
+    "path": "native-ARM64-ASan/reports/WindowHost-ARM64-ASan Debug.json.receipt.txt",
+    "sha256": "3BFDD611BD08A9D7381BB121F192E4C0EB93A1DB28DF71336D0D5BA2B9147C96",
+    "bytes": 6330
+  },
+  {
+    "path": "native-ARM64-ASan/logs/build-ARM64-ASan Debug-e1a3a25131234bbaa88f9a7551279dd1.log",
+    "sha256": "4671083D2AA38A18B77C200B92F3BA578AB33BFD910B3029187988102CCE01BA",
+    "bytes": 27962
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-Accessibility-ARM64-ASan Debug.log",
+    "sha256": "234246E7D5168745A36D116A6CCFDDCE50E3E70F63EFC3BD4ABAF24C63544185",
+    "bytes": 7331
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-AddressSanitizer-ARM64.log",
+    "sha256": "0F4A2DB9DE20236B8487A117E5B4E21979AA11EFC29B6C480BEAE1FA0690F279",
+    "bytes": 5507
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-Animation-ARM64-ASan Debug.log",
+    "sha256": "181CCFB07A7C3C67AE25DB3125F5B63513438C19E074CC963D6C7A27B7A80D62",
+    "bytes": 191
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-ComboBox-ARM64-ASan Debug.log",
+    "sha256": "B29F09887D351C74847F6CECC4F116CB2C9A7EB685C9131B1CE8C641785EECA4",
+    "bytes": 4014
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-Control-ARM64-ASan Debug.log",
+    "sha256": "95CAF3A15680FEF0BFE497D91D39257F171A069CC23B2FC45C54D3CC00D8525A",
+    "bytes": 407
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-Embedded-ARM64-ASan Debug.log",
+    "sha256": "083494459970FB5A1737B02C512B5C36F067244323AEF4D2C2083AA5A8B64FC1",
+    "bytes": 98
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-Foundation-ARM64-ASan Debug.log",
+    "sha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+    "bytes": 24
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-Grid-ARM64-ASan Debug.log",
+    "sha256": "56BE34BA7534F443EDA10C157A3C019B403DDD6ABD6727CD481CF9BB95B66A28",
+    "bytes": 181
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-Menu-ARM64-ASan Debug.log",
+    "sha256": "470BB2F864C4F47993ECA6E7B5E95293ABCA3DF83DF89FE21A6D8CEE31296ADE",
+    "bytes": 14984
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-MultilineText-ARM64-ASan Debug.log",
+    "sha256": "115E90D3665AACA20F5630F5487FBC7498595492191EE0E55187CF02A7F82791",
+    "bytes": 15287
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-NativeTextInput-ARM64-ASan Debug.log",
+    "sha256": "7BE3A16E64171564885726A81C4DDB0C2BA34E3FA9510275C00B66A644783A48",
+    "bytes": 21843
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-NewControls-ARM64-ASan Debug.log",
+    "sha256": "5DAF7F3217972C46CCD5E3BB77CFFBF2043E1B2C5487C4FE3FA6536D0BB023BD",
+    "bytes": 715
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-ReadOnly-ARM64-ASan Debug.log",
+    "sha256": "ABCB9B85165FB68B19A0E70C815FE5676201CFD3999818F38D8E036AE0D0B07E",
+    "bytes": 2659
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-Rendering-ARM64-ASan Debug.log",
+    "sha256": "C907EE3D74839291E55B1BC88720144BEFD0FB43A2C2D53C666EC4A19EC039F3",
+    "bytes": 8110
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-TextField-ARM64-ASan Debug.log",
+    "sha256": "B1D3BB0D6930B5F596013377AF2CE45FFA53A97D822FF2F094301D7BA2A60493",
+    "bytes": 10883
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-Theme-ARM64-ASan Debug.log",
+    "sha256": "1D502C308BC9845AB1F08D2A89AC946A81537BE36E28BF9FCF8FC5A12007CEB7",
+    "bytes": 53
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-Tooltip-ARM64-ASan Debug.log",
+    "sha256": "619183B9E8A66D7089A4217F84D02494048118730F5C207D8EEFF7D837829002",
+    "bytes": 577
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-Tree-ARM64-ASan Debug.log",
+    "sha256": "A1594223B505DC7EF35C9C890ED80F1428F8B8CEEEA909653689929B7F56D288",
+    "bytes": 181
+  },
+  {
+    "path": "native-ARM64-ASan/logs/test-WindowHost-ARM64-ASan Debug.log",
+    "sha256": "F5BBAA513436B63AD12DFC4FCF58C4FB473D56FDE2643B8150BEDCB5761BE612",
+    "bytes": 11612
+  },
+  {
+    "path": "native-ARM64-Debug/reports/Accessibility-ARM64-Debug.json.receipt.txt",
+    "sha256": "672EA7AAD88E586E981B8489ADB86181EB96606D03AA0340B5B211E99FC8667F",
+    "bytes": 6241
+  },
+  {
+    "path": "native-ARM64-Debug/reports/Animation-ARM64-Debug.json.receipt.txt",
+    "sha256": "AF014BDAE900806C86DBB2991F7608E3A3C74A5D314F070AABD7A4E8C79D805A",
+    "bytes": 6237
+  },
+  {
+    "path": "native-ARM64-Debug/reports/ComboBox-ARM64-Debug.json.receipt.txt",
+    "sha256": "D96D1BFB701063C6227603C478B7CD578814C4325809634C926083D9F65CF1B1",
+    "bytes": 6236
+  },
+  {
+    "path": "native-ARM64-Debug/reports/Control-ARM64-Debug.json.receipt.txt",
+    "sha256": "00BAC2B5679AC4A6883C86BC569CBB39DE9EE40F769B86A8B54C287314370953",
+    "bytes": 6235
+  },
+  {
+    "path": "native-ARM64-Debug/reports/Embedded-ARM64-Debug.json.receipt.txt",
+    "sha256": "190917B0EE946BEA9D086B9F76A6AD3779B7193BFC460D67C729163F17EC7375",
+    "bytes": 6237
+  },
+  {
+    "path": "native-ARM64-Debug/reports/ExternalConsumer-ARM64-Debug-annotationsDisabledfalse.json.receipt.txt",
+    "sha256": "E1CA79F651C630683A4EFCC1FA5FA5E6416D2A2F3E162488069399E80E452FE5",
+    "bytes": 1619
+  },
+  {
+    "path": "native-ARM64-Debug/reports/Foundation-ARM64-Debug.json.receipt.txt",
+    "sha256": "466F3F621B5296009E925F0D70166769DD3357C157E6C35A74C000648CCB8331",
+    "bytes": 6241
+  },
+  {
+    "path": "native-ARM64-Debug/reports/Grid-ARM64-Debug.json.receipt.txt",
+    "sha256": "8D712D09A6F3FF91BD0FDD76D796DE3022FE5C428746EB0616E60A2586EEC25D",
+    "bytes": 6232
+  },
+  {
+    "path": "native-ARM64-Debug/reports/Menu-ARM64-Debug.json.receipt.txt",
+    "sha256": "1897166FD8354EA960263C835DC23A135675FDE9E5764F51F6831DE2BE183D25",
+    "bytes": 7104
+  },
+  {
+    "path": "native-ARM64-Debug/reports/MultilineText-ARM64-Debug.json.receipt.txt",
+    "sha256": "5C1901B0A249991E0EB94DBDA39EA7AA9BE2D643AE67E88A2A77B3A655AA1D91",
+    "bytes": 6241
+  },
+  {
+    "path": "native-ARM64-Debug/reports/NativeTextInput-ARM64-Debug.json.receipt.txt",
+    "sha256": "2DE41FA5BDA7041A43236C1D8944BD1DE5C915EAA13C7DE73CCC30F3DE9B4179",
+    "bytes": 6243
+  },
+  {
+    "path": "native-ARM64-Debug/reports/NewControls-ARM64-Debug.json.receipt.txt",
+    "sha256": "D122B89008C7BD64D07ACCD34906FD4A7D3A6B9AFFA507268FBE9F1AB4A26205",
+    "bytes": 6239
+  },
+  {
+    "path": "native-ARM64-Debug/reports/Performance-ARM64-Debug-3190253d0462427d8b1aa79e94182828.json.receipt.txt",
+    "sha256": "F63F91FB6ECA7CCACC376CFF9ECCD05201DE3D6B2EFFAB2CC9D5C7A315FAF850",
+    "bytes": 7338
+  },
+  {
+    "path": "native-ARM64-Debug/reports/Performance-ARM64-Debug-3190253d0462427d8b1aa79e94182828.json.comparison.json.receipt.txt",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "bytes": 48
+  },
+  {
+    "path": "native-ARM64-Debug/reports/ReadOnly-ARM64-Debug.json.receipt.txt",
+    "sha256": "333C7743621EC8B6274A09796DFBE5732039687CEDDA8BA76E57B0EBEA492791",
+    "bytes": 6236
+  },
+  {
+    "path": "native-ARM64-Debug/reports/Rendering-ARM64-Debug.json.receipt.txt",
+    "sha256": "128BF71233A54583B4526FEAE2A30F28535DF564ACD2149FE2FDE3754E78BB23",
+    "bytes": 6237
+  },
+  {
+    "path": "native-ARM64-Debug/reports/TextField-ARM64-Debug.json.receipt.txt",
+    "sha256": "BE12A1D55DB29A71D83EF1F512FDEA1E56F36E76C4CE6C827AD1B0DA8C135A2E",
+    "bytes": 6237
+  },
+  {
+    "path": "native-ARM64-Debug/reports/Theme-ARM64-Debug.json.receipt.txt",
+    "sha256": "4FF6B6447269C55FE68B5915E269D59120BE432097E46F5D9E0BDEEA8F1DC393",
+    "bytes": 6233
+  },
+  {
+    "path": "native-ARM64-Debug/reports/Tooltip-ARM64-Debug.json.receipt.txt",
+    "sha256": "9FD6A167D3F8E94FE00DE8014EA733E44BC2582486D6BE964A48DFE419C0E7BA",
+    "bytes": 6235
+  },
+  {
+    "path": "native-ARM64-Debug/reports/Tree-ARM64-Debug.json.receipt.txt",
+    "sha256": "59E91696AEE55AE335A1A8800DAD6A7E654235E156F7F83C19ABC67E5F3FAB81",
+    "bytes": 6232
+  },
+  {
+    "path": "native-ARM64-Debug/reports/WindowHost-ARM64-Debug.json.receipt.txt",
+    "sha256": "C0B955A78DD9FC616F64E9A646A2DAF59E49B5424B5436998FCD64BCE6229CE9",
+    "bytes": 6238
+  },
+  {
+    "path": "native-ARM64-Debug/logs/build-ARM64-Debug-316967a757be45dcbacb22cee8ce5d64.log",
+    "sha256": "CBC1D26C4BBEF181718002998A657933BE8048934765FE45BAC16A47890456D4",
+    "bytes": 26985
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-Accessibility-ARM64-Debug.log",
+    "sha256": "3661654C233CD6CDCFF32CAB49D4E422BB0C2716DEA2D8ACAAB5C9133C76982D",
+    "bytes": 7331
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-Animation-ARM64-Debug.log",
+    "sha256": "181CCFB07A7C3C67AE25DB3125F5B63513438C19E074CC963D6C7A27B7A80D62",
+    "bytes": 191
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-ComboBox-ARM64-Debug.log",
+    "sha256": "B29F09887D351C74847F6CECC4F116CB2C9A7EB685C9131B1CE8C641785EECA4",
+    "bytes": 4014
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-Control-ARM64-Debug.log",
+    "sha256": "C8C625EEFC426FCA42677FA4C540575831A13FA5670EEC6AE340F9A3BD6B5B7E",
+    "bytes": 407
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-Embedded-ARM64-Debug.log",
+    "sha256": "EA612BCA2E18FE9E0FAF12BF4D0DC830DD07A9B3ABF3808AB53EF7673773C7E4",
+    "bytes": 96
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-Foundation-ARM64-Debug.log",
+    "sha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+    "bytes": 24
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-Grid-ARM64-Debug.log",
+    "sha256": "56BE34BA7534F443EDA10C157A3C019B403DDD6ABD6727CD481CF9BB95B66A28",
+    "bytes": 181
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-Menu-ARM64-Debug.log",
+    "sha256": "470BB2F864C4F47993ECA6E7B5E95293ABCA3DF83DF89FE21A6D8CEE31296ADE",
+    "bytes": 14984
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-MultilineText-ARM64-Debug.log",
+    "sha256": "115E90D3665AACA20F5630F5487FBC7498595492191EE0E55187CF02A7F82791",
+    "bytes": 15287
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-NativeTextInput-ARM64-Debug.log",
+    "sha256": "7A5AEC17BCDED55702B3EF6635DA5FB9A9F818976BB2ECD192BF24F240FF6A90",
+    "bytes": 21843
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-NewControls-ARM64-Debug.log",
+    "sha256": "5DAF7F3217972C46CCD5E3BB77CFFBF2043E1B2C5487C4FE3FA6536D0BB023BD",
+    "bytes": 715
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-ReadOnly-ARM64-Debug.log",
+    "sha256": "ABCB9B85165FB68B19A0E70C815FE5676201CFD3999818F38D8E036AE0D0B07E",
+    "bytes": 2659
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-Rendering-ARM64-Debug.log",
+    "sha256": "BE5A562987FC93E2F85D067F852E4ED4C8D0A20066D3F0E353D7DB38F336A77B",
+    "bytes": 8110
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-TextField-ARM64-Debug.log",
+    "sha256": "B1D3BB0D6930B5F596013377AF2CE45FFA53A97D822FF2F094301D7BA2A60493",
+    "bytes": 10883
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-Theme-ARM64-Debug.log",
+    "sha256": "1D502C308BC9845AB1F08D2A89AC946A81537BE36E28BF9FCF8FC5A12007CEB7",
+    "bytes": 53
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-Tooltip-ARM64-Debug.log",
+    "sha256": "619183B9E8A66D7089A4217F84D02494048118730F5C207D8EEFF7D837829002",
+    "bytes": 577
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-Tree-ARM64-Debug.log",
+    "sha256": "A1594223B505DC7EF35C9C890ED80F1428F8B8CEEEA909653689929B7F56D288",
+    "bytes": 181
+  },
+  {
+    "path": "native-ARM64-Debug/logs/test-WindowHost-ARM64-Debug.log",
+    "sha256": "F5BBAA513436B63AD12DFC4FCF58C4FB473D56FDE2643B8150BEDCB5761BE612",
+    "bytes": 11612
+  },
+  {
+    "path": "native-ARM64-Release/reports/Accessibility-ARM64-Release.json.receipt.txt",
+    "sha256": "72A3DCED81C1786AB88205D08AE2CEEBB836AFD244C6CFE51D16669B03AF1C91",
+    "bytes": 6236
+  },
+  {
+    "path": "native-ARM64-Release/reports/Animation-ARM64-Release.json.receipt.txt",
+    "sha256": "1ED7A3BE987D17689E501753649E7A926BF2760A61C02FD7E1032AF16D738B8A",
+    "bytes": 6232
+  },
+  {
+    "path": "native-ARM64-Release/reports/ComboBox-ARM64-Release.json.receipt.txt",
+    "sha256": "0F9B2C5354AEC97A5DC4759282D3F89896AA40084F3FAF6EF5634FF11DF886FA",
+    "bytes": 6231
+  },
+  {
+    "path": "native-ARM64-Release/reports/Control-ARM64-Release.json.receipt.txt",
+    "sha256": "309B24C7E1F0EE848C7E7049894C9A99994169A67EF989892DE70EA8CFEB2408",
+    "bytes": 6230
+  },
+  {
+    "path": "native-ARM64-Release/reports/Embedded-ARM64-Release.json.receipt.txt",
+    "sha256": "01D8C94BB07110E380FD4B24B9845B583AA40895B870506945BAC706A3BE23FB",
+    "bytes": 6232
+  },
+  {
+    "path": "native-ARM64-Release/reports/ExternalConsumer-ARM64-Release-annotationsDisabledfalse.json.receipt.txt",
+    "sha256": "03DE19BDBDEB28DE4DB3DCE15B4E00226B7A8550A42BBED820F69188699F3AFC",
+    "bytes": 1621
+  },
+  {
+    "path": "native-ARM64-Release/reports/Foundation-ARM64-Release.json.receipt.txt",
+    "sha256": "4C06C1CD0E7F58E760F8C4BB90BB659BAF2C6D87E5946A7F0D72BDEDFABF176E",
+    "bytes": 6236
+  },
+  {
+    "path": "native-ARM64-Release/reports/Grid-ARM64-Release.json.receipt.txt",
+    "sha256": "4597909FEE407AFD039B3EDB5060680DB780C9391312A35734BC369BC849641D",
+    "bytes": 6227
+  },
+  {
+    "path": "native-ARM64-Release/reports/Menu-ARM64-Release.json.receipt.txt",
+    "sha256": "5EC632E8A5766DE7BDBE68AB5384204F767DAA2DEBC076BD21B8E5B3A2BD1454",
+    "bytes": 7099
+  },
+  {
+    "path": "native-ARM64-Release/reports/MultilineText-ARM64-Release.json.receipt.txt",
+    "sha256": "DC22F50B8714C867A068A8E2D7A76026B69272A3F6328603C9291DB3A1BE420F",
+    "bytes": 6236
+  },
+  {
+    "path": "native-ARM64-Release/reports/NativeTextInput-ARM64-Release.json.receipt.txt",
+    "sha256": "32D52A6AD869F42FA56ABB33C146FDA2ACEAAC1247C1955866C8532B791B3ADB",
+    "bytes": 6238
+  },
+  {
+    "path": "native-ARM64-Release/reports/NewControls-ARM64-Release.json.receipt.txt",
+    "sha256": "70796790AE172009012BB6E37CF08C0DDB7E9B5275837FB055A239D05966C7B1",
+    "bytes": 6234
+  },
+  {
+    "path": "native-ARM64-Release/reports/Performance-ARM64-Release-ac1340595b34407489dad4090cc68061.json.receipt.txt",
+    "sha256": "5A37132439079FD6DBC24CB5D8823CE66BDACA0AF2C5826469E21C46A6911703",
+    "bytes": 7328
+  },
+  {
+    "path": "native-ARM64-Release/reports/Performance-ARM64-Release-ac1340595b34407489dad4090cc68061.json.comparison.json.receipt.txt",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "bytes": 48
+  },
+  {
+    "path": "native-ARM64-Release/reports/ReadOnly-ARM64-Release.json.receipt.txt",
+    "sha256": "F98A63320AA142125F0F3EF2EB3358BC4955ACFA37223A3326D850D42F71DAA5",
+    "bytes": 6231
+  },
+  {
+    "path": "native-ARM64-Release/reports/Rendering-ARM64-Release.json.receipt.txt",
+    "sha256": "30ADCFD2CE49219943A11F7FF99D10E86E2B1FF286BED5BFD6FFA6F0844B1567",
+    "bytes": 6232
+  },
+  {
+    "path": "native-ARM64-Release/reports/TextField-ARM64-Release.json.receipt.txt",
+    "sha256": "DD3769D4188995D01195B783B5445EC54757EAAABCE4BD5C16E69B5E17E4CCDC",
+    "bytes": 6232
+  },
+  {
+    "path": "native-ARM64-Release/reports/Theme-ARM64-Release.json.receipt.txt",
+    "sha256": "AE5A82B9079A539653D0B64DAC913114700FA8B1F75C9FC330D9D2E200529C7A",
+    "bytes": 6228
+  },
+  {
+    "path": "native-ARM64-Release/reports/Tooltip-ARM64-Release.json.receipt.txt",
+    "sha256": "E1176A2E4FBB0BB0BE1FAB7F61F66F30575BB78EC412CEB86D05DF5CCCAF4141",
+    "bytes": 6230
+  },
+  {
+    "path": "native-ARM64-Release/reports/Tree-ARM64-Release.json.receipt.txt",
+    "sha256": "FF3D1BA2957F78B644B1923ED782A398110CBA395DC6F0F6EDEE72C2F6E47AE3",
+    "bytes": 6227
+  },
+  {
+    "path": "native-ARM64-Release/reports/WindowHost-ARM64-Release.json.receipt.txt",
+    "sha256": "D1D6266F152AD339AA7A91B4D2C786BDDDD0632AD71ECAEB52FF62FEE0C51A4E",
+    "bytes": 6233
+  },
+  {
+    "path": "native-ARM64-Release/logs/build-ARM64-Release-ab873e2b93664564bcbdbd239ec8c925.log",
+    "sha256": "8980C702DFCCEAEAD1B1933D033DB2E3AA552F1C27D4FB01469C62A7B1595FAE",
+    "bytes": 26823
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-Accessibility-ARM64-Release.log",
+    "sha256": "A389AEE87355DFD7155C0A27543642781E9EE08B9F0BA4E4FF973911C4EE3F93",
+    "bytes": 7331
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-Animation-ARM64-Release.log",
+    "sha256": "181CCFB07A7C3C67AE25DB3125F5B63513438C19E074CC963D6C7A27B7A80D62",
+    "bytes": 191
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-ComboBox-ARM64-Release.log",
+    "sha256": "B29F09887D351C74847F6CECC4F116CB2C9A7EB685C9131B1CE8C641785EECA4",
+    "bytes": 4014
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-Control-ARM64-Release.log",
+    "sha256": "7C8FFDFF16E3D67F08DEC3BC5356F9EBB243A747C9BB865BE5EFE6163DA412C1",
+    "bytes": 402
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-Embedded-ARM64-Release.log",
+    "sha256": "376C61919023E14FDFBE0ED1DEA8DE130BF870D9E0684C76D6CA1B676F580CE1",
+    "bytes": 96
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-Foundation-ARM64-Release.log",
+    "sha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+    "bytes": 24
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-Grid-ARM64-Release.log",
+    "sha256": "56BE34BA7534F443EDA10C157A3C019B403DDD6ABD6727CD481CF9BB95B66A28",
+    "bytes": 181
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-Menu-ARM64-Release.log",
+    "sha256": "470BB2F864C4F47993ECA6E7B5E95293ABCA3DF83DF89FE21A6D8CEE31296ADE",
+    "bytes": 14984
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-MultilineText-ARM64-Release.log",
+    "sha256": "115E90D3665AACA20F5630F5487FBC7498595492191EE0E55187CF02A7F82791",
+    "bytes": 15287
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-NativeTextInput-ARM64-Release.log",
+    "sha256": "8C256281826185645EB9235BA21F7D6B50E8899A063E96610376952354E69BBD",
+    "bytes": 21838
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-NewControls-ARM64-Release.log",
+    "sha256": "5DAF7F3217972C46CCD5E3BB77CFFBF2043E1B2C5487C4FE3FA6536D0BB023BD",
+    "bytes": 715
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-ReadOnly-ARM64-Release.log",
+    "sha256": "ABCB9B85165FB68B19A0E70C815FE5676201CFD3999818F38D8E036AE0D0B07E",
+    "bytes": 2659
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-Rendering-ARM64-Release.log",
+    "sha256": "06D0E98EC0502EC6A2701660E02E769D83D56366153A02D1E1DFA5ACA8744F76",
+    "bytes": 8110
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-TextField-ARM64-Release.log",
+    "sha256": "B1D3BB0D6930B5F596013377AF2CE45FFA53A97D822FF2F094301D7BA2A60493",
+    "bytes": 10883
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-Theme-ARM64-Release.log",
+    "sha256": "1D502C308BC9845AB1F08D2A89AC946A81537BE36E28BF9FCF8FC5A12007CEB7",
+    "bytes": 53
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-Tooltip-ARM64-Release.log",
+    "sha256": "619183B9E8A66D7089A4217F84D02494048118730F5C207D8EEFF7D837829002",
+    "bytes": 577
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-Tree-ARM64-Release.log",
+    "sha256": "A1594223B505DC7EF35C9C890ED80F1428F8B8CEEEA909653689929B7F56D288",
+    "bytes": 181
+  },
+  {
+    "path": "native-ARM64-Release/logs/test-WindowHost-ARM64-Release.log",
+    "sha256": "F5BBAA513436B63AD12DFC4FCF58C4FB473D56FDE2643B8150BEDCB5761BE612",
+    "bytes": 11612
+  },
+  {
+    "path": "native-x64-ASan/reports/Accessibility-x64-ASan Debug.json.receipt.txt",
+    "sha256": "CBFAA528C753D18FDDFB8F05C4E4008FEC3C4A4EFC1947313FEACF5684337486",
+    "bytes": 6323
+  },
+  {
+    "path": "native-x64-ASan/reports/AddressSanitizer-x64.json.receipt.txt",
+    "sha256": "543E993CDD4628A0D15E7A6C7943C481DDE00E4FA3EF5E91F737AB699823137B",
+    "bytes": 461
+  },
+  {
+    "path": "native-x64-ASan/reports/Animation-x64-ASan Debug.json.receipt.txt",
+    "sha256": "994F3EB8A2464C95382567C8BD46CA25BFF1318F3952C22E1C230DC74474EDEB",
+    "bytes": 6319
+  },
+  {
+    "path": "native-x64-ASan/reports/ComboBox-x64-ASan Debug.json.receipt.txt",
+    "sha256": "07EC2EEE58CAF5AE8627029FE48F9C3A624D2E2E0A14B22069C9F2C8E44CB411",
+    "bytes": 6318
+  },
+  {
+    "path": "native-x64-ASan/reports/Control-x64-ASan Debug.json.receipt.txt",
+    "sha256": "92AAA2C4D58F67BDD9626F78B853098C077254A982670DA1C7942A282B0738DD",
+    "bytes": 6317
+  },
+  {
+    "path": "native-x64-ASan/reports/Embedded-x64-ASan Debug.json.receipt.txt",
+    "sha256": "9B943CB15E1F00F6F876BAF65A0DFC9084DD69CB5DE55A90C6DE7B31157750AA",
+    "bytes": 6319
+  },
+  {
+    "path": "native-x64-ASan/reports/ExternalConsumer-x64-ASan Debug-annotationsDisabledfalse.json.receipt.txt",
+    "sha256": "2F86700A6C3A6B3BC31E820420189250588C14C8B41C47E72C4AC889A6716827",
+    "bytes": 1618
+  },
+  {
+    "path": "native-x64-ASan/reports/ExternalConsumer-x64-ASan Debug-annotationsDisabledtrue.json.receipt.txt",
+    "sha256": "E584624AF8680B26B6A58C51D21EE169DED8664B7C35F8FDEA074BB6DA6711DE",
+    "bytes": 1616
+  },
+  {
+    "path": "native-x64-ASan/reports/Foundation-x64-ASan Debug.json.receipt.txt",
+    "sha256": "E53257DA8408CFA6BF77207065EDD36B6AD682E26949C34E82D5F323DE6EE629",
+    "bytes": 6323
+  },
+  {
+    "path": "native-x64-ASan/reports/Grid-x64-ASan Debug.json.receipt.txt",
+    "sha256": "02C6968D26E9440860A627E586EA4547AE1994FFF98F38E81BEF999DA1A73536",
+    "bytes": 6314
+  },
+  {
+    "path": "native-x64-ASan/reports/Menu-x64-ASan Debug.json.receipt.txt",
+    "sha256": "6BDF882430931426B8F05CDE3ABE9056225EF29D359575A5E19D927049B49390",
+    "bytes": 6314
+  },
+  {
+    "path": "native-x64-ASan/reports/MultilineText-x64-ASan Debug.json.receipt.txt",
+    "sha256": "77E725039B1CB1ECC0955D90550F8D43143E9692E23A223A767E844F80D169AE",
+    "bytes": 6323
+  },
+  {
+    "path": "native-x64-ASan/reports/NativeTextInput-x64-ASan Debug.json.receipt.txt",
+    "sha256": "228DFEFAD11583C5AB3DE21324EC368DB6BEC25E83A3554916A31BA38DBF5AB9",
+    "bytes": 6325
+  },
+  {
+    "path": "native-x64-ASan/reports/NewControls-x64-ASan Debug.json.receipt.txt",
+    "sha256": "3FDEC33E0FCE47FA48B8816FB9D5BBE753A30C67593E8A4DF9E50D3587AB82D2",
+    "bytes": 6321
+  },
+  {
+    "path": "native-x64-ASan/reports/Performance-x64-ASan Debug-ce194e3f2a9b46a19515dba119c53456.json.receipt.txt",
+    "sha256": "01259C6250CC393C0FF181BC34A9EE61006D4F7EE340BB5DFD1389807E2C8373",
+    "bytes": 7436
+  },
+  {
+    "path": "native-x64-ASan/reports/Performance-x64-ASan Debug-ce194e3f2a9b46a19515dba119c53456.json.comparison.json.receipt.txt",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "bytes": 48
+  },
+  {
+    "path": "native-x64-ASan/reports/ReadOnly-x64-ASan Debug.json.receipt.txt",
+    "sha256": "6512A5BAD3B8912AE4B73E255DE1390B1CC9C4E55A753D484DA4785FAD631522",
+    "bytes": 6318
+  },
+  {
+    "path": "native-x64-ASan/reports/Rendering-x64-ASan Debug.json.receipt.txt",
+    "sha256": "8810241F89923B8A09ED5CEF3BD5DE4CBF41AC38EC3EF7C1ECF4CFC6BFEA0153",
+    "bytes": 6319
+  },
+  {
+    "path": "native-x64-ASan/reports/TextField-x64-ASan Debug.json.receipt.txt",
+    "sha256": "98CAA73D8067A70EE090701EE6A4F48D78812129E7704EE6DCA39E04E0FCA81B",
+    "bytes": 6319
+  },
+  {
+    "path": "native-x64-ASan/reports/Theme-x64-ASan Debug.json.receipt.txt",
+    "sha256": "0A4526FE6B02EF913883AA4342B76D985BE2C5422A4D41E089F0B75C7A72BC8E",
+    "bytes": 6315
+  },
+  {
+    "path": "native-x64-ASan/reports/Tooltip-x64-ASan Debug.json.receipt.txt",
+    "sha256": "CA484BF08956036F57769564A77F4B40C712DBB705FB44F3A1ABBC8884A86967",
+    "bytes": 6317
+  },
+  {
+    "path": "native-x64-ASan/reports/Tree-x64-ASan Debug.json.receipt.txt",
+    "sha256": "A78E9C6DB206B4EA22A3CA86802738BE53B95D7792B2EF4E9611976F2EF7836D",
+    "bytes": 6314
+  },
+  {
+    "path": "native-x64-ASan/reports/WindowHost-x64-ASan Debug.json.receipt.txt",
+    "sha256": "2694F6CBAF0B9D9CDA72F43DF8405FF8088DF2A8F02207F09F41F76455EC95FA",
+    "bytes": 6320
+  },
+  {
+    "path": "native-x64-ASan/logs/build-x64-ASan Debug-abe8aa83a4954c9d8890a989dfbccf14.log",
+    "sha256": "DBCA09E2181F3E085B3408796A69344AAE7F59893FE9DFE018D2D183D7F95B3B",
+    "bytes": 27388
+  },
+  {
+    "path": "native-x64-ASan/logs/test-Accessibility-x64-ASan Debug.log",
+    "sha256": "C8A9C8035EE1881AC0DCB91834AAA9E62595EDBBD74836A3C226783CEFAECBF2",
+    "bytes": 7331
+  },
+  {
+    "path": "native-x64-ASan/logs/test-AddressSanitizer-x64.log",
+    "sha256": "B3F1949EFFBB0523C6D0F455BE55FEBEF0DF1A6AB1EB9EE8C6D5751D1562089D",
+    "bytes": 5507
+  },
+  {
+    "path": "native-x64-ASan/logs/test-Animation-x64-ASan Debug.log",
+    "sha256": "181CCFB07A7C3C67AE25DB3125F5B63513438C19E074CC963D6C7A27B7A80D62",
+    "bytes": 191
+  },
+  {
+    "path": "native-x64-ASan/logs/test-ComboBox-x64-ASan Debug.log",
+    "sha256": "B29F09887D351C74847F6CECC4F116CB2C9A7EB685C9131B1CE8C641785EECA4",
+    "bytes": 4014
+  },
+  {
+    "path": "native-x64-ASan/logs/test-Control-x64-ASan Debug.log",
+    "sha256": "8E651D73CC84072748B243C06E69FD9FFAF4ECD7A2036795464B4E3CC58C9694",
+    "bytes": 407
+  },
+  {
+    "path": "native-x64-ASan/logs/test-Embedded-x64-ASan Debug.log",
+    "sha256": "7D779CEBA8BD70E9BD8E5DFAD41B07EB10AB08E9B6DB812EDA68B5F12D05F7BD",
+    "bytes": 97
+  },
+  {
+    "path": "native-x64-ASan/logs/test-Foundation-x64-ASan Debug.log",
+    "sha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+    "bytes": 24
+  },
+  {
+    "path": "native-x64-ASan/logs/test-Grid-x64-ASan Debug.log",
+    "sha256": "56BE34BA7534F443EDA10C157A3C019B403DDD6ABD6727CD481CF9BB95B66A28",
+    "bytes": 181
+  },
+  {
+    "path": "native-x64-ASan/logs/test-Menu-x64-ASan Debug.log",
+    "sha256": "4A55CBE69DDE5FF725D90D66FEB3BD592E5C65FC61F2E6292983CDA9B700B26E",
+    "bytes": 14178
+  },
+  {
+    "path": "native-x64-ASan/logs/test-MultilineText-x64-ASan Debug.log",
+    "sha256": "115E90D3665AACA20F5630F5487FBC7498595492191EE0E55187CF02A7F82791",
+    "bytes": 15287
+  },
+  {
+    "path": "native-x64-ASan/logs/test-NativeTextInput-x64-ASan Debug.log",
+    "sha256": "E8B9C3AB6BEDCDE66B046D24354DEC845BF067E851B3D68EDE6F268D3068CCF0",
+    "bytes": 21843
+  },
+  {
+    "path": "native-x64-ASan/logs/test-NewControls-x64-ASan Debug.log",
+    "sha256": "5DAF7F3217972C46CCD5E3BB77CFFBF2043E1B2C5487C4FE3FA6536D0BB023BD",
+    "bytes": 715
+  },
+  {
+    "path": "native-x64-ASan/logs/test-ReadOnly-x64-ASan Debug.log",
+    "sha256": "ABCB9B85165FB68B19A0E70C815FE5676201CFD3999818F38D8E036AE0D0B07E",
+    "bytes": 2659
+  },
+  {
+    "path": "native-x64-ASan/logs/test-Rendering-x64-ASan Debug.log",
+    "sha256": "39DFE92E390CBA12842879A0F5EE5A7D1551D863EFE0C53E50CA03C5050A2311",
+    "bytes": 8110
+  },
+  {
+    "path": "native-x64-ASan/logs/test-TextField-x64-ASan Debug.log",
+    "sha256": "B1D3BB0D6930B5F596013377AF2CE45FFA53A97D822FF2F094301D7BA2A60493",
+    "bytes": 10883
+  },
+  {
+    "path": "native-x64-ASan/logs/test-Theme-x64-ASan Debug.log",
+    "sha256": "1D502C308BC9845AB1F08D2A89AC946A81537BE36E28BF9FCF8FC5A12007CEB7",
+    "bytes": 53
+  },
+  {
+    "path": "native-x64-ASan/logs/test-Tooltip-x64-ASan Debug.log",
+    "sha256": "619183B9E8A66D7089A4217F84D02494048118730F5C207D8EEFF7D837829002",
+    "bytes": 577
+  },
+  {
+    "path": "native-x64-ASan/logs/test-Tree-x64-ASan Debug.log",
+    "sha256": "A1594223B505DC7EF35C9C890ED80F1428F8B8CEEEA909653689929B7F56D288",
+    "bytes": 181
+  },
+  {
+    "path": "native-x64-ASan/logs/test-WindowHost-x64-ASan Debug.log",
+    "sha256": "6BB94961429D5625CC382694356CFCC911E579AC5FAAD205237DA539C6D0E773",
+    "bytes": 11605
+  },
+  {
+    "path": "native-x64-Debug/reports/Accessibility-x64-Debug.json.receipt.txt",
+    "sha256": "27A9C5514FBD2F7224C93B964F49278A9DEA89BE501B9985AF9A12BAB7100394",
+    "bytes": 6241
+  },
+  {
+    "path": "native-x64-Debug/reports/Animation-x64-Debug.json.receipt.txt",
+    "sha256": "700486C5DA2B87097594FFE762B866E3F3CA135A55CFC9DF9BF4E8D5DDEBE38E",
+    "bytes": 6237
+  },
+  {
+    "path": "native-x64-Debug/reports/ComboBox-x64-Debug.json.receipt.txt",
+    "sha256": "179A56B5BE299CDCF0BADB367DE9FAFEE38DFB7049D5AA44963C0B5DD00BC076",
+    "bytes": 6236
+  },
+  {
+    "path": "native-x64-Debug/reports/Control-x64-Debug.json.receipt.txt",
+    "sha256": "159A982D0C7094253FD41B2029D44AA00B9F8B5DF0FFED221218B4AC91D03327",
+    "bytes": 6235
+  },
+  {
+    "path": "native-x64-Debug/reports/Embedded-x64-Debug.json.receipt.txt",
+    "sha256": "7DAF37B2AC02548EE4F10451E26B44154B1DB84BD49C95F2F6B90E905A7EFD28",
+    "bytes": 6237
+  },
+  {
+    "path": "native-x64-Debug/reports/Foundation-x64-Debug.json.receipt.txt",
+    "sha256": "2B2E51C5B9EDF54BA3FAD8DC4AF405F68AFAA11ECBB36F7311CB6B2E2BA5ABAB",
+    "bytes": 6241
+  },
+  {
+    "path": "native-x64-Debug/reports/Grid-x64-Debug.json.receipt.txt",
+    "sha256": "5E16458D22567FA4F75077F93EBACB563A901F50AFE2A1F0E7EEB82BC3790EE7",
+    "bytes": 6232
+  },
+  {
+    "path": "native-x64-Debug/reports/Menu-x64-Debug.json.receipt.txt",
+    "sha256": "39B981F6A39080C0D27701CB0EFCF08E102C73D736B162581B19632FEA69457C",
+    "bytes": 6232
+  },
+  {
+    "path": "native-x64-Debug/reports/MultilineText-x64-Debug.json.receipt.txt",
+    "sha256": "44E71925FA7485F51CB2EF8E9E41FF65A1A1156286DFCCD76A7DA892967A26B3",
+    "bytes": 6241
+  },
+  {
+    "path": "native-x64-Debug/reports/NativeTextInput-x64-Debug.json.receipt.txt",
+    "sha256": "D1503462B97058176451C6B7869F6830356626C85A70AB9FAC86255F29D3FAF9",
+    "bytes": 6243
+  },
+  {
+    "path": "native-x64-Debug/reports/NewControls-x64-Debug.json.receipt.txt",
+    "sha256": "0F52AFBE2AB23EF98FD1258EE5B8BF94211367D92B4826457D56B91DB1A72DF5",
+    "bytes": 6239
+  },
+  {
+    "path": "native-x64-Debug/reports/Performance-x64-Debug-fd900d245ccb4e91b207e7ad17f8aafd.json.receipt.txt",
+    "sha256": "C71CE763A33E2435A0E292E85EF144B15157E8AE0BBDA8B21C617C0175F4CEBD",
+    "bytes": 7364
+  },
+  {
+    "path": "native-x64-Debug/reports/Performance-x64-Debug-fd900d245ccb4e91b207e7ad17f8aafd.json.comparison.json.receipt.txt",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "bytes": 48
+  },
+  {
+    "path": "native-x64-Debug/reports/ReadOnly-x64-Debug.json.receipt.txt",
+    "sha256": "2016A8D3D2A3A4350388266937E80B2DA64DD9BE651CD5D866CEC4AFE0C6B670",
+    "bytes": 6236
+  },
+  {
+    "path": "native-x64-Debug/reports/Rendering-x64-Debug.json.receipt.txt",
+    "sha256": "E94AA3204A540DE06CC3CB8546EC37DA5F8D7FA366E0F84A7A30AF72A9E8994F",
+    "bytes": 6237
+  },
+  {
+    "path": "native-x64-Debug/reports/TextField-x64-Debug.json.receipt.txt",
+    "sha256": "B6E6544474EA03B6125C5F70954BAEEAFAEE6162B392560A094E55BFA9E5FAB9",
+    "bytes": 6237
+  },
+  {
+    "path": "native-x64-Debug/reports/Theme-x64-Debug.json.receipt.txt",
+    "sha256": "C73658D104BBE021529E4164AD3CDF2AF00CCE387FD65EDC4A0EF5A1BEF255C7",
+    "bytes": 6233
+  },
+  {
+    "path": "native-x64-Debug/reports/Tooltip-x64-Debug.json.receipt.txt",
+    "sha256": "6B0BAAE0E0A229B6C23B5942BE781E37A2E607CE421AF422070B16BDA7CF2382",
+    "bytes": 6235
+  },
+  {
+    "path": "native-x64-Debug/reports/Tree-x64-Debug.json.receipt.txt",
+    "sha256": "957ACB6B30322F9E617E5536E382179AFA439E63D8CCF6BE89735263FF6AFC1E",
+    "bytes": 6232
+  },
+  {
+    "path": "native-x64-Debug/reports/WindowHost-x64-Debug.json.receipt.txt",
+    "sha256": "1619254C2DBB761662DFEB71937D7C0F289C9E4524AAA51E94E67A3C115D0124",
+    "bytes": 6238
+  },
+  {
+    "path": "native-x64-Debug/logs/build-x64-Debug-fcf1ba9395b8428a9811414162431111.log",
+    "sha256": "8DACB53A55D0E956A8729AEAED78CB981CA144325E5CBA858048F7535B0627F4",
+    "bytes": 26369
+  },
+  {
+    "path": "native-x64-Debug/logs/test-Accessibility-x64-Debug.log",
+    "sha256": "239394A0B78BCBB58C3D11519AAC565D7A7C43D226BEC7570EA4B16248BDB2D6",
+    "bytes": 302
+  },
+  {
+    "path": "native-x64-Debug/logs/test-Animation-x64-Debug.log",
+    "sha256": "181CCFB07A7C3C67AE25DB3125F5B63513438C19E074CC963D6C7A27B7A80D62",
+    "bytes": 191
+  },
+  {
+    "path": "native-x64-Debug/logs/test-ComboBox-x64-Debug.log",
+    "sha256": "B29F09887D351C74847F6CECC4F116CB2C9A7EB685C9131B1CE8C641785EECA4",
+    "bytes": 4014
+  },
+  {
+    "path": "native-x64-Debug/logs/test-Control-x64-Debug.log",
+    "sha256": "46BC5D3C778F25F2FC2119C0DEFB3EE10B4A3C32E866D6BC4B6A2F43631A46A4",
+    "bytes": 407
+  },
+  {
+    "path": "native-x64-Debug/logs/test-Embedded-x64-Debug.log",
+    "sha256": "F49F9878209539177070BB155D98295F17A1967BD8EDA5FA8BE83F82B8233520",
+    "bytes": 97
+  },
+  {
+    "path": "native-x64-Debug/logs/test-Foundation-x64-Debug.log",
+    "sha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+    "bytes": 24
+  },
+  {
+    "path": "native-x64-Debug/logs/test-Grid-x64-Debug.log",
+    "sha256": "56BE34BA7534F443EDA10C157A3C019B403DDD6ABD6727CD481CF9BB95B66A28",
+    "bytes": 181
+  },
+  {
+    "path": "native-x64-Debug/logs/test-Menu-x64-Debug.log",
+    "sha256": "4A55CBE69DDE5FF725D90D66FEB3BD592E5C65FC61F2E6292983CDA9B700B26E",
+    "bytes": 14178
+  },
+  {
+    "path": "native-x64-Debug/logs/test-MultilineText-x64-Debug.log",
+    "sha256": "115E90D3665AACA20F5630F5487FBC7498595492191EE0E55187CF02A7F82791",
+    "bytes": 15287
+  },
+  {
+    "path": "native-x64-Debug/logs/test-NativeTextInput-x64-Debug.log",
+    "sha256": "9A3281C7DAB3D46438DE0BA50F023F92299728A3D0FEF849587472E55F938DDA",
+    "bytes": 21843
+  },
+  {
+    "path": "native-x64-Debug/logs/test-NewControls-x64-Debug.log",
+    "sha256": "5DAF7F3217972C46CCD5E3BB77CFFBF2043E1B2C5487C4FE3FA6536D0BB023BD",
+    "bytes": 715
+  },
+  {
+    "path": "native-x64-Debug/logs/test-ReadOnly-x64-Debug.log",
+    "sha256": "ABCB9B85165FB68B19A0E70C815FE5676201CFD3999818F38D8E036AE0D0B07E",
+    "bytes": 2659
+  },
+  {
+    "path": "native-x64-Debug/logs/test-Rendering-x64-Debug.log",
+    "sha256": "AB33D57F82464D276885EDFA90888372A7E4C80E387722745FDE239FEFF5B445",
+    "bytes": 8110
+  },
+  {
+    "path": "native-x64-Debug/logs/test-TextField-x64-Debug.log",
+    "sha256": "B1D3BB0D6930B5F596013377AF2CE45FFA53A97D822FF2F094301D7BA2A60493",
+    "bytes": 10883
+  },
+  {
+    "path": "native-x64-Debug/logs/test-Theme-x64-Debug.log",
+    "sha256": "1D502C308BC9845AB1F08D2A89AC946A81537BE36E28BF9FCF8FC5A12007CEB7",
+    "bytes": 53
+  },
+  {
+    "path": "native-x64-Debug/logs/test-Tooltip-x64-Debug.log",
+    "sha256": "619183B9E8A66D7089A4217F84D02494048118730F5C207D8EEFF7D837829002",
+    "bytes": 577
+  },
+  {
+    "path": "native-x64-Debug/logs/test-Tree-x64-Debug.log",
+    "sha256": "A1594223B505DC7EF35C9C890ED80F1428F8B8CEEEA909653689929B7F56D288",
+    "bytes": 181
+  },
+  {
+    "path": "native-x64-Debug/logs/test-WindowHost-x64-Debug.log",
+    "sha256": "6BB94961429D5625CC382694356CFCC911E579AC5FAAD205237DA539C6D0E773",
+    "bytes": 11605
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/Accessibility-x64-Debug.json.receipt.txt",
+    "sha256": "0A289BA5C2F7164E0A877FD0B6B2B74E4C94DB0EF9CD3799821EBD15DD800A01",
+    "bytes": 6238
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/Animation-x64-Debug.json.receipt.txt",
+    "sha256": "4AB15224F7A47B11D86256A4C283675C8053B6217C1518BB13A7EEB6230D3237",
+    "bytes": 6234
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/ComboBox-x64-Debug.json.receipt.txt",
+    "sha256": "AD0F4F0B174D3BBE7C198D70805F0053935511D7BF8FE06BCF7E6224B98C5614",
+    "bytes": 6233
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/Control-x64-Debug.json.receipt.txt",
+    "sha256": "F841342990BB0413500E506A6CDA200A62E7589DE71CF2FFED6DF21FAB570298",
+    "bytes": 6232
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/Embedded-x64-Debug.json.receipt.txt",
+    "sha256": "DBC0AD80A18D0437EE8B56450A75B3CC260F54E329C689A685E988CA29676781",
+    "bytes": 6234
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/ExternalConsumer-x64-Debug-annotationsDisabledfalse.json.receipt.txt",
+    "sha256": "79B3525F17C85AE2CD35DF8881EA5F46BC4238EB6E4D678655544861F75CB740",
+    "bytes": 1613
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/Foundation-x64-Debug.json.receipt.txt",
+    "sha256": "83773B982568C74228AD1561E88F4AA9F950F951F10B54B4A9CB253B4CF8B309",
+    "bytes": 6238
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/Grid-x64-Debug.json.receipt.txt",
+    "sha256": "C50E1F7AC1B91D03DF87B756437B68C88699D41676ABC89B30E7CB2CCC1C1687",
+    "bytes": 6229
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/Menu-x64-Debug.json.receipt.txt",
+    "sha256": "030142D168E64695ED12D6E3FC3EC18BD33DE777BD293BC6D73F67548268968A",
+    "bytes": 6229
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/MultilineText-x64-Debug.json.receipt.txt",
+    "sha256": "CBAC0F9E44321012CBFF074CE3229B04D577D50AEC17B81ED7584609EEA90F41",
+    "bytes": 6238
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/NativeTextInput-x64-Debug.json.receipt.txt",
+    "sha256": "88AE65B7F168DC5CD6C0143BF96FE705C5BD20F377BD0E135A847910EBEB7771",
+    "bytes": 6240
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/NewControls-x64-Debug.json.receipt.txt",
+    "sha256": "D493FFA7427A7F9BA0E9539ACCFC18C020F183724F83AB983618CA5866724ACC",
+    "bytes": 6236
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/Performance-x64-Debug-08811e38ac9949e59d2ac6d8517a2f45.json.receipt.txt",
+    "sha256": "9A1E510FA0D9F4836CC6EF5CA657AAF23C851DCB4117B1A6D1EE4BEA6946FDD4",
+    "bytes": 7361
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/Performance-x64-Debug-08811e38ac9949e59d2ac6d8517a2f45.json.comparison.json.receipt.txt",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "bytes": 48
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/ReadOnly-x64-Debug.json.receipt.txt",
+    "sha256": "2CA877ACC9EFB8B248F8AEE47476AA32B2F32BB0AF3CB6BA68208922F3208B97",
+    "bytes": 6233
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/Rendering-x64-Debug.json.receipt.txt",
+    "sha256": "6A3826ACFA62EA204FA80F6BCEA318B91F032A36F51553A94D4CD9D5456A8E31",
+    "bytes": 6234
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/TextField-x64-Debug.json.receipt.txt",
+    "sha256": "0D51637E7944D9A8E3B27623E1A0EAE03C588BAADEF30A2FC21C9253CFF17CA5",
+    "bytes": 6234
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/Theme-x64-Debug.json.receipt.txt",
+    "sha256": "6ACACD06EA402A6AA0B802D5C9C536C2E2FB79CB20CC72B031D34F9C7A32CAC6",
+    "bytes": 6230
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/Tooltip-x64-Debug.json.receipt.txt",
+    "sha256": "DAFB924A9C18402C5D25353FCEBDBC74F4CEA076AAD9A90586E072E796AE038C",
+    "bytes": 6232
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/Tree-x64-Debug.json.receipt.txt",
+    "sha256": "191F4CEAC398944DDD3C0377C7624C77F9CBC370D77B35DF2B42139BD4C6DAE1",
+    "bytes": 6229
+  },
+  {
+    "path": "native-x64-Debug-attempt2/reports/WindowHost-x64-Debug.json.receipt.txt",
+    "sha256": "E15D076BB43F96F5AB1C5FCFBE7964E230F4266F8F71E424AE563B1500020001",
+    "bytes": 6235
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/build-x64-Debug-7c32b94e7e3c4afa8e62a9a6b03a178e.log",
+    "sha256": "D7D590348938B5261D48F0E00E625F0BFF6246462E2FA8242A3A72449B2214F6",
+    "bytes": 26532
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-Accessibility-x64-Debug.log",
+    "sha256": "962A2EA27172AA304FE848195B076723F2BA8B63B246C32529A6DE1AB01863FD",
+    "bytes": 7330
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-Animation-x64-Debug.log",
+    "sha256": "181CCFB07A7C3C67AE25DB3125F5B63513438C19E074CC963D6C7A27B7A80D62",
+    "bytes": 191
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-ComboBox-x64-Debug.log",
+    "sha256": "B29F09887D351C74847F6CECC4F116CB2C9A7EB685C9131B1CE8C641785EECA4",
+    "bytes": 4014
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-Control-x64-Debug.log",
+    "sha256": "C9E90278C4CD4209428F8B74342B49B4622D5B55E30D712613CDCB9BA5A6E2E2",
+    "bytes": 407
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-Embedded-x64-Debug.log",
+    "sha256": "739798F82A4C61DAE76F5FEF262F3E344F747A18FB4C89D8044D2E46798BA0D4",
+    "bytes": 97
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-Foundation-x64-Debug.log",
+    "sha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+    "bytes": 24
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-Grid-x64-Debug.log",
+    "sha256": "56BE34BA7534F443EDA10C157A3C019B403DDD6ABD6727CD481CF9BB95B66A28",
+    "bytes": 181
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-Menu-x64-Debug.log",
+    "sha256": "4A55CBE69DDE5FF725D90D66FEB3BD592E5C65FC61F2E6292983CDA9B700B26E",
+    "bytes": 14178
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-MultilineText-x64-Debug.log",
+    "sha256": "115E90D3665AACA20F5630F5487FBC7498595492191EE0E55187CF02A7F82791",
+    "bytes": 15287
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-NativeTextInput-x64-Debug.log",
+    "sha256": "DC6DDF558B55BA7238E21E374682C6C37F7CF0C42CB1AC53549A234DBB5F81EE",
+    "bytes": 21843
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-NewControls-x64-Debug.log",
+    "sha256": "5DAF7F3217972C46CCD5E3BB77CFFBF2043E1B2C5487C4FE3FA6536D0BB023BD",
+    "bytes": 715
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-ReadOnly-x64-Debug.log",
+    "sha256": "ABCB9B85165FB68B19A0E70C815FE5676201CFD3999818F38D8E036AE0D0B07E",
+    "bytes": 2659
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-Rendering-x64-Debug.log",
+    "sha256": "27C53A61E22DD7EA74D2CD0D8176830681155032513997F6B2E8F3B36EF3A604",
+    "bytes": 8110
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-TextField-x64-Debug.log",
+    "sha256": "B1D3BB0D6930B5F596013377AF2CE45FFA53A97D822FF2F094301D7BA2A60493",
+    "bytes": 10883
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-Theme-x64-Debug.log",
+    "sha256": "1D502C308BC9845AB1F08D2A89AC946A81537BE36E28BF9FCF8FC5A12007CEB7",
+    "bytes": 53
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-Tooltip-x64-Debug.log",
+    "sha256": "619183B9E8A66D7089A4217F84D02494048118730F5C207D8EEFF7D837829002",
+    "bytes": 577
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-Tree-x64-Debug.log",
+    "sha256": "A1594223B505DC7EF35C9C890ED80F1428F8B8CEEEA909653689929B7F56D288",
+    "bytes": 181
+  },
+  {
+    "path": "native-x64-Debug-attempt2/logs/test-WindowHost-x64-Debug.log",
+    "sha256": "6BB94961429D5625CC382694356CFCC911E579AC5FAAD205237DA539C6D0E773",
+    "bytes": 11605
+  },
+  {
+    "path": "native-x64-Release/reports/Accessibility-x64-Release.json.receipt.txt",
+    "sha256": "089FEF787EEB45926B8835B6462C2AB99C0D6B248AFA6EA17E9779933A71213B",
+    "bytes": 6235
+  },
+  {
+    "path": "native-x64-Release/reports/Animation-x64-Release.json.receipt.txt",
+    "sha256": "1B35108E6A36DEA044A8DD2EA12571CEC8B4CB3F9DCD832344218B40514FFF19",
+    "bytes": 6231
+  },
+  {
+    "path": "native-x64-Release/reports/ComboBox-x64-Release.json.receipt.txt",
+    "sha256": "82377E897476DC1B44538ADAA461EB650DB58CB6408A95D2F851C5D8AD2CCCF5",
+    "bytes": 6230
+  },
+  {
+    "path": "native-x64-Release/reports/Control-x64-Release.json.receipt.txt",
+    "sha256": "D87FEA72C9201CE1BA48BBFAE6181B4BF5E238A53800F0542C5C43FC642CD3CF",
+    "bytes": 6229
+  },
+  {
+    "path": "native-x64-Release/reports/Embedded-x64-Release.json.receipt.txt",
+    "sha256": "98FF67D39C19911C72EF77D88F31178A312F6866801B32E0DA137CF58049129E",
+    "bytes": 6231
+  },
+  {
+    "path": "native-x64-Release/reports/ExternalConsumer-x64-Release-annotationsDisabledfalse.json.receipt.txt",
+    "sha256": "72FEB321A86D83333B98B47341F9D40F30587B5C5EF4F98FE49270F894707A54",
+    "bytes": 1615
+  },
+  {
+    "path": "native-x64-Release/reports/Foundation-x64-Release.json.receipt.txt",
+    "sha256": "89A3C8D203D47AFD3F64D3FBBE86EF2085E3B6801EED7AD09BCE52F2D574CF52",
+    "bytes": 6235
+  },
+  {
+    "path": "native-x64-Release/reports/Grid-x64-Release.json.receipt.txt",
+    "sha256": "71E6A3BD75A02F48611FFAF694087303AB5DC1F4FFA232511B4A179858312F85",
+    "bytes": 6226
+  },
+  {
+    "path": "native-x64-Release/reports/Menu-x64-Release.json.receipt.txt",
+    "sha256": "596DBFFBEBD7A942727521E495FC652F8CED69D582DA90C879C70482A0B231D5",
+    "bytes": 6226
+  },
+  {
+    "path": "native-x64-Release/reports/MultilineText-x64-Release.json.receipt.txt",
+    "sha256": "2B8ACA934F8E6F6FA5ABCCC33329093D61738CCC8EC6580DF0D488B320CB9223",
+    "bytes": 6235
+  },
+  {
+    "path": "native-x64-Release/reports/NativeTextInput-x64-Release.json.receipt.txt",
+    "sha256": "510A3F82BF739B65B5251C1333DC2F8FD82726FA22112098BDC48BADB4E2F620",
+    "bytes": 6237
+  },
+  {
+    "path": "native-x64-Release/reports/NewControls-x64-Release.json.receipt.txt",
+    "sha256": "FB266AACC14814B6750B44D3FBBBB509CC24605169CFB6C6B60948758CEDB5E2",
+    "bytes": 6233
+  },
+  {
+    "path": "native-x64-Release/reports/Performance-x64-Release-c228ff818b0a42168941571b14af3f73.json.receipt.txt",
+    "sha256": "D1B339192EAA30566B84BB9057F50E5A7F9A927E3284B8E0E5C8FDA2D3C46728",
+    "bytes": 7346
+  },
+  {
+    "path": "native-x64-Release/reports/Performance-x64-Release-c228ff818b0a42168941571b14af3f73.json.comparison.json.receipt.txt",
+    "sha256": "14FC8DEF36F2813DB7D2787166F7BD0E738679426A334768741AA17E620A7DF6",
+    "bytes": 48
+  },
+  {
+    "path": "native-x64-Release/reports/ReadOnly-x64-Release.json.receipt.txt",
+    "sha256": "568B179D1AF8FD23609B1EEBA581F06158933C2CE1F31F731BF430AC51D4E641",
+    "bytes": 6230
+  },
+  {
+    "path": "native-x64-Release/reports/Rendering-x64-Release.json.receipt.txt",
+    "sha256": "06F8B2AD3E4366436527794C0F8040A3049FC924C55920161E85CD93B3114D5B",
+    "bytes": 6231
+  },
+  {
+    "path": "native-x64-Release/reports/TextField-x64-Release.json.receipt.txt",
+    "sha256": "45D424A24C6DFCE7316C61B1E979651AEB71DCD077547C5BB0F1D9A6EF54A97F",
+    "bytes": 6231
+  },
+  {
+    "path": "native-x64-Release/reports/Theme-x64-Release.json.receipt.txt",
+    "sha256": "1C70E9A6E359D2CFFE27489C3778AFD9533A7A5DB64D2E146BDB3D0F87C11D00",
+    "bytes": 6227
+  },
+  {
+    "path": "native-x64-Release/reports/Tooltip-x64-Release.json.receipt.txt",
+    "sha256": "C3AC90B1DA7765E3582C2BAE126687A80CFC1D4234E9351492D26C09E86D3426",
+    "bytes": 6229
+  },
+  {
+    "path": "native-x64-Release/reports/Tree-x64-Release.json.receipt.txt",
+    "sha256": "11A48B0BB7764C1311DE18CED5DAB4C3C087B8AA7FEB1F7F04570C3701DE07D3",
+    "bytes": 6226
+  },
+  {
+    "path": "native-x64-Release/reports/WindowHost-x64-Release.json.receipt.txt",
+    "sha256": "AE9D973B0B609CC8C98BEBA67C55F4133BE261FD5EE8C8F555864100C0B13AC8",
+    "bytes": 6232
+  },
+  {
+    "path": "native-x64-Release/logs/build-x64-Release-e847e8d59cc54a2ab994c48cf9bfc95a.log",
+    "sha256": "0A085DCB05659579292B19976F08222E1FA53E25D524CA3C306ADF861B5C8971",
+    "bytes": 26157
+  },
+  {
+    "path": "native-x64-Release/logs/test-Accessibility-x64-Release.log",
+    "sha256": "6A39FA46E2874A8127890E036B49C2D230B00B429F115464B62B3BCC42084EC4",
+    "bytes": 7331
+  },
+  {
+    "path": "native-x64-Release/logs/test-Animation-x64-Release.log",
+    "sha256": "181CCFB07A7C3C67AE25DB3125F5B63513438C19E074CC963D6C7A27B7A80D62",
+    "bytes": 191
+  },
+  {
+    "path": "native-x64-Release/logs/test-ComboBox-x64-Release.log",
+    "sha256": "B29F09887D351C74847F6CECC4F116CB2C9A7EB685C9131B1CE8C641785EECA4",
+    "bytes": 4014
+  },
+  {
+    "path": "native-x64-Release/logs/test-Control-x64-Release.log",
+    "sha256": "6B74E43E522BF4862BD06A62C252AFFE13CF296BBD5B84805086D67BC255E677",
+    "bytes": 397
+  },
+  {
+    "path": "native-x64-Release/logs/test-Embedded-x64-Release.log",
+    "sha256": "963ABF37FC876AEF335EC8E30AFD10E4E8B1EA9982A1A1FA30A966735E4E4C5A",
+    "bytes": 97
+  },
+  {
+    "path": "native-x64-Release/logs/test-Foundation-x64-Release.log",
+    "sha256": "01007C353F70730873E78034FB6CF5F6BCD702B01E52553F03D8BB4BA32E8372",
+    "bytes": 24
+  },
+  {
+    "path": "native-x64-Release/logs/test-Grid-x64-Release.log",
+    "sha256": "56BE34BA7534F443EDA10C157A3C019B403DDD6ABD6727CD481CF9BB95B66A28",
+    "bytes": 181
+  },
+  {
+    "path": "native-x64-Release/logs/test-Menu-x64-Release.log",
+    "sha256": "4A55CBE69DDE5FF725D90D66FEB3BD592E5C65FC61F2E6292983CDA9B700B26E",
+    "bytes": 14178
+  },
+  {
+    "path": "native-x64-Release/logs/test-MultilineText-x64-Release.log",
+    "sha256": "115E90D3665AACA20F5630F5487FBC7498595492191EE0E55187CF02A7F82791",
+    "bytes": 15287
+  },
+  {
+    "path": "native-x64-Release/logs/test-NativeTextInput-x64-Release.log",
+    "sha256": "BF97B22CF188FF74522CBFFC6F5967B3BFCE29B989B552451A315C0CAAF1A44E",
+    "bytes": 21838
+  },
+  {
+    "path": "native-x64-Release/logs/test-NewControls-x64-Release.log",
+    "sha256": "5DAF7F3217972C46CCD5E3BB77CFFBF2043E1B2C5487C4FE3FA6536D0BB023BD",
+    "bytes": 715
+  },
+  {
+    "path": "native-x64-Release/logs/test-ReadOnly-x64-Release.log",
+    "sha256": "ABCB9B85165FB68B19A0E70C815FE5676201CFD3999818F38D8E036AE0D0B07E",
+    "bytes": 2659
+  },
+  {
+    "path": "native-x64-Release/logs/test-Rendering-x64-Release.log",
+    "sha256": "5FA207656A76ABDF61F80B8CC928A82E6CBF6597E3D2F4D46B0DFE2BD2958C46",
+    "bytes": 8110
+  },
+  {
+    "path": "native-x64-Release/logs/test-TextField-x64-Release.log",
+    "sha256": "B1D3BB0D6930B5F596013377AF2CE45FFA53A97D822FF2F094301D7BA2A60493",
+    "bytes": 10883
+  },
+  {
+    "path": "native-x64-Release/logs/test-Theme-x64-Release.log",
+    "sha256": "1D502C308BC9845AB1F08D2A89AC946A81537BE36E28BF9FCF8FC5A12007CEB7",
+    "bytes": 53
+  },
+  {
+    "path": "native-x64-Release/logs/test-Tooltip-x64-Release.log",
+    "sha256": "619183B9E8A66D7089A4217F84D02494048118730F5C207D8EEFF7D837829002",
+    "bytes": 577
+  },
+  {
+    "path": "native-x64-Release/logs/test-Tree-x64-Release.log",
+    "sha256": "A1594223B505DC7EF35C9C890ED80F1428F8B8CEEEA909653689929B7F56D288",
+    "bytes": 181
+  },
+  {
+    "path": "native-x64-Release/logs/test-WindowHost-x64-Release.log",
+    "sha256": "6BB94961429D5625CC382694356CFCC911E579AC5FAAD205237DA539C6D0E773",
+    "bytes": 11605
+  },
+  {
+    "path": "attempt-1-status.json.receipt.txt",
+    "sha256": "018B5E3BCAB76AF7F25A16794BD876A3406BD389D546221AE38A2D6ACBCFA3F2",
+    "bytes": 18598
+  },
+  {
+    "path": "attempt-2-status.json.receipt.txt",
+    "sha256": "9F7C2715986BEB417CE6640EE27FECD07A1E8B6D96BCB7625CC5F018C1D3B052",
+    "bytes": 18610
+  },
+  {
+    "path": "artifacts.json.receipt.txt",
+    "sha256": "A2E65C704D8DD15729FB76549142B5ADCC21D4EE0E997A03F269B8B59BD22A98",
+    "bytes": 4950
+  },
+  {
+    "path": "x64-debug-job.log.receipt.txt",
+    "sha256": "0ACEAF0489194F80F0FD969A96323856ACE6AE7DF436EEA89646B2791D92D36A",
+    "bytes": 43437
+  }
+]

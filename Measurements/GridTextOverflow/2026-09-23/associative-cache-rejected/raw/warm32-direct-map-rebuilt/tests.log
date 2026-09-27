@@ -1,0 +1,42 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+Complex UI clean round 1: 1896.24 completed offscreen FPS; p95 0.6783 ms; private 26988544 bytes
+Complex UI clean round 2: 2004.92 completed offscreen FPS; p95 0.6503 ms; private 27176960 bytes
+Complex UI clean round 3: 2016.92 completed offscreen FPS; p95 0.5922 ms; private 27328512 bytes
+Complex UI clean round 4: 2114.15 completed offscreen FPS; p95 0.5603 ms; private 27328512 bytes
+Complex UI clean round 5: 2038.94 completed offscreen FPS; p95 0.6236 ms; private 27291648 bytes
+Complex UI dirty round 1: 463.497 completed offscreen FPS; p95 2.7399 ms; private 27910144 bytes
+Complex UI dirty round 2: 452.728 completed offscreen FPS; p95 2.5209 ms; private 28635136 bytes
+Complex UI dirty round 3: 434.689 completed offscreen FPS; p95 2.7665 ms; private 28676096 bytes
+Complex UI dirty round 4: 472.084 completed offscreen FPS; p95 2.7947 ms; private 28737536 bytes
+Complex UI dirty round 5: 482.071 completed offscreen FPS; p95 2.3706 ms; private 28643328 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\reports\Performance-x64-Release-58baac30245f491fa5ac251494713ec7.json
+Running Grid (x64 Release)
+PASS Grid (0 capability skips recorded)
+Running Embedded (x64 Release)
+PASS Embedded (0 capability skips recorded)
+Running Rendering (x64 Release)
+[START] Rendering
+Grid clamp ink rows: full=71 clamped=29
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+Grid warm working set: hits=28 misses=36 layout creations=72
+FAILED: unchanged visible working set must actually repaint and reuse all thirty-two multiline values
+Exception: Z:\src\DxUi-worktrees\i26-grid-line-clamp\test.ps1:66
+Line |
+  66 |  … es.Count) { throw "DxUi failed suites: $($failures -join ', '). See . …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | DxUi failed suites: Rendering. See .build/logs and .build/reports.
+
+

@@ -1,0 +1,305 @@
+--- a/src/Controls/DxUi.Grid.cpp
++++ b/src/Controls/DxUi.Grid.cpp
+@@ -1889,17 +1889,50 @@
+     const float width    = bounds.right - bounds.left;
+     const float height   = bounds.bottom - bounds.top;
+     const uint32_t clamp = wrap ? _lineClamp : 1u;
+-    // Identical cell values can share shaping across rows/columns. A row-index
+-    // mapping systematically collides for adjacent visible rows and retains
+-    // duplicate layouts for the same value in several columns.
+-    const size_t slot =
+-        temporary.has_value()
+-            ? 0u
+-            : (std::hash<std::wstring_view>{}(cellData.text) ^ std::hash<float>{}(width) ^ (std::hash<float>{}(height) << 1u) ^ clamp) % cacheSlots;
+-    auto& cache       = temporary.has_value() ? temporary.value() : _cellTextLayouts[slot];
+-    cache.usedInPaint = true;
+-    if (! cache.layout || cache.format.get() != format || cache.text != cellData.text || cache.width != width || cache.height != height ||
+-        cache.lineClamp != clamp)
++    // Search the bounded working set before replacing a layout. A hash collision
++    // must not force another shaping pass for a value still visible in this paint.
++    const size_t keyHash =
++        temporary.has_value() ? 0u : std::hash<std::wstring_view>{}(cellData.text) ^ std::hash<float>{}(width) ^ (std::hash<float>{}(height) << 1u) ^ clamp;
++    size_t slot = 0u;
++    if (! temporary.has_value())
++    {
++        const auto found    = std::ranges::find_if(_cellTextLayouts,
++                                                   [&](const CellTextLayoutCache& entry)
++        {
++            return entry.layout && entry.keyHash == keyHash && entry.format.get() == format && entry.width == width && entry.height == height &&
++                   entry.lineClamp == clamp && entry.text == cellData.text;
++        });
++        const auto selected = found != _cellTextLayouts.end() ? found
++                                                              : std::ranges::min_element(_cellTextLayouts,
++                                                                                         [](const CellTextLayoutCache& left, const CellTextLayoutCache& right)
++        {
++            if (static_cast<bool>(left.layout) != static_cast<bool>(right.layout))
++                return ! left.layout;
++            if (left.usedInPaint != right.usedInPaint)
++                return ! left.usedInPaint;
++            return left.useAge > right.useAge;
++        });
++        slot                = static_cast<size_t>(selected - _cellTextLayouts.begin());
++        // Recency ranks stay in [0, 32], with no lifetime counter or wraparound.
++        const size_t previousAge = selected->layout ? selected->useAge : cacheSlots;
++        for (auto& entry : _cellTextLayouts)
++            if (entry.layout && entry.useAge < previousAge)
++                ++entry.useAge;
++        selected->useAge = 0u;
++    }
++    auto& cache         = temporary.has_value() ? temporary.value() : _cellTextLayouts[slot];
++    cache.keyHash       = keyHash;
++    cache.usedInPaint   = true;
++    const bool cacheHit = cache.layout && cache.format.get() == format && cache.text == cellData.text && cache.width == width && cache.height == height &&
++                          cache.lineClamp == clamp;
++    const std::wstring_view cacheOutcome = cacheHit ? L"hit" : cache.layout ? L"replacement" : L"empty";
++    uint64_t layoutCreationAttempts      = 0u;
++    const auto reportCacheWork           = wil::scope_exit([&]() noexcept
++    {
++        if (Debug::Perf::IsCaptureEnabled())
++            Debug::Perf::Emit(L"dxui.grid.text_layout_cache", cacheOutcome, 0u, cacheHit ? 1u : 0u, layoutCreationAttempts, S_OK);
++    });
++    if (! cacheHit)
+     {
+         cache.layout.reset();
+         cache.paintHeight = 0.0f;
+@@ -1914,6 +1947,7 @@
+         // avoiding font fallback and shaping for entirely invisible tails.
+         const auto paragraphEnd = [&](size_t start) { return std::min(cellData.text.find_first_of(L"\r\n", start), cellData.text.size()); };
+         size_t measuredLength   = paragraphEnd(0u);
++        ++layoutCreationAttempts;
+         if (FAILED(factory->CreateTextLayout(cellData.text.data(), static_cast<UINT32>(measuredLength), format, width, height, cache.layout.put())))
+             return;
+         DWRITE_TEXT_METRICS metrics{};
+@@ -1934,6 +1968,7 @@
+                 measuredLength = paragraphEnd(next);
+             }
+             cache.layout.reset();
++            ++layoutCreationAttempts;
+             if (FAILED(factory->CreateTextLayout(cellData.text.data(), static_cast<UINT32>(measuredLength), format, width, height, cache.layout.put())) ||
+                 FAILED(cache.layout->GetMetrics(&metrics)))
+             {
+@@ -2000,6 +2035,7 @@
+             else
+             {
+                 cache.layout.reset();
++                ++layoutCreationAttempts;
+                 if (FAILED(factory->CreateTextLayout(
+                         visibleText.data(), static_cast<UINT32>(visibleText.size()), format, width, cache.paintHeight, cache.layout.put())) ||
+                     FAILED(cache.layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP)))
+--- a/include/DxUi/DxUi.h
++++ b/include/DxUi/DxUi.h
+@@ -3572,7 +3572,7 @@
+                                                                  const D2D1_RECT_F& cellRect,
+                                                                  const GridColumnDesc& columnDesc,
+                                                                  const GridCellData& cellData) const noexcept;
+-    // Only visible cells enter this direct-mapped cache. Very large model strings
++    // Only visible cells enter this bounded cache. Very large model strings
+     // use a temporary layout, so a scrolling grid cannot retain unbounded text.
+     struct CellTextLayoutCache
+     {
+@@ -3580,11 +3580,13 @@
+         std::wstring displayText;
+         wil::com_ptr<IDWriteTextFormat> format;
+         wil::com_ptr<IDWriteTextLayout> layout;
++        size_t keyHash     = 0u;
+         float width        = 0.0f;
+         float height       = 0.0f;
+         float paintHeight  = 0.0f;
+         uint32_t lineClamp = 0u;
+         bool usedInPaint   = false;
++        uint8_t useAge     = 32u;
+     };
+     void DrawCellText(ControlHost& host, const GridCellData& cellData, const D2D1_RECT_F& bounds, const D2D1_COLOR_F& color) const;
+     mutable std::vector<CellTextLayoutCache> _cellTextLayouts;
+--- a/Tests/Embedded/ComplexUiBenchmark.h
++++ b/Tests/Embedded/ComplexUiBenchmark.h
+@@ -1,5 +1,6 @@
+ #pragma once
+ #include "../../Samples/ComplexUi/ComplexUiScene.h"
++#include "DxUi/Diagnostics.h"
+ #include <algorithm>
+ #include <array>
+ #include <fstream>
+@@ -11,6 +12,25 @@
+ // Fixture-only work: one reusable staging pixel blocks for completed GPU work. Never used in library rendering.
+ namespace ComplexUiBenchmark
+ {
++struct GridCacheDiagnostic
++{
++    uint64_t hits                   = 0u;
++    uint64_t misses                 = 0u;
++    uint64_t replacements           = 0u;
++    uint64_t layoutCreationAttempts = 0u;
++};
++inline thread_local GridCacheDiagnostic gridCacheDiagnostic;
++
++inline void CollectGridCacheDiagnostic(const DxUi::Diagnostics::PerformanceRecord& record) noexcept
++{
++    if (record.name != L"dxui.grid.text_layout_cache")
++        return;
++    gridCacheDiagnostic.hits += record.value0;
++    gridCacheDiagnostic.misses += record.value0 == 0u ? 1u : 0u;
++    gridCacheDiagnostic.replacements += record.detail == L"replacement" ? 1u : 0u;
++    gridCacheDiagnostic.layoutCreationAttempts += record.value1;
++}
++
+ // Whole-frame C++ allocation ceilings (Specs/Core/Core_PerformanceAndResources.md). Clean rounds allocate nothing.
+ // Debug STL (_ITERATOR_DEBUG_LEVEL 2) allocates one container proxy per std::vector/std::wstring, so the Debug
+ // dirty ceiling is separate from the Release ceiling of 64 allocations per dirty frame.
+@@ -80,6 +100,13 @@
+ 
+ inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool retention = false, bool heapDiagnostic = false, bool paced = false)
+ {
++    const auto previousPerformanceSink = DxUi::Diagnostics::performanceSink;
++    const auto restorePerformanceSink  = wil::scope_exit([&]() noexcept { DxUi::Diagnostics::performanceSink = previousPerformanceSink; });
++    if (heapDiagnostic)
++    {
++        gridCacheDiagnostic                = {};
++        DxUi::Diagnostics::performanceSink = &CollectGridCacheDiagnostic;
++    }
+     GraphicsFixture gpu;
+     gpu.width  = 1280;
+     gpu.height = 720;
+@@ -263,6 +290,10 @@
+             WriteHeapDiagnostic(output);
+         output << '}';
+     }
++    if (heapDiagnostic)
++        output << ",\"gridTextCache\":{\"hits\":" << gridCacheDiagnostic.hits << ",\"misses\":" << gridCacheDiagnostic.misses
++               << ",\"replacements\":" << gridCacheDiagnostic.replacements << ",\"layoutCreationAttempts\":" << gridCacheDiagnostic.layoutCreationAttempts
++               << '}';
+     output << "}\n";
+     output.close();
+     Check(bool(output), "benchmark report written");
+--- a/Tests/Controls/DxUiTests.Rendering.cpp
++++ b/Tests/Controls/DxUiTests.Rendering.cpp
+@@ -202,6 +202,65 @@
+     }
+ }
+ 
++struct GridLayoutWork
++{
++    uint64_t hits      = 0u;
++    uint64_t misses    = 0u;
++    uint64_t creations = 0u;
++};
++thread_local GridLayoutWork gridLayoutWork;
++
++void CollectGridLayoutWork(const DxUi::Diagnostics::PerformanceRecord& record) noexcept
++{
++    if (record.name != L"dxui.grid.text_layout_cache")
++        return;
++    gridLayoutWork.hits += record.value0;
++    gridLayoutWork.misses += record.value0 == 0u ? 1u : 0u;
++    gridLayoutWork.creations += record.value1;
++}
++
++void TestGridMultilineCacheReusesVisibleWorkingSet()
++{
++    using namespace DxUi;
++    // The grid borrows its model through host teardown.
++    MultiRowGridModel model(16u, true);
++    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
++    SetWindowPos(window.Hwnd(),
++                 nullptr,
++                 0,
++                 0,
++                 static_cast<int>(std::lround(window.Host().DipsToPixels(620.0f))),
++                 static_cast<int>(std::lround(window.Host().DipsToPixels(860.0f))),
++                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
++    window.PumpMessages();
++    auto theme          = window.Host().GetTheme();
++    theme.reducedMotion = true;
++    window.Host().SetTheme(theme);
++    auto root  = std::make_unique<Panel>();
++    auto* grid = root->AddChild<Grid>();
++    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 580.0f, 820.0f));
++    grid->SetRowHeightDip(44.0f);
++    grid->SetHeaderHeightDip(28.0f);
++    grid->SetLineClamp(2u);
++    grid->SetModel(&model);
++    const std::array<GridColumnLayoutEntry, 2> columns{{{L"name", 0u, 250.0f}, {L"summary", 1u, 250.0f}}};
++    grid->ApplyColumnLayout(columns);
++    window.Host().SetRoot(std::move(root));
++    const auto warm              = CaptureAttachedHostWindowBitmap(window, "warm visible multiline grid working set");
++    const auto previousSink      = Diagnostics::performanceSink;
++    const auto restoreSink       = wil::scope_exit([&]() noexcept { Diagnostics::performanceSink = previousSink; });
++    Diagnostics::performanceSink = &CollectGridLayoutWork;
++    gridLayoutWork               = {};
++    grid->NotifyDataChanged();
++    const auto repeated = CaptureAttachedHostWindowBitmap(window, "unchanged multiline working set after data notification");
++    std::cout << "Grid warm working set: hits=" << gridLayoutWork.hits << " misses=" << gridLayoutWork.misses
++              << " layout creations=" << gridLayoutWork.creations << '\n';
++    Require(gridLayoutWork.hits >= 32u, "unchanged visible working set must actually repaint and reuse all thirty-two multiline values");
++    Require(gridLayoutWork.misses == 0u && gridLayoutWork.creations == 0u,
++            "repainting unchanged visible cells must not reshape their text because of cache collisions");
++    Require(warm.bgraPixels == repeated.bgraPixels, "cached working-set paint preserves every rendered pixel");
++}
++
+ void TestMultilineButtonPaintUsesMultipleTextRows()
+ {
+     using namespace DxUi;
+@@ -1816,6 +1875,7 @@
+ void RunRenderingTests()
+ {
+     TestGridMultilineClampPreservesCompleteModelText();
++    TestGridMultilineCacheReusesVisibleWorkingSet();
+     TestMultilineButtonPaintUsesMultipleTextRows();
+     const auto runTest = [](const char* name, void (*fn)())
+     {
+--- a/Tests/Controls/DxUiTestHelpers.h
++++ b/Tests/Controls/DxUiTestHelpers.h
+@@ -1011,7 +1011,7 @@
+ class MultiRowGridModel final : public DxUi::IDxGridModel
+ {
+ public:
+-    explicit MultiRowGridModel(size_t rowCount) : _rowCount(rowCount)
++    explicit MultiRowGridModel(size_t rowCount, bool multiline = false) : _rowCount(rowCount), _multiline(multiline)
+     {
+     }
+ 
+@@ -1022,22 +1022,27 @@
+ 
+     [[nodiscard]] size_t GetColumnCount() const noexcept override
+     {
+-        return 1u;
+-    }
+-
+-    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t /*columnIndex*/) const override
++        return _multiline ? 2u : 1u;
++    }
++
++    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t columnIndex) const override
+     {
+         DxUi::GridColumnDesc column;
+-        column.id       = L"name";
++        column.id       = columnIndex == 0u ? L"name" : L"summary";
+         column.title    = L"Name";
+         column.widthDip = 180.0f;
+         return column;
+     }
+ 
+-    void GetCellData(size_t rowIndex, size_t /*columnIndex*/, DxUi::GridCellData& outCell) const override
+-    {
+-        outCell.kind = DxUi::GridCellKind::Text;
+-        outCell.text = std::format(L"Row {:02}", rowIndex);
++    void GetCellData(size_t rowIndex, size_t columnIndex, DxUi::GridCellData& outCell) const override
++    {
++        outCell.kind      = DxUi::GridCellKind::Text;
++        outCell.text      = _multiline
++                                ? std::format(L"Document {:02}-{:02} : photographie de la réunion familiale\nDeuxième ligne complète\nTexte omis par le résumé",
++                                              rowIndex,
++                                              columnIndex)
++                                : std::format(L"Row {:02}", rowIndex);
++        outCell.multiline = _multiline;
+     }
+ 
+     [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+@@ -1052,6 +1057,7 @@
+ 
+ private:
+     size_t _rowCount = 0u;
++    bool _multiline  = false;
+ };
+ 
+ class GroupedGridModel final : public DxUi::IDxGridModel

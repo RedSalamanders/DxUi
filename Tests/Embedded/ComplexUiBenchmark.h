@@ -1,10 +1,12 @@
 #pragma once
 #include "../../Samples/ComplexUi/ComplexUiScene.h"
+#include "../Support/HeapDiagnostic.h"
 #include <algorithm>
 #include <array>
 #include <fstream>
 #include <iomanip>
 #include <psapi.h>
+#include <thread>
 #pragma comment(lib, "psapi.lib")
 
 // Fixture-only work: one reusable staging pixel blocks for completed GPU work. Never used in library rendering.
@@ -27,7 +29,15 @@ inline PROCESS_MEMORY_COUNTERS_EX Memory()
     return memory;
 }
 
-inline void Run(const wchar_t* outputPath)
+// Opt-in diagnostic outside timed rounds. The shared helper walks only this
+// process's heaps, one lock at a time with no output or allocations while
+// walking, and reports per-heap errors so partial accounting is never total use.
+inline void WriteHeapDiagnostic(std::ostream& output)
+{
+    DxUiTestSupport::WriteHeapDiagnostic(output, [](bool ok, const char* reason) { Check(ok, reason); });
+}
+
+inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool retention = false, bool heapDiagnostic = false, bool paced = false)
 {
     // Stage samples stay outside frame timing and help distinguish initialization,
     // image encoding and retained rendering costs when process totals regress.
@@ -39,7 +49,17 @@ inline void Run(const wchar_t* outputPath)
     Hr(gpu.Create(), "benchmark WARP device");
     memoryPhases[1] = Memory();
     ComplexUiScene scene;
+    scene.model.multilineGrid = multilineGrid;
+    if (multilineGrid)
+        for (size_t i = 0u; i < scene.model.names.size(); ++i)
+            scene.model.names[i] = L"Description française détaillée de l’élément " + std::to_wstring(i) +
+                                   L" : vérifier les informations avant de poursuivre.\nUne deuxième phrase complète avec é et 📷.";
     Hr(scene.Initialize(gpu.device.get()), "benchmark independent scene");
+    if (multilineGrid)
+    {
+        scene.grid->SetRowHeightDip(64.0f);
+        scene.grid->SetLineClamp(2u);
+    }
     memoryPhases[2] = Memory();
     auto& view      = scene.view;
 
@@ -69,12 +89,17 @@ inline void Run(const wchar_t* outputPath)
     }
     memoryPhases[3] = Memory();
     // Capture once outside measurement; reviewable proof that the workload has populated controls.
-    Hr(gpu.Save(L".build/test-artifacts/complex-ui.png"), "complex UI screenshot");
+    Hr(gpu.Save(multilineGrid ? L".build/test-artifacts/complex-ui-multiline-grid.png" : L".build/test-artifacts/complex-ui.png"), "complex UI screenshot");
     memoryPhases[4] = Memory();
     std::ofstream output{std::filesystem::path(outputPath)};
     Check(bool(output), "benchmark output file");
-    output << std::setprecision(10) << "{\"compiler\":" << _MSC_FULL_VER
-           << ",\"fixture\":\"dxui-complex-ui-v2\",\"renderer\":\"WARP\",\"width\":1280,\"height\":720,\"dpi\":96,"
+    output << std::setprecision(10) << "{\"compiler\":" << _MSC_FULL_VER << ",\"fixture\":\""
+           << (paced            ? "dxui-complex-ui-multiline-grid-heap-paced-v1"
+               : heapDiagnostic ? "dxui-complex-ui-multiline-grid-heap-v1"
+               : retention      ? "dxui-complex-ui-multiline-grid-retention-v1"
+               : multilineGrid  ? "dxui-complex-ui-multiline-grid-v1"
+                                : "dxui-complex-ui-v2")
+           << "\",\"renderer\":\"WARP\",\"width\":1280,\"height\":720,\"dpi\":96,"
            << "\"controls\":83,\"modelRows\":1000,\"framesPerRound\":40,\"roundCount\":5,\"dirtyAllocationCeilingPerFrame\":"
            << kDirtyAllocationsPerFrameCeiling << ",\"scenarios\":[";
     using Clock        = std::chrono::steady_clock;
@@ -143,6 +168,49 @@ inline void Run(const wchar_t* outputPath)
         }
         output << "]}";
     }
+    output << ']';
+    if (retention)
+    {
+        // Six complete passes through the same 1,000-row model distinguish
+        // initial native font/heap caches from growth on repeated data. No
+        // working-set trimming or allocator purge may hide retained resources.
+        output << ",\"retention\":[";
+        const auto started = Clock::now();
+        const auto sample  = [&](size_t frame, const char* phase)
+        {
+            const auto memory = Memory();
+            DWORD handles     = 0;
+            Check(GetProcessHandleCount(GetCurrentProcess(), &handles) != FALSE, "retention handle count");
+            output << "{\"frame\":" << frame << ",\"phase\":\"" << phase << "\",\"elapsedMs\":" << elapsed(started)
+                   << ",\"privateBytes\":" << memory.PrivateUsage << ",\"workingSetBytes\":" << memory.WorkingSetSize << ",\"handles\":" << handles
+                   << ",\"surfaceBytes\":" << view.GetStatistics().surfaceBytes;
+            if (heapDiagnostic)
+                WriteHeapDiagnostic(output);
+            output << '}';
+        };
+        sample(0u, "start");
+        for (size_t frame = 0u; frame < 6000u; ++frame)
+        {
+            update(frame);
+            Hr(view.Prepare(1280, 720), "retention preparation");
+            gpu.Bind();
+            Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "retention composition");
+            complete();
+            // Diagnostic only: match allocation rate in wall-clock time as well
+            // as frame count. Never pace production or the measured FPS rounds.
+            if (paced)
+                std::this_thread::sleep_until(started + std::chrono::milliseconds(20u * (frame + 1u)));
+            if ((frame + 1u) % 200u == 0u)
+            {
+                output << ',';
+                sample(frame + 1u, "scroll");
+            }
+        }
+        scene.grid->SetModel(nullptr);
+        output << ',';
+        sample(6000u, "model-cleared");
+        output << ']';
+    }
     view.SetVisible(false);
     const auto hidden = view.GetStatistics();
     Check(! view.NeedsAnimation() && ! view.NeedsPreparation(), "complex hidden view requests no work");
@@ -150,7 +218,7 @@ inline void Run(const wchar_t* outputPath)
     Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "hidden benchmark composition skipped");
     Check(view.GetStatistics().preparations == hidden.preparations && view.GetStatistics().composites == hidden.composites, "hidden counters unchanged");
     memoryPhases[5] = Memory();
-    output << "],\"hiddenPreparations\":0,\"hiddenComposites\":0,\"memoryPhases\":[";
+    output << ",\"hiddenPreparations\":0,\"hiddenComposites\":0,\"memoryPhases\":[";
     constexpr std::array names{"entry", "device", "scene", "warm", "capture", "hidden"};
     for (size_t index = 0; index < memoryPhases.size(); ++index)
     {
@@ -159,7 +227,20 @@ inline void Run(const wchar_t* outputPath)
         output << "{\"name\":\"" << names[index] << "\",\"privateBytes\":" << memoryPhases[index].PrivateUsage
                << ",\"workingSetBytes\":" << memoryPhases[index].WorkingSetSize << '}';
     }
-    output << "]}\n";
+    output << ']';
+    if (retention)
+    {
+        view.Controls().SetRoot(nullptr);
+        view.Detach();
+        const auto memory = Memory();
+        DWORD handles     = 0;
+        Check(GetProcessHandleCount(GetCurrentProcess(), &handles) != FALSE, "detached handle count");
+        output << ",\"detached\":{\"privateBytes\":" << memory.PrivateUsage << ",\"workingSetBytes\":" << memory.WorkingSetSize << ",\"handles\":" << handles;
+        if (heapDiagnostic)
+            WriteHeapDiagnostic(output);
+        output << '}';
+    }
+    output << "}\n";
     output.close();
     Check(bool(output), "benchmark report written");
 }

@@ -1,0 +1,25 @@
+$ErrorActionPreference='Stop'
+Set-Location -LiteralPath 'Z:/src/DxUi-worktrees/i26-grid-line-clamp'
+$evidence='C:/RedSalamander.Perf/evidence/i26-ui'
+$installationPath = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -prerelease -products '*' -property installationPath
+& "$installationPath/Common7/Tools/Launch-VsDevShell.ps1" -Arch amd64 -HostArch amd64 -SkipAutomaticLocation *> "$evidence/dxui-grid-v11-input-v4-toolchain.log"
+& cl.exe /nologo /std:c++latest /EHsc /W4 /WX /utf-8 /I Z:/src/DxUi-worktrees/i26-grid-line-clamp/.build/vcpkg_installed/x64/x64-windows/include /FoC:/RedSalamander.Perf/evidence/i26-ui/dxui-interactive-wrapper.obj /FeC:/RedSalamander.Perf/evidence/i26-ui/dxui-interactive-wrapper.exe C:/RedSalamander.Perf/evidence/i26-ui/dxui-interactive-wrapper.cpp user32.lib gdi32.lib *> "$evidence/dxui-grid-v11-input-v4-wrapper-build.log"
+if ($LASTEXITCODE -ne 0) { throw 'Input wrapper build failed' }
+$receipts=@()
+foreach ($configuration in @('Debug','Release','ASan Debug')) {
+    foreach ($suite in @('Menu','NativeTextInput')) {
+        $name=$configuration.Replace(' ','-')
+        $exe="Z:/src/DxUi-worktrees/i26-grid-line-clamp/.build/x64/$configuration/DxUi.ControlTests.exe"
+        $log="$evidence/dxui-grid-v11-input-v4-$name-$suite.log"
+        $command='"{0}" --suite={1}' -f $exe,$suite
+        & "$evidence/dxui-interactive-wrapper.exe" $command *> $log
+        $exitCode=$LASTEXITCODE
+        $text=Get-Content -LiteralPath $log -Raw
+        $skips=@(Select-String -LiteralPath $log -Pattern '^SKIPPED:').Count
+        $restored=$text -match 'Restoration: childFocus=1 priorTargetPresent=1 priorTargetValid=1 foreground=1 cursorSaved=1 cursorRestored=1'
+        $receipts += [ordered]@{ configuration=$configuration; suite=$suite; exitCode=$exitCode; skips=$skips; restored=$restored; completedUtc=[DateTime]::UtcNow.ToString('o'); executableSha256=(Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash; wrapperSha256=(Get-FileHash -LiteralPath "$evidence/dxui-interactive-wrapper.exe" -Algorithm SHA256).Hash; wrapperSourceSha256=(Get-FileHash -LiteralPath "$evidence/dxui-interactive-wrapper.cpp" -Algorithm SHA256).Hash; log=$log }
+        $receipts | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$evidence/dxui-grid-v11-input-v4-receipts.json" -Encoding utf8
+        Write-Output "$configuration $suite exit=$exitCode skips=$skips restored=$restored"
+        if ($exitCode -ne 0 -or $skips -ne 0 -or -not $restored) { throw 'Input qualification requires investigation; further focus runs stopped.' }
+    }
+}

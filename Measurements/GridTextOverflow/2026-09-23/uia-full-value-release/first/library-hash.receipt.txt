@@ -1,0 +1,5 @@
+{
+  "Algorithm": "SHA256",
+  "Hash": "A79D286C8E2E7F47323E55EC183D7231B8A691C58764A52FECAB9D6B9BDDBC06",
+  "Path": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\x64\\Release\\DxUi.lib"
+}

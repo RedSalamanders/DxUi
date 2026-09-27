@@ -1,0 +1,42 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+Complex UI clean round 1: 1912.96 completed offscreen FPS; p95 0.6924 ms; private 26894336 bytes
+Complex UI clean round 2: 1959.23 completed offscreen FPS; p95 0.6728 ms; private 27340800 bytes
+Complex UI clean round 3: 1884.06 completed offscreen FPS; p95 0.6386 ms; private 27353088 bytes
+Complex UI clean round 4: 1942.63 completed offscreen FPS; p95 0.5855 ms; private 27357184 bytes
+Complex UI clean round 5: 1992.4 completed offscreen FPS; p95 0.7823 ms; private 28442624 bytes
+Complex UI dirty round 1: 486.396 completed offscreen FPS; p95 2.4779 ms; private 28450816 bytes
+Complex UI dirty round 2: 494.362 completed offscreen FPS; p95 2.3915 ms; private 28786688 bytes
+Complex UI dirty round 3: 499.846 completed offscreen FPS; p95 2.3734 ms; private 28622848 bytes
+Complex UI dirty round 4: 483.624 completed offscreen FPS; p95 2.5988 ms; private 28680192 bytes
+Complex UI dirty round 5: 446.033 completed offscreen FPS; p95 2.8964 ms; private 28790784 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\reports\Performance-x64-Release-ae2f58a9a77f4ffd9f4daa7ecf5b263a.json
+Running Grid (x64 Release)
+PASS Grid (0 capability skips recorded)
+Running Rendering (x64 Release)
+PASS Rendering (0 capability skips recorded)
+Running Embedded (x64 Release)
+PASS Embedded (0 capability skips recorded)
+Running Accessibility (x64 Release)
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+FAILED: trimmed Grid row is selected before reading its cell

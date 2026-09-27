@@ -1,0 +1,237 @@
+[
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-inline-build.log",
+    "reviewedPath": "bounded-inline-build.log",
+    "sha256": "f8fae63de1d0d7af64e9e77035b776a0e24d28a1ec8be2ba0c9b9979ca2aafa5"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-inline-common.json",
+    "reviewedPath": "bounded-inline-common.json",
+    "sha256": "04b0e3acac1fa7fb18685b5c94961923d31d43bc5f3392b47d5132dd29627ec6"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-inline-common.json.comparison.json",
+    "reviewedPath": "bounded-inline-common.json.comparison.json",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-inline-newline-failed.patch",
+    "reviewedPath": "bounded-inline-newline-failed.patch",
+    "sha256": "a89a78ce4064415e01832aa1828bfc98d549638f09dc6a4fb8d0d09cffd6de83"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-inline-newline-rendering.log",
+    "reviewedPath": "bounded-inline-newline-rendering.log",
+    "sha256": "ce0f78457e73a904f57ba791765c21763924939a0e107c1a39e832196f419ed5"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-inline-newline-rendering.receipt.txt",
+    "reviewedPath": "bounded-inline-newline-rendering.receipt.txt",
+    "sha256": "c668d96dbaf62e05fde752f8a2c5965a40b7677239e9fb9d362acff8c8e06555"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-inline-tests.log",
+    "reviewedPath": "bounded-inline-tests.log",
+    "sha256": "86f5ee29307883c523395045cccd60b585eb05048dc08a8aecae3618a84a20d2"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-inline.json",
+    "reviewedPath": "bounded-inline.json",
+    "sha256": "3357fdf19a10aed21147fdb69fd1f7347bbd7b4abd44026d3de5e59641cdf048"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-inline.json.comparison.json",
+    "reviewedPath": "bounded-inline.json.comparison.json",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-inline.log",
+    "reviewedPath": "bounded-inline.log",
+    "sha256": "a4c59430f7f86111c2a1ad1b803069d0160aea507857dda94b1f166247ae8d2f"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-marker-build.log",
+    "reviewedPath": "bounded-marker-build.log",
+    "sha256": "49be512dccadf48cbee4b57741dd34a53edb626f2da103ef0847550c57dc9ffd"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-marker-common.json",
+    "reviewedPath": "bounded-marker-common.json",
+    "sha256": "a810c56afa51872d30578b706a11541573e9300ce54debbfcbd30aa80c74419e"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-marker-common.json.comparison.json",
+    "reviewedPath": "bounded-marker-common.json.comparison.json",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-marker-Embedded.log",
+    "reviewedPath": "bounded-marker-Embedded.log",
+    "sha256": "1f2f1fe1a5b7f46889bc534926a43d7a48e1f737b8f2715237be68718052e2e8"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-marker-Embedded.receipt.txt",
+    "reviewedPath": "bounded-marker-Embedded.receipt.txt",
+    "sha256": "118fdc846b059b50075c5821ca6ce5e6158556b45996ea6e79c1a5edd9f9497b"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-marker-Grid.log",
+    "reviewedPath": "bounded-marker-Grid.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-marker-Grid.receipt.txt",
+    "reviewedPath": "bounded-marker-Grid.receipt.txt",
+    "sha256": "94ab534473485ed0a594022dd8a13070647b8a1719feb6326dfbc767c90d11fb"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-marker-paced.json",
+    "reviewedPath": "bounded-marker-paced.json",
+    "sha256": "ab9fb6fa20e0af754453c2c348452d37009786f0910cd76647398d4a22bfd58f"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-marker-paced.json.comparison.json",
+    "reviewedPath": "bounded-marker-paced.json.comparison.json",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-marker-paced.log",
+    "reviewedPath": "bounded-marker-paced.log",
+    "sha256": "515512afbe83a9bf97bee7736b585a8d145d75e6c2562e76c80be0d9eaae94aa"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-marker-Rendering.log",
+    "reviewedPath": "bounded-marker-Rendering.log",
+    "sha256": "3346de529c9370c8050cd6c22044ba4920f452d8c0f4fc3927cb75bcc40ae506"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-marker-Rendering.receipt.txt",
+    "reviewedPath": "bounded-marker-Rendering.receipt.txt",
+    "sha256": "07b7db22f83565384ace4102a2f57ae5c5f87d4282469418b352e69b3a28f086"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-marker-tests.log",
+    "reviewedPath": "bounded-marker-tests.log",
+    "sha256": "7d719407601c1b11733d6c9dd22b0da25fbb8f8719ee521ea14997307ab57a4e"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\bounded-marker.patch",
+    "reviewedPath": "bounded-marker.patch",
+    "sha256": "ac69f597bb10674e9f53d2c887e50b02bc00ed646e2e4852c331f97757f11022"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\no-draw-build.log",
+    "reviewedPath": "no-draw-build.log",
+    "sha256": "d2d603c40c6a4d3aa0c8b2444d19826b1769bffa5415fe12bf8c43812c36866a"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\no-draw.json",
+    "reviewedPath": "no-draw.json",
+    "sha256": "6588abb7f070404c5e4ca12f0be350455416a80bb9969ee6fa63a674d96eca66"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\no-draw.json.comparison.json",
+    "reviewedPath": "no-draw.json.comparison.json",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\no-draw.log",
+    "reviewedPath": "no-draw.log",
+    "sha256": "01f90132d2706995c1810f10e489f47b4a1ad960424120a4871bfcf2deb0cd4b"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\no-draw.patch",
+    "reviewedPath": "no-draw.patch",
+    "sha256": "31a3b7445d691c11c2c9d6c312511ea0ba0b2b66408599befaf2db5c192aed87"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\no-trimming-build.log",
+    "reviewedPath": "no-trimming-build.log",
+    "sha256": "13bae4baa3ff664aad8ba4c82d4934e36107bfead4b159bb11a593796fc66a1c"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\no-trimming.json",
+    "reviewedPath": "no-trimming.json",
+    "sha256": "fe35f7ec6de266ec4bc67355079a07d68fc25bb0923cbd50c2eac240ace89732"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\no-trimming.json.comparison.json",
+    "reviewedPath": "no-trimming.json.comparison.json",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\no-trimming.log",
+    "reviewedPath": "no-trimming.log",
+    "sha256": "c879690ea1ba666d0daefe45e15564a6c61fad004682d62ea7938a0d0fca525e"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\no-trimming.patch",
+    "reviewedPath": "no-trimming.patch",
+    "sha256": "d7b9cba7cabc789b52f865d70ca0afd0dc5442edbfd5e21434dd5815cc0227b4"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\restored-v11-build.log",
+    "reviewedPath": "restored-v11-build.log",
+    "sha256": "a63cca4a8f4cd2113c3b9927360bc642a71b211ccc52c49c228919837c22ea7b"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\restored-v11-common.json",
+    "reviewedPath": "restored-v11-common.json",
+    "sha256": "84381a7f7456f798bb86cdcd5f257a1830e53a8d96cac65c7079cb81c842882d"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\restored-v11-common.json.comparison.json",
+    "reviewedPath": "restored-v11-common.json.comparison.json",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\restored-v11-Embedded.log",
+    "reviewedPath": "restored-v11-Embedded.log",
+    "sha256": "6054abdf93a35e9c3d10880e8be7b29f74b8f5f56e44496f3b3831390508d0e7"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\restored-v11-Embedded.receipt.txt",
+    "reviewedPath": "restored-v11-Embedded.receipt.txt",
+    "sha256": "a8d70e21e4673f8302749536a30653fa88f761b4fd015a512349c98a70cc1410"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\restored-v11-Grid.log",
+    "reviewedPath": "restored-v11-Grid.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\restored-v11-Grid.receipt.txt",
+    "reviewedPath": "restored-v11-Grid.receipt.txt",
+    "sha256": "8f00884f0af5e83138e40c278d14ca44ddda9d056cdd2161569a6630429b4fd4"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\restored-v11-Rendering.log",
+    "reviewedPath": "restored-v11-Rendering.log",
+    "sha256": "6151cb4f83508f3bcd9028c9b9b447a11ec6895490b5bdcc58c87d1a7351a1ad"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\restored-v11-Rendering.receipt.txt",
+    "reviewedPath": "restored-v11-Rendering.receipt.txt",
+    "sha256": "58d91efc80d0dd640337e8b752e7f51db4fd069f49d10575c28c4008c8c33a86"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\restored-v11-tests.log",
+    "reviewedPath": "restored-v11-tests.log",
+    "sha256": "7edc9fbd97dda98c427680af8144caeeec69869136c34f5d7d7fa5b8b2d8d005"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\v11-control.json",
+    "reviewedPath": "v11-control.json",
+    "sha256": "90957f4799d31e65327baa2d1b0ac26fa84f2f3033d7565a0e041691ac7ee3ae"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\v11-control.json.comparison.json",
+    "reviewedPath": "v11-control.json.comparison.json",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-native-isolation-20260921\\v11-control.log",
+    "reviewedPath": "v11-control.log",
+    "sha256": "07dbfa16fda718b3c4be059cc71421c7e940db06f30abbd4c424c74a1d6ddf95"
+  }
+]

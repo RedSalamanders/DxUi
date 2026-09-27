@@ -1,0 +1,17 @@
+[
+  {
+    "Algorithm": "SHA256",
+    "Hash": "D4D760807A0393902284A8D5A76105A965E9A8B33BE2E9697B7B349090A740BD",
+    "Path": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\Tests\\Controls\\DxUiTests.Accessibility.cpp"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "DC24A3158B669D27E3F2CC522AD97DF289B2E4B50E43373BBBEB7DF3A6A98D1F",
+    "Path": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\src\\Controls\\DxUi.Grid.cpp"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "E38C5D4CA4E9C6B2A48CEEE3B718E015A40947450A5EB447DA5D4165F9847236",
+    "Path": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\include\\DxUi\\DxUi.h"
+  }
+]

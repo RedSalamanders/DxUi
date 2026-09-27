@@ -24,6 +24,8 @@ constexpr uint64_t kSpinnerFrameDurationMs   = 120u;
 constexpr uint64_t kMarqueeCycleDurationMs   = 1400u;
 constexpr float kMarqueeBandFraction         = 0.32f;
 constexpr std::wstring_view kSpinnerFrames[] = {L"|", L"/", L"-", L"\\"};
+// A measured line counts as complete when it fits the text rectangle within this tolerance.
+constexpr float kCellTextLineFitToleranceDip = 0.01f;
 
 void ResetGridCellData(GridCellData& cellData) noexcept
 {
@@ -295,10 +297,32 @@ struct GridResolvedCellVisuals final
     return visuals;
 }
 
-[[nodiscard]] bool IsGridCellVisibleTextClipped(const ControlHost& host,
-                                                const GridCellData& cellData,
-                                                const GridCellLayoutMetrics& layout,
-                                                uint32_t lineClamp) noexcept
+// Spinner and marquee cells draw their own single-line captions. Every other
+// multiline cell is painted, and its tooltip decided, by the clamped layout.
+[[nodiscard]] bool UsesMultilineCellText(const GridCellData& cellData) noexcept
+{
+    return cellData.multiline && cellData.kind != GridCellKind::Spinner && cellData.kind != GridCellKind::Marquee;
+}
+
+// Trailing line and paragraph separators only add an empty DirectWrite line.
+// They are neither omitted content nor part of the vertically centred text.
+[[nodiscard]] size_t FindCellTextContentEnd(std::wstring_view text) noexcept
+{
+    size_t end = text.size();
+    while (end > 0u)
+    {
+        const wchar_t last = text[end - 1u];
+        if (last != L'\r' && last != L'\n' && last != L'\u2028' && last != L'\u2029')
+        {
+            break;
+        }
+        --end;
+    }
+    return end;
+}
+
+// Single-line captions only; multiline cells use Grid::IsMultilineCellTextClipped.
+[[nodiscard]] bool IsGridCellVisibleTextClipped(const ControlHost& host, const GridCellData& cellData, const GridCellLayoutMetrics& layout) noexcept
 {
     const std::wstring_view text = cellData.text;
     if (text.empty())
@@ -313,38 +337,6 @@ struct GridResolvedCellVisuals final
     }
 
     const float textHeightDip = std::max(1.0f, layout.textRect.bottom - layout.textRect.top);
-    if (cellData.multiline && lineClamp > 1u)
-    {
-        size_t lineCount = 1u;
-        size_t lineStart = 0u;
-        for (size_t index = 0u; index <= text.size(); ++index)
-        {
-            if (index < text.size() && text[index] != L'\n')
-            {
-                continue;
-            }
-
-            std::wstring_view line = text.substr(lineStart, index - lineStart);
-            if (! line.empty() && line.back() == L'\r')
-            {
-                line = line.substr(0u, line.size() - 1u);
-            }
-
-            if (MeasureSingleLineTextWidthDip(&host, line, FontRole::Body, textHeightDip) > (availableWidthDip + 0.5f))
-            {
-                return true;
-            }
-
-            if (index < text.size())
-            {
-                ++lineCount;
-                lineStart = index + 1u;
-            }
-        }
-
-        return lineCount > lineClamp;
-    }
-
     if (text.find(L'\n') != std::wstring_view::npos || text.find(L'\r') != std::wstring_view::npos)
     {
         return true;
@@ -759,6 +751,9 @@ void Grid::SetModel(IDxGridModel* model) noexcept
 {
     // Non-owning pointer assignment. Caller responsible for model lifetime.
     const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+    _cellTextLayouts.clear();
+    _cellEllipsis.reset();
+    _cellEllipsisFormat.reset();
     _model                            = model;
     _lastPaintHadAnimatedVisibleCells = false;
     _animatedVisibleCellStateValid    = false;
@@ -877,7 +872,12 @@ void Grid::SetIconSizeDip(float iconSizeDip) noexcept
 
 void Grid::SetLineClamp(uint32_t lineClamp) noexcept
 {
-    _lineClamp = std::max(1u, lineClamp);
+    const auto normalized = std::max(1u, lineClamp);
+    if (_lineClamp != normalized)
+    {
+        _lineClamp = normalized;
+        RequestInvalidate();
+    }
 }
 
 void Grid::OnDensityChanged() noexcept
@@ -1855,11 +1855,260 @@ bool Grid::RequestToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t 
     return ToggleCheckboxCell(host, rowIndex, columnIndex);
 }
 
+const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
+    const ControlHost& host, const GridCellData& cellData, float width, float height, std::optional<CellTextLayoutCache>& temporary) const
+{
+    // Trailing separators only add an empty DirectWrite line; measuring
+    // without them keeps them from marking omitted content or shifting centring.
+    const std::wstring_view content(cellData.text.data(), FindCellTextContentEnd(cellData.text));
+    if (content.empty() || width <= 0.0f || height <= 0.0f)
+        return nullptr;
+    auto* factory        = host.GetWriteFactory();
+    const uint32_t clamp = std::max(1u, _lineClamp);
+    const bool wrap      = clamp > 1u;
+    auto* format         = host.GetTextFormat(_cellTextFontRole, cellData.textAlignment, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, wrap);
+    if (! factory || ! format)
+        return nullptr;
+    constexpr size_t cacheSlots           = 32u;
+    constexpr size_t maxRetainedTextUnits = 4096u;
+    const bool retained                   = cellData.text.size() <= maxRetainedTextUnits;
+    if (! retained)
+        temporary.emplace();
+    else if (_cellTextLayouts.empty())
+        _cellTextLayouts.resize(cacheSlots);
+    // Identical cell values can share shaping across rows/columns. A row-index
+    // mapping systematically collides for adjacent visible rows and retains
+    // duplicate layouts for the same value in several columns. The clamp is
+    // grid-wide, so it stays out of the slot: a clamp change rebuilds each
+    // entry in place through the key comparison below.
+    const size_t slot =
+        retained ? (std::hash<std::wstring_view>{}(cellData.text) ^ std::hash<float>{}(width) ^ (std::hash<float>{}(height) << 1u)) % cacheSlots : 0u;
+    CellTextLayoutCache& cache = retained ? _cellTextLayouts[slot] : temporary.value();
+    cache.usedInPaint          = true;
+    if (! cache.layout || cache.format.get() != format || cache.text != cellData.text || cache.width != width || cache.height != height ||
+        cache.lineClamp != clamp)
+    {
+        cache.layout.reset();
+        cache.paintHeight = 0.0f;
+        cache.truncated   = false;
+        // Only a retained entry needs its key text. An oversized value is laid
+        // out afresh for every use, so it is never copied into the entry.
+        if (retained)
+            cache.text = cellData.text;
+        cache.displayText.clear();
+        cache.format    = format;
+        cache.width     = width;
+        cache.height    = height;
+        cache.lineClamp = clamp;
+        // A later paragraph cannot affect shaping of earlier paragraphs. Stop
+        // measuring once complete preceding paragraphs already fill the clamp,
+        // avoiding font fallback and shaping for entirely invisible tails.
+        const auto paragraphEnd = [content](size_t start) { return std::min(content.find_first_of(L"\r\n", start), content.size()); };
+        size_t measuredLength   = paragraphEnd(0u);
+        if (FAILED(factory->CreateTextLayout(content.data(), static_cast<UINT32>(measuredLength), format, width, height, cache.layout.put())))
+            return nullptr;
+        DWRITE_TEXT_METRICS metrics{};
+        if (FAILED(cache.layout->GetMetrics(&metrics)))
+        {
+            cache.layout.reset();
+            return nullptr;
+        }
+        if (measuredLength < content.size() && metrics.lineCount < clamp && metrics.height < height)
+        {
+            // At most one further shaping pass: each explicit paragraph adds
+            // at least one line, so the first clamp paragraphs suffice.
+            for (uint32_t paragraph = 1u; paragraph < clamp && measuredLength < content.size(); ++paragraph)
+            {
+                size_t next = measuredLength + 1u;
+                if (content[measuredLength] == L'\r' && next < content.size() && content[next] == L'\n')
+                    ++next;
+                measuredLength = paragraphEnd(next);
+            }
+            cache.layout.reset();
+            if (FAILED(factory->CreateTextLayout(content.data(), static_cast<UINT32>(measuredLength), format, width, height, cache.layout.put())) ||
+                FAILED(cache.layout->GetMetrics(&metrics)))
+            {
+                cache.layout.reset();
+                return nullptr;
+            }
+        }
+        // DirectWrite line metrics preserve fallback-font/emoji line heights. A
+        // font-size estimate can cut the last line even when the nominal count fits.
+        std::array<DWRITE_LINE_METRICS, 64> localLines{};
+        std::optional<std::vector<DWRITE_LINE_METRICS>> overflowLines;
+        std::span<DWRITE_LINE_METRICS> lines(localLines);
+        if (metrics.lineCount > localLines.size())
+        {
+            overflowLines.emplace(metrics.lineCount);
+            lines = *overflowLines;
+        }
+        UINT32 count = 0u;
+        if (FAILED(cache.layout->GetLineMetrics(lines.data(), static_cast<UINT32>(lines.size()), &count)))
+        {
+            cache.layout.reset();
+            return nullptr;
+        }
+        // Complete lines only, while at least one fits. A first line taller
+        // than the text rectangle still paints, centred and clipped like a
+        // single-line cell, instead of leaving the cell blank.
+        UINT32 visibleLines = 0u;
+        for (UINT32 i = 0u; i < count && i < clamp; ++i)
+        {
+            if (visibleLines != 0u && cache.paintHeight + lines[i].height > height + kCellTextLineFitToleranceDip)
+                break;
+            cache.paintHeight += lines[i].height;
+            ++visibleLines;
+        }
+        if (cache.paintHeight <= 0.0f)
+            return nullptr; // Degenerate line metrics: the retained entry paints nothing.
+        const bool omitted = visibleLines < count || measuredLength < content.size();
+        cache.truncated    = omitted || cache.paintHeight > height + kCellTextLineFitToleranceDip || metrics.width > width + 0.5f;
+        bool reusedLayout  = false;
+        if (omitted)
+        {
+            // Height clipping does not trim later explicit paragraphs. Freeze
+            // the measured visible line boundaries and mark the omitted tail.
+            // DirectWrite supplies Unicode-safe boundaries; the model remains
+            // untouched. No-wrap keeps the marker on the last visible line,
+            // with horizontal ellipsis trimming if that line is already full.
+            // The marker follows the last visible character, not the space or
+            // separator at which that line broke.
+            auto& visibleText = cache.displayText;
+            visibleText.clear();
+            size_t offset = 0u;
+            for (UINT32 i = 0u; i < visibleLines; ++i)
+            {
+                if (i != 0u)
+                    visibleText.push_back(L'\n');
+                const UINT32 tailLength = (i + 1u == visibleLines) ? lines[i].trailingWhitespaceLength : lines[i].newlineLength;
+                visibleText.append(cellData.text, offset, lines[i].length - tailLength);
+                offset += lines[i].length;
+            }
+            visibleText.push_back(L'\u2026');
+            const auto reusable = std::ranges::find_if(_cellTextLayouts,
+                                                       [&](const CellTextLayoutCache& entry)
+            {
+                return &entry != &cache && entry.layout && entry.format.get() == format && entry.width == width && entry.height == height &&
+                       entry.paintHeight == cache.paintHeight && entry.lineClamp == clamp && entry.displayText == visibleText;
+            });
+            if (reusable != _cellTextLayouts.end())
+            {
+                cache.layout = reusable->layout;
+                reusedLayout = true;
+            }
+            else
+            {
+                cache.layout.reset();
+                if (FAILED(factory->CreateTextLayout(
+                        visibleText.data(), static_cast<UINT32>(visibleText.size()), format, width, cache.paintHeight, cache.layout.put())) ||
+                    FAILED(cache.layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP)))
+                {
+                    cache.layout.reset();
+                    return nullptr;
+                }
+            }
+        }
+        if (! reusedLayout)
+        {
+            auto* ellipsisFormat = host.GetTextFormat(_cellTextFontRole, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, false);
+            if (! ellipsisFormat)
+            {
+                cache.layout.reset();
+                return nullptr;
+            }
+            if (! _cellEllipsis || _cellEllipsisFormat.get() != ellipsisFormat)
+            {
+                _cellEllipsis.reset();
+                _cellEllipsisFormat = ellipsisFormat;
+                if (FAILED(factory->CreateEllipsisTrimmingSign(ellipsisFormat, _cellEllipsis.put())))
+                {
+                    cache.layout.reset();
+                    return nullptr;
+                }
+            }
+            const DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_CHARACTER, 0u, 0u};
+            if (FAILED(cache.layout->SetTrimming(&trimming, _cellEllipsis.get())) || FAILED(cache.layout->SetMaxHeight(cache.paintHeight)))
+            {
+                cache.layout.reset();
+                return nullptr;
+            }
+        }
+    }
+    return cache.paintHeight > 0.0f ? &cache : nullptr;
+}
+
+bool Grid::IsMultilineCellTextClipped(const ControlHost& host, const GridCellData& cellData, const D2D1_RECT_F& textRect, const D2D1_RECT_F& viewportRect) const
+{
+    if (FindCellTextContentEnd(cellData.text) == 0u)
+        return false;
+    if (! IsNonEmptyRect(textRect))
+        return true;
+    std::optional<CellTextLayoutCache> temporary;
+    const CellTextLayoutCache* prepared = PrepareCellTextLayout(host, cellData, textRect.right - textRect.left, textRect.bottom - textRect.top, temporary);
+    if (! prepared)
+        return false;
+    if (prepared->truncated)
+        return true;
+    // Paint lays text out against the full cell. As for single-line cells, a
+    // horizontally scrolled viewport that hides part of that text clips it.
+    DWRITE_TEXT_METRICS metrics{};
+    if (FAILED(prepared->layout->GetMetrics(&metrics)))
+        return false;
+    const float textLeft = textRect.left + metrics.left;
+    return textLeft < viewportRect.left - 0.5f || textLeft + metrics.width > viewportRect.right + 0.5f;
+}
+
+void Grid::DrawCellText(ControlHost& host, const GridCellData& cellData, const D2D1_RECT_F& bounds, const D2D1_COLOR_F& color) const
+{
+    if (cellData.text.empty() || ! IsNonEmptyRect(bounds))
+        return;
+    // Existing single-line cells keep the established lightweight drawing path.
+    // The multiline contract alone needs retained shaping and vertical trimming.
+    if (! cellData.multiline)
+    {
+        DrawCenteredText(host, cellData.text, bounds, _cellTextFontRole, color, cellData.textAlignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false);
+        return;
+    }
+    auto* dc = host.GetDeviceContext();
+    if (! dc)
+        return;
+    const float height = bounds.bottom - bounds.top;
+    std::optional<CellTextLayoutCache> temporary;
+    const CellTextLayoutCache* prepared = PrepareCellTextLayout(host, cellData, bounds.right - bounds.left, height, temporary);
+    if (! prepared)
+        return;
+    auto* brush = host.GetSolidBrush(color);
+    if (! brush)
+        return;
+    // Like DrawCenteredText, a first line taller than the text rectangle is
+    // centred on it and clipped to it, so it never paints into other rows.
+    const auto origin       = D2D1::Point2F(bounds.left, bounds.top + (height - prepared->paintHeight) * 0.5f);
+    const bool clipToBounds = prepared->paintHeight > height + kCellTextLineFitToleranceDip;
+    if (clipToBounds)
+        dc->PushAxisAlignedClip(bounds, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+    dc->DrawTextLayout(origin, prepared->layout.get(), brush, kTextDrawOptions);
+    if (clipToBounds)
+        dc->PopAxisAlignedClip();
+}
+
 void Grid::Paint(ControlHost& host) const
 {
-    _lastPaintHadAnimatedVisibleCells = false;
-    _animatedVisibleCellStateValid    = true;
-    auto* dc                          = host.GetDeviceContext();
+    for (auto& entry : _cellTextLayouts)
+        entry.usedInPaint = false;
+    const auto releaseOffscreenLayouts = wil::scope_exit([&]() noexcept
+    {
+        // Reuse bounded string storage, but do not retain shaped COM layouts
+        // for values that have scrolled out of this grid's visible working set.
+        for (auto& entry : _cellTextLayouts)
+            if (! entry.usedInPaint)
+            {
+                entry.layout.reset();
+                entry.format.reset();
+            }
+    });
+    _lastPaintHadAnimatedVisibleCells  = false;
+    _animatedVisibleCellStateValid     = true;
+    auto* dc                           = host.GetDeviceContext();
     if (! dc)
     {
         return;
@@ -2155,7 +2404,7 @@ void Grid::Paint(ControlHost& host) const
             else
             {
                 const GridColumnDesc columnDesc    = _model->GetColumn(columnIndex);
-                const GridCellLayoutMetrics layout = ComputeCellLayoutMetrics(host, visibleCellRect, columnDesc, cellData);
+                const GridCellLayoutMetrics layout = ComputeCellLayoutMetrics(host, cellRect, columnDesc, cellData);
                 GridResolvedCellVisuals cellVisuals{};
                 if (layout.hasCheckbox || layout.hasSwatch || layout.hasBadge)
                 {
@@ -2240,14 +2489,7 @@ void Grid::Paint(ControlHost& host) const
                     }
                 }
 
-                DrawCenteredText(host,
-                                 cellData.text,
-                                 layout.textRect,
-                                 _cellTextFontRole,
-                                 rowText,
-                                 cellData.textAlignment,
-                                 DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
-                                 cellData.multiline && _lineClamp > 1u);
+                DrawCellText(host, cellData, layout.textRect, rowText);
             }
         }
     }
@@ -2674,10 +2916,21 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         _hoveredColumn = hit.columnIndex;
         GridCellData cellData{};
         _model->GetCellData(hit.rowIndex, hit.columnIndex, cellData);
-        const GridColumnDesc columnDesc         = _model->GetColumn(hit.columnIndex);
-        const D2D1_RECT_F visibleCellRect       = ClipRectToRect(hit.rectDip, GetContentRect());
-        const GridCellLayoutMetrics cellMetrics = ComputeCellLayoutMetrics(host, visibleCellRect, columnDesc, cellData);
-        const bool visibleTextClipped           = IsGridCellVisibleTextClipped(host, cellData, cellMetrics, _lineClamp);
+        const GridColumnDesc columnDesc = _model->GetColumn(hit.columnIndex);
+        const D2D1_RECT_F contentRect   = GetContentRect();
+        bool visibleTextClipped         = false;
+        if (UsesMultilineCellText(cellData))
+        {
+            // Paint lays multiline text out against the full cell rectangle, so
+            // the tooltip consults that same prepared layout and its omissions.
+            const GridCellLayoutMetrics cellMetrics = ComputeCellLayoutMetrics(host, hit.rectDip, columnDesc, cellData);
+            visibleTextClipped                      = IsMultilineCellTextClipped(host, cellData, cellMetrics.textRect, contentRect);
+        }
+        else
+        {
+            const GridCellLayoutMetrics cellMetrics = ComputeCellLayoutMetrics(host, ClipRectToRect(hit.rectDip, contentRect), columnDesc, cellData);
+            visibleTextClipped                      = IsGridCellVisibleTextClipped(host, cellData, cellMetrics);
+        }
         const bool repeatedExplicitTooltip =
             ! cellData.tooltipText.empty() && (cellData.tooltipText == cellData.text || cellData.tooltipText == BuildGridCellCopyText(cellData));
         if (! cellData.tooltipText.empty())

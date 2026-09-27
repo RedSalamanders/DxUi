@@ -1,0 +1,49 @@
+[
+  {
+    "name": "v11-control",
+    "fixture": "dxui-complex-ui-multiline-grid-v1",
+    "benchmarkSha256": "07C4055AF1AE0D67209A004CBC10C9872B9308CD137F3231A20E5E3A44A0E61E",
+    "fps": 115.6862785,
+    "roundPrivateMedian": 40062976,
+    "cppAllocations": 1080
+  },
+  {
+    "name": "no-draw",
+    "fixture": "dxui-complex-ui-multiline-grid-v1",
+    "benchmarkSha256": "07C4055AF1AE0D67209A004CBC10C9872B9308CD137F3231A20E5E3A44A0E61E",
+    "fps": 123.4221253,
+    "roundPrivateMedian": 33644544,
+    "cppAllocations": 1080
+  },
+  {
+    "name": "no-trimming",
+    "fixture": "dxui-complex-ui-multiline-grid-v1",
+    "benchmarkSha256": "07C4055AF1AE0D67209A004CBC10C9872B9308CD137F3231A20E5E3A44A0E61E",
+    "fps": 113.5313471,
+    "roundPrivateMedian": 39944192,
+    "cppAllocations": 1080
+  },
+  {
+    "name": "bounded-inline",
+    "fixture": "dxui-complex-ui-multiline-grid-v1",
+    "benchmarkSha256": "07C4055AF1AE0D67209A004CBC10C9872B9308CD137F3231A20E5E3A44A0E61E",
+    "fps": 113.2023676,
+    "roundPrivateMedian": 38449152,
+    "cppAllocations": 1080
+  },
+  {
+    "name": "bounded-marker-paced",
+    "fixture": "dxui-complex-ui-multiline-grid-heap-paced-v1",
+    "benchmarkSha256": "07C4055AF1AE0D67209A004CBC10C9872B9308CD137F3231A20E5E3A44A0E61E",
+    "fps": 115.2296426,
+    "roundPrivateMedian": 39849984,
+    "cppAllocations": 1080,
+    "privateMedian": 37914624.0,
+    "privatePeak": 45936640,
+    "privateEnd": 34308096,
+    "busyMedian": 10948929.0,
+    "freeMedian": 16447448.0,
+    "heapErrors": 0,
+    "seconds": 120.0028251
+  }
+]

@@ -1,0 +1,68 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                  ⚡  ASAN DEBUG  /  X64  /  BUILD  ⚡                  │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: ASan Debug
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\
+
+Compiling DxUi...
+
+  DxUi.Grid.cpp
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\ASan Debug\DxUi.lib
+  EmbeddedTests.cpp
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\ASan Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\ASan Debug\DxUi.EmbeddedControls.exe
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\ASan Debug\DxUi.ControlTests.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\ASan Debug\DxUi.EmbeddedTests.exe
+
+========================================
+DxUi build passed in 00:07
+Output: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\
+Log: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\logs\build-x64-ASan Debug-fee7365610bf4c5cb9be2e35e334b23a.log
+========================================
+Complex UI clean round 1: 1971.87 completed offscreen FPS; p95 0.5995 ms; private 212185088 bytes
+Complex UI clean round 2: 1722.01 completed offscreen FPS; p95 0.8034 ms; private 216670208 bytes
+Complex UI clean round 3: 1912.37 completed offscreen FPS; p95 0.6189 ms; private 218615808 bytes
+Complex UI clean round 4: 1748.3 completed offscreen FPS; p95 0.7344 ms; private 222048256 bytes
+Complex UI clean round 5: 1928.34 completed offscreen FPS; p95 0.605 ms; private 224882688 bytes
+Complex UI dirty round 1: 88.7345 completed offscreen FPS; p95 13.9098 ms; private 367321088 bytes
+Complex UI dirty round 2: 87.2037 completed offscreen FPS; p95 12.9115 ms; private 502472704 bytes
+Complex UI dirty round 3: 90.2451 completed offscreen FPS; p95 13.0798 ms; private 533987328 bytes
+Complex UI dirty round 4: 91.7363 completed offscreen FPS; p95 13.6726 ms; private 535162880 bytes
+Complex UI dirty round 5: 74.2501 completed offscreen FPS; p95 16.8557 ms; private 537481216 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\reports\Performance-x64-ASan Debug-478b9a28c48c40cab7d689da9b90109d.json
+PASS AddressSanitizer detection probe (isolated expected failure)
+Running Grid (x64 ASan Debug)
+PASS Grid (0 capability skips recorded)
+Running Embedded (x64 ASan Debug)
+PASS Embedded (0 capability skips recorded)
+Running Rendering (x64 ASan Debug)
+PASS Rendering (0 capability skips recorded)
+All 3 requested suites passed.

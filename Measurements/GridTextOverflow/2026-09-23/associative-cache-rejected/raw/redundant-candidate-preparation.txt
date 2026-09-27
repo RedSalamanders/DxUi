@@ -1,0 +1,1 @@
+Original restore paths were wrong; no source changed. These two logs are an accidental unchanged candidate repeat, not direct-map evidence.

@@ -1,0 +1,8 @@
+{
+  "baseCommit": "0ae83620ee36d0854aac60343388b784ee8d0f9a",
+  "externalRoot": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-associative-20260923",
+  "archivedFiles": 99,
+  "patchEncoding": "UTF-8 LF; reconstruct source content from base, exact CRLF source hashes in inputs.json",
+  "sourceStateAfterCloseout": "Restored to base; existing Release binaries are the rejected candidate and require rebuild before any subsequent test.",
+  "review": "Sol High independently audited rebuilt inputs/logs/reports; root checked source and executable identity, counts, deltas and rejected receipts before restoring the prototype."
+}

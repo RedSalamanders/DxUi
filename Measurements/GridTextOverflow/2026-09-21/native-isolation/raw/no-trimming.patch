@@ -1,0 +1,15 @@
+diff --git a/src/Controls/DxUi.Grid.cpp b/src/Controls/DxUi.Grid.cpp
+index 6707e91..bc9674c 100644
+--- a/src/Controls/DxUi.Grid.cpp
++++ b/src/Controls/DxUi.Grid.cpp
+@@ -2027,8 +2027,8 @@ void Grid::DrawCellText(ControlHost& host, const GridCellData& cellData, const D
+                     return;
+                 }
+             }
+-            const DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_CHARACTER, 0u, 0u};
+-            if (FAILED(cache.layout->SetTrimming(&trimming, _cellEllipsis.get())) || FAILED(cache.layout->SetMaxHeight(cache.paintHeight)))
++            // Diagnostic isolation: omit native trimming, retaining measurement and drawing.
++            if (FAILED(cache.layout->SetMaxHeight(cache.paintHeight)))
+             {
+                 cache.layout.reset();
+                 return;

@@ -1,0 +1,23 @@
+diff --git a/src/Controls/DxUi.Grid.cpp b/src/Controls/DxUi.Grid.cpp
+index 6707e91..5452669 100644
+--- a/src/Controls/DxUi.Grid.cpp
++++ b/src/Controls/DxUi.Grid.cpp
+@@ -2049,14 +2049,10 @@ void Grid::Paint(ControlHost& host) const
+         entry.usedInPaint = false;
+     const auto releaseOffscreenLayouts = wil::scope_exit([&]() noexcept
+     {
+-        // Reuse bounded string storage, but do not retain shaped COM layouts
+-        // for values that have scrolled out of this grid's visible working set.
+-        for (auto& entry : _cellTextLayouts)
+-            if (! entry.usedInPaint)
+-            {
+-                entry.layout.reset();
+-                entry.format.reset();
+-            }
++        // Diagnostic experiment: no text or shaping object outlives a paint.
++        _cellTextLayouts.clear();
++        _cellEllipsis.reset();
++        _cellEllipsisFormat.reset();
+     });
+     _lastPaintHadAnimatedVisibleCells  = false;
+     _animatedVisibleCellStateValid     = true;

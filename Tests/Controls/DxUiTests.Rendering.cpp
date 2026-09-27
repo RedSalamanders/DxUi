@@ -90,6 +90,274 @@ WindowHostBitmapCapture CaptureAttachedHostWindowBitmap(AttachedHostWindow& wind
     return capture;
 }
 
+void TestGridMultilineClampPreservesCompleteModelText()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(), nullptr, 0, 0, 620, 550, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    GridCellData cell{};
+    cell.text =
+        L"Première ligne française\r\nDeuxième ligne é\r\nTroisième ligne 📷 🍊\r\nQuatrième ligne 👨‍👩‍👧\r\nDernière ligne complète";
+    cell.multiline = true;
+    SingleCellGridModel emptyModel(GridCellData{});
+    SingleCellGridModel textModel(cell);
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 230.0f));
+    grid->SetRowHeightDip(160.0f);
+    grid->SetHeaderHeightDip(30.0f);
+    grid->SetLineClamp(8u);
+    grid->SetModel(&emptyModel);
+    const std::array<GridColumnLayoutEntry, 1> columns{{{L"status", 0u, 300.0f}}};
+    grid->ApplyColumnLayout(columns);
+    window.Host().SetRoot(std::move(root));
+    const auto empty = CaptureAttachedHostWindowBitmap(window, "empty grid clamp reference");
+    grid->SetModel(&textModel);
+    grid->ApplyColumnLayout(columns);
+    const auto full        = CaptureAttachedHostWindowBitmap(window, "eight-line Unicode grid reference");
+    size_t warmGlyphPixels = 0u;
+    for (size_t offset = 0u; offset + 3u < full.bgraPixels.size(); offset += 4u)
+    {
+        const auto blue  = full.bgraPixels[offset];
+        const auto green = full.bgraPixels[offset + 1u];
+        const auto red   = full.bgraPixels[offset + 2u];
+        if (red >= 170u && green >= 40u && green <= 220u && blue <= 120u && static_cast<int>(red) >= green + 20 && static_cast<int>(green) >= blue + 15)
+            ++warmGlyphPixels;
+    }
+    Require(warmGlyphPixels >= 24u, "multiline grid preserves color-font emoji rather than silently rendering them monochrome");
+    grid->SetLineClamp(2u);
+    const auto clamped = CaptureAttachedHostWindowBitmap(window, "two-line grid clamp witness");
+    const auto inkRows = [&](const auto& capture)
+    {
+        UINT rows     = 0u;
+        const auto px = [&](float dip) { return static_cast<UINT>(window.Host().DipsToPixels(dip)); };
+        for (UINT y = px(54.0f); y < px(207.0f); ++y)
+            for (UINT x = px(29.0f); x < px(311.0f); ++x)
+                if (CaptureBgra(capture, x, y) != CaptureBgra(empty, x, y))
+                {
+                    ++rows;
+                    break;
+                }
+        return rows;
+    };
+    const auto fullRows    = inkRows(full);
+    const auto clampedRows = inkRows(clamped);
+    std::cout << "Grid clamp ink rows: full=" << fullRows << " clamped=" << clampedRows << '\n';
+    Require(fullRows > 0u && clampedRows > 0u && clampedRows * 2u < fullRows,
+            "two-line clamp must visibly omit later text with an ellipsis, instead of painting all wrapped lines");
+    GridCellData prefix = cell;
+    prefix.text         = L"Première ligne française\nDeuxième ligne é";
+    SingleCellGridModel prefixModel(prefix);
+    grid->SetModel(&prefixModel);
+    grid->ApplyColumnLayout(columns);
+    const auto prefixCapture = CaptureAttachedHostWindowBitmap(window, "two complete lines without omitted content");
+    uint64_t omissionPixels  = 0u;
+    const auto px            = [&](float dip) { return static_cast<UINT>(window.Host().DipsToPixels(dip)); };
+    for (UINT y = px(54.0f); y < px(207.0f); ++y)
+        for (UINT x = px(29.0f); x < px(311.0f); ++x)
+            omissionPixels += CaptureBgra(prefixCapture, x, y) != CaptureBgra(clamped, x, y) ? 1u : 0u;
+    Require(omissionPixels > 0u, "omitted content must paint a visible ellipsis beyond the same two complete prefix lines");
+    grid->SetModel(&textModel);
+    grid->ApplyColumnLayout(columns);
+    grid->GetSelectionModel().SetSingle(textModel.GetStableRowId(0u));
+    Require(grid->BuildSelectionTsv().find(L"Dernière ligne complète") != std::wstring::npos,
+            "visible trimming must not remove the final original line from copied model text");
+    grid->GetSelectionModel().Clear();
+    const auto beforeClip = CaptureAttachedHostWindowBitmap(window, "full-cell layout before viewport clipping");
+    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 132.0f));
+    const auto clipped     = CaptureAttachedHostWindowBitmap(window, "partially visible cell keeps its full layout");
+    uint64_t changedPixels = 0u;
+    for (UINT y = px(54.0f); y < px(123.0f); ++y)
+        for (UINT x = px(29.0f); x < px(311.0f); ++x)
+            changedPixels += CaptureBgra(beforeClip, x, y) != CaptureBgra(clipped, x, y) ? 1u : 0u;
+    Require(changedPixels == 0u, "viewport clipping must not reflow or recenter the surviving portion of a cell");
+
+    // Reuse the same model through text, font, width, height and clamp changes.
+    // Each cached result must equal a fresh model attachment. The last two steps
+    // keep text, width and height, and so the cache slot, fixed and change only
+    // the font role, then only the clamp: a layout reused without comparing that
+    // key field would paint stale content.
+    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 230.0f));
+    struct CacheVariant
+    {
+        bool oversizedText;
+        FontRole fontRole;
+        float rowHeightDip;
+        uint32_t lineClamp;
+        float columnWidthDip;
+    };
+    constexpr CacheVariant variants[] = {
+        {false, FontRole::Body, 96.0f, 1u, 270.0f},
+        {false, FontRole::Subtitle, 96.0f, 3u, 150.0f},
+        {false, FontRole::Body, 38.0f, 3u, 270.0f},
+        {true, FontRole::Body, 96.0f, 3u, 270.0f},
+        {false, FontRole::Body, 96.0f, 3u, 270.0f},
+        {false, FontRole::Subtitle, 96.0f, 3u, 270.0f},
+        {false, FontRole::Subtitle, 96.0f, 2u, 270.0f},
+    };
+    for (const CacheVariant& variant : variants)
+    {
+        auto changed = cell;
+        changed.text = variant.oversizedText ? std::wstring(5000u, L'é') + L"\nFin 📷" : L"Valeur modifiée 👨‍👩‍👧\nDeuxième ligne\nFin complète";
+        textModel    = SingleCellGridModel(changed);
+        grid->NotifyDataChanged();
+        grid->SetCellTextFontRole(variant.fontRole);
+        grid->SetRowHeightDip(variant.rowHeightDip);
+        grid->SetLineClamp(variant.lineClamp);
+        const std::array<GridColumnLayoutEntry, 1> changedColumns{{{L"status", 0u, variant.columnWidthDip}}};
+        grid->ApplyColumnLayout(changedColumns);
+        const auto cached = CaptureAttachedHostWindowBitmap(window, "updated retained multiline cell");
+        grid->SetModel(nullptr);
+        grid->SetModel(&textModel);
+        grid->ApplyColumnLayout(changedColumns);
+        const auto fresh = CaptureAttachedHostWindowBitmap(window, "fresh multiline layout reference");
+        Require(cached.bgraPixels == fresh.bgraPixels, "text/font/width/height/clamp updates must match a fresh layout without stale cached content");
+        grid->GetSelectionModel().SetSingle(textModel.GetStableRowId(0u));
+        Require(grid->BuildSelectionTsv().find(changed.text) != std::wstring::npos, "even oversized uncached text must retain its complete copy value");
+        grid->GetSelectionModel().Clear();
+    }
+}
+
+void TestGridMultilineShortRowsPaintClippedFirstLine()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(), nullptr, 0, 0, 480, 280, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    GridCellData cell{};
+    cell.text      = L"Quelques glyphes jpgy qui descendent\nParagraphe omis";
+    cell.multiline = true;
+    SingleCellGridModel emptyModel(GridCellData{});
+    SingleCellGridModel textModel(cell);
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 180.0f));
+    grid->SetHeaderHeightDip(30.0f);
+    grid->SetModel(&emptyModel);
+    window.Host().SetRoot(std::move(root));
+    const std::array<GridColumnLayoutEntry, 1> columns{{{L"status", 0u, 300.0f}}};
+    struct ShortRowCase
+    {
+        const char* name;
+        Density density;
+        float rowHeightDip;
+        FontRole fontRole;
+    };
+    // The minimum 20-DIP row leaves a 14-DIP text area, less than one Body line.
+    // Compact density shrinks the default 28-DIP row the same way. A Title line
+    // is taller than the whole cell, so only clipping keeps it out of other rows.
+    constexpr ShortRowCase cases[] = {
+        {"minimum row, Body", Density::Standard, 20.0f, FontRole::Body},
+        {"compact default row, Body", Density::Compact, 28.0f, FontRole::Body},
+        {"minimum row, Title taller than the cell", Density::Standard, 20.0f, FontRole::Title},
+    };
+    for (const ShortRowCase& shortRow : cases)
+    {
+        auto theme          = window.Host().GetTheme();
+        theme.reducedMotion = true;
+        theme.density       = shortRow.density;
+        window.Host().SetTheme(theme);
+        grid->SetRowHeightDip(shortRow.rowHeightDip);
+        grid->SetCellTextFontRole(shortRow.fontRole);
+        grid->SetModel(&emptyModel);
+        grid->ApplyColumnLayout(columns);
+        const auto empty = CaptureAttachedHostWindowBitmap(window, "short multiline row empty reference");
+        grid->SetModel(&textModel);
+        grid->ApplyColumnLayout(columns);
+        const auto painted = CaptureAttachedHostWindowBitmap(window, "short multiline row with text");
+        Require(painted.widthPx == empty.widthPx && painted.heightPx == empty.heightPx, "short multiline row captures share one extent");
+        const GridCellLayoutMetrics metrics = grid->GetCellLayoutMetrics(window.Host(), 0u, 0u);
+        const auto px                       = [&](float dip) { return window.Host().DipsToPixels(dip); };
+        uint64_t textPixels                 = 0u;
+        uint64_t strayPixels                = 0u;
+        for (UINT y = 0u; y < painted.heightPx; ++y)
+            for (UINT x = 0u; x < painted.widthPx; ++x)
+            {
+                if (CaptureBgra(painted, x, y) == CaptureBgra(empty, x, y))
+                    continue;
+                const float centerX = static_cast<float>(x) + 0.5f;
+                const float centerY = static_cast<float>(y) + 0.5f;
+                if (centerX >= px(metrics.textRect.left) && centerX <= px(metrics.textRect.right) && centerY >= px(metrics.textRect.top) &&
+                    centerY <= px(metrics.textRect.bottom))
+                    ++textPixels;
+                else if (centerX < px(metrics.cellRect.left) - 1.0f || centerX > px(metrics.cellRect.right) + 1.0f ||
+                         centerY < px(metrics.cellRect.top) - 1.0f || centerY > px(metrics.cellRect.bottom) + 1.0f)
+                    ++strayPixels;
+            }
+        std::cout << "Grid short multiline row (" << shortRow.name << "): text=" << textPixels << " outside=" << strayPixels << '\n';
+        Require(textPixels > 0u, "a multiline cell too short for one complete line still paints its first line");
+        Require(strayPixels == 0u, "a multiline first line taller than its text area never paints outside the cell");
+    }
+}
+
+void TestGridMultilineTrailingSeparatorsMatchTrimmedTwin()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(), nullptr, 0, 0, 480, 280, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    SingleCellGridModel model(GridCellData{});
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 180.0f));
+    grid->SetHeaderHeightDip(30.0f);
+    // A 58-DIP text area fits three Body lines, so a phantom empty line after a
+    // trailing separator would fit too and move the centred text instead of hiding.
+    grid->SetRowHeightDip(64.0f);
+    grid->SetModel(&model);
+    const std::array<GridColumnLayoutEntry, 1> columns{{{L"status", 0u, 300.0f}}};
+    grid->ApplyColumnLayout(columns);
+    window.Host().SetRoot(std::move(root));
+    const auto capture = [&](std::wstring text, uint32_t lineClamp, const char* context)
+    {
+        GridCellData cell{};
+        cell.text      = std::move(text);
+        cell.multiline = true;
+        model          = SingleCellGridModel(cell);
+        grid->NotifyDataChanged();
+        grid->SetLineClamp(lineClamp);
+        return CaptureAttachedHostWindowBitmap(window, context);
+    };
+    struct TwinCase
+    {
+        const wchar_t* text;
+        const wchar_t* twin;
+        uint32_t lineClamp;
+        const char* name;
+    };
+    // Each value paints exactly like its twin without the trailing separators or
+    // the space before the omission marker: no false ellipsis and no offset.
+    const TwinCase cases[] = {
+        {L"abc\r\n", L"abc", 1u, "single paragraph ending in CRLF, clamp 1"},
+        {L"A\r\nB\r\n", L"A\r\nB", 2u, "two paragraphs ending in CRLF, clamp 2"},
+        {L"A\r\nB\r\n", L"A\r\nB", 3u, "two paragraphs ending in CRLF, clamp 3"},
+        {L"Fin\u2029", L"Fin", 2u, "trailing paragraph separator"},
+        {L"Fin\u2028\u2028", L"Fin", 2u, "trailing line separators"},
+        {L"Fin \r\nsuite", L"Fin\r\nsuite", 1u, "space before an omitted paragraph"},
+        {L"A \r\nB \r\nC", L"A \r\nB\r\nC", 2u, "space ending the last visible line"},
+    };
+    for (const TwinCase& twinCase : cases)
+    {
+        const auto trailing = capture(twinCase.text, twinCase.lineClamp, twinCase.name);
+        const auto twin     = capture(twinCase.twin, twinCase.lineClamp, twinCase.name);
+        std::cout << "Grid multiline trailing-separator twin: " << twinCase.name << '\n';
+        Require(trailing.bgraPixels == twin.bgraPixels, "trailing separators or a trailing space must not add an ellipsis or shift centred lines");
+    }
+    const auto empty = capture(L"", 2u, "empty multiline value");
+    for (const wchar_t* separatorsOnly : {L"\r\n", L"\r\n\r\n", L"\u2029"})
+    {
+        const auto blank = capture(separatorsOnly, 2u, "separator-only multiline value");
+        Require(blank.bgraPixels == empty.bgraPixels, "a multiline value made only of separators paints nothing");
+    }
+}
+
 void TestMultilineButtonPaintUsesMultipleTextRows()
 {
     using namespace DxUi;
@@ -1703,6 +1971,9 @@ void TestAttachedHostRecoversAfterSimulatedDeviceLoss()
 
 void RunRenderingTests()
 {
+    TestGridMultilineClampPreservesCompleteModelText();
+    TestGridMultilineShortRowsPaintClippedFirstLine();
+    TestGridMultilineTrailingSeparatorsMatchTrimmedTwin();
     TestMultilineButtonPaintUsesMultipleTextRows();
     const auto runTest = [](const char* name, void (*fn)())
     {

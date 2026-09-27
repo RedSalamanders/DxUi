@@ -7,3 +7,7 @@
 *.h text eol=crlf
 *.ps1 text eol=crlf
 *.png binary
+# Preserve reviewed native receipts and valid whitespace in retained experiment patches.
+Measurements/GridTextOverflow/2026-09-21/heap-attribution/raw/** -text -whitespace
+Measurements/GridTextOverflow/2026-09-21/native-isolation/raw/** -text -whitespace
+Measurements/GridTextOverflow/2026-09-21/native-ci/raw/** -text -whitespace

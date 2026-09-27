@@ -1,0 +1,6 @@
+[START] Tree
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+[DONE] Tree
+All DxUi tests passed.
