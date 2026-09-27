@@ -1,0 +1,41 @@
+[
+  {
+    "configuration": "Release",
+    "platform": "x64",
+    "suites": 4,
+    "skips": 0,
+    "native": true
+  },
+  {
+    "configuration": "Debug",
+    "platform": "x64",
+    "suites": 4,
+    "skips": 0,
+    "native": true
+  },
+  {
+    "configuration": "ASan Debug",
+    "platform": "x64",
+    "suites": 4,
+    "skips": 0,
+    "native": true
+  },
+  {
+    "configuration": "Release",
+    "platform": "ARM64",
+    "build": "pass",
+    "native": false
+  },
+  {
+    "configuration": "Debug",
+    "platform": "ARM64",
+    "build": "pass",
+    "native": false
+  },
+  {
+    "configuration": "ASan Debug",
+    "platform": "ARM64",
+    "build": "pass",
+    "native": false
+  }
+]

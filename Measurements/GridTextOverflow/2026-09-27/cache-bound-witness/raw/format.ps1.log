@@ -1,0 +1,10 @@
+Formatter: clang-format version 22.1.3 (https://github.com/llvm/llvm-project e9846648fd6183ee6d8cbdb4502213fcf902a211)
+Z:\src\DxUi-worktrees\i26-grid-line-clamp\Tests\Controls\DxUiTests.Rendering.cpp:156:34: error: code should be clang-formatted [-Wclang-format-violations]
+    grid->SetModel(&prefixModel);
+                                 ^
+Z:\src\DxUi-worktrees\i26-grid-line-clamp\Tests\Controls\DxUiTests.Rendering.cpp:1933:56: error: code should be clang-formatted [-Wclang-format-violations]
+    TestGridMultilineClampPreservesCompleteModelText();
+                                                       ^
+Z:\src\DxUi-worktrees\i26-grid-line-clamp\Tests\Controls\DxUiTests.Rendering.cpp:1934:57: error: code should be clang-formatted [-Wclang-format-violations]
+    TestGridMultilineCacheBoundThroughScrollAndDetach();
+                                                        ^

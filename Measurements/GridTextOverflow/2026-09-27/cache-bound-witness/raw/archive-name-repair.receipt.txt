@@ -1,0 +1,16 @@
+{
+  "reason": "Archive Markdown source snapshots are evidence, not active specs; source suffixes also exclude archived code from live formatting",
+  "renamed": {
+    "raw/baseline-inputs/include/DxUi/DxUi.h": "raw/baseline-inputs/include/DxUi/DxUi.h.source.txt",
+    "raw/baseline-inputs/src/Controls/DxUi.Grid.cpp": "raw/baseline-inputs/src/Controls/DxUi.Grid.cpp.source.txt",
+    "raw/baseline-inputs/Tests/Controls/DxUiTests.Rendering.cpp": "raw/baseline-inputs/Tests/Controls/DxUiTests.Rendering.cpp.source.txt",
+    "raw/candidate-inputs/docs/performance.md": "raw/candidate-inputs/docs/performance.md.source.txt",
+    "raw/candidate-inputs/include/DxUi/DxUi.h": "raw/candidate-inputs/include/DxUi/DxUi.h.source.txt",
+    "raw/candidate-inputs/Specs/Plans/WIP/GridTextOverflow_2026-09-21.md": "raw/candidate-inputs/Specs/Plans/WIP/GridTextOverflow_2026-09-21.md.source.txt",
+    "raw/candidate-inputs/Specs/UI/UI_ControlsAndLayout.md": "raw/candidate-inputs/Specs/UI/UI_ControlsAndLayout.md.source.txt",
+    "raw/candidate-inputs/src/Controls/DxUi.Grid.cpp": "raw/candidate-inputs/src/Controls/DxUi.Grid.cpp.source.txt",
+    "raw/candidate-inputs/Tests/Controls/DxUiTests.Rendering.cpp": "raw/candidate-inputs/Tests/Controls/DxUiTests.Rendering.cpp.source.txt",
+    "raw/rendering-before-format.cpp": "raw/rendering-before-format.cpp.source.txt"
+  },
+  "bytesChanged": false
+}

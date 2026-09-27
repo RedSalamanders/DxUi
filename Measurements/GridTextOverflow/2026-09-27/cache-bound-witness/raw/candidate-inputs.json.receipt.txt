@@ -1,0 +1,26 @@
+[
+  {
+    "path": "include/DxUi/DxUi.h",
+    "sha256": "f36d6186b5e78d22386005c69f811ed67c0b8f3086b2f95dbbe6ca1ffe8097f9"
+  },
+  {
+    "path": "src/Controls/DxUi.Grid.cpp",
+    "sha256": "d70f2c133f356bb3ad9d59ca28c3663b29715ad935aafcce97f5f87da51a1167"
+  },
+  {
+    "path": "Tests/Controls/DxUiTests.Rendering.cpp",
+    "sha256": "12d987554b358e5280eea258b9fad14f0976b6fc519e2addb3fb1bc2a6ad2f17"
+  },
+  {
+    "path": "Specs/UI/UI_ControlsAndLayout.md",
+    "sha256": "e8327090101e1432821b61db67f63c88a3ee1f772f598e7e5eb602570bc143b6"
+  },
+  {
+    "path": "Specs/Plans/WIP/GridTextOverflow_2026-09-21.md",
+    "sha256": "c6eca89bb28ba6767035cb95d5bdcc41a7a8f16ad5b8241128a8a684d44dff6d"
+  },
+  {
+    "path": "docs/performance.md",
+    "sha256": "3f07a5740489aaa759e7fd17ee8696de5717258d0392a6a6a825b7f720ae624a"
+  }
+]

@@ -1,0 +1,476 @@
+[
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\arm64-asan-debug\\build.log",
+    "path": "raw/arm64-asan-debug/build.log",
+    "sha256": "72f1377530f99f0ac30fa82319e4d5643acf6a621399b47c9116be28e787275f",
+    "bytes": 4513
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\arm64-asan-debug\\outcome.json",
+    "path": "raw/arm64-asan-debug/outcome.json.receipt.txt",
+    "sha256": "3d375de9ac43e9ac3e02fcb1f2fc5be540c165f3eb13aa5d6fc3cd80b1e949be",
+    "bytes": 1265
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\arm64-asan-debug\\start.json",
+    "path": "raw/arm64-asan-debug/start.json.receipt.txt",
+    "sha256": "714f35557073ff42e837ad69af6d2c2af064fdc20baee5f05fbc11bd37eae5aa",
+    "bytes": 117
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\arm64-debug\\build.log",
+    "path": "raw/arm64-debug/build.log",
+    "sha256": "bfd08a136d04e0b57495189aa1d3b70cf26d87fe42cb2eb8d92a6dc9c5c3aca7",
+    "bytes": 4458
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\arm64-debug\\outcome.json",
+    "path": "raw/arm64-debug/outcome.json.receipt.txt",
+    "sha256": "05a48c39f2c675987f4b6502c549882bd0701416650f9773cb5650c12252a3b6",
+    "bytes": 1235
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\arm64-debug\\start.json",
+    "path": "raw/arm64-debug/start.json.receipt.txt",
+    "sha256": "8020567bfbd393f739bfa24475cd82f1cc006ed14f4fcb2fa4b7722380eaaab2",
+    "bytes": 112
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\arm64-release\\build.log",
+    "path": "raw/arm64-release/build.log",
+    "sha256": "5543202140cf2ac03c37d026b406a038c38d79edc74b15648f51c0c6fd27fa67",
+    "bytes": 4480
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\arm64-release\\outcome.json",
+    "path": "raw/arm64-release/outcome.json.receipt.txt",
+    "sha256": "aaa83be1105716a7ef89ec7b5d8a533c452ae4558ede19a0a28cc3e531272923",
+    "bytes": 1247
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\arm64-release\\start.json",
+    "path": "raw/arm64-release/start.json.receipt.txt",
+    "sha256": "a07fa688bf351379cbc515b6175da4f39a032d828440fe41f362db5c2484c442",
+    "bytes": 114
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\Accessibility-receipt.json",
+    "path": "raw/asan-debug/Accessibility-receipt.json.receipt.txt",
+    "sha256": "658af56295387ddee09b1dcd2ae11eb6780f9d96a2be7b5fe39cde343b69b5ed",
+    "bytes": 6376
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\Accessibility.log",
+    "path": "raw/asan-debug/Accessibility.log",
+    "sha256": "10c8d959d0d68a85dc35cc7791df0bc572817be6ea2f33e6dae62fc3591e64cd",
+    "bytes": 7461
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\AddressSanitizer-receipt.json",
+    "path": "raw/asan-debug/AddressSanitizer-receipt.json.receipt.txt",
+    "sha256": "db972fe1304f082c16228713bc759295d78080c0411f1320e7ecd84b2d3087e0",
+    "bytes": 515
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\AddressSanitizer.log",
+    "path": "raw/asan-debug/AddressSanitizer.log",
+    "sha256": "527c792dc6e18f290f0c6014a0bddcfd03be2107494124680ae114b9a1bdd502",
+    "bytes": 5762
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\Embedded-receipt.json",
+    "path": "raw/asan-debug/Embedded-receipt.json.receipt.txt",
+    "sha256": "03b2003cb608c5c15c990b5755d38765990a7a7f1ffd8af026fcd67741176aee",
+    "bytes": 6372
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\Embedded.log",
+    "path": "raw/asan-debug/Embedded.log",
+    "sha256": "dd5a05d96f6349573ea24fa9474803ec7002513bf66e8db895f4e52c20a86434",
+    "bytes": 97
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\Grid-receipt.json",
+    "path": "raw/asan-debug/Grid-receipt.json.receipt.txt",
+    "sha256": "17b42b58fb1b5adf8031e77b07bc59c8b0bdc2039b36914adfae6fb87f44a1f1",
+    "bytes": 6367
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\Grid.log",
+    "path": "raw/asan-debug/Grid.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "bytes": 181
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\outcome.json",
+    "path": "raw/asan-debug/outcome.json.receipt.txt",
+    "sha256": "1a94f8129466f034958853e3d3d7640dbc10306289930f0342fb4faf13bec7f4",
+    "bytes": 360
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\Performance-x64-ASan Debug-8cdff34438244973b404022b84c6ff53.json",
+    "path": "raw/asan-debug/Performance-x64-ASan Debug-8cdff34438244973b404022b84c6ff53.json.receipt.txt",
+    "sha256": "38f60edb1d1bd4684b166866387495edfc46cbfa55bf0ce2b32059b411940c1d",
+    "bytes": 7423
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\Performance-x64-ASan Debug-8cdff34438244973b404022b84c6ff53.json.comparison.json",
+    "path": "raw/asan-debug/Performance-x64-ASan Debug-8cdff34438244973b404022b84c6ff53.json.comparison.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "bytes": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\Rendering-receipt.json",
+    "path": "raw/asan-debug/Rendering-receipt.json.receipt.txt",
+    "sha256": "11e96d0f97aadc25861cbaaaf53b8a095b8760689649822ba9b543519847359e",
+    "bytes": 6372
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\Rendering.log",
+    "path": "raw/asan-debug/Rendering.log",
+    "sha256": "dd4f1e8bb2ab60bc904a3f2d37f2059f59b50258031258ca8fee9c2bf4eb82e6",
+    "bytes": 8240
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\start.json",
+    "path": "raw/asan-debug/start.json.receipt.txt",
+    "sha256": "fa61fdd1409812d64bffb945b43b13d99a23a14ac4db5f6fe55f6a9490bac442",
+    "bytes": 115
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\asan-debug\\test.log",
+    "path": "raw/asan-debug/test.log",
+    "sha256": "f4003a18ff7197c695845ac2c5e212c18f54ff6907850bdd3e3cdad1bf32bcf1",
+    "bytes": 6516
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\baseline-inputs\\include\\DxUi\\DxUi.h",
+    "path": "raw/baseline-inputs/include/DxUi/DxUi.h.source.txt",
+    "sha256": "e38c5d4ca4e9c6b2a48ceee3b718e015a40947450a5eb447da5d4165f9847236",
+    "bytes": 202024
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\baseline-inputs\\src\\Controls\\DxUi.Grid.cpp",
+    "path": "raw/baseline-inputs/src/Controls/DxUi.Grid.cpp.source.txt",
+    "sha256": "dc24a3158b669d27e3f2cc522ad97df289b2e4b50e43373bbbeb7df3a6a98d1f",
+    "bytes": 174282
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\baseline-inputs\\Tests\\Controls\\DxUiTests.Rendering.cpp",
+    "path": "raw/baseline-inputs/Tests/Controls/DxUiTests.Rendering.cpp.source.txt",
+    "sha256": "7de50d8d925c082f0269f4529d2620bb55e035b721f3a45e0f7f6b3c57b5629a",
+    "bytes": 93362
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\baseline.json",
+    "path": "raw/baseline.json.receipt.txt",
+    "sha256": "8ddfee9da8199ca61392cacdcb241287ce90afac481b908380a8667b63b3691c",
+    "bytes": 771
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\candidate-inputs\\docs\\performance.md",
+    "path": "raw/candidate-inputs/docs/performance.md.source.txt",
+    "sha256": "3f07a5740489aaa759e7fd17ee8696de5717258d0392a6a6a825b7f720ae624a",
+    "bytes": 11280
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\candidate-inputs\\include\\DxUi\\DxUi.h",
+    "path": "raw/candidate-inputs/include/DxUi/DxUi.h.source.txt",
+    "sha256": "f36d6186b5e78d22386005c69f811ed67c0b8f3086b2f95dbbe6ca1ffe8097f9",
+    "bytes": 202444
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\candidate-inputs\\Specs\\Plans\\WIP\\GridTextOverflow_2026-09-21.md",
+    "path": "raw/candidate-inputs/Specs/Plans/WIP/GridTextOverflow_2026-09-21.md.source.txt",
+    "sha256": "c6eca89bb28ba6767035cb95d5bdcc41a7a8f16ad5b8241128a8a684d44dff6d",
+    "bytes": 19362
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\candidate-inputs\\Specs\\UI\\UI_ControlsAndLayout.md",
+    "path": "raw/candidate-inputs/Specs/UI/UI_ControlsAndLayout.md.source.txt",
+    "sha256": "e8327090101e1432821b61db67f63c88a3ee1f772f598e7e5eb602570bc143b6",
+    "bytes": 13121
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\candidate-inputs\\src\\Controls\\DxUi.Grid.cpp",
+    "path": "raw/candidate-inputs/src/Controls/DxUi.Grid.cpp.source.txt",
+    "sha256": "d70f2c133f356bb3ad9d59ca28c3663b29715ad935aafcce97f5f87da51a1167",
+    "bytes": 174750
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\candidate-inputs\\Tests\\Controls\\DxUiTests.Rendering.cpp",
+    "path": "raw/candidate-inputs/Tests/Controls/DxUiTests.Rendering.cpp.source.txt",
+    "sha256": "12d987554b358e5280eea258b9fad14f0976b6fc519e2addb3fb1bc2a6ad2f17",
+    "bytes": 99033
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\candidate-inputs-before-format.json",
+    "path": "raw/candidate-inputs-before-format.json.receipt.txt",
+    "sha256": "e4b3ecd6d8abb3b4c26c332eed97a7f2ec447661b9c4176516c91c9ab8563c46",
+    "bytes": 845
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\candidate-inputs.json",
+    "path": "raw/candidate-inputs.json.receipt.txt",
+    "sha256": "6e780c972a5a3f4a0adc48e59897d7e18604a37666be1384ce64b8b3c6475128",
+    "bytes": 845
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\collect-release-receipts.py",
+    "path": "raw/collect-release-receipts.py",
+    "sha256": "03c51b19763b4b384f31a1a55dbe4aa7558f9ebd00538b40b1ecb74fb23171b7",
+    "bytes": 2298
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\curate.py",
+    "path": "raw/curate.py",
+    "sha256": "2973ce82e66a41dea558f8b3c6b1936a3b610f66ca2caafab0f8d994de7ca5d0",
+    "bytes": 7406
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\debug\\Accessibility-receipt.json",
+    "path": "raw/debug/Accessibility-receipt.json.receipt.txt",
+    "sha256": "cc7dd30c852d69199c9d10a356688f9d34dc2f4f59bf12e91aa7386c9c5988ec",
+    "bytes": 6289
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\debug\\Accessibility.log",
+    "path": "raw/debug/Accessibility.log",
+    "sha256": "d1f784338025bc91df2b409bc3466294f8896a94def64b62d1fe9a12f45ff5fe",
+    "bytes": 7460
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\debug\\Embedded-receipt.json",
+    "path": "raw/debug/Embedded-receipt.json.receipt.txt",
+    "sha256": "bc0e19e7c8b51a35b1830d7cb871b56285be9f2423f6c15007f320de95fe9a4d",
+    "bytes": 6285
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\debug\\Embedded.log",
+    "path": "raw/debug/Embedded.log",
+    "sha256": "27cc0dc1b07ba976021efe23a8cf35b41934316f766ef57b1004ab3aba4208b6",
+    "bytes": 96
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\debug\\Grid-receipt.json",
+    "path": "raw/debug/Grid-receipt.json.receipt.txt",
+    "sha256": "4607230f58c0f0f1234dc9ce1968e819dc482964e6311f3f89fde078298a2fa8",
+    "bytes": 6280
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\debug\\Grid.log",
+    "path": "raw/debug/Grid.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "bytes": 181
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\debug\\outcome.json",
+    "path": "raw/debug/outcome.json.receipt.txt",
+    "sha256": "ed62012f1bd4869201ab47a9a1dc2272399738314fc7bf082f1026f301d6eb7e",
+    "bytes": 330
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\debug\\Performance-x64-Debug-94f0a35f2dd54c3d9b0c7d3ed5d1a9e5.json",
+    "path": "raw/debug/Performance-x64-Debug-94f0a35f2dd54c3d9b0c7d3ed5d1a9e5.json.receipt.txt",
+    "sha256": "904f9548bcceef70ccde6d75ef98721dd4d9ae777d7ffe09a34ed6fecdf77811",
+    "bytes": 7346
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\debug\\Performance-x64-Debug-94f0a35f2dd54c3d9b0c7d3ed5d1a9e5.json.comparison.json",
+    "path": "raw/debug/Performance-x64-Debug-94f0a35f2dd54c3d9b0c7d3ed5d1a9e5.json.comparison.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "bytes": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\debug\\Rendering-receipt.json",
+    "path": "raw/debug/Rendering-receipt.json.receipt.txt",
+    "sha256": "7496ca25f7a1f711554a62d8b696848324392e9fb3eaeaafccf97028b0991483",
+    "bytes": 6285
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\debug\\Rendering.log",
+    "path": "raw/debug/Rendering.log",
+    "sha256": "a0362dfe9d8b32d6cfef4ba771b84232261557ab6ecdbbc7175a2a09b9a19682",
+    "bytes": 8240
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\debug\\start.json",
+    "path": "raw/debug/start.json.receipt.txt",
+    "sha256": "ab883efef1bafd0573634f154a5823acd576d6af35eeb58ff5dd8e06419b912c",
+    "bytes": 110
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\debug\\test.log",
+    "path": "raw/debug/test.log",
+    "sha256": "c83930cb0b357d09f608834fe9a5c48d5d7856da4d6d1d728214eb3565b329d1",
+    "bytes": 5673
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\format-corrected.log",
+    "path": "raw/format-corrected.log",
+    "sha256": "444bec9f0dea809335be8497fbb7277928576b58e0efd75f2958ba93537694d7",
+    "bytes": 120
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\format.ps1.log",
+    "path": "raw/format.ps1.log",
+    "sha256": "8b8970aba342d95043b00969856c75a3f33e822fe8e29c577c2d4b2864a069bf",
+    "bytes": 893
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\release\\Accessibility-receipt.json",
+    "path": "raw/release/Accessibility-receipt.json.receipt.txt",
+    "sha256": "f247b7bbf8343f66b3a7533d077c91b5e05d64cb4b216da886d7c1ccee603e12",
+    "bytes": 6290
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\release\\Accessibility.log",
+    "path": "raw/release/Accessibility.log",
+    "sha256": "aeea8eb3a968b74accfa23c48296ececef12abb46b1221dbbaa9e50cd3baefaf",
+    "bytes": 7460
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\release\\collection-recovery.json",
+    "path": "raw/release/collection-recovery.json.receipt.txt",
+    "sha256": "3f2d78ef80e41082b517976475d7f894f27e66de86862e7449eb178d8a8ecb95",
+    "bytes": 3259
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\release\\collection-recovery.log",
+    "path": "raw/release/collection-recovery.log",
+    "sha256": "3f2d78ef80e41082b517976475d7f894f27e66de86862e7449eb178d8a8ecb95",
+    "bytes": 3259
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\release\\Embedded-receipt.json",
+    "path": "raw/release/Embedded-receipt.json.receipt.txt",
+    "sha256": "8119ab188a342cc64641b88e685421082993a8c692fbcc723ae7f3a574d77da5",
+    "bytes": 6286
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\release\\Embedded.log",
+    "path": "raw/release/Embedded.log",
+    "sha256": "179a51407c3fe1fc620433cceabb11984852cc605753f8e00cb0109529ae0b56",
+    "bytes": 96
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\release\\Grid-receipt.json",
+    "path": "raw/release/Grid-receipt.json.receipt.txt",
+    "sha256": "dcc41a1801fa6d610ef916041372579be1116d9ca82b8290709293fd2c121165",
+    "bytes": 6281
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\release\\Grid.log",
+    "path": "raw/release/Grid.log",
+    "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+    "bytes": 181
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\release\\Performance-x64-Release-9fa62d4ceac245818e91b6a6af9ea0db.json",
+    "path": "raw/release/Performance-x64-Release-9fa62d4ceac245818e91b6a6af9ea0db.json.receipt.txt",
+    "sha256": "eb1d8a76a7c5c28c87e8dde8838d89cd3856f8e30b85e3be02eb691ff8ed17e3",
+    "bytes": 7342
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\release\\Performance-x64-Release-9fa62d4ceac245818e91b6a6af9ea0db.json.comparison.json",
+    "path": "raw/release/Performance-x64-Release-9fa62d4ceac245818e91b6a6af9ea0db.json.comparison.json.receipt.txt",
+    "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+    "bytes": 48
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\release\\Rendering-receipt.json",
+    "path": "raw/release/Rendering-receipt.json.receipt.txt",
+    "sha256": "9c514cc8501e922e8d4d9c7eca4f5b674b5201da4a3f36826af875dcda2de91f",
+    "bytes": 6286
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\release\\Rendering.log",
+    "path": "raw/release/Rendering.log",
+    "sha256": "c9b7945f162579e73270ca0c8345ac482ea3bcd8a209b19f2ab95d214a7a3be2",
+    "bytes": 8240
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\release\\test.log",
+    "path": "raw/release/test.log",
+    "sha256": "f0ea962182d25ccd759a17e57ca178e19308dac77f2b23672347b4d1d54a1fc4",
+    "bytes": 5696
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\rendering-before-format.cpp",
+    "path": "raw/rendering-before-format.cpp.source.txt",
+    "sha256": "e00e4a521270518aafc0c2b51fe2fbf595472eb1495bce8e7a04bb9eecff210c",
+    "bytes": 99030
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\run-arm-builds.ps1",
+    "path": "raw/run-arm-builds.ps1",
+    "sha256": "8c705e0355f8981b9fff01f352b08d4d1f7a057645f00a51168ddadd32a2c3e2",
+    "bytes": 2041
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\run-profile-v1.ps1",
+    "path": "raw/run-profile-v1.ps1",
+    "sha256": "c9d79574e158eb643726f362a53f083083fd048fd49461163f2b89326bda4803",
+    "bytes": 3034
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\run-profile.ps1",
+    "path": "raw/run-profile.ps1",
+    "sha256": "4f5923c30942aa56dea2bf6245d58009fe101956add8f6d23532bd503628f0f4",
+    "bytes": 3233
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\validate-dependencies.ps1.log",
+    "path": "raw/validate-dependencies.ps1.log",
+    "sha256": "09905665f8ccc3fe429dc332f13f2926f05059e3f2002b7cdd1c0cbdacb2d686",
+    "bytes": 113
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\validate-skills.ps1.log",
+    "path": "raw/validate-skills.ps1.log",
+    "sha256": "5b3f8f0d19ac78d111973206d219668da634ef8e7e9c4703a89f21c2aa31cc0b",
+    "bytes": 252
+  },
+  {
+    "source": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\grid-cache-bound-witness-20260927\\validate-specs.ps1.log",
+    "path": "raw/validate-specs.ps1.log",
+    "sha256": "15762651d6500f94631b7670ca65206dd21175e3c347d260eacdf9c2239ef6e9",
+    "bytes": 69
+  },
+  {
+    "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\logs\\build-x64-Release-5c7b0672835a4b568d20bb5204e9b961.log",
+    "path": "raw/release/msbuild-full.log",
+    "sha256": "28fb9e98e979db81cf3c45aeea3f9b4df96122d3f1496005bb3e0cf2136747c4",
+    "bytes": 25673
+  },
+  {
+    "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\logs\\build-x64-Debug-0a19dca5831746b5b16bcb9abe07e138.log",
+    "path": "raw/debug/msbuild-full.log",
+    "sha256": "bc458b9755de1642b4738783152841a82ff4320a589c50ada26246fd8bd74c1e",
+    "bytes": 25934
+  },
+  {
+    "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\logs\\build-x64-ASan Debug-959f7ef8d81a426c9eb0dee6b8e139f7.log",
+    "path": "raw/asan-debug/msbuild-full.log",
+    "sha256": "cc0beb6e00d3b84b2000018d74fdf4016f857c8bc731e7ea5372d93181904cda",
+    "bytes": 28286
+  },
+  {
+    "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\logs\\build-ARM64-Release-a6e721c53f46442b9de6224c30bbd747.log",
+    "path": "raw/arm64-release/msbuild-full.log",
+    "sha256": "4b60a9a5b20cc82c506c06e45f67414de6fbd2309c3431ee6d00dbbcae459c76",
+    "bytes": 27972
+  },
+  {
+    "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\logs\\build-ARM64-Debug-ad1b37b4cabd4904a3f2a6dc674bc702.log",
+    "path": "raw/arm64-debug/msbuild-full.log",
+    "sha256": "0eac377dae4326530843fcc78225999084a349c51dead95a28845ccddf371719",
+    "bytes": 28219
+  },
+  {
+    "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\logs\\build-ARM64-ASan Debug-97ca3b36ad84424b94c84db6898ce83e.log",
+    "path": "raw/arm64-asan-debug/msbuild-full.log",
+    "sha256": "ec22846bd0ded0e63461b7e88511cde028c544f4e7179a9f7507796a603b3c32",
+    "bytes": 28937
+  }
+]

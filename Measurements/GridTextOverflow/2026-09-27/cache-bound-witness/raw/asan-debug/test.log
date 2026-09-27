@@ -1,0 +1,121 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                  ⚡  ASAN DEBUG  /  X64  /  BUILD  ⚡                  │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: ASan Debug
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\
+
+Compiling DxUi...
+
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\ASan Debug\DxUi\DxUiCompositePS.cso
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  Generating Code...
+  Compiling...
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\ASan Debug\DxUi.lib
+  FoundationTests.cpp
+  DxUiTests.Accessibility.cpp
+  EmbeddedTests.cpp
+  Main.cpp
+  PublicHelpersTests.cpp
+  Generating Code...
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\ASan Debug\DxUi.EmbeddedControls.exe
+  DxUiTests.Animation.cpp
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\ASan Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\ASan Debug\DxUi.EmbeddedTests.exe
+  DxUiTests.ComboBox.cpp
+  DxUiTests.Controls.cpp
+  DxUiTests.cpp
+  DxUiTests.Gallery.cpp
+  DxUiTests.Grid.cpp
+  DxUiTests.Menu.cpp
+  DxUiTests.MultilineText.cpp
+  DxUiTests.NativeTextInput.cpp
+  DxUiTests.NewControls.cpp
+  DxUiTests.ReadOnly.cpp
+  DxUiTests.Rendering.cpp
+  DxUiTests.TextField.cpp
+  DxUiTests.Theme.cpp
+  DxUiTests.Tooltip.cpp
+  DxUiTests.Tree.cpp
+  DxUiTests.WindowHost.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\ASan Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 01:48
+Output: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\
+Log: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\logs\build-x64-ASan Debug-959f7ef8d81a426c9eb0dee6b8e139f7.log
+========================================
+Complex UI clean round 1: 2266.92 completed offscreen FPS; p95 0.6109 ms; private 212910080 bytes
+Complex UI clean round 2: 2392.43 completed offscreen FPS; p95 0.5675 ms; private 217104384 bytes
+Complex UI clean round 3: 2200.35 completed offscreen FPS; p95 0.5094 ms; private 219353088 bytes
+Complex UI clean round 4: 1970.3 completed offscreen FPS; p95 0.6337 ms; private 222486528 bytes
+Complex UI clean round 5: 1828.81 completed offscreen FPS; p95 0.6701 ms; private 225316864 bytes
+Complex UI dirty round 1: 75.6808 completed offscreen FPS; p95 23.0613 ms; private 366829568 bytes
+Complex UI dirty round 2: 81.6685 completed offscreen FPS; p95 16.036 ms; private 502870016 bytes
+Complex UI dirty round 3: 65.0667 completed offscreen FPS; p95 17.6757 ms; private 532193280 bytes
+Complex UI dirty round 4: 69.0458 completed offscreen FPS; p95 18.286 ms; private 534331392 bytes
+Complex UI dirty round 5: 60.0247 completed offscreen FPS; p95 20.3346 ms; private 535982080 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\reports\Performance-x64-ASan Debug-8cdff34438244973b404022b84c6ff53.json
+PASS AddressSanitizer detection probe (isolated expected failure)
+Running Grid (x64 ASan Debug)
+PASS Grid (0 capability skips recorded)
+Running Rendering (x64 ASan Debug)
+PASS Rendering (0 capability skips recorded)
+Running Embedded (x64 ASan Debug)
+PASS Embedded (0 capability skips recorded)
+Running Accessibility (x64 ASan Debug)
+PASS Accessibility (0 capability skips recorded)
+All 4 requested suites passed.

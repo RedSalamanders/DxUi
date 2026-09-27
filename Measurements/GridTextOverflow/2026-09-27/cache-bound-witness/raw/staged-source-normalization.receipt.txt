@@ -1,0 +1,23 @@
+[
+  {
+    "path": "include/DxUi/DxUi.h",
+    "compiledSha256": "f36d6186b5e78d22386005c69f811ed67c0b8f3086b2f95dbbe6ca1ffe8097f9",
+    "stagedSha256": "b1f110613a9f1bad2606bf9ca6ccde0d3453846e5f023bad878ad5b469a1ae56",
+    "byteIdentical": false,
+    "onlyCrLfNormalization": true
+  },
+  {
+    "path": "src/Controls/DxUi.Grid.cpp",
+    "compiledSha256": "d70f2c133f356bb3ad9d59ca28c3663b29715ad935aafcce97f5f87da51a1167",
+    "stagedSha256": "ce0273e54680777b6059dfd29192f411dceb0cd1815f821dacc5332054ca57dd",
+    "byteIdentical": false,
+    "onlyCrLfNormalization": true
+  },
+  {
+    "path": "Tests/Controls/DxUiTests.Rendering.cpp",
+    "compiledSha256": "12d987554b358e5280eea258b9fad14f0976b6fc519e2addb3fb1bc2a6ad2f17",
+    "stagedSha256": "cc25df6d44a56b49c82e00c66dd92f2b9d9bcfc0c0c99b664948dd0a5e482663",
+    "byteIdentical": false,
+    "onlyCrLfNormalization": true
+  }
+]

@@ -1,0 +1,210 @@
+﻿Build started 27/09/2026 15:28:49.
+Logging verbosity is set to: Normal.
+     1>Project "Z:\src\DxUi-worktrees\i26-grid-line-clamp\DxUi.sln" on node 1 (Build target(s)).
+     1>ValidateSolutionConfiguration:
+         Building solution configuration "Release|x64".
+     1>Project "Z:\src\DxUi-worktrees\i26-grid-line-clamp\DxUi.sln" (1) is building "Z:\src\DxUi-worktrees\i26-grid-line-clamp\src\DxUi.vcxproj" (2) on node 1 (default targets).
+     2>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+       InitializeBuildStatus:
+         Creating "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+         Touching "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.tlog\unsuccessfulbuild".
+       FxCompile:
+         All outputs are up-to-date.
+         All outputs are up-to-date.
+       ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+       ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /I"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\\" /I"Z:\src\DxUi-worktrees\i26-grid-line-clamp\include" /I"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\vcpkg_installed\x64\x64-windows\include" /Zi /nologo /W4 /WX /diagnostics:column /sdl /O2 /D NDEBUG /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\\" /Fd"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor Controls\ControlCatalog.cpp Controls\DxUi.Accessibility.cpp Controls\DxUi.ComboBox.cpp Controls\DxUi.Controls.cpp Controls\DxUi.Grid.cpp Controls\DxUi.Menu.cpp Controls\DxUi.NativeTextInput.cpp Controls\DxUi.Scrollbar.cpp Controls\DxUi.SingleLineTextEditing.cpp Controls\DxUi.TextInput.cpp Controls\DxUi.TextStoreACP.cpp Controls\DxUi.Theme.cpp Controls\DxUi.Tree.cpp Controls\DxUi.Typeahead.cpp Controls\DxUi.WindowHost.cpp Controls\DxUi.cpp Controls\NativeMenuInterop.cpp Controls\TextClipboard.cpp Controls\TextInputServices.cpp Rendering\Embedded.cpp
+         ControlCatalog.cpp
+         DxUi.Accessibility.cpp
+         DxUi.ComboBox.cpp
+         DxUi.Controls.cpp
+         DxUi.Grid.cpp
+         DxUi.Menu.cpp
+         DxUi.NativeTextInput.cpp
+         DxUi.Scrollbar.cpp
+         DxUi.SingleLineTextEditing.cpp
+         DxUi.TextInput.cpp
+         DxUi.TextStoreACP.cpp
+         DxUi.Theme.cpp
+         DxUi.Tree.cpp
+         DxUi.Typeahead.cpp
+         DxUi.WindowHost.cpp
+         DxUi.cpp
+         NativeMenuInterop.cpp
+         TextClipboard.cpp
+         TextInputServices.cpp
+         Embedded.cpp
+         Generating Code...
+       Lib:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\Lib.exe /OUT:"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.lib" /NOLOGO /MACHINE:X64 "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\ControlCatalog.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\NativeMenuInterop.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\Embedded.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\FrameRuntime.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.Accessibility.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.ComboBox.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.Controls.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.Grid.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.Menu.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.NativeTextInput.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.PointerInput.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.Scrollbar.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.SingleLineTextEditing.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.TextInput.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.TextStoreACP.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\TextInputServices.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\TextClipboard.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.Theme.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.Tree.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.Typeahead.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.WindowHost.obj"
+         DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.lib
+       FinalizeBuildStatus:
+         Deleting file "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.tlog\unsuccessfulbuild".
+         Touching "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi\DxUi.tlog\DxUi.lastbuildstate".
+     2>Done Building Project "Z:\src\DxUi-worktrees\i26-grid-line-clamp\src\DxUi.vcxproj" (default targets).
+     1>Project "Z:\src\DxUi-worktrees\i26-grid-line-clamp\DxUi.sln" (1) is building "Z:\src\DxUi-worktrees\i26-grid-line-clamp\Tests\Embedded\DxUi.EmbeddedTests.vcxproj" (6) on node 2 (default targets).
+     6>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+     1>Project "Z:\src\DxUi-worktrees\i26-grid-line-clamp\DxUi.sln" (1) is building "Z:\src\DxUi-worktrees\i26-grid-line-clamp\Tests\Controls\DxUi.ControlTests.vcxproj" (5) on node 5 (default targets).
+     5>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+     1>Project "Z:\src\DxUi-worktrees\i26-grid-line-clamp\DxUi.sln" (1) is building "Z:\src\DxUi-worktrees\i26-grid-line-clamp\Tests\Foundation\DxUi.FoundationTests.vcxproj" (4) on node 4 (default targets).
+     4>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+     1>Project "Z:\src\DxUi-worktrees\i26-grid-line-clamp\DxUi.sln" (1) is building "Z:\src\DxUi-worktrees\i26-grid-line-clamp\Samples\EmbeddedControls\DxUi.EmbeddedControls.vcxproj" (3) on node 3 (default targets).
+     3>PrepareForBuild:
+         Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+     6>InitializeBuildStatus:
+         Creating "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+     3>InitializeBuildStatus:
+         Creating "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+     4>InitializeBuildStatus:
+         Creating "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+     6>InitializeBuildStatus:
+         Touching "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\unsuccessfulbuild".
+     5>InitializeBuildStatus:
+         Creating "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+     3>InitializeBuildStatus:
+         Touching "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\unsuccessfulbuild".
+     4>InitializeBuildStatus:
+         Touching "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\unsuccessfulbuild".
+     5>InitializeBuildStatus:
+         Touching "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\unsuccessfulbuild".
+     6>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+     4>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+     6>ComputeStdModulesCompileInputs:
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+     4>ComputeStdModulesCompileInputs:
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+     5>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+     3>ComputeStdModulesCompileInputs:
+         Reading library manifest file 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\modules.json' which provides data for library 'microsoft/STL'.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.ixx' from library 'microsoft/STL' to be built with this project.
+         Adding module source 'C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\modules\std.compat.ixx' from library 'microsoft/STL' to be built with this project.
+     6>ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /I"Z:\src\DxUi-worktrees\i26-grid-line-clamp\include" /I"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\vcpkg_installed\x64\x64-windows\include" /Zi /nologo /W4 /WX /diagnostics:column /sdl /O2 /D NDEBUG /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\\" /Fd"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\vc145.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor EmbeddedTests.cpp
+     4>ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /I"Z:\src\DxUi-worktrees\i26-grid-line-clamp\include" /I"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\vcpkg_installed\x64\x64-windows\include" /Zi /nologo /W4 /WX /diagnostics:column /sdl /O2 /D NDEBUG /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.FoundationTests\\" /Fd"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.FoundationTests\vc145.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor PublicHelpersTests.cpp
+     3>ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /I"Z:\src\DxUi-worktrees\i26-grid-line-clamp\include" /I"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\vcpkg_installed\x64\x64-windows\include" /Zi /nologo /W4 /WX /diagnostics:column /sdl /O2 /D NDEBUG /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\\" /Fd"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\vc145.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor Main.cpp
+     5>ClCompile:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\CL.exe /c /I"Z:\src\DxUi-worktrees\i26-grid-line-clamp\include" /I"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\vcpkg_installed\x64\x64-windows\include" /Zi /nologo /W4 /WX /diagnostics:column /sdl /O2 /D ENABLE_TESTS /D NDEBUG /D UNICODE /D _UNICODE /D WIN32_LEAN_AND_MEAN /D NOMINMAX /Gm- /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++latest /permissive- /Fo"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\\" /Fd"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\vc145.pdb" /external:W4 /Gd /TP /FC /errorReport:queue /utf-8 /Zc:preprocessor DxUiTests.Accessibility.cpp DxUiTests.Animation.cpp DxUiTests.ComboBox.cpp DxUiTests.Controls.cpp DxUiTests.Gallery.cpp DxUiTests.Grid.cpp DxUiTests.Menu.cpp DxUiTests.MultilineText.cpp DxUiTests.NativeTextInput.cpp DxUiTests.NewControls.cpp DxUiTests.ReadOnly.cpp DxUiTests.Rendering.cpp DxUiTests.TextField.cpp DxUiTests.Theme.cpp DxUiTests.Tooltip.cpp DxUiTests.Tree.cpp DxUiTests.WindowHost.cpp DxUiTests.cpp
+     6>ClCompile:
+         EmbeddedTests.cpp
+     4>ClCompile:
+         PublicHelpersTests.cpp
+     3>ClCompile:
+         Main.cpp
+     5>ClCompile:
+         DxUiTests.Accessibility.cpp
+     4>Link:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.FoundationTests.exe" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.FoundationTests.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.FoundationTests.lib" /MACHINE:X64 "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.FoundationTests\FoundationTests.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.FoundationTests\PublicHelpersTests.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.lib"
+     3>Link:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.EmbeddedControls.exe" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.EmbeddedControls.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.EmbeddedControls.lib" /MACHINE:X64 "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\Main.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.lib"
+     5>ClCompile:
+         DxUiTests.Animation.cpp
+     4>Link:
+         DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.FoundationTests.exe
+       FinalizeBuildStatus:
+         Deleting file "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\unsuccessfulbuild".
+         Touching "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.FoundationTests\DxUi.Fou.D62F4A2E.tlog\DxUi.FoundationTests.lastbuildstate".
+     4>Done Building Project "Z:\src\DxUi-worktrees\i26-grid-line-clamp\Tests\Foundation\DxUi.FoundationTests.vcxproj" (default targets).
+     3>Link:
+         DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.EmbeddedControls.exe
+       FinalizeBuildStatus:
+         Deleting file "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\unsuccessfulbuild".
+         Touching "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.EmbeddedControls\DxUi.Emb.C7E3462E.tlog\DxUi.EmbeddedControls.lastbuildstate".
+     3>Done Building Project "Z:\src\DxUi-worktrees\i26-grid-line-clamp\Samples\EmbeddedControls\DxUi.EmbeddedControls.vcxproj" (default targets).
+     6>Link:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.EmbeddedTests.exe" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.EmbeddedTests.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.EmbeddedTests.lib" /MACHINE:X64 "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\EmbeddedTests.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.lib"
+         DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.EmbeddedTests.exe
+       FinalizeBuildStatus:
+         Deleting file "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\unsuccessfulbuild".
+         Touching "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.EmbeddedTests\DxUi.Emb.8B4FAB6F.tlog\DxUi.EmbeddedTests.lastbuildstate".
+     6>Done Building Project "Z:\src\DxUi-worktrees\i26-grid-line-clamp\Tests\Embedded\DxUi.EmbeddedTests.vcxproj" (default targets).
+     5>ClCompile:
+         DxUiTests.ComboBox.cpp
+         DxUiTests.Controls.cpp
+         DxUiTests.Gallery.cpp
+         DxUiTests.Grid.cpp
+         DxUiTests.Menu.cpp
+         DxUiTests.MultilineText.cpp
+         DxUiTests.NativeTextInput.cpp
+         DxUiTests.NewControls.cpp
+         DxUiTests.ReadOnly.cpp
+         DxUiTests.Rendering.cpp
+         DxUiTests.TextField.cpp
+         DxUiTests.Theme.cpp
+         DxUiTests.Tooltip.cpp
+         DxUiTests.Tree.cpp
+         DxUiTests.WindowHost.cpp
+         DxUiTests.cpp
+         Generating Code...
+       Link:
+         C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\bin\HostX86\x64\link.exe /ERRORREPORT:QUEUE /OUT:"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.ControlTests.exe" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG:FULL /PDB:"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.ControlTests.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.ControlTests.lib" /MACHINE:X64 "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Accessibility.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Animation.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.ComboBox.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Controls.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Gallery.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Grid.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Menu.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.MultilineText.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.NativeTextInput.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.NewControls.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.ReadOnly.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Rendering.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.TextField.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Theme.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Tooltip.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.Tree.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUiTests.WindowHost.obj"
+         "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.lib"
+         DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.ControlTests.exe
+       FinalizeBuildStatus:
+         Deleting file "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\unsuccessfulbuild".
+         Touching "Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\Intermediate\x64\Release\DxUi.ControlTests\DxUi.Con.B4F322B1.tlog\DxUi.ControlTests.lastbuildstate".
+     5>Done Building Project "Z:\src\DxUi-worktrees\i26-grid-line-clamp\Tests\Controls\DxUi.ControlTests.vcxproj" (default targets).
+     1>Done Building Project "Z:\src\DxUi-worktrees\i26-grid-line-clamp\DxUi.sln" (Build target(s)).
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:02:11.55

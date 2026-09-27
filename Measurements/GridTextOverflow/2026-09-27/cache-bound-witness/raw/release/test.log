@@ -1,0 +1,110 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                   ⚡  RELEASE  /  X64  /  BUILD  ⚡                    │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\
+
+Compiling DxUi...
+
+  ControlCatalog.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  DxUi.cpp
+  NativeMenuInterop.cpp
+  TextClipboard.cpp
+  TextInputServices.cpp
+  Embedded.cpp
+  Generating Code...
+  DxUi.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.lib
+  EmbeddedTests.cpp
+  PublicHelpersTests.cpp
+  Main.cpp
+  DxUiTests.Accessibility.cpp
+  DxUiTests.Animation.cpp
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.EmbeddedTests.exe
+  DxUiTests.ComboBox.cpp
+  DxUiTests.Controls.cpp
+  DxUiTests.Gallery.cpp
+  DxUiTests.Grid.cpp
+  DxUiTests.Menu.cpp
+  DxUiTests.MultilineText.cpp
+  DxUiTests.NativeTextInput.cpp
+  DxUiTests.NewControls.cpp
+  DxUiTests.ReadOnly.cpp
+  DxUiTests.Rendering.cpp
+  DxUiTests.TextField.cpp
+  DxUiTests.Theme.cpp
+  DxUiTests.Tooltip.cpp
+  DxUiTests.Tree.cpp
+  DxUiTests.WindowHost.cpp
+  DxUiTests.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\x64\Release\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 02:11
+Output: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\
+Log: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\logs\build-x64-Release-5c7b0672835a4b568d20bb5204e9b961.log
+========================================
+Complex UI clean round 1: 2512.18 completed offscreen FPS; p95 0.5773 ms; private 26066944 bytes
+Complex UI clean round 2: 2641.4 completed offscreen FPS; p95 0.4197 ms; private 26177536 bytes
+Complex UI clean round 3: 2676.95 completed offscreen FPS; p95 0.415 ms; private 26247168 bytes
+Complex UI clean round 4: 2632.9 completed offscreen FPS; p95 0.4058 ms; private 27140096 bytes
+Complex UI clean round 5: 2640.23 completed offscreen FPS; p95 0.4168 ms; private 27734016 bytes
+Complex UI dirty round 1: 573.536 completed offscreen FPS; p95 2.025 ms; private 29114368 bytes
+Complex UI dirty round 2: 582.661 completed offscreen FPS; p95 1.8585 ms; private 29138944 bytes
+Complex UI dirty round 3: 571.177 completed offscreen FPS; p95 1.989 ms; private 29163520 bytes
+Complex UI dirty round 4: 572.044 completed offscreen FPS; p95 1.9933 ms; private 29155328 bytes
+Complex UI dirty round 5: 581.288 completed offscreen FPS; p95 1.8702 ms; private 28708864 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi-worktrees\i26-grid-line-clamp\.build\reports\Performance-x64-Release-9fa62d4ceac245818e91b6a6af9ea0db.json
+Running Grid (x64 Release)
+PASS Grid (0 capability skips recorded)
+Running Rendering (x64 Release)
+PASS Rendering (0 capability skips recorded)
+Running Embedded (x64 Release)
+PASS Embedded (0 capability skips recorded)
+Running Accessibility (x64 Release)
+PASS Accessibility (0 capability skips recorded)
+All 4 requested suites passed.

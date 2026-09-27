@@ -1,0 +1,70 @@
+{
+  "configuration": "Release",
+  "platform": "x64",
+  "driverExit": 1,
+  "nativeReceiptExits": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "capabilitySkips": 0,
+  "buildReportedPass": true,
+  "collectionFailure": "PowerShell re-parsed a ConvertFrom-Json DateTime through French culture; no native failure",
+  "freshnessFloorUtc": "2026-09-27T13:28:47.816108+00:00",
+  "freshnessFloorSource": "Original evidence directory creation UTC; not a reconstructed exact test start",
+  "recovery": "Copied fresh source/binary-bound receipts in place; no native rerun",
+  "performance": "unpaired",
+  "files": [
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\reports\\Grid-x64-Release.json",
+      "path": "Grid-receipt.json",
+      "sha256": "dcc41a1801fa6d610ef916041372579be1116d9ca82b8290709293fd2c121165"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\logs\\test-Grid-x64-Release.log",
+      "path": "Grid.log",
+      "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\reports\\Rendering-x64-Release.json",
+      "path": "Rendering-receipt.json",
+      "sha256": "9c514cc8501e922e8d4d9c7eca4f5b674b5201da4a3f36826af875dcda2de91f"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\logs\\test-Rendering-x64-Release.log",
+      "path": "Rendering.log",
+      "sha256": "c9b7945f162579e73270ca0c8345ac482ea3bcd8a209b19f2ab95d214a7a3be2"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\reports\\Embedded-x64-Release.json",
+      "path": "Embedded-receipt.json",
+      "sha256": "8119ab188a342cc64641b88e685421082993a8c692fbcc723ae7f3a574d77da5"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\logs\\test-Embedded-x64-Release.log",
+      "path": "Embedded.log",
+      "sha256": "179a51407c3fe1fc620433cceabb11984852cc605753f8e00cb0109529ae0b56"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\reports\\Accessibility-x64-Release.json",
+      "path": "Accessibility-receipt.json",
+      "sha256": "f247b7bbf8343f66b3a7533d077c91b5e05d64cb4b216da886d7c1ccee603e12"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\logs\\test-Accessibility-x64-Release.log",
+      "path": "Accessibility.log",
+      "sha256": "aeea8eb3a968b74accfa23c48296ececef12abb46b1221dbbaa9e50cd3baefaf"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\reports\\Performance-x64-Release-9fa62d4ceac245818e91b6a6af9ea0db.json",
+      "path": "Performance-x64-Release-9fa62d4ceac245818e91b6a6af9ea0db.json",
+      "sha256": "eb1d8a76a7c5c28c87e8dde8838d89cd3856f8e30b85e3be02eb691ff8ed17e3"
+    },
+    {
+      "source": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\reports\\Performance-x64-Release-9fa62d4ceac245818e91b6a6af9ea0db.json.comparison.json",
+      "path": "Performance-x64-Release-9fa62d4ceac245818e91b6a6af9ea0db.json.comparison.json",
+      "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+    }
+  ]
+}

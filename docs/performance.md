@@ -1,5 +1,14 @@
 # Performance and testing
 
+Grid diagnostic snapshots (`DebugGetTextLayoutCacheState`, called on its UI owner thread) expose
+retained slot/layout counts and source-text sizes without shaping or adding paint counters. The
+Rendering fixture exercises more distinct visible multiline cells than the 32-entry budget,
+scrolls and reattaches models, and checks oversized values and teardown. These counts bound the
+Grid's retained values; they do not measure all DirectWrite/process allocation or waive paired
+timing and memory gates. The [cache-bound witness packet](../Measurements/GridTextOverflow/2026-09-27/cache-bound-witness/README.md)
+retains 12 passing x64 suites across Release/Debug/ASan, the sanitizer probe and three ARM64 cross-builds.
+Native ARM64 execution of that new witness remains pending; these automatic benchmarks are unpaired.
+
 DxUi must remain fast and use little memory. The normative
 [performance contract](../Specs/Core/Core_PerformanceAndResources.md) requires before/after evidence and developer
 advice for a confirmed regression. A green functional suite alone does not establish performance acceptance.

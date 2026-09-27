@@ -1,0 +1,30 @@
+{
+  "configuration": "ASan Debug",
+  "platform": "ARM64",
+  "nativeRuntimeExecuted": false,
+  "startedUtc": "2026-09-27T13:41:47.8402220+00:00",
+  "completedUtc": "2026-09-27T13:43:24.2770267+00:00",
+  "exit": 0,
+  "artifacts": [
+    {
+      "path": "Z:/src/DxUi-worktrees/i26-grid-line-clamp/.build/ARM64/ASan Debug/DxUi.lib",
+      "sha256": "8a5af28e4948ed097b5e4110fc854de384c217fccca05fb8479fb68e62cd1ce8"
+    },
+    {
+      "path": "Z:/src/DxUi-worktrees/i26-grid-line-clamp/.build/ARM64/ASan Debug/DxUi.ControlTests.exe",
+      "sha256": "b885e3fdf1d8bd20a573107531a8f8c10e547e4a416b2e744781590333193216"
+    },
+    {
+      "path": "Z:/src/DxUi-worktrees/i26-grid-line-clamp/.build/ARM64/ASan Debug/DxUi.EmbeddedTests.exe",
+      "sha256": "ce457d3a82ecb4343f61c28898785d777fb973cc1874118f47e22ac66192428f"
+    },
+    {
+      "path": "Z:/src/DxUi-worktrees/i26-grid-line-clamp/.build/ARM64/ASan Debug/DxUi.FoundationTests.exe",
+      "sha256": "cd16b45172225d440f743184a25e9eeaa4188bf6d7c0c92ced19253b7b6f4836"
+    },
+    {
+      "path": "Z:/src/DxUi-worktrees/i26-grid-line-clamp/.build/ARM64/ASan Debug/DxUi.EmbeddedControls.exe",
+      "sha256": "ccf0228d3989d978c48e037a8bd55242083b829e3e226d9462e2d3ce855af0c4"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "configuration": "Debug",
+  "platform": "x64",
+  "startedUtc": "2026-09-27T13:32:14.4665368+00:00",
+  "completedUtc": "2026-09-27T13:34:12.6649157+00:00",
+  "exit": 0,
+  "freshSuites": [
+    "Grid",
+    "Rendering",
+    "Embedded",
+    "Accessibility"
+  ],
+  "performance": "unpaired; functional witness only"
+}

@@ -1,0 +1,12 @@
+{
+  "suite": "AddressSanitizer",
+  "configuration": "ASan Debug",
+  "platform": "x64",
+  "nativeArchitecture": "X64",
+  "completedUtc": "2026-09-27T13:36:41.0602003Z",
+  "executable": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\x64\\ASan Debug\\DxUi.FoundationTests.exe",
+  "sha256": "464C48869F410D449339D15B294B5FBDC5EBFB942C49D3D600ED40521860C2DD",
+  "exitCode": 1,
+  "detected": true,
+  "log": "Z:\\src\\DxUi-worktrees\\i26-grid-line-clamp\\.build\\logs\\test-AddressSanitizer-x64.log"
+}

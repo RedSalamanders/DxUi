@@ -8,7 +8,7 @@ The consumer's French Issues grid exposed a generic defect: `SetLineClamp` enabl
 does not limit visible lines or produce an omission marker. Partially visible cells also lay out
 against their clipped rectangle, changing text placement as they cross the viewport boundary.
 
-## September 27 cache-bound witness qualification
+## September 27 cache-bound witness candidate
 
 Root checked a Luna audit and found that the existing mutation/pixel test resets its one-cell
 cache; the embedded cache-limit test covers brushes/formats, not the Grid's retained text.
@@ -19,17 +19,10 @@ reports observed slots/layouts/source units; it adds no fields or counters to th
 The existing pixel witness now constructs its borrowed models before the host, preserving their
 lifetime on successful and failed assertions. No crash was observed or attributed to the old order.
 
-Grid, Rendering, Embedded and Accessibility pass without skips in x64 Release, Debug and ASan
-Debug (12 suite passes), including the expected sanitizer detection probe. All three ARM64
-configurations build with zero warnings/errors; native ARM64 execution of this witness remains
-open. Root ran one native lane and checked a cheaper-model source/evidence review.
-[The reviewed packet](../../../Measurements/GridTextOverflow/2026-09-27/cache-bound-witness/README.md)
-retains all six full build logs, source/binary identities and original/candidate inputs.
-Release's native suites passed before an archive-driver date conversion failed; the original
-receipts were verified and recovered without rerunning tests. Debug/ASan use the corrected driver.
-External evidence remains in `C:/RedSalamander.Perf/evidence/i26-ui/grid-cache-bound-witness-20260927`
-at baseline `d2f2e3a`. The prior six-profile packet below qualifies the preceding test source,
-not this added witness. Automatic benchmark results are unpaired.
+This candidate is not yet natively qualified. Root is the sole writer; its builds wait for the
+ongoing RedSalamander native lane. Source baseline and work evidence are retained in
+`C:/RedSalamander.Perf/evidence/i26-ui/grid-cache-bound-witness-20260927` at baseline `d2f2e3a`.
+The prior six-profile packet below qualifies the preceding test source, not this added witness.
 Production rendering/cache policy remains V11. Docs/gallery review: diagnostics and test lifetime
 only; no control, theme, geometry or gallery input changes, so the published V11 images remain valid.
 Performance acceptance and consumer adoption are unchanged; do not waive retained timing flags.
@@ -127,22 +120,17 @@ Reuse bounded text-layout resources; clean/hidden composition adds no work. No f
 
 - [x] Retain unchanged-production pixel witness and paired complex-UI performance baseline.
 - [x] Implement complete-line trimming and stable full-cell layout with bounded resource reuse.
-- [x] Verify actual pixels, long French/Unicode text, copy/UIA, narrow/short cells, clipping,
-  mutation/resize/font changes, cache bounds and independent WARP/device-loss/lifecycle suites
-  in all three x64 profiles. Native ARM64 qualification of the added cache witness remains below.
+- [ ] Verify actual pixels, long French/Unicode text, copy/UIA, narrow/short cells, clipping,
+  mutation/resize/font changes, cache bounds and independent WARP/device-loss/lifecycle suites.
 - [x] Run x64 Debug/Release/ASan tests and all three ARM64 cross-builds.
 - [x] Obtain native ARM64 Grid/Embedded/Rendering/Accessibility qualification in all three profiles;
-  the preceding full-value UIA source is qualified at `40384eae`; nine unrelated Menu
-  desktop-capability skips per profile remain explicitly unqualified.
-- [ ] Obtain native ARM64 execution of the September 27 cache-bound witness in all three profiles.
+  nine unrelated Menu desktop-capability skips per profile remain explicitly unqualified.
 - [ ] Compare paired performance/resources; preserve every failed/noisy attempt without rebaselining.
 - [x] Update controls documentation/domain contract and regenerate/review gallery; run validators/format (V11).
 - [ ] Qualify publication and explicit consumer pin adoption; retain the old consumer pin until qualified.
 - [ ] Move this plan to Done after its own gates pass. The previous localized-layout plan stays Done.
 
-## Historical execution notes (September 21–23)
-
-The dated qualification and developer decision above supersede the statuses in this retained history.
+## Checkpoint
 
 Latest native qualification: published `7827873` passes all six native CI profiles
 after one unchanged x64 Debug Accessibility classification retry. Retain the first

@@ -93,18 +93,22 @@ WindowHostBitmapCapture CaptureAttachedHostWindowBitmap(AttachedHostWindow& wind
 void TestGridMultilineClampPreservesCompleteModelText()
 {
     using namespace DxUi;
-    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
-    SetWindowPos(window.Hwnd(), nullptr, 0, 0, 620, 550, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-    window.PumpMessages();
-    auto theme          = window.Host().GetTheme();
-    theme.reducedMotion = true;
-    window.Host().SetTheme(theme);
     GridCellData cell{};
     cell.text =
         L"Première ligne française\r\nDeuxième ligne é\r\nTroisième ligne 📷 🍊\r\nQuatrième ligne 👨‍👩‍👧\r\nDernière ligne complète";
     cell.multiline = true;
     SingleCellGridModel emptyModel(GridCellData{});
     SingleCellGridModel textModel(cell);
+    GridCellData prefix = cell;
+    prefix.text         = L"Première ligne française\nDeuxième ligne é";
+    SingleCellGridModel prefixModel(prefix);
+    // Models outlive the borrowing host on success and assertion failure.
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(), nullptr, 0, 0, 620, 550, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
     auto root  = std::make_unique<Panel>();
     auto* grid = root->AddChild<Grid>();
     grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 230.0f));
@@ -149,9 +153,6 @@ void TestGridMultilineClampPreservesCompleteModelText()
     std::cout << "Grid clamp ink rows: full=" << fullRows << " clamped=" << clampedRows << '\n';
     Require(fullRows > 0u && clampedRows > 0u && clampedRows * 2u < fullRows,
             "two-line clamp must visibly omit later text with an ellipsis, instead of painting all wrapped lines");
-    GridCellData prefix = cell;
-    prefix.text         = L"Première ligne française\nDeuxième ligne é";
-    SingleCellGridModel prefixModel(prefix);
     grid->SetModel(&prefixModel);
     grid->ApplyColumnLayout(columns);
     const auto prefixCapture = CaptureAttachedHostWindowBitmap(window, "two complete lines without omitted content");
@@ -200,6 +201,120 @@ void TestGridMultilineClampPreservesCompleteModelText()
         Require(grid->BuildSelectionTsv().find(changed.text) != std::wstring::npos, "even oversized uncached text must retain its complete copy value");
         grid->GetSelectionModel().Clear();
     }
+}
+
+class MultilineCacheChurnGridModel final : public DxUi::IDxGridModel
+{
+public:
+    bool oversized = false;
+    [[nodiscard]] size_t GetRowCount() const noexcept override
+    {
+        return 48u;
+    }
+    [[nodiscard]] size_t GetColumnCount() const noexcept override
+    {
+        return 8u;
+    }
+    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t columnIndex) const override
+    {
+        DxUi::GridColumnDesc column{};
+        column.id          = std::format(L"col{0}", columnIndex);
+        column.title       = std::format(L"{0}", columnIndex);
+        column.widthDip    = 70.0f;
+        column.minWidthDip = 24.0f;
+        column.multiline   = true;
+        return column;
+    }
+    void GetCellData(size_t rowIndex, size_t columnIndex, DxUi::GridCellData& out) const override
+    {
+        out           = {};
+        out.multiline = true;
+        out.text      = std::format(L"{0:02}/{1:02}\nRéunion familiale 📷\nFin complète", rowIndex, columnIndex);
+        if (oversized)
+            out.text.append(5000u, L'é');
+    }
+    [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+    {
+        return rowId < GetRowCount() ? std::optional<size_t>(static_cast<size_t>(rowId)) : std::nullopt;
+    }
+};
+
+void TestGridMultilineCacheBoundThroughScrollAndDetach()
+{
+    using namespace DxUi;
+    MultilineCacheChurnGridModel model;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    Require(SetWindowPos(window.Hwnd(),
+                         nullptr,
+                         0,
+                         0,
+                         static_cast<int>(std::lround(window.Host().DipsToPixels(700.0f))),
+                         static_cast<int>(std::lround(window.Host().DipsToPixels(600.0f))),
+                         SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+            "resize multiline cache witness without activation");
+    window.PumpMessages();
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    auto root  = std::make_unique<Grid>();
+    auto* grid = root.get();
+    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 640.0f, 530.0f));
+    grid->SetHeaderHeightDip(30.0f);
+    grid->SetRowHeightDip(42.0f);
+    grid->SetLineClamp(2u);
+    grid->SetModel(&model);
+    window.Host().SetRoot(std::move(root));
+    const auto columns        = grid->CaptureColumnLayout();
+    const auto requireBounded = [&]()
+    {
+        const auto state = grid->DebugGetTextLayoutCacheState();
+        Require(grid->GetVisibleWorkMetrics().visibleCellCount > 32u, "paint more distinct multiline cells than the retention budget");
+        Require(state.slots > 0u && state.slots <= 32u && state.layouts > 0u && state.layouts <= state.slots,
+                "multiline churn retains a bounded number of live layouts");
+        Require(state.largestSourceTextUnits <= 4096u && state.sourceTextUnits > 0u && state.sourceTextUnits <= state.slots * 4096u,
+                "multiline churn retains bounded source text, independently of hash collisions");
+    };
+    for (const float offset : {0.0f, 630.0f, 0.0f})
+    {
+        grid->DebugSetScrollOffsets(offset, 0.0f);
+        const auto churned = CaptureAttachedHostWindowBitmap(window, "multiline cache after over-capacity scroll churn");
+        requireBounded();
+        grid->SetModel(nullptr);
+        const auto empty = grid->DebugGetTextLayoutCacheState();
+        Require(empty.slots == 0u && empty.layouts == 0u && empty.sourceTextUnits == 0u,
+                "detaching the borrowed model releases cached layouts and source strings");
+        grid->SetModel(&model);
+        grid->ApplyColumnLayout(columns);
+        grid->DebugSetScrollOffsets(offset, 0.0f);
+        const auto fresh = CaptureAttachedHostWindowBitmap(window, "fresh reference at identical multiline scroll position");
+        requireBounded();
+        Require(churned.bgraPixels == fresh.bgraPixels, "cache collisions and scroll eviction must not change visible text");
+    }
+    const auto requireCompleteCopy = [&]()
+    {
+        grid->GetSelectionModel().SetSingle(model.GetStableRowId(0u));
+        const auto tsv = grid->BuildSelectionTsv();
+        for (size_t column = 0u; column < model.GetColumnCount(); ++column)
+        {
+            GridCellData cell{};
+            model.GetCellData(0u, column, cell);
+            Require(tsv.find(cell.text) != std::wstring::npos, "cache eviction and trimming preserve complete copied cell values");
+        }
+        grid->GetSelectionModel().Clear();
+    };
+    requireCompleteCopy();
+    const auto normalPrefix = CaptureAttachedHostWindowBitmap(window, "normal multiline prefix before oversized hidden tail");
+    grid->SetModel(nullptr);
+    model.oversized = true;
+    grid->SetModel(&model);
+    grid->ApplyColumnLayout(columns);
+    const auto oversized = CaptureAttachedHostWindowBitmap(window, "oversized multiline cells use temporary shaping");
+    Require(oversized.bgraPixels == normalPrefix.bgraPixels, "oversized hidden tails preserve the same clamped visible prefix");
+    const auto uncached = grid->DebugGetTextLayoutCacheState();
+    Require(uncached.slots == 0u && uncached.layouts == 0u && uncached.sourceTextUnits == 0u,
+            "a viewport of oversized values must not populate the retained text cache");
+    requireCompleteCopy();
+    grid->SetModel(nullptr);
 }
 
 void TestMultilineButtonPaintUsesMultipleTextRows()
@@ -1816,6 +1931,7 @@ void TestAttachedHostRecoversAfterSimulatedDeviceLoss()
 void RunRenderingTests()
 {
     TestGridMultilineClampPreservesCompleteModelText();
+    TestGridMultilineCacheBoundThroughScrollAndDetach();
     TestMultilineButtonPaintUsesMultipleTextRows();
     const auto runTest = [](const char* name, void (*fn)())
     {

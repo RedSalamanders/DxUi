@@ -3466,6 +3466,15 @@ public:
     [[nodiscard]] uint64_t DebugGetPaintCount() const noexcept;
     [[nodiscard]] bool DebugHitTestPoint(PointDip pointDip, GridDebugHitInfo& out) const noexcept;
     [[nodiscard]] GridDebugPointerState DebugGetPointerState() const noexcept;
+    struct GridDebugTextLayoutCacheState
+    {
+        size_t slots                  = 0u;
+        size_t layouts                = 0u;
+        size_t sourceTextUnits        = 0u;
+        size_t largestSourceTextUnits = 0u;
+    };
+    // Snapshot on the owning UI thread; no shaping, allocation or counters in paint.
+    [[nodiscard]] GridDebugTextLayoutCacheState DebugGetTextLayoutCacheState() const noexcept;
     void DebugSetScrollOffsets(float verticalScrollDip, float horizontalScrollDip) noexcept;
 #endif
     bool RequestSelectRow(size_t rowIndex, UINT modifiers);

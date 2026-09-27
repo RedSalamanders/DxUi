@@ -1673,6 +1673,19 @@ bool Grid::DebugHitTestPoint(PointDip pointDip, GridDebugHitInfo& out) const noe
     return true;
 }
 
+Grid::GridDebugTextLayoutCacheState Grid::DebugGetTextLayoutCacheState() const noexcept
+{
+    GridDebugTextLayoutCacheState state{};
+    state.slots = _cellTextLayouts.size();
+    for (const auto& entry : _cellTextLayouts)
+    {
+        state.layouts += entry.layout ? 1u : 0u;
+        state.sourceTextUnits += entry.text.size();
+        state.largestSourceTextUnits = std::max(state.largestSourceTextUnits, entry.text.size());
+    }
+    return state;
+}
+
 Grid::GridDebugPointerState Grid::DebugGetPointerState() const noexcept
 {
     return GridDebugPointerState{

@@ -1,0 +1,19 @@
+{
+  "head": "d2f2e3a96a03981400c08dbc452dff9ed0f1ab57",
+  "sourceFiles": [
+    {
+      "path": "include/DxUi/DxUi.h",
+      "sha256": "e38c5d4ca4e9c6b2a48ceee3b718e015a40947450a5eb447da5d4165f9847236"
+    },
+    {
+      "path": "src/Controls/DxUi.Grid.cpp",
+      "sha256": "dc24a3158b669d27e3f2cc522ad97df289b2e4b50e43373bbbeb7df3a6a98d1f"
+    },
+    {
+      "path": "Tests/Controls/DxUiTests.Rendering.cpp",
+      "sha256": "7de50d8d925c082f0269f4529d2620bb55e035b721f3a45e0f7f6b3c57b5629a"
+    }
+  ],
+  "purpose": "Read-only cache diagnostics and native bounds/teardown witness; retained V11 rendering unchanged; prior six-profile baseline 40384eae; builds wait for current RedSalamander lane",
+  "startedUtc": "2026-09-27T13:09:26.0666359+00:00"
+}
