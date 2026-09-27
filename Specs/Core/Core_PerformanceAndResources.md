@@ -18,7 +18,8 @@ Retain the original baseline and measure again after the change. Record exact so
 fingerprints, compiler/dependencies, architecture/configuration, hardware/OS/driver, power policy, resolution/DPI,
 visible controls/data size and repetitions. Run serially on the same quiet fixture. Cross-machine, changed-workload,
 Debug/Release or x64/ARM64 comparisons cannot establish non-regression. If a new benchmark is required, run the same
-harness against both implementations. A missing baseline is explicitly unpaired and cannot close an implementation
+harness against both implementations; `performance-paired.ps1` builds a detached baseline with the candidate's
+harness inputs and runs A1/B1/B2/A2 serially. A missing baseline is explicitly unpaired and cannot close an implementation
 performance gate. Documentation/tool-only changes that leave compiled library inputs unchanged record that fact.
 
 DxUi MUST NOT accept a confirmed performance or memory regression silently. Compare FPS, frame/input percentiles,

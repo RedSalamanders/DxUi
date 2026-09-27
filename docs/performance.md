@@ -21,6 +21,19 @@ Before changing implementation, measure the current revision on an otherwise qui
 ```
 
 Keep the baseline; never overwrite it with the candidate. Use separate files for each configuration/architecture.
+When the benchmark itself changed, or the baseline predates it, measure both revisions with one harness:
+
+```powershell
+.\performance-paired.ps1 -BaselineRevision <commit> -Scenario Default,MultilineGrid
+```
+
+It creates a detached baseline worktree under `.build/paired`, copies this checkout's `performance.ps1` and
+benchmark inputs into it, builds both trees and runs A1, B1, B2, A2 serially (A is the baseline). B1/A1 and
+B2/A2 cross the change; A2/A1 and B2/B1 are same-source controls. Every receipt, comparison and `summary.json`
+is retained; flagged comparisons still need developer advice. A manual run of the
+[validation workflow](../.github/workflows/ci.yml) with `benchmark_baseline` (and optionally
+`benchmark_scenarios`) does the same on one hosted x64 runner and uploads `paired-benchmark-x64-Release`.
+Hosted runs are serial on one machine but not a controlled quiet desktop; record that limitation.
 `-Scenario MultilineGridRetention` extends the French multiline fixture with six complete passes through
 its 1,000 rows. It records process memory, handles and retained surface bytes every 200 frames, after
 clearing the Grid model, and after destroying the control tree/detaching the host. Compare identical
