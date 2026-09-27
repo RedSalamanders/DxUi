@@ -1,0 +1,8 @@
+[START] Control
+LOCALIZED_LAYOUT round=0 layouts=24000 us=33799 checksum=1.21933e+07
+LOCALIZED_LAYOUT round=1 layouts=24000 us=24074 checksum=1.21933e+07
+LOCALIZED_LAYOUT round=2 layouts=24000 us=23403 checksum=1.21933e+07
+LOCALIZED_LAYOUT round=3 layouts=24000 us=22730 checksum=1.21933e+07
+LOCALIZED_LAYOUT round=4 layouts=24000 us=24333 checksum=1.21933e+07
+[DONE] Control
+All DxUi tests passed.

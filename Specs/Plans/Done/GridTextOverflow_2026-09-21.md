@@ -1,12 +1,35 @@
 # Bounded grid text and clipping
 
-Status: **ACTIVE**. Owner: the File Operations implementation task, independent library slice.
+Status: **DONE, 2026-09-28**. Owner: the File Operations implementation task, independent library slice.
 Base: qualified main `78b3de389a189c7f86f611787e0489fb6d474218`, plus its documentation-only
 closeout cherry-picked as `c52a8f5`. Other owners' checkouts and changes remain separate.
 
 The consumer's French Issues grid exposed a generic defect: `SetLineClamp` enables wrapping but
 does not limit visible lines or produce an omission marker. Partially visible cells also lay out
 against their clipped rectangle, changing text placement as they cross the viewport boundary.
+
+## Final qualification and handoff
+
+The published feature commit `73ba9365726cce30299290ab9ae8afa065c4fe3d` combines this Grid
+implementation with the qualified menu fixes. All six native Debug/Release/ASan profiles pass
+in CI run `36352406442`; the [exact-source packet](../../../Measurements/MenuDescriptions/2026-09-27/ordinary-menu-ci-73ba/README.md)
+retains actual architectures, source and executable hashes, relocated consumers, galleries and
+original skips. Grid/Rendering/Embedded/Accessibility have no capability skips; each ARM64 Menu
+profile retains nine interactive-desktop skips. x64 directed input and restoration pass.
+
+The paired Grid, retention, combined-library and final resource receipts remain linked below.
+The developer accepted the recorded Grid memory/timing costs; all comparator flags and failed
+experiments remain. The [final resource addendum](../../../Measurements/MenuDescriptions/2026-09-27/navigation-final/README.md)
+does not claim blanket non-regression or attribute unrelated common-fixture timing to UIA.
+Root verifies these receipts and an independent cheaper-model audit before closeout.
+
+RedSalamander explicitly selects 73ba after its isolated full x64 Release build and deterministic
+French gallery pass. This closes qualified branch publication and pin handoff, not merging the
+feature branch to main or completing consumer I26/H4. The prior consumer pin 36b2f4b remains in
+Git for rollback, with its known ordinary-menu UIA defect; no rollback is performed. Original
+78b3de3 binaries and paired baselines remain retained. Consumer Full, resource, physical DPI and
+screen-reader gates remain owned by RedSalamander. The following dated notes are historical;
+their earlier pending statuses are superseded only within this library scope.
 
 ## September 27 timing acceptance and combined qualification
 
@@ -169,10 +192,10 @@ Reuse bounded text-layout resources; clean/hidden composition adds no work. No f
   desktop-capability skips per profile remain explicitly unqualified.
 - [x] Obtain native ARM64 execution of the September 27 cache-bound witness in all three profiles
   (exact-commit CI `36324654165`, 24 focused passes across all six native profiles).
-- [ ] Compare paired performance/resources; preserve every failed/noisy attempt without rebaselining.
+- [x] Compare paired performance/resources; preserve every failed/noisy attempt without rebaselining.
 - [x] Update controls documentation/domain contract and regenerate/review gallery; run validators/format (V11).
-- [ ] Qualify publication and explicit consumer pin adoption; retain the old consumer pin until qualified.
-- [ ] Move this plan to Done after its own gates pass. The previous localized-layout plan stays Done.
+- [x] Publish the qualified feature commit and explicitly hand off consumer pin 73ba; retain rollback provenance.
+- [x] Reconcile normative support and move this library plan to Done. Consumer and main-merge gates remain separate.
 
 ## Historical execution notes (September 21–23)
 

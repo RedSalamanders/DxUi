@@ -14,6 +14,7 @@
     "win32-host",
     "native-text-input",
     "native-accessibility",
+    "described-native-menu",
     "control-gallery",
     "embedded-text-state",
     "application-text-services",
@@ -22,7 +23,6 @@
     "redsalamander-migration"
   ],
   "pending": [
-    "described-native-menu-qualification",
     "embedded-host-text-uia-bridge",
     "av-control"
   ]

@@ -1,0 +1,30 @@
+"""Read-only GitHub CLI capture of completed run identity and artifact metadata."""
+import json
+import subprocess
+from pathlib import Path
+
+ROOT = Path(__file__).parent
+RUN = "36352406442"
+REPO = "RedSalamanders/DxUi"
+
+
+def capture(args, name):
+    result = subprocess.run(args, check=True, capture_output=True, text=True, encoding="utf-8")
+    data = json.loads(result.stdout)
+    (ROOT / name).write_bytes((json.dumps(data, indent=2) + "\n").encode("utf-8"))
+    return data
+
+
+def main():
+    status = capture(["gh", "run", "view", RUN, "--repo", REPO,
+                      "--json", "databaseId,headSha,status,conclusion,createdAt,updatedAt,jobs"], "run-status.json")
+    artifacts = capture(["gh", "api", f"repos/{REPO}/actions/runs/{RUN}/artifacts?per_page=100"], "run-artifacts.json")
+    if status["status"] != "completed" or status["conclusion"] != "success":
+        raise RuntimeError("CI run is not completed successfully")
+    if len(artifacts["artifacts"]) != 6:
+        raise RuntimeError("Expected six native artifacts")
+    print("Captured completed run and six artifact identities")
+
+
+if __name__ == "__main__":
+    main()

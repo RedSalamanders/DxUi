@@ -102,6 +102,12 @@ snapshot comparison reduces 4,096-row End-to-visible from 1.023 to 0.344 seconds
 the same one-second limit. Instrumented diagnosis and final-source qualification are
 separate; the packet does not claim a final six-profile or consumer pass.
 
+The [final local navigation profiles](../Measurements/MenuDescriptions/2026-09-27/navigation-final/README.md)
+retain 54 passing suite receipts and all local resource observations. The common offscreen
+fixture does not attach accessibility; its flagged timing variations do not isolate this
+snapshot-builder change. Local dirty-source qualification and exact-head native CI remain
+separate evidence, with the original flags and accepted costs unchanged.
+
 The [no-capture menu scaling record](../Measurements/MenuDescriptions/2026-09-21/scaling-v1/README.md)
 retains the first 320-cycle probe and its non-monotonic private-memory changes.
 The current v4 diagnostic retains live/free process-heap counters; partial heap

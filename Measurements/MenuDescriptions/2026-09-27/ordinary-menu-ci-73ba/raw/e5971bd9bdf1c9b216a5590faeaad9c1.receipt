@@ -1,0 +1,16 @@
+# 73ba exact-head CI audit
+
+Run 36352406442 at `73ba9365726cce30299290ab9ae8afa065c4fe3d` completed `success`; validation and native job conclusions are preserved in `run-status.json`. Formatting CI is separate.
+
+| Profile | Suites | Failed suite | Skips | Consumer receipts | Gallery files |
+|---|---:|---|---:|---:|---:|
+| native-x64-Release | 22 | none | 0 | 1 | 8 |
+| native-x64-Debug | 20 | none | 0 | 1 | 8 |
+| native-x64-ASan-Debug | 20 | none | 0 | 2 | 8 |
+| native-ARM64-Release | 20 | none | 9 | 1 | 8 |
+| native-ARM64-Debug | 20 | none | 9 | 1 | 8 |
+| native-ARM64-ASan-Debug | 20 | none | 9 | 2 | 8 |
+
+Retained performance receipts, suite and external-consumer outcomes, native architectures, skips, sanitizer probes, gallery files and their extracted hashes are in `audit.json`. Performance receipts are clean exact-head source, one common benchmark fingerprint and 5×40 clean/dirty rounds where validated. ARM64 Menu's explicit interactive-desktop skips do not assert focus routing. GitHub artifact IDs/digests and job conclusions are in `run-artifacts.json` and `run-status.json`. This audit does not qualify RedSalamander's separate consumer pin.
+
+Qualification issues: none.

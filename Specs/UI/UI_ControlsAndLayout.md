@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-09-19
+Last reviewed: 2026-09-28
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -17,7 +17,7 @@ Consumers own density tiers and responsive policy; DxUi contains no AV profile o
 
 ### Localized adaptive layout acceptance
 
-The [described-menu plan](../Plans/WIP/MenuDescriptions_2026-09-21.md) extends native command
+The [completed described-menu plan](../Plans/Done/MenuDescriptions_2026-09-21.md) extends native command
 rows with opt-in literal secondary text. Standard/Toggle/Radio/Info rows must measure both fields
 at the final monitor-constrained width, including the scrollbar lane, then publish matching
 paint/hit geometry. Both fields wrap without silent truncation. Retain prepared layouts across
@@ -29,7 +29,10 @@ one popup preparation. Sharing must preserve separate command IDs, accessible id
 and hit rectangles. The lookup is preparation-local and released before paint; no process-wide
 text cache is retained. Scrollbar reflow sets an absolute final width, including for shared layouts,
 so repeated rows cannot cumulatively narrow one another. DPI changes prepare a fresh coherent set.
-Qualification is still in progress; this is not a consumer or native-platform acceptance claim.
+Library qualification passes all six native profiles at `73ba9365726cce30299290ab9ae8afa065c4fe3d`.
+The [exact-source receipts](../../Measurements/MenuDescriptions/2026-09-27/ordinary-menu-ci-73ba/README.md)
+retain nine interactive Menu skips in each ARM64 profile; x64 directed input has none.
+Physical consumer DPI presentation and assistive-technology journeys remain consumer acceptance gates.
 
 The shared implementation and synthetic acceptance below are qualified by the
 [localized adaptive layout plan](../Plans/Done/LocalizedAdaptiveLayout_2026-09-19.md) and its

@@ -37,7 +37,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 
 ## Described native menu entries
 
-The in-progress [menu description qualification](../Specs/Plans/WIP/MenuDescriptions_2026-09-21.md)
+The completed [menu description qualification](../Specs/Plans/Done/MenuDescriptions_2026-09-21.md)
 adds `MenuFlyoutItem::secondaryText` for Standard, Toggle, Radio and Info entries.
 The primary label and secondary field wrap independently at the available width; the row grows,
 and a constrained menu scrolls. Secondary text is literal Unicode. Primary text keeps existing

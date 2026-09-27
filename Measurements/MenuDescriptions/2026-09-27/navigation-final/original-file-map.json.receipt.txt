@@ -1,0 +1,826 @@
+{
+  "schema": "dxui.measurement-file-map.v1",
+  "source_root_diagnostic": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-plain-uia-20260927",
+  "target_suggestion": "Measurements/MenuDescriptions/2026-09-27/navigation-final",
+  "comparison_tool_sha256": "adac2e54dc3ba35bc48d7cf66fb7c7d936d73cc0598b100565e177f759925b55",
+  "entry_count": 136,
+  "unique_payload_count": 108,
+  "entries": [
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/Accessibility-x64-ASan Debug.json",
+      "staged": "raw/70f9d7d45cecd94f22eb971d09750bfd.receipt",
+      "sha256": "70f9d7d45cecd94f22eb971d09750bfdaad93e4e7da80df60df1d5046483b397",
+      "size_bytes": 6408
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/AddressSanitizer-x64.json",
+      "staged": "raw/4cb264dee04c1d46e30a1e67df0eb155.receipt",
+      "sha256": "4cb264dee04c1d46e30a1e67df0eb15534f60264d768b1da1b3efc92c4e60364",
+      "size_bytes": 551
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/Animation-x64-ASan Debug.json",
+      "staged": "raw/682b582cc9347e3ce145196361c0311c.receipt",
+      "sha256": "682b582cc9347e3ce145196361c0311c166c4c5693ef348dafca34f2bd72f45a",
+      "size_bytes": 6404
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/ComboBox-x64-ASan Debug.json",
+      "staged": "raw/1d2ad2422b74d8c71163526855cab982.receipt",
+      "sha256": "1d2ad2422b74d8c71163526855cab98250749fe48b3808154c59aac97326489c",
+      "size_bytes": 6403
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/Control-x64-ASan Debug.json",
+      "staged": "raw/1734787a7f73aaf8b9f5574ad7f1706b.receipt",
+      "sha256": "1734787a7f73aaf8b9f5574ad7f1706b51f83c315d610884ec5ea9daf3b8b36d",
+      "size_bytes": 6402
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/Embedded-x64-ASan Debug.json",
+      "staged": "raw/745c71136223b359b125a32c1df07343.receipt",
+      "sha256": "745c71136223b359b125a32c1df07343e31d80649cacdbf076c283f153a362c4",
+      "size_bytes": 6404
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/Foundation-x64-ASan Debug.json",
+      "staged": "raw/f05225449c6acf87e4ba83026c052ea9.receipt",
+      "sha256": "f05225449c6acf87e4ba83026c052ea95bd17768156da6ec2395647c415f4082",
+      "size_bytes": 6408
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/Grid-x64-ASan Debug.json",
+      "staged": "raw/0e5c3f172219922bbea5c4e6a15a2e48.receipt",
+      "sha256": "0e5c3f172219922bbea5c4e6a15a2e483e984d1b4a96bd3be5892c41568de9fc",
+      "size_bytes": 6399
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/MenuAccessibility-x64-ASan Debug.json",
+      "staged": "raw/d5171f769994d065186f6cfc610ae3ff.receipt",
+      "sha256": "d5171f769994d065186f6cfc610ae3ff4664c84d020d9e677620164b57be970f",
+      "size_bytes": 6412
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/MenuExitLifetime-x64-ASan Debug.json",
+      "staged": "raw/332cd6c77f1f6c6b9279b7211948c001.receipt",
+      "sha256": "332cd6c77f1f6c6b9279b7211948c00140bc3b6cb2694c5023b2cb1b63c0a3bf",
+      "size_bytes": 6411
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/MultilineText-x64-ASan Debug.json",
+      "staged": "raw/b3495734639794b2f3116871087e713b.receipt",
+      "sha256": "b3495734639794b2f3116871087e713baf4b55a9e13dacc9b828cc11ed4945cb",
+      "size_bytes": 6408
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/NewControls-x64-ASan Debug.json",
+      "staged": "raw/6e52073a1a17e3e458b60388dbab6dda.receipt",
+      "sha256": "6e52073a1a17e3e458b60388dbab6dda8c4eda78c50dc0b93d7efddf4211d589",
+      "size_bytes": 6406
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/Performance-x64-ASan Debug-39f1bdeb785b4bad88da34663cabc538.json",
+      "staged": "raw/02da45c2de05b672bb116398d59fa2e3.receipt",
+      "sha256": "02da45c2de05b672bb116398d59fa2e392d62736defacc60f2351626f254f7e3",
+      "size_bytes": 8097
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/Performance-x64-ASan Debug-39f1bdeb785b4bad88da34663cabc538.json.comparison.json",
+      "staged": "raw/14fc8def36f2813db7d2787166f7bd0e.receipt",
+      "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+      "size_bytes": 48
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/ReadOnly-x64-ASan Debug.json",
+      "staged": "raw/2c0a537f4f3372b5dc1ba9663ed2e3c2.receipt",
+      "sha256": "2c0a537f4f3372b5dc1ba9663ed2e3c2f1e151f71f326ce86c08d012edc83ee8",
+      "size_bytes": 6403
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/Rendering-x64-ASan Debug.json",
+      "staged": "raw/1ea5d8cf1f4b34a0dad738e96e7b0a14.receipt",
+      "sha256": "1ea5d8cf1f4b34a0dad738e96e7b0a14580dd06e5975fe8b4c409f34f9d6487f",
+      "size_bytes": 6404
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/TextField-x64-ASan Debug.json",
+      "staged": "raw/b7a623172efbd208b7e3ff3f5f395b8a.receipt",
+      "sha256": "b7a623172efbd208b7e3ff3f5f395b8aa908fc950a93d595631745b2549de962",
+      "size_bytes": 6404
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/Theme-x64-ASan Debug.json",
+      "staged": "raw/4b7ad8a1f0cfc1331cab3cd646253daa.receipt",
+      "sha256": "4b7ad8a1f0cfc1331cab3cd646253daac4e8ed151d4585410f633187933ac115",
+      "size_bytes": 6400
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/Tooltip-x64-ASan Debug.json",
+      "staged": "raw/dc347beb299c2ba897d4c164986b2462.receipt",
+      "sha256": "dc347beb299c2ba897d4c164986b24626f8c56ac6714b9b8527eff3236793209",
+      "size_bytes": 6402
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/Tree-x64-ASan Debug.json",
+      "staged": "raw/70930b56bf562e216bcc82ede917777c.receipt",
+      "sha256": "70930b56bf562e216bcc82ede917777c551c84765c5ccd5d721389f7392b6862",
+      "size_bytes": 6399
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/WindowHost-x64-ASan Debug.json",
+      "staged": "raw/d814abd5605cca0abda83dd84e7d168c.receipt",
+      "sha256": "d814abd5605cca0abda83dd84e7d168c45155155a01b0e1001b7bccfa78171d3",
+      "size_bytes": 6405
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/hashes.json",
+      "staged": "raw/a6cb740586c53ebd64651332449e5e9b.receipt",
+      "sha256": "a6cb740586c53ebd64651332449e5e9b0709691f9e5ca869403e2e55750ee251",
+      "size_bytes": 731
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/invocation.json",
+      "staged": "raw/4a7c523ae8ef2d33f773c07a50b3c226.receipt",
+      "sha256": "4a7c523ae8ef2d33f773c07a50b3c22658094bd062b412f24bc96d63aa0c6de4",
+      "size_bytes": 222
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-Accessibility-x64-ASan Debug.log",
+      "staged": "raw/41f9d0a8a7666a82c54d28a30ff3c4f6.receipt",
+      "sha256": "41f9d0a8a7666a82c54d28a30ff3c4f648b2ed7aa65a5aa5a99d0c3b1e3512f2",
+      "size_bytes": 7460
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-AddressSanitizer-x64.log",
+      "staged": "raw/7edcc9e3bba8c8d4a7ba7ffc64192c93.receipt",
+      "sha256": "7edcc9e3bba8c8d4a7ba7ffc64192c9370fd7c6e728ec0ea631f3cd8eed89e63",
+      "size_bytes": 5869
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-Animation-x64-ASan Debug.log",
+      "staged": "raw/181ccfb07a7c3c67ae25db3125f5b635.receipt",
+      "sha256": "181ccfb07a7c3c67ae25db3125f5b63513438c19e074cc963d6c7a27b7a80d62",
+      "size_bytes": 191
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-ComboBox-x64-ASan Debug.log",
+      "staged": "raw/b29f09887d351c74847f6cecc4f116cb.receipt",
+      "sha256": "b29f09887d351c74847f6cecc4f116cb2c9a7eb685c9131b1ce8c641785eeca4",
+      "size_bytes": 4014
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-Control-x64-ASan Debug.log",
+      "staged": "raw/22e51622cc023f4d0c1ddc5e4939b48d.receipt",
+      "sha256": "22e51622cc023f4d0c1ddc5e4939b48dec214a78adc8fb5666f6db1cec5fe733",
+      "size_bytes": 407
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-Embedded-x64-ASan Debug.log",
+      "staged": "raw/4dcf0ec4597e04266707a720a49159e2.receipt",
+      "sha256": "4dcf0ec4597e04266707a720a49159e272b2e6b4a72a286757b2ca546ae61ecc",
+      "size_bytes": 97
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-Foundation-x64-ASan Debug.log",
+      "staged": "raw/01007c353f70730873e78034fb6cf5f6.receipt",
+      "sha256": "01007c353f70730873e78034fb6cf5f6bcd702b01e52553f03d8bb4ba32e8372",
+      "size_bytes": 24
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-Grid-x64-ASan Debug.log",
+      "staged": "raw/56be34ba7534f443eda10c157a3c019b.receipt",
+      "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-MenuAccessibility-x64-ASan Debug.log",
+      "staged": "raw/99e2b7d49c642a63952083c506a227cf.receipt",
+      "sha256": "99e2b7d49c642a63952083c506a227cf2161c117a0bbd602fecdcfc6a64c81f2",
+      "size_bytes": 29781
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-MenuExitLifetime-x64-ASan Debug.log",
+      "staged": "raw/72e21f8ad25ffde0f78c65b1f5211ebe.receipt",
+      "sha256": "72e21f8ad25ffde0f78c65b1f5211ebe6707968d9954eb6cc6079993a0786199",
+      "size_bytes": 104
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-MultilineText-x64-ASan Debug.log",
+      "staged": "raw/115e90d3665aaca20f5630f5487fbc74.receipt",
+      "sha256": "115e90d3665aaca20f5630f5487fbc7498595492191ee0e55187cf02a7f82791",
+      "size_bytes": 15287
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-NewControls-x64-ASan Debug.log",
+      "staged": "raw/a6d0a0ec8e3c938528aced0eb7d143c5.receipt",
+      "sha256": "a6d0a0ec8e3c938528aced0eb7d143c5ebd74fb7ce51cb71078e29c22f5c67ce",
+      "size_bytes": 1540
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-ReadOnly-x64-ASan Debug.log",
+      "staged": "raw/abcb9b85165fb68b19a0e70c815fe567.receipt",
+      "sha256": "abcb9b85165fb68b19a0e70c815fe5676201cfd3999818f38d8e036ae0d0b07e",
+      "size_bytes": 2659
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-Rendering-x64-ASan Debug.log",
+      "staged": "raw/deb5b60e9418dcfb3f002be373afc0e3.receipt",
+      "sha256": "deb5b60e9418dcfb3f002be373afc0e36abd9a1915e3f9ab061a0663d405c7f1",
+      "size_bytes": 8467
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-TextField-x64-ASan Debug.log",
+      "staged": "raw/b1d3bb0d6930b5f596013377af2ce45f.receipt",
+      "sha256": "b1d3bb0d6930b5f596013377af2ce45ffa53a97d822ff2f094301d7ba2a60493",
+      "size_bytes": 10883
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-Theme-x64-ASan Debug.log",
+      "staged": "raw/1d502c308bc9845ab1f08d2a89ac946a.receipt",
+      "sha256": "1d502c308bc9845ab1f08d2a89ac946a81537be36e28bf9fcf8fc5a12007ceb7",
+      "size_bytes": 53
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-Tooltip-x64-ASan Debug.log",
+      "staged": "raw/619183b9e8a66d7089a4217f84d02494.receipt",
+      "sha256": "619183b9e8a66d7089a4217f84d02494048118730f5c207d8eeff7d837829002",
+      "size_bytes": 577
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-Tree-x64-ASan Debug.log",
+      "staged": "raw/a1594223b505dc7ef35c9c890ed80f14.receipt",
+      "sha256": "a1594223b505dc7ef35c9c890ed80f1428f8b8ceeea909653689929b7f56d288",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test-WindowHost-x64-ASan Debug.log",
+      "staged": "raw/6bb94961429d5625cc382694356cfcc9.receipt",
+      "sha256": "6bb94961429d5625cc382694356cfcc911e579ac5faad205237da539c6d0e773",
+      "size_bytes": 11605
+    },
+    {
+      "original_relative": "profiles-navigation-final/ASan-Debug/test.log",
+      "staged": "raw/90bfc2d12bbbe7b5e53c802ed97a17a9.receipt",
+      "sha256": "90bfc2d12bbbe7b5e53c802ed97a17a9187b73ca4a151c93b7f4975c580a9942",
+      "size_bytes": 6178
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/Accessibility-x64-Debug.json",
+      "staged": "raw/2df19fa9b95acfa285e059edde6a7abd.receipt",
+      "sha256": "2df19fa9b95acfa285e059edde6a7abdcb91bfdb40a186fc734129ddb1db7d7f",
+      "size_bytes": 6325
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/Animation-x64-Debug.json",
+      "staged": "raw/6c51c09f0daf37f363f9b84633ed100e.receipt",
+      "sha256": "6c51c09f0daf37f363f9b84633ed100ed0d3417d450914032d30f354b9171868",
+      "size_bytes": 6321
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/ComboBox-x64-Debug.json",
+      "staged": "raw/4b08e521ab9f7a5cb23c8584dbd7da10.receipt",
+      "sha256": "4b08e521ab9f7a5cb23c8584dbd7da10e7e069f4297ff2d6f4e3f57f4e23139c",
+      "size_bytes": 6320
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/Control-x64-Debug.json",
+      "staged": "raw/e62a07ca9dfbbd3dc121eb99717c88c5.receipt",
+      "sha256": "e62a07ca9dfbbd3dc121eb99717c88c5b71ac06dce724821fc7e2956b7a60627",
+      "size_bytes": 6319
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/Embedded-x64-Debug.json",
+      "staged": "raw/5e2b089b1b3103b69a7dd714cb4432df.receipt",
+      "sha256": "5e2b089b1b3103b69a7dd714cb4432df1ef63c0859e64c76fafc15712c28fe3c",
+      "size_bytes": 6321
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/Foundation-x64-Debug.json",
+      "staged": "raw/21e5bb6ed3688b12d916ecae033f65a4.receipt",
+      "sha256": "21e5bb6ed3688b12d916ecae033f65a46c913be1d63d81cedb5be52c86407503",
+      "size_bytes": 6325
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/Grid-x64-Debug.json",
+      "staged": "raw/a8e5e730c977e1c5cd6b19e879253a52.receipt",
+      "sha256": "a8e5e730c977e1c5cd6b19e879253a52f3b58f25acc1b1b7eceb9412102c7017",
+      "size_bytes": 6316
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/MenuAccessibility-x64-Debug.json",
+      "staged": "raw/282e51e751b5f2e2d54d0ad338cd5bdc.receipt",
+      "sha256": "282e51e751b5f2e2d54d0ad338cd5bdc848d0fc73a642622cf5385e3cee94ab4",
+      "size_bytes": 6329
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/MenuExitLifetime-x64-Debug.json",
+      "staged": "raw/e75983f876ae0ba2f8657ec5f199fec5.receipt",
+      "sha256": "e75983f876ae0ba2f8657ec5f199fec56d8aab0df36f4fa4c06e81018413f35f",
+      "size_bytes": 6328
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/MultilineText-x64-Debug.json",
+      "staged": "raw/e9aab1e22458311de509d90404fba724.receipt",
+      "sha256": "e9aab1e22458311de509d90404fba724217359ee49da40d70e3b775dc747a1a4",
+      "size_bytes": 6325
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/NewControls-x64-Debug.json",
+      "staged": "raw/f9f1ef7a01296e55b96a0c8822d22399.receipt",
+      "sha256": "f9f1ef7a01296e55b96a0c8822d22399e2e00e47f52ea023043ca1d314a94588",
+      "size_bytes": 6323
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/Performance-x64-Debug-c9017e81b2c04f529dc8a4897718e08e.json",
+      "staged": "raw/adb28c4cc72a5581e40c68cd840574fa.receipt",
+      "sha256": "adb28c4cc72a5581e40c68cd840574fa3497ae9c392242e67b358e17512586e4",
+      "size_bytes": 8015
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/Performance-x64-Debug-c9017e81b2c04f529dc8a4897718e08e.json.comparison.json",
+      "staged": "raw/14fc8def36f2813db7d2787166f7bd0e.receipt",
+      "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+      "size_bytes": 48
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/ReadOnly-x64-Debug.json",
+      "staged": "raw/f818421d8e62452addefb3296fda7dc1.receipt",
+      "sha256": "f818421d8e62452addefb3296fda7dc107b7f253dccc474bcf5ae84efd779bd0",
+      "size_bytes": 6320
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/Rendering-x64-Debug.json",
+      "staged": "raw/cd041c1592f06913c98e0982b6a99846.receipt",
+      "sha256": "cd041c1592f06913c98e0982b6a9984615e33cb47ed141ae7dc3a0b0827097b2",
+      "size_bytes": 6321
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/TextField-x64-Debug.json",
+      "staged": "raw/23e7a4e9a350d03f0c555fa4a0e38a76.receipt",
+      "sha256": "23e7a4e9a350d03f0c555fa4a0e38a76db7ec650700e97c6efa162b3cf48a169",
+      "size_bytes": 6321
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/Theme-x64-Debug.json",
+      "staged": "raw/d118b65593263c0caa55b3838392aad6.receipt",
+      "sha256": "d118b65593263c0caa55b3838392aad6428342a8104d89fc0ec37b9e3c35cb61",
+      "size_bytes": 6317
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/Tooltip-x64-Debug.json",
+      "staged": "raw/35f5d30a68786b5b47ef622ab35192be.receipt",
+      "sha256": "35f5d30a68786b5b47ef622ab35192be47dd1483582b918bf734240e174fac00",
+      "size_bytes": 6319
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/Tree-x64-Debug.json",
+      "staged": "raw/1dfd5123b602fd0bab1ec21436d3a691.receipt",
+      "sha256": "1dfd5123b602fd0bab1ec21436d3a691404719a2d790a8c618bff4b96bf9e251",
+      "size_bytes": 6316
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/WindowHost-x64-Debug.json",
+      "staged": "raw/5cce654cf3d1d1924609ecbe106bd409.receipt",
+      "sha256": "5cce654cf3d1d1924609ecbe106bd409950bb86fbd8ac4a1c9a23ba31739734e",
+      "size_bytes": 6322
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/hashes.json",
+      "staged": "raw/91c8516c5ac5bd7aabbb1a574b888369.receipt",
+      "sha256": "91c8516c5ac5bd7aabbb1a574b8883694614bb5d4c55fc06c1d28a8021996db5",
+      "size_bytes": 716
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/invocation.json",
+      "staged": "raw/976b8306d62e8c8efee9d1d6cb8c64c5.receipt",
+      "sha256": "976b8306d62e8c8efee9d1d6cb8c64c50800111e84d64e0bfef5039f13cd5628",
+      "size_bytes": 222
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-Accessibility-x64-Debug.log",
+      "staged": "raw/aeea8eb3a968b74accfa23c48296ecec.receipt",
+      "sha256": "aeea8eb3a968b74accfa23c48296ececef12abb46b1221dbbaa9e50cd3baefaf",
+      "size_bytes": 7460
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-Animation-x64-Debug.log",
+      "staged": "raw/181ccfb07a7c3c67ae25db3125f5b635.receipt",
+      "sha256": "181ccfb07a7c3c67ae25db3125f5b63513438c19e074cc963d6c7a27b7a80d62",
+      "size_bytes": 191
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-ComboBox-x64-Debug.log",
+      "staged": "raw/b29f09887d351c74847f6cecc4f116cb.receipt",
+      "sha256": "b29f09887d351c74847f6cecc4f116cb2c9a7eb685c9131b1ce8c641785eeca4",
+      "size_bytes": 4014
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-Control-x64-Debug.log",
+      "staged": "raw/80aaf2a34a2dc5b928a5e756de432a79.receipt",
+      "sha256": "80aaf2a34a2dc5b928a5e756de432a790cc22cf8f56dab4e838fb84f8a158654",
+      "size_bytes": 402
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-Embedded-x64-Debug.log",
+      "staged": "raw/019203c4c953a9f60abd62fc3da1573c.receipt",
+      "sha256": "019203c4c953a9f60abd62fc3da1573c5ee7972037d9045c5d88f88bccbd99bf",
+      "size_bytes": 97
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-Foundation-x64-Debug.log",
+      "staged": "raw/01007c353f70730873e78034fb6cf5f6.receipt",
+      "sha256": "01007c353f70730873e78034fb6cf5f6bcd702b01e52553f03d8bb4ba32e8372",
+      "size_bytes": 24
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-Grid-x64-Debug.log",
+      "staged": "raw/56be34ba7534f443eda10c157a3c019b.receipt",
+      "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-MenuAccessibility-x64-Debug.log",
+      "staged": "raw/92d30b6f5dd03fd7eaac71b2d5fa701d.receipt",
+      "sha256": "92d30b6f5dd03fd7eaac71b2d5fa701d40188555eec828657f873cd612db9cce",
+      "size_bytes": 30240
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-MenuExitLifetime-x64-Debug.log",
+      "staged": "raw/72e21f8ad25ffde0f78c65b1f5211ebe.receipt",
+      "sha256": "72e21f8ad25ffde0f78c65b1f5211ebe6707968d9954eb6cc6079993a0786199",
+      "size_bytes": 104
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-MultilineText-x64-Debug.log",
+      "staged": "raw/115e90d3665aaca20f5630f5487fbc74.receipt",
+      "sha256": "115e90d3665aaca20f5630f5487fbc7498595492191ee0e55187cf02a7f82791",
+      "size_bytes": 15287
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-NewControls-x64-Debug.log",
+      "staged": "raw/a6d0a0ec8e3c938528aced0eb7d143c5.receipt",
+      "sha256": "a6d0a0ec8e3c938528aced0eb7d143c5ebd74fb7ce51cb71078e29c22f5c67ce",
+      "size_bytes": 1540
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-ReadOnly-x64-Debug.log",
+      "staged": "raw/abcb9b85165fb68b19a0e70c815fe567.receipt",
+      "sha256": "abcb9b85165fb68b19a0e70c815fe5676201cfd3999818f38d8e036ae0d0b07e",
+      "size_bytes": 2659
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-Rendering-x64-Debug.log",
+      "staged": "raw/5f578aa8d1e309cb3c3e6602b4c62c5f.receipt",
+      "sha256": "5f578aa8d1e309cb3c3e6602b4c62c5f1c838a967a8f1013ea58b6373e17be43",
+      "size_bytes": 8240
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-TextField-x64-Debug.log",
+      "staged": "raw/b1d3bb0d6930b5f596013377af2ce45f.receipt",
+      "sha256": "b1d3bb0d6930b5f596013377af2ce45ffa53a97d822ff2f094301d7ba2a60493",
+      "size_bytes": 10883
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-Theme-x64-Debug.log",
+      "staged": "raw/1d502c308bc9845ab1f08d2a89ac946a.receipt",
+      "sha256": "1d502c308bc9845ab1f08d2a89ac946a81537be36e28bf9fcf8fc5a12007ceb7",
+      "size_bytes": 53
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-Tooltip-x64-Debug.log",
+      "staged": "raw/619183b9e8a66d7089a4217f84d02494.receipt",
+      "sha256": "619183b9e8a66d7089a4217f84d02494048118730f5c207d8eeff7d837829002",
+      "size_bytes": 577
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-Tree-x64-Debug.log",
+      "staged": "raw/a1594223b505dc7ef35c9c890ed80f14.receipt",
+      "sha256": "a1594223b505dc7ef35c9c890ed80f1428f8b8ceeea909653689929b7f56d288",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test-WindowHost-x64-Debug.log",
+      "staged": "raw/6bb94961429d5625cc382694356cfcc9.receipt",
+      "sha256": "6bb94961429d5625cc382694356cfcc911e579ac5faad205237da539c6d0e773",
+      "size_bytes": 11605
+    },
+    {
+      "original_relative": "profiles-navigation-final/Debug/test.log",
+      "staged": "raw/1d368f0563a923e47c974262d8574ef1.receipt",
+      "sha256": "1d368f0563a923e47c974262d8574ef1e86d2dc89e134b02f71ecc327dd4cbbf",
+      "size_bytes": 5986
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/Accessibility-x64-Release.json",
+      "staged": "raw/f1376b1b88646f1e30ba7affb18cd30c.receipt",
+      "sha256": "f1376b1b88646f1e30ba7affb18cd30c1cf79d3d9a7c11256c25a46909faa91b",
+      "size_bytes": 6335
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/Animation-x64-Release.json",
+      "staged": "raw/0f450a3f87b2dbfd037eec25cff61400.receipt",
+      "sha256": "0f450a3f87b2dbfd037eec25cff6140061abea94fec5b768e7bba0a0cb677818",
+      "size_bytes": 6331
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/ComboBox-x64-Release.json",
+      "staged": "raw/2bccd90b562aecc8ce03af0e12fce492.receipt",
+      "sha256": "2bccd90b562aecc8ce03af0e12fce492c39e20529adf95729ddbb5da57ff9cff",
+      "size_bytes": 6330
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/Control-x64-Release.json",
+      "staged": "raw/49ffe444bd9b0dc2f7ddfb3a66e37b24.receipt",
+      "sha256": "49ffe444bd9b0dc2f7ddfb3a66e37b24f02038194c656579a2638204da57bb4c",
+      "size_bytes": 6329
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/Embedded-x64-Release.json",
+      "staged": "raw/4292734f0f5d270e44c164b3754a7916.receipt",
+      "sha256": "4292734f0f5d270e44c164b3754a79161d49843401bc440c4aa29a771d640a61",
+      "size_bytes": 6331
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/Foundation-x64-Release.json",
+      "staged": "raw/a828284391308bb5fd9035f522b523bf.receipt",
+      "sha256": "a828284391308bb5fd9035f522b523bfb2e92da33b3f0867f09b34bcad805191",
+      "size_bytes": 6335
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/Grid-x64-Release.json",
+      "staged": "raw/771529f1f2cd48d5625cf65708597896.receipt",
+      "sha256": "771529f1f2cd48d5625cf65708597896217afea5186115208e23fbe62cf0010a",
+      "size_bytes": 6326
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/MenuAccessibility-x64-Release.json",
+      "staged": "raw/57cb4f0806f8399c6b3689ec3dd3c4f5.receipt",
+      "sha256": "57cb4f0806f8399c6b3689ec3dd3c4f518b70f9194a7e84fc4bf992987f60c72",
+      "size_bytes": 6339
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/MenuExitLifetime-x64-Release.json",
+      "staged": "raw/b5003bef404a4b3e93e1fdcbadc49f13.receipt",
+      "sha256": "b5003bef404a4b3e93e1fdcbadc49f137793b999990a8f4592c3baa36496d1cc",
+      "size_bytes": 6338
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/MultilineText-x64-Release.json",
+      "staged": "raw/998101ae9a69227fbeb078739bf23069.receipt",
+      "sha256": "998101ae9a69227fbeb078739bf23069e86e2c3d0d3836c2c8ccd36a337cbc04",
+      "size_bytes": 6335
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/NewControls-x64-Release.json",
+      "staged": "raw/4e59fc6f15aa62060861dc588d28346a.receipt",
+      "sha256": "4e59fc6f15aa62060861dc588d28346a15776bf06993dd7ebe2d74dfa15cf0af",
+      "size_bytes": 6333
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/Performance-x64-Release-c6a8bc4867694f4fbd5126ccfd9c4a80.json",
+      "staged": "raw/b7109c0d140ee051b873324a46248faf.receipt",
+      "sha256": "b7109c0d140ee051b873324a46248faf5c467f5c767b9af07606552d8d4e15b3",
+      "size_bytes": 8019
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/Performance-x64-Release-c6a8bc4867694f4fbd5126ccfd9c4a80.json.comparison.json",
+      "staged": "raw/14fc8def36f2813db7d2787166f7bd0e.receipt",
+      "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+      "size_bytes": 48
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/ReadOnly-x64-Release.json",
+      "staged": "raw/798fecf7bea508d900a3f10f05a31b06.receipt",
+      "sha256": "798fecf7bea508d900a3f10f05a31b06ff5578481ddb4a9b52589e1292837fef",
+      "size_bytes": 6330
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/Rendering-x64-Release.json",
+      "staged": "raw/d0de37b8de605c02cdfb61fe51a52c69.receipt",
+      "sha256": "d0de37b8de605c02cdfb61fe51a52c69645d89504f2bd1076baa633711cba853",
+      "size_bytes": 6331
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/TextField-x64-Release.json",
+      "staged": "raw/f6fe4bcc4c6699cc418f6222d25814c3.receipt",
+      "sha256": "f6fe4bcc4c6699cc418f6222d25814c3ec138d0a41972bada23b9e336511099c",
+      "size_bytes": 6331
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/Theme-x64-Release.json",
+      "staged": "raw/06dc9505a3a08dddf692920d5830a986.receipt",
+      "sha256": "06dc9505a3a08dddf692920d5830a9869104a6e656ad33c27d0ab0471e68e21d",
+      "size_bytes": 6327
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/Tooltip-x64-Release.json",
+      "staged": "raw/7e9bb1a0bc6d07511b5dfafac9676900.receipt",
+      "sha256": "7e9bb1a0bc6d07511b5dfafac9676900ab80be07396e3f7df643af749775cc27",
+      "size_bytes": 6329
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/Tree-x64-Release.json",
+      "staged": "raw/c20037952a74c1625e8adc58d3b0bc50.receipt",
+      "sha256": "c20037952a74c1625e8adc58d3b0bc5052482b83efc4e5142d0fee3804de1854",
+      "size_bytes": 6326
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/WindowHost-x64-Release.json",
+      "staged": "raw/01207a29b667b770566e3758e05ae094.receipt",
+      "sha256": "01207a29b667b770566e3758e05ae0944d0ccf6efa81cf49b8bab80acb1faf81",
+      "size_bytes": 6332
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/hashes.json",
+      "staged": "raw/f140c9baf0840eded6cd5b2d434a1246.receipt",
+      "sha256": "f140c9baf0840eded6cd5b2d434a124658c76a4d314258c23fc240cf3c37120f",
+      "size_bytes": 722
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/invocation.json",
+      "staged": "raw/4b298a9dbb16bb94102b50f9859708c1.receipt",
+      "sha256": "4b298a9dbb16bb94102b50f9859708c131e7c7a23af9d38e94951db9b9b151d9",
+      "size_bytes": 222
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-Accessibility-x64-Release.log",
+      "staged": "raw/009f68893ad4c9e7df1a379dce8fb7fb.receipt",
+      "sha256": "009f68893ad4c9e7df1a379dce8fb7fb0ea3b771d7d3fedb7d8266dca5e4384e",
+      "size_bytes": 7460
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-Animation-x64-Release.log",
+      "staged": "raw/181ccfb07a7c3c67ae25db3125f5b635.receipt",
+      "sha256": "181ccfb07a7c3c67ae25db3125f5b63513438c19e074cc963d6c7a27b7a80d62",
+      "size_bytes": 191
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-ComboBox-x64-Release.log",
+      "staged": "raw/b29f09887d351c74847f6cecc4f116cb.receipt",
+      "sha256": "b29f09887d351c74847f6cecc4f116cb2c9a7eb685c9131b1ce8c641785eeca4",
+      "size_bytes": 4014
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-Control-x64-Release.log",
+      "staged": "raw/469968dc6e2c86c34d551f1c50c5c37a.receipt",
+      "sha256": "469968dc6e2c86c34d551f1c50c5c37aca31e07c000b79b6145ccc134f6b2630",
+      "size_bytes": 397
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-Embedded-x64-Release.log",
+      "staged": "raw/21454d50593a75d2d5887a8bfc28efce.receipt",
+      "sha256": "21454d50593a75d2d5887a8bfc28efcefd43fc879dffab8590eec56af669cc24",
+      "size_bytes": 96
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-Foundation-x64-Release.log",
+      "staged": "raw/01007c353f70730873e78034fb6cf5f6.receipt",
+      "sha256": "01007c353f70730873e78034fb6cf5f6bcd702b01e52553f03d8bb4ba32e8372",
+      "size_bytes": 24
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-Grid-x64-Release.log",
+      "staged": "raw/56be34ba7534f443eda10c157a3c019b.receipt",
+      "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-MenuAccessibility-x64-Release.log",
+      "staged": "raw/a2971323ae146ff6ae86e73dc8571357.receipt",
+      "sha256": "a2971323ae146ff6ae86e73dc85713577e9473bbad4d26be26d401d78f457e2f",
+      "size_bytes": 30231
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-MenuExitLifetime-x64-Release.log",
+      "staged": "raw/72e21f8ad25ffde0f78c65b1f5211ebe.receipt",
+      "sha256": "72e21f8ad25ffde0f78c65b1f5211ebe6707968d9954eb6cc6079993a0786199",
+      "size_bytes": 104
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-MultilineText-x64-Release.log",
+      "staged": "raw/115e90d3665aaca20f5630f5487fbc74.receipt",
+      "sha256": "115e90d3665aaca20f5630f5487fbc7498595492191ee0e55187cf02a7f82791",
+      "size_bytes": 15287
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-NewControls-x64-Release.log",
+      "staged": "raw/a6d0a0ec8e3c938528aced0eb7d143c5.receipt",
+      "sha256": "a6d0a0ec8e3c938528aced0eb7d143c5ebd74fb7ce51cb71078e29c22f5c67ce",
+      "size_bytes": 1540
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-ReadOnly-x64-Release.log",
+      "staged": "raw/abcb9b85165fb68b19a0e70c815fe567.receipt",
+      "sha256": "abcb9b85165fb68b19a0e70c815fe5676201cfd3999818f38d8e036ae0d0b07e",
+      "size_bytes": 2659
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-Rendering-x64-Release.log",
+      "staged": "raw/43854b7cafbbf47b9b9a874a8336a005.receipt",
+      "sha256": "43854b7cafbbf47b9b9a874a8336a005e5aac47e0e958f487af43ad962e54b8a",
+      "size_bytes": 8240
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-TextField-x64-Release.log",
+      "staged": "raw/b1d3bb0d6930b5f596013377af2ce45f.receipt",
+      "sha256": "b1d3bb0d6930b5f596013377af2ce45ffa53a97d822ff2f094301d7ba2a60493",
+      "size_bytes": 10883
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-Theme-x64-Release.log",
+      "staged": "raw/1d502c308bc9845ab1f08d2a89ac946a.receipt",
+      "sha256": "1d502c308bc9845ab1f08d2a89ac946a81537be36e28bf9fcf8fc5a12007ceb7",
+      "size_bytes": 53
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-Tooltip-x64-Release.log",
+      "staged": "raw/619183b9e8a66d7089a4217f84d02494.receipt",
+      "sha256": "619183b9e8a66d7089a4217f84d02494048118730f5c207d8eeff7d837829002",
+      "size_bytes": 577
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-Tree-x64-Release.log",
+      "staged": "raw/a1594223b505dc7ef35c9c890ed80f14.receipt",
+      "sha256": "a1594223b505dc7ef35c9c890ed80f1428f8b8ceeea909653689929b7f56d288",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test-WindowHost-x64-Release.log",
+      "staged": "raw/6bb94961429d5625cc382694356cfcc9.receipt",
+      "sha256": "6bb94961429d5625cc382694356cfcc911e579ac5faad205237da539c6d0e773",
+      "size_bytes": 11605
+    },
+    {
+      "original_relative": "profiles-navigation-final/Release/test.log",
+      "staged": "raw/3d5498a2e95a681409babf82a343fec1.receipt",
+      "sha256": "3d5498a2e95a681409babf82a343fec1f9dd094a8e4c4b7384cd7cacd0b7bd54",
+      "size_bytes": 6040
+    },
+    {
+      "original_relative": "profiles-navigation-final/source-hashes.json",
+      "staged": "raw/a59611d70594bf158733b7a7104be76f.receipt",
+      "sha256": "a59611d70594bf158733b7a7104be76fe8b3aea694b5530b9b1063da1c2a6b66",
+      "size_bytes": 601
+    },
+    {
+      "original_relative": "profiles-navigation-final/source.patch",
+      "staged": "raw/ef976301f2aff4f89cf8b23e19d56e38.receipt",
+      "sha256": "ef976301f2aff4f89cf8b23e19d56e38485a3674589fd0008993651085c09b10",
+      "size_bytes": 15979
+    },
+    {
+      "original_relative": "profiles-navigation-comparison-20260927/ASan-Debug.console.log",
+      "staged": "raw/f3171d94d18d17fdeb46d0528a0989ea.receipt",
+      "sha256": "f3171d94d18d17fdeb46d0528a0989ea2f2332413d83c4ba30d2fdf70503c978",
+      "size_bytes": 430
+    },
+    {
+      "original_relative": "profiles-navigation-comparison-20260927/ASan-Debug.json",
+      "staged": "raw/0fe735ab31d9560740cc06aaf9cfb8e7.receipt",
+      "sha256": "0fe735ab31d9560740cc06aaf9cfb8e711d8d2653b6ff0b2144acdd300c72861",
+      "size_bytes": 5814
+    },
+    {
+      "original_relative": "profiles-navigation-comparison-20260927/Analyze-Resources.py",
+      "staged": "raw/d9d03915809e2a742d751a344be40802.receipt",
+      "sha256": "d9d03915809e2a742d751a344be408021ac0dc4bfba876f8471d704f74afb823",
+      "size_bytes": 2989
+    },
+    {
+      "original_relative": "profiles-navigation-comparison-20260927/Debug.console.log",
+      "staged": "raw/a01b6e908c5a8c8d484de875d33df634.receipt",
+      "sha256": "a01b6e908c5a8c8d484de875d33df634e829203d1f14e0aa37a0fb89e7885284",
+      "size_bytes": 45
+    },
+    {
+      "original_relative": "profiles-navigation-comparison-20260927/Debug.json",
+      "staged": "raw/54f5748bbaede02d86bb4d50d013d1be.receipt",
+      "sha256": "54f5748bbaede02d86bb4d50d013d1be60c41acbdfddf8bbacccda0d188649ec",
+      "size_bytes": 5789
+    },
+    {
+      "original_relative": "profiles-navigation-comparison-20260927/Release.console.log",
+      "staged": "raw/c43e58d21981b52e4beabfa55f834554.receipt",
+      "sha256": "c43e58d21981b52e4beabfa55f834554cc42ba5e692369cdd62f8c16cb4426fa",
+      "size_bytes": 338
+    },
+    {
+      "original_relative": "profiles-navigation-comparison-20260927/Release.json",
+      "staged": "raw/e8ff6be720282183ca7deb6a8d905a22.receipt",
+      "sha256": "e8ff6be720282183ca7deb6a8d905a22c80f4b29b025701887a768db3eef3ba9",
+      "size_bytes": 5758
+    },
+    {
+      "original_relative": "profiles-navigation-comparison-20260927/assessment.md",
+      "staged": "raw/857a8142dcac1e33a93c10a496457cb4.receipt",
+      "sha256": "857a8142dcac1e33a93c10a496457cb4bd8124db72c35168b37fed50c7474419",
+      "size_bytes": 4486
+    },
+    {
+      "original_relative": "profiles-navigation-comparison-20260927/resource-sample-summary.json",
+      "staged": "raw/64d52b42e69f168f8427c59ea98abe46.receipt",
+      "sha256": "64d52b42e69f168f8427c59ea98abe46ddb8aa8c624aefa6e6dd8bdc3977818b",
+      "size_bytes": 7786
+    }
+  ]
+}

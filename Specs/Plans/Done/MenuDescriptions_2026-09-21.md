@@ -1,7 +1,33 @@
 # Described native menu entries
 
-Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
+Status: **DONE, 2026-09-28**. Library scope supporting independently qualified consumer adoption.
 Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.
+
+## Final qualification and handoff
+
+Exact feature commit `73ba9365726cce30299290ab9ae8afa065c4fe3d` passes all six native CI profiles
+in run `36352406442`, including the unchanged 4,096-row opening/End bounds. The
+[source-bound CI packet](../../../Measurements/MenuDescriptions/2026-09-27/ordinary-menu-ci-73ba/README.md)
+contains 361 mapped originals with 245 byte payloads; root verifies every original, receipt
+architecture and source identity. x64 Release/Debug/ASan directed Menu and NativeTextInput pass
+with no skips and preserved focus/cursor. Each ARM64 profile retains nine Menu interactive-
+desktop skips, not an ARM foreground or consumer AT claim. Relocated consumers and galleries pass.
+
+The accepted described-menu timing and ordinary-menu accessibility memory costs remain bounded
+by the owning resource contract. The [final local resource addendum](../../../Measurements/MenuDescriptions/2026-09-27/navigation-final/README.md)
+retains all flags, noisy controls and excluded observations; short-cycle live heap changes by
++100 B for twelve entries and -8,223 B for 128 after snapshot optimization. Unrelated offscreen
+timing flags are not erased or attributed to an unexecuted UIA path. No blanket non-regression,
+presented-latency or long-run consumer claim follows.
+
+RedSalamander explicitly selects 73ba after isolated full Release/static-gallery qualification.
+This is publication of a qualified feature commit and consumer pin handoff, not a main merge.
+Rollback provenance is the previous consumer pin `36b2f4b49d42248790fa1a4ad6b6409ac56207dc`,
+whose missing ordinary-menu UIA commands remain documented; no rollback is executed. Original
+78b3de3 baseline binaries remain. Consumer I26 Full/resources/native-DPI/AT and deferred H4
+remain open in their own repository. Root checked the independent audit, normative contracts,
+usage docs and capability manifest before moving this plan. The dated sections below preserve
+historical pending/failure reports; this section states current library completion and limits.
 
 ## September 27 ordinary-menu accessibility correction
 
@@ -74,6 +100,18 @@ Release and Debug configuration (54 fresh, executable-hash-checked receipts). AS
 1,114,133 us and End-to-visible 371,768 us; Release is 46,931/6,686 us. Required static validators
 and formatting pass. These final local profiles are under `profiles-navigation-final`; native CI
 and final combined resource/consumer acceptance still remain separate gates.
+
+The reviewed [final local resource addendum](../../../Measurements/MenuDescriptions/2026-09-27/navigation-final/README.md)
+preserves 136 mapped files and 108 exact byte payloads, independently checked against every original.
+The common offscreen fixture's Release/ASan timing flags remain explicit: it does not attach
+accessibility, so those observations do not isolate this builder change. Ordinary-menu short-cycle
+Release live-heap observations change by +100 B at 12 entries and -8,223 B at 128 entries.
+The [exact-head native CI packet](../../../Measurements/MenuDescriptions/2026-09-27/ordinary-menu-ci-73ba/README.md)
+qualifies `73ba9365726cce30299290ab9ae8afa065c4fe3d` in all six native profiles, including the
+previously failing x64 ASan End bound. Each ARM64 profile retains nine explicit Menu interactive
+desktop skips. Root verifies all 361 original mapped bytes and actual native architecture identities.
+RedSalamander explicitly selects that pin after its isolated V11 full Release build/static gallery
+passes; final product input, resource and broader configuration acceptance remain separate.
 
 The user explicitly accepts the measured ordinary-menu live-heap cost: approximately 23 KiB for
 twelve entries and 226 KiB for 128, with no corresponding retained increase in the four-cycle
@@ -181,11 +219,11 @@ in RedSalamander's File Operations plan.
 - [x] Verify French Unicode, repeated names, short viewports, pointer/keyboard/UIA, disabled
   entries, submenu behavior, owner focus and retained-provider teardown.
 - [x] Run x64 Debug/Release/ASan nonactivating tests and all ARM64 builds.
-- [ ] Complete directed input restoration across configurations and qualify paired performance/resources.
+- [x] Complete directed x64 input restoration and paired performance/resources; retain ARM64 desktop skips.
 - [x] Regenerate/review documentation gallery; run skills/spec/dependency/format validators.
 - [x] Run all six native configuration profiles on the sharing candidate, retaining ARM64 desktop skips.
-- [ ] Resolve resource gates and record explicit consumer pin handoff/rollback.
-- [ ] Update domain contracts and move this plan to Done only after all required gates pass.
+- [x] Resolve the recorded resource advice gates and record qualified pin handoff and rollback provenance.
+- [x] Update domain contracts/capability support and move this library plan to Done; consumer/main-merge scope stays separate.
 
 ## Checkpoint
 

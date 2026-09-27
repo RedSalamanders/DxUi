@@ -109,7 +109,7 @@ those cycles. This admits that measured live cost for usable command names, role
 navigation and invocation; it does not establish a long-run retention bound or accept future growth.
 
 The original ABBA resources, same-variant controls and performance flags remain retained under
-the ordinary-menu correction in the [active menu plan](../Plans/WIP/MenuDescriptions_2026-09-21.md).
+the ordinary-menu correction in the [completed menu plan](../Plans/Done/MenuDescriptions_2026-09-21.md).
 Do not silently rebaseline. The existing 4,096-row responsiveness bounds, correctness, native
 qualification and independent consumer adoption remain required. Earlier grid memory and
 grid/menu timing decisions retain their separate scope.

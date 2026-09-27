@@ -1,0 +1,125 @@
+{
+  "total_count": 6,
+  "artifacts": [
+    {
+      "id": 10943446352,
+      "node_id": "MDg6QXJ0aWZhY3QxMDk0MzQ0NjM1Mg==",
+      "name": "native-ARM64-ASan Debug",
+      "size_in_bytes": 529067,
+      "url": "https://api.github.com/repos/RedSalamanders/DxUi/actions/artifacts/10943446352",
+      "archive_download_url": "https://api.github.com/repos/RedSalamanders/DxUi/actions/artifacts/10943446352/zip",
+      "expired": false,
+      "digest": "sha256:4759063ba912d8d84e6c51ee27892e02deeb425a5e923c7bafef7cad8075677b",
+      "created_at": "2026-09-27T22:05:30Z",
+      "updated_at": "2026-09-27T22:05:30Z",
+      "expires_at": "2026-10-11T22:05:29Z",
+      "workflow_run": {
+        "id": 36352406442,
+        "repository_id": 1358019969,
+        "head_repository_id": 1358019969,
+        "head_branch": "codex/fileops-ui-qualified",
+        "head_sha": "73ba9365726cce30299290ab9ae8afa065c4fe3d"
+      }
+    },
+    {
+      "id": 10942898040,
+      "node_id": "MDg6QXJ0aWZhY3QxMDk0Mjg5ODA0MA==",
+      "name": "native-x64-ASan Debug",
+      "size_in_bytes": 529098,
+      "url": "https://api.github.com/repos/RedSalamanders/DxUi/actions/artifacts/10942898040",
+      "archive_download_url": "https://api.github.com/repos/RedSalamanders/DxUi/actions/artifacts/10942898040/zip",
+      "expired": false,
+      "digest": "sha256:888eb8fe1232179920b4875d9d475d73fd6221be06de78e3cbc84217580de3dc",
+      "created_at": "2026-09-27T21:48:17Z",
+      "updated_at": "2026-09-27T21:48:17Z",
+      "expires_at": "2026-10-11T21:48:16Z",
+      "workflow_run": {
+        "id": 36352406442,
+        "repository_id": 1358019969,
+        "head_repository_id": 1358019969,
+        "head_branch": "codex/fileops-ui-qualified",
+        "head_sha": "73ba9365726cce30299290ab9ae8afa065c4fe3d"
+      }
+    },
+    {
+      "id": 10942814378,
+      "node_id": "MDg6QXJ0aWZhY3QxMDk0MjgxNDM3OA==",
+      "name": "native-ARM64-Debug",
+      "size_in_bytes": 525134,
+      "url": "https://api.github.com/repos/RedSalamanders/DxUi/actions/artifacts/10942814378",
+      "archive_download_url": "https://api.github.com/repos/RedSalamanders/DxUi/actions/artifacts/10942814378/zip",
+      "expired": false,
+      "digest": "sha256:6862e0a7f57991ec9f7a98515875aa7820949cc5feae3e1837743feca7035808",
+      "created_at": "2026-09-27T21:58:38Z",
+      "updated_at": "2026-09-27T21:58:38Z",
+      "expires_at": "2026-10-11T21:58:36Z",
+      "workflow_run": {
+        "id": 36352406442,
+        "repository_id": 1358019969,
+        "head_repository_id": 1358019969,
+        "head_branch": "codex/fileops-ui-qualified",
+        "head_sha": "73ba9365726cce30299290ab9ae8afa065c4fe3d"
+      }
+    },
+    {
+      "id": 10942753618,
+      "node_id": "MDg6QXJ0aWZhY3QxMDk0Mjc1MzYxOA==",
+      "name": "native-x64-Debug",
+      "size_in_bytes": 525785,
+      "url": "https://api.github.com/repos/RedSalamanders/DxUi/actions/artifacts/10942753618",
+      "archive_download_url": "https://api.github.com/repos/RedSalamanders/DxUi/actions/artifacts/10942753618/zip",
+      "expired": false,
+      "digest": "sha256:eb197feb4e6d5b9063643c40017154bd95d247b4ee20f8d764f09d0a4bf89148",
+      "created_at": "2026-09-27T21:46:17Z",
+      "updated_at": "2026-09-27T21:46:17Z",
+      "expires_at": "2026-10-11T21:46:16Z",
+      "workflow_run": {
+        "id": 36352406442,
+        "repository_id": 1358019969,
+        "head_repository_id": 1358019969,
+        "head_branch": "codex/fileops-ui-qualified",
+        "head_sha": "73ba9365726cce30299290ab9ae8afa065c4fe3d"
+      }
+    },
+    {
+      "id": 10942553011,
+      "node_id": "MDg6QXJ0aWZhY3QxMDk0MjU1MzAxMQ==",
+      "name": "native-x64-Release",
+      "size_in_bytes": 574166,
+      "url": "https://api.github.com/repos/RedSalamanders/DxUi/actions/artifacts/10942553011",
+      "archive_download_url": "https://api.github.com/repos/RedSalamanders/DxUi/actions/artifacts/10942553011/zip",
+      "expired": false,
+      "digest": "sha256:a1cb5ad1da6640d5138c903d85cf3a14171f14a7752a883ed3775206690b5504",
+      "created_at": "2026-09-27T21:48:19Z",
+      "updated_at": "2026-09-27T21:48:19Z",
+      "expires_at": "2026-10-11T21:48:18Z",
+      "workflow_run": {
+        "id": 36352406442,
+        "repository_id": 1358019969,
+        "head_repository_id": 1358019969,
+        "head_branch": "codex/fileops-ui-qualified",
+        "head_sha": "73ba9365726cce30299290ab9ae8afa065c4fe3d"
+      }
+    },
+    {
+      "id": 10942429091,
+      "node_id": "MDg6QXJ0aWZhY3QxMDk0MjQyOTA5MQ==",
+      "name": "native-ARM64-Release",
+      "size_in_bytes": 524657,
+      "url": "https://api.github.com/repos/RedSalamanders/DxUi/actions/artifacts/10942429091",
+      "archive_download_url": "https://api.github.com/repos/RedSalamanders/DxUi/actions/artifacts/10942429091/zip",
+      "expired": false,
+      "digest": "sha256:b138229cd3af99140a8be5e011e9eda6e51ffb7075276c7b5ebe33f6ceb0c17f",
+      "created_at": "2026-09-27T21:59:49Z",
+      "updated_at": "2026-09-27T21:59:49Z",
+      "expires_at": "2026-10-11T21:59:48Z",
+      "workflow_run": {
+        "id": 36352406442,
+        "repository_id": 1358019969,
+        "head_repository_id": 1358019969,
+        "head_branch": "codex/fileops-ui-qualified",
+        "head_sha": "73ba9365726cce30299290ab9ae8afa065c4fe3d"
+      }
+    }
+  ]
+}

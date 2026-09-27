@@ -1,5 +1,7 @@
 # Completed plans
 
+- [Bounded grid text and clipping](GridTextOverflow_2026-09-21.md) — completed 2026-09-28 (full-value text, bounded cached layouts, six native profiles and accepted measured costs; qualified feature pin 73ba explicitly selected by RedSalamander).
+- [Described native menu entries](MenuDescriptions_2026-09-21.md) — completed 2026-09-28 (wrapped descriptions, ordinary/described UIA, bounded navigation snapshots and six native profiles; ARM64 desktop skips and consumer I26/H4 remain explicit).
 - [Localized adaptive layout and interaction readiness](LocalizedAdaptiveLayout_2026-09-19.md) — completed 2026-09-20 (measured actions, wrapped captions, disclosure/input/UIA and resources; six native configurations; qualified main explicitly adopted by RedSalamander, whose Full product and final UI acceptance remain in I26).
 - [Embedded surface lifetime, tick-driven dirtying and bounded caches](EmbeddedSurfaceLifetime_2026-09-07.md) — completed 2026-09-07 (hidden/zero-extent views hold no surface, ticks dirty only through invalidation, bounded brush/text-format caches, benchmark allocation ceilings; per-tick delay hints and consumer scheduling remain later work).
 - [Bootstrap and RedXe-first adoption](BootstrapAndRedXeAdoption_2026-09-05.md) — completed 2026-09-06 (extraction, pin, synthetic adapters; real IME/AT and matched performance remain on RedXe AV).

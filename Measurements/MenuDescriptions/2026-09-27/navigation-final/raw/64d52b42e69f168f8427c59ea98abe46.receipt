@@ -1,0 +1,374 @@
+[
+  {
+    "group": "profiles-d45",
+    "configuration": "Release",
+    "observations": 24,
+    "row_counts": [
+      12,
+      128
+    ],
+    "cycles": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "geometry": [
+      "476x322@96"
+    ],
+    "resource_runs": [
+      {
+        "rows": 12,
+        "warm_open_heap_delta_mean_bytes": 273106,
+        "warm_closed_heap_delta_mean_bytes": -31744.333333333332,
+        "warm_open_private_delta_mean_bytes": 636245.3333333334,
+        "warm_open_heap_deltas": [
+          171293,
+          340759,
+          307266
+        ],
+        "warm_closed_heap_deltas": [
+          -134592,
+          38114,
+          1245
+        ],
+        "uia_children": [
+          12,
+          12,
+          12
+        ]
+      },
+      {
+        "rows": 128,
+        "warm_open_heap_delta_mean_bytes": 627673.3333333334,
+        "warm_closed_heap_delta_mean_bytes": 41327.333333333336,
+        "warm_open_private_delta_mean_bytes": 525653.3333333334,
+        "warm_open_heap_deltas": [
+          611229,
+          612656,
+          659135
+        ],
+        "warm_closed_heap_deltas": [
+          27043,
+          25230,
+          71709
+        ],
+        "uia_children": [
+          128,
+          128,
+          128
+        ]
+      }
+    ]
+  },
+  {
+    "group": "profiles-d45",
+    "configuration": "Debug",
+    "observations": 24,
+    "row_counts": [
+      12,
+      128
+    ],
+    "cycles": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "geometry": [
+      "476x322@96"
+    ],
+    "resource_runs": [
+      {
+        "rows": 12,
+        "warm_open_heap_delta_mean_bytes": 323529.3333333333,
+        "warm_closed_heap_delta_mean_bytes": -24667.666666666668,
+        "warm_open_private_delta_mean_bytes": 724992,
+        "warm_open_heap_deltas": [
+          222517,
+          392047,
+          356024
+        ],
+        "warm_closed_heap_deltas": [
+          -127840,
+          44930,
+          8907
+        ],
+        "uia_children": [
+          12,
+          12,
+          12
+        ]
+      },
+      {
+        "rows": 128,
+        "warm_open_heap_delta_mean_bytes": 1097326,
+        "warm_closed_heap_delta_mean_bytes": 90596,
+        "warm_open_private_delta_mean_bytes": 1258837.3333333333,
+        "warm_open_heap_deltas": [
+          1082325,
+          1114581,
+          1095072
+        ],
+        "warm_closed_heap_deltas": [
+          74515,
+          106771,
+          90502
+        ],
+        "uia_children": [
+          128,
+          128,
+          128
+        ]
+      }
+    ]
+  },
+  {
+    "group": "profiles-d45",
+    "configuration": "ASan-Debug",
+    "observations": 24,
+    "row_counts": [
+      12,
+      128
+    ],
+    "cycles": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "geometry": [
+      "476x322@96"
+    ],
+    "resource_runs": [
+      {
+        "rows": 12,
+        "warm_open_heap_delta_mean_bytes": 0,
+        "warm_closed_heap_delta_mean_bytes": 0,
+        "warm_open_private_delta_mean_bytes": 13025280,
+        "warm_open_heap_deltas": [
+          0,
+          0,
+          0
+        ],
+        "warm_closed_heap_deltas": [
+          0,
+          0,
+          0
+        ],
+        "uia_children": [
+          12,
+          12,
+          12
+        ]
+      },
+      {
+        "rows": 128,
+        "warm_open_heap_delta_mean_bytes": 0,
+        "warm_closed_heap_delta_mean_bytes": 0,
+        "warm_open_private_delta_mean_bytes": 15988053.333333334,
+        "warm_open_heap_deltas": [
+          0,
+          0,
+          0
+        ],
+        "warm_closed_heap_deltas": [
+          0,
+          0,
+          0
+        ],
+        "uia_children": [
+          128,
+          128,
+          128
+        ]
+      }
+    ]
+  },
+  {
+    "group": "profiles-navigation-final",
+    "configuration": "Release",
+    "observations": 24,
+    "row_counts": [
+      12,
+      128
+    ],
+    "cycles": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "geometry": [
+      "476x322@96"
+    ],
+    "resource_runs": [
+      {
+        "rows": 12,
+        "warm_open_heap_delta_mean_bytes": 273206,
+        "warm_closed_heap_delta_mean_bytes": -31744.333333333332,
+        "warm_open_private_delta_mean_bytes": 749568,
+        "warm_open_heap_deltas": [
+          171393,
+          340859,
+          307366
+        ],
+        "warm_closed_heap_deltas": [
+          -134592,
+          38114,
+          1245
+        ],
+        "uia_children": [
+          12,
+          12,
+          12
+        ]
+      },
+      {
+        "rows": 128,
+        "warm_open_heap_delta_mean_bytes": 619450.3333333334,
+        "warm_closed_heap_delta_mean_bytes": 41500.333333333336,
+        "warm_open_private_delta_mean_bytes": 1138688,
+        "warm_open_heap_deltas": [
+          605554,
+          604779,
+          648018
+        ],
+        "warm_closed_heap_deltas": [
+          26524,
+          25749,
+          72228
+        ],
+        "uia_children": [
+          128,
+          128,
+          128
+        ]
+      }
+    ]
+  },
+  {
+    "group": "profiles-navigation-final",
+    "configuration": "Debug",
+    "observations": 24,
+    "row_counts": [
+      12,
+      128
+    ],
+    "cycles": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "geometry": [
+      "476x322@96"
+    ],
+    "resource_runs": [
+      {
+        "rows": 12,
+        "warm_open_heap_delta_mean_bytes": 323005.3333333333,
+        "warm_closed_heap_delta_mean_bytes": -26297,
+        "warm_open_private_delta_mean_bytes": 714069.3333333334,
+        "warm_open_heap_deltas": [
+          218647,
+          392027,
+          358342
+        ],
+        "warm_closed_heap_deltas": [
+          -131690,
+          44930,
+          7869
+        ],
+        "uia_children": [
+          12,
+          12,
+          12
+        ]
+      },
+      {
+        "rows": 128,
+        "warm_open_heap_delta_mean_bytes": 1088175.6666666667,
+        "warm_closed_heap_delta_mean_bytes": 90321.66666666667,
+        "warm_open_private_delta_mean_bytes": 1279317.3333333333,
+        "warm_open_heap_deltas": [
+          1072369,
+          1104625,
+          1087533
+        ],
+        "warm_closed_heap_deltas": [
+          74515,
+          106771,
+          89679
+        ],
+        "uia_children": [
+          128,
+          128,
+          128
+        ]
+      }
+    ]
+  },
+  {
+    "group": "profiles-navigation-final",
+    "configuration": "ASan-Debug",
+    "observations": 24,
+    "row_counts": [
+      12,
+      128
+    ],
+    "cycles": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "geometry": [
+      "476x322@96"
+    ],
+    "resource_runs": [
+      {
+        "rows": 12,
+        "warm_open_heap_delta_mean_bytes": 0,
+        "warm_closed_heap_delta_mean_bytes": 0,
+        "warm_open_private_delta_mean_bytes": 13220522.666666666,
+        "warm_open_heap_deltas": [
+          0,
+          0,
+          0
+        ],
+        "warm_closed_heap_deltas": [
+          0,
+          0,
+          0
+        ],
+        "uia_children": [
+          12,
+          12,
+          12
+        ]
+      },
+      {
+        "rows": 128,
+        "warm_open_heap_delta_mean_bytes": 0,
+        "warm_closed_heap_delta_mean_bytes": 0,
+        "warm_open_private_delta_mean_bytes": 14072490.666666666,
+        "warm_open_heap_deltas": [
+          0,
+          0,
+          0
+        ],
+        "warm_closed_heap_deltas": [
+          0,
+          0,
+          0
+        ],
+        "uia_children": [
+          128,
+          128,
+          128
+        ]
+      }
+    ]
+  }
+]

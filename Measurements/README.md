@@ -6,13 +6,19 @@ Application adoption measurements belong in their application's repository.
 
 - [Grid native CI, 2026-09-21](GridTextOverflow/2026-09-21/native-ci/README.md): six native profiles,
   retained accessibility classification retry and explicit ARM64 Menu capability skips; recorded memory and timing
-  costs are accepted, with combined qualification and consumer adoption still required.
+  costs are accepted. Later combined qualification and explicit pin handoff complete at 73ba below.
 - [Described native menus, 2026-09-21](MenuDescriptions/2026-09-21/README.md): wrapped French
   entries, menu/UIA lifecycle coverage, stage and open/close memory attribution; recorded timing costs
-  are accepted, with combined qualification and consumer handoff still required.
+  are accepted; the later exact-source packet completes library qualification and pin handoff.
+- [Ordinary-menu exact-head native CI, 2026-09-27](MenuDescriptions/2026-09-27/ordinary-menu-ci-73ba/README.md):
+  six passing native profiles at 73ba936; all architecture/consumer/gallery receipts and the
+  ARM64 interactive-desktop skips retained. RedSalamander explicitly selects 73ba; its I26/H4 product gates remain separate.
+- [Final local navigation profiles, 2026-09-27](MenuDescriptions/2026-09-27/navigation-final/README.md):
+  54 passing nonactivating suite receipts, all resource observations and unchanged comparison flags;
+  local pre-commit source identities remain explicit, separate from exact-head native CI.
 - [Ordinary-menu accessibility, 2026-09-27](MenuDescriptions/2026-09-27/ordinary-menu-accessibility/README.md):
   accepted measured semantic-row heap cost, full ABBA/correction evidence, d45's failed native ASan
-  latency gate and forced-rebuild snapshot optimization comparison; final qualification remains open.
+  latency gate and forced-rebuild snapshot optimization comparison; the later exact73 packet qualifies the correction.
 
 - [Complex UI, 2026-09-05](ComplexUi/2026-09-05/README.md): Release baseline and matched repeat, complete raw rounds,
   comparison and rendered scene.

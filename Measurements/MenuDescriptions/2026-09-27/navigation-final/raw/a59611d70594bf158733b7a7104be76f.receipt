@@ -1,0 +1,18 @@
+[
+  {
+    "path": "Specs/Core/Core_PerformanceAndResources.md",
+    "sha256": "EEB63929FBB33FEBD87BE556C5E14A68E8F26D4AA0DA61AF02136C314ED08D9B"
+  },
+  {
+    "path": "Specs/Plans/WIP/MenuDescriptions_2026-09-21.md",
+    "sha256": "C5A9F3D8CA6030AAE9D920D0629A6D1F5CDC9F14B6E2B3C2B973EF7B080916C5"
+  },
+  {
+    "path": "Tests/Controls/DxUiTests.Menu.cpp",
+    "sha256": "F95BC52DFCC0DB98C073A74E317A93DE83264E3C23AF72E2AED92E17C200312A"
+  },
+  {
+    "path": "src/Controls/DxUi.Accessibility.cpp",
+    "sha256": "1016948D8CBD3F6373973FF06E62A56C5C2387FEBC10150CD9CB83A06D28F3CA"
+  }
+]

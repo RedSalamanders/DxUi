@@ -1,7 +1,7 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-09-20
+Last reviewed: 2026-09-28
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -37,7 +37,9 @@ request scrolls them into view. A row-geometry change republishes the native sna
 the focused control is unchanged; unchanged geometry does not add snapshot work. Posted UIA
 actions carry popup-instance identity so HWND reuse cannot dispatch an old action into a new menu;
 retained providers disconnect on teardown. Implementation and validation are tracked in the
-[menu description plan](../Plans/WIP/MenuDescriptions_2026-09-21.md).
+[completed menu description plan](../Plans/Done/MenuDescriptions_2026-09-21.md). Its six-profile
+library receipts retain the ARM64 interactive-desktop skips; automated UIA qualification does
+not establish consumer screen-reader acceptance.
 
 Custom controls overriding `OnFocusChanged` MUST invoke their base implementation so `HasFocus`,
 focus chrome and UIA keyboard-focus properties acknowledge the host transition. A stored host

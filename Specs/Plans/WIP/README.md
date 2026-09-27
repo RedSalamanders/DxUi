@@ -2,8 +2,7 @@
 
 | Status | Plan | Next action |
 |---|---|---|
-| ACTIVE | [Bounded grid text and clipping](GridTextOverflow_2026-09-21.md) | Recorded V11 memory and timing costs accepted; qualify the combined library and explicit consumer pin. |
-| ACTIVE | [Described native menu entries](MenuDescriptions_2026-09-21.md) | Correct ordinary-menu UIA exposure, qualify the library and explicitly adopt its pin. Recorded timing acceptance remains bounded. |
+| — | No active library implementation plan. | Qualified grid/menu feature commit 73ba is explicitly selected by RedSalamander; its I26 product gates remain separate. |
 
 Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md` and
 `../Done/RedSalamanderMigration.md`. Further ARM64 and ASan qualification is
