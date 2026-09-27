@@ -20,6 +20,17 @@ The CI x64 Release job regenerated the gallery from `217e602` with display-indep
 described-menu tile renders completely in all five reviewed sheets. The design system is republished
 with the described MenuBar guideline, preview and the regenerated sheets.
 
+Directed input restoration still needs an interactive developer desktop. It verifies that the tests
+return the person's foreground window, focus and cursor, which no CI runner can stand in for. Rerun the
+V4 wrapper and runner retained in the grid's
+[interactive packet](../../../Measurements/GridTextOverflow/2026-09-21/qualification/interactive/README.md),
+with RedSalamander's directed-input warning and desktop lease, from a main checkout at or after
+`217e602`. Cover Menu and NativeTextInput in x64 Debug, Release and ASan Debug. Keep each log and a
+receipt with executable, wrapper and wrapper-source SHA-256 identities under
+`Measurements/MenuDescriptions/`. Main now carries both the grid and the described menus, so one pass
+covers both. On `217e602` the x64 CI Menu and NativeTextInput suites pass in all three profiles, with
+zero skips in Release, but that is functional evidence, not restoration evidence.
+
 ## September 27 performance record correction
 
 At the developer's direction this corrects the timing record. The repeated clean-frame p95 flag
