@@ -134,8 +134,9 @@ rows use 575,310 versus 367,894 live heap bytes. The
 [six-profile native qualification](../Measurements/MenuDescriptions/2026-09-23/native-ci-sharing/README.md)
 passes functionally with explicit ARM64 desktop skips. Its common-scene timing flags compare two
 described-menu builds, not the feature against unchanged main; the matched pairs against main never
-flag clean frame p95. Their repeated clean private-memory increase and consumer adoption remain
-unresolved.
+flag clean frame p95. Their repeated clean private-memory increase is accepted under a recorded waiver
+while an [optimization plan](../Specs/Plans/WIP/MenuDescriptionMemory_2026-09-27.md) investigates it;
+consumer adoption remains separate.
 
 [Retained independent measurements](../Measurements/README.md) include raw rounds and comparison receipts with a
 scenario explanation. They measure the library's synthetic workload; AV adoption receipts live in RedXe.

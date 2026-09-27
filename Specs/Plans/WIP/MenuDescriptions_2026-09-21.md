@@ -3,6 +3,19 @@
 Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
 Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.
 
+## September 27 memory waiver
+
+The user directed a waiver for the repeated clean private-memory flag and asked for the cost to be
+optimized. The [performance contract](../../Core/Core_PerformanceAndResources.md) records the waiver
+and its envelope: at most 1,175,552 clean-round private bytes (+4.6%) on the default fixture. The
+[optimization plan](MenuDescriptionMemory_2026-09-27.md) owns the remaining work.
+
+The correction below omitted one flag. Pair three also shows a dirty-round increase of 2,408,448
+private bytes (+8.67%) and +4.80% dirty working set, which pairs one and two do not repeat. It is
+not waived, and the optimization plan measures it again. The user's separate acceptance of the
+recorded timing tradeoffs is on `codex/menu-description-layout` (`0f35bab`), which main does not
+yet contain.
+
 ## September 27 performance record correction
 
 At the developer's direction this corrects the timing record. The repeated clean-frame p95 flag
@@ -166,10 +179,14 @@ qualification remains in RedSalamander's File Operations plan.
 - [x] Verify French Unicode, repeated names, short viewports, pointer/keyboard/UIA, disabled
   entries, submenu behavior, owner focus and retained-provider teardown.
 - [x] Run x64 Debug/Release/ASan nonactivating tests and all ARM64 builds.
-- [ ] Complete directed input restoration across configurations and qualify paired performance/resources.
+- [ ] Complete directed input restoration across configurations: Debug and ASan Menu/NativeTextInput runs,
+  and a Release NativeTextInput run whose cursor check passes.
+- [x] Qualify paired performance/resources: nothing flags timing against main, and the repeated clean
+  private-memory flag is waived pending the [optimization plan](MenuDescriptionMemory_2026-09-27.md).
 - [x] Regenerate/review documentation gallery; run skills/spec/dependency/format validators.
 - [x] Run all six native configuration profiles on the sharing candidate, retaining ARM64 desktop skips.
-- [ ] Resolve resource gates and record explicit consumer pin handoff/rollback.
+- [x] Resolve resource gates: the memory waiver above, recorded 2026-09-27.
+- [ ] Record explicit consumer pin handoff/rollback.
 - [ ] After the main rebase, pass six native CI profiles, regenerate/review the gallery with
   `gallery.ps1 -PublishDocs` and republish the design system with the described MenuBar preview.
 - [ ] Update domain contracts and move this plan to Done only after all required gates pass.

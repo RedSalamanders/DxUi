@@ -4,7 +4,8 @@
 |---|---|---|
 | ACTIVE | [Bounded grid text and clipping](GridTextOverflow_2026-09-21.md) | V11 memory tradeoff accepted, main merged and six native CI profiles green; regenerate the gallery, run the paired multiline benchmark and republish the design system, then consumer qualification before explicit pin adoption. |
 | HOLD | [TreeReorder_2026-09-21.md](TreeReorder_2026-09-21.md) | Drag-reorder is in `Tree`. Multi-select remains. Not a second tree in the app. |
-| ACTIVE | [Described native menu entries](MenuDescriptions_2026-09-21.md) | Rebased, reviewed and CI-green; developer decision on the clean private-memory flag, then directed input restoration, gallery regeneration and consumer handoff. |
+| ACTIVE | [Described native menu entries](MenuDescriptions_2026-09-21.md) | Merged to main (#24); memory waiver recorded 2026-09-27 with an optimization plan. Directed input restoration, gallery regeneration, design-system republish and consumer handoff remain. |
+| ACTIVE | [Described-menu memory optimization](MenuDescriptionMemory_2026-09-27.md) | Re-measure the waived clean private-memory increase on main with paired runs and a placebo control, then optimize it or present the attribution. |
 
 Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md`,
 `../Done/RedSalamanderMigration.md` and `../Done/EditorConsumerControls_2026-09-20.md`. Further ARM64 and ASan qualification is

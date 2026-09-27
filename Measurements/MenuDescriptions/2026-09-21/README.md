@@ -14,7 +14,9 @@ Application adoption/captures belong to RedSalamander; these are independent DxU
 each with zero skips. `final-x64` retains later focused checks including UIA focus,
 submenu navigation and the memory probes. Final native interaction/ARM64 validation and
 resource acceptance remain pending. The user requested attribution before deciding on
-the additional memory; no regression waiver exists.
+the additional memory. On 2026-09-27 the user directed a waiver for the repeated clean
+private-memory increase, recorded in the [performance contract](../../../Specs/Core/Core_PerformanceAndResources.md);
+a [WIP plan](../../../Specs/Plans/WIP/MenuDescriptionMemory_2026-09-27.md) works to optimize it.
 
 ## Common-scene investigation
 
