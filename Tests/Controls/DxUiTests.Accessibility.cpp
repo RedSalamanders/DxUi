@@ -33,6 +33,10 @@ public:
 void TestDisclosureNotifiesNativeAutomationClient()
 {
     using namespace DxUi;
+    // Cold in-process UIA client setup takes about 0.1 s locally but has exceeded 3 s on hosted x64 runners.
+    // Setup gets its own bounded allowance; notification and unsubscribe checks keep their 3000 ms deadlines.
+    constexpr ULONGLONG kClientSetupAllowanceMs = 20000;
+    constexpr ULONGLONG kNotificationDeadlineMs = 3000;
     AttachedHostWindow window;
     auto root    = std::make_unique<Button>(L"Afficher les détails");
     auto* button = root.get();
@@ -48,6 +52,8 @@ void TestDisclosureNotifiesNativeAutomationClient()
     std::atomic<bool> finished{false};
     std::atomic<HRESULT> setup{E_PENDING};
     std::atomic<const char*> setupStage{"thread start"};
+    std::atomic<ULONGLONG> elementFromHandleMs{0};
+    std::atomic<ULONGLONG> subscribeMs{0};
     const ULONGLONG setupStarted = GetTickCount64();
     const HWND hwnd              = window.Hwnd();
     std::jthread client([&]
@@ -70,13 +76,17 @@ void TestDisclosureNotifiesNativeAutomationClient()
         if (SUCCEEDED(hr))
         {
             setupStage.store("ElementFromHandle");
-            hr = automation->ElementFromHandle(hwnd, element.put());
+            const ULONGLONG started = GetTickCount64();
+            hr                      = automation->ElementFromHandle(hwnd, element.put());
+            elementFromHandleMs.store(GetTickCount64() - started);
         }
         PROPERTYID property = UIA_ExpandCollapseExpandCollapseStatePropertyId;
         if (SUCCEEDED(hr))
         {
             setupStage.store("AddPropertyChangedEventHandlerNativeArray");
+            const ULONGLONG started = GetTickCount64();
             hr = automation->AddPropertyChangedEventHandlerNativeArray(element.get(), TreeScope_Element, nullptr, observer.get(), &property, 1);
+            subscribeMs.store(GetTickCount64() - started);
         }
         setup.store(hr);
         ready.store(true);
@@ -87,28 +97,35 @@ void TestDisclosureNotifiesNativeAutomationClient()
         }
         finished.store(true);
     });
-    const auto waitUntil = [&](const auto& predicate)
+    ULONGLONG longestOwnerPumpMs = 0;
+    const auto waitUntil         = [&](ULONGLONG timeoutMs, const auto& predicate)
     {
-        const auto deadline = GetTickCount64() + 3000;
+        const auto deadline = GetTickCount64() + timeoutMs;
         while (! predicate() && GetTickCount64() < deadline)
         {
+            const ULONGLONG pumpStarted = GetTickCount64();
             window.PumpMessages();
+            longestOwnerPumpMs = (std::max)(longestOwnerPumpMs, GetTickCount64() - pumpStarted);
             Sleep(1);
         }
         return predicate();
     };
-    const bool subscribed = waitUntil([&] { return ready.load(); });
+    const bool subscribed = waitUntil(kClientSetupAllowanceMs, [&] { return ready.load(); });
+    // Provider requests run on this owner thread inside PumpMessages: a long owner pump points at the provider
+    // side, while long client stages with short pumps point at UIA client initialization.
     std::cerr << "    [UIA] disclosure subscription stage=" << setupStage.load() << " ready=" << subscribed << " hr=0x" << std::hex
-              << static_cast<unsigned long>(setup.load()) << std::dec << " elapsedMs=" << GetTickCount64() - setupStarted << '\n';
+              << static_cast<unsigned long>(setup.load()) << std::dec << " elapsedMs=" << GetTickCount64() - setupStarted
+              << " elementFromHandleMs=" << elementFromHandleMs.load() << " subscribeMs=" << subscribeMs.load() << " longestOwnerPumpMs=" << longestOwnerPumpMs
+              << " allowanceMs=" << kClientSetupAllowanceMs << '\n';
     Require(subscribed && SUCCEEDED(setup.load()), "subscribe native disclosure property events");
     button->SetDisclosureExpanded(true);
-    Require(waitUntil([&] { return observer->changes.load() >= 1; }) && observer->state.load() == ExpandCollapseState_Expanded,
+    Require(waitUntil(kNotificationDeadlineMs, [&] { return observer->changes.load() >= 1; }) && observer->state.load() == ExpandCollapseState_Expanded,
             "native automation client receives acknowledged expansion");
     button->SetDisclosureExpanded(false);
-    Require(waitUntil([&] { return observer->changes.load() >= 2; }) && observer->state.load() == ExpandCollapseState_Collapsed,
+    Require(waitUntil(kNotificationDeadlineMs, [&] { return observer->changes.load() >= 2; }) && observer->state.load() == ExpandCollapseState_Collapsed,
             "native automation client receives acknowledged collapse");
     SetEvent(stop.get());
-    Require(waitUntil([&] { return finished.load(); }), "unsubscribe native disclosure property events");
+    Require(waitUntil(kNotificationDeadlineMs, [&] { return finished.load(); }), "unsubscribe native disclosure property events");
     client.join();
 }
 
