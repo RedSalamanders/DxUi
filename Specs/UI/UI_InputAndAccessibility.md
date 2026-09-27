@@ -22,6 +22,16 @@ order; full-value access must not require duplicate hidden announcements. Repeat
 does not produce repeated notifications. Application navigation supplies its own stable target and
 stale-completion policy; the library does not choose the destination or steal focus on completion.
 
+Native and embedded control providers bind to the lifetime of their original semantic control,
+not merely its tree path. Reusing a removed control's path must not let an old provider read,
+invoke, focus, or edit its replacement; retained text ranges and queued actions obey the same
+rule. A replacement has a distinct runtime identity, while semantic/layout refresh of the same
+control preserves identity. Host-container discovery remains usable across tree replacement;
+a collapsed semantic-root provider retires with that control and fresh acquisition discovers
+the replacement. Focus and invocation callbacks may replace the tree, so mutation paths must
+revalidate lifetime before further control access. The native correction's implementation and
+qualification are tracked in [Native provider lifetime](../Plans/WIP/NativeProviderLifetime_2026-09-28.md).
+
 Native menus, including menus with no secondary descriptions, expose full per-entry names and MenuItem roles, exact command invocation
 and acknowledged checked state. Modal menu tracking retains owner focus; an asynchronous menu
 uses its root popup for native keyboard dispatch and restores the previously focused owner control

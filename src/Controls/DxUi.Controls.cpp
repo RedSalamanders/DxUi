@@ -2104,11 +2104,18 @@ bool Button::Invoke(ControlHost& host, bool focusSelf)
 
     if (focusSelf)
     {
+        // Both native and retained focus callbacks may replace the owning tree.
+        // Reuse the control's token before any further access to this object.
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         if (const HWND hwnd = host.GetHwnd())
         {
             SetFocus(hwnd);
+            if (lifetime.expired())
+                return false;
         }
         host.SetFocusControl(this);
+        if (lifetime.expired())
+            return false;
     }
 
     if ((_variant == ButtonVariant::DropDown || _variant == ButtonVariant::Selector) && _onDropDownClick)

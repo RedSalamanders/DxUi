@@ -1229,13 +1229,10 @@ void AppendAccessibilitySnapshotNavigation(
     {
         snapshot.semanticControlOrder.push_back(basePath);
 
-        auto& record = snapshot.controlNavigationRecords.emplace_back();
-        record.path  = basePath;
-        if (host.IsEmbedded())
-        {
-            record.controlLifetime = GetControlLifetimeToken(*current);
-            record.controlIdentity = reinterpret_cast<uintptr_t>(record.controlLifetime.lock().get());
-        }
+        auto& record                     = snapshot.controlNavigationRecords.emplace_back();
+        record.path                      = basePath;
+        record.controlLifetime           = GetControlLifetimeToken(*current);
+        record.controlIdentity           = reinterpret_cast<uintptr_t>(record.controlLifetime.lock().get());
         record.controlTypeId             = GetControlTypeId(current);
         record.controlAccessibleName     = std::wstring(GetControlAccessibleName(root, current));
         record.controlAccessibleHelpText = current->GetAccessibleHelpText();
@@ -3250,15 +3247,18 @@ using RuntimeIdValueBuffer = std::array<LONG, kAccessibilityMaxRuntimeIdValueCou
     return AppendRuntimeIdValue(values, valueCount, UiaAppendRuntimeId) && AppendControlPathRuntimeIdPrefix(values, valueCount, path);
 }
 
-HRESULT BuildRuntimeId(SAFEARRAY** outArray, std::span<const LONG> values) noexcept
+HRESULT BuildRuntimeId(SAFEARRAY** outArray, std::span<const LONG> values, uint64_t controlIdentity = 0u) noexcept
 {
     if (! outArray)
     {
         return E_POINTER;
     }
 
-    *outArray = nullptr;
-    unique_safearray array(SafeArrayCreateVector(VT_I4, 0, static_cast<ULONG>(values.size())));
+    *outArray                   = nullptr;
+    const size_t identityValues = controlIdentity != 0u ? 2u : 0u;
+    if (values.size() > kAccessibilityMaxRuntimeIdValueCount - identityValues)
+        return E_INVALIDARG;
+    unique_safearray array(SafeArrayCreateVector(VT_I4, 0, static_cast<ULONG>(values.size() + identityValues)));
     if (! array)
     {
         return E_OUTOFMEMORY;
@@ -3275,11 +3275,22 @@ HRESULT BuildRuntimeId(SAFEARRAY** outArray, std::span<const LONG> values) noexc
         }
     }
 
+    if (controlIdentity != 0u)
+    {
+        for (size_t half = 0u; half < 2u; ++half)
+        {
+            LONG index       = static_cast<LONG>(values.size() + half);
+            LONG value       = static_cast<LONG>((controlIdentity >> (half * 32u)) & 0xFFFFFFFFull);
+            const HRESULT hr = SafeArrayPutElement(array.get(), &index, &value);
+            if (FAILED(hr))
+                return hr;
+        }
+    }
     *outArray = array.release();
     return S_OK;
 }
 
-HRESULT SetRuntimeId(SAFEARRAY** outArray, HWND hwnd, const ControlPath* path) noexcept
+HRESULT SetRuntimeId(SAFEARRAY** outArray, HWND hwnd, const ControlPath* path, uint64_t controlIdentity) noexcept
 {
     RuntimeIdValueBuffer values{};
     size_t valueCount = 0u;
@@ -3296,10 +3307,10 @@ HRESULT SetRuntimeId(SAFEARRAY** outArray, HWND hwnd, const ControlPath* path) n
         }
     }
 
-    return BuildRuntimeId(outArray, std::span<const LONG>(values.data(), valueCount));
+    return BuildRuntimeId(outArray, std::span<const LONG>(values.data(), valueCount), controlIdentity);
 }
 
-HRESULT SetTextFieldPasswordRevealButtonRuntimeId(SAFEARRAY** outArray, const ControlPath& path) noexcept
+HRESULT SetTextFieldPasswordRevealButtonRuntimeId(SAFEARRAY** outArray, const ControlPath& path, uint64_t controlIdentity) noexcept
 {
     RuntimeIdValueBuffer values{};
     size_t valueCount = 0u;
@@ -3308,10 +3319,10 @@ HRESULT SetTextFieldPasswordRevealButtonRuntimeId(SAFEARRAY** outArray, const Co
         return E_INVALIDARG;
     }
 
-    return BuildRuntimeId(outArray, std::span<const LONG>(values.data(), valueCount));
+    return BuildRuntimeId(outArray, std::span<const LONG>(values.data(), valueCount), controlIdentity);
 }
 
-HRESULT SetTreeItemRuntimeId(SAFEARRAY** outArray, const ControlPath& path, uint64_t itemId) noexcept
+HRESULT SetTreeItemRuntimeId(SAFEARRAY** outArray, const ControlPath& path, uint64_t itemId, uint64_t controlIdentity) noexcept
 {
     if (! outArray)
     {
@@ -3327,10 +3338,10 @@ HRESULT SetTreeItemRuntimeId(SAFEARRAY** outArray, const ControlPath& path, uint
         return E_INVALIDARG;
     }
 
-    return BuildRuntimeId(outArray, std::span<const LONG>(values.data(), valueCount));
+    return BuildRuntimeId(outArray, std::span<const LONG>(values.data(), valueCount), controlIdentity);
 }
 
-HRESULT SetGridRowRuntimeId(SAFEARRAY** outArray, const ControlPath& path, uint64_t rowId) noexcept
+HRESULT SetGridRowRuntimeId(SAFEARRAY** outArray, const ControlPath& path, uint64_t rowId, uint64_t controlIdentity) noexcept
 {
     RuntimeIdValueBuffer values{};
     size_t valueCount = 0u;
@@ -3341,10 +3352,10 @@ HRESULT SetGridRowRuntimeId(SAFEARRAY** outArray, const ControlPath& path, uint6
         return E_INVALIDARG;
     }
 
-    return BuildRuntimeId(outArray, std::span<const LONG>(values.data(), valueCount));
+    return BuildRuntimeId(outArray, std::span<const LONG>(values.data(), valueCount), controlIdentity);
 }
 
-HRESULT SetGridHeaderRuntimeId(SAFEARRAY** outArray, const ControlPath& path, size_t columnIndex) noexcept
+HRESULT SetGridHeaderRuntimeId(SAFEARRAY** outArray, const ControlPath& path, size_t columnIndex, uint64_t controlIdentity) noexcept
 {
     if (! outArray)
     {
@@ -3364,10 +3375,10 @@ HRESULT SetGridHeaderRuntimeId(SAFEARRAY** outArray, const ControlPath& path, si
         return E_INVALIDARG;
     }
 
-    return BuildRuntimeId(outArray, std::span<const LONG>(values.data(), valueCount));
+    return BuildRuntimeId(outArray, std::span<const LONG>(values.data(), valueCount), controlIdentity);
 }
 
-HRESULT SetGridCellRuntimeId(SAFEARRAY** outArray, const ControlPath& path, uint64_t rowId, size_t columnIndex) noexcept
+HRESULT SetGridCellRuntimeId(SAFEARRAY** outArray, const ControlPath& path, uint64_t rowId, size_t columnIndex, uint64_t controlIdentity) noexcept
 {
     if (! outArray)
     {
@@ -3389,7 +3400,7 @@ HRESULT SetGridCellRuntimeId(SAFEARRAY** outArray, const ControlPath& path, uint
         return E_INVALIDARG;
     }
 
-    return BuildRuntimeId(outArray, std::span<const LONG>(values.data(), valueCount));
+    return BuildRuntimeId(outArray, std::span<const LONG>(values.data(), valueCount), controlIdentity);
 }
 
 HRESULT SetProviderArray(SAFEARRAY** outArray, std::span<IRawElementProviderSimple* const> providers) noexcept
@@ -3809,6 +3820,7 @@ private:
     [[nodiscard]] IRawElementProviderFragment* CreateGridHeaderProvider(const ControlPath& path, size_t columnIndex) noexcept;
     [[nodiscard]] IRawElementProviderFragment* CreateGridRowProvider(const ControlPath& path, uint64_t rowId) noexcept;
     [[nodiscard]] IRawElementProviderFragment* CreateGridCellProvider(const ControlPath& path, uint64_t rowId, size_t columnIndex) noexcept;
+    friend wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> AcquireCanonicalRootProvider(WindowHostAccessibilityTarget* target) noexcept;
     [[nodiscard]] IRawElementProviderFragment* CreateProviderFromNavigationTarget(const AccessibilityNavigationTarget& navigationTarget) noexcept;
     [[nodiscard]] ITextRangeProvider* CreateTextRangeProvider(const ControlPath& path, size_t start, size_t end) noexcept;
     [[nodiscard]] ITextRangeProvider* CreateTextRangeProvider(const ControlPath& path,
@@ -3851,6 +3863,15 @@ private:
     }
 
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+    if (! target->embedded && target->rootProvider)
+    {
+        // The cache is populated only with AccessibilityProvider below. Retire a
+        // semantic root's identity instead of returning its disconnected provider
+        // to newly acquiring clients after control replacement.
+        auto* existing = static_cast<AccessibilityProvider*>(target->rootProvider.get());
+        if (! existing->CaptureSnapshot())
+            target->rootProvider.reset();
+    }
     if (! target->rootProvider)
     {
         static_cast<void>(target->AddRef());
@@ -3913,7 +3934,7 @@ HRESULT AccessibilityTextRangeProvider::Clone(ITextRangeProvider** outClone) noe
     if (outClone)
         *outClone = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outClone)
@@ -3930,7 +3951,7 @@ HRESULT AccessibilityTextRangeProvider::Compare(ITextRangeProvider* range, BOOL*
     if (outSame)
         *outSame = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outSame)
     {
@@ -3953,7 +3974,7 @@ HRESULT AccessibilityTextRangeProvider::CompareEndpoints(TextPatternRangeEndpoin
     if (outResult)
         *outResult = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outResult)
     {
@@ -3983,7 +4004,7 @@ HRESULT AccessibilityTextRangeProvider::CompareEndpoints(TextPatternRangeEndpoin
 
 HRESULT AccessibilityTextRangeProvider::ExpandToEnclosingUnit(TextUnit unit) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt         = std::chrono::steady_clock::now();
     const TextUnit supportedUnit = NormalizeAccessibilityTextUnit(unit);
@@ -4069,7 +4090,7 @@ HRESULT AccessibilityTextRangeProvider::FindAttribute(TEXTATTRIBUTEID /*attribut
     if (outRange)
         *outRange = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outRange)
     {
@@ -4085,7 +4106,7 @@ HRESULT AccessibilityTextRangeProvider::FindText(BSTR /*text*/, BOOL /*backward*
     if (outRange)
         *outRange = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outRange)
     {
@@ -4101,7 +4122,7 @@ HRESULT AccessibilityTextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID /*attr
     if (outValue)
         *outValue = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outValue)
     {
@@ -4117,7 +4138,7 @@ HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRec
     if (outRectangles)
         *outRectangles = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outRectangles)
     {
@@ -4210,7 +4231,7 @@ HRESULT AccessibilityTextRangeProvider::GetEnclosingElement(IRawElementProviderS
     if (outElement)
         *outElement = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outElement)
@@ -4251,7 +4272,7 @@ HRESULT AccessibilityTextRangeProvider::GetText(int maxLength, BSTR* outText) no
     if (outText)
         *outText = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
@@ -4280,7 +4301,7 @@ HRESULT AccessibilityTextRangeProvider::Move(TextUnit unit, int count, int* outM
     if (outMoved)
         *outMoved = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
     if (! outMoved)
@@ -4398,7 +4419,7 @@ HRESULT AccessibilityTextRangeProvider::MoveEndpointByUnit(TextPatternRangeEndpo
     if (outMoved)
         *outMoved = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
     if (! outMoved)
@@ -4492,7 +4513,7 @@ HRESULT AccessibilityTextRangeProvider::MoveEndpointByRange(TextPatternRangeEndp
                                                             ITextRangeProvider* /*targetRange*/,
                                                             TextPatternRangeEndpoint /*targetEndpoint*/) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     return S_OK;
 }
@@ -4505,7 +4526,7 @@ HRESULT AccessibilityTextRangeProvider::Select() noexcept
         if (site)
             site->ActionCompleted();
     });
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! IsCurrentThreadWindowThread())
     {
@@ -4520,7 +4541,7 @@ HRESULT AccessibilityTextRangeProvider::Select() noexcept
 
 HRESULT AccessibilityTextRangeProvider::ExecuteSelectOnWindowThread() noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
@@ -4556,7 +4577,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteSelectOnWindowThread() noexcept
 
 HRESULT AccessibilityTextRangeProvider::ExecuteExpandToVisualLineOnWindowThread(size_t start, size_t end, size_t& outStart, size_t& outEnd) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
 
@@ -4577,7 +4598,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteExpandToVisualLineOnWindowThread(
 HRESULT AccessibilityTextRangeProvider::ExecuteMoveByVisualLineOnWindowThread(
     size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
 
@@ -4598,7 +4619,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteMoveByVisualLineOnWindowThread(
 HRESULT AccessibilityTextRangeProvider::ExecuteMoveEndpointByVisualLineOnWindowThread(
     size_t start, size_t end, TextPatternRangeEndpoint endpoint, int count, size_t& outStart, size_t& outEnd, int& outMoved) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
 
@@ -4632,7 +4653,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteResolveBoundsOnWindowThread(size_
                                                                            std::vector<D2D1_RECT_F>& outBoundsDip,
                                                                            float& outDipToPixelScale) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
 
@@ -4666,7 +4687,7 @@ HRESULT AccessibilityTextRangeProvider::AddToSelection() noexcept
         if (site)
             site->ActionCompleted();
     });
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     return S_OK;
 }
@@ -4679,14 +4700,14 @@ HRESULT AccessibilityTextRangeProvider::RemoveFromSelection() noexcept
         if (site)
             site->ActionCompleted();
     });
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     return S_OK;
 }
 
 HRESULT AccessibilityTextRangeProvider::ScrollIntoView(BOOL /*alignToTop*/) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     return S_OK;
 }
@@ -4696,7 +4717,7 @@ HRESULT AccessibilityTextRangeProvider::GetChildren(SAFEARRAY** outChildren) noe
     if (outChildren)
         *outChildren = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outChildren)
     {
@@ -4793,7 +4814,7 @@ HRESULT DispatchAccessibilityUiActionToWindowThread(HWND hwnd, AccessibilityUiAc
 
 HRESULT AccessibilityTextRangeProvider::DispatchActionToWindowThread(AccessibilityUiActionRequest& request) const noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (_target && _target->embedded)
         return RPC_E_WRONG_THREAD;
@@ -4802,7 +4823,7 @@ HRESULT AccessibilityTextRangeProvider::DispatchActionToWindowThread(Accessibili
 
 HRESULT AccessibilityTextRangeProvider::DispatchVisualLineExpansionToWindowThread(size_t start, size_t end, size_t& outStart, size_t& outEnd) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     AccessibilityUiActionRequest request{};
     request.textRangeProvider    = this;
@@ -4821,7 +4842,7 @@ HRESULT AccessibilityTextRangeProvider::DispatchVisualLineExpansionToWindowThrea
 HRESULT AccessibilityTextRangeProvider::DispatchLineMovementToWindowThread(
     size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     AccessibilityUiActionRequest request{};
     request.textRangeProvider    = this;
@@ -4843,7 +4864,7 @@ HRESULT AccessibilityTextRangeProvider::DispatchLineMovementToWindowThread(
 HRESULT AccessibilityTextRangeProvider::DispatchEndpointLineMovementToWindowThread(
     size_t start, size_t end, TextPatternRangeEndpoint endpoint, int count, size_t& outStart, size_t& outEnd, int& outMoved) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     AccessibilityUiActionRequest request{};
     request.textRangeProvider    = this;
@@ -4868,7 +4889,7 @@ HRESULT AccessibilityTextRangeProvider::DispatchBoundingRectanglesToWindowThread
                                                                                  std::vector<D2D1_RECT_F>& outBoundsDip,
                                                                                  float& outDipToPixelScale) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     AccessibilityUiActionRequest request{};
     request.textRangeProvider        = this;
@@ -4883,13 +4904,13 @@ HRESULT AccessibilityTextRangeProvider::DispatchBoundingRectanglesToWindowThread
     return hr;
 }
 
-[[nodiscard]] std::shared_ptr<const AccessibilitySnapshot> GuardedEmbeddedSnapshot(WindowHostAccessibilityTarget* target,
-                                                                                   HWND hwnd,
-                                                                                   const std::shared_ptr<const AccessibilitySnapshot>& original,
-                                                                                   const ControlPath* path) noexcept
+[[nodiscard]] std::shared_ptr<const AccessibilitySnapshot> GuardedControlSnapshot(WindowHostAccessibilityTarget* target,
+                                                                                  HWND hwnd,
+                                                                                  const std::shared_ptr<const AccessibilitySnapshot>& original,
+                                                                                  const ControlPath* path) noexcept
 {
     auto snapshot = CaptureAccessibilitySnapshot(target, hwnd);
-    if (! target || ! target->embedded || ! snapshot)
+    if (! target || ! snapshot)
         return snapshot;
     if (path)
     {
@@ -4903,16 +4924,31 @@ HRESULT AccessibilityTextRangeProvider::DispatchBoundingRectanglesToWindowThread
 }
 std::shared_ptr<const AccessibilitySnapshot> AccessibilityTextRangeProvider::CaptureSnapshot() const noexcept
 {
-    return GuardedEmbeddedSnapshot(_target, _hwnd, _snapshot, &_path);
+    return GuardedControlSnapshot(_target, _hwnd, _snapshot, &_path);
 }
 std::shared_ptr<const AccessibilitySnapshot> AccessibilityProvider::CaptureSnapshot() const noexcept
 {
-    return GuardedEmbeddedSnapshot(_target, _hwnd, _snapshot, _kind == AccessibilityFragmentKind::Root ? nullptr : &_path);
+    // A native container root is stable across nonsemantic tree replacements.
+    // A collapsed root exposes a control's patterns, so its lifetime must match
+    // that exact control. Canonical root acquisition retires this cached provider
+    // when the semantic root changes. Embedded root ownership stays unchanged.
+    if (_kind == AccessibilityFragmentKind::Root && _target && ! _target->embedded)
+    {
+        auto current              = CaptureAccessibilitySnapshot(_target, _hwnd);
+        const bool beforeSemantic = _snapshot && SnapshotHasCollapsedSemanticRoot(*_snapshot);
+        const bool nowSemantic    = current && SnapshotHasCollapsedSemanticRoot(*current);
+        if (beforeSemantic != nowSemantic)
+            return nullptr;
+        if (beforeSemantic)
+            return GuardedControlSnapshot(_target, _hwnd, _snapshot, &_snapshot->semanticControlOrder.front());
+        return current;
+    }
+    return GuardedControlSnapshot(_target, _hwnd, _snapshot, _kind == AccessibilityFragmentKind::Root ? nullptr : &_path);
 }
 
 ControlHost* AccessibilityTextRangeProvider::ResolveHost() const noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return nullptr;
     return (_target && _target->hwnd == _hwnd) ? _target->ResolveHost() : nullptr;
 }
@@ -5202,7 +5238,7 @@ HRESULT AccessibilityProvider::GetPatternProvider(PATTERNID patternId, IUnknown*
     if (outProvider)
         *outProvider = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outProvider)
@@ -5232,7 +5268,7 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
     if (outValue)
         *outValue = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outValue)
@@ -5579,7 +5615,7 @@ HRESULT AccessibilityProvider::get_HostRawElementProvider(IRawElementProviderSim
     if (outProvider)
         *outProvider = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outProvider)
@@ -5602,7 +5638,7 @@ HRESULT AccessibilityProvider::Navigate(NavigateDirection direction, IRawElement
     if (outProvider)
         *outProvider = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outProvider)
     {
@@ -5674,31 +5710,42 @@ HRESULT AccessibilityProvider::GetRuntimeId(SAFEARRAY** outRuntimeId) noexcept
         }
         return BuildRuntimeId(outRuntimeId, std::span<const LONG>(values.data(), count));
     }
+    if (! outRuntimeId)
+        return E_POINTER;
+    *outRuntimeId              = nullptr;
+    const auto runtimeSnapshot = CaptureSnapshot();
+    if (! _snapshot || ! runtimeSnapshot || ! runtimeSnapshot->alive)
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    const auto* identityRecord =
+        _kind == AccessibilityFragmentKind::Root ? ResolveSnapshotControlRecord(*_snapshot, _kind, _path) : FindControlNavigationRecord(*_snapshot, _path);
+    if (_kind != AccessibilityFragmentKind::Root && ! identityRecord)
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    const uint64_t controlIdentity = identityRecord ? static_cast<uint64_t>(identityRecord->controlIdentity) : 0u;
     if (_kind == AccessibilityFragmentKind::Root)
     {
-        return SetRuntimeId(outRuntimeId, _hwnd, nullptr);
+        return SetRuntimeId(outRuntimeId, _hwnd, nullptr, controlIdentity);
     }
     if (_kind == AccessibilityFragmentKind::TreeItem)
     {
-        return SetTreeItemRuntimeId(outRuntimeId, _path, _treeItemId);
+        return SetTreeItemRuntimeId(outRuntimeId, _path, _treeItemId, controlIdentity);
     }
     if (_kind == AccessibilityFragmentKind::GridHeader)
     {
-        return SetGridHeaderRuntimeId(outRuntimeId, _path, _gridColumnIndex);
+        return SetGridHeaderRuntimeId(outRuntimeId, _path, _gridColumnIndex, controlIdentity);
     }
     if (_kind == AccessibilityFragmentKind::GridRow)
     {
-        return SetGridRowRuntimeId(outRuntimeId, _path, _gridRowId);
+        return SetGridRowRuntimeId(outRuntimeId, _path, _gridRowId, controlIdentity);
     }
     if (_kind == AccessibilityFragmentKind::GridCell)
     {
-        return SetGridCellRuntimeId(outRuntimeId, _path, _gridRowId, _gridColumnIndex);
+        return SetGridCellRuntimeId(outRuntimeId, _path, _gridRowId, _gridColumnIndex, controlIdentity);
     }
     if (_kind == AccessibilityFragmentKind::TextFieldPasswordRevealButton)
     {
-        return SetTextFieldPasswordRevealButtonRuntimeId(outRuntimeId, _path);
+        return SetTextFieldPasswordRevealButtonRuntimeId(outRuntimeId, _path, controlIdentity);
     }
-    return SetRuntimeId(outRuntimeId, _hwnd, &_path);
+    return SetRuntimeId(outRuntimeId, _hwnd, &_path, controlIdentity);
 }
 
 HRESULT AccessibilityProvider::get_BoundingRectangle(UiaRect* outRect) noexcept
@@ -5706,7 +5753,7 @@ HRESULT AccessibilityProvider::get_BoundingRectangle(UiaRect* outRect) noexcept
     if (outRect)
         *outRect = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outRect)
     {
@@ -5822,7 +5869,7 @@ HRESULT AccessibilityProvider::GetEmbeddedFragmentRoots(SAFEARRAY** outRoots) no
     if (outRoots)
         *outRoots = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outRoots)
@@ -5842,7 +5889,7 @@ HRESULT AccessibilityProvider::SetFocus() noexcept
         if (site)
             site->ActionCompleted();
     });
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! IsCurrentThreadWindowThread())
     {
@@ -5860,7 +5907,7 @@ HRESULT AccessibilityProvider::get_FragmentRoot(IRawElementProviderFragmentRoot*
     if (outRoot)
         *outRoot = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outRoot)
@@ -5996,7 +6043,7 @@ HRESULT AccessibilityProvider::Invoke() noexcept
         if (site)
             site->ActionCompleted();
     });
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! IsCurrentThreadWindowThread())
     {
@@ -6017,7 +6064,7 @@ HRESULT AccessibilityProvider::Toggle() noexcept
         if (site)
             site->ActionCompleted();
     });
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! IsCurrentThreadWindowThread())
     {
@@ -6035,7 +6082,7 @@ HRESULT AccessibilityProvider::get_ToggleState(ToggleState* outState) noexcept
     if (outState)
         *outState = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outState)
@@ -6075,7 +6122,7 @@ HRESULT AccessibilityProvider::GetVisibleRanges(SAFEARRAY** outRanges) noexcept
     if (outRanges)
         *outRanges = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
@@ -6111,7 +6158,7 @@ HRESULT AccessibilityProvider::RangeFromChild(IRawElementProviderSimple* /*child
     if (outRange)
         *outRange = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     return get_DocumentRange(outRange);
 }
@@ -6121,7 +6168,7 @@ HRESULT AccessibilityProvider::RangeFromPoint(UiaPoint point, ITextRangeProvider
     if (outRange)
         *outRange = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
     if (! outRange)
@@ -6160,7 +6207,7 @@ HRESULT AccessibilityProvider::RangeFromPoint(UiaPoint point, ITextRangeProvider
 
 HRESULT AccessibilityProvider::ExecuteResolveTextRangeFromPointOnWindowThread(UiaPoint point, size_t& outCaretIndex, size_t& outTextLength) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     outCaretIndex = 0u;
@@ -6219,7 +6266,7 @@ HRESULT AccessibilityProvider::get_DocumentRange(ITextRangeProvider** outRange) 
     if (outRange)
         *outRange = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
@@ -6248,7 +6295,7 @@ HRESULT AccessibilityProvider::get_SupportedTextSelection(SupportedTextSelection
     if (outSupportedSelection)
         *outSupportedSelection = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outSupportedSelection)
@@ -6273,7 +6320,7 @@ HRESULT AccessibilityProvider::GetActiveComposition(ITextRangeProvider** outRang
     if (outRange)
         *outRange = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
@@ -6311,7 +6358,7 @@ HRESULT AccessibilityProvider::GetConversionTarget(ITextRangeProvider** outRange
     if (outRange)
         *outRange = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
@@ -6352,7 +6399,7 @@ HRESULT AccessibilityProvider::SetValue(LPCWSTR value) noexcept
         if (site)
             site->ActionCompleted();
     });
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! IsCurrentThreadWindowThread())
     {
@@ -6374,7 +6421,7 @@ HRESULT AccessibilityProvider::SetValue(double value) noexcept
         if (site)
             site->ActionCompleted();
     });
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! IsCurrentThreadWindowThread())
     {
@@ -6393,7 +6440,7 @@ HRESULT AccessibilityProvider::get_Value(BSTR* outValue) noexcept
     if (outValue)
         *outValue = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outValue)
@@ -6435,7 +6482,7 @@ HRESULT AccessibilityProvider::get_Value(double* outValue) noexcept
     if (outValue)
         *outValue = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outValue)
@@ -6474,7 +6521,7 @@ HRESULT AccessibilityProvider::get_IsReadOnly(BOOL* outReadOnly) noexcept
     if (outReadOnly)
         *outReadOnly = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outReadOnly)
@@ -6514,7 +6561,7 @@ HRESULT AccessibilityProvider::get_Maximum(double* outMaximum) noexcept
     if (outMaximum)
         *outMaximum = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outMaximum)
@@ -6554,7 +6601,7 @@ HRESULT AccessibilityProvider::get_Minimum(double* outMinimum) noexcept
     if (outMinimum)
         *outMinimum = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outMinimum)
@@ -6594,7 +6641,7 @@ HRESULT AccessibilityProvider::get_LargeChange(double* outLargeChange) noexcept
     if (outLargeChange)
         *outLargeChange = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outLargeChange)
@@ -6634,7 +6681,7 @@ HRESULT AccessibilityProvider::get_SmallChange(double* outSmallChange) noexcept
     if (outSmallChange)
         *outSmallChange = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outSmallChange)
@@ -6674,7 +6721,7 @@ HRESULT AccessibilityProvider::GetSelection(SAFEARRAY** outSelection) noexcept
     if (outSelection)
         *outSelection = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outSelection)
     {
@@ -6765,7 +6812,7 @@ HRESULT AccessibilityProvider::get_CanSelectMultiple(BOOL* outCanSelectMultiple)
     if (outCanSelectMultiple)
         *outCanSelectMultiple = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outCanSelectMultiple)
     {
@@ -6799,7 +6846,7 @@ HRESULT AccessibilityProvider::get_IsSelectionRequired(BOOL* outIsSelectionRequi
     if (outIsSelectionRequired)
         *outIsSelectionRequired = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outIsSelectionRequired)
     {
@@ -6823,7 +6870,7 @@ HRESULT AccessibilityProvider::GetRowHeaders(SAFEARRAY** outRowHeaders) noexcept
     if (outRowHeaders)
         *outRowHeaders = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outRowHeaders)
@@ -6848,7 +6895,7 @@ HRESULT AccessibilityProvider::GetColumnHeaders(SAFEARRAY** outColumnHeaders) no
     if (outColumnHeaders)
         *outColumnHeaders = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outColumnHeaders)
     {
@@ -6891,7 +6938,7 @@ HRESULT AccessibilityProvider::GetColumnHeaders(SAFEARRAY** outColumnHeaders) no
 
 HRESULT AccessibilityProvider::get_RowOrColumnMajor(RowOrColumnMajor* outRowOrColumnMajor) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outRowOrColumnMajor)
     {
@@ -6918,7 +6965,7 @@ HRESULT AccessibilityProvider::Select() noexcept
         if (site)
             site->ActionCompleted();
     });
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! IsCurrentThreadWindowThread())
     {
@@ -6939,7 +6986,7 @@ HRESULT AccessibilityProvider::AddToSelection() noexcept
         if (site)
             site->ActionCompleted();
     });
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! IsCurrentThreadWindowThread())
     {
@@ -6960,7 +7007,7 @@ HRESULT AccessibilityProvider::RemoveFromSelection() noexcept
         if (site)
             site->ActionCompleted();
     });
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! IsCurrentThreadWindowThread())
     {
@@ -6978,7 +7025,7 @@ HRESULT AccessibilityProvider::get_IsSelected(BOOL* outSelected) noexcept
     if (outSelected)
         *outSelected = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outSelected)
     {
@@ -7018,7 +7065,7 @@ HRESULT AccessibilityProvider::get_SelectionContainer(IRawElementProviderSimple*
     if (outContainer)
         *outContainer = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outContainer)
     {
@@ -7063,7 +7110,7 @@ HRESULT AccessibilityProvider::Expand() noexcept
         if (site)
             site->ActionCompleted();
     });
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! IsCurrentThreadWindowThread())
     {
@@ -7084,7 +7131,7 @@ HRESULT AccessibilityProvider::Collapse() noexcept
         if (site)
             site->ActionCompleted();
     });
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! IsCurrentThreadWindowThread())
     {
@@ -7101,7 +7148,7 @@ HRESULT AccessibilityProvider::get_ExpandCollapseState(ExpandCollapseState* outS
 {
     if (outState)
         *outState = ExpandCollapseState_LeafNode;
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outState)
     {
@@ -7146,7 +7193,7 @@ HRESULT AccessibilityProvider::get_Row(int* outRow) noexcept
     if (outRow)
         *outRow = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outRow)
     {
@@ -7170,7 +7217,7 @@ HRESULT AccessibilityProvider::get_Column(int* outColumn) noexcept
     if (outColumn)
         *outColumn = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outColumn)
     {
@@ -7194,7 +7241,7 @@ HRESULT AccessibilityProvider::get_RowSpan(int* outRowSpan) noexcept
     if (outRowSpan)
         *outRowSpan = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outRowSpan)
     {
@@ -7218,7 +7265,7 @@ HRESULT AccessibilityProvider::get_ColumnSpan(int* outColumnSpan) noexcept
     if (outColumnSpan)
         *outColumnSpan = {};
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outColumnSpan)
     {
@@ -7242,7 +7289,7 @@ HRESULT AccessibilityProvider::get_ContainingGrid(IRawElementProviderSimple** ou
     if (outContainingGrid)
         *outContainingGrid = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outContainingGrid)
     {
@@ -7278,7 +7325,7 @@ HRESULT AccessibilityProvider::GetRowHeaderItems(SAFEARRAY** outRowHeaderItems) 
     if (outRowHeaderItems)
         *outRowHeaderItems = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outRowHeaderItems)
     {
@@ -7302,7 +7349,7 @@ HRESULT AccessibilityProvider::GetColumnHeaderItems(SAFEARRAY** outColumnHeaderI
     if (outColumnHeaderItems)
         *outColumnHeaderItems = nullptr;
 
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outColumnHeaderItems)
     {
@@ -7332,7 +7379,7 @@ HRESULT AccessibilityProvider::GetColumnHeaderItems(SAFEARRAY** outColumnHeaderI
 
 ControlHost* AccessibilityProvider::ResolveHost() const noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return nullptr;
     return _target ? _target->ResolveHost() : nullptr;
 }
@@ -7537,7 +7584,7 @@ bool AccessibilityProvider::IsCurrentThreadWindowThread() const noexcept
 
 HRESULT AccessibilityProvider::DispatchActionToWindowThread(AccessibilityUiActionRequest& request) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (_target && _target->embedded)
         return RPC_E_WRONG_THREAD;
@@ -7546,7 +7593,7 @@ HRESULT AccessibilityProvider::DispatchActionToWindowThread(AccessibilityUiActio
 
 HRESULT AccessibilityProvider::ExecuteUiThreadAction(AccessibilityUiActionRequest& request) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     switch (request.kind)
     {
@@ -7573,7 +7620,7 @@ HRESULT AccessibilityProvider::ExecuteUiThreadAction(AccessibilityUiActionReques
 
 HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     ControlHost* host = ResolveHost();
@@ -7581,6 +7628,17 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
     {
         return S_OK;
     }
+
+    // Native focus can synchronously run application code which removes the
+    // addressed control or host. ResolveHost rechecks the provider's original
+    // lifetime token and current path; never continue with a cached raw control.
+    const auto requestNativeFocus = [&]() noexcept
+    {
+        if (ResolveHost() != host)
+            return false;
+        ::SetFocus(_hwnd);
+        return ResolveHost() == host;
+    };
 
     if (_target->embedded)
     {
@@ -7595,8 +7653,8 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
     }
     if (_kind == AccessibilityFragmentKind::Root)
     {
-        if (! _target->embedded)
-            ::SetFocus(_hwnd);
+        if (! _target->embedded && ! requestNativeFocus())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         return S_OK;
     }
 
@@ -7609,10 +7667,12 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
             return UIA_E_ELEMENTNOTAVAILABLE;
         }
 
-        if (! _target->embedded)
-            ::SetFocus(_hwnd);
+        if (! _target->embedded && ! requestNativeFocus())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         tree->SetSelectedItemId(item.id);
         host->SetFocusControl(tree);
+        if (! _target->embedded && ResolveHost() != host)
+            return UIA_E_ELEMENTNOTAVAILABLE;
         RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
         host->Invalidate();
         return S_OK;
@@ -7623,9 +7683,11 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         Grid* grid = ResolveMutableGridControl();
         if (grid)
         {
-            if (! _target->embedded)
-                ::SetFocus(_hwnd);
+            if (! _target->embedded && ! requestNativeFocus())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             host->SetFocusControl(grid);
+            if (! _target->embedded && ResolveHost() != host)
+                return UIA_E_ELEMENTNOTAVAILABLE;
             RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
             host->Invalidate();
         }
@@ -7638,9 +7700,11 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         Grid* grid      = ResolveMutableGridControl();
         if (grid && ResolveGridRowIndex(rowIndex) && grid->RequestSelectRow(rowIndex, 0u))
         {
-            if (! _target->embedded)
-                ::SetFocus(_hwnd);
+            if (! _target->embedded && ! requestNativeFocus())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             host->SetFocusControl(grid);
+            if (! _target->embedded && ResolveHost() != host)
+                return UIA_E_ELEMENTNOTAVAILABLE;
             RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
             host->Invalidate();
         }
@@ -7655,9 +7719,11 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         Grid* grid = ResolveMutableGridControl();
         if (grid && ResolveGridCellData(rowIndex, columnIndex, cellData) && grid->RequestSelectRow(rowIndex, 0u))
         {
-            if (! _target->embedded)
-                ::SetFocus(_hwnd);
+            if (! _target->embedded && ! requestNativeFocus())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             host->SetFocusControl(grid);
+            if (! _target->embedded && ResolveHost() != host)
+                return UIA_E_ELEMENTNOTAVAILABLE;
             RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
             host->Invalidate();
         }
@@ -7669,9 +7735,11 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         auto* textField = dynamic_cast<TextField*>(ResolveMutableControl());
         if (textField && textField->IsPasswordRevealButtonVisibleForAccessibility())
         {
-            if (! _target->embedded)
-                ::SetFocus(_hwnd);
+            if (! _target->embedded && ! requestNativeFocus())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             host->SetFocusControl(textField);
+            if (! _target->embedded && ResolveHost() != host)
+                return UIA_E_ELEMENTNOTAVAILABLE;
             host->Invalidate();
         }
         return S_OK;
@@ -7683,16 +7751,18 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         // Nonactivating native menus track logical item focus while Win32 focus
         // remains on their owner, including explicit screen-reader focus requests.
         const bool nativeMenuItem = ! _target->embedded && control->GetAccessibilityRole() == AccessibilityRole::MenuItem;
-        if (! _target->embedded && ! nativeMenuItem)
-            ::SetFocus(_hwnd);
+        if (! _target->embedded && ! nativeMenuItem && ! requestNativeFocus())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         host->SetFocusControl(control, ! nativeMenuItem);
+        if (! _target->embedded && ResolveHost() != host)
+            return UIA_E_ELEMENTNOTAVAILABLE;
     }
     return S_OK;
 }
 
 HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread() noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     ControlHost* host          = nullptr;
     TextField* revealTextField = nullptr;
@@ -7748,7 +7818,7 @@ HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread() noexcept
 
 HRESULT AccessibilityProvider::ExecuteToggleOnWindowThread() noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     ControlHost* host = ResolveHost();
@@ -7790,7 +7860,7 @@ HRESULT AccessibilityProvider::ExecuteToggleOnWindowThread() noexcept
 
 HRESULT AccessibilityProvider::ExecuteSetStringValueOnWindowThread(LPCWSTR value) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     ControlHost* host = ResolveHost();
@@ -7838,7 +7908,7 @@ HRESULT AccessibilityProvider::ExecuteSetStringValueOnWindowThread(LPCWSTR value
 
 HRESULT AccessibilityProvider::ExecuteSetRangeValueOnWindowThread(double value) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     ControlHost* host = ResolveHost();
@@ -7858,7 +7928,7 @@ HRESULT AccessibilityProvider::ExecuteSetRangeValueOnWindowThread(double value) 
 
 HRESULT AccessibilityProvider::ExecuteSelectOnWindowThread() noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     ControlHost* host = ResolveHost();
@@ -7902,7 +7972,7 @@ HRESULT AccessibilityProvider::ExecuteSelectOnWindowThread() noexcept
 
 HRESULT AccessibilityProvider::ExecuteAddToSelectionOnWindowThread() noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (_kind == AccessibilityFragmentKind::TreeItem)
@@ -7926,7 +7996,7 @@ HRESULT AccessibilityProvider::ExecuteAddToSelectionOnWindowThread() noexcept
 
 HRESULT AccessibilityProvider::ExecuteRemoveFromSelectionOnWindowThread() noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     ControlHost* host = ResolveHost();
@@ -7973,7 +8043,7 @@ HRESULT AccessibilityProvider::ExecuteRemoveFromSelectionOnWindowThread() noexce
 
 HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded) noexcept
 {
-    if (_target && _target->embedded && ! CaptureSnapshot())
+    if (_target && ! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (_kind == AccessibilityFragmentKind::Control || _kind == AccessibilityFragmentKind::Root)
     {

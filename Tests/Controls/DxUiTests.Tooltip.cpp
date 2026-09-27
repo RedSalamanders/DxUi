@@ -140,6 +140,19 @@ void TestTooltipLayerHideDelayExpiresAfterTimerTicks()
 {
     using namespace DxUi;
 
+    // A message pump may spend longer than the hide delay rendering its first
+    // frame. Verify the deadline boundary on the existing explicit tick seam,
+    // then independently require the attached host's real timer to expire.
+    WindowHost deadlineHost;
+    Require(deadlineHost.SetTooltip(L"Deadline tooltip", D2D1::Point2F(24.0f, 24.0f)), "deadline test starts with a visible tooltip");
+    const uint64_t beforeSchedule = DxUi::Ui::AnimationDispatcher::GetInstance().GetCurrentTickMs();
+    Require(deadlineHost.BeginTooltipHideDelay(100u), "deadline test schedules a 100ms hide delay");
+    const uint64_t afterSchedule = DxUi::Ui::AnimationDispatcher::GetInstance().GetCurrentTickMs();
+    static_cast<void>(deadlineHost.DebugAnimationTickForTest(beforeSchedule + 50u));
+    Require(deadlineHost.HasTooltip(), "tracking tooltip remains visible at a tick before its hide deadline");
+    static_cast<void>(deadlineHost.DebugAnimationTickForTest(afterSchedule + 100u));
+    Require(! deadlineHost.HasTooltip(), "tracking tooltip clears at a tick at or after its hide deadline");
+
     AttachedHostWindow window;
     ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
     window.PumpMessages();
@@ -149,11 +162,13 @@ void TestTooltipLayerHideDelayExpiresAfterTimerTicks()
     Require(window.Host().BeginTooltipHideDelay(), "tracking tooltip hide-delay scheduling succeeds");
     Require(window.Host().HasTooltip(), "tracking tooltip remains visible immediately after hide-delay scheduling");
 
-    PumpMessagesForDuration(window, std::chrono::milliseconds(50));
-    Require(window.Host().HasTooltip(), "tracking tooltip remains visible before the hide delay elapses");
-
-    PumpMessagesForDuration(window, std::chrono::milliseconds(120));
-    Require(! window.Host().HasTooltip(), "tracking tooltip clears after the hide delay elapses");
+    const auto expiryLimit = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    while (window.Host().HasTooltip() && std::chrono::steady_clock::now() < expiryLimit)
+    {
+        window.PumpMessages(25u);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    Require(! window.Host().HasTooltip(), "tracking tooltip clears through the attached host's real timer");
 }
 
 void TestTooltipDeadlinesUseCurrentDispatcherClockAfterIdleHostTick()

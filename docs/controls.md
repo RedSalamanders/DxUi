@@ -117,6 +117,9 @@ callback; the application updates the state, content visibility and focus. `GetD
 returns that acknowledged optional state; `ClearDisclosureState()` removes the pattern. Disabled
 buttons reject UIA state changes. Embedded hosts publish the new snapshot after preparation, using
 their existing accessibility update path. Retained providers disconnect when their control is removed.
+Do not reuse an old provider after replacing its control at the same tree position; obtain a
+fresh provider for the new control. Native lifetime hardening and its pending qualification are
+tracked in the [native provider plan](../Specs/Plans/WIP/NativeProviderLifetime_2026-09-28.md).
 
 ```cpp
 auto* stack = root->AddChild<DxUi::StackPanel>();
