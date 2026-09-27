@@ -30,6 +30,14 @@ receipts were verified and recovered without rerunning tests. Debug/ASan use the
 External evidence remains in `C:/RedSalamander.Perf/evidence/i26-ui/grid-cache-bound-witness-20260927`
 at baseline `d2f2e3a`. The prior six-profile packet below qualifies the preceding test source,
 not this added witness. Automatic benchmark results are unpaired.
+
+The exact-commit run `36323665013` on `826fa563` passes its native test steps but fails
+the relocated consumer step in all six profiles. The archived UIA receipt basenames exceed
+Windows checkout path limits under the deeper consumer fixture. Eighteen evidence basenames
+are shortened without changing their bytes; the original map/checksum, reversible rename map
+and failing job log are retained in the UIA packet's `raw/path-repair`. No global Git setting,
+library source or compiled witness changes. Skills/spec/dependency/format validation passes;
+fresh aggregate CI after this packaging repair remains required before adoption.
 Production rendering/cache policy remains V11. Docs/gallery review: diagnostics and test lifetime
 only; no control, theme, geometry or gallery input changes, so the published V11 images remain valid.
 Performance acceptance and consumer adoption are unchanged; do not waive retained timing flags.
