@@ -25,7 +25,9 @@ design-system preview exist and the design system is republished. Additions/remo
 visual changes to existing controls update the affected design-system tokens and previews in the same change. The generated gallery includes light, dark, rainbow light,
 rainbow dark and high-contrast sheets plus the supplied-device example. Generate with `gallery.ps1 -PublishDocs`,
 review all sheets for clipping/overlap/missing content, and publish PNGs, Markdown/HTML indexes and the generation
-receipt in `docs/gallery`. Native tests/baselines remain distinct; never rebaseline tests merely to match a changed
+receipt in `docs/gallery`. The harness sizes its offscreen capture window from the sheet rather than the desktop, so
+a small display cannot crop it. CI's x64 Release job uploads the same output as `docs-gallery-x64-Release`.
+Native tests/baselines remain distinct; never rebaseline tests merely to match a changed
 documentation screenshot.
 
 Intermediate outputs/logs stay in `.build`. Published gallery assets and explicitly reviewed independent receipts

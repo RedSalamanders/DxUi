@@ -24,6 +24,8 @@ try {
     "<!doctype html><html lang='en'><meta charset='utf-8'><title>DxUi control gallery</title><style>body{font:16px Segoe UI,sans-serif;background:#11151c;color:#edf2fa;margin:24px}img{max-width:100%;height:auto}section{margin:32px 0}a{color:inherit}</style><h1>DxUi control gallery</h1><p>All 30 public controls and interaction variants. Click an image for full resolution.</p>$body</html>" | Set-Content -LiteralPath (Join-Path $output 'index.html') -Encoding utf8
     Write-Host "Gallery: $(Join-Path $output 'index.html')"
     if ($PublishDocs) {
+        # Source state excludes the published gallery, which this command replaces.
+        $sourceDirty = [bool](& git status --porcelain -- . ':(exclude)docs/gallery')
         $destination = Join-Path $PSScriptRoot 'docs/gallery'
         New-Item -ItemType Directory -Path $destination -Force | Out-Null
         foreach ($file in @($images.FullName) + @((Join-Path $output 'index.html'))) {
@@ -33,7 +35,7 @@ try {
         "# Generated control gallery`n`n[Usage documentation](../README.md) | [Control guide](../controls.md) | [HTML gallery](index.html)`n`nGenerated from compiled DxUi controls using gallery.ps1 -PublishDocs. The five theme sheets cover all 30 public controls and populated interaction variants; the sixth image is the supplied-device example. Click a sheet to inspect it at full resolution. Rendering may vary with Windows fonts/DPI. These are documentation snapshots, not replacements for the original test baselines.`n`n$sections" | Set-Content -LiteralPath (Join-Path $destination 'README.md') -Encoding utf8
         $receipt = [ordered]@{
             command='gallery.ps1 -PublishDocs'; sourceCommit=(& git rev-parse HEAD).Trim()
-            sourceDirty=[bool](& git status --porcelain)
+            sourceDirty=$sourceDirty
             configuration=$Configuration; platform=$Platform; nativeArchitecture=[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
             controlCount=30; images=@($images | ForEach-Object { @{ file=$_.Name; sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash } })
         }

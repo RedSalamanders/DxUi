@@ -21,6 +21,20 @@ Before changing implementation, measure the current revision on an otherwise qui
 ```
 
 Keep the baseline; never overwrite it with the candidate. Use separate files for each configuration/architecture.
+When the benchmark itself changed, or the baseline predates it, measure both revisions with one harness:
+
+```powershell
+.\performance-paired.ps1 -BaselineRevision <commit> -Scenario Default,MultilineGrid
+```
+
+It creates a detached baseline worktree under `.build/paired`, copies this checkout's `performance.ps1` and
+benchmark inputs into it, builds both trees and runs A1, B1, B2, A2 serially (A is the baseline). B1/A1 and
+B2/A2 cross the change; A2/A1 and B2/B1 are same-source controls. `-CandidateRevision` measures a second
+historical revision instead of this checkout, still with this checkout's harness. Every receipt, comparison and
+`summary.json` is retained; flagged comparisons still need developer advice. A manual run of the
+[validation workflow](../.github/workflows/ci.yml) with `benchmark_baseline` (and optionally `benchmark_candidate`
+and `benchmark_scenarios`) does the same on one hosted x64 runner and uploads `paired-benchmark-x64-Release`.
+Hosted runs are serial on one machine but not a controlled quiet desktop; record that limitation.
 `-Scenario MultilineGridRetention` extends the French multiline fixture with six complete passes through
 its 1,000 rows. It records process memory, handles and retained surface bytes every 200 frames, after
 clearing the Grid model, and after destroying the control tree/detaching the host. Compare identical
@@ -120,8 +134,9 @@ rows use 575,310 versus 367,894 live heap bytes. The
 [six-profile native qualification](../Measurements/MenuDescriptions/2026-09-23/native-ci-sharing/README.md)
 passes functionally with explicit ARM64 desktop skips. Its common-scene timing flags compare two
 described-menu builds, not the feature against unchanged main; the matched pairs against main never
-flag clean frame p95. Their repeated clean private-memory increase and consumer adoption remain
-unresolved.
+flag clean frame p95. Their repeated clean private-memory increase is accepted under a recorded waiver
+while an [optimization plan](../Specs/Plans/WIP/MenuDescriptionMemory_2026-09-27.md) investigates it;
+consumer adoption remains separate.
 
 [Retained independent measurements](../Measurements/README.md) include raw rounds and comparison receipts with a
 scenario explanation. They measure the library's synthetic workload; AV adoption receipts live in RedXe.
@@ -148,14 +163,18 @@ Only an actual successful job and its receipts establish a runtime pass; configu
 The [grid candidate's native receipts](../Measurements/GridTextOverflow/2026-09-21/native-ci/README.md)
 cover all six x64/ARM64 profiles, preserve an intermittent accessibility setup failure
 and identify ARM64 Menu desktop-capability skips. These functional receipts do not
-close the candidate's separately measured resource regression.
+close the candidate's separately measured resource regression. A
+[hosted paired benchmark](../Measurements/GridTextOverflow/2026-09-27/paired-hosted/README.md) of the
+merged grid stays within the accepted V11 memory envelope.
 
 ## Other checks and formatting
 
 Run `validate-skills.ps1`, `validate-specs.ps1`, `validate-dependencies.ps1`, `format.ps1 -Check` and
 `python -m unittest discover -s Tools/tests -v`. Run x64 Debug/Release suites and build ARM64 Debug/Release for code
 changes; native ARM64 CI must also pass. Use `gallery.ps1 -PublishDocs` after visual/control changes and review all
-generated sheets. Full IME, touch and screen-reader adoption checks remain explicit manual gates.
+generated sheets. CI's x64 Release job runs the same command and uploads its `docs/gallery` output as
+`docs-gallery-x64-Release`; review those sheets before committing them. Full IME, touch and screen-reader adoption
+checks remain explicit manual gates.
 
 [Formatting CI](../.github/workflows/format.yml) checks pushes/PRs and uploads a ready-to-apply patch. To reformat a
 branch remotely, run its manual workflow with `apply_changes` enabled. It commits formatting on the selected

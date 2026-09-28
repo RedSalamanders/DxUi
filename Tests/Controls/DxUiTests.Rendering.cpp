@@ -721,6 +721,43 @@ std::unique_ptr<DxUi::Panel> BuildAnimatedPage(std::wstring title, const D2D1_RE
     return page;
 }
 
+void TestProgressBarReducedMotionIndeterminateCaptureIsStatic()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    SetWindowPos(window.Hwnd(), nullptr, 0, 0, 480, 200, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    ThemePalette theme  = MakeDefaultThemePalette(false);
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    auto root = std::make_unique<Panel>();
+    auto* bar = root->AddChild<ProgressBar>();
+    bar->SetBounds(D2D1::RectF(20.0f, 30.0f, 260.0f, 46.0f));
+    bar->SetIndeterminate(true);
+    window.Host().SetRoot(std::move(root));
+
+    const WindowHostBitmapCapture first = CaptureAttachedHostWindowBitmap(window, "reduced-motion indeterminate progress capture succeeds");
+    Require(! window.Host().DebugHasActiveAnimationSubscription(), "reduced-motion indeterminate progress leaves the host animation timer idle");
+
+    // Explicit ticks and a pump that outlives several timer intervals leave the captured frame unchanged.
+    static_cast<void>(bar->Tick(window.Host(), 300u));
+    static_cast<void>(bar->Tick(window.Host(), 1300u));
+    Sleep(40);
+    const WindowHostBitmapCapture second = CaptureAttachedHostWindowBitmap(window, "repeated reduced-motion indeterminate progress capture succeeds");
+    Require(first.widthPx == second.widthPx && first.heightPx == second.heightPx && first.bgraPixels == second.bgraPixels,
+            "reduced-motion indeterminate progress captures the same frame every time");
+
+    // The resting segment spans 30%..70% of the track: [92, 188] DIP on the [20, 260] DIP track.
+    const auto px          = [&](float dip) { return static_cast<UINT>(window.Host().DipsToPixels(dip)); };
+    const UINT y           = px(38.0f);
+    const uint32_t segment = CaptureBgra(first, px(140.0f), y);
+    Require(CaptureBgra(first, px(100.0f), y) == segment && CaptureBgra(first, px(180.0f), y) == segment,
+            "the resting indeterminate segment fills its centered span");
+    Require(CaptureBgra(first, px(50.0f), y) != segment && CaptureBgra(first, px(230.0f), y) != segment,
+            "the track outside the resting indeterminate segment stays unfilled");
+}
+
 void TestDxUiCoreControlsDarkVisualBaseline()
 {
     using namespace DxUi;
@@ -1988,6 +2025,7 @@ void RunRenderingTests()
     runTest("TestDxUiCoreControlsDarkVisualBaseline", TestDxUiCoreControlsDarkVisualBaseline);
     runTest("TestDxUiCoreControlsLightVisualBaseline", TestDxUiCoreControlsLightVisualBaseline);
     runTest("TestDxUiHighContrastVisualBaseline", TestDxUiHighContrastVisualBaseline);
+    runTest("TestProgressBarReducedMotionIndeterminateCaptureIsStatic", TestProgressBarReducedMotionIndeterminateCaptureIsStatic);
     runTest("TestDxUiPopupAndBarsVisualBaseline", TestDxUiPopupAndBarsVisualBaseline);
     runTest("TestDxUiPopupAndBarsAcrylicLightVisualBaseline", TestDxUiPopupAndBarsAcrylicLightVisualBaseline);
     runTest("TestDxUiPageTransitionVisualBaseline", TestDxUiPageTransitionVisualBaseline);

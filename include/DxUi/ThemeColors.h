@@ -15,6 +15,7 @@ struct ThemeColors
     uint32_t selectionTextArgb;
     uint32_t accentArgb;
 
+    // Zero alpha (the zero default) means none supplied: MakeThemePalette uses windowBackground and text instead.
     uint32_t alertErrorBackgroundArgb;
     uint32_t alertErrorTextArgb;
     uint32_t alertWarningBackgroundArgb;

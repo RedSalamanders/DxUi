@@ -9,6 +9,13 @@ Application adoption measurements belong in their application's repository.
   acceptance and native platform/consumer handoff remain open.
 - [Grid native CI, 2026-09-21](GridTextOverflow/2026-09-21/native-ci/README.md): six native profiles,
   retained accessibility classification retry and explicit ARM64 Menu capability skips; resource approval remains open.
+- [Hosted paired grid benchmark, 2026-09-27](GridTextOverflow/2026-09-27/paired-hosted/README.md): one serial
+  A1/B1/B2/A2 set per scenario on a hosted x64 runner; the merged grid stays within the accepted V11 envelope.
+- [Hosted paired described-menu benchmark, 2026-09-27](MenuDescriptions/2026-09-27/paired-hosted/README.md): one
+  serial set isolating #24; no memory flag, so the waived clean increase does not reproduce on that runner.
+- [Hosted paired gallery follow-ups benchmark, 2026-09-28](GalleryFollowUps/2026-09-28/paired-hosted/README.md): one
+  serial set for the reduced-motion progress bar and alert-color fallback; no memory flag, and its timing
+  flags reverse in the other crossing.
 
 - [Complex UI, 2026-09-05](ComplexUi/2026-09-05/README.md): Release baseline and matched repeat, complete raw rounds,
   comparison and rendered scene.

@@ -1922,6 +1922,11 @@ public:
     void Paint(ControlHost& host) const override;
     bool Tick(ControlHost& host, uint64_t nowTickMs) override;
 
+#if DXUI_ENABLE_DIAGNOSTICS
+    // The segment the indeterminate state paints under this theme, in DIPs. Empty (left == right) while off the track.
+    [[nodiscard]] D2D1_RECT_F DebugGetIndeterminateSegmentRect(const ThemePalette& theme) const noexcept;
+#endif
+
 private:
     double _value                       = 0.0;
     double _minimum                     = 0.0;

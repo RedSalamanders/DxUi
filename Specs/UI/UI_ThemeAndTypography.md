@@ -1,12 +1,16 @@
 # Theme and typography
 
 Status: normative intended contract
-Last reviewed: 2026-09-12
+Last reviewed: 2026-09-28
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
 
 Consumers provide colors and style tokens. Shared controls support light, dark, high contrast and reduced motion.
+`MakeThemePalette` copies the consumer's alert pairs as given. An alert color with zero alpha, including the zero
+default, was not supplied: its fill becomes `windowBackground` and its text becomes `text`. System high-contrast
+palettes have no alert colors, so status tones and badges then read as text on the window ground instead of
+painting invisibly.
 `Typography::IsFontFamilyAvailable` caches answers per DirectWrite factory and family. Cache misses request an
 updated system font collection. `InvalidateFontFamilyAvailability(factory)` drops that factory's answers;
 null drops all answers. Hosts serialize invalidation with their font-selection queries and call it when the

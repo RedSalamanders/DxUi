@@ -3,6 +3,19 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      benchmark_baseline:
+        description: Optional baseline revision for a paired x64 Release benchmark; empty skips it.
+        required: false
+        default: ''
+      benchmark_candidate:
+        description: Optional candidate revision for the paired benchmark; empty measures the dispatched ref.
+        required: false
+        default: ''
+      benchmark_scenarios:
+        description: Comma-separated performance.ps1 scenarios for the paired benchmark.
+        required: false
+        default: Default,MultilineGrid
 permissions:
   contents: read
 concurrency:
@@ -66,8 +79,9 @@ jobs:
         if: ${{ !cancelled() && matrix.platform == 'x64' && matrix.configuration == 'Release' }}
         shell: pwsh
         run: ./test.ps1 -Configuration Release -Platform x64 -SkipBuild -Suites MenuResourceScaling,MenuTextLayoutResources
+      # x64 Release also publishes into this checkout's docs/gallery, uploaded below for review and commit.
       - shell: pwsh
-        run: ./gallery.ps1 -SkipBuild -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
+        run: ./gallery.ps1 -SkipBuild -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }} ${{ matrix.platform == 'x64' && matrix.configuration == 'Release' && '-PublishDocs' || '' }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -77,4 +91,42 @@ jobs:
             .build/reports/*.json
             .build/test-artifacts/**
             .build/gallery/**
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ matrix.platform == 'x64' && matrix.configuration == 'Release' }}
+        with:
+          name: docs-gallery-x64-Release
+          path: docs/gallery/
+          retention-days: 14
+  # Manual only: one runner measures the baseline and this revision serially with one harness.
+  paired-benchmark:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.benchmark_baseline != '' }}
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - shell: pwsh
+        run: ./vcpkg-install.ps1 -Platform x64
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.14'
+      - shell: pwsh
+        env:
+          BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline }}
+          BENCHMARK_CANDIDATE: ${{ inputs.benchmark_candidate }}
+          BENCHMARK_SCENARIOS: ${{ inputs.benchmark_scenarios }}
+        run: ./performance-paired.ps1 -BaselineRevision $env:BENCHMARK_BASELINE -CandidateRevision $env:BENCHMARK_CANDIDATE -Scenario @($env:BENCHMARK_SCENARIOS -split ',' | ForEach-Object { $_.Trim() })
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: paired-benchmark-x64-Release
+          path: |
+            .build/paired/*/reports/**
+            .build/paired/*/baseline/.build/logs/*.log
+            .build/paired/*/candidate/.build/logs/*.log
+            .build/logs/*.log
+          # Worktree build logs live under each worktree's .build directory.
+          include-hidden-files: true
           retention-days: 14

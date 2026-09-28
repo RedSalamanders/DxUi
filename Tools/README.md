@@ -28,6 +28,7 @@ renders the supplied-device example, and rejects five invalid-pin/dirty-source c
 five-theme control catalog, supplied-device image and HTML index from compiled native code.
 Add `-PublishDocs` to publish reviewed gallery snapshots to docs. `performance.ps1` captures completed offscreen
 complex-UI FPS/memory and optionally compares a baseline; `test.ps1` includes that report even for filtered suites.
+`performance-paired.ps1` measures a baseline revision and this checkout serially with one copied harness.
 
 Build/test receipts and scratch belong under `.build`. No tool uploads test data or changes audio/camera state.
 Do not introduce a personal Codex path or silently install dependencies as part of validation.

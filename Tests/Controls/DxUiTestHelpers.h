@@ -707,6 +707,13 @@ public:
         return _hwnd.get();
     }
 
+    // Documentation captures size this offscreen window beyond small desktops. The
+    // system otherwise clamps top-level windows to its default maximum tracking size.
+    void AllowOuterSizeBeyondDesktop(SIZE outerSizePx) noexcept
+    {
+        _maximumTrackSizePx = outerSizePx;
+    }
+
     void PumpMessages(DWORD maximumDurationMs = INFINITE) const
     {
         const ULONGLONG started = GetTickCount64();
@@ -752,6 +759,13 @@ private:
         }
 
         auto* self = reinterpret_cast<AttachedHostWindow*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+        if (self && msg == WM_GETMINMAXINFO && self->_maximumTrackSizePx.cx > 0 && self->_maximumTrackSizePx.cy > 0)
+        {
+            auto* minMaxInfo             = reinterpret_cast<MINMAXINFO*>(lp);
+            minMaxInfo->ptMaxTrackSize.x = (std::max)(minMaxInfo->ptMaxTrackSize.x, self->_maximumTrackSizePx.cx);
+            minMaxInfo->ptMaxTrackSize.y = (std::max)(minMaxInfo->ptMaxTrackSize.y, self->_maximumTrackSizePx.cy);
+            return 0;
+        }
         if (self)
         {
             bool handled         = false;
@@ -772,6 +786,7 @@ private:
 
     wil::unique_hwnd _hwnd;
     DxUi::WindowHost _host;
+    SIZE _maximumTrackSizePx{};
 };
 
 class ClipboardHostWindow final

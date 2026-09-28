@@ -27,32 +27,32 @@
       "files": {
         "theme-controls-light.png": {
           "name": "theme-controls-light.png",
-          "blob": "ac011c59cce74f0b2bd4fca058c74e79",
-          "size": 307080,
+          "blob": "d38b180bea6b6aded43e12868a040360",
+          "size": 340335,
           "type": "image/png"
         },
         "theme-controls-dark.png": {
           "name": "theme-controls-dark.png",
-          "blob": "8abf07129db4b5a0d90ccea1be02a44d",
-          "size": 308556,
+          "blob": "3d14488c20b41812850e2ddec5e0b221",
+          "size": 342168,
           "type": "image/png"
         },
         "theme-controls-high-contrast.png": {
           "name": "theme-controls-high-contrast.png",
-          "blob": "889ee0de84bf4196a9f98b6ee868fa39",
-          "size": 298638,
+          "blob": "d96a623d81143ab09ce661997018e5fd",
+          "size": 337002,
           "type": "image/png"
         },
         "theme-controls-rainbow-light.png": {
           "name": "theme-controls-rainbow-light.png",
-          "blob": "c92bab7522394ac5b91abab5df9d3a62",
-          "size": 309372,
+          "blob": "f8fafd6e3a7123363caa77b599f2747a",
+          "size": 341967,
           "type": "image/png"
         },
         "theme-controls-rainbow-dark.png": {
           "name": "theme-controls-rainbow-dark.png",
-          "blob": "8f6a3c30da46b622e5583020996f9f32",
-          "size": 310159,
+          "blob": "4054a9876a2c144cb392bea87342db12",
+          "size": 343787,
           "type": "image/png"
         },
         "embedded-controls.png": {
@@ -71,8 +71,8 @@
   },
   "lastChange": {
     "by": "eric-jesover",
-    "at": "2026-09-23T08:52:05Z",
-    "via": "Claude Code · RedSalamanders/DxUi@feature/design-system",
-    "note": "All 30 catalog controls previewed; Theming section from the RedSalamander review; ProgressBar colors corrected."
+    "at": "2026-09-28T05:41:33Z",
+    "via": "Claude Code · RedSalamanders/DxUi@ej/elegant-einstein-lmooqh",
+    "note": "Indeterminate ProgressBar rests centered under reduced motion; unsupplied alert colors fall back to text on windowBackground; gallery sheets regenerated from ed1dea9."
   }
 }

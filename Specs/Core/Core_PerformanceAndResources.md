@@ -18,7 +18,8 @@ Retain the original baseline and measure again after the change. Record exact so
 fingerprints, compiler/dependencies, architecture/configuration, hardware/OS/driver, power policy, resolution/DPI,
 visible controls/data size and repetitions. Run serially on the same quiet fixture. Cross-machine, changed-workload,
 Debug/Release or x64/ARM64 comparisons cannot establish non-regression. If a new benchmark is required, run the same
-harness against both implementations. A missing baseline is explicitly unpaired and cannot close an implementation
+harness against both implementations; `performance-paired.ps1` builds a detached baseline with the candidate's
+harness inputs and runs A1/B1/B2/A2 serially. A missing baseline is explicitly unpaired and cannot close an implementation
 performance gate. Documentation/tool-only changes that leave compiled library inputs unchanged record that fact.
 
 DxUi MUST NOT accept a confirmed performance or memory regression silently. Compare FPS, frame/input percentiles,
@@ -33,6 +34,29 @@ On confirmed degradation, stop accepting/merging the affected development, prese
 cause, ask the developer for advice, and propose options with quantified costs: optimize the affected path/caches,
 reduce optional scope, or defer/revert the change. Any explicitly approved tradeoff needs durable rationale and the
 chosen resource budget in this contract or its owning domain; a WIP note alone cannot waive a requirement.
+
+### Described-menu clean private-memory waiver
+
+On 2026-09-27 the user directed that described native menu entries (#24, merged as `6f769ab`)
+keep their measured common-scene memory cost under a recorded waiver, while an
+[optimization plan](../Plans/WIP/MenuDescriptionMemory_2026-09-27.md) works to remove it.
+In the three matched September 21 Release pairs against unchanged `78b3de3`
+([common-scene investigation](../../Measurements/MenuDescriptions/2026-09-21/README.md)),
+clean-round median private bytes rise by 823,296, 1,175,552 and 1,175,552 bytes
+(+3.23%, +4.56%, +4.51%), above the 2% band. Clean private peak rises by 2.12% to 4.68%;
+clean working set rises by 3.10% and 2.61% in pairs two and three. The accepted envelope is
+those recorded clean-round increases: at most 1,175,552 private bytes (+4.6%) on the default
+x64 Release WARP fixture.
+
+The scene opens no menu, and outside menu popups the change adds no allocation. The nine-phase heap
+diagnostic shows the difference as allocator capacity (committed and free heap) rather than live
+data, and sixty-cycle retention medians converge. Neither establishes a cause or a settled bound.
+Pair three also flags a dirty-round increase of 2,408,448 private bytes (+8.67%) that pairs one and
+two do not repeat; it is not accepted, and the plan measures it again. This waiver does not cover
+timing, additional growth, other fixtures or consumer adoption. Thresholds, baselines and the
+deterministic allocation, surface and hidden-work budgets are unchanged, and the retained
+comparisons keep their `advice-required` status. Remove or tighten the waiver when the plan's
+paired measurements are within the investigation bands.
 
 ### I26 accepted multiline Grid memory tradeoff
 

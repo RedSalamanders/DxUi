@@ -25,7 +25,7 @@ constexpr size_t kColumnCount    = 7u;
 constexpr float kTileWidthDip = (kGalleryWidthDip - (kMarginDip * 2.0f) - (kGapDip * static_cast<float>(kColumnCount - 1u))) / static_cast<float>(kColumnCount);
 
 [[nodiscard]] UINT DipsToPixelsCeil(const WindowHost& host, float dips) noexcept;
-void ResizeClientArea(HWND hwnd, UINT widthPx, UINT heightPx);
+void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx);
 
 [[nodiscard]] float ClampUnit(float value) noexcept
 {
@@ -365,7 +365,7 @@ void CopyCaptureInto(WindowHostBitmapCapture& destination, const WindowHostBitma
 [[nodiscard]] WindowHostBitmapCapture CaptureComboBoxOpenBitmapForGallery(const ThemePalette& theme, ComboBoxVariant variant, bool editable)
 {
     AttachedHostWindow window;
-    ResizeClientArea(window.Hwnd(), DipsToPixelsCeil(window.Host(), 190.0f), DipsToPixelsCeil(window.Host(), 174.0f));
+    ResizeClientArea(window, DipsToPixelsCeil(window.Host(), 190.0f), DipsToPixelsCeil(window.Host(), 174.0f));
     window.Host().SetTheme(theme);
 
     auto root   = std::make_unique<Panel>();
@@ -730,7 +730,6 @@ struct GalleryScene
     Slider* hoverSlider                = nullptr;
     Slider* pressedSlider              = nullptr;
     Control* focusedControl            = nullptr;
-    ProgressBar* indeterminateProgress = nullptr;
     Grid* grid                         = nullptr;
     std::optional<D2D1_POINT_2F> tooltipOrigin;
     float heightDip = 1.0f;
@@ -928,10 +927,10 @@ void AddComboItems(ComboBox& combo)
         progress->SetBounds(CenterIn(tile.content, 260.0f, 20.0f));
     }
     {
-        const Tile tile             = flow.Next(*scene.root, L"ProgressBar / Indeterminate");
-        scene.indeterminateProgress = scene.root->AddChild<ProgressBar>();
-        scene.indeterminateProgress->SetIndeterminate(true);
-        scene.indeterminateProgress->SetBounds(CenterIn(tile.content, 260.0f, 20.0f));
+        const Tile tile = flow.Next(*scene.root, L"ProgressBar / Indeterminate");
+        auto* progress  = scene.root->AddChild<ProgressBar>();
+        progress->SetIndeterminate(true);
+        progress->SetBounds(CenterIn(tile.content, 260.0f, 20.0f));
     }
     {
         const Tile tile = flow.Next(*scene.root, L"PageIndicator / Pages");
@@ -1235,14 +1234,18 @@ void AddComboItems(ComboBox& combo)
     return std::max(1u, static_cast<UINT>(std::ceil(host.DipsToPixels(dips))));
 }
 
-void ResizeClientArea(HWND hwnd, UINT widthPx, UINT heightPx)
+void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx)
 {
+    const HWND hwnd = window.Hwnd();
     RECT rect{0, 0, static_cast<LONG>(widthPx), static_cast<LONG>(heightPx)};
     const DWORD style   = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_STYLE));
     const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_EXSTYLE));
     Require(AdjustWindowRectEx(&rect, style, FALSE, exStyle) != FALSE, "gallery window rect adjusts for client size");
     const int outerWidth  = static_cast<int>(rect.right - rect.left);
     const int outerHeight = static_cast<int>(rect.bottom - rect.top);
+    // Sheets exceed common desktops. Without this the default tracking limit crops
+    // them to the screen, so generated pixels would depend on the display size.
+    window.AllowOuterSizeBeyondDesktop(SIZE{outerWidth, outerHeight});
     Require(SetWindowPos(hwnd, nullptr, -32000, -32000, outerWidth, outerHeight, SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
             "gallery window resizes to requested client area");
 }
@@ -1252,7 +1255,7 @@ void ResizeClientArea(HWND hwnd, UINT widthPx, UINT heightPx)
     AttachedHostWindow window;
     GalleryScene scene = BuildGalleryScene(theme, CaptureGalleryMenus(theme.palette));
 
-    ResizeClientArea(window.Hwnd(), DipsToPixelsCeil(window.Host(), kGalleryWidthDip), DipsToPixelsCeil(window.Host(), scene.heightDip));
+    ResizeClientArea(window, DipsToPixelsCeil(window.Host(), kGalleryWidthDip), DipsToPixelsCeil(window.Host(), scene.heightDip));
     window.Host().SetTheme(theme.palette);
     window.Host().SetRoot(std::move(scene.root));
 
@@ -1288,10 +1291,6 @@ void ResizeClientArea(HWND hwnd, UINT widthPx, UINT heightPx)
     if (scene.focusedControl)
     {
         window.Host().SetFocusControl(scene.focusedControl);
-    }
-    if (scene.indeterminateProgress)
-    {
-        static_cast<void>(scene.indeterminateProgress->Tick(window.Host(), 300u));
     }
     if (scene.grid)
     {
@@ -1763,7 +1762,7 @@ private:
 [[nodiscard]] WindowHostBitmapCapture CaptureButtonContrastAuditSlice(std::vector<GalleryTheme> themes, bool showHeader, float heightDip)
 {
     AttachedHostWindow window;
-    ResizeClientArea(window.Hwnd(), static_cast<UINT>(std::ceil(kButtonAuditWidthDip)), static_cast<UINT>(std::ceil(heightDip)));
+    ResizeClientArea(window, static_cast<UINT>(std::ceil(kButtonAuditWidthDip)), static_cast<UINT>(std::ceil(heightDip)));
     ThemePalette hostTheme  = MakeDefaultThemePalette(false);
     hostTheme.reducedMotion = true;
     window.Host().SetTheme(hostTheme);

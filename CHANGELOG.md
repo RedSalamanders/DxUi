@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Honor reduced motion in `ProgressBar`: an indeterminate bar rests its segment centered, requests no animation
+  ticks and paints identically every frame; restoring motion resumes the 2 s sweep. `Tick` re-seeds when the tick
+  clock moves backwards and drops whole loops from long gaps, so no elapsed time can corrupt the sweep phase.
+  API revision stays 2 (additive diagnostics accessor only).
+- Never paint status invisibly: `MakeThemePalette` still copies supplied alert colors, but a zero-alpha alert
+  color, including the `ThemeColors` zero default, falls back to `windowBackground` for fills and `text` for
+  text. High-contrast themes without alert colors now show toned grid rows, tone badges and throughput limits.
 - Add the editor consumer controls `Splitter`, `NumericStepper` and `ColorPicker`: preview/commit/cancel notifications,
   keyboard operation, right-to-left mirroring, disabled and focus-visible states, and the public `HsvFromArgb` /
   `ArgbFromHsv` / `ParseHexColor` / `FormatHexColor` helpers. `WindowHostCursorKind::VerticalResize` maps to the

@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-09-19
+Last reviewed: 2026-09-28
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -130,6 +130,16 @@ nothing, report empty hit bounds, and ignore pointer and keyboard input. `SetSel
 does not wrap. Idle dots use subdued text; the selected dot uses the theme accent. Preferred strip height is
 `PageIndicator::kStripHeightDip` (20 DIP). Consumers that draw a matching strip without hosting the control MUST use
 the same DIP radius, selected radius and gap constants.
+
+### Progress bar
+
+`ProgressBar` paints a determinate fill, two segmented values or an indeterminate segment. The track is 2 DIP, or
+4 DIP while indeterminate, unless `SetTrackHeightDip` sets a height. The indeterminate segment is 40% of the track.
+With motion it sweeps from before the track to past its end every 2,000 ms. An enabled, visible bar requests host
+ticks, and each tick advances the sweep by the elapsed time and invalidates the host. A long gap advances only by its
+remainder of a loop. A tick time earlier than the previous one re-seeds the timing without moving the segment. Under
+reduced motion the segment rests centered, from 30% to 70% of the track: the bar requests no ticks, `Tick` reports
+false and every paint is identical. Restoring motion resumes the sweep at the next paint.
 
 ### Slider
 

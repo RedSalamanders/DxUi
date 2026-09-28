@@ -8,6 +8,29 @@ The consumer's French Issues grid exposed a generic defect: `SetLineClamp` enabl
 does not limit visible lines or produce an omission marker. Partially visible cells also lay out
 against their clipped rectangle, changing text placement as they cross the viewport boundary.
 
+## September 27 gallery and paired benchmark
+
+Gallery capture no longer depends on the desktop size (`9fe19cc`). The x64 Release CI job regenerated
+the gallery from `217e602`, and all five sheets were reviewed and published. They show the clamped French
+multiline cell with its ellipsis directly after the last visible character. In the high-contrast sheet
+the Grid tile's IconText and ColorSwatch rows show no text. The previously published sheet shows the
+same, so this work did not cause it. The gallery's high-contrast input supplies no alert colors, which
+became transparent tone colors; the [gallery follow-ups](../Done/GalleryFollowUps_2026-09-28.md) fall back to
+`text` on `windowBackground`. A second CI run at
+unchanged gallery inputs reproduced five sheets byte for byte. Rainbow light differed only in the
+ProgressBar / Indeterminate tile, whose animated segment depended on capture timing. The same
+follow-ups make that tile static.
+
+A [hosted paired benchmark](../../../Measurements/GridTextOverflow/2026-09-27/paired-hosted/README.md)
+compares `6f769ab` with the merged grid in one A1/B1/B2/A2 set per scenario. Multiline dirty private
+memory rises by 4,202,496 and 3,072,000 bytes against the V11 envelope's 7,012,352, with a dirty peak
+increase of at most 7,327,744 bytes. Dirty throughput improves by 70–75%. Allocations and surfaces
+are unchanged, and Default memory does not move. This meets the paired-benchmark condition for
+applying the accepted V11 envelope to this revision; the record states the hosted-runner limitation.
+
+The design system is republished with the updated Grid and MenuBar guidelines, previews and
+stylesheet, and the five regenerated theme sheets are re-uploaded with new asset records.
+
 ## September 27 main merge
 
 Main `6f769ab` (#27's disclosure UIA setup allowance and #24's described native menus) is merged
@@ -144,8 +167,10 @@ Reuse bounded text-layout resources; clean/hidden composition adds no work. No f
   The V11 cost was accepted on 2026-09-23 and recorded in Core_PerformanceAndResources.md; the
   associative-cache variant stays rejected.
 - [x] Update controls documentation/domain contract and regenerate/review gallery; run validators/format (V11).
-- [ ] After the main merge, regenerate and review the gallery with `gallery.ps1 -PublishDocs`, pass
-  the six native CI profiles and republish the design system with the updated Grid preview.
+- [x] After the main merge, pass the six native CI profiles and regenerate/review the gallery with
+  `gallery.ps1 -PublishDocs` (27 September).
+- [x] Republish the design system with the updated Grid preview and regenerated gallery (27 September,
+  artifact version 6).
 - [ ] Qualify publication and explicit consumer pin adoption; retain the old consumer pin until qualified.
 - [ ] Move this plan to Done after its own gates pass. The previous localized-layout plan stays Done.
 
