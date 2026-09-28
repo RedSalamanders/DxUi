@@ -15,3 +15,5 @@ Measurements/GridTextOverflow/2026-09-27/paired-hosted/*.json -text -whitespace
 Measurements/GridTextOverflow/2026-09-27/paired-hosted/*.receipt.txt -text -whitespace
 Measurements/MenuDescriptions/2026-09-27/paired-hosted/*.json -text -whitespace
 Measurements/MenuDescriptions/2026-09-27/paired-hosted/*.receipt.txt -text -whitespace
+Measurements/GalleryFollowUps/2026-09-28/paired-hosted/*.json -text -whitespace
+Measurements/GalleryFollowUps/2026-09-28/paired-hosted/*.receipt.txt -text -whitespace

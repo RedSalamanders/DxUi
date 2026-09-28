@@ -6,8 +6,8 @@ Owning contracts: [controls](../../UI/UI_ControlsAndLayout.md), [theme and motio
 the design-system [ProgressBar](../../DesignSystem/components/ProgressBar/README.md) and
 [Grid](../../DesignSystem/components/Grid/README.md) guidelines and the [theming guide](../../DesignSystem/Theming.md).
 
-The 27 September gallery review in the [grid plan](GridTextOverflow_2026-09-21.md) left two defects that predate
-that work. Both change gallery pixels, so they share one regeneration and one design-system republish.
+The 27 September gallery review in the [grid plan](GridTextOverflow_2026-09-21.md) left two defects that
+predate that work. Both change gallery pixels, so they share one regeneration and one design-system republish.
 
 ## Indeterminate progress under reduced motion
 
@@ -27,7 +27,7 @@ Cause:
   track. When no dispatcher tick came first, a later real tick placed the segment by the machine's uptime, as in
   rainbow light's frame at about 21% of the sweep.
 
-Changes:
+Changes (`0dc1dcd`):
 
 - [x] Under reduced motion `ProgressBar` requests no ticks from `SetIndeterminate` or `Paint`, and `Tick` reports
   false. The segment rests centered, from 30% to 70% of the track, matching the design-system preview. Restored
@@ -56,7 +56,7 @@ Cause:
 - The design-system tokens already give high contrast `text` on `windowBackground` for all three severities, so
   the library disagreed with its own design system.
 
-Changes:
+Changes (`ed1dea9`):
 
 - [x] `MakeThemePalette` still copies supplied alert colors as given. A zero-alpha value, including the zero
   default, counts as unsupplied: the fill becomes `windowBackground` and the text becomes `text`.
@@ -67,12 +67,27 @@ Changes:
 
 ## Validation and publication
 
-- [ ] Native CI passes in all six profiles.
-- [ ] Two gallery runs at identical inputs reproduce every sheet byte for byte. Against the published sheets only
-  the indeterminate tile, in all five themes, and the high-contrast status colors change. Publish those sheets.
-- [ ] Republish the design system: the README, theming guide, tokens, the ProgressBar and Grid guidelines, and
-  the five theme sheets.
-- [ ] Close out: move this plan to Done.
+- [x] x64 CI on `ed1dea9`: pull-request run 36381939973 and dispatch run 36382031032 pass x64 Debug, Release and
+  ASan Debug, including the control, embedded and theme tests above.
+- [ ] ARM64 Debug, Release and ASan Debug: the publishing commit's push cancelled `ed1dea9`'s ARM64 jobs, so its
+  own CI, on the same library code, supplies them.
+- [x] Local checks: the five Python validators, the 44 tool tests, the pinned clang-format 22.1.3 on every changed
+  C++ file and `git diff --check`.
+- [x] Gallery determinism. `0dc1dcd`'s push and pull-request runs (36380945948, 36380948594) produced
+  byte-identical images, as did `ed1dea9`'s pull-request and dispatch runs. The light, dark and both rainbow sheets
+  are byte-identical across all four runs. Against the published sheets, every theme changes only inside the
+  indeterminate tile. The high-contrast sheet also shows the grid's toned-row text and Info/Warn badges, two Tree
+  badges and the throughput graph's limit line. `docs/gallery` is the dispatch run's output, whose receipt names
+  `ed1dea9`.
+- [x] Design system republished as artifact version 9: the five theme sheets as new asset uploads, then the
+  README, theming guide, tokens and the ProgressBar and Grid guidelines, then the index. The published files
+  match the repository byte for byte.
+- [x] Performance. A [hosted paired set](../../../Measurements/GalleryFollowUps/2026-09-28/paired-hosted/README.md)
+  compares `3c882b2` with `ed1dea9` on the default complex-UI fixture. No memory, allocation or surface metric
+  flags. One crossing flags clean frame p95 and dirty composition CPU p95, the other crossing moves both the
+  other way, and the same-binary control moves them further, so they are runner timing noise. Nothing is
+  rebaselined.
+- [ ] Close out: move this plan to Done once every profile is green.
 
 ## Rules
 
@@ -80,3 +95,6 @@ With motion enabled, progress behavior is unchanged apart from the clock fix, an
 paint exactly as before. Supplied alert colors are unchanged, and the built-in palettes never pass through
 `MakeThemePalette`. The complex-UI benchmark scene uses the built-in dark palette and only determinate bars, so its
 paint computes the same values.
+
+Observed but out of scope: in the high-contrast sheet the Grid's IconText icon stays dark blue on black, because
+list icons blend toward `selectionFill`; that is not an alert token.
