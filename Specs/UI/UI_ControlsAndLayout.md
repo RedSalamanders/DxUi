@@ -131,6 +131,16 @@ does not wrap. Idle dots use subdued text; the selected dot uses the theme accen
 `PageIndicator::kStripHeightDip` (20 DIP). Consumers that draw a matching strip without hosting the control MUST use
 the same DIP radius, selected radius and gap constants.
 
+### Progress bar
+
+`ProgressBar` paints a determinate fill, two segmented values or an indeterminate segment. The track is 2 DIP, or
+4 DIP while indeterminate, unless `SetTrackHeightDip` sets a height. The indeterminate segment is 40% of the track.
+With motion it sweeps from before the track to past its end every 2,000 ms. An enabled, visible bar requests host
+ticks, and each tick advances the sweep by the elapsed time and invalidates the host. A long gap advances only by its
+remainder of a loop. A tick time earlier than the previous one re-seeds the timing without moving the segment. Under
+reduced motion the segment rests centered, from 30% to 70% of the track: the bar requests no ticks, `Tick` reports
+false and every paint is identical. Restoring motion resumes the sweep at the next paint.
+
 ### Slider
 
 Painted chrome and pointer geometry are independent. The gray chrome disc is ink only. Hit testing may be larger than any

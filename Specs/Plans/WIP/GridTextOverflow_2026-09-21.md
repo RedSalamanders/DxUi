@@ -16,8 +16,8 @@ multiline cell with its ellipsis directly after the last visible character. In t
 the Grid tile's IconText and ColorSwatch rows show no text. The previously published sheet shows the
 same, so this work did not cause it; it remains an open high-contrast issue. A second CI run at
 unchanged gallery inputs reproduced five sheets byte for byte. Rainbow light differed only in the
-ProgressBar / Indeterminate tile, whose animated segment depends on capture timing; that tile is
-not yet deterministic.
+ProgressBar / Indeterminate tile, whose animated segment depended on capture timing. The
+[reduced-motion progress plan](ReducedMotionProgress_2026-09-28.md) makes that tile static.
 
 A [hosted paired benchmark](../../../Measurements/GridTextOverflow/2026-09-27/paired-hosted/README.md)
 compares `6f769ab` with the merged grid in one A1/B1/B2/A2 set per scenario. Multiline dirty private

@@ -730,7 +730,6 @@ struct GalleryScene
     Slider* hoverSlider                = nullptr;
     Slider* pressedSlider              = nullptr;
     Control* focusedControl            = nullptr;
-    ProgressBar* indeterminateProgress = nullptr;
     Grid* grid                         = nullptr;
     std::optional<D2D1_POINT_2F> tooltipOrigin;
     float heightDip = 1.0f;
@@ -928,10 +927,10 @@ void AddComboItems(ComboBox& combo)
         progress->SetBounds(CenterIn(tile.content, 260.0f, 20.0f));
     }
     {
-        const Tile tile             = flow.Next(*scene.root, L"ProgressBar / Indeterminate");
-        scene.indeterminateProgress = scene.root->AddChild<ProgressBar>();
-        scene.indeterminateProgress->SetIndeterminate(true);
-        scene.indeterminateProgress->SetBounds(CenterIn(tile.content, 260.0f, 20.0f));
+        const Tile tile = flow.Next(*scene.root, L"ProgressBar / Indeterminate");
+        auto* progress  = scene.root->AddChild<ProgressBar>();
+        progress->SetIndeterminate(true);
+        progress->SetBounds(CenterIn(tile.content, 260.0f, 20.0f));
     }
     {
         const Tile tile = flow.Next(*scene.root, L"PageIndicator / Pages");
@@ -1292,10 +1291,6 @@ void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx)
     if (scene.focusedControl)
     {
         window.Host().SetFocusControl(scene.focusedControl);
-    }
-    if (scene.indeterminateProgress)
-    {
-        static_cast<void>(scene.indeterminateProgress->Tick(window.Host(), 300u));
     }
     if (scene.grid)
     {

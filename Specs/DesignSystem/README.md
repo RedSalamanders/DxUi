@@ -23,9 +23,9 @@ DxUi is a Windows C++ retained-control library drawn with Direct2D and DirectWri
 
 - **Keyboard focus** draws two strokes: an outer 2 DIP stroke in `focusStrokeOuter`, 2 DIP outside the control, and an inner 1 DIP stroke in `focusStrokeInner`, 1 DIP outside it. The corner radius grows by the offset. Focus chrome appears only for keyboard-originated focus, and always in high contrast.
 - **Pressed** buttons shift their caption 1,1 DIP. **Disabled** controls use `buttonDisabledFill` and `disabledText` and drop the outline.
-- **Durations**: hover and focus 140 ms; disclosure 240 ms; page transition 250 ms; slider interaction 100 ms and value 167 ms; tree expander 240 ms and expansion 320 ms; menu cascade delay 400 ms; tooltip delay 500 ms (display 5 s); caret blink 530 ms.
+- **Durations**: hover and focus 140 ms; disclosure 240 ms; page transition 250 ms; slider interaction 100 ms and value 167 ms; tree expander 240 ms and expansion 320 ms; indeterminate progress sweep 2 s; menu cascade delay 400 ms; tooltip delay 500 ms (display 5 s); caret blink 530 ms.
 - **Easing**: FastDecelerate `cubic-bezier(0, 0, 0, 1)` for entrances, PointToPoint `cubic-bezier(0.55, 0.55, 0, 1)` for moves. Pages enter +24 DIP and leave −12 DIP.
-- **Reduced motion** follows `SPI_GETCLIENTAREAANIMATION`. When it is on, every animation resolves immediately to its target.
+- **Reduced motion** follows `SPI_GETCLIENTAREAANIMATION`. When it is on, every animation resolves immediately to its target, and the indeterminate progress segment rests centered.
 
 ## Typography
 

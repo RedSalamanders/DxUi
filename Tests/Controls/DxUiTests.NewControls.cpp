@@ -890,6 +890,7 @@ void TestProgressBarIndeterminateRequestsAnimationWhenAttached()
     using namespace DxUi;
 
     WindowHost host;
+    EnableMotionForTest(host);
     auto root = std::make_unique<Panel>();
     auto* bar = root->AddChild<ProgressBar>();
     host.SetRoot(std::move(root));
@@ -922,6 +923,7 @@ void TestProgressBarDisabledIndeterminateStateDoesNotAnimateUntilReenabled()
     using namespace DxUi;
 
     WindowHost host;
+    EnableMotionForTest(host);
     auto root = std::make_unique<Panel>();
     auto* bar = root->AddChild<ProgressBar>();
     bar->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 6.0f));
@@ -937,6 +939,72 @@ void TestProgressBarDisabledIndeterminateStateDoesNotAnimateUntilReenabled()
     bar->SetEnabled(true);
     bar->Paint(host);
     Require(host.DebugHasActiveAnimationSubscription(), "re-enabled indeterminate progress bar requests animation during paint");
+}
+
+void TestProgressBarReducedMotionRestsIndeterminateSegment()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    ThemePalette theme  = MakeDefaultThemePalette(false);
+    theme.reducedMotion = true;
+    host.SetTheme(theme);
+    auto root = std::make_unique<Panel>();
+    auto* bar = root->AddChild<ProgressBar>();
+    bar->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 6.0f));
+    host.SetRoot(std::move(root));
+
+    bar->SetIndeterminate(true);
+    Require(! host.DebugHasActiveAnimationSubscription(), "reduced-motion indeterminate progress bar requests no animation on state change");
+    bar->Paint(host);
+    Require(! host.DebugHasActiveAnimationSubscription(), "reduced-motion indeterminate progress bar paint stays idle");
+    Require(! bar->Tick(host, 1000u) && ! bar->Tick(host, 1500u), "reduced-motion indeterminate progress bar ticks do not animate");
+
+    // Whatever ticks arrive, the segment rests as the centered 40% of the 4 DIP track.
+    const D2D1_RECT_F resting = bar->DebugGetIndeterminateSegmentRect(host.GetTheme());
+    RequireFloatNear(resting.left, 60.0f, 0.01f, "reduced-motion indeterminate segment starts at 30% of the track");
+    RequireFloatNear(resting.right, 140.0f, 0.01f, "reduced-motion indeterminate segment ends at 70% of the track");
+    RequireFloatNear(resting.top, 1.0f, 0.01f, "reduced-motion indeterminate segment stays on the centered track");
+    RequireFloatNear(resting.bottom, 5.0f, 0.01f, "reduced-motion indeterminate segment keeps the 4 DIP track height");
+
+    theme.reducedMotion = false;
+    host.SetTheme(theme);
+    bar->Paint(host);
+    Require(host.DebugHasActiveAnimationSubscription(), "restored motion requests indeterminate animation during paint");
+    Require(bar->Tick(host, 2000u), "restored motion ticks the indeterminate segment again");
+}
+
+void TestProgressBarIndeterminateTickSurvivesClockReset()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    EnableMotionForTest(host);
+    auto root = std::make_unique<Panel>();
+    auto* bar = root->AddChild<ProgressBar>();
+    bar->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 6.0f));
+    host.SetRoot(std::move(root));
+    bar->SetIndeterminate(true);
+    const ThemePalette& theme = host.GetTheme();
+
+    Require(bar->Tick(host, 5'000'000u), "the first tick seeds the indeterminate loop");
+    Require(bar->DebugGetIndeterminateSegmentRect(theme).right <= 0.0f, "a seeded loop starts with the segment before the track");
+    Require(bar->Tick(host, 5'000'500u), "a quarter loop advances the indeterminate segment");
+    RequireFloatNear(bar->DebugGetIndeterminateSegmentRect(theme).right, 70.0f, 0.01f, "a quarter loop shows the segment's leading 70 DIP");
+
+    // A tick clock that restarts behind the previous tick re-seeds instead of wrapping to a huge elapsed time.
+    Require(bar->Tick(host, 300u), "a backwards tick keeps the indeterminate loop running");
+    RequireFloatNear(bar->DebugGetIndeterminateSegmentRect(theme).right, 70.0f, 0.01f, "a backwards tick leaves the segment in place");
+    Require(bar->Tick(host, 800u), "the re-seeded loop advances from the new clock");
+    const D2D1_RECT_F centered = bar->DebugGetIndeterminateSegmentRect(theme);
+    RequireFloatNear(centered.left, 60.0f, 0.01f, "half a loop centers the segment's leading edge");
+    RequireFloatNear(centered.right, 140.0f, 0.01f, "half a loop centers the segment's trailing edge");
+
+    // Whole loops drop out of any gap, however long.
+    Require(bar->Tick(host, 800u + (uint64_t{2000u} * 1'000'000'000'000u) + 500u), "a very long gap keeps the loop running");
+    const D2D1_RECT_F late = bar->DebugGetIndeterminateSegmentRect(theme);
+    RequireFloatNear(late.left, 130.0f, 0.01f, "a very long gap advances only by its remainder");
+    RequireFloatNear(late.right, 200.0f, 0.01f, "the segment clips at the end of the track");
 }
 
 // ---------------------------------------------------------------------------
@@ -2082,6 +2150,8 @@ void RunNewControlTests()
     TestProgressBarIndeterminateRequestsAnimationWhenAttached();
     TestProgressBarPaintHandlesMissingDeviceContext();
     TestProgressBarDisabledIndeterminateStateDoesNotAnimateUntilReenabled();
+    TestProgressBarReducedMotionRestsIndeterminateSegment();
+    TestProgressBarIndeterminateTickSurvivesClockReset();
 
     // PageIndicator
     TestPageIndicatorDefaultState();

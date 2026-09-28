@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Honor reduced motion in `ProgressBar`: an indeterminate bar rests its segment centered, requests no animation
+  ticks and paints identically every frame; restoring motion resumes the 2 s sweep. `Tick` re-seeds when the tick
+  clock moves backwards and drops whole loops from long gaps, so no elapsed time can corrupt the sweep phase.
+  API revision stays 2 (additive diagnostics accessor only).
 - Add the editor consumer controls `Splitter`, `NumericStepper` and `ColorPicker`: preview/commit/cancel notifications,
   keyboard operation, right-to-left mirroring, disabled and focus-visible states, and the public `HsvFromArgb` /
   `ArgbFromHsv` / `ParseHexColor` / `FormatHexColor` helpers. `WindowHostCursorKind::VerticalResize` maps to the

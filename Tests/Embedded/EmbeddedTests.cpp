@@ -480,6 +480,11 @@ __declspec(noinline) static int RunFunctionalTests()
     b.Controls().SetRoot(std::make_unique<DxUi::Toggle>(L"Second view"));
     Hr(b.Prepare(320, 160, 144), "independent second layout");
     Check(a.GetStatistics().surfaceBytes != b.GetStatistics().surfaceBytes, "shared pool has independent surfaces");
+    // The tick contract below needs motion; the default palette follows the desktop's animation setting.
+    const DxUi::ThemePalette desktopTheme = b.Controls().GetTheme();
+    DxUi::ThemePalette motionTheme        = desktopTheme;
+    motionTheme.reducedMotion             = false;
+    b.Controls().SetTheme(motionTheme);
     auto progress     = std::make_unique<DxUi::ProgressBar>();
     auto* progressPtr = progress.get();
     progressPtr->SetIndeterminate(true);
@@ -503,6 +508,7 @@ __declspec(noinline) static int RunFunctionalTests()
     Check(b.NeedsAnimation(), "shown animation resumes");
     progressPtr->SetIndeterminate(false);
     Check(! b.AdvanceAnimation(tick + 16), "stopped animation goes idle");
+    b.Controls().SetTheme(desktopTheme);
     Check(b.Controls().SetTooltipDelayed(L"Help", D2D1::Point2F(8, 8)), "schedule embedded tooltip");
     b.AdvanceAnimation(tick + 2000);
     Check(b.Controls().HasTooltip(), "host ticks advance tooltip deadlines");

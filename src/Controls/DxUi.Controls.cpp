@@ -3220,6 +3220,45 @@ void RadioButtons::Paint(ControlHost& host) const
 
 // --- ProgressBar ---
 
+namespace
+{
+// One indeterminate sweep (spec §3.8). Reduced motion rests the segment at the phase that centers it.
+constexpr uint64_t kIndeterminateLoopMs          = 2000u;
+constexpr float kReducedMotionIndeterminatePhase = 0.5f;
+
+struct ProgressTrack
+{
+    D2D1_RECT_F rect{};
+    float height = 0.0f;
+};
+
+[[nodiscard]] ProgressTrack ComputeProgressTrack(const D2D1_RECT_F& bounds, bool indeterminate, float trackHeightDip) noexcept
+{
+    // Track: 2 DIP rest, 4 DIP indeterminate (spec §3.8)
+    const float availableHeight    = std::max(0.0f, bounds.bottom - bounds.top);
+    const float defaultTrackHeight = indeterminate ? 4.0f : 2.0f;
+    const float trackHeight        = std::min(availableHeight, trackHeightDip > 0.0f ? trackHeightDip : defaultTrackHeight);
+    const float trackTop           = bounds.top + ((bounds.bottom - bounds.top - trackHeight) * 0.5f);
+    return ProgressTrack{D2D1::RectF(bounds.left, trackTop, bounds.right, trackTop + trackHeight), trackHeight};
+}
+
+[[nodiscard]] float ResolveIndeterminatePhase(const ThemePalette& theme, float animationPhase) noexcept
+{
+    return theme.reducedMotion ? kReducedMotionIndeterminatePhase : animationPhase;
+}
+
+[[nodiscard]] D2D1_RECT_F ComputeIndeterminateSegmentRect(const D2D1_RECT_F& track, float phase) noexcept
+{
+    // 40% segment across the track (spec §3.8). Phase 0..1 moves it from off-screen left to off-screen right.
+    const float trackWidth   = track.right - track.left;
+    const float segmentWidth = trackWidth * 0.4f;
+    const float leading      = track.left + (trackWidth + segmentWidth) * phase - segmentWidth;
+    const float segLeft      = (std::max)(leading, track.left);
+    const float segRight     = (std::min)(leading + segmentWidth, track.right);
+    return D2D1::RectF(segLeft, track.top, (std::max)(segLeft, segRight), track.bottom);
+}
+} // namespace
+
 void ProgressBar::SetValue(double value) noexcept
 {
     _value = value;
@@ -3265,7 +3304,7 @@ void ProgressBar::SetIndeterminate(bool indeterminate) noexcept
     _lastTickMs     = 0u;
     if (indeterminate && IsEnabled() && IsVisible())
     {
-        if (ControlHost* host = GetHost())
+        if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
         {
             host->RequestAnimation();
         }
@@ -3319,36 +3358,29 @@ bool ProgressBar::HasSegmentedValues() const noexcept
 
 void ProgressBar::Paint(ControlHost& host) const
 {
-    const ProgressBarVisualStyle style = ResolveProgressBarVisualStyle(host.GetTheme());
+    const ThemePalette& theme          = host.GetTheme();
+    const ProgressBarVisualStyle style = ResolveProgressBarVisualStyle(theme);
     const D2D1_RECT_F bounds           = GetBounds();
 
-    if (_indeterminate && IsEnabled() && IsVisible())
+    // Reduced motion paints a resting segment and requests no ticks.
+    if (_indeterminate && IsEnabled() && IsVisible() && ! theme.reducedMotion)
     {
         host.RequestAnimation();
     }
 
-    // Track: 2 DIP rest, 4 DIP indeterminate (spec §3.8)
-    const float availableHeight    = std::max(0.0f, bounds.bottom - bounds.top);
-    const float defaultTrackHeight = _indeterminate ? 4.0f : 2.0f;
-    const float trackHeight        = std::min(availableHeight, _trackHeightDip > 0.0f ? _trackHeightDip : defaultTrackHeight);
-    const float trackTop           = bounds.top + ((bounds.bottom - bounds.top - trackHeight) * 0.5f);
-    const D2D1_RECT_F track        = D2D1::RectF(bounds.left, trackTop, bounds.right, trackTop + trackHeight);
-    const float radius             = trackHeight * 0.5f;
+    const ProgressTrack progressTrack = ComputeProgressTrack(bounds, _indeterminate, _trackHeightDip);
+    const D2D1_RECT_F track           = progressTrack.rect;
+    const float trackTop              = track.top;
+    const float trackHeight           = progressTrack.height;
+    const float radius                = trackHeight * 0.5f;
 
     DrawRoundedRect(host, track, style.trackFill, style.trackFill, radius);
 
     if (_indeterminate)
     {
-        // Animated 40% segment across the track (spec §3.8)
-        const float trackWidth   = bounds.right - bounds.left;
-        const float segmentWidth = trackWidth * 0.4f;
-        // Phase 0..1 drives position: start off-screen left, end off-screen right
-        const float leading  = bounds.left + (trackWidth + segmentWidth) * _animationPhase - segmentWidth;
-        const float segLeft  = (std::max)(leading, bounds.left);
-        const float segRight = (std::min)(leading + segmentWidth, bounds.right);
-        if (segRight > segLeft)
+        const D2D1_RECT_F seg = ComputeIndeterminateSegmentRect(track, ResolveIndeterminatePhase(theme, _animationPhase));
+        if (seg.right > seg.left)
         {
-            const D2D1_RECT_F seg = D2D1::RectF(segLeft, trackTop, segRight, trackTop + trackHeight);
             DrawRoundedRect(host, seg, style.progressFill, style.progressFill, radius);
         }
     }
@@ -3405,29 +3437,37 @@ void ProgressBar::Paint(ControlHost& host) const
 
 bool ProgressBar::Tick(ControlHost& host, uint64_t nowTickMs)
 {
-    if (! _indeterminate || ! IsEnabled() || ! IsVisible())
+    if (! _indeterminate || ! IsEnabled() || ! IsVisible() || host.GetTheme().reducedMotion)
     {
         _lastTickMs = 0u;
         return false;
     }
 
-    if (_lastTickMs == 0)
+    // The first tick seeds the loop. A clock that moves backwards re-seeds it instead of wrapping the elapsed time.
+    if (_lastTickMs == 0 || nowTickMs < _lastTickMs)
     {
         _lastTickMs = nowTickMs;
     }
     const uint64_t elapsed = nowTickMs - _lastTickMs;
     _lastTickMs            = nowTickMs;
 
-    // 2000ms loop (spec §3.8)
-    constexpr float loopMs = 2000.0f;
-    _animationPhase += static_cast<float>(elapsed) / loopMs;
+    // Whole loops are dropped before converting, so any elapsed time advances the phase by less than one loop.
+    _animationPhase += static_cast<float>(elapsed % kIndeterminateLoopMs) / static_cast<float>(kIndeterminateLoopMs);
     if (_animationPhase >= 1.0f)
     {
-        _animationPhase -= static_cast<float>(static_cast<int>(_animationPhase));
+        _animationPhase -= 1.0f;
     }
     Invalidate(host);
     return true;
 }
+
+#if DXUI_ENABLE_DIAGNOSTICS
+D2D1_RECT_F ProgressBar::DebugGetIndeterminateSegmentRect(const ThemePalette& theme) const noexcept
+{
+    const ProgressTrack progressTrack = ComputeProgressTrack(GetBounds(), true, _trackHeightDip);
+    return ComputeIndeterminateSegmentRect(progressTrack.rect, ResolveIndeterminatePhase(theme, _animationPhase));
+}
+#endif
 
 PageIndicator::PageIndicator()
 {
