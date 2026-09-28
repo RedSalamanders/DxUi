@@ -114,6 +114,16 @@ using DxUi::Detail::StableVisualHash32Utf16V1;
     return DxUi::Detail::RelativeLuminanceFromSrgb(ClampUnit(color.r), ClampUnit(color.g), ClampUnit(color.b));
 }
 
+// A zero-alpha ARGB value, including the zero default, means the application supplied no color.
+[[nodiscard]] D2D1_COLOR_F ColorFromSuppliedArgb(uint32_t argb, const D2D1_COLOR_F& unsupplied) noexcept
+{
+    if ((argb >> 24) == 0u)
+    {
+        return unsupplied;
+    }
+    return ColorFromArgb(argb);
+}
+
 [[nodiscard]] double ContrastRatio(const D2D1_COLOR_F& foreground, const D2D1_COLOR_F& background) noexcept
 {
     const double foregroundLuminance = RelativeLuminance(foreground);
@@ -990,12 +1000,14 @@ ThemePalette MakeThemePalette(const ThemeColors& viewerTheme) noexcept
         D2D1::ColorF(palette.selectionFill.r, palette.selectionFill.g, palette.selectionFill.b, viewerTheme.highContrast ? 1.0f : 0.55f);
     palette.toggleKnobFill        = ChooseContrastingTextColor(BlendColor(palette.inputFill, palette.border, darkBase ? 0.18f : 0.08f));
     palette.toggleKnobCheckedFill = palette.selectionText;
-    palette.infoFill              = ColorFromArgb(viewerTheme.alertInfoBackgroundArgb);
-    palette.infoText              = ColorFromArgb(viewerTheme.alertInfoTextArgb);
-    palette.warningFill           = ColorFromArgb(viewerTheme.alertWarningBackgroundArgb);
-    palette.warningText           = ColorFromArgb(viewerTheme.alertWarningTextArgb);
-    palette.errorFill             = ColorFromArgb(viewerTheme.alertErrorBackgroundArgb);
-    palette.errorText             = ColorFromArgb(viewerTheme.alertErrorTextArgb);
+    // Alert pairs are copied as given. System high-contrast palettes have none, so an unsupplied (zero-alpha) color
+    // falls back to `text` on `windowBackground` instead of painting status text and badges invisibly.
+    palette.infoFill    = ColorFromSuppliedArgb(viewerTheme.alertInfoBackgroundArgb, palette.windowBackground);
+    palette.infoText    = ColorFromSuppliedArgb(viewerTheme.alertInfoTextArgb, palette.text);
+    palette.warningFill = ColorFromSuppliedArgb(viewerTheme.alertWarningBackgroundArgb, palette.windowBackground);
+    palette.warningText = ColorFromSuppliedArgb(viewerTheme.alertWarningTextArgb, palette.text);
+    palette.errorFill   = ColorFromSuppliedArgb(viewerTheme.alertErrorBackgroundArgb, palette.windowBackground);
+    palette.errorText   = ColorFromSuppliedArgb(viewerTheme.alertErrorTextArgb, palette.text);
 
     // ── New design tokens ────────────────────────────────────────────
     palette.cardBackground    = palette.surfaceBackground;

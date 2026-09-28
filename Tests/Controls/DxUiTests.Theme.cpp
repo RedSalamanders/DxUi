@@ -2117,6 +2117,113 @@ void TestComboBoxHighContrastDisabledBordersStayVisible()
         disabledEdit.splitStroke, disabledEdit.fieldBorder, "high-contrast disabled edit combo keeps the split stroke aligned with the field border");
 }
 
+[[nodiscard]] double WcagContrastRatioForTest(const D2D1_COLOR_F& foreground, const D2D1_COLOR_F& background) noexcept
+{
+    const auto luminance = [](const D2D1_COLOR_F& color) noexcept
+    {
+        const auto linear = [](float channel) noexcept
+        {
+            const double value = std::clamp(static_cast<double>(channel), 0.0, 1.0);
+            return value <= 0.04045 ? value / 12.92 : std::pow((value + 0.055) / 1.055, 2.4);
+        };
+        return (0.2126 * linear(color.r)) + (0.7152 * linear(color.g)) + (0.0722 * linear(color.b));
+    };
+    const double first  = luminance(foreground);
+    const double second = luminance(background);
+    return ((std::max)(first, second) + 0.05) / ((std::min)(first, second) + 0.05);
+}
+
+class TonedRowGridModel final : public DxUi::IDxGridModel
+{
+public:
+    [[nodiscard]] size_t GetRowCount() const noexcept override
+    {
+        return 3u;
+    }
+
+    [[nodiscard]] size_t GetColumnCount() const noexcept override
+    {
+        return 1u;
+    }
+
+    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t /*columnIndex*/) const override
+    {
+        return DxUi::GridColumnDesc{.id = L"status", .title = L"Status", .widthDip = 160.0f};
+    }
+
+    void GetCellData(size_t /*rowIndex*/, size_t /*columnIndex*/, DxUi::GridCellData& outCell) const override
+    {
+        outCell.kind = DxUi::GridCellKind::Text;
+        outCell.text = L"Status";
+    }
+
+    [[nodiscard]] DxUi::GridRowStyle GetRowStyle(size_t rowIndex) const override
+    {
+        constexpr DxUi::GridRowTone tones[] = {DxUi::GridRowTone::Info, DxUi::GridRowTone::Warning, DxUi::GridRowTone::Error};
+        return DxUi::GridRowStyle{.tone = tones[rowIndex % std::size(tones)]};
+    }
+
+    [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+    {
+        return rowId < 3u ? std::optional<size_t>(static_cast<size_t>(rowId)) : std::nullopt;
+    }
+};
+
+void TestThemeColorsPaletteFallsBackForUnsuppliedAlertColors()
+{
+    using namespace DxUi;
+
+    // The gallery's high-contrast input supplies grounds, text, selection and accent but no alert colors.
+    ThemeColors viewerTheme{.sizeBytes = sizeof(ThemeColors)};
+    viewerTheme.backgroundArgb          = 0xFF000000u;
+    viewerTheme.textArgb                = 0xFFFFFFFFu;
+    viewerTheme.selectionBackgroundArgb = 0xFF003B80u;
+    viewerTheme.selectionTextArgb       = 0xFFFFFFFFu;
+    viewerTheme.accentArgb              = 0xFFFFFF00u;
+    viewerTheme.darkMode                = TRUE;
+    viewerTheme.darkBase                = TRUE;
+    viewerTheme.highContrast            = TRUE;
+    // A supplied value with zero alpha is unsupplied as well.
+    viewerTheme.alertErrorTextArgb = 0x00FF0000u;
+
+    const ThemePalette palette = MakeThemePalette(viewerTheme);
+    RequireColorNear(palette.infoFill, palette.windowBackground, "an unsupplied info fill falls back to the window background");
+    RequireColorNear(palette.infoText, palette.text, "an unsupplied info text color falls back to the theme text");
+    RequireColorNear(palette.warningFill, palette.windowBackground, "an unsupplied warning fill falls back to the window background");
+    RequireColorNear(palette.warningText, palette.text, "an unsupplied warning text color falls back to the theme text");
+    RequireColorNear(palette.errorFill, palette.windowBackground, "an unsupplied error fill falls back to the window background");
+    RequireColorNear(palette.errorText, palette.text, "a zero-alpha error text color falls back to the theme text");
+
+    for (const AdornmentTone tone : {AdornmentTone::Info, AdornmentTone::Warning, AdornmentTone::Error})
+    {
+        D2D1_COLOR_F fill{};
+        D2D1_COLOR_F text{};
+        ResolveAdornmentColors(palette, tone, fill, text);
+        Require(fill.a >= 1.0f && text.a >= 1.0f, "high-contrast tone badges paint opaque colors without supplied alerts");
+        Require(WcagContrastRatioForTest(text, fill) >= 4.5, "high-contrast tone badge text contrasts with its fill without supplied alerts");
+    }
+
+    TonedRowGridModel model;
+    Grid grid;
+    grid.SetModel(&model);
+    for (size_t rowIndex = 0u; rowIndex < model.GetRowCount(); ++rowIndex)
+    {
+        GridDebugRowVisualState state{};
+        Require(grid.DebugGetRowVisualState(palette, rowIndex, state), "high-contrast toned grid row resolves its visual state");
+        const D2D1_COLOR_F fill = ColorFromArgb(state.fillArgb);
+        const D2D1_COLOR_F text = ColorFromArgb(state.textArgb);
+        Require(fill.a >= 1.0f && text.a >= 1.0f, "high-contrast toned grid rows paint opaque colors without supplied alerts");
+        Require(WcagContrastRatioForTest(text, fill) >= 4.5, "high-contrast toned grid row text contrasts with its fill without supplied alerts");
+    }
+
+    // Supplied alert colors are still copied as given.
+    viewerTheme.alertInfoBackgroundArgb = 0xFF18324Au;
+    viewerTheme.alertInfoTextArgb       = 0xFFD6E8FFu;
+    const ThemePalette supplied         = MakeThemePalette(viewerTheme);
+    RequireColorNear(supplied.infoFill, ColorFromArgb(0xFF18324Au), "a supplied alert fill is copied as given");
+    RequireColorNear(supplied.infoText, ColorFromArgb(0xFFD6E8FFu), "a supplied alert text color is copied as given");
+}
+
 void TestGridRowIconChromeFollowsResolvedRowVisuals()
 {
     using namespace DxUi;
@@ -2506,6 +2613,7 @@ void RunThemeTests()
     TestD2dBlendClampsInterpolationAmount();
     TestModifierCompositionCoversEveryCombination();
     TestThemeColorsPaletteDerivesDarkControlChrome();
+    TestThemeColorsPaletteFallsBackForUnsuppliedAlertColors();
     TestThemeColorsPaletteDerivesLightControlChrome();
     TestThemeColorsPaletteDerivesDarkHighContrastChrome();
     TestListIconColorUsesSelectionFillChrome();

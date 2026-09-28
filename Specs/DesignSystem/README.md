@@ -15,9 +15,9 @@ DxUi is a Windows C++ retained-control library drawn with Direct2D and DirectWri
 - Selection: `selectionFill` carries `selectionText`. When a list loses focus, switch to `selectionInactiveFill`. Hover and press are translucent washes, `hoverFill` and `pressedFill`, laid over whatever is below.
 - Controls: Buttons use `buttonFill` / `buttonBorder` → `buttonHotFill` → `buttonPressedFill`. Inputs use `inputFill` / `inputBorder`, and paint `focusStroke` as the border when focused.
 - Primary actions: `buttonPrimaryFill` is a blend of `buttonFill` and `selectionFill` (a pale blue in light). Its caption is `buttonPrimaryText`, which is `selectionText` only when that reaches 4.5:1 — otherwise `text`. Keep this rule when adding accents.
-- Status: pair `infoFill`/`infoText`, `warningFill`/`warningText`, `errorFill`/`errorText`, and always include a word ("Info", "Warn") or glyph — never color alone.
+- Status: pair `infoFill`/`infoText`, `warningFill`/`warningText`, `errorFill`/`errorText`, and always include a word ("Info", "Warn") or glyph — never color alone. An app theme that supplies no alert colors, like the gallery's high-contrast input, gets `text` on `windowBackground` for all three.
 - Tooltips invert the theme: `tooltipBackground` is near-black in light and near-white in dark.
-- Known gaps, kept exact from the source: the 1 DIP control outlines `border`, `buttonBorder` and `inputBorder` sit around 1.6–2:1 against their grounds. The focus ring, not the outline, is the accessible boundary. In app-derived themes, including high contrast, alert colors come from the consumer; the gallery supplies none, so this system shows them as `text` on `windowBackground`.
+- Known gaps, kept exact from the source: the 1 DIP control outlines `border`, `buttonBorder` and `inputBorder` sit around 1.6–2:1 against their grounds. The focus ring, not the outline, is the accessible boundary.
 
 ## Focus, states and motion
 
