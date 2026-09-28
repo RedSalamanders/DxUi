@@ -3,7 +3,7 @@
 `performance-paired.ps1 -BaselineRevision 3c882b2 -Scenario Default` ran one serial A1/B1/B2/A2 set on a
 single hosted x64 runner: the `paired-benchmark` job of workflow run
 [36382031032](https://github.com/RedSalamanders/DxUi/actions/runs/36382031032). It is the performance evidence
-for the [gallery follow-ups](../../../../Specs/Plans/WIP/GalleryFollowUps_2026-09-28.md).
+for the [gallery follow-ups](../../../../Specs/Plans/Done/GalleryFollowUps_2026-09-28.md).
 
 - A is `3c882b2`, before the follow-ups. B is `ed1dea9`, with the reduced-motion `ProgressBar` and the
   alert-color fallback. Their library sources differ only by those two changes.

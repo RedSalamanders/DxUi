@@ -1,13 +1,13 @@
 # Gallery follow-ups: static progress and high-contrast status
 
-Status: **ACTIVE**. Library scope; consumer adoption stays separate.
+Status: COMPLETE (2026-09-28). Library scope; consumer adoption stays separate.
 Base: `3c882b2` on `ej/elegant-einstein-lmooqh`, after main `6b34456`.
 Owning contracts: [controls](../../UI/UI_ControlsAndLayout.md), [theme and motion](../../UI/UI_ThemeAndTypography.md),
 the design-system [ProgressBar](../../DesignSystem/components/ProgressBar/README.md) and
 [Grid](../../DesignSystem/components/Grid/README.md) guidelines and the [theming guide](../../DesignSystem/Theming.md).
 
-The 27 September gallery review in the [grid plan](GridTextOverflow_2026-09-21.md) left two defects that
-predate that work. Both change gallery pixels, so they share one regeneration and one design-system republish.
+The 27 September gallery review in the [grid plan](../WIP/GridTextOverflow_2026-09-21.md) left two defects that
+predate that work. Both change gallery pixels, so they shared one regeneration and one design-system republish.
 
 ## Indeterminate progress under reduced motion
 
@@ -69,8 +69,10 @@ Changes (`ed1dea9`):
 
 - [x] x64 CI on `ed1dea9`: pull-request run 36381939973 and dispatch run 36382031032 pass x64 Debug, Release and
   ASan Debug, including the control, embedded and theme tests above.
-- [ ] ARM64 Debug, Release and ASan Debug: the publishing commit's push cancelled `ed1dea9`'s ARM64 jobs, so its
-  own CI, on the same library code, supplies them.
+- [x] All six native profiles on the publishing commit `2bef8f1`, the same library code: pull-request run
+  36383419233 passes every job, and push run 36383416285 passes every job after one re-run. That run's first
+  x64 Release attempt failed only the Tooltip suite's real-time hide-delay check, which is untouched here and
+  passed in every other run. The pull request records its stall sensitivity and a proposed patch.
 - [x] Local checks: the five Python validators, the 44 tool tests, the pinned clang-format 22.1.3 on every changed
   C++ file and `git diff --check`.
 - [x] Gallery determinism. `0dc1dcd`'s push and pull-request runs (36380945948, 36380948594) produced
@@ -87,7 +89,7 @@ Changes (`ed1dea9`):
   flags. One crossing flags clean frame p95 and dirty composition CPU p95, the other crossing moves both the
   other way, and the same-binary control moves them further, so they are runner timing noise. Nothing is
   rebaselined.
-- [ ] Close out: move this plan to Done once every profile is green.
+- [x] Closed out: contracts, design system, docs and measurements are current, and this plan moved to Done.
 
 ## Rules
 

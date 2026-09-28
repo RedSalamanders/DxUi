@@ -1,5 +1,6 @@
 # Completed plans
 
+- [Gallery follow-ups: static progress and high-contrast status](GalleryFollowUps_2026-09-28.md) — completed 2026-09-28 (reduced-motion indeterminate progress rests centered with a clock-wrap fix; unsupplied alert colors fall back to text on the window ground; deterministic gallery and design system republished; six native profiles green; consumer adoption stays separate).
 - [Editor-consumer controls for RedPrism](EditorConsumerControls_2026-09-20.md) — completed 2026-09-21 (Splitter, NumericStepper and ColorPicker with preview/commit/cancel, keyboard and RTL contracts; catalog 30; consumer pin adoption remains RedPrism's own step).
 - [Localized adaptive layout and interaction readiness](LocalizedAdaptiveLayout_2026-09-19.md) — completed 2026-09-20 (measured actions, wrapped captions, disclosure/input/UIA and resources; six native configurations; qualified main explicitly adopted by RedSalamander, whose Full product and final UI acceptance remain in I26).
 - [Embedded surface lifetime, tick-driven dirtying and bounded caches](EmbeddedSurfaceLifetime_2026-09-07.md) — completed 2026-09-07 (hidden/zero-extent views hold no surface, ticks dirty only through invalidation, bounded brush/text-format caches, benchmark allocation ceilings; per-tick delay hints and consumer scheduling remain later work).
