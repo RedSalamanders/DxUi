@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Consumers can restore current pins again. #22 added measurement receipts with tracked paths of up to 176 characters.
+  A consumer restores its pin under `<root>\.build\dependencies\DxUi\source\<commit>\`, and Git without long paths
+  fails there once the full path passes 259 characters. RedXe's `main` CI has failed at restore since it pinned
+  `6b34456`, and RedSalamander could not restore `a0b4934` from `D:\RedSalamander`.
+  - Every tracked path is now at most 150 characters, so any consumer root of up to 35 characters restores.
+    `validate-dependencies.ps1` rejects a longer tracked or untracked-but-unignored path
+    (`Build_ToolchainAndConsumption`).
+  - 767 evidence files were renamed, with their bytes unchanged: CI artifact directories dropped `native-`,
+    `Performance-*` receipts keep 8 of their 32 run-id digits, and `associative-cache-rejected` became
+    `assoc-cache-rejected`. Hash lists and manifests name the new paths, and each packet's README records the rename.
 - The Menu suite's real-client focus fixtures (the click that activates a window UI Automation has or has not seen, and
   the reactivation of a seen window) no longer fail when another application takes the foreground (plan
   `SeenWindowReactivation_2026-09-30`, item 3). One failed a local Debug run while the desktop application and the Start
