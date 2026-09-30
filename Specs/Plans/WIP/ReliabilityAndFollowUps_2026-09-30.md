@@ -53,8 +53,9 @@ reviewed before it merges here, until this plan can move to Done.
   metrics, and `Control::Reparent` now announces what a moved control inherits (once, in its final place, only when
   it differs) while the picker also releases its gradients and device reference when its host changes and
   `Panel::ClearChildren` skips a slot emptied through `GetChildren()`; dpi, theme and density moves already matched a
-  fresh picker, and tests compare arrangements and painted windows with fresh controls and count the announcements
-  (each fails without its change) while the gallery is byte-identical.
+  fresh picker, and tests compare arrangements and painted windows with fresh controls and count the announcements,
+  each failing without the change it covers (a tab control across windows, the menu bar and the text field pass either
+  way: they invalidate on a host change or key their layouts), while the gallery is byte-identical.
 - [ ] 9. Grid layouts of a grid that stops painting are released. A painting grid already releases every layout its
   paint did not use, so what it keeps is its visible cells' layouts, which the frame-rate-first decision needs, plus
   reusable string storage. A hidden, detached or re-modelled grid keeps its last paint's layouts until a next paint that

@@ -6,16 +6,17 @@
   direction and density are inherited through its parents and a parent's own change is announced to its children, but
   a move (`ControlHost::SetRoot`, `PageHost::SetPage`, `Panel::AddChild`) announced nothing, so a control that keeps an
   arrangement for them kept the one of its old place: a `ColorPicker` (its steppers, hex field and buttons), a
-  `NumericStepper`, a `TabControl` (its header) or a horizontal `StackPanel` moved out of a right-to-left parent stayed
-  mirrored, and a `Tree` or `Grid` moved between densities kept its row metrics. `Control::Reparent` (which `SetParent`
-  calls, and `SetRoot` and `SetPage` use in place of `SetParent` plus `PropagateHost`) compares what the control
-  inherits before and after and announces `OnFlowDirectionChanged` / `OnDensityChanged` once, in its final place, only
-  when a value differs: adding a child that inherits what its parent has, replacing a root and clearing a panel
-  announce nothing, while a root arriving in a compact host now hears its density, which it never did. `ColorPicker`
-  also releases its gradient brushes and their Direct2D device reference when its host changes instead of holding the
-  old host's device until its next paint, and `Panel::ClearChildren` skips the empty slot a child moved out through
-  `GetChildren()` leaves (it dereferenced it). The menu bar keys its layout on these inputs and was never stale.
-  API revision stays 2 (additive diagnostics accessor `ColorPicker::DebugHasCachedBrushes` and protected
+  `NumericStepper`, a `TabControl` (its header, unless its host changed too) or a horizontal `StackPanel` moved out of
+  a right-to-left parent stayed mirrored, and a `Tree` or `Grid` moved between densities kept its row metrics.
+  `Control::Reparent` (which `SetParent` calls, and `SetRoot` and `SetPage` use in place of `SetParent` plus
+  `PropagateHost`) compares what the control inherits before and after and announces `OnFlowDirectionChanged` /
+  `OnDensityChanged` once, in its final place, only when a value differs: adding a child that inherits what its parent
+  has, replacing a root and clearing a panel announce nothing, while a child added under a right-to-left or compact
+  parent, and a root arriving in a compact host, now hear what they inherit. `ColorPicker` also releases its gradient
+  brushes and their Direct2D device reference when its host changes instead of holding the old host's device until its
+  next paint, and `Panel::ClearChildren` skips the empty slot a child moved out through `GetChildren()` leaves (it
+  dereferenced it). The menu bar and the text field key their layouts on these inputs and were never stale. API
+  revision stays 2 (additive diagnostics accessor `ColorPicker::DebugHasCachedBrushes` and protected
   `Control::Reparent`).
 - Repository tooling is PowerShell only (plan `PowerShellTooling_2026-09-30`): the spec, skill, dependency,
   inherited-test and build-matrix validators, the performance comparator and their tests are PowerShell modules and
