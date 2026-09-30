@@ -153,6 +153,33 @@ __declspec(noinline) static void TestSurfaceLifetime(GraphicsFixture& gpu)
     Check(reshown == shown, "hidden device replacement reproduces the pixels");
 }
 
+// A hidden view paints nothing, so it returns what painting keeps for its controls as it returns its surface: a grid's
+// text layouts, their key strings and its tables. Showing it prepares again and the grid lays out what it shows, once.
+__declspec(noinline) static void TestHiddenViewReleasesGridLayouts(GraphicsFixture& gpu)
+{
+    for (const bool multiline : {false, true})
+    {
+        ComplexUiScene scene;
+        scene.model.multilineGrid = multiline;
+        Hr(scene.Initialize(gpu.device.get()), "hidden grid scene");
+        Hr(scene.view.Prepare(1280, 720), "prepare grid scene");
+        const auto shown = scene.grid->DebugGetTextLayoutStatistics();
+        Check(shown.retainedLayouts > 0 && shown.capacity > 0 && shown.tableBytes > 0, "a prepared view's grid holds layouts");
+        scene.view.SetVisible(false);
+        const auto hidden = scene.grid->DebugGetTextLayoutStatistics();
+        Check(hidden.retainedLayouts == 0 && hidden.displayLayouts == 0 && hidden.capacity == 0 && hidden.displayCapacity == 0 && hidden.textUnits == 0 &&
+                  hidden.tableBytes == 0 && ! hidden.ellipsis,
+              "hiding the view returns its grid's layouts, key strings and tables");
+        Check(scene.view.Prepare(1280, 720) == S_FALSE && scene.grid->DebugGetTextLayoutStatistics().lookups == shown.lookups,
+              "a hidden view prepares nothing, so its grid asks for no layout");
+        scene.view.SetVisible(true);
+        Hr(scene.view.Prepare(1280, 720), "prepare after show");
+        const auto restored = scene.grid->DebugGetTextLayoutStatistics();
+        Check(restored.retainedLayouts == shown.retainedLayouts && restored.layoutCreations - hidden.layoutCreations == shown.layoutCreations,
+              "showing the view lays out only what its grid shows, as its first preparation did");
+    }
+}
+
 // A hover or focus Invalidate must not swallow the following Down. The host message loop
 // prepares after input, so a paint-dirty view is the normal state at the start of a tap.
 __declspec(noinline) static void TestPointerGesturesOnPaintDirtyView(GraphicsFixture& gpu)
@@ -290,6 +317,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRightToLeftCheckboxCaptionHugsIndicator(gpu);
     TestRightToLeftTabTitleStartsAtTheRight(gpu);
     TestSurfaceLifetime(gpu);
+    TestHiddenViewReleasesGridLayouts(gpu);
     TestPointerGesturesOnPaintDirtyView(gpu);
     TestTickDirtying(gpu);
     TestCacheBounds(gpu);

@@ -1525,6 +1525,9 @@ protected:
     virtual void OnFlowDirectionChanged() noexcept;
     virtual void OnDensityChanged() noexcept;
     virtual void OnEnabledChanged(bool enabled) noexcept;
+    // Called when this control, or an ancestor, is hidden: it is not painted until shown again. A control releases what
+    // its next paint rebuilds on demand (the Grid's retained text layouts); showing needs no call. Containers forward it.
+    virtual void OnHidden() noexcept;
     virtual void OnHostDpiChanged(ControlHost& host) noexcept;
     virtual void OnFocusChanged(ControlHost& host, bool focused);
     virtual void OnHoverChanged(ControlHost& host, bool hovered);
@@ -1599,6 +1602,7 @@ protected:
     void PropagateHost(ControlHost* host) noexcept override;
     void OnFlowDirectionChanged() noexcept override;
     void OnDensityChanged() noexcept override;
+    void OnHidden() noexcept override;
     void OnHostDpiChanged(ControlHost& host) noexcept override;
     [[nodiscard]] std::vector<std::unique_ptr<Control>>& AccessChildren() noexcept;
     [[nodiscard]] const std::vector<std::unique_ptr<Control>>& AccessChildren() const noexcept;
@@ -1642,6 +1646,7 @@ protected:
     void OnBoundsChanged() noexcept override;
     void OnFlowDirectionChanged() noexcept override;
     void OnDensityChanged() noexcept override;
+    void OnHidden() noexcept override;
     void OnHostDpiChanged(ControlHost& host) noexcept override;
 
 private:
@@ -3535,8 +3540,13 @@ public:
         uint64_t hits            = 0u;
         uint64_t layoutCreations = 0u; // DirectWrite layouts created for multiline cells, temporary ones included.
         uint64_t shapedUnits     = 0u; // UTF-16 units handed to those layouts.
-        size_t retainedLayouts   = 0u;
+        size_t retainedLayouts   = 0u; // Live layouts in the value table, and its entries.
         size_t capacity          = 0u;
+        size_t displayLayouts    = 0u; // The same for the omitted-tail table: the value entries share its layouts and it lets go at the next paint that hits.
+        size_t displayCapacity   = 0u;
+        size_t textUnits         = 0u;    // UTF-16 units of heap storage the two tables' key strings and the scratch string hold.
+        size_t tableBytes        = 0u;    // Bytes of the two tables' entries.
+        bool ellipsis            = false; // The ellipsis trimming sign of the omitted tails, or its text format, is held.
     };
     [[nodiscard]] GridDebugTextLayoutStatistics DebugGetTextLayoutStatistics() const noexcept;
 #endif
@@ -3559,6 +3569,10 @@ public:
     bool OnSelectAll(ControlHost& host) override;
     [[nodiscard]] WindowHostCursorKind ResolveCursorKind(ControlHost& host, D2D1_POINT_2F pointDip) const noexcept override;
     void OnDensityChanged() noexcept override;
+
+protected:
+    void PropagateHost(ControlHost* host) noexcept override;
+    void OnHidden() noexcept override;
 
 private:
     enum class HitZone : uint8_t
@@ -3696,6 +3710,9 @@ private:
                                                    const D2D1_RECT_F& textRect,
                                                    const D2D1_RECT_F& viewportRect) const;
     void DrawCellText(ControlHost& host, const GridCellData& cellData, const D2D1_RECT_F& bounds, const D2D1_COLOR_F& color) const;
+    // Returns every retained layout, its string storage and the tables themselves, for a grid that stops painting (hidden,
+    // detached from its host or given another model): the next paint, if any, rebuilds what it shows.
+    void ReleaseCellTextResources() noexcept;
     mutable std::vector<CellTextLayoutCache> _cellTextLayouts;
     mutable std::vector<CellDisplayLayoutCache> _cellDisplayLayouts;
     mutable std::wstring _cellVisibleText; // Scratch for an omitted tail's visible text.
