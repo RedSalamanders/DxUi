@@ -4159,6 +4159,9 @@ public:
     [[nodiscard]] TextField& HexField() noexcept;
     [[nodiscard]] Button& OkButton() noexcept;
     [[nodiscard]] Button& CancelButton() noexcept;
+#if DXUI_ENABLE_DIAGNOSTICS
+    [[nodiscard]] bool DebugHasCachedBrushes() const noexcept;
+#endif
 
     void Paint(ControlHost& host) const override;
     bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
@@ -4168,6 +4171,7 @@ public:
     void OnCaptureLost(ControlHost& host) override;
 
 protected:
+    void PropagateHost(ControlHost* host) noexcept override;
     void OnBoundsChanged() noexcept override;
     void OnEnabledChanged(bool enabled) noexcept override;
     void OnFlowDirectionChanged() noexcept override;
@@ -4203,8 +4207,11 @@ private:
     uint32_t _current = 0xFF000000u;
     Drag _drag        = Drag::None;
     bool _syncing     = false;
+    // The flow direction `Arrange` placed the children for; a parent change announces none, so a move compares it.
+    bool _arrangedRightToLeft = false;
     // Hue-independent unit-space gradients, placed by a brush transform: neither a hue change nor a layout move
-    // recreates them. The retained device reference keeps a recreated device from aliasing the cached one.
+    // recreates them. The retained device reference keeps a recreated device from aliasing the cached one. They
+    // belong to the host being painted for, so leaving a host releases them.
     mutable wil::com_ptr<ID2D1Device> _brushDevice;
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _saturationBrush;
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _valueBrush;

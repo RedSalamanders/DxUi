@@ -46,9 +46,14 @@ reviewed before it merges here, until this plan can move to Done.
   work per resolution in a large tree; behavior unchanged.
 - [ ] 7. A click that activates the window announces the clicked control once. Today the system's activation focus
   event and the host's own focus change can both report it. Accept: a UI Automation client test counts one event.
-- [ ] 8. A reparented ColorPicker is current. The review recorded a stale arrangement after reparenting; its cached
+- [x] 8. A reparented ColorPicker is current. The review recorded a stale arrangement after reparenting; its cached
   brushes may belong to the old host's device too. Accept: after moving between hosts or metrics, the picker matches one
-  created in the new place.
+  created in the new place. Done: a parent change announces no flow direction, so a picker moved out of a right-to-left
+  parent kept its children mirrored and one moved out of a host kept that host's device and gradients until its next
+  paint, and it now arranges again for the flow its new parents resolve and releases its gradients when its host
+  changes, while dpi, theme and density moves already matched a fresh picker; tests compare rectangles and painted
+  bitmaps with a fresh picker in the new place (each fails without the change) and the gallery is byte-identical, so
+  `docs/gallery` and `docs/controls.md` need no update.
 - [ ] 9. Grid layouts of a grid that stops painting are released. A painting grid already releases every layout its
   paint did not use, so what it keeps is its visible cells' layouts, which the frame-rate-first decision needs, plus
   reusable string storage. A hidden, detached or re-modelled grid keeps its last paint's layouts until a next paint that

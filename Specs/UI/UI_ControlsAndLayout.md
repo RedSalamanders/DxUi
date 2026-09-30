@@ -266,7 +266,12 @@ The field or component being typed in keeps its text, caret and undo history whi
 Enter, OK and Cancel normalize it (`#RRGGBB`). A canceled component edit restores its value and the picker follows it
 with a preview. The field paints the pure hue under unit-space white and black gradients placed by a brush transform:
 its three gradient brushes are created once per Direct2D device (held by reference, so a recreated device cannot
-alias them) and neither hue changes nor layout moves recreate them. Alpha is always opaque.
+alias them) and neither hue changes nor layout moves recreate them; leaving a host releases them and the device
+reference, and the next paint on the new host's device makes them again. A picker moved to another parent or host
+(`ControlHost::SetRoot`, `PageHost::SetPage`) is current in its new place: a parent change announces no flow direction,
+so the picker compares the one its new parents resolve with the one it arranged for and arranges again (a picker moved
+out of a right-to-left parent no longer keeps its children mirrored), and it lays out and paints as one created there
+whatever the new host's dpi, theme or density. Alpha is always opaque.
 
 ### Consumer-selected popup row minimum
 

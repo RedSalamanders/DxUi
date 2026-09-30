@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- A `ColorPicker` moved to another parent or host (`ControlHost::SetRoot`, `PageHost::SetPage`) is current in its new
+  place (plan `ReliabilityAndFollowUps_2026-09-30`, item 8). A parent change announces no flow direction, so a picker
+  moved out of a right-to-left parent kept the mirrored positions of its three steppers, hex field and two buttons
+  (and the hex caption slot) under a field, strip and swatches that had turned around; it now arranges again for the
+  flow direction its new parents resolve. It also releases its gradient brushes and their Direct2D device reference
+  when its host changes, instead of holding the old host's device until its next paint. Dpi, theme and density moves
+  already matched a fresh picker (the layout is in DIPs and the gradients are keyed by device); tests pin that too.
+  API revision stays 2 (additive diagnostics accessor `ColorPicker::DebugHasCachedBrushes` only).
 - Repository tooling is PowerShell only (plan `PowerShellTooling_2026-09-30`): the spec, skill, dependency,
   inherited-test and build-matrix validators, the performance comparator and their tests are PowerShell modules and
   scripts, so `test.ps1`, the validators and CI need no Python, pip or PyYAML. The comparator reproduces every stored

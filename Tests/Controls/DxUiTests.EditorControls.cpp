@@ -2,8 +2,11 @@
 
 #include "../../include/DxUi/ControlCatalog.h"
 
+#include <cstring>
 #include <limits>
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 // Editor consumer controls: Splitter, NumericStepper, ColorPicker. See UI_ControlsAndLayout.md.
@@ -1107,6 +1110,348 @@ void TestColorPickerCommitCallbackCanReplaceRootSafely()
     Require(host.GetRoot() != nullptr, "the commit callback replaced the root safely");
 }
 
+// ── Moving a picker ──────────────────────────────────────────────────────
+
+// Every rectangle a picker arranges or computes, named for a failure message.
+struct PickerGeometry
+{
+    std::vector<std::pair<std::string, D2D1_RECT_F>> rects;
+};
+
+[[nodiscard]] PickerGeometry MeasurePicker(ColorPicker& picker)
+{
+    PickerGeometry geometry;
+    const auto add = [&geometry](std::string name, const D2D1_RECT_F& rect) { geometry.rects.emplace_back(std::move(name), rect); };
+    add("picker", picker.GetBounds());
+    add("field", picker.GetFieldRect());
+    add("hue strip", picker.GetHueStripRect());
+    add("new swatch", picker.GetNewSwatchRect());
+    add("current swatch", picker.GetCurrentSwatchRect());
+    const auto addStepper = [&add](const char* channel, NumericStepper& stepper)
+    {
+        const std::string name = channel;
+        add(name, stepper.GetBounds());
+        add(name + " field", stepper.Field().GetBounds());
+        add(name + " increase", stepper.IncrementButton().GetBounds());
+        add(name + " decrease", stepper.DecrementButton().GetBounds());
+    };
+    addStepper("red", picker.RedField());
+    addStepper("green", picker.GreenField());
+    addStepper("blue", picker.BlueField());
+    add("hex", picker.HexField().GetBounds());
+    add("ok", picker.OkButton().GetBounds());
+    add("cancel", picker.CancelButton().GetBounds());
+    return geometry;
+}
+
+// Empty when both pickers are laid out alike; otherwise names every rectangle that differs.
+[[nodiscard]] std::string DescribeGeometryDifference(const PickerGeometry& actual, const PickerGeometry& expected)
+{
+    std::string difference;
+    for (size_t index = 0u; index < actual.rects.size() && index < expected.rects.size(); ++index)
+    {
+        const D2D1_RECT_F& a = actual.rects[index].second;
+        const D2D1_RECT_F& e = expected.rects[index].second;
+        if (! RectNear(a, e))
+        {
+            difference += std::format("{} ({:.1f},{:.1f},{:.1f},{:.1f}) instead of ({:.1f},{:.1f},{:.1f},{:.1f}); ",
+                                      actual.rects[index].first,
+                                      a.left,
+                                      a.top,
+                                      a.right,
+                                      a.bottom,
+                                      e.left,
+                                      e.top,
+                                      e.right,
+                                      e.bottom);
+        }
+    }
+    return difference;
+}
+
+// Empty when the captures are pixel-identical; otherwise the count and the box of the differing pixels.
+[[nodiscard]] std::string DescribeBitmapDifference(const WindowHostBitmapCapture& actual, const WindowHostBitmapCapture& expected)
+{
+    if (actual.widthPx != expected.widthPx || actual.heightPx != expected.heightPx || actual.bgraPixels.size() != expected.bgraPixels.size())
+    {
+        return std::format("{}x{} px instead of {}x{}", actual.widthPx, actual.heightPx, expected.widthPx, expected.heightPx);
+    }
+    size_t differing = 0u;
+    UINT left        = actual.widthPx;
+    UINT top         = actual.heightPx;
+    UINT right       = 0u;
+    UINT bottom      = 0u;
+    for (UINT y = 0u; y < actual.heightPx; ++y)
+    {
+        for (UINT x = 0u; x < actual.widthPx; ++x)
+        {
+            const size_t offset = (static_cast<size_t>(y) * actual.widthPx + x) * 4u;
+            if (std::memcmp(&actual.bgraPixels[offset], &expected.bgraPixels[offset], 4u) != 0)
+            {
+                ++differing;
+                left   = (std::min)(left, x);
+                top    = (std::min)(top, y);
+                right  = (std::max)(right, x);
+                bottom = (std::max)(bottom, y);
+            }
+        }
+    }
+    return differing == 0u ? std::string{} : std::format("{} pixels differ inside ({},{})-({},{})", differing, left, top, right, bottom);
+}
+
+[[nodiscard]] size_t CountPixelsDifferingFromCorner(const WindowHostBitmapCapture& capture) noexcept
+{
+    size_t count = 0u;
+    for (size_t offset = 4u; offset + 3u < capture.bgraPixels.size(); offset += 4u)
+    {
+        count += std::memcmp(&capture.bgraPixels[offset], capture.bgraPixels.data(), 4u) != 0 ? 1u : 0u;
+    }
+    return count;
+}
+
+WindowHostBitmapCapture CapturePickerWindow(AttachedHostWindow& window, const char* context)
+{
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.PumpMessages();
+    RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+    window.PumpMessages();
+    WindowHostBitmapCapture capture;
+    Require(window.Host().DebugCaptureBitmap(capture), context);
+    return capture;
+}
+
+// A host with a theme, a density and a dpi the system did not choose, whose client area is exactly `sizeDip`.
+void ConfigureHostPlace(AttachedHostWindow& window, UINT dpi, bool dark, Density density, D2D1_SIZE_F sizeDip)
+{
+    ThemePalette theme  = MakeDefaultThemePalette(dark);
+    theme.reducedMotion = true;
+    theme.density       = density;
+    window.Host().SetTheme(theme);
+    RECT outer{};
+    GetWindowRect(window.Hwnd(), &outer);
+    bool handled = false;
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKELONG(dpi, dpi), reinterpret_cast<LPARAM>(&outer), handled));
+    Require(handled && window.Host().GetDpi() == static_cast<float>(dpi), "the host takes the requested dpi");
+    RECT client{};
+    GetWindowRect(window.Hwnd(), &outer);
+    GetClientRect(window.Hwnd(), &client);
+    const float scale = static_cast<float>(dpi) / 96.0f;
+    SetWindowPos(window.Hwnd(),
+                 nullptr,
+                 0,
+                 0,
+                 (outer.right - outer.left) - (client.right - client.left) + static_cast<LONG>(std::lround(sizeDip.width * scale)),
+                 (outer.bottom - outer.top) - (client.bottom - client.top) + static_cast<LONG>(std::lround(sizeDip.height * scale)),
+                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    const D2D1_RECT_F clientDip = window.Host().GetClientBoundsDip();
+    Require(std::fabs(clientDip.right - sizeDip.width) < 0.01f && std::fabs(clientDip.bottom - sizeDip.height) < 0.01f,
+            "the host's client area is the requested size");
+}
+
+// A picker moves by leaving its parent's slot (Panel::GetChildren hands out the owning pointers) and becoming a host's
+// root or a page. Nothing announces the new parent chain, so the picker itself must notice where it now is.
+[[nodiscard]] std::unique_ptr<Control> TakeChild(Panel& parent, size_t index)
+{
+    return std::move(parent.GetChildren()[index]);
+}
+
+void PaintAndCachePicker(AttachedHostWindow& window, ColorPicker& picker, const char* context)
+{
+    static_cast<void>(CapturePickerWindow(window, context));
+    Require(picker.DebugHasCachedBrushes(), "painting the picker caches its gradients");
+}
+
+[[nodiscard]] wil::com_ptr<ID2D1Device> DirectDeviceOf(ControlHost& host)
+{
+    wil::com_ptr<ID2D1Device> device;
+    if (ID2D1DeviceContext* const context = host.GetDeviceContext())
+    {
+        context->GetDevice(device.put());
+    }
+    return device;
+}
+
+// A picker that leaves a right-to-left parent is arranged for its new, left-to-right place, as a picker created there
+// is. A parent change announces no flow direction: the moved picker kept its children where a right-to-left flow puts
+// them, overlapping the field, strip and swatches its own rectangles (computed live) had already turned around.
+void TestColorPickerMovedOutOfARightToLeftParentIsArrangedForItsNewPlace()
+{
+    const D2D1_RECT_F bounds = D2D1::RectF(0.0f, 0.0f, ColorPicker::kDefaultWidthDip, ColorPicker::kDefaultHeightDip);
+    const auto expectFresh   = [&bounds](ColorPicker& moved, const char* context, FlowDirection freshFlow, bool explicitFlow)
+    {
+        PageHost freshPage;
+        freshPage.SetBounds(bounds);
+        auto created = std::make_unique<ColorPicker>();
+        if (explicitFlow)
+        {
+            created->SetFlowDirection(freshFlow);
+        }
+        freshPage.SetPage(std::move(created));
+        auto* fresh                  = static_cast<ColorPicker*>(freshPage.GetPage());
+        const std::string difference = DescribeGeometryDifference(MeasurePicker(moved), MeasurePicker(*fresh));
+        if (! difference.empty())
+        {
+            std::cerr << context << ": " << difference << '\n';
+        }
+        Require(difference.empty(), context);
+    };
+
+    auto oldRoot = std::make_unique<Panel>();
+    oldRoot->SetFlowDirection(FlowDirection::RightToLeft);
+    auto* picker = oldRoot->AddChild<ColorPicker>();
+    picker->SetBounds(bounds);
+    Require(picker->RedField().GetBounds().right <= picker->GetHueStripRect().left, "the picker inherits right-to-left flow: the steppers precede the strip");
+    const PickerGeometry inherited = MeasurePicker(*picker);
+
+    PageHost page;
+    page.SetBounds(bounds);
+    page.SetPage(TakeChild(*oldRoot, 0u));
+    Require(page.GetPage() == picker && ! picker->IsRightToLeft(), "the page holds the picker, no longer in right-to-left flow");
+    Require(picker->RedField().GetBounds().left >= picker->GetHueStripRect().right, "the steppers follow the strip again");
+    expectFresh(*picker, "a picker moved out of a right-to-left parent is arranged like one created in its page", FlowDirection::LeftToRight, false);
+    Require(! DescribeGeometryDifference(MeasurePicker(*picker), inherited).empty(), "the arrangement did change with the flow direction");
+
+    // An explicit flow direction travels with the picker: moving it changes nothing it inherits.
+    auto explicitRoot = std::make_unique<Panel>();
+    auto* explicitRtl = explicitRoot->AddChild<ColorPicker>();
+    explicitRtl->SetFlowDirection(FlowDirection::RightToLeft);
+    explicitRtl->SetBounds(bounds);
+    PageHost explicitPage;
+    explicitPage.SetBounds(bounds);
+    explicitPage.SetPage(TakeChild(*explicitRoot, 0u));
+    Require(explicitRtl->IsRightToLeft(), "an explicit right-to-left flow survives the move");
+    expectFresh(*explicitRtl, "a moved picker with an explicit flow is arranged like a fresh one with it", FlowDirection::RightToLeft, true);
+}
+
+// The same, across window hosts that differ in dpi, theme and density: what a host shows the picker (DIP layout, palette
+// roles, its own text formats) must not stay behind from the previous host. The host's client area is the picker's
+// size, so setting the root changes no bounds: only the picker itself can notice the move.
+void TestColorPickerMovedBetweenHostsMatchesAFreshOne()
+{
+    struct Place
+    {
+        UINT dpi;
+        bool dark;
+        Density density;
+    };
+    struct Scenario
+    {
+        const char* name;
+        bool oldParentRightToLeft;
+        bool newDevice; // The new host draws on a Direct2D device made after the picker painted for the old one.
+        Place from;
+        Place to;
+    };
+    const Place base{96u, false, Density::Standard};
+    const Scenario scenarios[] = {
+        {"same metrics", false, false, base, base},
+        {"a larger dpi", false, false, base, {192u, false, Density::Standard}},
+        {"a smaller dpi", false, false, {144u, false, Density::Standard}, base},
+        {"another theme", false, false, base, {96u, true, Density::Standard}},
+        {"compact density", false, false, base, {96u, false, Density::Compact}},
+        {"standard density", false, false, {96u, false, Density::Compact}, base},
+        {"another Direct2D device", false, true, base, base},
+        {"a right-to-left parent", true, false, base, base},
+        {"a right-to-left parent, another device and every metric", true, true, {96u, false, Density::Compact}, {144u, true, Density::Standard}},
+    };
+    const D2D1_SIZE_F size = D2D1::SizeF(ColorPicker::kDefaultWidthDip, ColorPicker::kDefaultHeightDip);
+    for (const Scenario& scenario : scenarios)
+    {
+        AttachedHostWindow oldWindow;
+        AttachedHostWindow newWindow;
+        ConfigureHostPlace(oldWindow, scenario.from.dpi, scenario.from.dark, scenario.from.density, size);
+        ConfigureHostPlace(newWindow, scenario.to.dpi, scenario.to.dark, scenario.to.density, size);
+
+        auto oldRoot = std::make_unique<Panel>();
+        if (scenario.oldParentRightToLeft)
+        {
+            oldRoot->SetFlowDirection(FlowDirection::RightToLeft);
+        }
+        Panel* const oldPanel = oldRoot.get();
+        auto* picker          = oldRoot->AddChild<ColorPicker>();
+        picker->SetColor(0xFF3A7BD5u);
+        picker->SetCurrentColor(0xFFC04030u);
+        picker->SetBounds(newWindow.Host().GetClientBoundsDip());
+        oldWindow.Host().SetRoot(std::move(oldRoot));
+        PaintAndCachePicker(oldWindow, *picker, "the picker paints in its first host");
+        const wil::com_ptr<ID2D1Device> oldDevice = DirectDeviceOf(oldWindow.Host());
+        Require(oldDevice != nullptr, "the first host draws on a Direct2D device");
+        if (scenario.newDevice)
+        {
+            // Hidden, the first host stays on its device while the loss makes the next host build another.
+            ShowWindow(oldWindow.Hwnd(), SW_HIDE);
+            newWindow.Host().DebugSimulateDeviceLoss();
+        }
+
+        newWindow.Host().SetRoot(TakeChild(*oldPanel, 0u));
+        Require(newWindow.Host().GetRoot() == picker, "the second host holds the moved picker");
+        const PickerGeometry movedGeometry       = MeasurePicker(*picker);
+        const WindowHostBitmapCapture movedImage = CapturePickerWindow(newWindow, "the moved picker paints in its new host");
+        Require(CountPixelsDifferingFromCorner(movedImage) > 10000u, "the moved picker painted its sheet");
+        Require(! scenario.newDevice || DirectDeviceOf(newWindow.Host()) != oldDevice, "the second host draws on another Direct2D device");
+
+        auto created = std::make_unique<ColorPicker>();
+        created->SetColor(0xFF3A7BD5u);
+        created->SetCurrentColor(0xFFC04030u);
+        newWindow.Host().SetRoot(std::move(created));
+        auto* fresh                              = static_cast<ColorPicker*>(newWindow.Host().GetRoot());
+        const PickerGeometry freshGeometry       = MeasurePicker(*fresh);
+        const WindowHostBitmapCapture freshImage = CapturePickerWindow(newWindow, "a fresh picker paints in the new host");
+
+        const std::string geometryDifference = DescribeGeometryDifference(movedGeometry, freshGeometry);
+        const std::string imageDifference    = DescribeBitmapDifference(movedImage, freshImage);
+        if (! geometryDifference.empty() || ! imageDifference.empty())
+        {
+            std::cerr << "moved picker, " << scenario.name << ": rectangles: " << (geometryDifference.empty() ? "same" : geometryDifference)
+                      << " | pixels: " << (imageDifference.empty() ? "same" : imageDifference) << '\n';
+        }
+        Require(geometryDifference.empty(), "a moved picker lays out its children like a fresh one");
+        Require(imageDifference.empty(), "a moved picker paints like a fresh one");
+    }
+}
+
+// The gradients (and the Direct2D device reference that keys them) belong to the host painted for. A picker that leaves
+// its host used to keep them, and so the old host's device, until it next painted somewhere.
+void TestColorPickerReleasesItsGradientsWhenItsHostChanges()
+{
+    const D2D1_SIZE_F size = D2D1::SizeF(ColorPicker::kDefaultWidthDip, ColorPicker::kDefaultHeightDip);
+    AttachedHostWindow oldWindow;
+    AttachedHostWindow newWindow;
+    ConfigureHostPlace(oldWindow, 96u, false, Density::Standard, size);
+    ConfigureHostPlace(newWindow, 96u, false, Density::Standard, size);
+
+    auto oldRoot          = std::make_unique<Panel>();
+    Panel* const oldPanel = oldRoot.get();
+    auto* picker          = oldRoot->AddChild<ColorPicker>();
+    picker->SetBounds(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
+    Require(! picker->DebugHasCachedBrushes(), "a picker that never painted holds no gradients");
+    oldWindow.Host().SetRoot(std::move(oldRoot));
+    PaintAndCachePicker(oldWindow, *picker, "the picker paints in its first host");
+
+    // A change of the parent's flow keeps them: the device is still the host's.
+    oldPanel->SetFlowDirection(FlowDirection::RightToLeft);
+    static_cast<void>(CapturePickerWindow(oldWindow, "the picker repaints after its parent's flow changed"));
+    Require(picker->DebugHasCachedBrushes(), "a flow change keeps the gradients");
+
+    newWindow.Host().SetRoot(TakeChild(*oldPanel, 0u));
+    Require(! picker->DebugHasCachedBrushes(), "leaving the first host releases the gradients and its device reference");
+    static_cast<void>(CapturePickerWindow(newWindow, "the picker paints in the second host"));
+    Require(picker->DebugHasCachedBrushes(), "the second host's first paint makes the gradients again");
+
+    // A picker parked in a page that has no host holds no device either.
+    auto parkedRoot          = std::make_unique<Panel>();
+    Panel* const parkedPanel = parkedRoot.get();
+    auto* parked             = parkedRoot->AddChild<ColorPicker>();
+    parked->SetBounds(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
+    newWindow.Host().SetRoot(std::move(parkedRoot));
+    PaintAndCachePicker(newWindow, *parked, "the picker paints under a panel root");
+    PageHost parking;
+    parking.SetBounds(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
+    parking.SetPage(TakeChild(*parkedPanel, 0u));
+    Require(parking.GetPage() == parked && ! parked->DebugHasCachedBrushes(), "a picker parked without a host releases the gradients");
+}
+
 void TestEditorControlsAreCatalogued()
 {
     Require(GetControlCatalog().size() == 30u, "the catalog lists 30 controls");
@@ -1162,5 +1507,8 @@ void RunEditorControlTests()
     TestColorPickerCaptionSlotsFollowTheLabelWidths();
     TestColorPickerDisabledAndPaint();
     TestColorPickerCommitCallbackCanReplaceRootSafely();
+    TestColorPickerMovedOutOfARightToLeftParentIsArrangedForItsNewPlace();
+    TestColorPickerMovedBetweenHostsMatchesAFreshOne();
+    TestColorPickerReleasesItsGradientsWhenItsHostChanges();
     TestEditorControlsAreCatalogued();
 }

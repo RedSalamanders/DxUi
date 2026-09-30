@@ -1543,6 +1543,13 @@ Button& ColorPicker::CancelButton() noexcept
     return *_cancel;
 }
 
+#if DXUI_ENABLE_DIAGNOSTICS
+bool ColorPicker::DebugHasCachedBrushes() const noexcept
+{
+    return _brushDevice || _saturationBrush || _valueBrush || _hueBrush;
+}
+#endif
+
 void ColorPicker::Arrange() noexcept
 {
     if (! _red || ! _green || ! _blue || ! _hex || ! _ok || ! _cancel)
@@ -1552,6 +1559,7 @@ void ColorPicker::Arrange() noexcept
     const D2D1_RECT_F bounds = GetBounds();
     const D2D1_RECT_F strip  = GetHueStripRect();
     const bool rtl           = IsRightToLeft();
+    _arrangedRightToLeft     = rtl;
     const float columnLeft   = rtl ? bounds.left + kGapDip : strip.right + kGapDip;
     const float columnRight  = rtl ? strip.left - kGapDip : bounds.right - kGapDip;
     const float columnWidth  = (std::max)(0.0f, columnRight - columnLeft);
@@ -1890,6 +1898,28 @@ void ColorPicker::OnCaptureLost(ControlHost& host)
     }
     _drag = Drag::None;
     Cancel(host);
+}
+
+void ColorPicker::PropagateHost(ControlHost* host) noexcept
+{
+    const bool hostChanged = GetHost() != host;
+    Panel::PropagateHost(host);
+    if (hostChanged)
+    {
+        // The gradients, and the device reference that keys them, belong to the host being left; the next paint
+        // makes them for the new host's device.
+        _brushDevice.reset();
+        _saturationBrush.reset();
+        _valueBrush.reset();
+        _hueBrush.reset();
+    }
+    // A parent change announces no flow direction, so a picker moved out of a right-to-left parent would keep the
+    // arrangement of its old place (children mirrored under a field and strip that no longer are). This also runs
+    // while a host or parent is torn down, where the direction is the one it arranged for and nothing is redone.
+    if (IsRightToLeft() != _arrangedRightToLeft)
+    {
+        OnFlowDirectionChanged();
+    }
 }
 
 void ColorPicker::OnBoundsChanged() noexcept
