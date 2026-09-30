@@ -1,86 +1,101 @@
 <#
-.SYNOPSIS Measure a baseline revision against a candidate on one machine with an identical benchmark harness.
+.SYNOPSIS Measure a baseline against a candidate on one machine with an identical benchmark harness.
 .DESCRIPTION
-Creates a detached worktree of BaselineRevision under .build/paired/<run>, copies this checkout's measurement
-driver and benchmark inputs into it, restores and builds both trees, then runs each scenario serially as A1, B1,
-B2, A2 (A = baseline, B = candidate). The candidate is this checkout, or a second detached worktree when
-CandidateRevision is given; both historical trees then use this checkout's harness. B1/A1 and B2/A2 cross the
-change; A2/A1 and B2/B1 are same-source controls, judged two-sided: drift beyond a band in either direction marks
-the control unstable-control, because a set whose unchanged binary swings cannot support its crossings. Every
-receipt and comparison is retained under the run's reports directory with summary.json. Flagged comparisons are
-findings that need developer advice, not script failures; invalid evidence fails. Worktrees are left in place for
-inspection; the harness overlay dirties them, so remove them with git worktree remove --force.
-.PARAMETER BaselineRevision Commit, branch or tag measured as A.
-.PARAMETER CandidateRevision Optional commit, branch or tag measured as B instead of this checkout.
+The baseline (A) is a revision, measured in a detached worktree under .build/paired/<run>, or an existing tree named with
+BaselinePath. The candidate (B) is this checkout, another revision, or an existing tree named with CandidatePath. This
+checkout's measurement driver, comparator and benchmark inputs (the harness list) are copied onto both trees, so one
+harness measures them and a comparison rejects any fixture difference; a revision older than the PowerShell comparator
+still gets one. A named tree is measured as it is, uncommitted work included: the harness files that differ are written
+into it, with the originals saved under the run directory, and restored when the run ends. A tree made for the run has
+its dependencies restored (a named tree, like this checkout, must already have them), and every tree is built unless
+SkipBuild reuses its build. Then each scenario runs serially as A1, B1, B2, A2 (A = baseline, B = candidate), and that interleaved pass
+repeats Repetitions times (A3, B3, B4, A4, and so on), so each side ends with 2 x Repetitions runs. Within a pass, B1/A1
+and B2/A2 cross the change and A2/A1 and B2/B1 are same-source controls; those per-pass comparisons are kept for
+continuity, and a control that drifts beyond a band in either direction is listed as unstable-control, as context.
+The verdict is the set's: for every phase and metric, an exact two-sided Mann-Whitney U test of the baseline run
+medians against the candidate run medians, with the investigation band. A metric is regressed or improved only when
+p < 0.05 and the median shift exceeds the band, and any rise in an exact budget (surface bytes, replacement peak,
+allocations) is regressed; a set with a regressed metric is advice-required. Every receipt and comparison is retained
+under the run's reports directory with summary.json, which records each side's revision or path, commit and library
+source fingerprint and each scenario's set verdict. A set that is advice-required is a finding that needs developer
+advice, not a script failure; invalid evidence fails. Worktrees made for the run are left in place for inspection; the
+harness overlay dirties them, so remove them with git worktree remove --force.
+Revisions are refused when both name one commit. A pair with a named tree is refused when the two trees have identical
+library sources (nothing to compare), which is how uncommitted work on a revision's own commit is measured against it.
+.PARAMETER BaselineRevision Commit, branch or tag measured as A in a detached worktree. Give this or BaselinePath.
+.PARAMETER BaselinePath Existing DxUi working tree measured as A as it is. Give this or BaselineRevision.
+.PARAMETER CandidateRevision Optional commit, branch or tag measured as B in a detached worktree instead of this checkout.
+.PARAMETER CandidatePath Optional existing DxUi working tree measured as B as it is instead of this checkout.
 .PARAMETER Scenario One or more performance.ps1 scenarios.
+.PARAMETER Repetitions How many times the A, B, B, A pass repeats, 1 to 10 (default 3), giving each side twice as many runs. Complete separation reaches p = 0.0022 with three (six runs against six) and 0.029 with two; one repetition (two runs against two) cannot reach p < 0.05.
 .PARAMETER OutputDirectory Parent of the run directory; defaults to .build/paired.
-.PARAMETER SkipBuild Reuses this checkout's existing build when it is the candidate. Detached worktrees are new and always build.
+.PARAMETER SkipBuild Reuses the existing build of this checkout and of named trees; a named tree's harness overlay must not have changed a compiled input, and it needs its build. Worktrees made for the run are new and always build.
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][string] $BaselineRevision,
+    [string] $BaselineRevision = '',
+    [string] $BaselinePath = '',
     [string] $CandidateRevision = '',
+    [string] $CandidatePath = '',
     [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Release',
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
     [ValidateSet('Default','MultilineGrid','MultilineGridDistinct','MultilineGridRetention','MultilineGridHeap','MultilineGridHeapPaced')][string[]] $Scenario = @('Default'),
+    [ValidateRange(1, 10)][int] $Repetitions = 3,
     [string] $OutputDirectory = '',
     [switch] $SkipBuild
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'Tools/PerformanceComparison.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Tools/PairedRun.psm1') -Force
 
-# The measurement driver with its comparator, and every input performance.ps1 hashes into benchmarkSha256. Both builds
+$harnessRoot = $PSScriptRoot
+# The measurement driver with its comparator, and every input performance.ps1 hashes into benchmarkSha256. Both trees
 # use this checkout's copies, so a comparison between them rejects any fixture difference, and a revision older than
 # the PowerShell comparator still has one.
-$harness = @('performance.ps1', 'Tools/Compare-Performance.ps1', 'Tools/PerformanceComparison.psm1', 'Tests/Embedded/BenchmarkMain.h',
-    'Tests/Embedded/ComplexUiBenchmark.h', 'Tests/Support/HeapDiagnostic.h', 'Samples/ComplexUi/ComplexUiScene.h',
-    'Samples/EmbeddedControls/GraphicsFixture.h')
+$harness = @(Get-PairedHarness)
 
 function Resolve-Commit([string] $Revision) {
-    $commit = & git -C $PSScriptRoot rev-parse --verify --quiet "$Revision^{commit}"
+    $commit = & git -C $harnessRoot rev-parse --verify --quiet "$Revision^{commit}"
     if ($LASTEXITCODE -ne 0 -or -not $commit) { throw "Unknown revision: $Revision" }
     return $commit.Trim()
 }
 
-$harnessRoot = $PSScriptRoot
-$baselineCommit = Resolve-Commit $BaselineRevision
-$candidateCommit = if ($CandidateRevision) { Resolve-Commit $CandidateRevision } else { (& git -C $harnessRoot rev-parse HEAD).Trim() }
-if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the candidate commit.' }
-if ($baselineCommit -eq $candidateCommit) { throw 'The baseline and candidate are the same commit.' }
+function Get-HeadCommit([string] $Root) {
+    $commit = & git -C $Root rev-parse HEAD
+    if ($LASTEXITCODE -ne 0 -or -not $commit) { throw "Cannot identify the commit of $Root" }
+    return $commit.Trim()
+}
+
+$selection = Get-PairedSelection -BaselineRevision $BaselineRevision -BaselinePath $BaselinePath -CandidateRevision $CandidateRevision -CandidatePath $CandidatePath
+$sides = @($selection.Baseline, $selection.Candidate)
+foreach ($side in $sides) {
+    switch ($side.Kind) {
+        'revision' { $side['Commit'] = Resolve-Commit $side.Spec; $side['Existing'] = $false }
+        'path' { $side['Root'] = Assert-PairedTree (Resolve-Path -LiteralPath $side.Spec).ProviderPath; $side['Commit'] = Get-HeadCommit $side.Root; $side['Existing'] = $true }
+        'checkout' { $side['Root'] = $harnessRoot; $side['Commit'] = Get-HeadCommit $harnessRoot; $side['Existing'] = $true }
+    }
+}
+# Revisions and this checkout differ by commit; a pair with a named tree is judged by fingerprint once both are known.
+Assert-PairedSidesDiffer $sides[0] $sides[1]
+$baseline = $sides[0]
+$candidate = $sides[1]
 $harnessDirty = [bool](& git -C $harnessRoot status --porcelain)
 
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $harnessRoot '.build/paired' }
-$runName = '{0}-{1}' -f [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ'), $baselineCommit.Substring(0, 12)
+$runName = '{0}-{1}' -f [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ'), $baseline.Commit.Substring(0, 12)
 $runRoot = Join-Path ([IO.Path]::GetFullPath($OutputDirectory)) $runName
 if (Test-Path -LiteralPath $runRoot) { throw "The paired run directory already exists: $runRoot" }
-$baselineRoot = Join-Path $runRoot 'baseline'
-$candidateRoot = if ($CandidateRevision) { Join-Path $runRoot 'candidate' } else { $harnessRoot }
 $reports = Join-Path $runRoot 'reports'
 New-Item -ItemType Directory -Path $reports -Force | Out-Null
+$created = @($sides | Where-Object { $_.Kind -eq 'revision' })
+foreach ($side in $created) { $side['Root'] = Join-Path $runRoot $side.Role }
 
 $harnessHashes = [ordered]@{}
 foreach ($path in $harness) {
     $source = Join-Path $harnessRoot $path
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Missing benchmark harness input: $path" }
     $harnessHashes[$path] = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
-}
-$worktrees = @(, @($baselineRoot, $baselineCommit))
-if ($CandidateRevision) { $worktrees += , @($candidateRoot, $candidateCommit) }
-foreach ($worktree in $worktrees) {
-    & git -C $harnessRoot worktree add --detach $worktree[0] $worktree[1]
-    if ($LASTEXITCODE -ne 0) { throw "Cannot create the worktree: $($worktree[0])" }
-    foreach ($path in $harness) {
-        $target = Join-Path $worktree[0] $path
-        New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
-        Copy-Item -LiteralPath (Join-Path $harnessRoot $path) -Destination $target -Force
-    }
-}
-
-foreach ($worktree in $worktrees) { & (Join-Path $worktree[0] 'vcpkg-install.ps1') -Platform $Platform }
-foreach ($root in @($baselineRoot, $candidateRoot)) {
-    # A new worktree has no build to reuse; only this checkout's existing build may be skipped.
-    if ($SkipBuild -and $root -eq $harnessRoot) { continue }
-    & (Join-Path $root 'build.ps1') -Configuration $Configuration -Platform $Platform
 }
 
 function Get-Median([double[]] $Values) {
@@ -100,7 +115,7 @@ function Get-ReportMedians([string] $Path) {
         }
         $medians[$entry.name] = $values
     }
-    return [ordered]@{ sourceCommit = $receipt.sourceCommit; sourceDirty = $receipt.sourceDirty
+    return [ordered]@{ sourceCommit = $receipt.sourceCommit; sourceDirty = $receipt.sourceDirty; sourceFingerprint = $receipt.sourceFingerprint
         executableSha256 = $receipt.executableSha256; benchmarkSha256 = $receipt.benchmarkSha256; medians = $medians }
 }
 
@@ -134,54 +149,121 @@ function Compare-Measurement([string] $Candidate, [string] $Baseline, [string] $
     return [ordered]@{ name = $Name; status = $status; file = (Split-Path $output -Leaf); drift = $drift }
 }
 
-$results = @()
-foreach ($scenarioName in $Scenario) {
-    $runs = [ordered]@{}
-    foreach ($step in @(@('A1', $baselineRoot), @('B1', $candidateRoot), @('B2', $candidateRoot), @('A2', $baselineRoot))) {
-        $runs[$step[0]] = Invoke-Measurement -Root $step[1] -Name $step[0] -ScenarioName $scenarioName
+function Get-SideSummary([System.Collections.IDictionary] $Side) {
+    return [ordered]@{
+        kind = $Side.Kind
+        revision = $(if ($Side.Kind -eq 'revision') { $Side.Spec } elseif ($Side.Kind -eq 'checkout') { 'HEAD' } else { $null })
+        path = $Side.Root; commit = $Side.Commit; sourceFingerprint = $Side.Fingerprint
+        # The harness files written into the tree; a named tree has them removed again when the run ends.
+        harnessOverlay = @($Side.Overlay | Where-Object { $_['action'] -ne 'unchanged' } | ForEach-Object { '{0} {1}' -f $_['action'], $_['path'] })
     }
-    $comparisons = @(
-        Compare-Measurement -Candidate $runs.B1 -Baseline $runs.A1 -Name "$scenarioName-B1-vs-A1"
-        Compare-Measurement -Candidate $runs.B2 -Baseline $runs.A2 -Name "$scenarioName-B2-vs-A2"
-        Compare-Measurement -Candidate $runs.A2 -Baseline $runs.A1 -Name "$scenarioName-A2-vs-A1-control" -Control
-        Compare-Measurement -Candidate $runs.B2 -Baseline $runs.B1 -Name "$scenarioName-B2-vs-B1-control" -Control
-    )
-    $reportsByRun = [ordered]@{}
-    foreach ($name in $runs.Keys) { $reportsByRun[$name] = Get-ReportMedians -Path $runs[$name] }
-    $results += [ordered]@{ scenario = $scenarioName; runs = $reportsByRun; comparisons = $comparisons }
 }
 
-$summary = [ordered]@{
-    command = 'performance-paired.ps1'; baselineRevision = $BaselineRevision; baselineCommit = $baselineCommit
-    candidateRevision = $(if ($CandidateRevision) { $CandidateRevision } else { 'HEAD' }); candidateCommit = $candidateCommit
-    harnessCommit = (& git -C $harnessRoot rev-parse HEAD).Trim(); harnessDirty = $harnessDirty
-    configuration = $Configuration; platform = $Platform
-    machine = [Environment]::MachineName; completedUtc = [DateTime]::UtcNow.ToString('o'); order = 'A1, B1, B2, A2'
-    harness = $harnessHashes; scenarios = $results
-}
-$summary | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $reports 'summary.json') -Encoding utf8
+$results = @()
+try {
+    foreach ($side in $created) {
+        & git -C $harnessRoot worktree add --detach $side.Root $side.Commit
+        if ($LASTEXITCODE -ne 0) { throw "Cannot create the worktree: $($side.Root)" }
+    }
+    foreach ($side in $sides) {
+        # A named tree is put back afterwards, so the originals are saved; a worktree made for this run is disposable.
+        $side['Backup'] = if ($side.Existing) { Join-Path $runRoot "overlay-backup/$($side.Role)" } else { '' }
+        $side['Overlay'] = @(Copy-HarnessOverlay -Source $harnessRoot -Target $side.Root -Paths $harness -BackupDirectory $side.Backup)
+        $side['Fingerprint'] = Get-SourceFingerprint -Root $side.Root
+    }
+    try { Assert-PairedSidesDiffer $baseline $candidate }
+    catch {
+        # Nothing was built or measured; do not leave the worktrees made for this refusal behind.
+        foreach ($side in $created) { & git -C $harnessRoot worktree remove --force $side.Root }
+        foreach ($directory in @($reports, $runRoot)) { if (-not [IO.Directory]::GetFileSystemEntries($directory).Length) { Remove-Item -LiteralPath $directory -Force } }
+        throw
+    }
 
-foreach ($result in $results) {
-    Write-Host "Scenario $($result.scenario):"
-    foreach ($name in $result.runs.Keys) {
-        foreach ($phase in $result.runs[$name].medians.Keys) {
-            $m = $result.runs[$name].medians[$phase]
-            Write-Host ('  {0} {1,-5} fps {2,9:N3}  private {3,12:N0}  working set {4,12:N0}' -f $name, $phase, $m.fps, $m.privateBytes, $m.workingSetBytes)
+    foreach ($side in $created) { & (Join-Path $side.Root 'vcpkg-install.ps1') -Platform $Platform }
+    foreach ($side in $sides) {
+        if ($SkipBuild -and $side.Existing) {
+            # Only an existing tree has a build to reuse, and only one made from the harness the receipts will name.
+            $executable = Join-Path $side.Root ".build/$Platform/$Configuration/DxUi.EmbeddedTests.exe"
+            if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw "-SkipBuild needs an existing $Platform $Configuration build of the $($side.Role); there is none at $executable" }
+            $changed = @(Get-OverlayCompiledChanges $side.Overlay)
+            if ($changed.Count) { throw "-SkipBuild cannot reuse the $($side.Role)'s build: the harness overlay changed $($changed -join ', '), which that build does not contain. Omit -SkipBuild to build it." }
+            continue
+        }
+        & (Join-Path $side.Root 'build.ps1') -Configuration $Configuration -Platform $Platform
+    }
+
+    $schedule = Get-PairedRunSchedule -Repetitions $Repetitions
+    $roots = @{ baseline = $baseline.Root; candidate = $candidate.Root }
+    foreach ($scenarioName in $Scenario) {
+        $runs = [ordered]@{}
+        foreach ($step in $schedule.Steps) {
+            $runs[$step.Name] = Invoke-Measurement -Root $roots[$step.Side] -Name $step.Name -ScenarioName $scenarioName
+        }
+        $comparisons = @(foreach ($pair in $schedule.Comparisons) {
+                Compare-Measurement -Candidate $runs[$pair.Candidate] -Baseline $runs[$pair.Baseline] -Name "$scenarioName-$($pair.Name)" -Control:$pair.Control
+            })
+        $reportsByRun = [ordered]@{}
+        foreach ($name in $runs.Keys) { $reportsByRun[$name] = Get-ReportMedians -Path $runs[$name] }
+        # The verdict weighs every run of a side at once, from the full receipts, not the pass-by-pass comparisons above.
+        $set = try {
+            Compare-PerformanceSet -Baseline @($schedule.Steps | Where-Object { $_.Side -eq 'baseline' } | ForEach-Object { Read-PerformanceReceipt $runs[$_.Name] }) `
+                -Candidate @($schedule.Steps | Where-Object { $_.Side -eq 'candidate' } | ForEach-Object { Read-PerformanceReceipt $runs[$_.Name] })
+        } catch {
+            [ordered]@{ status = 'invalid-evidence'; error = $_.Exception.Message; metrics = @() }
+        }
+        $results += [ordered]@{ scenario = $scenarioName; runs = $reportsByRun; comparisons = $comparisons; set = $set }
+    }
+
+    $summary = [ordered]@{
+        command = 'performance-paired.ps1'
+        baseline = Get-SideSummary $baseline; candidate = Get-SideSummary $candidate
+        # Kept for the summaries written before named trees: what was typed, or null for a tree, and the commit.
+        baselineRevision = $(if ($baseline.Kind -eq 'path') { $null } else { $baseline.Spec }); baselineCommit = $baseline.Commit
+        candidateRevision = $(if ($candidate.Kind -eq 'path') { $null } else { $candidate.Spec }); candidateCommit = $candidate.Commit
+        harnessCommit = (& git -C $harnessRoot rev-parse HEAD).Trim(); harnessDirty = $harnessDirty
+        configuration = $Configuration; platform = $Platform
+        machine = [Environment]::MachineName; completedUtc = [DateTime]::UtcNow.ToString('o'); repetitions = $Repetitions; order = $schedule.Order
+        harness = $harnessHashes; scenarios = $results
+    }
+    $summary | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $reports 'summary.json') -Encoding utf8
+
+    foreach ($result in $results) {
+        Write-Host "Scenario $($result.scenario):"
+        foreach ($name in $result.runs.Keys) {
+            foreach ($phase in $result.runs[$name].medians.Keys) {
+                $m = $result.runs[$name].medians[$phase]
+                Write-Host ('  {0} {1,-5} fps {2,9:N3}  private {3,12:N0}  working set {4,12:N0}' -f $name, $phase, $m.fps, $m.privateBytes, $m.workingSetBytes)
+            }
+        }
+        # Each pass's crossings and controls, kept for continuity; the set's verdict below is the result.
+        foreach ($comparison in $result.comparisons) {
+            Write-Host "  $($comparison.name): $($comparison.status)"
+            foreach ($entry in $comparison.drift) { Write-Host "    drift $entry" }
+        }
+        if ($result.set.status -eq 'invalid-evidence') { Write-Host "  Set: invalid-evidence: $($result.set.error)" }
+        else { foreach ($line in Format-PerformanceSetVerdict $result.set -Label '  Set') { Write-Host $line } }
+    }
+    Write-Host "Paired reports: $reports"
+    $invalid = @($results | ForEach-Object { $_.comparisons } | Where-Object { $_.status -eq 'invalid-evidence' })
+    $invalidSets = @($results | Where-Object { $_.set.status -eq 'invalid-evidence' } | ForEach-Object { "$($_.scenario) set" })
+    if ($invalid.Count -gt 0 -or $invalidSets.Count -gt 0) { throw "Invalid paired evidence: $((@($invalid | ForEach-Object { $_.name }) + $invalidSets) -join ', ')" }
+    # The set decides; the passes' own flags and same-binary drift are context, listed above.
+    $findings = @($results | Where-Object { $_.set.status -eq 'advice-required' } | ForEach-Object {
+            '{0} ({1})' -f $_.scenario, ((@($_.set.metrics | Where-Object { $_.verdict -eq 'regressed' } | ForEach-Object { '{0}/{1}' -f $_.phase, $_.metric })) -join ', ')
+        })
+    if ($findings.Count -gt 0) {
+        $message = "Paired findings need developer advice; regressed metrics by scenario: $($findings -join '; ')"
+        # A hosted job stays green for findings; the annotation keeps them visible on the run.
+        if ($env:GITHUB_ACTIONS -eq 'true') { Write-Host "::warning::$message" } else { Write-Warning $message }
+    }
+} finally {
+    # Put every named tree back as it was found, whatever ended the run.
+    foreach ($side in $sides) {
+        if ($side.Contains('Overlay') -and $side['Backup']) {
+            try { Restore-HarnessOverlay -Target $side.Root -Records $side.Overlay -BackupDirectory $side.Backup }
+            catch { Write-Warning "Cannot restore the harness files of the $($side.Role) tree $($side.Root): $($_.Exception.Message) The originals are under $($side.Backup)." }
         }
     }
-    foreach ($comparison in $result.comparisons) {
-        Write-Host "  $($comparison.name): $($comparison.status)"
-        foreach ($entry in $comparison.drift) { Write-Host "    drift $entry" }
-    }
-}
-Write-Host "Paired reports: $reports"
-$invalid = @($results | ForEach-Object { $_.comparisons } | Where-Object { $_.status -eq 'invalid-evidence' })
-if ($invalid.Count -gt 0) { throw "Invalid paired evidence: $(($invalid | ForEach-Object { $_.name }) -join ', ')" }
-$findings = @($results | ForEach-Object { $_.comparisons } | Where-Object { $_.status -in @('advice-required', 'unstable-control') })
-if ($findings.Count -gt 0) {
-    $message = "Paired findings need developer advice: $(($findings | ForEach-Object { '{0}={1}' -f $_.name, $_.status }) -join ', ')"
-    # A hosted job stays green for findings; the annotation keeps them visible on the run.
-    if ($env:GITHUB_ACTIONS -eq 'true') { Write-Host "::warning::$message" } else { Write-Warning $message }
 }
 # A flagged comparison leaves the comparator's exit code in $LASTEXITCODE; it is a finding, not a failure.
 exit 0

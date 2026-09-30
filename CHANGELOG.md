@@ -12,6 +12,36 @@
   of process heap each (570 KB for the 6x4 grid, 934 KB for the single-line grid, measured in Release as what a hide
   returns). Painting, the layouts' lifetime while painting and its allocations are unchanged. The hook is a protected
   `Control::OnHidden`, which panels and page hosts forward; a hidden or minimized native window keeps its layouts.
+- Publishing `docs/gallery` after a merge is no longer a manual copy (plan `ReliabilityAndFollowUps_2026-09-30`, item
+  11): the manual `Publish docs gallery` workflow (`.github/workflows/gallery.yml`) regenerates the gallery from a native
+  x64 Release build with `gallery.ps1 -PublishDocs`, validates the specifications and commits it to the branch it runs
+  on. Like the formatting workflow's apply mode it runs only on `workflow_dispatch` with an explicit boolean input, holds
+  `contents: write` for that one job, pushes normally and never forces, and never runs on `pull_request_target`. It
+  commits only when a sheet, the HTML index or the README changed (`generation.json` records the source commit and so
+  differs after every commit); `Tools/Commit-Gallery.ps1` makes that decision and is tested against fixture repositories.
+- One validation entry point (plan `ReliabilityAndFollowUps_2026-09-30`, item 10): `validate.ps1` runs the five
+  validators and the tooling tests, each in its own process, reports every failure before it fails, and is what CI's
+  validation job runs; `test.ps1` now also runs the tooling tests. The validators' file scans no longer enter a nested
+  git checkout (a directory other than the scanned root holding a `.git` file or directory, such as an agent's worktree
+  under `.claude/worktrees`): validating a main checkout counted every worktree's copy of the Markdown (1,069 files
+  instead of about 214), so a half-edited worktree could fail it.
+- Paired sets can establish a result on a noisy machine (plan `ReliabilityAndFollowUps_2026-09-30`, item 4):
+  `performance-paired.ps1 -Repetitions N` (default 3, at most 10) repeats the interleaved A, B, B, A pass, so each side
+  has 2N runs, and judges every phase and metric on all runs at once: an exact two-sided Mann-Whitney U test (counted
+  over the observed ranks, ties included, no approximation) of the baseline run medians against the candidate's, with
+  the median shift and the metric's band (5% timing and FPS, 2% process memory). A metric is `regressed` or `improved`
+  only when p < 0.05 and the shift exceeds the band, and any rise in an exact budget (surface bytes, replacement peak,
+  allocations) in any candidate run is `regressed`; a set with a regressed metric is `advice-required`. Same-binary
+  spread is reported, not a veto. Six runs against six reach p = 0.0022 when completely separated; two against two
+  cannot reach 0.05. The first pass keeps its receipt and comparison names, and `Compare-PerformanceSet` in
+  `Tools/PerformanceComparison.psm1` is tested on synthetic receipts. The performance contract and guide state the rule.
+- `performance-paired.ps1` compares two trees (plan `ReliabilityAndFollowUps_2026-09-30`, item 5): `-BaselinePath` and
+  `-CandidatePath` measure existing DxUi working trees as they are, uncommitted work included, with this checkout's
+  harness written into them for the run and their files put back afterwards. A pair with a named tree is refused when
+  the two library source fingerprints are identical instead of when the commits are; revisions keep the commit rule.
+  `summary.json` records each side's revision or path, commit and fingerprint. The receipt's source fingerprint and
+  benchmark input list moved unchanged into `Tools/PerformanceComparison.psm1`, and `Tools/PairedRun.psm1` with its
+  tests owns tree selection, the refusal rules, named-tree validation and the harness overlay.
 - Repository tooling is PowerShell only (plan `PowerShellTooling_2026-09-30`): the spec, skill, dependency,
   inherited-test and build-matrix validators, the performance comparator and their tests are PowerShell modules and
   scripts, so `test.ps1`, the validators and CI need no Python, pip or PyYAML. The comparator reproduces every stored

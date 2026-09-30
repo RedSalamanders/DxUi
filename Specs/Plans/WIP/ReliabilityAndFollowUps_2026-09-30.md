@@ -30,13 +30,21 @@ reviewed before it merges here, until this plan can move to Done.
 
 ### Performance evidence
 
-- [ ] 4. Paired sets can establish a result on a noisy machine. One A1/B1/B2/A2 pass gives each side two runs, and on
+- [x] 4. Paired sets can establish a result on a noisy machine. One A1/B1/B2/A2 pass gives each side two runs, and on
   2026-09-30 all 14 same-binary controls on the developer laptop drifted beyond their bands. Accept: repeated
   interleaved passes and a per-metric verdict from an exact rank test together with the investigation band; exact
   budgets stay exact; the performance contract states the rule.
-- [ ] 5. Paired runs compare two trees. `performance-paired.ps1` refuses two uncommitted states on one commit, so the
+  Outcome: `-Repetitions` (default 3) repeats the interleaved pass and `Compare-PerformanceSet` gives each metric a
+  verdict from an exact Mann-Whitney U test with the investigation band, exact budgets staying exact and same-binary
+  spread only reported; the contract's paired-sets rule states it, six against six reaches p = 0.0022, and a real
+  quiet-machine set remains for the close-out.
+- [x] 5. Paired runs compare two trees. `performance-paired.ps1` refuses two uncommitted states on one commit, so the
   review follow-up sets were run by hand. Accept: `-BaselinePath` and `-CandidatePath` measure existing trees with the
   same harness overlay; identical sources are refused instead of identical commits.
+  Outcome: `-BaselinePath` and `-CandidatePath` measure named working trees as they are, overlaying the harness and
+  restoring their files afterwards, and a pair with a named tree is refused on an identical library source fingerprint
+  instead of an identical commit; the selection, refusal, overlay and fingerprint logic sits in the tested
+  `Tools/PairedRun.psm1`, and a real paired run on hardware remains for the close-out.
 
 ### Library follow-ups
 
@@ -64,10 +72,17 @@ reviewed before it merges here, until this plan can move to Done.
 
 ### Tooling
 
-- [ ] 10. One validation entry point. Accept: `validate.ps1` runs the five validators and the tooling tests, reporting
+- [x] 10. One validation entry point. Accept: `validate.ps1` runs the five validators and the tooling tests, reporting
   every failure; CI and `test.ps1` run the tooling tests.
-- [ ] 11. Publishing `docs/gallery` after a merge is not manual. Accept: a manual-dispatch workflow regenerates and
+  Outcome: `validate.ps1` runs the five validators and the tooling tests, each in its own process, and reports every
+  failure before it fails; CI's validation job runs it and `test.ps1` runs the tooling tests. The validators' file scans
+  also skip nested git checkouts (worktrees), which had multiplied the Markdown count in a main checkout.
+- [x] 11. Publishing `docs/gallery` after a merge is not manual. Accept: a manual-dispatch workflow regenerates and
   commits it on a chosen branch, with the same safeguards as the formatting workflow's apply mode.
+  Outcome: the manual `Publish docs gallery` workflow regenerates the gallery natively and commits it through the
+  tested `Tools/Commit-Gallery.ps1` with the formatting workflow's safeguards (dispatch only, an explicit boolean input,
+  `contents: write` for that job, an ordinary push, a no-op when only `generation.json` changed); its first real run on
+  hosted runners remains for the close-out.
 
 ### Close-out
 

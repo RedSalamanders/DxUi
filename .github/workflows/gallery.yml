@@ -1,0 +1,36 @@
+name: Publish docs gallery
+# Manual only. Regenerates docs/gallery from a native x64 Release build and commits it to the branch the run is started on.
+on:
+  workflow_dispatch:
+    inputs:
+      publish_docs:
+        description: Regenerate docs/gallery and commit it to the selected branch
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  # A run may push, so a newer dispatch for the branch waits instead of cancelling it.
+  group: gallery-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_docs && startsWith(github.ref, 'refs/heads/')
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.ref }}
+      - shell: pwsh
+        run: ./vcpkg-install.ps1 -Platform x64
+      - shell: pwsh
+        run: ./gallery.ps1 -Configuration Release -Platform x64 -PublishDocs
+      # Nothing validates the pushed commit afterwards (a token push starts no workflow), so check the gallery before it.
+      - shell: pwsh
+        run: ./validate-specs.ps1
+      # Commits only when a sheet, the index or the README changed, with an ordinary push, never forced.
+      - shell: pwsh
+        run: ./Tools/Commit-Gallery.ps1
