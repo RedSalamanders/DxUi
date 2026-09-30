@@ -1,5 +1,6 @@
 # Catalog usage coverage, gallery integrity, fenced-code link parsing, measurement ownership and the design system.
 [CmdletBinding()] param()
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Validation.psm1') -Force

@@ -3,6 +3,7 @@
     [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Debug',
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64'
 )
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 $repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)

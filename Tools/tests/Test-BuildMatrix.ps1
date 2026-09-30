@@ -1,5 +1,6 @@
 # Missing configurations, duplicate entries, silent Debug fallback and missing solution build mappings.
 [CmdletBinding()] param()
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Validation.psm1') -Force

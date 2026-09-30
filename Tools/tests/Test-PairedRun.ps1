@@ -1,6 +1,7 @@
 # Which trees a paired run measures, when it refuses a pair, how the harness reaches a named tree and the run order.
 # Everything here runs against fixture trees and dictionaries; no build or benchmark is needed.
 [CmdletBinding()] param()
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PerformanceComparison.psm1') -Force

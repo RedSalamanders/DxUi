@@ -1,5 +1,6 @@
 # Owned-source evolution, dependency boundaries and skill metadata, validated in isolated fixture trees.
 [CmdletBinding()] param()
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Validation.psm1') -Force
@@ -167,7 +168,7 @@ Invoke-TestCase 'the validation entry point covers every validator and is what C
 
 function Get-SkillFailures([string] $Root, [string] $Folder, [string] $Text) {
     Set-FixtureFile $Root ".agents/skills/$Folder/SKILL.md" $Text
-    return @((Test-DxUiSkills $Root).Failures)
+    return , @((Test-DxUiSkills $Root).Failures)
 }
 
 Invoke-FixtureCase 'invalid skill metadata is rejected' {

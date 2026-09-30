@@ -1,5 +1,6 @@
 # Regression, missing evidence, fixture mismatch and hard-budget failures, plus parity with every stored comparison.
 [CmdletBinding()] param()
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PerformanceComparison.psm1') -Force

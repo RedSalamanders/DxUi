@@ -1,5 +1,6 @@
 <# .SYNOPSIS Runs the repository tooling tests: validators and performance comparison. No native build is needed. #>
 [CmdletBinding()] param()
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $failed = [Collections.Generic.List[string]]::new()
 foreach ($name in @('Test-Validation.ps1', 'Test-Docs.ps1', 'Test-TestPort.ps1', 'Test-BuildMatrix.ps1', 'Test-PerformanceComparison.ps1', 'Test-PairedRun.ps1')) {
