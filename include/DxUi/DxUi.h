@@ -431,7 +431,10 @@ struct ContextMenuPopupItemLayoutDebugState
     UINT32 secondaryLineCount        = 0;
     float primaryLayoutWidthDip      = 0.0f;
     float secondaryLayoutWidthDip    = 0.0f;
-    bool hasBitmapIcon               = false;
+    // A described row's two fields are one layout: where its description starts below the top of that layout, which is the
+    // row's text origin. The description is laid out a fixed gap below the label's height rounded up to whole DIPs.
+    float descriptionOffsetDip = 0.0f;
+    bool hasBitmapIcon         = false;
 };
 
 struct ContextMenuPopupItemPaintDebugState
@@ -454,7 +457,7 @@ struct ContextMenuPopupItemPaintDebugState
 struct ContextMenuResourceDebugState
 {
     size_t popups               = 0; // Menu popups alive: the root of each open menu and every open submenu.
-    size_t rowLayouts           = 0; // Text layouts the rows of those popups hold (a described row holds a primary and a secondary one).
+    size_t rowLayouts           = 0; // Text layouts the rows of those popups hold (a described row holds one, for its label and its description).
     size_t accessibilityRecords = 0; // Control records of the UI Automation snapshots published for menu popups that are still alive, wherever held.
 
     [[nodiscard]] bool operator==(const ContextMenuResourceDebugState&) const noexcept = default;
@@ -472,6 +475,9 @@ void DebugSetContextMenuStateProbeStallForTest(HANDLE enteredEvent, HANDLE relea
 [[nodiscard]] bool DebugGetContextMenuPopupItemPaint(HWND hwnd, size_t itemIndex, ContextMenuPopupItemPaintDebugState& outState) noexcept;
 [[nodiscard]] bool DebugSetContextMenuPopupBackdropCapture(HWND hwnd, const WindowHostBitmapCapture& capture) noexcept;
 [[nodiscard]] bool DebugCaptureContextMenuPopupBitmap(HWND hwnd, WindowHostBitmapCapture& outCapture) noexcept;
+// Discards the popup host's graphics device as a lost device would, so its next paint recreates the device resources. The
+// popup must belong to the calling thread.
+[[nodiscard]] bool DebugSimulateContextMenuPopupDeviceLoss(HWND hwnd) noexcept;
 [[nodiscard]] bool DebugFireContextMenuPopupHoverTimer(HWND hwnd) noexcept;
 [[nodiscard]] bool DebugComputeContextMenuPopupPosition(POINT screenPoint,
                                                         float widthDip,

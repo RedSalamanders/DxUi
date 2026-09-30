@@ -55,9 +55,10 @@ A menu opened by the pointer starts without a keyboard selection, like a plain m
 the selection authority; repeated primary labels are supported. Description layout is prepared on
 open/DPI reflow and reused during paint. Described menu entries expose native MenuItem/Invoke and
 the acknowledged checked state. Queued invocations expire with that popup instance.
-Equal text/font/width combinations share native shaping storage within that popup; commands and
-accessible names remain independent. The temporary lookup is discarded after preparation, and
-scrollbar/DPI reflow preserves each row's final available width.
+A described row holds one native text layout for both fields (the label, a spacer paragraph and the
+description), which costs one layout's shaping storage where two layouts cost two; the description starts a fixed
+gap below the label as before. Commands and accessible names stay independent of it, and scrollbar/DPI reflow
+preserves each row's final available width.
 
 Normal dismissal delivers the completion callback and restores the prior owner control as applicable.
 If the process/thread exits with an asynchronous menu still open, controller teardown releases its

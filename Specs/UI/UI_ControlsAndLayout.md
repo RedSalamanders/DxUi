@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-01
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -28,11 +28,22 @@ Retain prepared layouts across unchanged paints; a failed reflow closes the menu
 a command, and a popup whose session closed while it was being positioned is never shown. Long individual
 rows may exceed the viewport: keyboard navigation reveals their beginning and wheel/scrollbar
 interaction exposes the remainder. Preserve existing one-line behavior when secondary text is absent.
-Identical text with the same font role and available width may share native layout storage within
-one popup preparation. Sharing must preserve separate command IDs, accessible identities, row state
-and hit rectangles. The lookup is preparation-local and released before paint; no process-wide
-text cache is retained. Scrollbar reflow sets an absolute final width, including for shared layouts,
-so repeated rows cannot cumulatively narrow one another. DPI changes prepare a fresh coherent set.
+A described row holds one native text layout for both fields, because the shaping storage a layout keeps is
+mostly per layout (about 17 KB) and little per character (about 30 bytes): its text is the label, an empty spacer
+paragraph and the description. The description range takes the small text format's font (family, size, weight,
+style, stretch, locale) and the layout its tab stop, since only the description can hold a tab, while everything
+else a layout holds for all its text comes from the body format, which the host creates like the small one.
+The two fields keep the geometry two separate layouts gave them. Both wrap at the row's text width, the label at
+its own height, and the description starts a fixed 3 DIP gap below the label's height rounded up to whole DIPs:
+the spacer paragraph's font size is set per row and width until its height is exactly what that distance needs, and
+a layout whose spacer cannot reach it fails the preparation like any other failure. The row is 16 DIP of padding
+around the two rounded heights and the gap. One call draws the row: the label in the row's text color and the
+description, through a drawing effect on its range, in the accelerator color of the row's state, so disabled,
+hovered and plain rows keep their colors, and color glyphs, tab stops and line breaks stay as in a layout of its
+own. The effect is one brush per popup and device, recolored for each row and recreated with the device. Rows never
+share a layout, whatever their text; command IDs, accessible identities, row state and hit rectangles stay
+independent. DPI changes prepare a fresh coherent set, and scrollbar reflow narrows each row to an absolute final
+width from the width it was prepared at, so repeated reflows cannot narrow a row cumulatively.
 Qualification is still in progress; this is not a consumer or native-platform acceptance claim.
 
 ### Localized adaptive layout acceptance

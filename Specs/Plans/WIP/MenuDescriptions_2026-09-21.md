@@ -3,6 +3,17 @@
 Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
 Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.
 
+## September 30 one layout per row
+
+A described row now holds one DirectWrite layout for its label and its description, instead of two that a popup
+shared where labels repeated. The [controls contract](../../UI/UI_ControlsAndLayout.md) states the geometry and
+drawing it keeps; the [memory plan](MenuDescriptionMemory_2026-09-27.md) and the
+[row-layout packet](../../../Measurements/MenuDescriptions/2026-09-30/row-layout/README.md) hold the measurements:
+byte-identical captures and gallery sheets, about a third less live heap wherever labels differ, and up to 7% more
+where every row repeats one label. The earlier statements below that a row holds two layouts, and that equal text
+shares one, describe the implementation before this change. Gallery pixels are unchanged, so `docs/gallery` needs no
+update; the six native profiles, consumer handoff and directed input restoration remain open.
+
 ## September 27 memory waiver
 
 The user directed a waiver for the repeated clean private-memory flag and asked for the cost to be

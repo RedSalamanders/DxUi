@@ -7497,6 +7497,457 @@ void TestDescribedMenuFractionalDpiKeepsLaneAndWidths()
     }
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// One layout per described row. A row's label and description are paragraphs of one DirectWrite layout, which costs one
+// layout's shaping storage where two separate layouts cost two. These tests hold it to what two separate layouts drew: the
+// gap between the fields, each field's size and wrapping, its color in every row state, its tab stops and its color glyphs.
+// ---------------------------------------------------------------------------------------------------------------------
+
+// What a scan of one field's ink found. A pixel over its row's background is that background plus its coverage times the step
+// from the background to the foreground, so the coverage reads along the expected foreground whatever gradient lies under it.
+struct DescribedFieldInk
+{
+    size_t inkPixels       = 0u;
+    double strongest       = 0.0; // The 99th percentile of the coverage along the expected foreground: near 1 in the right color.
+    double total           = 0.0; // The sum of the coverage of every pixel of the field.
+    size_t chromaticPixels = 0u;  // Pixels whose channels differ much: colored glyphs, never the neutral theme text.
+};
+
+[[nodiscard]] DescribedFieldInk ScanDescribedFieldInk(
+    const DxUi::WindowHostBitmapCapture& capture, const D2D1_RECT_F& fieldDip, UINT dpi, const D2D1_COLOR_F& foreground, LONG backgroundXPx)
+{
+    const auto toPixel = [dpi](float dip) { return static_cast<LONG>(DipToPixelForPopup(dip, dpi)); };
+    const LONG left    = (std::max)(0L, toPixel(fieldDip.left));
+    const LONG right   = (std::min)(static_cast<LONG>(capture.widthPx), toPixel(fieldDip.right));
+    const LONG top     = (std::max)(0L, toPixel(fieldDip.top));
+    const LONG bottom  = (std::min)(static_cast<LONG>(capture.heightPx), toPixel(fieldDip.bottom));
+    Require(right > left && bottom > top && backgroundXPx >= 0 && backgroundXPx < static_cast<LONG>(capture.widthPx),
+            "a described field's scan window lies in the capture");
+    const auto pixel       = [&](LONG x, LONG y) { return &capture.bgraPixels[(static_cast<size_t>(y) * capture.widthPx + static_cast<size_t>(x)) * 4u]; };
+    const double target[3] = {foreground.b * 255.0, foreground.g * 255.0, foreground.r * 255.0};
+    DescribedFieldInk ink;
+    std::vector<double> coverages;
+    for (LONG y = top; y < bottom; ++y)
+    {
+        const uint8_t* background = pixel(backgroundXPx, y);
+        double step[3]{};
+        double stepLengthSquared = 0.0;
+        for (int channel = 0; channel < 3; ++channel)
+        {
+            step[channel] = target[channel] - static_cast<double>(background[channel]);
+            stepLengthSquared += step[channel] * step[channel];
+        }
+        if (stepLengthSquared < 64.0)
+            continue; // The foreground is indistinguishable from what lies under it.
+        for (LONG x = left; x < right; ++x)
+        {
+            const uint8_t* value = pixel(x, y);
+            double largest       = 0.0;
+            double along         = 0.0;
+            for (int channel = 0; channel < 3; ++channel)
+            {
+                const double delta = static_cast<double>(value[channel]) - static_cast<double>(background[channel]);
+                largest            = (std::max)(largest, std::abs(delta));
+                along += delta * step[channel];
+            }
+            // The total counts every pixel of the field, so two rows that differ only in opacity compare exactly; the rest of
+            // the statistics cover the pixels that are clearly ink.
+            ink.total += along / stepLengthSquared;
+            if (largest <= 20.0)
+                continue;
+            ++ink.inkPixels;
+            coverages.push_back(along / stepLengthSquared);
+            if ((std::max)({value[0], value[1], value[2]}) - (std::min)({value[0], value[1], value[2]}) > 40)
+                ++ink.chromaticPixels;
+        }
+    }
+    if (! coverages.empty())
+    {
+        std::sort(coverages.begin(), coverages.end());
+        ink.strongest = coverages[(coverages.size() - 1u) * 99u / 100u];
+    }
+    return ink;
+}
+
+[[nodiscard]] LONG DescribedRowBackgroundColumnPx(const D2D1_RECT_F& itemRectDip, UINT dpi)
+{
+    // The row's right end holds no text when its text is short: what lies there is the row's background, scanline by scanline.
+    return static_cast<LONG>(DipToPixelForPopup(itemRectDip.right - 14.0f, dpi));
+}
+
+// A popup that opens under the physical cursor hovers the row beneath it, and the system may synthesize a pointer move for
+// the cursor at any message turn. Park the popup's pointer in its shadow margin, outside every row, and capture before any
+// message is pumped, so the state a pixel test scans is the one it names.
+void ParkDescribedPopupPointerOutsideRows(HWND popup)
+{
+    Require(SendSettledClientMouseMoveForMenuSuite(popup, 2, 2), "the popup's pointer parks in its margin");
+    DxUi::ContextMenuPopupDebugState state{};
+    Require(DxUi::DebugGetContextMenuPopupState(popup, state) && ! state.hoveredIndex.has_value(), "no row is hovered while the pointer is parked");
+}
+
+void TestDescribedRowsHoldOneLayoutEach()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    // Described rows of every kind beside plain ones. The last two described rows repeat both fields exactly, and each still
+    // holds a layout of its own.
+    const std::vector<MenuFlyoutItem> items{
+        {.text = L"Archives familiales", .commandId = 9601, .secondaryText = L"C:\\Photographies\\Archives familiales"},
+        {.kind = MenuItemKind::Radio, .text = L"Archives familiales", .commandId = 9602, .secondaryText = L"D:\\Sauvegardes\\Archives familiales"},
+        {.kind = MenuItemKind::Separator},
+        {.kind = MenuItemKind::Info, .text = L"Espace utilisé :", .acceleratorText = L"561 Go", .secondaryText = L"Sur tous les volumes"},
+        {.kind = MenuItemKind::Toggle, .text = L"Collection du musée", .commandId = 9603, .secondaryText = L"D:\\Sauvegardes\\Collection du musée"},
+        {.kind = MenuItemKind::Toggle, .text = L"Collection du musée", .commandId = 9604, .secondaryText = L"D:\\Sauvegardes\\Collection du musée"},
+        {.text = L"Commande simple", .commandId = 9605}};
+    constexpr size_t describedRows             = 5u;
+    const ContextMenuResourceDebugState before = DebugGetContextMenuResources();
+    bool closed                                = false;
+    const POINT anchor                         = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "layout count menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&](std::optional<int>) noexcept { closed = true; }),
+            "layout count menu opens");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+    Require(popup != nullptr, "layout count menu appears");
+    const ContextMenuResourceDebugState open = DebugGetContextMenuResources();
+    Require(open.popups == before.popups + 1u, "the menu has one popup");
+    Require(open.rowLayouts == before.rowLayouts + describedRows,
+            "each described row holds one layout for its label and its description, and rows without a description hold none");
+    SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    owner.PumpMessages();
+    Require(closed && WaitForWindowDestroyed(popup), "layout count menu closes");
+    Require(DebugGetContextMenuResources() == before, "closing the menu returns its layouts");
+}
+
+void TestDescribedRowDescriptionStartsAGapBelowTheLabelAsSeparateLayoutsPlaceIt()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    auto* factory     = owner.Host().GetWriteFactory();
+    auto* bodyFormat  = owner.Host().GetTextFormat(FontRole::Body);
+    auto* smallFormat = owner.Host().GetTextFormat(FontRole::Small);
+    Require(factory && bodyFormat && smallFormat, "gap test has native text services");
+    // What a separate layout measures for one field at a width: the contract the row's single layout keeps.
+    const auto measureField = [&](std::wstring_view text, IDWriteTextFormat* format, float widthDip)
+    {
+        wil::com_ptr<IDWriteTextLayout> reference;
+        Require(SUCCEEDED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, widthDip, 1000000.0f, reference.put())),
+                "gap test creates a separate layout");
+        const DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_NONE, 0, 0};
+        Require(SUCCEEDED(reference->SetWordWrapping(DWRITE_WORD_WRAPPING_EMERGENCY_BREAK)) &&
+                    SUCCEEDED(reference->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR)) &&
+                    SUCCEEDED(reference->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING)) && SUCCEEDED(reference->SetTrimming(&trimming, nullptr)),
+                "gap test gives the separate layout the row's text policy");
+        DWRITE_TEXT_METRICS metrics{};
+        Require(SUCCEEDED(reference->GetMetrics(&metrics)), "gap test measures the separate layout");
+        return metrics;
+    };
+    const std::vector<MenuFlyoutItem> items{
+        {.text = L"Documents", .commandId = 9611, .secondaryText = L"C:\\Users\\Eric\\Documents"},
+        {.kind          = MenuItemKind::Radio,
+         .text          = L"Sélection définitive pour impression et archivage — réunion familiale été 2026 && photographies originales",
+         .checked       = true,
+         .commandId     = 9612,
+         .secondaryText = L"D:\\Sauvegardes\\Archives photographiques personnelles de plusieurs générations\\Exposition annuelle de la médiathèque"},
+        {.text = L"Première ligne du libellé\nDeuxième ligne du libellé", .commandId = 9613, .secondaryText = L"Un paragraphe\nDeux paragraphes\r\nTrois"},
+        {.text = L"", .commandId = 9614, .secondaryText = L"Description sans libellé"},
+        {.text          = L"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+         .commandId     = 9615,
+         .secondaryText = L"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"},
+        {.kind = MenuItemKind::Info, .text = L"Espace utilisé :", .acceleratorText = L"561 Go", .secondaryText = L"Sur tous les volumes de cette bibliothèque"},
+        {.text            = L"Copier vers Documents",
+         .acceleratorText = L"Ctrl+D",
+         .commandId       = 9616,
+         .secondaryText   = L"Un raccourci réserve sa colonne et resserre le texte"},
+        {.text = L"Ligne d’écriture", .commandId = 9617, .secondaryText = L"Fin de ligne\n"}};
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "gap test menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}, ContextMenuSessionCallbacks{}),
+            "gap test menu opens");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+    Require(popup != nullptr, "gap test menu appears");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        if (IsWindow(popup))
+            SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    });
+    ContextMenuPopupDebugState state{};
+    Require(DebugGetContextMenuPopupState(popup, state), "gap test popup state");
+    std::vector<UINT> dpis{state.dpi, 96u, 144u, 192u, 120u, state.dpi};
+    for (const UINT dpi : dpis)
+    {
+        if (state.dpi != dpi)
+        {
+            RECT suggested = state.windowRectPx;
+            SendMessageW(popup, WM_DPICHANGED, MAKEWPARAM(dpi, dpi), reinterpret_cast<LPARAM>(&suggested));
+            Require(DebugGetContextMenuPopupState(popup, state) && state.dpi == dpi, "gap test applies the DPI");
+        }
+        for (size_t index = 0; index < items.size(); ++index)
+        {
+            ContextMenuPopupItemLayoutDebugState row{};
+            Require(DebugGetContextMenuPopupItemLayout(popup, index, row), "gap test row geometry available");
+            // The label is what the row's own text says once a doubled ampersand is one.
+            std::wstring label = items[index].text;
+            if (const size_t doubled = label.find(L"&&"); doubled != std::wstring::npos)
+                label.erase(doubled, 1u);
+            const float width                   = row.primaryLayoutWidthDip;
+            const DWRITE_TEXT_METRICS primary   = measureField(label, bodyFormat, width);
+            const DWRITE_TEXT_METRICS secondary = measureField(items[index].secondaryText, smallFormat, width);
+            const float labelHeight             = std::ceil(primary.height);
+            const float descriptionHeight       = std::ceil(secondary.height);
+            const std::string where             = std::format("row {} at {} DPI", index, dpi);
+            RequireFloatNear(
+                row.textRectDip.bottom - row.textRectDip.top, labelHeight, 0.001f, ("the label keeps its separate layout's height: " + where).c_str());
+            RequireFloatNear(row.secondaryTextRectDip.bottom - row.secondaryTextRectDip.top,
+                             descriptionHeight,
+                             0.001f,
+                             ("the description keeps its separate layout's height: " + where).c_str());
+            Require(row.primaryLineCount == primary.lineCount && row.secondaryLineCount == secondary.lineCount,
+                    ("both fields wrap into the lines their separate layouts wrap into: " + where).c_str());
+            RequireFloatNear(row.secondaryLayoutWidthDip, row.primaryLayoutWidthDip, 0.001f, ("both fields wrap at one width: " + where).c_str());
+            // The description starts a fixed 3 DIP gap below the label's height rounded up to whole DIPs, where it was drawn.
+            RequireFloatNear(
+                row.descriptionOffsetDip, labelHeight + 3.0f, 0.001f, ("the layout starts the description a gap below the label: " + where).c_str());
+            RequireFloatNear(row.secondaryTextRectDip.top - row.textRectDip.top,
+                             row.descriptionOffsetDip,
+                             0.001f,
+                             ("the layout and the row geometry agree on the gap: " + where).c_str());
+            RequireFloatNear(row.itemRectDip.bottom - row.itemRectDip.top,
+                             16.0f + labelHeight + 3.0f + descriptionHeight,
+                             0.001f,
+                             ("the row is padded around both fields and their gap: " + where).c_str());
+        }
+    }
+}
+
+void TestDescribedRowPaintsEachFieldInItsOwnColor()
+{
+    using namespace DxUi;
+    for (const bool dark : {false, true})
+    {
+        AttachedHostWindow owner;
+        ThemePalette theme  = MakeDefaultThemePalette(dark);
+        theme.reducedMotion = true;
+        // The first two rows say the same in every field; only the second is disabled. The third holds color glyphs.
+        const std::vector<MenuFlyoutItem> items{
+            {.text = L"Archives familiales", .commandId = 9621, .secondaryText = L"C:\\Photographies\\Archives"},
+            {.text = L"Archives familiales", .enabled = false, .commandId = 9622, .secondaryText = L"C:\\Photographies\\Archives"},
+            {.text = L"Photos \U0001F3A8", .commandId = 9623, .secondaryText = L"Fête \U0001F389 annuelle"}};
+        bool closed        = false;
+        const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "color menu anchor maps to screen");
+        Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, theme, [&](std::optional<int>) noexcept { closed = true; }, ContextMenuSessionCallbacks{}),
+                "color menu opens");
+        const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+        Require(popup != nullptr, "color menu appears");
+        const auto dismiss = wil::scope_exit([&]() noexcept
+        {
+            if (IsWindow(popup))
+                SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+        });
+        ContextMenuPopupDebugState state{};
+        Require(DebugGetContextMenuPopupState(popup, state), "color menu popup state");
+        std::array<ContextMenuPopupItemLayoutDebugState, 3> rows{};
+        for (size_t index = 0; index < rows.size(); ++index)
+            Require(DebugGetContextMenuPopupItemLayout(popup, index, rows[index]), "color menu row geometry available");
+        const auto scan = [&](const WindowHostBitmapCapture& capture, size_t index, bool description, const D2D1_COLOR_F& foreground)
+        {
+            return ScanDescribedFieldInk(capture,
+                                         description ? rows[index].secondaryTextRectDip : rows[index].textRectDip,
+                                         state.dpi,
+                                         foreground,
+                                         DescribedRowBackgroundColumnPx(rows[index].itemRectDip, state.dpi));
+        };
+        const std::string themeName = dark ? "dark " : "light ";
+        const auto requireColor     = [&](const DescribedFieldInk& ink, const char* what)
+        {
+            const std::string message = themeName + what;
+            Require(ink.inkPixels > 30u, (message + " has ink").c_str());
+            Require(ink.strongest > 0.85 && ink.strongest < 1.06, (message + " is drawn in its expected color").c_str());
+        };
+
+        WindowHostBitmapCapture capture{};
+        ParkDescribedPopupPointerOutsideRows(popup);
+        Require(DebugCaptureContextMenuPopupBitmap(popup, capture), "color menu captures");
+        requireColor(scan(capture, 0, false, theme.text), "label of an enabled row");
+        requireColor(scan(capture, 0, true, theme.subduedText), "description of an enabled row");
+        // A disabled row draws the same fields at 40% opacity, each in its own color: the two rows differ by that factor alone.
+        for (const bool description : {false, true})
+        {
+            const D2D1_COLOR_F& color        = description ? theme.subduedText : theme.text;
+            const DescribedFieldInk enabled  = scan(capture, 0, description, color);
+            const DescribedFieldInk disabled = scan(capture, 1, description, color);
+            Require(enabled.total > 0.0 && std::abs(disabled.total / enabled.total - 0.4) < 0.04,
+                    (themeName + (description ? "description" : "label") + " of a disabled row keeps its color at 40% opacity").c_str());
+        }
+        // Color glyphs draw as color in both fields, as in plain rows, and plain text stays neutral.
+        Require(scan(capture, 2, false, theme.text).chromaticPixels > 12u && scan(capture, 2, true, theme.subduedText).chromaticPixels > 12u,
+                (themeName + "color glyphs are drawn in color in both fields").c_str());
+        Require(scan(capture, 0, false, theme.text).chromaticPixels == 0u && scan(capture, 0, true, theme.subduedText).chromaticPixels == 0u,
+                (themeName + "plain text stays in its theme colors").c_str());
+
+        // Hovering a row gives both its fields the contrast color of its highlight; the rows beside it keep theirs.
+        bool hovered = false;
+        for (int attempt = 0; attempt < 5 && ! hovered; ++attempt)
+        {
+            const LONG x = static_cast<LONG>(DipToPixelForPopup((rows[0].itemRectDip.left + rows[0].itemRectDip.right) * 0.5f, state.dpi));
+            const LONG y = static_cast<LONG>(DipToPixelForPopup((rows[0].itemRectDip.top + rows[0].itemRectDip.bottom) * 0.5f, state.dpi));
+            Require(SendSettledClientMouseMoveForMenuSuite(popup, x, y), "color menu hovers its first row");
+            ContextMenuPopupDebugState hoverState{};
+            hovered = DebugGetContextMenuPopupState(popup, hoverState) && hoverState.hoveredIndex == std::optional<size_t>{0u};
+        }
+        Require(hovered, "color menu hover takes effect");
+        ContextMenuPopupItemPaintDebugState paint{};
+        Require(DebugGetContextMenuPopupItemPaint(popup, 0, paint) && paint.hovered && paint.usesHighlightFill, "the hovered row has a highlight");
+        WindowHostBitmapCapture hoverCapture{};
+        Require(DebugCaptureContextMenuPopupBitmap(popup, hoverCapture), "color menu captures the hover");
+        requireColor(scan(hoverCapture, 0, false, paint.textColor), "label of a hovered row");
+        requireColor(scan(hoverCapture, 0, true, paint.acceleratorColor), "description of a hovered row");
+        requireColor(scan(hoverCapture, 2, false, theme.text), "label of a row beside the hovered one");
+        requireColor(scan(hoverCapture, 2, true, theme.subduedText), "description of a row beside the hovered one");
+        SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+        owner.PumpMessages();
+        Require(closed && WaitForWindowDestroyed(popup), "color menu closes");
+    }
+}
+
+void TestDescribedRowDescriptionKeepsTheSmallFontTabStops()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    auto* bodyFormat  = owner.Host().GetTextFormat(FontRole::Body);
+    auto* smallFormat = owner.Host().GetTextFormat(FontRole::Small);
+    Require(bodyFormat && smallFormat, "tab stop test has text formats");
+    const float smallTabStop = smallFormat->GetIncrementalTabStop();
+    Require(std::abs(smallTabStop - bodyFormat->GetIncrementalTabStop()) > 4.0f, "the small and body formats have tab stops a scan can tell apart");
+    const std::vector<MenuFlyoutItem> items{{.text = L"Destination", .commandId = 9631, .secondaryText = L"x\ty"}};
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "tab stop menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}, ContextMenuSessionCallbacks{}),
+            "tab stop menu opens");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+    Require(popup != nullptr, "tab stop menu appears");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        if (IsWindow(popup))
+            SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    });
+    ContextMenuPopupDebugState state{};
+    ContextMenuPopupItemLayoutDebugState row{};
+    WindowHostBitmapCapture capture{};
+    Require(DebugGetContextMenuPopupState(popup, state) && DebugGetContextMenuPopupItemLayout(popup, 0, row) &&
+                DebugCaptureContextMenuPopupBitmap(popup, capture),
+            "tab stop menu captures");
+    // The description's two glyphs are a tab stop apart: the second starts where the first does, plus the small font's tab stop.
+    const LONG backgroundX = DescribedRowBackgroundColumnPx(row.itemRectDip, state.dpi);
+    const auto toPixel     = [&](float dip) { return static_cast<LONG>(DipToPixelForPopup(dip, state.dpi)); };
+    std::vector<LONG> inkColumns;
+    for (LONG x = toPixel(row.secondaryTextRectDip.left); x < toPixel(row.secondaryTextRectDip.right); ++x)
+    {
+        bool ink = false;
+        for (LONG y = toPixel(row.secondaryTextRectDip.top); y < toPixel(row.secondaryTextRectDip.bottom) && ! ink; ++y)
+        {
+            const auto pixel = [&](LONG px) { return &capture.bgraPixels[(static_cast<size_t>(y) * capture.widthPx + static_cast<size_t>(px)) * 4u]; };
+            for (int channel = 0; channel < 3; ++channel)
+                ink = ink || std::abs(static_cast<int>(pixel(x)[channel]) - static_cast<int>(pixel(backgroundX)[channel])) > 30;
+        }
+        if (ink)
+            inkColumns.push_back(x);
+    }
+    Require(! inkColumns.empty(), "the description is drawn");
+    LONG secondStart = -1;
+    for (size_t index = 1; index < inkColumns.size(); ++index)
+    {
+        if (inkColumns[index] - inkColumns[index - 1u] > toPixel(6.0f))
+        {
+            secondStart = inkColumns[index];
+            break;
+        }
+    }
+    Require(secondStart >= 0, "the description's two glyphs are drawn a tab apart");
+    const LONG expected = inkColumns.front() + toPixel(smallTabStop);
+    Require(std::abs(static_cast<int>(secondStart - expected)) <= toPixel(2.0f) + 1,
+            "the description's tab stops are the small font's, as in a layout of its own");
+}
+
+void TestBodyAndSmallFormatsAgreeOnWhatOneRowLayoutHoldsForAllItsText()
+{
+    using namespace DxUi;
+    // A described row is one layout made from the body format, so every property a layout holds for all its text must be the
+    // body format's for the description too: the host must create its small format like its body format in all of them.
+    AttachedHostWindow owner;
+    auto* bodyFormat  = owner.Host().GetTextFormat(FontRole::Body);
+    auto* smallFormat = owner.Host().GetTextFormat(FontRole::Small);
+    Require(bodyFormat && smallFormat, "policy test has text formats");
+    Require(bodyFormat->GetTextAlignment() == smallFormat->GetTextAlignment() && bodyFormat->GetParagraphAlignment() == smallFormat->GetParagraphAlignment(),
+            "the body and small formats align alike");
+    Require(bodyFormat->GetWordWrapping() == smallFormat->GetWordWrapping(), "the body and small formats wrap alike");
+    Require(bodyFormat->GetReadingDirection() == smallFormat->GetReadingDirection() && bodyFormat->GetFlowDirection() == smallFormat->GetFlowDirection(),
+            "the body and small formats read in one direction");
+    DWRITE_LINE_SPACING_METHOD bodyMethod{}, smallMethod{};
+    float bodySpacing = 0.0f, smallSpacing = 0.0f, bodyBaseline = 0.0f, smallBaseline = 0.0f;
+    Require(SUCCEEDED(bodyFormat->GetLineSpacing(&bodyMethod, &bodySpacing, &bodyBaseline)) &&
+                SUCCEEDED(smallFormat->GetLineSpacing(&smallMethod, &smallSpacing, &smallBaseline)),
+            "both formats report their line spacing");
+    Require(bodyMethod == smallMethod && bodySpacing == smallSpacing && bodyBaseline == smallBaseline, "the body and small formats space their lines alike");
+    DWRITE_TRIMMING bodyTrimming{}, smallTrimming{};
+    wil::com_ptr<IDWriteInlineObject> bodyEllipsis, smallEllipsis;
+    Require(SUCCEEDED(bodyFormat->GetTrimming(&bodyTrimming, bodyEllipsis.put())) && SUCCEEDED(smallFormat->GetTrimming(&smallTrimming, smallEllipsis.put())),
+            "both formats report their trimming");
+    Require(bodyTrimming.granularity == smallTrimming.granularity && bodyTrimming.delimiter == smallTrimming.delimiter &&
+                bodyTrimming.delimiterCount == smallTrimming.delimiterCount,
+            "the body and small formats trim alike");
+}
+
+void TestDescribedMenuDrawsItsDescriptionAgainAfterDeviceLoss()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    ThemePalette theme  = MakeDefaultThemePalette(false);
+    theme.reducedMotion = true;
+    const std::vector<MenuFlyoutItem> items{
+        {.text = L"Archives familiales", .commandId = 9641, .secondaryText = L"C:\\Photographies\\Archives"},
+        {.text = L"Collection du musée", .enabled = false, .commandId = 9642, .secondaryText = L"D:\\Sauvegardes\\Collection"}};
+    bool closed        = false;
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "device loss menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, theme, [&](std::optional<int>) noexcept { closed = true; }, ContextMenuSessionCallbacks{}),
+            "device loss menu opens");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+    Require(popup != nullptr, "device loss menu appears");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        if (IsWindow(popup))
+            SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    });
+    ContextMenuPopupDebugState state{};
+    std::array<ContextMenuPopupItemLayoutDebugState, 2> rows{};
+    Require(DebugGetContextMenuPopupState(popup, state) && DebugGetContextMenuPopupItemLayout(popup, 0, rows[0]) &&
+                DebugGetContextMenuPopupItemLayout(popup, 1, rows[1]),
+            "device loss menu geometry available");
+    const auto describe = [&](const WindowHostBitmapCapture& capture, size_t index)
+    {
+        const LONG background = DescribedRowBackgroundColumnPx(rows[index].itemRectDip, state.dpi);
+        return std::pair{ScanDescribedFieldInk(capture, rows[index].textRectDip, state.dpi, theme.text, background),
+                         ScanDescribedFieldInk(capture, rows[index].secondaryTextRectDip, state.dpi, theme.subduedText, background)};
+    };
+    WindowHostBitmapCapture before{};
+    ParkDescribedPopupPointerOutsideRows(popup);
+    Require(DebugCaptureContextMenuPopupBitmap(popup, before), "device loss menu captures before the loss");
+    const auto beforeInk = describe(before, 0);
+    Require(beforeInk.first.inkPixels > 30u && beforeInk.second.inkPixels > 30u && beforeInk.second.strongest > 0.85 && beforeInk.second.strongest < 1.06,
+            "the description is drawn before the device is lost");
+
+    Require(DebugSimulateContextMenuPopupDeviceLoss(popup), "the popup's device is lost");
+    WindowHostBitmapCapture after{};
+    ParkDescribedPopupPointerOutsideRows(popup);
+    Require(DebugCaptureContextMenuPopupBitmap(popup, after), "device loss menu captures after the loss");
+    // The layouts carried the old device's brush. Drawing again needs the new device's, and nothing else changes on screen.
+    const BitmapComparisonStats drawn = CompareWindowHostBitmapCapturesForTest(after, before, 4u);
+    Require(drawn.totalPixels > 0u && drawn.differingPixels == 0u, "the menu draws as before with the recreated device, descriptions included");
+    const auto afterInk = describe(after, 0);
+    Require(afterInk.second.inkPixels > 30u && afterInk.second.strongest > 0.85 && afterInk.second.strongest < 1.06,
+            "the description is drawn in its color after the device is lost");
+    Require(describe(after, 1).second.inkPixels > 30u, "the disabled row's description is drawn after the device is lost");
+    SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    owner.PumpMessages();
+    Require(closed && WaitForWindowDestroyed(popup), "device loss menu closes");
+}
+
 } // namespace
 
 void RunMenuDescriptionTests()
@@ -7524,6 +7975,12 @@ void RunMenuDescriptionTests()
     DXUI_RUN_TEST(TestDescribedSubmenuSliderFocusKeepsSessionFocus);
     DXUI_RUN_TEST(TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus);
     DXUI_RUN_TEST(TestDescribedMenuFractionalDpiKeepsLaneAndWidths);
+    DXUI_RUN_TEST(TestDescribedRowsHoldOneLayoutEach);
+    DXUI_RUN_TEST(TestDescribedRowDescriptionStartsAGapBelowTheLabelAsSeparateLayoutsPlaceIt);
+    DXUI_RUN_TEST(TestDescribedRowPaintsEachFieldInItsOwnColor);
+    DXUI_RUN_TEST(TestDescribedRowDescriptionKeepsTheSmallFontTabStops);
+    DXUI_RUN_TEST(TestBodyAndSmallFormatsAgreeOnWhatOneRowLayoutHoldsForAllItsText);
+    DXUI_RUN_TEST(TestDescribedMenuDrawsItsDescriptionAgainAfterDeviceLoss);
     DXUI_RUN_TEST(TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu);
 }
 
