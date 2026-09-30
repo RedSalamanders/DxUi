@@ -211,7 +211,7 @@ struct MenuPopup;
         case WM_SETFOCUS:
         case WM_KILLFOCUS:
         case WM_DESTROY:
-        case WndMsg::kDxUiContextMenuRootHoverChanged: return true;
+        case WndMsg::kContextMenuRootHoverChanged: return true;
         default: return false;
     }
 }
@@ -1026,6 +1026,8 @@ static constexpr UINT kMenuAccessibleInvokeMessage = WM_APP + 0x21a;
 static constexpr UINT kMenuAccessibleFocusMessage  = WM_APP + 0x21b;
 // Finalizes an asynchronous session that a failed DPI reflow dismissed inside a window operation.
 static constexpr UINT kMenuDeferredFinalizeMessage = WM_APP + 0x21c;
+// Lets the window under the pointer choose its cursor, outside any menu handler (see ApplyMenuPointerCursor).
+static constexpr UINT kMenuForwardCursorMessage = WM_APP + 0x21d;
 struct MenuAccessibilityRequest
 {
     HWND target;
@@ -1058,6 +1060,10 @@ void DestroyMenuPopupWindow(MenuPopup& popup) noexcept;
 [[nodiscard]] UINT ResolveMenuPopupMessageDpi(HWND hwnd, UINT msg, WPARAM wp) noexcept;
 void RelayoutMenuPopupForDpi(MenuPopup& popup, UINT dpi, const RECT* suggestedWindowRect) noexcept;
 void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept;
+void ApplyMenuCursorAtPointer(MenuController& controller) noexcept;
+void RestoreWindowCursorAfterMenu(const MenuController& controller) noexcept;
+[[nodiscard]] bool ForwardSetCursorToThreadWindowAt(POINT screenPoint) noexcept;
+void ShowArrowCursor() noexcept;
 
 struct MenuPopup
 {
@@ -1386,6 +1392,9 @@ struct MenuController
     bool ignoreInitialRightButtonUp = false;
     bool leftButtonDownInPopup      = false;
     bool rightButtonDownInPopup     = false;
+    bool cursorChosen               = false; // The menu set or forwarded a cursor; closing lets the window re-choose.
+    bool cursorForwardPending       = false; // A posted kMenuForwardCursorMessage will forward for cursorForwardPoint.
+    POINT cursorForwardPoint{};
     POINT lastPointerScreenPoint{};
     bool hasLastPointerScreenPoint = false;
     POINT lastRootSwitchPointerScreenPoint{};
@@ -1985,8 +1994,11 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             const size_t index = request ? request->index : SIZE_MAX;
             if (request && request->target == hwnd && controller && controller->running && index < popup->itemCount && popup->IsNavigableItem(index))
             {
-                while (controller->GetTopmostPopup() != popup)
+                // Close the submenus above this popup; a popup outside the chain (never expected) is left alone.
+                while (controller->popups.size() > 1u && controller->GetTopmostPopup() != popup)
                     controller->CloseTopmostSubmenu();
+                if (controller->GetTopmostPopup() != popup)
+                    return 0;
                 popup->keyboardIndex = index;
                 static_cast<void>(ProcessMenuPopupMessage(*controller, hwnd, WM_KEYDOWN, VK_RETURN, 0));
                 if (controller->asyncSession && ! controller->running)
@@ -1999,6 +2011,17 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             auto request = TakeMessagePayload<MenuAccessibilityRequest>(lp);
             if (request && request->target == hwnd)
                 InvalidatePopup(*popup);
+            return 0;
+        }
+        if (msg == kMenuForwardCursorMessage)
+        {
+            // Read everything first: the forwarded WM_SETCURSOR may run code that closes the menu and frees both.
+            if (! controller || ! controller->running || ! controller->cursorForwardPending)
+                return 0;
+            controller->cursorForwardPending = false;
+            const POINT point                = controller->cursorForwardPoint;
+            if (! ForwardSetCursorToThreadWindowAt(point))
+                ShowArrowCursor();
             return 0;
         }
         if (msg == kMenuDeferredFinalizeMessage)
@@ -2112,6 +2135,8 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             // while that caller is still using them.
             if (controller && controller->asyncSession && ! controller->asyncFinalizing && ! controller->destroyingPopupWindow)
             {
+                // The owner may be in the middle of its own DestroyWindow: no window is messaged to choose a cursor.
+                controller->cursorChosen = false;
                 controller->Dismiss();
                 FinalizeAsyncMenuController(*controller);
             }
@@ -2625,6 +2650,37 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
 // Paint menu content (called from WM_PAINT via ControlHost)
 // ---------------------------------------------------------------------------
 
+// Draws a described row's two prepared fields, in the colors of the row's label and secondary text. False leaves a plain
+// row to the caller. Color glyphs (emoji) render as in plain rows; like the Grid, no clip to the fractional layout box.
+[[nodiscard]] bool DrawMenuDescription(ControlHost& host,
+                                       ID2D1DeviceContext& dc,
+                                       const MenuPopup& popup,
+                                       size_t index,
+                                       const MenuItemLayoutRects& layout,
+                                       const D2D1_COLOR_F& primaryColor,
+                                       const D2D1_COLOR_F& secondaryColor) noexcept
+{
+    if (popup.descriptionLayouts.empty() || ! HasMenuDescription(popup.items[index]))
+    {
+        return false;
+    }
+    // GetSolidBrush can return null; like every other draw here, skip rather than pass it.
+    const auto& row = popup.descriptionLayouts[index];
+    if (auto* primaryBrush = host.GetSolidBrush(primaryColor); primaryBrush && row.primary)
+    {
+        dc.DrawTextLayout(
+            D2D1::Point2F(layout.textRectDip.left, layout.textRectDip.top), row.primary.get(), primaryBrush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+    }
+    if (auto* secondaryBrush = host.GetSolidBrush(secondaryColor); secondaryBrush && row.secondary)
+    {
+        dc.DrawTextLayout(D2D1::Point2F(layout.secondaryTextRectDip.left, layout.secondaryTextRectDip.top),
+                          row.secondary.get(),
+                          secondaryBrush,
+                          D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+    }
+    return true;
+}
+
 class MenuContentControl final : public Panel
 {
 public:
@@ -2838,13 +2894,17 @@ public:
                 const DecodedMenuItemText decoded = DecodeMenuItemText(item);
                 const ParsedMenuLabel label       = ParseMenuLabel(decoded.labelText);
                 const D2D1_COLOR_F infoLabelColor = decoded.acceleratorText.empty() ? style.text : style.accelText;
-                DrawCenteredText(host,
-                                 label.displayText,
-                                 layout.textRectDip,
-                                 FontRole::Body,
-                                 infoLabelColor,
-                                 DWRITE_TEXT_ALIGNMENT_LEADING,
-                                 DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+                // A described Info row was measured with its description; draw it rather than leave the row's space empty.
+                if (! DrawMenuDescription(host, *dc, *popup, i, layout, infoLabelColor, style.accelText))
+                {
+                    DrawCenteredText(host,
+                                     label.displayText,
+                                     layout.textRectDip,
+                                     FontRole::Body,
+                                     infoLabelColor,
+                                     DWRITE_TEXT_ALIGNMENT_LEADING,
+                                     DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+                }
 
                 if (! decoded.acceleratorText.empty())
                 {
@@ -2923,20 +2983,7 @@ public:
             }
 
             // Detailed text is prepared at the final available width outside paint.
-            if (! popup->descriptionLayouts.empty() && HasMenuDescription(item))
-            {
-                // GetSolidBrush can return null; like every other draw here, skip rather than pass it.
-                const auto& row = popup->descriptionLayouts[i];
-                if (auto* primaryBrush = host.GetSolidBrush(textColor); primaryBrush && row.primary)
-                {
-                    dc->DrawTextLayout(D2D1::Point2F(layout.textRectDip.left, layout.textRectDip.top), row.primary.get(), primaryBrush);
-                }
-                if (auto* secondaryBrush = host.GetSolidBrush(accelColor); secondaryBrush && row.secondary)
-                {
-                    dc->DrawTextLayout(D2D1::Point2F(layout.secondaryTextRectDip.left, layout.secondaryTextRectDip.top), row.secondary.get(), secondaryBrush);
-                }
-            }
-            else
+            if (! DrawMenuDescription(host, *dc, *popup, i, layout, textColor, accelColor))
             {
                 DrawCenteredText(
                     host, label.displayText, layout.textRectDip, FontRole::Body, textColor, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
@@ -3108,6 +3155,10 @@ void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
         popup.host.SetFocusControl(focus, false);
         // A completed focus transition republishes the UIA snapshot, including the bounds above.
         published = popup.host.GetFocusControl() == focus;
+        // Win32 focus stays on the session's root popup, so no system focus event reports a row change: raise it for
+        // clients that track focus (screen readers) as the keyboard moves through the rows.
+        if (published && focus)
+            RaiseWindowHostFocusChanged(popup.hwnd, focus);
     }
     // Providers answer BoundingRectangle and ElementProviderFromPoint from that published
     // snapshot. Scrolling, DPI reflow and UIA-driven reveal move rows without a focus change,
@@ -4046,6 +4097,7 @@ std::vector<std::unique_ptr<MenuController>>& ActiveAsyncMenuControllers() noexc
     SetCapture(root->hwnd);
     ActivatePopupForKeyboard(*root);
     controller.asyncInteractionActive = true;
+    ApplyMenuCursorAtPointer(controller);
     DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.async-start",
                                 L"owner={:#x} root={:#x} previousCapture={:#x} previousFocus={:#x} currentCapture={:#x} popupCount={} items={} "
                                 L"ignoreLeft={} ignoreRight={}",
@@ -4116,6 +4168,7 @@ void FinalizeAsyncMenuController(MenuController& controller) noexcept
     ContextMenuClosedCallback onClosed = std::move(target.asyncOnClosed);
     EndAsyncMenuInteraction(target);
     DestroyPopupChain(target);
+    RestoreWindowCursorAfterMenu(target);
 
     DXUI_MENU_DIAGNOSTICS_TRACE(L"menu.async-end",
                                 L"owner={:#x} result={} captureAfter={:#x} focusAfter={:#x}",
@@ -4176,6 +4229,7 @@ void FinalizeAsyncMenuController(MenuController& controller) noexcept
         [[maybe_unused]] const HWND previousCapture = GetCapture();
         SetCapture(root->hwnd);
         ActivatePopupForKeyboard(*root);
+        ApplyMenuCursorAtPointer(controller);
         DXUI_MENU_TRACE(L"DxUi::MenuTrace Popup switch-capture root={:#x} previousCapture={:#x} currentCapture={:#x}",
                         reinterpret_cast<uintptr_t>(root->hwnd),
                         reinterpret_cast<uintptr_t>(previousCapture),
@@ -4219,6 +4273,65 @@ void FinalizeAsyncMenuController(MenuController& controller) noexcept
     }
 
     return false;
+}
+
+// While a popup holds capture Windows sends no WM_SETCURSOR, so the menu chooses the cursor itself. A window of this
+// thread under the pointer chooses its own, as it would without capture; windows of other threads are never messaged.
+[[nodiscard]] bool ForwardSetCursorToThreadWindowAt(POINT screenPoint) noexcept
+{
+    const HWND window = WindowFromPoint(screenPoint);
+    if (! window || GetWindowThreadProcessId(window, nullptr) != GetCurrentThreadId())
+        return false;
+    const LPARAM point = MAKELPARAM(static_cast<WORD>(static_cast<SHORT>(screenPoint.x)), static_cast<WORD>(static_cast<SHORT>(screenPoint.y)));
+    const LRESULT hit  = SendMessageW(window, WM_NCHITTEST, 0, point);
+    if (hit == HTTRANSPARENT || ! IsWindow(window))
+        return false;
+    SendMessageW(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window), MAKELPARAM(static_cast<WORD>(static_cast<SHORT>(hit)), WM_MOUSEMOVE));
+    return true;
+}
+
+void ShowArrowCursor() noexcept
+{
+    static const HCURSOR arrow = LoadCursorW(nullptr, IDC_ARROW);
+    if (GetCursor() != arrow)
+        SetCursor(arrow);
+}
+
+// The standard arrow over the menu's popups (and while one drags a slider or scrollbar); elsewhere the cursor the
+// window under the pointer chooses, or the arrow for another thread's window. That window's WM_SETCURSOR handling
+// may dismiss the menu, so the forward never runs inside a menu handler: it is posted to the root popup, whose
+// handler forwards as its last action and touches neither popup nor controller afterwards.
+void ApplyMenuPointerCursor(MenuController& controller, POINT screenPoint, bool overMenu) noexcept
+{
+    controller.cursorChosen = true;
+    if (overMenu)
+    {
+        controller.cursorForwardPending = false;
+        ShowArrowCursor();
+        return;
+    }
+    const MenuPopup* const root     = controller.GetRootPopup();
+    controller.cursorForwardPoint   = screenPoint;
+    controller.cursorForwardPending = root && root->hwnd && PostMessageW(root->hwnd, kMenuForwardCursorMessage, 0, 0) != FALSE;
+    if (! controller.cursorForwardPending)
+        ShowArrowCursor();
+}
+
+// One cursor choice when the menu takes or moves capture; pointer moves choose it afterwards.
+void ApplyMenuCursorAtPointer(MenuController& controller) noexcept
+{
+    POINT pointer{};
+    if (GetCursorPos(&pointer) != FALSE) // getcursorpos-allow: one-shot cursor choice when a menu takes or moves capture
+        ApplyMenuPointerCursor(controller, pointer, FindPointerTargetPopup(controller, pointer) != nullptr);
+}
+
+// When the menu closes, the window under the pointer chooses its cursor at once rather than at the next pointer move
+// (a caller that runs a long command after a modal menu would otherwise keep the menu's arrow).
+void RestoreWindowCursorAfterMenu(const MenuController& controller) noexcept
+{
+    POINT pointer{};
+    if (controller.cursorChosen && GetCursorPos(&pointer) != FALSE) // getcursorpos-allow: one-shot cursor restoration when a menu closes
+        static_cast<void>(ForwardSetCursorToThreadWindowAt(pointer));
 }
 
 [[nodiscard]] std::optional<D2D1_POINT_2F> ScreenPointToPopupDip(const MenuPopup& popup, POINT screenPt) noexcept
@@ -4561,7 +4674,10 @@ void TraceMenuPointerRoute(MenuController& controller,
 
     if (event.kind == MenuPointerKind::Move)
     {
-        return finish(RouteMenuPointerHover(controller, event));
+        const MenuInputDisposition disposition = RouteMenuPointerHover(controller, event);
+        if (controller.running)
+            ApplyMenuPointerCursor(controller, event.screenPoint, FindPointerTargetPopup(controller, event) != nullptr);
+        return finish(disposition);
     }
 
     MenuPopup* targetPopup = FindPointerTargetPopup(controller, event);
@@ -5227,6 +5343,7 @@ void RunMenuModalLoop(MenuController& controller)
     const HWND previousFocus                    = GetFocus();
     SetCapture(root->hwnd);
     ActivatePopupForKeyboard(*root);
+    ApplyMenuCursorAtPointer(controller);
     DXUI_MENU_TRACE(L"DxUi::MenuTrace Popup loop-start owner={:#x} root={:#x} previousCapture={:#x} currentCapture={:#x} popupCount={} items={}",
                     reinterpret_cast<uintptr_t>(controller.ownerHwnd),
                     reinterpret_cast<uintptr_t>(root->hwnd),
@@ -5390,7 +5507,7 @@ void RunMenuModalLoop(MenuController& controller)
             continue;
         }
 
-        if (msg.message == WndMsg::kDxUiContextMenuRootHoverChanged)
+        if (msg.message == WndMsg::kContextMenuRootHoverChanged)
         {
             flushRepeatedMessageTrace();
             if (controller.sessionCallbacks.switchRootFromMenuBarHover)
@@ -5679,6 +5796,7 @@ std::optional<int> ContextMenu::Show(
     RunMenuModalLoop(controller);
 
     DestroyPopupChain(controller);
+    RestoreWindowCursorAfterMenu(controller);
 
     DXUI_MENU_TRACE(L"DxUi::MenuTrace ContextMenu show-end owner={:#x} result={} captureAfter={:#x}",
                     reinterpret_cast<uintptr_t>(ownerHwnd),

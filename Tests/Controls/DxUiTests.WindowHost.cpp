@@ -18,17 +18,17 @@ void TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies()
     using namespace DxUi;
     using namespace DxUi::Typography;
 
-    const TypographySpec bodySpec       = GetDxUiTypographySpec(FontRole::Body);
-    const TypographySpec bodyStrongSpec = GetDxUiTypographySpec(FontRole::BodyStrong);
-    const TypographySpec listItemSpec   = GetDxUiTypographySpec(FontRole::ListItem);
-    const TypographySpec smallSpec      = GetDxUiTypographySpec(FontRole::Small);
-    const TypographySpec headerSpec     = GetDxUiTypographySpec(FontRole::Header);
-    const TypographySpec titleLargeSpec = GetDxUiTypographySpec(FontRole::TitleLarge);
-    const TypographySpec displaySpec    = GetDxUiTypographySpec(FontRole::Display);
-    const TypographySpec iconSpec       = GetDxUiTypographySpec(FontRole::Icon);
-    const TypographySpec iconLargeSpec  = GetDxUiTypographySpec(FontRole::IconLarge);
-    const TypographySpec heroIconSpec   = GetDxUiTypographySpec(FontRole::HeroIcon);
-    const TypographySpec monoSpec       = GetDxUiTypographySpec(FontRole::Monospace);
+    const Spec bodySpec       = GetSpec(FontRole::Body);
+    const Spec bodyStrongSpec = GetSpec(FontRole::BodyStrong);
+    const Spec listItemSpec   = GetSpec(FontRole::ListItem);
+    const Spec smallSpec      = GetSpec(FontRole::Small);
+    const Spec headerSpec     = GetSpec(FontRole::Header);
+    const Spec titleLargeSpec = GetSpec(FontRole::TitleLarge);
+    const Spec displaySpec    = GetSpec(FontRole::Display);
+    const Spec iconSpec       = GetSpec(FontRole::Icon);
+    const Spec iconLargeSpec  = GetSpec(FontRole::IconLarge);
+    const Spec heroIconSpec   = GetSpec(FontRole::HeroIcon);
+    const Spec monoSpec       = GetSpec(FontRole::Monospace);
 
     Require(bodySpec.familyName == kSegoeUiVariableTextFamily, "body role uses Segoe UI Variable Text");
     Require(bodyStrongSpec.familyName == kSegoeUiVariableTextFamily, "body-strong role uses Segoe UI Variable Text");
@@ -2458,6 +2458,83 @@ void TestWindowHostRenderSurvivesForcedNullSolidBrushes()
     window.Host().DebugSetForceNullSolidBrushes(false);
 }
 
+void TestWindowHostEditorControlsSurviveForcedNullSolidBrushes()
+{
+    using namespace DxUi;
+
+    // The editor controls draw separators, grips, markers and a focused field through their own brush helpers.
+    // A null solid brush (brush failure or device loss) must skip those draws instead of reaching Direct2D.
+    AttachedHostWindow window;
+    auto root     = std::make_unique<Panel>();
+    auto* picker  = root->AddChild<ColorPicker>();
+    auto* stepper = root->AddChild<NumericStepper>();
+    auto* split   = root->AddChild<Splitter>();
+    picker->SetBounds(D2D1::RectF(0.0f, 0.0f, ColorPicker::kDefaultWidthDip, ColorPicker::kDefaultHeightDip));
+    picker->SetColor(0xFF3A7BD5u);
+    stepper->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 8.0f + NumericStepper::kDefaultHeightDip));
+    stepper->SetLabel(L"X", 14.0f);
+    stepper->SetUnit(L"px", 18.0f);
+    split->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 160.0f));
+    split->SetPosition(120.0f);
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(&stepper->Field());
+    window.Host().DebugSetForceNullSolidBrushes(true);
+
+    const uint64_t presentFailuresBefore = window.Host().DebugGetPresentFailureCount();
+    const WindowHostBitmapCapture capture =
+        CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "forced-null solid brush editor render completes without crashing");
+    Require(capture.widthPx > 0u && capture.heightPx > 0u, "forced-null solid brush editor render still produces a capture");
+    Require(window.Host().DebugGetPresentFailureCount() == presentFailuresBefore, "forced-null solid brush editor render does not introduce present failures");
+
+    window.Host().DebugSetForceNullSolidBrushes(false);
+}
+
+void TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag()
+{
+    using namespace DxUi;
+
+    // A drag whose control or ancestor is disabled or hidden ends as a cancel, as in EmbeddedHost, instead of the
+    // host dropping the capture silently and leaving the control mid-drag for the next press.
+    AttachedHostWindow window;
+    auto root      = std::make_unique<Panel>();
+    auto* pane     = root->AddChild<Panel>();
+    auto* splitter = pane->AddChild<Splitter>();
+    pane->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 160.0f));
+    splitter->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 160.0f));
+    splitter->SetPosition(120.0f);
+    std::vector<SplitterChangePhase> phases;
+    splitter->SetOnChange([&](SplitterChange change) { phases.push_back(change.phase); });
+    window.Host().SetRoot(std::move(root));
+    const auto cancels = [&phases]
+    {
+        size_t count = 0u;
+        for (const SplitterChangePhase phase : phases)
+        {
+            count += phase == SplitterChangePhase::Cancel ? 1u : 0u;
+        }
+        return count;
+    };
+    const D2D1_POINT_2F press = D2D1::Point2F(122.0f, 40.0f);
+    const D2D1_POINT_2F moved = D2D1::Point2F(180.0f, 40.0f);
+    bool handled              = false;
+
+    Require(splitter->OnMouseDown(window.Host(), press, false, 0u), "the splitter drag starts");
+    Require(splitter->OnMouseMove(window.Host(), moved, 0u) && splitter->GetPosition() > 150.0f, "the splitter drag previews");
+    splitter->SetEnabled(false);
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NULL, 0, 0, handled));
+    Require(! splitter->IsDragging() && splitter->GetPosition() == 120.0f, "disabling the captured splitter cancels its drag and restores the start");
+    Require(window.Host().GetCapturedControl() == nullptr && cancels() == 1u, "the host released the capture and the drag notified one cancel");
+
+    splitter->SetEnabled(true);
+    Require(splitter->OnMouseDown(window.Host(), press, false, 0u), "a second splitter drag starts");
+    Require(splitter->OnMouseMove(window.Host(), moved, 0u), "the second drag previews");
+    pane->SetVisible(false);
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_NULL, 0, 0, handled));
+    Require(! splitter->IsDragging() && splitter->GetPosition() == 120.0f,
+            "hiding an ancestor cancels the drag although the splitter's own flags are unchanged");
+    Require(cancels() == 2u, "each abandoned drag notifies one cancel");
+}
+
 void TestWindowHostSmokeOverlayRendersBelowRootOverlay()
 {
     using namespace DxUi;
@@ -3142,6 +3219,8 @@ void RunWindowHostTests()
     runTest("TestWindowHostResetInteractionStateNotifiesCapturedControl", TestWindowHostResetInteractionStateNotifiesCapturedControl);
     runTest("TestWindowHostRedundantCaptureDoesNotCancelMouseDownCapture", TestWindowHostRedundantCaptureDoesNotCancelMouseDownCapture);
     runTest("TestWindowHostRenderSurvivesForcedNullSolidBrushes", TestWindowHostRenderSurvivesForcedNullSolidBrushes);
+    runTest("TestWindowHostEditorControlsSurviveForcedNullSolidBrushes", TestWindowHostEditorControlsSurviveForcedNullSolidBrushes);
+    runTest("TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag", TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag);
     runTest("TestWindowHostSmokeOverlayRendersBelowRootOverlay", TestWindowHostSmokeOverlayRendersBelowRootOverlay);
     runTest("TestWindowHostOverlayHitTestingPrecedesContentHitTesting", TestWindowHostOverlayHitTestingPrecedesContentHitTesting);
     runTest("TestWindowHostEscapeClosesMouseOpenedComboPopupBeforeCancelButton", TestWindowHostEscapeClosesMouseOpenedComboPopupBeforeCancelButton);

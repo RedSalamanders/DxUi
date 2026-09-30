@@ -5,13 +5,16 @@ Creates a detached worktree of BaselineRevision under .build/paired/<run>, copie
 driver and benchmark inputs into it, restores and builds both trees, then runs each scenario serially as A1, B1,
 B2, A2 (A = baseline, B = candidate). The candidate is this checkout, or a second detached worktree when
 CandidateRevision is given; both historical trees then use this checkout's harness. B1/A1 and B2/A2 cross the
-change; A2/A1 and B2/B1 are same-source controls. Every receipt and comparison is retained under the run's
-reports directory with summary.json. Flagged comparisons are findings that need developer advice, not script
-failures; invalid evidence fails. Worktrees are left in place for inspection; remove them with git worktree remove.
+change; A2/A1 and B2/B1 are same-source controls, judged two-sided: drift beyond a band in either direction marks
+the control unstable-control, because a set whose unchanged binary swings cannot support its crossings. Every
+receipt and comparison is retained under the run's reports directory with summary.json. Flagged comparisons are
+findings that need developer advice, not script failures; invalid evidence fails. Worktrees are left in place for
+inspection; the harness overlay dirties them, so remove them with git worktree remove --force.
 .PARAMETER BaselineRevision Commit, branch or tag measured as A.
 .PARAMETER CandidateRevision Optional commit, branch or tag measured as B instead of this checkout.
 .PARAMETER Scenario One or more performance.ps1 scenarios.
 .PARAMETER OutputDirectory Parent of the run directory; defaults to .build/paired.
+.PARAMETER SkipBuild Reuses this checkout's existing build when it is the candidate. Detached worktrees are new and always build.
 #>
 [CmdletBinding()]
 param(
@@ -19,7 +22,7 @@ param(
     [string] $CandidateRevision = '',
     [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Release',
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
-    [ValidateSet('Default','MultilineGrid','MultilineGridRetention','MultilineGridHeap','MultilineGridHeapPaced')][string[]] $Scenario = @('Default'),
+    [ValidateSet('Default','MultilineGrid','MultilineGridDistinct','MultilineGridRetention','MultilineGridHeap','MultilineGridHeapPaced')][string[]] $Scenario = @('Default'),
     [string] $OutputDirectory = '',
     [switch] $SkipBuild
 )
@@ -71,11 +74,11 @@ foreach ($worktree in $worktrees) {
     }
 }
 
-if (-not $SkipBuild) {
-    foreach ($worktree in $worktrees) { & (Join-Path $worktree[0] 'vcpkg-install.ps1') -Platform $Platform }
-    foreach ($root in @($baselineRoot, $candidateRoot)) {
-        & (Join-Path $root 'build.ps1') -Configuration $Configuration -Platform $Platform
-    }
+foreach ($worktree in $worktrees) { & (Join-Path $worktree[0] 'vcpkg-install.ps1') -Platform $Platform }
+foreach ($root in @($baselineRoot, $candidateRoot)) {
+    # A new worktree has no build to reuse; only this checkout's existing build may be skipped.
+    if ($SkipBuild -and $root -eq $harnessRoot) { continue }
+    & (Join-Path $root 'build.ps1') -Configuration $Configuration -Platform $Platform
 }
 
 function Get-Median([double[]] $Values) {
@@ -106,7 +109,7 @@ function Invoke-Measurement([string] $Root, [string] $Name, [string] $ScenarioNa
     return $path
 }
 
-function Compare-Measurement([string] $Candidate, [string] $Baseline, [string] $Name) {
+function Compare-Measurement([string] $Candidate, [string] $Baseline, [string] $Name, [switch] $Control) {
     $output = Join-Path $reports "$Name.comparison.json"
     # Invoke-Python throws when the comparator flags a regression; the written status is the result.
     try {
@@ -116,7 +119,18 @@ function Compare-Measurement([string] $Candidate, [string] $Baseline, [string] $
         Write-Host "Comparator exit for ${Name}: $($_.Exception.Message)"
     }
     if (-not (Test-Path -LiteralPath $output -PathType Leaf)) { throw "The comparator wrote no result: $output" }
-    return [ordered]@{ name = $Name; status = (Get-Content -Raw -LiteralPath $output | ConvertFrom-Json).status; file = (Split-Path $output -Leaf) }
+    $comparison = Get-Content -Raw -LiteralPath $output | ConvertFrom-Json
+    $status = $comparison.status
+    $drift = @()
+    if ($Control -and $status -ne 'invalid-evidence') {
+        # The comparator tests only the regression direction. A same-source control measures noise, so a swing
+        # beyond a band either way (an unchanged binary 30% faster on its second run) makes the set unstable.
+        $drift = @($comparison.changes | Where-Object {
+                if ($null -eq $_.changePercent) { $_.before -ne $_.after } else { [Math]::Abs([double]$_.changePercent) -gt [double]$_.noisePercent }
+            } | ForEach-Object { '{0}/{1} {2}' -f $_.scenario, $_.metric, $(if ($null -eq $_.changePercent) { "$($_.before) -> $($_.after)" } else { '{0:+0.00;-0.00}%' -f [double]$_.changePercent }) })
+        $status = if ($drift.Count -gt 0) { 'unstable-control' } else { 'stable-control' }
+    }
+    return [ordered]@{ name = $Name; status = $status; file = (Split-Path $output -Leaf); drift = $drift }
 }
 
 $results = @()
@@ -128,8 +142,8 @@ foreach ($scenarioName in $Scenario) {
     $comparisons = @(
         Compare-Measurement -Candidate $runs.B1 -Baseline $runs.A1 -Name "$scenarioName-B1-vs-A1"
         Compare-Measurement -Candidate $runs.B2 -Baseline $runs.A2 -Name "$scenarioName-B2-vs-A2"
-        Compare-Measurement -Candidate $runs.A2 -Baseline $runs.A1 -Name "$scenarioName-A2-vs-A1-control"
-        Compare-Measurement -Candidate $runs.B2 -Baseline $runs.B1 -Name "$scenarioName-B2-vs-B1-control"
+        Compare-Measurement -Candidate $runs.A2 -Baseline $runs.A1 -Name "$scenarioName-A2-vs-A1-control" -Control
+        Compare-Measurement -Candidate $runs.B2 -Baseline $runs.B1 -Name "$scenarioName-B2-vs-B1-control" -Control
     )
     $reportsByRun = [ordered]@{}
     foreach ($name in $runs.Keys) { $reportsByRun[$name] = Get-ReportMedians -Path $runs[$name] }
@@ -154,10 +168,19 @@ foreach ($result in $results) {
             Write-Host ('  {0} {1,-5} fps {2,9:N3}  private {3,12:N0}  working set {4,12:N0}' -f $name, $phase, $m.fps, $m.privateBytes, $m.workingSetBytes)
         }
     }
-    foreach ($comparison in $result.comparisons) { Write-Host "  $($comparison.name): $($comparison.status)" }
+    foreach ($comparison in $result.comparisons) {
+        Write-Host "  $($comparison.name): $($comparison.status)"
+        foreach ($entry in $comparison.drift) { Write-Host "    drift $entry" }
+    }
 }
 Write-Host "Paired reports: $reports"
 $invalid = @($results | ForEach-Object { $_.comparisons } | Where-Object { $_.status -eq 'invalid-evidence' })
 if ($invalid.Count -gt 0) { throw "Invalid paired evidence: $(($invalid | ForEach-Object { $_.name }) -join ', ')" }
+$findings = @($results | ForEach-Object { $_.comparisons } | Where-Object { $_.status -in @('advice-required', 'unstable-control') })
+if ($findings.Count -gt 0) {
+    $message = "Paired findings need developer advice: $(($findings | ForEach-Object { '{0}={1}' -f $_.name, $_.status }) -join ', ')"
+    # A hosted job stays green for findings; the annotation keeps them visible on the run.
+    if ($env:GITHUB_ACTIONS -eq 'true') { Write-Host "::warning::$message" } else { Write-Warning $message }
+}
 # A flagged comparison leaves the comparator's exit code in $LASTEXITCODE; it is a finding, not a failure.
 exit 0

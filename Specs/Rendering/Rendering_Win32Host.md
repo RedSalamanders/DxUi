@@ -1,7 +1,7 @@
 # Window hosting
 
 Status: normative intended contract
-Last reviewed: 2026-09-05
+Last reviewed: 2026-09-29
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -31,6 +31,9 @@ The native menu modal loop processes pointer/keyboard input and pending paints f
 ordinary posted owner-window traffic. Input feedback cannot depend on the entire owner queue becoming empty.
 An idle menu still blocks on messages; this policy adds no timer, polling or synchronous repaint during dispatch.
 The existing owner-message-flood test retains its hover/invocation deadline and verifies visible feedback.
+Because capture suppresses `WM_SETCURSOR`, the menu sets the cursor from each delivered pointer move (arrow over its
+popups, the same-thread window under the pointer choosing its own outside them) and reads the pointer only once when
+it takes or moves capture and once when it closes; see the [input and accessibility contract](../UI/UI_InputAndAccessibility.md).
 
 An asynchronous menu controller must also close its interaction and native popup chain during
 thread-local/CRT destruction when its caller leaves a menu open. Mark finalization before releasing

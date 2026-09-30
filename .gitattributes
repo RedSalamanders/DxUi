@@ -17,3 +17,8 @@ Measurements/MenuDescriptions/2026-09-27/paired-hosted/*.json -text -whitespace
 Measurements/MenuDescriptions/2026-09-27/paired-hosted/*.receipt.txt -text -whitespace
 Measurements/GalleryFollowUps/2026-09-28/paired-hosted/*.json -text -whitespace
 Measurements/GalleryFollowUps/2026-09-28/paired-hosted/*.receipt.txt -text -whitespace
+Measurements/ReviewFixes/2026-09-29/paired-local/*.json -text -whitespace
+Measurements/ReviewFixes/2026-09-29/slot-hash-experiment/*.json -text -whitespace
+Measurements/ReviewFixes/2026-09-29/**/SHA256SUMS -text -whitespace
+Measurements/ReviewFollowUps/2026-09-29/paired-local/**/*.json -text -whitespace
+Measurements/ReviewFollowUps/2026-09-29/**/SHA256SUMS -text -whitespace

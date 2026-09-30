@@ -39,7 +39,7 @@ inline constexpr wchar_t kSegoeUiEmojiFamily[]           = L"Segoe UI Emoji";
 inline constexpr wchar_t kUiMonospaceFamily[]            = L"Consolas";
 inline constexpr size_t kMaxDWriteFamilyNameLength       = 255u;
 
-struct TypographySpec
+struct Spec
 {
     std::wstring_view familyName = kSegoeUiVariableTextFamily;
     DWRITE_FONT_WEIGHT weight    = DWRITE_FONT_WEIGHT_NORMAL;
@@ -54,33 +54,31 @@ struct TextPixelMetrics final
     int lineHeightPx = 0;
 };
 
-inline constexpr std::wstring_view kTypographyFamilyCacheMissMetric     = L"dxui.typography.family_cache_miss_count";
-inline constexpr std::wstring_view kTypographyTextFormatCacheMissMetric = L"dxui.typography.text_format_cache_miss_count";
+inline constexpr std::wstring_view kFamilyCacheMissMetric     = L"dxui.typography.family_cache_miss_count";
+inline constexpr std::wstring_view kTextFormatCacheMissMetric = L"dxui.typography.text_format_cache_miss_count";
 
-using TypographyPerfEmitter =
-    void (*)(std::wstring_view metric, std::wstring_view detail, uint64_t durationUs, uint64_t value, uint64_t count, HRESULT hr) noexcept;
+using PerfEmitter = void (*)(std::wstring_view metric, std::wstring_view detail, uint64_t durationUs, uint64_t value, uint64_t count, HRESULT hr) noexcept;
 
-[[nodiscard]] inline std::atomic<TypographyPerfEmitter>& GetTypographyPerfEmitter() noexcept
+[[nodiscard]] inline std::atomic<PerfEmitter>& GetPerfEmitter() noexcept
 {
-    static std::atomic<TypographyPerfEmitter> emitter{nullptr};
+    static std::atomic<PerfEmitter> emitter{nullptr};
     return emitter;
 }
 
-inline void SetTypographyPerfEmitter(TypographyPerfEmitter emitter) noexcept
+inline void SetPerfEmitter(PerfEmitter emitter) noexcept
 {
-    GetTypographyPerfEmitter().store(emitter, std::memory_order_release);
+    GetPerfEmitter().store(emitter, std::memory_order_release);
 }
 
-inline void EmitTypographyPerfCounter(
-    std::wstring_view metric, std::wstring_view detail, uint64_t durationUs, uint64_t value, uint64_t count, HRESULT hr) noexcept
+inline void EmitPerfCounter(std::wstring_view metric, std::wstring_view detail, uint64_t durationUs, uint64_t value, uint64_t count, HRESULT hr) noexcept
 {
-    if (TypographyPerfEmitter emitter = GetTypographyPerfEmitter().load(std::memory_order_acquire))
+    if (PerfEmitter emitter = GetPerfEmitter().load(std::memory_order_acquire))
     {
         emitter(metric, detail, durationUs, value, count, hr);
     }
 }
 
-struct TypographyFontFamilyCacheEntry final
+struct FontFamilyCacheEntry final
 {
     wil::com_ptr<IDWriteFactory> factory;
     IDWriteFactory* factoryKey = nullptr;
@@ -88,7 +86,7 @@ struct TypographyFontFamilyCacheEntry final
     bool available = false;
 };
 
-struct TypographyTextFormatCacheEntry final
+struct TextFormatCacheEntry final
 {
     wil::com_ptr<IDWriteFactory> factory;
     IDWriteFactory* factoryKey = nullptr;
@@ -110,29 +108,29 @@ struct TypographyTextFormatCacheEntry final
     return kSegoeUiVariableTextFamily;
 }
 
-[[nodiscard]] inline TypographySpec MakeUiTextSpec(float sizeDip,
-                                                   DWRITE_FONT_WEIGHT weight = DWRITE_FONT_WEIGHT_NORMAL,
-                                                   DWRITE_FONT_STYLE style   = DWRITE_FONT_STYLE_NORMAL) noexcept
+[[nodiscard]] inline Spec MakeUiTextSpec(float sizeDip,
+                                         DWRITE_FONT_WEIGHT weight = DWRITE_FONT_WEIGHT_NORMAL,
+                                         DWRITE_FONT_STYLE style   = DWRITE_FONT_STYLE_NORMAL) noexcept
 {
-    return TypographySpec{.familyName = GetUiTextFamilyForSizeDip(sizeDip), .weight = weight, .style = style, .sizeDip = sizeDip};
+    return Spec{.familyName = GetUiTextFamilyForSizeDip(sizeDip), .weight = weight, .style = style, .sizeDip = sizeDip};
 }
 
-[[nodiscard]] inline TypographySpec MakeUiIconSpec(float sizeDip, DWRITE_FONT_WEIGHT weight = DWRITE_FONT_WEIGHT_NORMAL) noexcept
+[[nodiscard]] inline Spec MakeUiIconSpec(float sizeDip, DWRITE_FONT_WEIGHT weight = DWRITE_FONT_WEIGHT_NORMAL) noexcept
 {
-    return TypographySpec{.familyName = kSegoeFluentIconsFamily, .weight = weight, .sizeDip = sizeDip};
+    return Spec{.familyName = kSegoeFluentIconsFamily, .weight = weight, .sizeDip = sizeDip};
 }
 
-[[nodiscard]] inline TypographySpec MakeUiEmojiSpec(float sizeDip, DWRITE_FONT_WEIGHT weight = DWRITE_FONT_WEIGHT_NORMAL) noexcept
+[[nodiscard]] inline Spec MakeUiEmojiSpec(float sizeDip, DWRITE_FONT_WEIGHT weight = DWRITE_FONT_WEIGHT_NORMAL) noexcept
 {
-    return TypographySpec{.familyName = kSegoeUiEmojiFamily, .weight = weight, .sizeDip = sizeDip};
+    return Spec{.familyName = kSegoeUiEmojiFamily, .weight = weight, .sizeDip = sizeDip};
 }
 
-[[nodiscard]] inline TypographySpec MakeUiMonospaceSpec(float sizeDip, DWRITE_FONT_WEIGHT weight = DWRITE_FONT_WEIGHT_NORMAL) noexcept
+[[nodiscard]] inline Spec MakeUiMonospaceSpec(float sizeDip, DWRITE_FONT_WEIGHT weight = DWRITE_FONT_WEIGHT_NORMAL) noexcept
 {
-    return TypographySpec{.familyName = kUiMonospaceFamily, .weight = weight, .sizeDip = sizeDip};
+    return Spec{.familyName = kUiMonospaceFamily, .weight = weight, .sizeDip = sizeDip};
 }
 
-[[nodiscard]] inline TypographySpec GetDxUiTypographySpec(FontRole role) noexcept
+[[nodiscard]] inline Spec GetSpec(FontRole role) noexcept
 {
     switch (role)
     {
@@ -193,21 +191,21 @@ template <size_t Capacity> [[nodiscard]] inline bool CopyNullTerminated(std::wst
     return kSegoeUiFallbackFamily;
 }
 
-[[nodiscard]] inline std::mutex& GetTypographyMeasurementCacheMutex() noexcept
+[[nodiscard]] inline std::mutex& GetMeasurementCacheMutex() noexcept
 {
     static std::mutex cacheMutex;
     return cacheMutex;
 }
 
-[[nodiscard]] inline std::vector<TypographyFontFamilyCacheEntry>& GetTypographyFontFamilyCache() noexcept
+[[nodiscard]] inline std::vector<FontFamilyCacheEntry>& GetFontFamilyCache() noexcept
 {
-    static std::vector<TypographyFontFamilyCacheEntry> cache;
+    static std::vector<FontFamilyCacheEntry> cache;
     return cache;
 }
 
-[[nodiscard]] inline std::vector<TypographyTextFormatCacheEntry>& GetTypographyTextFormatCache() noexcept
+[[nodiscard]] inline std::vector<TextFormatCacheEntry>& GetTextFormatCache() noexcept
 {
-    static std::vector<TypographyTextFormatCacheEntry> cache;
+    static std::vector<TextFormatCacheEntry> cache;
     return cache;
 }
 
@@ -239,8 +237,8 @@ template <size_t Capacity> [[nodiscard]] inline bool CopyNullTerminated(std::wst
     }
 
     {
-        std::scoped_lock lock(GetTypographyMeasurementCacheMutex());
-        for (const TypographyFontFamilyCacheEntry& entry : GetTypographyFontFamilyCache())
+        std::scoped_lock lock(GetMeasurementCacheMutex());
+        for (const FontFamilyCacheEntry& entry : GetFontFamilyCache())
         {
             if (entry.factoryKey == dwriteFactory && entry.familyName == familyName)
             {
@@ -250,10 +248,10 @@ template <size_t Capacity> [[nodiscard]] inline bool CopyNullTerminated(std::wst
     }
 
     const bool available = QueryFontFamilyAvailable(dwriteFactory, familyName);
-    EmitTypographyPerfCounter(kTypographyFamilyCacheMissMetric, familyName, 0u, 1u, available ? 1u : 0u, S_OK);
+    EmitPerfCounter(kFamilyCacheMissMetric, familyName, 0u, 1u, available ? 1u : 0u, S_OK);
 
-    std::scoped_lock lock(GetTypographyMeasurementCacheMutex());
-    for (const TypographyFontFamilyCacheEntry& entry : GetTypographyFontFamilyCache())
+    std::scoped_lock lock(GetMeasurementCacheMutex());
+    for (const FontFamilyCacheEntry& entry : GetFontFamilyCache())
     {
         if (entry.factoryKey == dwriteFactory && entry.familyName == familyName)
         {
@@ -261,12 +259,12 @@ template <size_t Capacity> [[nodiscard]] inline bool CopyNullTerminated(std::wst
         }
     }
 
-    TypographyFontFamilyCacheEntry entry;
+    FontFamilyCacheEntry entry;
     entry.factory    = dwriteFactory;
     entry.factoryKey = dwriteFactory;
     entry.familyName = familyName;
     entry.available  = available;
-    GetTypographyFontFamilyCache().push_back(std::move(entry));
+    GetFontFamilyCache().push_back(std::move(entry));
     return available;
 }
 
@@ -274,14 +272,14 @@ template <size_t Capacity> [[nodiscard]] inline bool CopyNullTerminated(std::wst
 // Use on a font-selection change, never from preparation or composition per frame.
 inline void InvalidateFontFamilyAvailability(IDWriteFactory* dwriteFactory) noexcept
 {
-    std::scoped_lock lock(GetTypographyMeasurementCacheMutex());
-    auto& cache = GetTypographyFontFamilyCache();
+    std::scoped_lock lock(GetMeasurementCacheMutex());
+    auto& cache = GetFontFamilyCache();
     if (dwriteFactory == nullptr)
     {
         cache.clear();
         return;
     }
-    std::erase_if(cache, [dwriteFactory](const TypographyFontFamilyCacheEntry& entry) noexcept { return entry.factoryKey == dwriteFactory; });
+    std::erase_if(cache, [dwriteFactory](const FontFamilyCacheEntry& entry) noexcept { return entry.factoryKey == dwriteFactory; });
 }
 
 [[nodiscard]] inline std::wstring ResolveCachedFontFamilyName(IDWriteFactory* dwriteFactory, PCWSTR preferredFamilyName) noexcept
@@ -295,10 +293,7 @@ inline void InvalidateFontFamilyAvailability(IDWriteFactory* dwriteFactory) noex
     return IsFontFamilyAvailable(dwriteFactory, preferredFamilyName) ? std::wstring(preferredFamilyName) : std::wstring(fallbackFamily);
 }
 
-[[nodiscard]] inline HRESULT CreateTextFormat(IDWriteFactory* dwriteFactory,
-                                              const TypographySpec& spec,
-                                              IDWriteTextFormat** outFormat,
-                                              PCWSTR localeName = L"") noexcept
+[[nodiscard]] inline HRESULT CreateTextFormat(IDWriteFactory* dwriteFactory, const Spec& spec, IDWriteTextFormat** outFormat, PCWSTR localeName = L"") noexcept
 {
     if (! dwriteFactory || ! outFormat)
     {
@@ -396,8 +391,8 @@ inline void InvalidateFontFamilyAvailability(IDWriteFactory* dwriteFactory) noex
     }
 
     {
-        std::scoped_lock lock(GetTypographyMeasurementCacheMutex());
-        for (const TypographyTextFormatCacheEntry& entry : GetTypographyTextFormatCache())
+        std::scoped_lock lock(GetMeasurementCacheMutex());
+        for (const TextFormatCacheEntry& entry : GetTextFormatCache())
         {
             if (entry.factoryKey == dwriteFactory && entry.role == role && entry.wrap == wrap)
             {
@@ -407,7 +402,7 @@ inline void InvalidateFontFamilyAvailability(IDWriteFactory* dwriteFactory) noex
     }
 
     wil::com_ptr<IDWriteTextFormat> textFormat;
-    if (FAILED(CreateTextFormat(dwriteFactory, GetDxUiTypographySpec(role), textFormat.put())) || ! textFormat)
+    if (FAILED(CreateTextFormat(dwriteFactory, GetSpec(role), textFormat.put())) || ! textFormat)
     {
         return nullptr;
     }
@@ -416,10 +411,10 @@ inline void InvalidateFontFamilyAvailability(IDWriteFactory* dwriteFactory) noex
     static_cast<void>(textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR));
     static_cast<void>(textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING));
 
-    EmitTypographyPerfCounter(kTypographyTextFormatCacheMissMetric, L"", 0u, 1u, static_cast<uint64_t>(role), S_OK);
+    EmitPerfCounter(kTextFormatCacheMissMetric, L"", 0u, 1u, static_cast<uint64_t>(role), S_OK);
 
-    std::scoped_lock lock(GetTypographyMeasurementCacheMutex());
-    for (const TypographyTextFormatCacheEntry& entry : GetTypographyTextFormatCache())
+    std::scoped_lock lock(GetMeasurementCacheMutex());
+    for (const TextFormatCacheEntry& entry : GetTextFormatCache())
     {
         if (entry.factoryKey == dwriteFactory && entry.role == role && entry.wrap == wrap)
         {
@@ -427,14 +422,14 @@ inline void InvalidateFontFamilyAvailability(IDWriteFactory* dwriteFactory) noex
         }
     }
 
-    TypographyTextFormatCacheEntry entry;
+    TextFormatCacheEntry entry;
     entry.factory    = dwriteFactory;
     entry.factoryKey = dwriteFactory;
     entry.role       = role;
     entry.wrap       = wrap;
     entry.textFormat = std::move(textFormat);
-    GetTypographyTextFormatCache().push_back(std::move(entry));
-    return GetTypographyTextFormatCache().back().textFormat.get();
+    GetTextFormatCache().push_back(std::move(entry));
+    return GetTextFormatCache().back().textFormat.get();
 }
 
 [[nodiscard]] inline TextPixelMetrics MeasureSingleLineTextMetrics(IDWriteFactory* dwriteFactory,

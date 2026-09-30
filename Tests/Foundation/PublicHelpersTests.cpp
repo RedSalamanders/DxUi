@@ -28,8 +28,8 @@ bool TestFontAvailabilityInvalidation()
     // Simulate two cached negative answers from before a font installation.
     // Real DirectWrite queries must replace only the invalidated factory's answer.
     {
-        std::scoped_lock lock(GetTypographyMeasurementCacheMutex());
-        for (auto& entry : GetTypographyFontFamilyCache())
+        std::scoped_lock lock(GetMeasurementCacheMutex());
+        for (auto& entry : GetFontFamilyCache())
         {
             entry.available = false;
         }

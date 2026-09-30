@@ -108,7 +108,7 @@ struct ModalLoopOptions final
     ModalLoopQuitCallback onQuit             = nullptr;
 };
 
-[[nodiscard]] ModalLoopResult RunDxUiModalLoop(HWND hwnd, const ModalLoopOptions& options) noexcept;
+[[nodiscard]] ModalLoopResult RunModalLoop(HWND hwnd, const ModalLoopOptions& options) noexcept;
 
 enum class SortDirection : uint8_t
 {
@@ -705,6 +705,7 @@ struct TreeDebugRowVisualState
     bool showFocus         = false;
     bool usesRainbow       = false;
     bool selected          = false;
+    bool iconUsesIconFont  = false;
 };
 
 struct GridSortGlyphVisualState
@@ -1285,10 +1286,10 @@ struct GridGroupDesc
     bool collapsed       = false;
 };
 
-class IDxGridModel
+class IGridModel
 {
 public:
-    virtual ~IDxGridModel() = default;
+    virtual ~IGridModel() = default;
 
     [[nodiscard]] virtual size_t GetRowCount() const noexcept                                  = 0;
     [[nodiscard]] virtual size_t GetColumnCount() const noexcept                               = 0;
@@ -1304,10 +1305,10 @@ public:
 
 class Grid;
 
-class IDxGridDelegate
+class IGridDelegate
 {
 public:
-    virtual ~IDxGridDelegate() = default;
+    virtual ~IGridDelegate() = default;
 
     virtual void OnGridSortRequested(const GridSortSpec& sortSpec);
     virtual void OnGridSelectionChanged(Grid& sender);
@@ -1323,10 +1324,10 @@ public:
     [[nodiscard]] virtual wil::com_ptr<ID2D1Bitmap1> GetGridIconBitmap(const Grid& sender, int iconIndex, float targetDipSize, ID2D1DeviceContext* d2dContext);
 };
 
-class IDxTreeModel
+class ITreeModel
 {
 public:
-    virtual ~IDxTreeModel() = default;
+    virtual ~ITreeModel() = default;
 
     [[nodiscard]] virtual size_t GetVisibleItemCount() const noexcept             = 0;
     virtual void GetVisibleItem(size_t visibleIndex, TreeItemData& outItem) const = 0;
@@ -1349,10 +1350,10 @@ struct TreeDrop
     TreeDropPlace place = TreeDropPlace::Before;
 };
 
-class IDxTreeDelegate
+class ITreeDelegate
 {
 public:
-    virtual ~IDxTreeDelegate() = default;
+    virtual ~ITreeDelegate() = default;
 
     virtual void OnTreeSelectionChanged(uint64_t itemId);
     virtual void OnTreeItemInvoked(uint64_t itemId);
@@ -1775,12 +1776,14 @@ private:
 
     struct DisclosureTransitionState final
     {
-        float progress       = 0.0f;
-        float startProgress  = 0.0f;
-        float target         = 0.0f;
-        uint64_t startTickMs = 0u;
-        bool initialized     = false;
-        bool active          = false;
+        float progress      = 0.0f;
+        float startProgress = 0.0f;
+        float target        = 0.0f;
+        uint64_t elapsedMs  = 0u; // Animated time: a gap between ticks counts for one bounded step (see the tick).
+        uint64_t lastTickMs = 0u;
+        bool anchored       = false; // The first tick anchors the clock, so the rotation starts when it can show.
+        bool initialized    = false;
+        bool active         = false;
     };
 
     void UpdateInteractionTransition(ControlHost& host, InteractionTransitionState& transition, float target) noexcept;
@@ -3227,11 +3230,11 @@ public:
 
     // Non-owning model pointer. Caller manages model lifetime from SetModel() until Tree destruction.
     // Model state accessed only on UI thread — no synchronization needed.
-    void SetModel(IDxTreeModel* model) noexcept;
+    void SetModel(ITreeModel* model) noexcept;
     // Owned per-instance translation; empty restores the English default.
     void SetEmptyStateText(std::wstring text);
     [[nodiscard]] std::wstring_view GetEmptyStateText() const noexcept;
-    void SetDelegate(IDxTreeDelegate* delegate) noexcept;
+    void SetDelegate(ITreeDelegate* delegate) noexcept;
     // Pointer drag of a row. Release reports one `OnTreeReorder`; Escape and capture loss cancel.
     void SetReorderEnabled(bool enabled) noexcept;
     [[nodiscard]] bool ReorderEnabled() const noexcept
@@ -3241,7 +3244,7 @@ public:
     void SetRowHeightDip(float rowHeightDip) noexcept;
     void SetIndentDip(float indentDip) noexcept;
     void NotifyDataChanged();
-    [[nodiscard]] IDxTreeModel* GetModel() const noexcept
+    [[nodiscard]] ITreeModel* GetModel() const noexcept
     {
         return _model;
     }
@@ -3354,13 +3357,16 @@ private:
     [[nodiscard]] bool HasActiveTreeExpansionAnimation(uint64_t nowTickMs) const noexcept;
     [[nodiscard]] float GetTreeExpansionProgress(uint64_t nowTickMs) const noexcept;
     void ClearReorderDrag() noexcept;
-    [[nodiscard]] std::optional<TreeDrop> ResolveReorderDrop(D2D1_POINT_2F point) const noexcept;
+    // Re-resolves the dragged row and its visible subtree by id; false once the row is gone.
+    [[nodiscard]] bool ResolveReorderSource() noexcept;
+    [[nodiscard]] std::optional<TreeDrop> ResolveReorderDrop(D2D1_POINT_2F point, size_t& targetIndex) const noexcept;
+    void UpdateReorderDrop(ControlHost& host, D2D1_POINT_2F point) noexcept;
 
     std::wstring _emptyStateText;
     // Non-owning. Caller manages model lifetime. Valid from SetModel() until Tree destruction.
     // Invalidation validated at message entry by PruneStaleInteractionState().
-    IDxTreeModel* _model       = nullptr;
-    IDxTreeDelegate* _delegate = nullptr;
+    ITreeModel* _model       = nullptr;
+    ITreeDelegate* _delegate = nullptr;
     std::optional<uint64_t> _selectedItemId;
     std::optional<size_t> _hoveredVisibleIndex;
     float _rowHeightBaseDip    = 28.0f;
@@ -3403,6 +3409,11 @@ private:
     bool _reorderArmed        = false;
     bool _reorderDragging     = false;
     uint64_t _reorderSourceId = 0u;
+    // Visible rows (source, subtreeEnd) are the dragged row's own descendants: a drop there would make the row
+    // its own ancestor. The drop index names the target row for painting while the model is unchanged.
+    size_t _reorderSourceIndex = 0u;
+    size_t _reorderSubtreeEnd  = 0u;
+    size_t _reorderDropIndex   = 0u;
     D2D1_POINT_2F _reorderPress{};
     std::optional<TreeDrop> _reorderDrop;
 };
@@ -3414,8 +3425,8 @@ public:
 
     // Non-owning model pointer. Caller manages model lifetime from SetModel() until Grid destruction.
     // Model state accessed only on UI thread — no synchronization needed.
-    void SetModel(IDxGridModel* model) noexcept;
-    void SetDelegate(IDxGridDelegate* delegate) noexcept;
+    void SetModel(IGridModel* model) noexcept;
+    void SetDelegate(IGridDelegate* delegate) noexcept;
     void SetSelectionMode(GridSelectionMode mode) noexcept;
     [[nodiscard]] GridSelectionMode GetSelectionMode() const noexcept
     {
@@ -3451,7 +3462,7 @@ public:
     void ApplyGroupLayout(std::span<const GridGroupLayoutEntry> layout) noexcept;
     [[nodiscard]] std::vector<GridGroupLayoutEntry> CaptureGroupLayout() const;
     void NotifyDataChanged();
-    [[nodiscard]] IDxGridModel* GetModel() const noexcept
+    [[nodiscard]] IGridModel* GetModel() const noexcept
     {
         return _model;
     }
@@ -3518,6 +3529,16 @@ public:
     [[nodiscard]] bool DebugHitTestPoint(PointDip pointDip, GridDebugHitInfo& out) const noexcept;
     [[nodiscard]] GridDebugPointerState DebugGetPointerState() const noexcept;
     void DebugSetScrollOffsets(float verticalScrollDip, float horizontalScrollDip) noexcept;
+    struct GridDebugTextLayoutStatistics
+    {
+        uint64_t lookups         = 0u; // Retained multiline layout requests from paint and hover.
+        uint64_t hits            = 0u;
+        uint64_t layoutCreations = 0u; // DirectWrite layouts created for multiline cells, temporary ones included.
+        uint64_t shapedUnits     = 0u; // UTF-16 units handed to those layouts.
+        size_t retainedLayouts   = 0u;
+        size_t capacity          = 0u;
+    };
+    [[nodiscard]] GridDebugTextLayoutStatistics DebugGetTextLayoutStatistics() const noexcept;
 #endif
     bool RequestSelectRow(size_t rowIndex, UINT modifiers);
     bool RequestRemoveRowSelection(size_t rowIndex);
@@ -3623,20 +3644,37 @@ private:
                                                                  const D2D1_RECT_F& cellRect,
                                                                  const GridColumnDesc& columnDesc,
                                                                  const GridCellData& cellData) const noexcept;
-    // Only visible cells enter this direct-mapped cache. Very large model strings
-    // use a temporary layout, so a scrolling grid cannot retain unbounded text.
+    // Visible multiline cells keep their layouts in a set-associative table keyed by value (see
+    // PrepareCellTextLayout). An entry holds the text its layout was built from: the value's content, or the prefix
+    // shaped for a value longer than the cell can show, which any value starting with it shares. A layout needing more
+    // than a bounded key (a whole long right-to-left line) is temporary, so a scrolling grid cannot retain unbounded
+    // text.
     struct CellTextLayoutCache
     {
         std::wstring text;
-        std::wstring displayText;
         wil::com_ptr<IDWriteTextFormat> format;
         wil::com_ptr<IDWriteTextLayout> layout;
+        uint64_t keyHash   = 0u;
+        uint64_t lastUse   = 0u; // Paint generation of the latest paint or hover that used the entry.
         float width        = 0.0f;
         float height       = 0.0f;
         float paintHeight  = 0.0f;
         uint32_t lineClamp = 0u;
         bool truncated     = false; // Paint cannot show the whole value; hover offers it in full.
-        bool usedInPaint   = false;
+        bool prefixOnly    = false; // text is the shaped prefix of a longer value.
+        uint8_t breakShape = 0u;    // With prefixOnly: how that value continues (none, a line break, a CR LF pair).
+    };
+    // The layout of an omitted tail (the visible lines and the omission marker), shared by the values whose visible
+    // text is the same.
+    struct CellDisplayLayoutCache
+    {
+        std::wstring text;
+        wil::com_ptr<IDWriteTextFormat> format;
+        wil::com_ptr<IDWriteTextLayout> layout;
+        uint64_t keyHash  = 0u;
+        uint64_t lastUse  = 0u;
+        float width       = 0.0f;
+        float paintHeight = 0.0f;
     };
     // Paint and the hover tooltip share one prepared multiline layout, so the
     // omission marker and the full-value tooltip cannot disagree. Returns the
@@ -3647,8 +3685,21 @@ private:
                                                   const GridCellData& cellData,
                                                   const D2D1_RECT_F& textRect,
                                                   const D2D1_RECT_F& viewportRect) const;
+    // A single-line cell's caption layout, as DrawCenteredText lays it out, kept between paints in the same table as
+    // multiline layouts; paint and the hover check share it. Returns the retained or temporary entry, or nullptr.
+    [[nodiscard]] const CellTextLayoutCache* PrepareSingleLineCellLayout(const ControlHost& host,
+                                                                         const GridCellData& cellData,
+                                                                         const D2D1_RECT_F& textRect,
+                                                                         std::optional<CellTextLayoutCache>& temporary) const;
+    [[nodiscard]] bool IsSingleLineCellTextClipped(const ControlHost& host,
+                                                   const GridCellData& cellData,
+                                                   const D2D1_RECT_F& textRect,
+                                                   const D2D1_RECT_F& viewportRect) const;
     void DrawCellText(ControlHost& host, const GridCellData& cellData, const D2D1_RECT_F& bounds, const D2D1_COLOR_F& color) const;
     mutable std::vector<CellTextLayoutCache> _cellTextLayouts;
+    mutable std::vector<CellDisplayLayoutCache> _cellDisplayLayouts;
+    mutable std::wstring _cellVisibleText; // Scratch for an omitted tail's visible text.
+    mutable uint64_t _cellTextPaintGeneration = 1u;
     mutable wil::com_ptr<IDWriteTextFormat> _cellEllipsisFormat;
     mutable wil::com_ptr<IDWriteInlineObject> _cellEllipsis;
     [[nodiscard]] VisibleColumnSpan ComputeVisibleColumnSpan(float clipRightDip) const noexcept;
@@ -3665,8 +3716,8 @@ private:
 
     // Non-owning. Caller manages model lifetime. Valid from SetModel() until Grid destruction.
     // Invalidation validated at message entry by PruneStaleInteractionState().
-    IDxGridModel* _model       = nullptr;
-    IDxGridDelegate* _delegate = nullptr;
+    IGridModel* _model       = nullptr;
+    IGridDelegate* _delegate = nullptr;
     mutable std::vector<float> _columnWidths;
     mutable std::vector<size_t> _columnDisplayOrder;
     mutable std::vector<size_t> _columnDisplayIndexByModel;
@@ -3712,6 +3763,10 @@ private:
     // Keep test counters in the layout for all builds so ENABLE_TESTS only
     // affects helper APIs, not the object ABI across project boundaries.
     mutable uint64_t _debugPaintCount                          = 0u;
+    mutable uint64_t _debugTextLayoutLookups                   = 0u;
+    mutable uint64_t _debugTextLayoutHits                      = 0u;
+    mutable uint64_t _debugTextLayoutCreations                 = 0u;
+    mutable uint64_t _debugTextLayoutShapedUnits               = 0u;
     uint64_t _debugHeaderResizeDownCount                       = 0u;
     uint64_t _debugResizeMoveCount                             = 0u;
     float _debugLastResizeDeltaDip                             = 0.0f;
@@ -3940,6 +3995,9 @@ public:
     [[nodiscard]] std::wstring_view GetLabel() const noexcept;
     void SetUnit(std::wstring unit, float widthDip);
     [[nodiscard]] std::wstring_view GetUnit() const noexcept;
+    // Names the step buttons for UI Automation (their glyphs say nothing to a screen reader). The defaults are the
+    // English "Increase" and "Decrease"; a consumer supplies complete localized names ("Augmenter la largeur").
+    void SetStepButtonNames(std::wstring increaseName, std::wstring decreaseName);
     void SetMinimum(double minimum) noexcept;
     [[nodiscard]] double GetMinimum() const noexcept;
     void SetMaximum(double maximum) noexcept;
@@ -3964,7 +4022,8 @@ public:
     [[nodiscard]] Button& IncrementButton() noexcept;
     [[nodiscard]] Button& DecrementButton() noexcept;
     [[nodiscard]] std::wstring FormatValue(double value) const;
-    // Accepts an optional sign, digits, and one '.' or ',' fraction; surrounding whitespace is ignored.
+    // Accepts an optional sign, digits, and one '.' or ',' fraction; surrounding whitespace is ignored. Full-width and
+    // Arabic-Indic digits, signs and separators read as their ASCII equivalents.
     [[nodiscard]] static std::optional<double> ParseValue(std::wstring_view text) noexcept;
 
     void Paint(ControlHost& host) const override;
@@ -3999,6 +4058,7 @@ private:
     double _editStart    = 0.0;
     uint8_t _decimals    = 0;
     bool _editing        = false;
+    bool _editPreviewed  = false; // The open edit sent a preview, so it must end with Commit or Cancel.
     bool _syncing        = false;
 };
 
@@ -4056,7 +4116,22 @@ public:
         std::wstring blue         = L"B";
         std::wstring ok           = L"OK";
         std::wstring cancel       = L"Cancel";
+        // The names assistive technologies read for the R/G/B fields' step buttons (whole phrases, as word order
+        // varies between languages).
+        std::wstring increaseRed   = L"Increase red";
+        std::wstring decreaseRed   = L"Decrease red";
+        std::wstring increaseGreen = L"Increase green";
+        std::wstring decreaseGreen = L"Decrease green";
+        std::wstring increaseBlue  = L"Increase blue";
+        std::wstring decreaseBlue  = L"Decrease blue";
+        // Room for translated captions: the R/G/B caption slot, the hex caption slot and each swatch (which its
+        // caption fits beneath), each at most kMaxLabelWidthDip. A picker wider than kDefaultWidthDip leaves room for
+        // wider swatches.
+        float channelLabelWidthDip = 14.0f;
+        float hexLabelWidthDip     = 26.0f;
+        float swatchWidthDip       = kSwatchWidthDip;
     };
+    static constexpr float kMaxLabelWidthDip = 4096.0f;
 
     ColorPicker();
 
@@ -4095,6 +4170,7 @@ public:
 protected:
     void OnBoundsChanged() noexcept override;
     void OnEnabledChanged(bool enabled) noexcept override;
+    void OnFlowDirectionChanged() noexcept override;
 
 private:
     enum class Drag : uint8_t
@@ -4106,30 +4182,30 @@ private:
 
     void Arrange() noexcept;
     void ApplyHsv(ControlHost* host, HsvColor hsv, bool notify) noexcept;
-    void ApplyArgb(ControlHost* host, uint32_t argb, bool notify) noexcept;
-    void SyncChildren() noexcept;
+    // `source` is the child whose edit produced the color; it keeps its text, caret and undo history.
+    void ApplyArgb(ControlHost* host, uint32_t argb, bool notify, const Control* source = nullptr) noexcept;
+    void SyncChildren(const Control* source = nullptr) noexcept;
     void NotifyChange(ColorPickerChangePhase phase) noexcept;
     void UpdateFromPoint(ControlHost& host, D2D1_POINT_2F point) noexcept;
     void EnsureBrushes(ControlHost& host) const noexcept;
 
     std::function<void(ColorPickerChange)> _onChange;
     Labels _labels;
-    NumericStepper* _red   = nullptr;
-    NumericStepper* _green = nullptr;
-    NumericStepper* _blue  = nullptr;
-    TextField* _hex        = nullptr;
-    Button* _ok            = nullptr;
-    Button* _cancel        = nullptr;
+    D2D1_RECT_F _hexCaptionRect = D2D1::RectF(); // Arranged beside the hex field; Paint draws the caption there.
+    NumericStepper* _red        = nullptr;
+    NumericStepper* _green      = nullptr;
+    NumericStepper* _blue       = nullptr;
+    TextField* _hex             = nullptr;
+    Button* _ok                 = nullptr;
+    Button* _cancel             = nullptr;
     HsvColor _hsv;
-    uint32_t _argb                            = 0xFF000000u;
-    uint32_t _current                         = 0xFF000000u;
-    uint32_t _dragStartArgb                   = 0xFF000000u;
-    Drag _drag                                = Drag::None;
-    bool _syncing                             = false;
-    mutable ID2D1DeviceContext* _brushContext = nullptr;
-    mutable float _brushHue                   = -1.0f;
-    mutable D2D1_RECT_F _brushField           = D2D1::RectF();
-    mutable D2D1_RECT_F _brushStrip           = D2D1::RectF();
+    uint32_t _argb    = 0xFF000000u;
+    uint32_t _current = 0xFF000000u;
+    Drag _drag        = Drag::None;
+    bool _syncing     = false;
+    // Hue-independent unit-space gradients, placed by a brush transform: neither a hue change nor a layout move
+    // recreates them. The retained device reference keeps a recreated device from aliasing the cached one.
+    mutable wil::com_ptr<ID2D1Device> _brushDevice;
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _saturationBrush;
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _valueBrush;
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _hueBrush;
@@ -4262,6 +4338,8 @@ public:
     LRESULT HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bool& handled) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] uint64_t DebugGetInvalidateCount() const noexcept;
+    // UI Automation focus-changed events this host raised itself (the window's own focus event is the system's).
+    [[nodiscard]] uint64_t DebugGetFocusAnnouncementCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetRenderCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetResizeCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetResizeFailureCount() const noexcept;
@@ -4304,6 +4382,7 @@ private:
     friend class Control;
     friend struct EmbeddedAccessibilityAccess;
     void* _embeddedAccessibilityTarget          = nullptr;
+    bool _gainingWindowFocus                    = false; // In OnSetFocus: the system's focus event reports the element.
     uint64_t _interactionRevision               = 0;
     bool _embedded                              = false;
     bool _embeddedAnimationRequested            = false;
@@ -4348,7 +4427,11 @@ private:
     void RaiseNativeTextInputAccessibilityEvent(TextInputAutomationEventKind kind) noexcept;
     void RaiseNativeTextInputAccessibilityEvents(const NativeTextInputState& previousState) noexcept;
     [[nodiscard]] bool TryGetNativeTextInputCaretRects(D2D1_RECT_F& outRectDip, RECT& outClientRectPx, RECT& outScreenRectPx) const noexcept;
+    // Drops interaction state on controls that left the tree or became inert; a dropped focus is published.
     void PruneStaleInteractionState() noexcept;
+    // Message entry only, where no dispatched control is borrowed: a captured control that is still in the tree but
+    // no longer interactive (it or an ancestor was hidden or disabled) cancels its drag, as EmbeddedHost does.
+    void CancelStaleCapture() noexcept;
     void ResetRootInteractionState() noexcept;
     void UpdateSupplementalTooltipTarget(D2D1_POINT_2F pointDip) noexcept;
     void ValidateSupplementalTooltipTarget() noexcept;
@@ -4496,6 +4579,7 @@ private:
     std::unique_ptr<Control> _root;
     TooltipLayer _tooltipLayer;
     mutable uint64_t _debugInvalidateCount                      = 0u;
+    uint64_t _debugFocusAnnouncementCount                       = 0u;
     mutable uint64_t _debugRenderCount                          = 0u;
     mutable uint64_t _debugResizeCount                          = 0u;
     mutable uint64_t _debugResizeFailureCount                   = 0u;

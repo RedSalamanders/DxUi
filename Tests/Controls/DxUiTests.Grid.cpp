@@ -214,7 +214,7 @@ void TestGroupedGridLongRunScrollKeepsVisibleRowRects()
 {
     using namespace DxUi;
 
-    class WideGroupedGridModel final : public IDxGridModel
+    class WideGroupedGridModel final : public IGridModel
     {
     public:
         [[nodiscard]] size_t GetRowCount() const noexcept override
@@ -1530,6 +1530,38 @@ void TestGridRepeatedExplicitTooltipShowsWhenCellTextIsClipped()
     Require(host.GetTooltipText() == L"Clipped repeated tooltip text", "grid uses the repeated explicit tooltip for clipped visible text");
 }
 
+void TestGridScrolledSingleLineCaptionOffersTooltip()
+{
+    using namespace DxUi;
+
+    // Paint lays single-line captions out against the full cell, so a horizontal scroll that hides the start of a
+    // caption clips it: hovering its visible part must offer the complete value, as for a clamped multiline cell.
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 260.0f));
+    host.SetRoot(std::move(root));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 260.0f));
+    GridCellData cellData;
+    cellData.kind = GridCellKind::Text;
+    cellData.text = L"Twenty-four chars long!!";
+    SingleCellGridModel model(cellData);
+    grid->SetModel(&model);
+    const std::array<GridColumnLayoutEntry, 1> columns{{{L"status", 0u, 600.0f}}};
+    grid->ApplyColumnLayout(columns);
+    const auto hoverVisiblePart = [&](const char* context)
+    {
+        host.ClearTooltip();
+        const GridCellLayoutMetrics metrics = grid->GetCellLayoutMetrics(host, 0u, 0u);
+        Require(grid->OnMouseMove(host, D2D1::Point2F(150.0f, (metrics.cellRect.top + metrics.cellRect.bottom) * 0.5f), 0), context);
+    };
+    hoverVisiblePart("an unscrolled single-line caption is hovered");
+    Require(! host.HasTooltip(), "a caption the viewport shows completely offers no tooltip");
+    grid->DebugSetScrollOffsets(0.0f, 40.0f);
+    hoverVisiblePart("a single-line caption scrolled under the left edge is hovered");
+    Require(host.HasTooltip() && host.GetTooltipText() == L"Twenty-four chars long!!", "a caption the viewport cuts offers its complete value");
+}
+
 void TestGridMultilineTooltipFollowsPaintedLines()
 {
     using namespace DxUi;
@@ -1594,7 +1626,7 @@ void TestGridFolderViewVisualModeUsesFolderLikeRowHighlights()
 {
     using namespace DxUi;
 
-    class StyledGridModel final : public IDxGridModel
+    class StyledGridModel final : public IGridModel
     {
     public:
         [[nodiscard]] size_t GetRowCount() const noexcept override
@@ -1912,6 +1944,7 @@ void RunGridTests()
     TestGridLongTextFallbackTooltipRequiresClippedText();
     TestGridRepeatedExplicitTooltipShowsWhenCellTextIsClipped();
     TestGridMultilineTooltipFollowsPaintedLines();
+    TestGridScrolledSingleLineCaptionOffersTooltip();
     TestGridFolderViewVisualModeUsesFolderLikeRowHighlights();
     TestGridEmptyModelDoesNotHitTestBodyRows();
     TestGridSetModelNullCancelsActiveColumnResize();

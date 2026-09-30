@@ -158,12 +158,15 @@ void TestButtonDisclosureChevronAnimatesAndHonorsReducedMotion()
     const uint64_t animationStart = GetTickCount64();
     button->SetDisclosureExpanded(true);
     Require(button->DebugIsDisclosureAnimationActive(), "disclosure button starts a bounded expand rotation");
-    static_cast<void>(button->Tick(host, animationStart + 120u));
+    static_cast<void>(button->Tick(host, animationStart));
+    Require(button->DebugGetDisclosureAnimationProgress() == 0.0f, "the first tick shows where the rotation starts");
+    static_cast<void>(button->Tick(host, animationStart + 100u));
     Require(button->DebugGetDisclosureAnimationProgress() > 0.0f && button->DebugGetDisclosureAnimationProgress() < 1.0f,
             "disclosure button exposes an intermediate right-to-down rotation");
     const DisclosureChevronVisualState intermediateVisual = ResolveDisclosureChevronVisualState(0.5f);
     Require(intermediateVisual.direction == ChevronDirection::Right && intermediateVisual.rotationDegrees == 45.0f,
             "disclosure animation rotates the right glyph clockwise toward down");
+    static_cast<void>(button->Tick(host, animationStart + 200u));
     static_cast<void>(button->Tick(host, animationStart + 300u));
     Require(! button->DebugIsDisclosureAnimationActive() && button->DebugGetDisclosureAnimationProgress() == 1.0f,
             "expanded disclosure button completes with its Fluent chevron pointing down");
@@ -190,6 +193,76 @@ void TestButtonDisclosureChevronAnimatesAndHonorsReducedMotion()
     button->SetDisclosureExpanded(false);
     Require(! button->DebugIsDisclosureAnimationActive() && button->DebugGetDisclosureAnimationProgress() == 0.0f,
             "reduced motion snaps disclosure chevrons directly to the collapsed state");
+}
+
+// A disclosure changed while its panel is hidden receives no animation ticks. When the panel shows again the chevron
+// rotates from where it rested, instead of keeping its old orientation or jumping to the end of an elapsed rotation.
+void TestButtonDisclosureChevronAnimatesAfterAHiddenChange()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    ThemePalette palette{};
+    palette.reducedMotion = false;
+    host.SetTheme(palette);
+
+    auto root    = std::make_unique<Panel>();
+    auto* holder = root->AddChild<Panel>();
+    auto* button = holder->AddChild<Button>();
+    holder->SetBounds(D2D1::RectF(0.0f, 0.0f, 64.0f, 40.0f));
+    button->SetBounds(D2D1::RectF(0.0f, 0.0f, 32.0f, 28.0f));
+    button->SetDisclosureExpanded(false);
+    host.SetRoot(std::move(root));
+
+    holder->SetVisible(false);
+    button->SetDisclosureExpanded(true);
+    const uint64_t hiddenAt = GetTickCount64();
+    static_cast<void>(host.DebugAnimationTickForTest(hiddenAt + 1000u));
+    Require(button->DebugGetDisclosureAnimationProgress() == 0.0f, "a disclosure in a hidden panel keeps its chevron at rest");
+    Require(! host.DebugHasActiveAnimationSubscription(), "a disclosure in a hidden panel keeps no animation ticking");
+
+    holder->SetVisible(true);
+    button->Paint(host); // The next paint resumes the pending rotation's ticks.
+    Require(host.DebugHasActiveAnimationSubscription(), "painting the shown button resumes its rotation's ticks");
+    const uint64_t shownAt = hiddenAt + 5000u;
+    static_cast<void>(button->Tick(host, shownAt));
+    Require(button->DebugIsDisclosureAnimationActive() && button->DebugGetDisclosureAnimationProgress() == 0.0f,
+            "showing the panel starts the rotation from rest rather than from an elapsed clock");
+    static_cast<void>(button->Tick(host, shownAt + 100u));
+    Require(button->DebugGetDisclosureAnimationProgress() > 0.0f && button->DebugGetDisclosureAnimationProgress() < 1.0f,
+            "the chevron rotates after the panel shows");
+    static_cast<void>(button->Tick(host, shownAt + 200u));
+    static_cast<void>(button->Tick(host, shownAt + 300u));
+    Require(! button->DebugIsDisclosureAnimationActive() && button->DebugGetDisclosureAnimationProgress() == 1.0f,
+            "the rotation completes with the chevron pointing down");
+}
+
+// Ticks that stop mid-rotation (the button was hidden, or the thread stalled) pause the rotation: the next tick
+// resumes it where it was instead of jumping to the end of the time that passed.
+void TestButtonDisclosureChevronPausesAcrossATickGap()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    ThemePalette palette{};
+    palette.reducedMotion = false;
+    host.SetTheme(palette);
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>();
+    button->SetBounds(D2D1::RectF(0.0f, 0.0f, 32.0f, 28.0f));
+    button->SetDisclosureExpanded(false);
+    host.SetRoot(std::move(root));
+
+    button->SetDisclosureExpanded(true);
+    const uint64_t start = GetTickCount64();
+    static_cast<void>(button->Tick(host, start));
+    static_cast<void>(button->Tick(host, start + 60u));
+    const float beforeGap = button->DebugGetDisclosureAnimationProgress();
+    Require(beforeGap > 0.0f && beforeGap < 1.0f, "the rotation is under way before the gap");
+    static_cast<void>(button->Tick(host, start + 60u + 5000u));
+    const float afterGap = button->DebugGetDisclosureAnimationProgress();
+    Require(button->DebugIsDisclosureAnimationActive() && afterGap > beforeGap && afterGap < 1.0f,
+            "a five-second gap advances the rotation one bounded step, not to its end");
 }
 
 void TestButtonChromeLayoutDifferentiatesSelectorDropDownAndSplit()
@@ -1005,6 +1078,38 @@ void TestProgressBarIndeterminateTickSurvivesClockReset()
     const D2D1_RECT_F late = bar->DebugGetIndeterminateSegmentRect(theme);
     RequireFloatNear(late.left, 130.0f, 0.01f, "a very long gap advances only by its remainder");
     RequireFloatNear(late.right, 200.0f, 0.01f, "the segment clips at the end of the track");
+
+    // An empty bar has nothing to sweep and must not keep the frame loop (and a whole-view preparation) alive.
+    bar->SetBounds(D2D1::RectF(0.0f, 0.0f, 0.0f, 0.0f));
+    Require(! bar->Tick(host, 900'000u), "an empty indeterminate bar requests no further ticks");
+    bar->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 6.0f));
+    Require(bar->Tick(host, 901'000u), "the bar ticks again once it has bounds");
+
+    // Like Slider, non-finite values never reach UI Automation.
+    bar->SetIndeterminate(false);
+    bar->SetMinimum(0.0);
+    bar->SetMaximum(100.0);
+    bar->SetValue(40.0);
+    bar->SetValue(std::numeric_limits<double>::quiet_NaN());
+    bar->SetMaximum(std::numeric_limits<double>::infinity());
+    bar->SetMinimum(-std::numeric_limits<double>::infinity());
+    Require(bar->GetValue() == 40.0 && bar->GetMaximum() == 100.0 && bar->GetMinimum() == 0.0, "a progress bar rejects non-finite values");
+}
+
+void TestSliderSmallestStepStillMoves()
+{
+    using namespace DxUi;
+
+    // "Same target" absorbs floating noise, not a real step: the smallest allowed step must change the value.
+    Slider slider;
+    slider.SetMinimum(0.0);
+    slider.SetMaximum(1.0);
+    slider.SetStep(0.0001);
+    slider.SetValue(0.3);
+    slider.SetValue(0.30009);
+    RequireFloatNear(static_cast<float>(slider.GetValue()), 0.30009f, 0.000001f, "a change smaller than the old tolerance is kept for a fine step");
+    slider.SetValue(0.30019);
+    RequireFloatNear(static_cast<float>(slider.GetValue()), 0.30019f, 0.000001f, "one smallest step moves the value");
 }
 
 // ---------------------------------------------------------------------------
@@ -2115,6 +2220,8 @@ void RunNewControlTests()
     TestButtonVariantRoundtripsAllValues();
     TestButtonVariantPaintPathsHandleMissingDeviceContext();
     TestButtonDisclosureChevronAnimatesAndHonorsReducedMotion();
+    TestButtonDisclosureChevronAnimatesAfterAHiddenChange();
+    TestButtonDisclosureChevronPausesAcrossATickGap();
     TestButtonChromeLayoutDifferentiatesSelectorDropDownAndSplit();
     TestSelectorButtonChromeUsesStableCurrentValueTreatment();
     TestButtonChromeCustomStylePreservesOverlayMetrics();
@@ -2152,6 +2259,7 @@ void RunNewControlTests()
     TestProgressBarDisabledIndeterminateStateDoesNotAnimateUntilReenabled();
     TestProgressBarReducedMotionRestsIndeterminateSegment();
     TestProgressBarIndeterminateTickSurvivesClockReset();
+    TestSliderSmallestStepStillMoves();
 
     // PageIndicator
     TestPageIndicatorDefaultState();

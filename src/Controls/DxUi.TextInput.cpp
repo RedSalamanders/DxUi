@@ -1507,12 +1507,13 @@ void TextField::Paint(ControlHost& host) const
     {
         // WinUI accent bottom border: 2px accent line at bottom of control when focused
         // Inset horizontally by corner radius to avoid clipping into rounded corners
-        if (auto* dc = host.GetDeviceContext())
+        auto* dc = host.GetDeviceContext();
+        if (auto* brush = dc ? host.GetSolidBrush(host.GetTheme().accent) : nullptr)
         {
             const D2D1_RECT_F bounds = GetBounds();
             const D2D1_RECT_F accentBar =
                 D2D1::RectF(bounds.left + kTextFieldCornerRadiusDip, bounds.bottom - 2.0f, bounds.right - kTextFieldCornerRadiusDip, bounds.bottom);
-            dc->FillRectangle(&accentBar, host.GetSolidBrush(host.GetTheme().accent));
+            dc->FillRectangle(&accentBar, brush);
         }
     }
 
@@ -1609,9 +1610,10 @@ void TextField::Paint(ControlHost& host) const
         {
             const D2D1_ROUNDED_RECT hoverBg =
                 D2D1::RoundedRect(D2D1::RectF(revealRect.left + 4.0f, revealRect.top + 4.0f, revealRect.right - 4.0f, revealRect.bottom - 4.0f), 4.0f, 4.0f);
-            if (auto* dc = host.GetDeviceContext())
+            auto* dc = host.GetDeviceContext();
+            if (auto* brush = dc ? host.GetSolidBrush(_passwordRevealButtonPressed ? host.GetTheme().pressedFill : host.GetTheme().hoverFill) : nullptr)
             {
-                dc->FillRoundedRectangle(&hoverBg, host.GetSolidBrush(_passwordRevealButtonPressed ? host.GetTheme().pressedFill : host.GetTheme().hoverFill));
+                dc->FillRoundedRectangle(&hoverBg, brush);
             }
         }
         DrawCenteredText(host, L"\xE7B3", revealRect, FontRole::Icon, style.text);
@@ -1627,9 +1629,10 @@ void TextField::Paint(ControlHost& host) const
         {
             const D2D1_ROUNDED_RECT hoverBg =
                 D2D1::RoundedRect(D2D1::RectF(clearRect.left + 4.0f, clearRect.top + 4.0f, clearRect.right - 4.0f, clearRect.bottom - 4.0f), 4.0f, 4.0f);
-            if (auto* dc = host.GetDeviceContext())
+            auto* dc = host.GetDeviceContext();
+            if (auto* brush = dc ? host.GetSolidBrush(host.GetTheme().hoverFill) : nullptr)
             {
-                dc->FillRoundedRectangle(&hoverBg, host.GetSolidBrush(host.GetTheme().hoverFill));
+                dc->FillRoundedRectangle(&hoverBg, brush);
             }
         }
         DrawCenteredText(host, L"\xE711", clearRect, FontRole::Icon, style.text);

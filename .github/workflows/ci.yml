@@ -15,7 +15,7 @@ on:
       benchmark_scenarios:
         description: Comma-separated performance.ps1 scenarios for the paired benchmark.
         required: false
-        default: Default,MultilineGrid
+        default: Default,MultilineGrid,MultilineGridDistinct
 permissions:
   contents: read
 concurrency:

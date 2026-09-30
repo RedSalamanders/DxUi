@@ -1,12 +1,16 @@
 #pragma once
 #include <DxUi/Embedded.h>
 #include <array>
+#include <string>
+#include <vector>
 #include <wil/result.h>
 
 // Synthetic library-owned workload: no application settings, services, plugins or device APIs.
-struct ComplexUiModel final : DxUi::IDxGridModel, DxUi::IDxTreeModel
+struct ComplexUiModel final : DxUi::IGridModel, DxUi::ITreeModel
 {
     std::array<std::wstring, 1000> names;
+    // Optional per-cell text (row-major, four columns): every visible cell differs, as in a real table.
+    std::vector<std::wstring> cellTexts;
     bool multilineGrid = false;
     ComplexUiModel()
     {
@@ -25,9 +29,9 @@ struct ComplexUiModel final : DxUi::IDxGridModel, DxUi::IDxTreeModel
     {
         return {std::to_wstring(column), L"Column " + std::to_wstring(column), 170};
     }
-    void GetCellData(size_t row, size_t, DxUi::GridCellData& cell) const override
+    void GetCellData(size_t row, size_t column, DxUi::GridCellData& cell) const override
     {
-        cell.text      = names[row];
+        cell.text      = cellTexts.empty() ? names[row] : cellTexts[(row * GetColumnCount()) + column];
         cell.multiline = multilineGrid;
     }
     std::optional<size_t> FindRowByStableId(uint64_t id) const noexcept override

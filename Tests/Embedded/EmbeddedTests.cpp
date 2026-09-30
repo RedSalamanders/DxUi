@@ -287,6 +287,8 @@ __declspec(noinline) static int RunFunctionalTests()
     TestLocalizedInvalidationAndSelectedDetail(gpu);
     TestLocalizedStackedBodyClipping(gpu);
     TestLocalizedCheckboxCaption(gpu);
+    TestRightToLeftCheckboxCaptionHugsIndicator(gpu);
+    TestRightToLeftTabTitleStartsAtTheRight(gpu);
     TestSurfaceLifetime(gpu);
     TestPointerGesturesOnPaintDirtyView(gpu);
     TestTickDirtying(gpu);
@@ -460,6 +462,36 @@ __declspec(noinline) static int RunFunctionalTests()
         Check(splitter->GetPosition() > dragged, "continued drag moves again");
         Check(scene.view.DispatchPointer({DxUi::PointerAction::Up, 300, 120}), "splitter release");
         scene.slider->SetBounds(D2D1::RectF(24, 160, 440, 208));
+    }
+    // The drag survives only while the splitter and every ancestor stay in the tree, visible and enabled. Hiding a
+    // containing panel cancels it even though the splitter's own flags are unchanged; destroying the captured
+    // splitter releases the capture without dereferencing the destroyed control (ASan Debug detects that).
+    {
+        auto* root     = static_cast<DxUi::Panel*>(scene.view.Controls().GetRoot());
+        auto* pane     = root->AddChild<DxUi::Panel>();
+        auto* splitter = pane->AddChild<DxUi::Splitter>();
+        pane->SetBounds(D2D1::RectF(0, 0, 480, 240));
+        splitter->SetBounds(D2D1::RectF(0, 0, 480, 240));
+        splitter->SetMinimumFirstPane(80);
+        splitter->SetMinimumSecondPane(80);
+        splitter->SetPosition(200);
+        Hr(scene.view.Prepare(480, 240), "prepare nested splitter drag");
+        Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 203, 120}), "nested splitter press");
+        Check(scene.view.DispatchPointer({DxUi::PointerAction::Move, 260, 120}), "nested splitter preview");
+        Check(splitter->IsDragging() && splitter->GetPosition() > 240.0f, "nested splitter preview moved");
+        pane->SetVisible(false);
+        Hr(scene.view.Prepare(480, 240), "hidden ancestor during splitter drag");
+        Check(scene.view.Controls().GetCapturedControl() == nullptr && ! splitter->IsDragging() && splitter->GetPosition() == 200.0f,
+              "hiding an ancestor cancels the splitter drag and restores its start");
+        pane->SetVisible(true);
+        Hr(scene.view.Prepare(480, 240), "restore nested splitter");
+        Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, 203, 120}), "nested splitter second press");
+        Check(scene.view.Controls().GetCapturedControl() == splitter, "nested splitter captures again");
+        pane->ClearChildren();
+        Hr(scene.view.Prepare(480, 240), "destroyed captured splitter");
+        Check(scene.view.Controls().GetCapturedControl() == nullptr, "a destroyed captured control is released");
+        pane->SetVisible(false);
+        Hr(scene.view.Prepare(480, 240), "retire nested splitter pane");
     }
     std::shared_ptr<DxUi::GraphicsDevice> shared;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), shared), "shared supplied device pool");

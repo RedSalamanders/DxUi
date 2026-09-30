@@ -69,16 +69,16 @@ int main(int argc, char** argv)
     {
         DxUi::FrameStageScope outer(stage, DxUi::FrameStage::Render);
         Check(stage == DxUi::FrameStage::Render, "scope enters render");
-        Check(DxUi::IsDxUiRenderStageActiveForDebug(), "API revision 2 preserves render guards in every configuration");
+        Check(DxUi::IsRenderStageActiveForDebug(), "API revision 2 preserves render guards in every configuration");
         {
             DxUi::FrameStageScope inner(stage, DxUi::FrameStage::Layout);
             Check(stage == DxUi::FrameStage::Layout, "nested stage");
-            Check(! DxUi::IsDxUiRenderStageActiveForDebug(), "nested guard");
+            Check(! DxUi::IsRenderStageActiveForDebug(), "nested guard");
         }
         Check(stage == DxUi::FrameStage::Render, "nested restore");
     }
     Check(stage == DxUi::FrameStage::Idle, "outer restore");
-    Check(! DxUi::IsDxUiRenderStageActiveForDebug(), "guard restored");
+    Check(! DxUi::IsRenderStageActiveForDebug(), "guard restored");
     DxUi::MotionPolicy motion;
     Check(motion.ShouldAnimate() && motion.ResolveProgress(0.25f, 1.0f) == 0.25f, "normal motion");
     motion.reducedMotion = true;
@@ -87,7 +87,7 @@ int main(int argc, char** argv)
     DxUi::SetFrameMetricSink(&Record, &metrics);
     DxUi::EmitFrameMetric(L"fixture", 42);
     Check(metrics.calls == 1 && metrics.last == 42, "explicit diagnostics sink");
-    DxUi::EmitDxUiRenderMutationBlockedForDebug();
+    DxUi::EmitRenderMutationBlockedForDebug();
     Check(metrics.calls == 2 && metrics.last == 1, "render mutation metric");
     DxUi::SetFrameMetricSink(nullptr, nullptr);
     DxUi::EmitFrameMetric(L"fixture", 99);

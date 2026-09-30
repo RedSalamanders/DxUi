@@ -1,16 +1,22 @@
 # Theme and typography
 
 Status: normative intended contract
-Last reviewed: 2026-09-28
+Last reviewed: 2026-09-29
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
 
 Consumers provide colors and style tokens. Shared controls support light, dark, high contrast and reduced motion.
-`MakeThemePalette` copies the consumer's alert pairs as given. An alert color with zero alpha, including the zero
-default, was not supplied: its fill becomes `windowBackground` and its text becomes `text`. System high-contrast
-palettes have no alert colors, so status tones and badges then read as text on the window ground instead of
-painting invisibly.
+`MakeThemePalette` uses an alert pair the consumer supplies as given. An alert color with zero alpha, including the
+zero default, was not supplied. An unsupplied color takes its tone's default from `MakeDefaultThemePalette` (for the
+theme's `darkMode`), so info, warning and error stay distinct and readable; with `highContrast`, whose system palettes
+have no tones, it takes `text` on `windowBackground` instead. Contrast is measured on what paints: a fill over
+`windowBackground`, its text over that fill, so a translucent supplied color is judged with the ground showing through.
+A text derived for a supplied fill is the tone's text, else `text`, else pure black or white, whichever measures the
+higher contrast, and always keeps the pair at 4.5:1 or better: one of pure black and white reaches 4.58:1 against any
+painted color, which a lightness threshold (or near-black and near-white, down to 4.42:1 against a mid tone) does not
+guarantee. A ground derived for a supplied text is the tone's fill, else `windowBackground`, else black or white,
+whichever shows the text best; only a supplied text too translucent to stand out on any ground stays below 4.5:1.
 `Typography::IsFontFamilyAvailable` caches answers per DirectWrite factory and family. Cache misses request an
 updated system font collection. `InvalidateFontFamilyAvailability(factory)` drops that factory's answers;
 null drops all answers. Hosts serialize invalidation with their font-selection queries and call it when the

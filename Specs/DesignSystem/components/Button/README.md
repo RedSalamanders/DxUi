@@ -6,6 +6,7 @@ Push button with eight variants: Standard, DropDown, Selector, Split, Hyperlink,
 - **Chrome**: 1 DIP `buttonBorder` on `buttonFill`, `radius-sm` (4); Selector uses `radius-md` (6). Hover blends to `buttonHotFill` over 140 ms; pressed uses `buttonPressedFill` and shifts the caption 1,1 DIP; disabled uses `buttonDisabledFill` and `disabledText`.
 - **Primary**: fill `buttonPrimaryFill`; caption `buttonPrimaryText` — the library picks `selectionText` only when it reaches 4.5:1, else `text`. High contrast paints the exact selection pair.
 - **Chevrons**: DropDown 20 DIP, Selector 24 DIP, Split segment 32 DIP, glyph U+E70D (fallback ▾ U+25BE).
+- **Disclosure**: the chevron rotates right (or left) to down over 240 ms from its first animation tick, so a state changed while hidden rotates once shown, and a pause in the ticks pauses it; reduced motion snaps it.
 - **Multiline**: 12 DIP horizontal / 8 DIP vertical text padding; never clip or ellipsize a caption — size the button to the measured text.
 - **Do**: one Primary per surface. **Don't**: use Hyperlink for destructive actions.
 

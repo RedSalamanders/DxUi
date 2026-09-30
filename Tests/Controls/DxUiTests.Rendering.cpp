@@ -342,6 +342,23 @@ void TestGridMultilineTrailingSeparatorsMatchTrimmedTwin()
         {L"Fin\u2028\u2028", L"Fin", 2u, "trailing line separators"},
         {L"Fin \r\nsuite", L"Fin\r\nsuite", 1u, "space before an omitted paragraph"},
         {L"A \r\nB \r\nC", L"A \r\nB\r\nC", 2u, "space ending the last visible line"},
+        // DirectWrite also breaks on NEL, VT and FF, and a blank last line is as empty as a missing one.
+        {L"abc\x85", L"abc", 1u, "trailing next-line character, clamp 1"},
+        {L"abc\v", L"abc", 2u, "trailing vertical tab, clamp 2"},
+        {L"abc\f", L"abc", 2u, "trailing form feed, clamp 2"},
+        {L"abc\r\n   ", L"abc", 2u, "blank last line of spaces"},
+        {L"abc\n\t", L"abc", 1u, "blank last line of a tab"},
+        {L"abc\n \r\n", L"abc", 2u, "blank last line of a no-break space"},
+        // Any other space, and the characters that paint nothing, leave a line as blank.
+        {L"abc\n\x2003", L"abc", 2u, "blank last line of an em space"},
+        {L"abc\n\x202F\x2009", L"abc", 3u, "blank last line of narrow and thin spaces"},
+        {L"abc\n\x200B", L"abc", 2u, "blank last line of a zero-width space"},
+        {L"abc\n\xFEFF\x2060", L"abc", 3u, "blank last line of a byte order mark and a word joiner"},
+        {L"abc\r\n\x200E", L"abc", 2u, "blank last line of a directional mark"},
+        {L"abc\n\x00AD", L"abc", 2u, "blank last line of a soft hyphen"},
+        {L"abc\n\x061C", L"abc", 2u, "blank last line of an Arabic letter mark"},
+        {L"abc\n\x202C\x2069", L"abc", 2u, "blank last line closing an embedding and an isolate"},
+        {L"abc\n\x034F\xFE0F", L"abc", 3u, "blank last line of a grapheme joiner and a variation selector"},
     };
     for (const TwinCase& twinCase : cases)
     {
@@ -351,11 +368,396 @@ void TestGridMultilineTrailingSeparatorsMatchTrimmedTwin()
         Require(trailing.bgraPixels == twin.bgraPixels, "trailing separators or a trailing space must not add an ellipsis or shift centred lines");
     }
     const auto empty = capture(L"", 2u, "empty multiline value");
-    for (const wchar_t* separatorsOnly : {L"\r\n", L"\r\n\r\n", L"\u2029"})
+    for (const wchar_t* separatorsOnly : {L"\r\n", L"\r\n\r\n", L"\u2029", L"\x85\f", L"  \r\n "})
     {
         const auto blank = capture(separatorsOnly, 2u, "separator-only multiline value");
         Require(blank.bgraPixels == empty.bgraPixels, "a multiline value made only of separators paints nothing");
     }
+}
+
+// Distinct two-paragraph text in every cell, as in a real table: a layout cache keyed by value must hold one layout
+// per visible cell. The first paragraph wraps past a two-line clamp, so every cell also takes the omission path.
+class DistinctMultilineGridModel final : public DxUi::IGridModel
+{
+public:
+    DistinctMultilineGridModel(size_t rowCount, size_t columnCount, bool multiline = true)
+        : _rowCount(rowCount),
+          _columnCount(columnCount),
+          _multiline(multiline)
+    {
+    }
+
+    [[nodiscard]] size_t GetRowCount() const noexcept override
+    {
+        return _rowCount;
+    }
+
+    [[nodiscard]] size_t GetColumnCount() const noexcept override
+    {
+        return _columnCount;
+    }
+
+    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t columnIndex) const override
+    {
+        DxUi::GridColumnDesc column;
+        column.id       = L"c" + std::to_wstring(columnIndex);
+        column.title    = L"Colonne " + std::to_wstring(columnIndex);
+        column.widthDip = 110.0f;
+        return column;
+    }
+
+    void GetCellData(size_t rowIndex, size_t columnIndex, DxUi::GridCellData& outCell) const override
+    {
+        outCell.text      = L"Élément " + std::to_wstring(rowIndex) + L"." + std::to_wstring(columnIndex) +
+                            L" : vérifier la configuration du serveur principal.\nDeuxième paragraphe masqué.";
+        outCell.multiline = _multiline;
+    }
+
+    [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+    {
+        return rowId < _rowCount ? std::optional<size_t>(static_cast<size_t>(rowId)) : std::nullopt;
+    }
+
+private:
+    size_t _rowCount    = 0u;
+    size_t _columnCount = 0u;
+    bool _multiline     = true;
+};
+
+// A repaint of unchanged cells lays nothing out again, however many distinct values are visible: 24 values that a
+// direct-mapped table crowded into a few slots, more values than its 32 slots, and exactly the 32 values that fill the
+// first table. Scrolling a row either way lays out only that row: scrolling up draws the entering row first, before
+// the rows still in view, and must not evict their layouts to make room.
+void TestGridMultilineLayoutsSurviveRepaintForEveryDistinctVisibleCell()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(),
+                 nullptr,
+                 0,
+                 0,
+                 static_cast<int>(window.Host().DipsToPixels(760.0f)),
+                 static_cast<int>(window.Host().DipsToPixels(640.0f)),
+                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    struct Geometry
+    {
+        size_t rowCount;
+        size_t columnCount;
+        float rowHeight; // 52.48 (compact density's 1.64 x 32) is not a sum of powers of two: scrolled rows round apart.
+    };
+    for (const auto& [rowCount, columnCount, rowHeight] :
+         {Geometry{6u, 4u, 48.0f}, Geometry{7u, 4u, 48.0f}, Geometry{10u, 6u, 48.0f}, Geometry{6u, 4u, 52.48f}})
+    {
+        DistinctMultilineGridModel model(rowCount + 4u, columnCount);
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(
+            10.0f, 10.0f, 10.0f + (static_cast<float>(columnCount) * 110.0f) + 20.0f, 10.0f + 30.0f + (static_cast<float>(rowCount) * rowHeight) + 20.0f));
+        grid->SetHeaderHeightDip(30.0f);
+        grid->SetRowHeightDip(rowHeight);
+        grid->SetLineClamp(2u);
+        grid->SetModel(&model);
+        window.Host().SetRoot(std::move(root));
+        const auto first    = CaptureAttachedHostWindowBitmap(window, "distinct multiline cells, first paint");
+        size_t visibleCells = 0u;
+        for (size_t row = 0u; row < rowCount; ++row)
+            for (size_t column = 0u; column < columnCount; ++column)
+                visibleCells += grid->GetVisibleCellRect(row, column).has_value() ? 1u : 0u;
+        const auto warmed    = grid->DebugGetTextLayoutStatistics();
+        const auto second    = CaptureAttachedHostWindowBitmap(window, "distinct multiline cells, repaint");
+        const auto repainted = grid->DebugGetTextLayoutStatistics();
+        std::cout << "Grid distinct multiline cells " << rowCount << "x" << columnCount << ": visible " << visibleCells << ", repaint lookups "
+                  << repainted.lookups - warmed.lookups << ", hits " << repainted.hits - warmed.hits << ", new layouts "
+                  << repainted.layoutCreations - warmed.layoutCreations << ", retained " << repainted.retainedLayouts << " of " << repainted.capacity << '\n';
+        Require(visibleCells == rowCount * columnCount, "every distinct multiline cell is visible");
+        Require(repainted.lookups - warmed.lookups >= visibleCells, "every visible multiline cell asks for its layout on repaint");
+        Require(repainted.hits - warmed.hits == repainted.lookups - warmed.lookups, "every repaint lookup of an unchanged cell hits");
+        Require(repainted.layoutCreations == warmed.layoutCreations, "a repaint of unchanged distinct cells lays nothing out again");
+        Require(repainted.retainedLayouts >= visibleCells, "each visible distinct value keeps its layout");
+        Require(second.bgraPixels == first.bgraPixels, "reused layouts paint exactly as the first paint");
+        // Scrolling one row keeps every value still in view: only the row that enters is laid out (a measure and a
+        // display layout per cell).
+        grid->DebugSetScrollOffsets(rowHeight, 0.0f);
+        const auto beforeScroll = grid->DebugGetTextLayoutStatistics();
+        static_cast<void>(CaptureAttachedHostWindowBitmap(window, "distinct multiline cells, scrolled one row"));
+        const auto scrolled = grid->DebugGetTextLayoutStatistics();
+        std::cout << "Grid distinct multiline cells " << rowCount << "x" << columnCount << ": one-row scroll lays out "
+                  << scrolled.layoutCreations - beforeScroll.layoutCreations << " layouts\n";
+        Require(scrolled.layoutCreations - beforeScroll.layoutCreations <= 2u * columnCount, "scrolling one row lays out only the row that entered");
+        // A few rows further down, the rows' layouts sit wherever the entering rows found room; scrolling back up
+        // then draws the entering top row before rows still in view whose layouts share its sets.
+        for (const float offset : {2.0f * rowHeight, 3.0f * rowHeight})
+        {
+            grid->DebugSetScrollOffsets(offset, 0.0f);
+            static_cast<void>(CaptureAttachedHostWindowBitmap(window, "distinct multiline cells, scrolled down a row"));
+        }
+        const auto beforeScrollUp = grid->DebugGetTextLayoutStatistics();
+        grid->DebugSetScrollOffsets(2.0f * rowHeight, 0.0f);
+        static_cast<void>(CaptureAttachedHostWindowBitmap(window, "distinct multiline cells, scrolled back up one row"));
+        const auto scrolledUp = grid->DebugGetTextLayoutStatistics();
+        std::cout << "Grid distinct multiline cells " << rowCount << "x" << columnCount << ": one-row scroll up lays out "
+                  << scrolledUp.layoutCreations - beforeScrollUp.layoutCreations << " layouts\n";
+        Require(scrolledUp.layoutCreations - beforeScrollUp.layoutCreations <= 2u * columnCount,
+                "scrolling back up one row lays out only the row that entered, not the rows still in view");
+        window.Host().SetRoot(nullptr);
+    }
+}
+
+// Single-line captions keep their layouts too: a repaint of unchanged cells lays nothing out, and scrolling one row
+// either way lays out only the entering row, including at a row height scrolling cannot place on whole floats.
+void TestGridSingleLineLayoutsSurviveRepaintAndScroll()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(),
+                 nullptr,
+                 0,
+                 0,
+                 static_cast<int>(window.Host().DipsToPixels(760.0f)),
+                 static_cast<int>(window.Host().DipsToPixels(640.0f)),
+                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    for (const float rowHeight : {28.0f, 22.96f})
+    {
+        constexpr size_t rowCount    = 10u;
+        constexpr size_t columnCount = 4u;
+        DistinctMultilineGridModel model(rowCount + 8u, columnCount, false);
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(
+            10.0f, 10.0f, 10.0f + (static_cast<float>(columnCount) * 110.0f) + 20.0f, 10.0f + 30.0f + (static_cast<float>(rowCount) * rowHeight) + 20.0f));
+        grid->SetHeaderHeightDip(30.0f);
+        grid->SetRowHeightDip(rowHeight);
+        grid->SetModel(&model);
+        window.Host().SetRoot(std::move(root));
+        const auto first   = CaptureAttachedHostWindowBitmap(window, "single-line cells, first paint");
+        const auto warmed  = grid->DebugGetTextLayoutStatistics();
+        const auto second  = CaptureAttachedHostWindowBitmap(window, "single-line cells, repaint");
+        const auto painted = grid->DebugGetTextLayoutStatistics();
+        Require(painted.lookups > warmed.lookups && painted.hits - warmed.hits == painted.lookups - warmed.lookups,
+                "every repaint lookup of an unchanged single-line cell hits");
+        Require(painted.layoutCreations == warmed.layoutCreations, "a repaint of unchanged single-line cells lays nothing out again");
+        Require(second.bgraPixels == first.bgraPixels, "retained single-line layouts paint exactly as the first paint");
+        uint64_t creations = painted.layoutCreations;
+        for (const float offset : {rowHeight, 2.0f * rowHeight, 3.0f * rowHeight, 2.0f * rowHeight})
+        {
+            grid->DebugSetScrollOffsets(offset, 0.0f);
+            static_cast<void>(CaptureAttachedHostWindowBitmap(window, "single-line cells, scrolled one row"));
+            const uint64_t now = grid->DebugGetTextLayoutStatistics().layoutCreations;
+            std::cout << "Grid single-line cells at " << rowHeight << " DIP rows: a one-row scroll lays out " << now - creations << " layouts\n";
+            Require(now - creations <= columnCount, "scrolling single-line cells one row lays out only the row that entered");
+            creations = now;
+        }
+        window.Host().SetRoot(nullptr);
+    }
+}
+
+// A leading-aligned single-line caption far longer than its cell shapes only the prefix that overflows the cell (the
+// rest is clipped away) and paints exactly like a twin shaped whole that still overflows the cell; a caption the table
+// keeps repaints without laying anything out.
+void TestGridSingleLineOversizedCaptionShapesOnlyItsVisiblePrefix()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(), nullptr, 0, 0, 480, 280, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    SingleCellGridModel model(GridCellData{});
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 180.0f));
+    grid->SetHeaderHeightDip(30.0f);
+    grid->SetRowHeightDip(28.0f);
+    grid->SetModel(&model);
+    const std::array<GridColumnLayoutEntry, 1> columns{{{L"status", 0u, 300.0f}}};
+    grid->ApplyColumnLayout(columns);
+    window.Host().SetRoot(std::move(root));
+    std::wstring huge;
+    while (huge.size() < 100000u)
+        huge += L"mot suivant très long ";
+    const auto capture = [&](std::wstring text, const char* context)
+    {
+        GridCellData cell{};
+        cell.text = std::move(text);
+        model     = SingleCellGridModel(cell);
+        grid->NotifyDataChanged();
+        const auto before = grid->DebugGetTextLayoutStatistics();
+        auto bitmap       = CaptureAttachedHostWindowBitmap(window, context);
+        const auto after  = grid->DebugGetTextLayoutStatistics();
+        std::cout << "Grid single-line caption (" << context << "): shaped " << after.shapedUnits - before.shapedUnits << " UTF-16 units\n";
+        return std::pair(std::move(bitmap), after.shapedUnits - before.shapedUnits);
+    };
+    const auto [hugeBitmap, hugeShaped] = capture(huge, "100,000 units");
+    const auto [twinBitmap, twinShaped] = capture(huge.substr(0u, 110u), "110-unit twin, shaped whole");
+    const uint64_t before               = grid->DebugGetTextLayoutStatistics().layoutCreations;
+    static_cast<void>(CaptureAttachedHostWindowBitmap(window, "110-unit twin, repaint"));
+    const uint64_t repainted = grid->DebugGetTextLayoutStatistics().layoutCreations - before;
+    Require(hugeShaped < 5000u, "a 100,000-unit single-line caption shapes only the prefix its cell can show");
+    Require(repainted == 0u, "a retained single-line caption repaints without laying anything out");
+    Require(hugeBitmap.bgraPixels == twinBitmap.bgraPixels, "the shaped prefix paints what a caption shaped whole paints");
+    static_cast<void>(twinShaped);
+}
+
+// A value far longer than any cell can show shapes only a prefix: paint cost no longer grows with the value, and the
+// cell paints exactly like a much shorter twin with the same visible start.
+void TestGridMultilineOversizedValueShapesOnlyItsVisiblePrefix()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(), nullptr, 0, 0, 480, 280, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    SingleCellGridModel model(GridCellData{});
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 180.0f));
+    grid->SetHeaderHeightDip(30.0f);
+    grid->SetRowHeightDip(64.0f);
+    grid->SetLineClamp(2u);
+    grid->SetModel(&model);
+    const std::array<GridColumnLayoutEntry, 1> columns{{{L"status", 0u, 300.0f}}};
+    grid->ApplyColumnLayout(columns);
+    window.Host().SetRoot(std::move(root));
+    std::wstring huge;
+    while (huge.size() < 100000u)
+        huge += L"mot suivant très long ";
+    const auto capture = [&](std::wstring text, const char* context)
+    {
+        GridCellData cell{};
+        cell.text      = std::move(text);
+        cell.multiline = true;
+        model          = SingleCellGridModel(cell);
+        grid->NotifyDataChanged();
+        const auto before = grid->DebugGetTextLayoutStatistics();
+        auto bitmap       = CaptureAttachedHostWindowBitmap(window, context);
+        const auto after  = grid->DebugGetTextLayoutStatistics();
+        const auto paints = std::max<uint64_t>(1u, after.layoutCreations - before.layoutCreations);
+        const auto shaped = after.shapedUnits - before.shapedUnits;
+        std::cout << "Grid oversized multiline value (" << context << "): shaped " << shaped << " UTF-16 units in " << paints << " layouts\n";
+        return std::pair(std::move(bitmap), shaped);
+    };
+    // The layout is kept under the prefix it shaped, so a repaint of the long value lays nothing out again.
+    const auto repaintCreations = [&](const char* context)
+    {
+        const auto before = grid->DebugGetTextLayoutStatistics();
+        static_cast<void>(CaptureAttachedHostWindowBitmap(window, context));
+        return grid->DebugGetTextLayoutStatistics().layoutCreations - before.layoutCreations;
+    };
+    // A clamp far beyond what the 64-DIP row can show sizes shaping by the lines that fit, not by the clamp.
+    for (const uint32_t lineClamp : {2u, 1u, 1000u})
+    {
+        grid->SetLineClamp(lineClamp);
+        const std::string clampName         = "clamp " + std::to_string(lineClamp);
+        const auto [hugeBitmap, hugeShaped] = capture(huge, ("100,000 units, " + clampName).c_str());
+        const uint64_t repainted            = repaintCreations("100,000 units, repaint");
+        // Another long value that starts the same way is the same prefix to shape, so it shares the retained layout.
+        const auto [otherBitmap, otherShaped] = capture(huge.substr(0u, 90000u) + L" et une autre fin", ("another long value, " + clampName).c_str());
+        const auto [twinBitmap, twinShaped]   = capture(huge.substr(0u, 3000u), ("3,000-unit twin, " + clampName).c_str());
+        std::cout << "Grid oversized multiline value, " << clampName << ": repaint lays out " << repainted << " layouts, another long value shapes "
+                  << otherShaped << " units\n";
+        Require(hugeShaped < 20000u, "a 100,000-unit value shapes only a bounded prefix per paint, wrapped, on one line or with a huge clamp");
+        Require(repainted == 0u, "a repaint of a 100,000-unit value lays nothing out again");
+        Require(otherShaped == 0u && otherBitmap.bgraPixels == hugeBitmap.bgraPixels, "another long value with the same start shares the retained layout");
+        Require(hugeBitmap.bgraPixels == twinBitmap.bgraPixels, "the shaped prefix paints the same lines and omission marker as a short twin");
+        static_cast<void>(twinShaped);
+    }
+
+    // A very wide cell shows (and shapes) more than 4,096 units in three lines; it still keeps its layout.
+    const std::array<GridColumnLayoutEntry, 1> wideColumns{{{L"status", 0u, 3000.0f}}};
+    grid->ApplyColumnLayout(wideColumns);
+    grid->SetLineClamp(3u);
+    const auto [wideBitmap, wideShaped] = capture(huge, "100,000 units in a 3,000-DIP cell");
+    const uint64_t wideRepainted        = repaintCreations("100,000 units in a 3,000-DIP cell, repaint");
+    std::cout << "Grid oversized multiline value in a 3,000-DIP cell: shaped " << wideShaped << " units, repaint lays out " << wideRepainted << " layouts\n";
+    Require(wideShaped > 4096u && wideRepainted == 0u, "a wide cell keeps a layout whose shaped text is longer than 4,096 units");
+    static_cast<void>(wideBitmap);
+}
+
+// The omission marker ends the text in that text's own direction: in a left-to-right cell it sits after the last
+// word of Latin text (right) but at the left end of Arabic text, which reads right to left.
+void TestGridMultilineOmissionMarkerFollowsTheTextDirection()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(), nullptr, 0, 0, 480, 280, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    SingleCellGridModel model(GridCellData{});
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 180.0f));
+    grid->SetHeaderHeightDip(30.0f);
+    grid->SetRowHeightDip(40.0f);
+    grid->SetLineClamp(1u);
+    grid->SetModel(&model);
+    const std::array<GridColumnLayoutEntry, 1> columns{{{L"status", 0u, 300.0f}}};
+    grid->ApplyColumnLayout(columns);
+    window.Host().SetRoot(std::move(root));
+    const auto capture = [&](const wchar_t* text, const char* context)
+    {
+        GridCellData cell{};
+        cell.text      = text;
+        cell.multiline = true;
+        model          = SingleCellGridModel(cell);
+        grid->NotifyDataChanged();
+        return CaptureAttachedHostWindowBitmap(window, context);
+    };
+    const auto empty = capture(L"", "empty cell for the omission marker");
+    struct Placement
+    {
+        UINT left            = UINT_MAX;
+        UINT right           = 0u;
+        uint64_t shiftedInk  = 0u; // Pixels that differ from the unmarked twin inside the twin's own ink span.
+        uint64_t markerAfter = 0u; // Differing pixels right of that span.
+    };
+    const auto measure = [&](const wchar_t* marked, const wchar_t* unmarked, const char* name)
+    {
+        const auto withMarker = capture(marked, name);
+        const auto twin       = capture(unmarked, name);
+        Placement placement;
+        for (UINT y = 0u; y < twin.heightPx; ++y)
+            for (UINT x = 0u; x < twin.widthPx; ++x)
+                if (CaptureBgra(twin, x, y) != CaptureBgra(empty, x, y))
+                {
+                    placement.left  = std::min(placement.left, x);
+                    placement.right = std::max(placement.right, x);
+                }
+        Require(placement.left < placement.right, "the unmarked twin paints its text");
+        const UINT margin = static_cast<UINT>(window.Host().DipsToPixels(3.0f));
+        for (UINT y = 0u; y < twin.heightPx; ++y)
+            for (UINT x = 0u; x < twin.widthPx; ++x)
+                if (CaptureBgra(withMarker, x, y) != CaptureBgra(twin, x, y))
+                {
+                    if (x + margin < placement.right)
+                        ++placement.shiftedInk;
+                    else if (x > placement.right)
+                        ++placement.markerAfter;
+                }
+        std::cout << "Grid omission marker (" << name << "): twin ink " << placement.left << ".." << placement.right << ", changed inside "
+                  << placement.shiftedInk << ", changed after " << placement.markerAfter << '\n';
+        return placement;
+    };
+    const Placement latin = measure(L"Bonjour tout le monde\nsuite masquée", L"Bonjour tout le monde", "Latin text");
+    Require(latin.shiftedInk == 0u && latin.markerAfter > 0u, "a Latin omission marker follows the text on its right");
+    const Placement arabic = measure(L"مرحبا بالعالم الجميل\nالسطر الثاني", L"مرحبا بالعالم الجميل", "Arabic text");
+    Require(arabic.shiftedInk > 0u, "an Arabic omission marker sits at the left end, where that text reads to");
+    // An emoji (a surrogate pair, U+1F4F7) has no direction: the text it ends still reads right to left.
+    const Placement arabicEmoji =
+        measure(L"مرحبا بالعالم الجميل \xD83D\xDCF7\nالسطر الثاني", L"مرحبا بالعالم الجميل \xD83D\xDCF7", "Arabic text ending in an emoji");
+    Require(arabicEmoji.shiftedInk > 0u, "an Arabic omission marker after an emoji still sits at the left end");
 }
 
 void TestMultilineButtonPaintUsesMultipleTextRows()
@@ -1171,7 +1573,7 @@ void TestGridIncludesBottomClippedTrailingRow()
     Require(clippedRowRect->bottom > clippedRowRect->top, "grid bottom-clipped trailing row geometry has area");
 }
 
-class LargeIconBadgeGridModel final : public DxUi::IDxGridModel
+class LargeIconBadgeGridModel final : public DxUi::IGridModel
 {
 public:
     LargeIconBadgeGridModel(size_t rowCount, size_t columnCount, float columnWidthDip)
@@ -1230,7 +1632,7 @@ private:
     float _columnWidthDip = 96.0f;
 };
 
-class CellDataStorageProbeGridModel final : public DxUi::IDxGridModel
+class CellDataStorageProbeGridModel final : public DxUi::IGridModel
 {
 public:
     CellDataStorageProbeGridModel(size_t rowCount, size_t columnCount, float columnWidthDip)
@@ -2011,6 +2413,11 @@ void RunRenderingTests()
     TestGridMultilineClampPreservesCompleteModelText();
     TestGridMultilineShortRowsPaintClippedFirstLine();
     TestGridMultilineTrailingSeparatorsMatchTrimmedTwin();
+    TestGridMultilineLayoutsSurviveRepaintForEveryDistinctVisibleCell();
+    TestGridMultilineOversizedValueShapesOnlyItsVisiblePrefix();
+    TestGridSingleLineLayoutsSurviveRepaintAndScroll();
+    TestGridSingleLineOversizedCaptionShapesOnlyItsVisiblePrefix();
+    TestGridMultilineOmissionMarkerFollowsTheTextDirection();
     TestMultilineButtonPaintUsesMultipleTextRows();
     const auto runTest = [](const char* name, void (*fn)())
     {

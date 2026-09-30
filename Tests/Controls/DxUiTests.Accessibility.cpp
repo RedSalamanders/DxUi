@@ -225,6 +225,7 @@ void TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement()
     std::atomic<HRESULT> workerFailure{S_OK};
     std::atomic<int> workerStep{0};
     std::atomic<uint32_t> traversalCount{0u};
+    std::atomic<uint32_t> goneElementReads{0u};
     std::thread worker([&]
     {
         while (! stopWorker.load(std::memory_order_acquire))
@@ -271,6 +272,12 @@ void TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement()
                 VariantInit(&propertyValue);
                 hr = childSimple->GetPropertyValue(UIA_NamePropertyId, &propertyValue);
                 VariantClear(&propertyValue);
+                // An element whose control a replacement removed reports that it is gone; a client starts over.
+                if (hr == UIA_E_ELEMENTNOTAVAILABLE)
+                {
+                    goneElementReads.fetch_add(1u, std::memory_order_acq_rel);
+                    break;
+                }
                 if (FAILED(hr))
                 {
                     workerStep.store(5, std::memory_order_release);
@@ -280,6 +287,11 @@ void TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement()
 
                 wil::com_ptr_nothrow<IRawElementProviderFragment> nextProvider;
                 hr = childProvider->Navigate(NavigateDirection_NextSibling, nextProvider.put());
+                if (hr == UIA_E_ELEMENTNOTAVAILABLE)
+                {
+                    goneElementReads.fetch_add(1u, std::memory_order_acq_rel);
+                    break;
+                }
                 if (FAILED(hr))
                 {
                     workerStep.store(6, std::memory_order_release);
@@ -328,6 +340,7 @@ void TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement()
     RequireSucceeded(workerFailure.load(std::memory_order_acquire), "concurrent accessibility traversal survives root replacement");
     Require(workerStep.load(std::memory_order_acquire) == 0, "concurrent accessibility traversal reports no failed provider read step");
     Require(traversalCount.load(std::memory_order_acquire) > 0u, "concurrent accessibility traversal performs provider reads while roots churn");
+    std::cout << "Concurrent traversal: " << traversalCount.load() << " traversals, " << goneElementReads.load() << " reads of replaced elements\n";
 }
 
 void TestAttachedWindowHostWmGetObjectReturnsAccessibilityProvider()
@@ -3303,7 +3316,7 @@ void TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns(
 {
     using namespace DxUi;
 
-    class ExpandableTreeModel final : public IDxTreeModel
+    class ExpandableTreeModel final : public ITreeModel
     {
     public:
         void SetExpanded(bool expanded)
@@ -3340,7 +3353,7 @@ void TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns(
         bool _expanded = false;
     };
 
-    class ExpandableTreeDelegate final : public IDxTreeDelegate
+    class ExpandableTreeDelegate final : public ITreeDelegate
     {
     public:
         ExpandableTreeDelegate(ExpandableTreeModel& model, Tree& tree) : _model(model), _tree(tree)
@@ -3670,7 +3683,7 @@ void TestAccessibilityProviderExposesGridRowSelectionPatterns()
 {
     using namespace DxUi;
 
-    class AccessibleGridModel final : public IDxGridModel
+    class AccessibleGridModel final : public IGridModel
     {
     public:
         struct Row
@@ -3741,10 +3754,10 @@ void TestAccessibilityProviderExposesGridRowSelectionPatterns()
         std::vector<Row> _rows;
     };
 
-    class AccessibleGridDelegate final : public IDxGridDelegate
+    class AccessibleGridDelegate final : public IGridDelegate
     {
     public:
-        using IDxGridDelegate::OnGridSelectionChanged;
+        using IGridDelegate::OnGridSelectionChanged;
 
         void OnGridSelectionChanged(Grid& sender) override
         {
@@ -4062,7 +4075,7 @@ void TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure()
 {
     using namespace DxUi;
 
-    class WideGridModel final : public IDxGridModel
+    class WideGridModel final : public IGridModel
     {
     public:
         [[nodiscard]] size_t GetRowCount() const noexcept override
@@ -4574,6 +4587,58 @@ void TestAccessibilityProviderExposesSliderRangeValuePattern()
     Require(slider->GetValue() == 68.0, "slider range-value SetValue updates the underlying control value");
 }
 
+void TestAccessibilityProviderExposesSplitterRangeValuePattern()
+{
+    using namespace DxUi;
+
+    // A focusable, keyboard-adjustable splitter is a Thumb with RangeValue (Core-AAM's focusable separator): screen
+    // readers reach it, speak its position and can move it.
+    AttachedHostWindow window;
+    auto root      = std::make_unique<Panel>();
+    auto* splitter = root->AddChild<Splitter>();
+    splitter->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 120.0f));
+    splitter->SetPosition(120.0f);
+    splitter->SetAccessibleName(L"Layers panel width");
+    size_t commits = 0u;
+    splitter->SetOnChange([&commits](SplitterChange change) { commits += change.phase == SplitterChangePhase::Commit ? 1u : 0u; });
+    window.Host().SetRoot(std::move(root));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "splitter accessibility test creates a root provider");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> splitterProvider =
+        GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 123.0f, 60.0f, "splitter accessibility provider is resolved by point");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> splitterSimple;
+    RequireSucceeded(splitterProvider.query_to(splitterSimple.put()), "splitter accessibility provider exposes IRawElementProviderSimple");
+    Require(ReadProviderLongProperty(*splitterSimple.get(), UIA_ControlTypePropertyId, "splitter exposes UIA control type") == UIA_ThumbControlTypeId,
+            "splitter reports the thumb control type of a focusable separator");
+    Require(ReadProviderStringProperty(*splitterSimple.get(), UIA_NamePropertyId, "splitter exposes accessibility name") == L"Layers panel width",
+            "splitter uses its accessible name");
+
+    wil::com_ptr_nothrow<IUnknown> rangeValueUnknown;
+    RequireSucceeded(splitterSimple->GetPatternProvider(UIA_RangeValuePatternId, rangeValueUnknown.put()), "splitter range-value lookup succeeds");
+    Require(rangeValueUnknown != nullptr, "splitter exposes the range-value pattern");
+    wil::com_ptr_nothrow<IRangeValueProvider> rangeValuePattern;
+    RequireSucceeded(rangeValueUnknown.query_to(rangeValuePattern.put()), "splitter range-value pattern supports IRangeValueProvider");
+    double value       = 0.0;
+    double minimum     = 0.0;
+    double maximum     = 0.0;
+    double smallChange = 0.0;
+    double largeChange = 0.0;
+    BOOL readOnly      = TRUE;
+    RequireSucceeded(rangeValuePattern->get_Value(&value), "splitter range-value query succeeds");
+    RequireSucceeded(rangeValuePattern->get_Minimum(&minimum), "splitter minimum query succeeds");
+    RequireSucceeded(rangeValuePattern->get_Maximum(&maximum), "splitter maximum query succeeds");
+    RequireSucceeded(rangeValuePattern->get_SmallChange(&smallChange), "splitter small-change query succeeds");
+    RequireSucceeded(rangeValuePattern->get_LargeChange(&largeChange), "splitter large-change query succeeds");
+    RequireSucceeded(rangeValuePattern->get_IsReadOnly(&readOnly), "splitter read-only query succeeds");
+    Require(value == 120.0 && minimum == 48.0 && maximum == 246.0, "splitter reports its position between the pane-minimum limits");
+    Require(smallChange == 8.0 && largeChange == 32.0 && readOnly == FALSE, "splitter reports its keyboard steps and is adjustable");
+
+    RequireSucceeded(rangeValuePattern->SetValue(200.0), "splitter range-value SetValue succeeds");
+    Require(splitter->GetPosition() == 200.0f && commits == 1u, "splitter range-value SetValue commits one position change");
+}
+
 void TestAccessibilityStatusRootExposesChildrenAndNonFocusingInvoke()
 {
     using namespace DxUi;
@@ -4628,10 +4693,585 @@ void TestAccessibilityStatusRootExposesChildrenAndNonFocusingInvoke()
     Require(GetFocus() != window.Hwnd(), "status root Invoke does not focus its host window");
 }
 
+// Rebuilding a list puts a different control where an element's control was. The old element must neither act on the
+// replacement nor share its runtime id, while a fresh element reaches it, in a window host as in an embedded one.
+void TestWindowHostStaleElementCannotActOnAReplacementControl()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* list = root->AddChild<Panel>();
+    list->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 120.0f));
+    int clicksA  = 0;
+    int clicksC  = 0;
+    auto* first  = list->AddChild<Button>(L"Section A");
+    auto* second = list->AddChild<Button>(L"Section B");
+    first->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    second->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+    first->SetOnClick([&clicksA] { ++clicksA; });
+    window.Host().SetRoot(std::move(root));
+
+    const auto firstElement = [&](const char* context)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        Require(rootProvider != nullptr, context);
+        wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+        RequireSucceeded(rootProvider.query_to(rootFragment.put()), context);
+        wil::com_ptr_nothrow<IRawElementProviderFragment> element;
+        const HRESULT navigated = rootFragment->Navigate(NavigateDirection_FirstChild, element.put());
+        if (FAILED(navigated) || ! element)
+            std::cerr << "    [UIA] first-child navigation hr=0x" << std::hex << static_cast<unsigned long>(navigated) << std::dec
+                      << " element=" << (element != nullptr) << '\n';
+        RequireSucceeded(navigated, context);
+        Require(element != nullptr, context);
+        return element;
+    };
+    const auto readRuntimeId = [](IRawElementProviderFragment& provider, const char* context)
+    {
+        SAFEARRAY* runtimeId = nullptr;
+        RequireSucceeded(provider.GetRuntimeId(&runtimeId), context);
+        const auto destroyRuntimeId = wil::scope_exit([&] { SafeArrayDestroy(runtimeId); });
+        Require(runtimeId != nullptr, context);
+        LONG lowerBound = 0;
+        LONG upperBound = -1;
+        RequireSucceeded(SafeArrayGetLBound(runtimeId, 1, &lowerBound), context);
+        RequireSucceeded(SafeArrayGetUBound(runtimeId, 1, &upperBound), context);
+        std::vector<LONG> values;
+        for (LONG index = lowerBound; index <= upperBound; ++index)
+        {
+            LONG value = 0;
+            RequireSucceeded(SafeArrayGetElement(runtimeId, &index, &value), context);
+            values.push_back(value);
+        }
+        return values;
+    };
+    const auto invokeOf = [](IRawElementProviderFragment& element, const char* context)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(element.QueryInterface(IID_PPV_ARGS(simple.put())), context);
+        wil::com_ptr_nothrow<IUnknown> invokeUnknown;
+        const HRESULT patternResult = simple->GetPatternProvider(UIA_InvokePatternId, invokeUnknown.put());
+        wil::com_ptr_nothrow<IInvokeProvider> invoke;
+        if (SUCCEEDED(patternResult) && invokeUnknown)
+            RequireSucceeded(invokeUnknown.query_to(invoke.put()), context);
+        return invoke;
+    };
+
+    const auto stale = firstElement("the first section's element is reachable");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> staleSimple;
+    RequireSucceeded(stale.query_to(staleSimple.put()), "the first section's element is a simple provider");
+    Require(ReadProviderStringProperty(*staleSimple.get(), UIA_NamePropertyId, "the first section's name is readable") == L"Section A",
+            "the first element is Section A");
+    const std::vector<LONG> staleRuntimeId = readRuntimeId(*stale.get(), "Section A's runtime id is readable");
+    const auto staleInvoke                 = invokeOf(*stale.get(), "Section A exposes Invoke");
+    Require(staleInvoke != nullptr, "Section A exposes Invoke before the rebuild");
+
+    // Panel has no single-child removal: an application rebuilds the list, and Section C takes Section A's path.
+    list->ClearChildren();
+    auto* replacement = list->AddChild<Button>(L"Section C");
+    auto* neighbour   = list->AddChild<Button>(L"Section D"); // Two semantic controls keep the root from collapsing into one.
+    replacement->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    neighbour->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+    replacement->SetOnClick([&clicksC] { ++clicksC; });
+    window.Host().RefreshAccessibilitySnapshot();
+    window.PumpMessages();
+
+    Require(staleInvoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE, "the old element reports that its control is gone");
+    Require(clicksC == 0 && clicksA == 0, "Invoke through the old element clicks neither the removed nor the replacement control");
+
+    const auto fresh = firstElement("the replacement's element is reachable");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> freshSimple;
+    RequireSucceeded(fresh.query_to(freshSimple.put()), "the replacement's element is a simple provider");
+    Require(ReadProviderStringProperty(*freshSimple.get(), UIA_NamePropertyId, "the replacement's name is readable") == L"Section C",
+            "the fresh first element is Section C");
+    Require(readRuntimeId(*fresh.get(), "Section C's runtime id is readable") != staleRuntimeId,
+            "the replacement does not reuse the removed control's runtime id");
+    const auto freshInvoke = invokeOf(*fresh.get(), "Section C exposes Invoke");
+    Require(freshInvoke != nullptr, "Section C exposes Invoke");
+    RequireSucceeded(freshInvoke->Invoke(), "a fresh element invokes the replacement");
+    Require(clicksC == 1, "Invoke through a fresh element clicks the replacement once");
+}
+
+// A rebuilt tree is a different control at the old tree's path. Its items get runtime ids of their own, so a client
+// never takes a new item for the removed one it had cached, and the removed item's element reports that it is gone.
+void TestWindowHostReplacedTreeItemsGetNewRuntimeIds()
+{
+    using namespace DxUi;
+    MutableTreeModel model;
+    model.SetVisibleItems({TreeItemData{.id = 41u, .text = L"Alpha"}, TreeItemData{.id = 42u, .text = L"Beta"}});
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* holder = root->AddChild<Panel>();
+    holder->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    auto* tree = holder->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    tree->SetModel(&model);
+    root->AddChild<Button>(L"Après")->SetBounds(D2D1::RectF(0.0f, 128.0f, 120.0f, 160.0f)); // Keeps the root from collapsing.
+    window.Host().SetRoot(std::move(root));
+
+    const auto firstItem = [&](const char* context)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        Require(rootProvider != nullptr, context);
+        wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+        RequireSucceeded(rootProvider.query_to(rootFragment.put()), context);
+        wil::com_ptr_nothrow<IRawElementProviderFragment> treeElement;
+        RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, treeElement.put()), context);
+        Require(treeElement != nullptr, context);
+        wil::com_ptr_nothrow<IRawElementProviderFragment> item;
+        RequireSucceeded(treeElement->Navigate(NavigateDirection_FirstChild, item.put()), context);
+        Require(item != nullptr, context);
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(item.query_to(simple.put()), context);
+        Require(ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, context) == L"Alpha", context);
+        return simple;
+    };
+    const auto readRuntimeId = [](IRawElementProviderSimple& provider, const char* context)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
+        RequireSucceeded(provider.QueryInterface(IID_PPV_ARGS(fragment.put())), context);
+        SAFEARRAY* runtimeId = nullptr;
+        RequireSucceeded(fragment->GetRuntimeId(&runtimeId), context);
+        const auto destroyRuntimeId = wil::scope_exit([&] { SafeArrayDestroy(runtimeId); });
+        Require(runtimeId != nullptr, context);
+        LONG lowerBound = 0;
+        LONG upperBound = -1;
+        RequireSucceeded(SafeArrayGetLBound(runtimeId, 1, &lowerBound), context);
+        RequireSucceeded(SafeArrayGetUBound(runtimeId, 1, &upperBound), context);
+        std::vector<LONG> values;
+        for (LONG index = lowerBound; index <= upperBound; ++index)
+        {
+            LONG value = 0;
+            RequireSucceeded(SafeArrayGetElement(runtimeId, &index, &value), context);
+            values.push_back(value);
+        }
+        return values;
+    };
+
+    const auto stale                       = firstItem("the first tree's Alpha item is reachable");
+    const std::vector<LONG> staleRuntimeId = readRuntimeId(*stale.get(), "the first tree's Alpha runtime id is readable");
+
+    holder->ClearChildren();
+    auto* replacement = holder->AddChild<Tree>();
+    replacement->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    replacement->SetModel(&model);
+    window.Host().RefreshAccessibilitySnapshot();
+
+    const auto fresh = firstItem("the replacement tree's Alpha item is reachable");
+    Require(readRuntimeId(*fresh.get(), "the replacement's Alpha runtime id is readable") != staleRuntimeId,
+            "an item of the replacement tree does not reuse the removed tree's item runtime id");
+    VARIANT staleName{};
+    VariantInit(&staleName);
+    const HRESULT staleResult = stale->GetPropertyValue(UIA_NamePropertyId, &staleName);
+    VariantClear(&staleName);
+    Require(staleResult == UIA_E_ELEMENTNOTAVAILABLE, "the removed tree's item element reports that it is gone");
+}
+
+class StructureInvalidationObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+                                                                                IUIAutomationStructureChangedEventHandler,
+                                                                                Microsoft::WRL::FtmBase>
+{
+public:
+    std::atomic<unsigned int> invalidations{0};
+    HRESULT STDMETHODCALLTYPE HandleStructureChangedEvent(IUIAutomationElement*, StructureChangeType change, SAFEARRAY*) noexcept override
+    {
+        if (change == StructureChangeType_ChildrenInvalidated)
+            invalidations.fetch_add(1);
+        return S_OK;
+    }
+};
+
+// Rebuilding a window's controls invalidates what a client navigated: the host tells it so (it drops elements that now
+// report they are gone and navigates again), and a republish that changed no control tells it nothing.
+void TestWindowHostRebuildRaisesStructureInvalidation()
+{
+    using namespace DxUi;
+    constexpr ULONGLONG kClientSetupAllowanceMs = 20000;
+    constexpr ULONGLONG kNotificationDeadlineMs = 3000;
+    constexpr ULONGLONG kQuietPeriodMs          = 500;
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* list = root->AddChild<Panel>();
+    list->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 120.0f));
+    list->AddChild<Button>(L"Section A")->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    list->AddChild<Button>(L"Section B")->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+    window.Host().SetRoot(std::move(root));
+
+    wil::com_ptr_nothrow<StructureInvalidationObserver> observer;
+    observer.attach(Microsoft::WRL::Make<StructureInvalidationObserver>().Detach());
+    Require(observer != nullptr, "allocate the structure observer");
+    wil::unique_event stop(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(bool(stop), "create the UIA client stop event");
+    std::atomic<bool> ready{false};
+    std::atomic<bool> finished{false};
+    std::atomic<HRESULT> setup{E_PENDING};
+    const HWND hwnd = window.Hwnd();
+    std::jthread client([&]
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        const auto uninitialize   = wil::scope_exit([&]
+        {
+            if (SUCCEEDED(initialized))
+                CoUninitialize();
+        });
+        wil::com_ptr_nothrow<IUIAutomation> automation;
+        wil::com_ptr_nothrow<IUIAutomationElement> element;
+        HRESULT hr = initialized;
+        if (SUCCEEDED(hr))
+            hr = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(automation.put()));
+        if (SUCCEEDED(hr))
+            hr = automation->ElementFromHandle(hwnd, element.put());
+        if (SUCCEEDED(hr))
+            hr = automation->AddStructureChangedEventHandler(element.get(), TreeScope_Subtree, nullptr, observer.get());
+        setup.store(hr);
+        ready.store(true);
+        if (SUCCEEDED(hr))
+        {
+            static_cast<void>(WaitForSingleObject(stop.get(), 15000));
+            static_cast<void>(automation->RemoveStructureChangedEventHandler(element.get(), observer.get()));
+        }
+        finished.store(true);
+    });
+    const auto waitUntil = [&](ULONGLONG timeoutMs, const auto& predicate)
+    {
+        const auto deadline = GetTickCount64() + timeoutMs;
+        while (! predicate() && GetTickCount64() < deadline)
+        {
+            window.PumpMessages();
+            Sleep(1);
+        }
+        return predicate();
+    };
+    const auto stopClient = wil::scope_exit([&]() noexcept
+    {
+        SetEvent(stop.get());
+        static_cast<void>(waitUntil(kNotificationDeadlineMs, [&] { return finished.load(); }));
+    });
+    Require(waitUntil(kClientSetupAllowanceMs, [&] { return ready.load(); }) && SUCCEEDED(setup.load()), "subscribe UIA structure changes");
+
+    // Panel has no single-child removal: an application rebuilds the list, and other controls take the old paths.
+    list->ClearChildren();
+    list->AddChild<Button>(L"Section C")->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    list->AddChild<Button>(L"Section D")->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+    window.Host().RefreshAccessibilitySnapshot();
+    Require(waitUntil(kNotificationDeadlineMs, [&] { return observer->invalidations.load() >= 1u; }),
+            "a UIA client learns that the rebuilt controls invalidated its elements");
+
+    // UIA may deliver more than one notification for the rebuild; the quiet period lets them all arrive first.
+    static_cast<void>(waitUntil(kQuietPeriodMs, [] { return false; }));
+    const unsigned int afterRebuild = observer->invalidations.load();
+    window.Host().RefreshAccessibilitySnapshot();
+    static_cast<void>(waitUntil(kQuietPeriodMs, [] { return false; }));
+    Require(observer->invalidations.load() == afterRebuild, "a republish that changed no control raises no structure change");
+
+    // Replacing the whole tree is compared with the tree before it, not with the empty snapshot standing in meanwhile.
+    auto replacement = std::make_unique<Panel>();
+    replacement->AddChild<Button>(L"Nouvelle page")->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    replacement->AddChild<Button>(L"Retour")->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+    window.Host().SetRoot(std::move(replacement));
+    Require(waitUntil(kNotificationDeadlineMs, [&] { return observer->invalidations.load() > afterRebuild; }),
+            "a UIA client learns that a new root replaced every element");
+}
+
+class DisclosureSenderObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+                                                                           IUIAutomationPropertyChangedEventHandler,
+                                                                           Microsoft::WRL::FtmBase>
+{
+public:
+    std::atomic<unsigned int> changes{0};
+    HRESULT STDMETHODCALLTYPE HandlePropertyChangedEvent(IUIAutomationElement* sender, PROPERTYID property, VARIANT) noexcept override
+    {
+        if (property != UIA_ExpandCollapseExpandCollapseStatePropertyId)
+            return S_OK;
+        // The automation id is cached with the event, so the handler never calls back into the provider's thread.
+        wil::unique_bstr automationId;
+        if (sender && SUCCEEDED(sender->get_CachedAutomationId(automationId.put())) && automationId)
+        {
+            const std::scoped_lock lock(_mutex);
+            _senderAutomationId.assign(automationId.get(), SysStringLen(automationId.get()));
+        }
+        changes.fetch_add(1);
+        return S_OK;
+    }
+
+    [[nodiscard]] std::wstring SenderAutomationId() const
+    {
+        const std::scoped_lock lock(_mutex);
+        return _senderAutomationId;
+    }
+
+private:
+    mutable std::mutex _mutex;
+    std::wstring _senderAutomationId;
+};
+
+// A status root collapses into its window's fragment root while its children stay elements of their own: an event
+// about a child comes from that child, never from the root that stands for the window.
+void TestCollapsedStatusRootChildEventComesFromTheChild()
+{
+    using namespace DxUi;
+    constexpr ULONGLONG kClientSetupAllowanceMs = 20000;
+    constexpr ULONGLONG kNotificationDeadlineMs = 3000;
+    AttachedHostWindow window;
+    auto root = std::make_unique<Panel>();
+    root->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 120.0f));
+    root->SetAccessibilityRole(AccessibilityRole::Status);
+    root->SetAccessibleAutomationId(L"UndoStatus");
+    root->SetAccessibleName(L"Fichier supprimé");
+    root->SetFocusable(false);
+    auto* details = root->AddChild<Button>(L"Détails");
+    details->SetBounds(D2D1::RectF(16.0f, 16.0f, 200.0f, 48.0f));
+    details->SetAccessibleAutomationId(L"UndoStatus.Details");
+    details->SetDisclosureExpanded(false);
+    window.Host().SetRoot(std::move(root));
+
+    wil::com_ptr_nothrow<DisclosureSenderObserver> observer;
+    observer.attach(Microsoft::WRL::Make<DisclosureSenderObserver>().Detach());
+    Require(observer != nullptr, "allocate the disclosure sender observer");
+    wil::unique_event stop(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(bool(stop), "create the UIA client stop event");
+    std::atomic<bool> ready{false};
+    std::atomic<bool> finished{false};
+    std::atomic<HRESULT> setup{E_PENDING};
+    const HWND hwnd = window.Hwnd();
+    std::jthread client([&]
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        const auto uninitialize   = wil::scope_exit([&]
+        {
+            if (SUCCEEDED(initialized))
+                CoUninitialize();
+        });
+        wil::com_ptr_nothrow<IUIAutomation> automation;
+        wil::com_ptr_nothrow<IUIAutomationElement> element;
+        wil::com_ptr_nothrow<IUIAutomationCacheRequest> cache;
+        HRESULT hr = initialized;
+        if (SUCCEEDED(hr))
+            hr = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(automation.put()));
+        if (SUCCEEDED(hr))
+            hr = automation->ElementFromHandle(hwnd, element.put());
+        if (SUCCEEDED(hr))
+            hr = automation->CreateCacheRequest(cache.put());
+        if (SUCCEEDED(hr))
+            hr = cache->AddProperty(UIA_AutomationIdPropertyId);
+        PROPERTYID property = UIA_ExpandCollapseExpandCollapseStatePropertyId;
+        if (SUCCEEDED(hr))
+            hr = automation->AddPropertyChangedEventHandlerNativeArray(element.get(), TreeScope_Subtree, cache.get(), observer.get(), &property, 1);
+        setup.store(hr);
+        ready.store(true);
+        if (SUCCEEDED(hr))
+        {
+            static_cast<void>(WaitForSingleObject(stop.get(), 15000));
+            static_cast<void>(automation->RemovePropertyChangedEventHandler(element.get(), observer.get()));
+        }
+        finished.store(true);
+    });
+    const auto waitUntil = [&](ULONGLONG timeoutMs, const auto& predicate)
+    {
+        const auto deadline = GetTickCount64() + timeoutMs;
+        while (! predicate() && GetTickCount64() < deadline)
+        {
+            window.PumpMessages();
+            Sleep(1);
+        }
+        return predicate();
+    };
+    const auto stopClient = wil::scope_exit([&]() noexcept
+    {
+        SetEvent(stop.get());
+        static_cast<void>(waitUntil(kNotificationDeadlineMs, [&] { return finished.load(); }));
+    });
+    Require(waitUntil(kClientSetupAllowanceMs, [&] { return ready.load(); }) && SUCCEEDED(setup.load()), "subscribe disclosure changes below the status root");
+
+    details->SetDisclosureExpanded(true);
+    Require(waitUntil(kNotificationDeadlineMs, [&] { return observer->changes.load() >= 1u; }), "a UIA client receives the child's disclosure change");
+    Require(observer->SenderAutomationId() == L"UndoStatus.Details", "the disclosure change comes from the child, not the collapsed status root");
+}
+
+// A focus-changed callback may rebuild the controls around the one it was told about. The host neither keeps nor
+// publishes focus on a control the callback removed.
+void TestWindowHostFocusCallbackThatRemovesTheControlLeavesNoFocus()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* list = root->AddChild<Panel>();
+    list->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 120.0f));
+    auto* removed = list->AddChild<Button>(L"Section A");
+    removed->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    list->AddChild<Button>(L"Section B")->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+    window.Host().SetRoot(std::move(root));
+    bool rebuilt = false;
+    window.Host().SetOnFocusChanged([&](Control* control)
+    {
+        if (rebuilt || control != removed)
+            return;
+        rebuilt = true;
+        list->ClearChildren();
+        list->AddChild<Button>(L"Section C")->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+        list->AddChild<Button>(L"Section D")->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+    });
+
+    window.Host().SetFocusControl(removed);
+    Require(rebuilt, "the focus callback rebuilt the list");
+    Require(window.Host().GetFocusControl() == nullptr, "the host keeps no focus on the control its callback removed");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the window exposes its fragment root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> focused;
+    RequireSucceeded(rootProvider->GetFocus(focused.put()), "the fragment root reports its focus");
+    Require(focused == nullptr, "the published snapshot has no focused element");
+    window.Host().SetOnFocusChanged({});
+}
+
+// A rebuilt list reuses tree paths, and the allocator reuses the memory of controls no element references any more:
+// every generation of controls at a path still gets runtime ids no earlier one had.
+void TestWindowHostRuntimeIdsNeverRepeatAcrossRebuilds()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* list = root->AddChild<Panel>();
+    list->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 120.0f));
+    const auto fill = [list](int generation)
+    {
+        list->AddChild<Button>(L"Section " + std::to_wstring(generation))->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+        list->AddChild<Button>(L"Suite " + std::to_wstring(generation))->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+    };
+    fill(0);
+    window.Host().SetRoot(std::move(root));
+    const auto firstRuntimeId = [&]
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        Require(rootProvider != nullptr, "the window exposes its fragment root");
+        wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+        RequireSucceeded(rootProvider.query_to(rootFragment.put()), "the fragment root navigates");
+        wil::com_ptr_nothrow<IRawElementProviderFragment> first;
+        RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, first.put()), "reach the first section");
+        Require(first != nullptr, "the first section has an element");
+        SAFEARRAY* runtimeId = nullptr;
+        RequireSucceeded(first->GetRuntimeId(&runtimeId), "read the first section's runtime id");
+        const auto destroyRuntimeId = wil::scope_exit([&] { SafeArrayDestroy(runtimeId); });
+        LONG lowerBound             = 0;
+        LONG upperBound             = -1;
+        RequireSucceeded(SafeArrayGetLBound(runtimeId, 1, &lowerBound), "runtime id lower bound");
+        RequireSucceeded(SafeArrayGetUBound(runtimeId, 1, &upperBound), "runtime id upper bound");
+        std::vector<LONG> values;
+        for (LONG index = lowerBound; index <= upperBound; ++index)
+        {
+            LONG value = 0;
+            RequireSucceeded(SafeArrayGetElement(runtimeId, &index, &value), "runtime id value");
+            values.push_back(value);
+        }
+        return values; // Every element is released here, so nothing keeps an old control's memory in use.
+    };
+    std::vector<std::vector<LONG>> seen{firstRuntimeId()};
+    for (int generation = 1; generation <= 6; ++generation)
+    {
+        list->ClearChildren();
+        fill(generation);
+        window.Host().RefreshAccessibilitySnapshot();
+        std::vector<LONG> current = firstRuntimeId();
+        Require(std::ranges::find(seen, current) == seen.end(), "a rebuilt control never reuses an earlier control's runtime id");
+        seen.push_back(std::move(current));
+    }
+}
+
+// A panel may clear its children, the focused control with them, before the host's next message prunes that focus; a
+// republish in between (any accessible property change) must not touch the removed control.
+void TestWindowHostPublishSkipsAFocusedControlItsPanelRemoved()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* list = root->AddChild<Panel>();
+    list->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 60.0f));
+    auto* focused = list->AddChild<Button>(L"Section A");
+    focused->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    auto* status = root->AddChild<Label>(L"Prêt");
+    status->SetBounds(D2D1::RectF(8.0f, 70.0f, 200.0f, 100.0f));
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(focused);
+
+    list->ClearChildren(); // The focused button is destroyed; no message has let the host prune it yet.
+    status->SetAccessibleName(L"Liste vidée");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the window exposes its fragment root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> focus;
+    RequireSucceeded(rootProvider->GetFocus(focus.put()), "the fragment root reports its focus");
+    Require(focus == nullptr, "the published snapshot does not keep focus on the removed control");
+    Require(PostMessageW(window.Hwnd(), WM_NULL, 0, 0) != FALSE, "queue a message for the host");
+    window.PumpMessages();
+    Require(window.Host().GetFocusControl() == nullptr, "the host prunes the removed control's focus at its next message");
+}
+
+// A host without a tree may focus a control it does not own; a focus-changed callback leaves that focus in place.
+void TestRootlessHostKeepsFocusAfterItsCallback()
+{
+    using namespace DxUi;
+    WindowHost host;
+    Button button(L"Seul");
+    Control* notified = nullptr;
+    host.SetOnFocusChanged([&notified](Control* control) { notified = control; });
+    host.SetFocusControl(&button);
+    Require(notified == &button, "the callback hears the focused control");
+    Require(host.GetFocusControl() == &button, "a rootless host keeps focus on a live control after its callback");
+    host.SetOnFocusChanged({});
+    host.SetFocusControl(nullptr);
+}
+
+// A screen reader reaches a NumericStepper's step buttons by name, not by the private-use glyphs they paint.
+void TestNumericStepperStepButtonsAreNamedForAutomation()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root     = std::make_unique<Panel>();
+    auto* stepper = root->AddChild<NumericStepper>();
+    stepper->SetBounds(D2D1::RectF(8.0f, 8.0f, 220.0f, 40.0f));
+    stepper->SetLabel(L"Largeur", 60.0f);
+    stepper->SetStepButtonNames(L"Augmenter la largeur", L"Diminuer la largeur");
+    window.Host().SetRoot(std::move(root));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the stepper window publishes a UIA root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> element;
+    RequireSucceeded(rootProvider.query_to(element.put()), "the stepper root navigates");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> child;
+    RequireSucceeded(element->Navigate(NavigateDirection_FirstChild, child.put()), "the stepper root has children");
+    std::vector<std::wstring> names;
+    for (size_t guard = 0u; child && guard < 16u; ++guard)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(child.query_to(simple.put()), "a stepper element is a simple provider");
+        names.push_back(ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "a stepper element name is readable"));
+        wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+        RequireSucceeded(child->Navigate(NavigateDirection_NextSibling, next.put()), "stepper elements navigate to their siblings");
+        child = std::move(next);
+    }
+    const auto named = [&](std::wstring_view name) { return std::ranges::find(names, name) != names.end(); };
+    Require(named(L"Augmenter la largeur") && named(L"Diminuer la largeur"), "UI Automation exposes the step buttons by their localized names");
+    Require(std::ranges::none_of(names, [](const std::wstring& name) { return name.size() == 1u && name[0] >= L'\xE000' && name[0] <= L'\xF8FF'; }),
+            "no step button is announced as a private-use glyph");
+}
+
 } // namespace
 
 void RunAccessibilityTests()
 {
+    TestNumericStepperStepButtonsAreNamedForAutomation();
+    TestWindowHostStaleElementCannotActOnAReplacementControl();
+    TestWindowHostReplacedTreeItemsGetNewRuntimeIds();
+    TestWindowHostRebuildRaisesStructureInvalidation();
+    TestCollapsedStatusRootChildEventComesFromTheChild();
+    TestWindowHostFocusCallbackThatRemovesTheControlLeavesNoFocus();
+    TestWindowHostRuntimeIdsNeverRepeatAcrossRebuilds();
+    TestWindowHostPublishSkipsAFocusedControlItsPanelRemoved();
+    TestRootlessHostKeepsFocusAfterItsCallback();
     TestDisclosureButtonExpandCollapsePreservesAcknowledgedState();
     TestDisclosureNotifiesNativeAutomationClient();
     TestAccessibilityTextUnitHelperSharesGraphemeWordLineAndFallbackPolicy();
@@ -4683,5 +5323,6 @@ void RunAccessibilityTests()
     TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren();
     TestAccessibilityProviderExposesGridCellToggleAndRangePatterns();
     TestAccessibilityProviderExposesSliderRangeValuePattern();
+    TestAccessibilityProviderExposesSplitterRangeValuePattern();
     TestAccessibilityStatusRootExposesChildrenAndNonFocusingInvoke();
 }

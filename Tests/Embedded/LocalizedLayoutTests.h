@@ -343,3 +343,92 @@ static void TestLocalizedCheckboxCaption(GraphicsFixture& gpu)
     Check(! view.DispatchKey(VK_SPACE, true) && toggles == 1, "disabled multiline checkbox cannot toggle");
     view.Detach();
 }
+
+// In right-to-left flow the text format reads right to left, so a leading caption sits beside the mirrored indicator
+// (trailing alignment would push it to the far side of the row). Only the caption differs between the two frames.
+static void TestRightToLeftCheckboxCaptionHugsIndicator(GraphicsFixture& gpu)
+{
+    EmbeddedScene scene;
+    Hr(scene.Initialize(gpu.device.get()), "right-to-left checkbox attach");
+    auto& view     = scene.view;
+    auto root      = std::make_unique<DxUi::Panel>();
+    auto* checkbox = root->AddChild<DxUi::Checkbox>();
+    checkbox->SetBounds(D2D1::RectF(12, 12, 312, 44));
+    checkbox->SetFlowDirection(DxUi::FlowDirection::RightToLeft);
+    view.Controls().SetRoot(std::move(root));
+    const auto capture = [&](std::vector<uint8_t>& pixels)
+    {
+        Hr(view.Prepare(gpu.width, gpu.height, 96), "prepare right-to-left checkbox");
+        gpu.Bind();
+        Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose right-to-left checkbox");
+        Hr(gpu.Read(pixels), "read right-to-left checkbox");
+    };
+    std::vector<uint8_t> empty, captioned;
+    capture(empty);
+    checkbox->SetText(L"Short caption");
+    capture(captioned);
+    UINT minimumX = gpu.width;
+    UINT maximumX = 0u;
+    for (UINT y = 12; y < 44; ++y)
+        for (UINT x = 12; x < 312; ++x)
+        {
+            const size_t offset = (static_cast<size_t>(y) * gpu.width + x) * 4;
+            if (! std::equal(captioned.begin() + offset, captioned.begin() + offset + 3, empty.begin() + offset))
+            {
+                minimumX = (std::min)(minimumX, x);
+                maximumX = (std::max)(maximumX, x);
+            }
+        }
+    Check(maximumX > minimumX, "right-to-left checkbox paints its caption");
+    Check(minimumX > 162u, "right-to-left checkbox caption sits beside the indicator, in the row's right half");
+    view.Detach();
+}
+
+// A tab is at least 72 DIP wide, so a short title has room to spare. Right to left it starts at the tab's right edge,
+// mirroring the left-to-right start, rather than drifting toward the close-button side.
+static void TestRightToLeftTabTitleStartsAtTheRight(GraphicsFixture& gpu)
+{
+    for (const bool rightToLeft : {false, true})
+    {
+        EmbeddedScene scene;
+        Hr(scene.Initialize(gpu.device.get()), "tab title direction attach");
+        auto& view = scene.view;
+        auto root  = std::make_unique<DxUi::Panel>();
+        auto* tabs = root->AddChild<DxUi::TabControl>();
+        tabs->SetBounds(D2D1::RectF(12, 12, 412, 160));
+        tabs->AddTab<DxUi::Label>(L"", L"Page");
+        tabs->SetFlowDirection(rightToLeft ? DxUi::FlowDirection::RightToLeft : DxUi::FlowDirection::LeftToRight);
+        view.Controls().SetRoot(std::move(root));
+        const auto capture = [&](std::vector<uint8_t>& pixels)
+        {
+            Hr(view.Prepare(gpu.width, gpu.height, 96), "prepare tab title direction");
+            gpu.Bind();
+            Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "compose tab title direction");
+            Hr(gpu.Read(pixels), "read tab title direction");
+        };
+        std::vector<uint8_t> untitled, titled;
+        capture(untitled);
+        tabs->SetTabTitle(0u, L"Un");
+        capture(titled);
+        const D2D1_RECT_F tab = tabs->DebugGetTabRect(0u);
+        UINT minimumX         = gpu.width;
+        UINT maximumX         = 0u;
+        for (UINT y = static_cast<UINT>(tab.top); y < static_cast<UINT>(tab.bottom); ++y)
+            for (UINT x = static_cast<UINT>(tab.left); x < static_cast<UINT>(tab.right); ++x)
+            {
+                const size_t offset = (static_cast<size_t>(y) * gpu.width + x) * 4;
+                if (! std::equal(titled.begin() + offset, titled.begin() + offset + 3, untitled.begin() + offset))
+                {
+                    minimumX = (std::min)(minimumX, x);
+                    maximumX = (std::max)(maximumX, x);
+                }
+            }
+        Check(maximumX > minimumX, "a short tab title paints");
+        const float startGap = rightToLeft ? tab.right - static_cast<float>(maximumX + 1u) : static_cast<float>(minimumX) - tab.left;
+        const float endGap   = rightToLeft ? static_cast<float>(minimumX) - tab.left : tab.right - static_cast<float>(maximumX + 1u);
+        Check(startGap < endGap,
+              rightToLeft ? "a right-to-left tab title starts at the tab's right edge" : "a left-to-right tab title starts at the tab's left edge");
+        Check(startGap <= 16.0f, "the tab title starts one padding from its start edge");
+        view.Detach();
+    }
+}

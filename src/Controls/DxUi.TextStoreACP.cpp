@@ -15,7 +15,7 @@ namespace DxUi
 {
 namespace
 {
-constexpr TsViewCookie kDxUiTextStoreView = 1u;
+constexpr TsViewCookie kTextStoreView = 1u;
 
 [[nodiscard]] LONG ToAcp(size_t value) noexcept
 {
@@ -451,19 +451,19 @@ private:
     std::weak_ptr<int> _controlLifetime;
 };
 
-class DxUiTextStoreACP final : public ITextStoreACP, public ITextStoreACP2, public ITfContextOwnerCompositionSink
+class TextStoreACP final : public ITextStoreACP, public ITextStoreACP2, public ITfContextOwnerCompositionSink
 {
 public:
-    explicit DxUiTextStoreACP(std::shared_ptr<TextStoreTarget> target) noexcept : _target(std::move(target))
+    explicit TextStoreACP(std::shared_ptr<TextStoreTarget> target) noexcept : _target(std::move(target))
     {
     }
 
-    DxUiTextStoreACP(const DxUiTextStoreACP&)            = delete;
-    DxUiTextStoreACP& operator=(const DxUiTextStoreACP&) = delete;
-    DxUiTextStoreACP(DxUiTextStoreACP&&)                 = delete;
-    DxUiTextStoreACP& operator=(DxUiTextStoreACP&&)      = delete;
+    TextStoreACP(const TextStoreACP&)            = delete;
+    TextStoreACP& operator=(const TextStoreACP&) = delete;
+    TextStoreACP(TextStoreACP&&)                 = delete;
+    TextStoreACP& operator=(TextStoreACP&&)      = delete;
 
-    ~DxUiTextStoreACP() noexcept
+    ~TextStoreACP() noexcept
     {
         DetachHost();
     }
@@ -965,7 +965,7 @@ public:
             return E_POINTER;
         }
 
-        *pvcView = kDxUiTextStoreView;
+        *pvcView = kTextStoreView;
         return S_OK;
     }
 
@@ -979,7 +979,7 @@ public:
         {
             return E_POINTER;
         }
-        if (vcView != kDxUiTextStoreView)
+        if (vcView != kTextStoreView)
         {
             return E_INVALIDARG;
         }
@@ -997,7 +997,7 @@ public:
         {
             return E_POINTER;
         }
-        if (vcView != kDxUiTextStoreView)
+        if (vcView != kTextStoreView)
         {
             return E_INVALIDARG;
         }
@@ -1011,7 +1011,7 @@ public:
         {
             return E_POINTER;
         }
-        if (vcView != kDxUiTextStoreView)
+        if (vcView != kTextStoreView)
         {
             return E_INVALIDARG;
         }
@@ -1024,7 +1024,7 @@ public:
         {
             return E_POINTER;
         }
-        if (vcView != kDxUiTextStoreView)
+        if (vcView != kTextStoreView)
         {
             return E_INVALIDARG;
         }
@@ -1265,7 +1265,7 @@ private:
     {
         if (_sink && (_lockFlags == 0 || _target->NotifyDuringLock()) && (_sinkMask & TS_AS_LAYOUT_CHANGE) != 0u)
         {
-            static_cast<void>(_sink->OnLayoutChange(TS_LC_CHANGE, kDxUiTextStoreView));
+            static_cast<void>(_sink->OnLayoutChange(TS_LC_CHANGE, kTextStoreView));
         }
     }
 
@@ -1290,7 +1290,7 @@ ITextStoreACP* CreateTextStore(std::shared_ptr<TextStoreTarget> target) noexcept
 {
     if (! target)
         return nullptr;
-    auto* store = new (std::nothrow) DxUiTextStoreACP(std::move(target));
+    auto* store = new (std::nothrow) TextStoreACP(std::move(target));
     return store ? static_cast<ITextStoreACP*>(store) : nullptr;
 }
 
@@ -1298,14 +1298,14 @@ void NotifyTextStoreLayoutChanged(ITextStoreACP* store) noexcept
 {
     // A sink callback can release the application's last reference.
     wil::com_ptr_nothrow<ITextStoreACP> lifetime = store;
-    if (auto* concrete = dynamic_cast<DxUiTextStoreACP*>(store))
+    if (auto* concrete = dynamic_cast<TextStoreACP*>(store))
         concrete->NotifyPreparedLayout();
 }
 HRESULT DispatchPendingTextStoreLock(ITextStoreACP* store) noexcept
 {
     // A sink callback can release the application's last reference.
     wil::com_ptr_nothrow<ITextStoreACP> lifetime = store;
-    auto* concrete                               = dynamic_cast<DxUiTextStoreACP*>(store);
+    auto* concrete                               = dynamic_cast<TextStoreACP*>(store);
     return concrete ? concrete->DispatchPendingLock() : E_INVALIDARG;
 }
 
@@ -1313,7 +1313,7 @@ void NotifyTextStoreChanged(ITextStoreACP* store) noexcept
 {
     // A sink callback can release the application's last reference.
     wil::com_ptr_nothrow<ITextStoreACP> lifetime = store;
-    if (auto* concrete = dynamic_cast<DxUiTextStoreACP*>(store))
+    if (auto* concrete = dynamic_cast<TextStoreACP*>(store))
         concrete->NotifyExternalChangesIfNeeded();
 }
 
@@ -1342,13 +1342,13 @@ void DetachNativeTextInputTextStore(IUnknown* store) noexcept
         return;
     }
 
-    auto* concreteStore = static_cast<DxUiTextStoreACP*>(textStore.get());
+    auto* concreteStore = static_cast<TextStoreACP*>(textStore.get());
     concreteStore->DetachHost();
 }
 
 void DisconnectNativeTextInputTextStore(IUnknown* textStore) noexcept
 {
-    auto* store = dynamic_cast<DxUiTextStoreACP*>(textStore);
+    auto* store = dynamic_cast<TextStoreACP*>(textStore);
     if (store)
     {
         store->Disconnect();
