@@ -4381,8 +4381,10 @@ public:
     [[nodiscard]] uint64_t DebugGetInvalidateCount() const noexcept;
     // UI Automation focus-changed events this host raised itself (the window's own focus event is the system's).
     [[nodiscard]] uint64_t DebugGetFocusAnnouncementCount() const noexcept;
-    // Whether the window gained focus in the message-loop turn still running, whose focus moves are left to the system's
-    // focus event (see OnSetFocus).
+    // Focus moves the host left to the system's focus event rather than announce: moves made in the message-loop turn in
+    // which the window gained focus while no call of the fragment root's GetFocus had ever begun (see OnSetFocus).
+    [[nodiscard]] uint64_t DebugGetFocusMovesLeftToSystemCount() const noexcept;
+    // Whether the window gained focus in the message-loop turn still running (see OnSetFocus).
     [[nodiscard]] bool DebugIsInFocusGainTurn() const noexcept;
     [[nodiscard]] uint64_t DebugGetRenderCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetResizeCount() const noexcept;
@@ -4427,7 +4429,7 @@ private:
     friend struct EmbeddedAccessibilityAccess;
     void* _embeddedAccessibilityTarget          = nullptr;
     bool _gainingWindowFocus                    = false; // In OnSetFocus: the system's focus event reports the element.
-    ULONGLONG _focusGainTurnStartedMs           = 0u;    // From OnSetFocus until the message loop turns: the same event reports.
+    ULONGLONG _focusGainTurnStartedMs           = 0u;    // From OnSetFocus until the message loop turns: the event may still report.
     uint64_t _interactionRevision               = 0;
     bool _embedded                              = false;
     bool _embeddedAnimationRequested            = false;
@@ -4627,6 +4629,7 @@ private:
     TooltipLayer _tooltipLayer;
     mutable uint64_t _debugInvalidateCount                      = 0u;
     uint64_t _debugFocusAnnouncementCount                       = 0u;
+    uint64_t _debugFocusMovesLeftToSystemCount                  = 0u;
     mutable uint64_t _debugRenderCount                          = 0u;
     mutable uint64_t _debugResizeCount                          = 0u;
     mutable uint64_t _debugResizeFailureCount                   = 0u;
