@@ -203,7 +203,7 @@ direct-map compilation and 14:06 heap baseline remain valid. The candidate drive
 copied stale original suite receipts after the performance gate stopped it; those receipts
 are quarantined and explicitly excluded. Every failed/invalid/redundant attempt is retained.
 
-[Reviewed packet, exact patches and hashes](../../../Measurements/GridTextOverflow/2026-09-23/associative-cache-rejected/README.md)
+[Reviewed packet, exact patches and hashes](../../../Measurements/GridTextOverflow/2026-09-23/assoc-cache-rejected/README.md)
 contains the complete scope and next action. Five experimental code/test files and their
 provisional contract paragraph are restored to HEAD `0ae8362`; both archived patches apply
 cleanly to that base. **Current source is V11; current Release binaries are the rejected

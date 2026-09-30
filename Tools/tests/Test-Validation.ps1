@@ -130,6 +130,31 @@ Invoke-FixtureCase 'a nested checkout under owned source is not scanned' {
     Assert-True (Get-DependencyFailureCount $root) 'the same file in the tree itself fails'
 }
 
+Invoke-FixtureCase 'a path longer than a consumer''s pinned restore can check out is rejected' {
+    param($root)
+    Set-DependencyFixture $root
+    $folder = 'Measurements/' + ('a' * 100) + '/'
+    Set-FixtureFile $root ($folder + ('b' * (150 - $folder.Length))) "fits`n"
+    Assert-Equal 0 (Get-DependencyFailureCount $root) 'a path of exactly 150 characters'
+    Set-FixtureFile $root ($folder + ('c' * (151 - $folder.Length))) "too long`n"
+    $failures = @((Test-DxUiDependencies $root).Failures)
+    Assert-Equal 1 $failures.Count 'one failure'
+    Assert-True $failures[0].StartsWith('Path of 151 characters, over the 150') "the failure gives the length and the budget: $($failures[0])"
+}
+
+Invoke-FixtureCase 'in a checkout the path budget covers what a commit would hold, not ignored output' {
+    param($root)
+    Set-DependencyFixture $root
+    git -C $root init --quiet
+    Assert-Equal 0 $LASTEXITCODE 'git init'
+    Set-FixtureFile $root '.gitignore' ".build/`n"
+    # 151 characters: one over the budget, and short enough for git itself under a worktree's fixture root.
+    Set-FixtureFile $root ('.build/' + ('d' * 144)) "ignored output`n"
+    Assert-Equal 0 (Get-DependencyFailureCount $root) 'ignored build output is not checked'
+    Set-FixtureFile $root ('Samples/' + ('e' * 143)) "not yet added`n"
+    Assert-Equal 1 (Get-DependencyFailureCount $root) 'an untracked file a commit would add is checked'
+}
+
 Invoke-FixtureCase 'every validation step runs and every failure is reported' {
     param($root)
     Set-FixtureFile $root 'first.ps1' 'exit 1'
