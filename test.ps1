@@ -92,6 +92,8 @@ try {
         $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $reports "$suite-$Platform-$Configuration$suffix.json") -Encoding utf8
         if ($failure) { $failures += $failure.Summary; Write-Host "FAIL $($failure.Summary)"; $failure.Tail }
         else { Write-Host "PASS $suite ($($skips.Count) capability skips recorded$(if ($filtered) { "; filtered to $($Tests -join ', ')" }))" }
+        # Which tests a missing capability left unrun, by name, so a CI log shows it without the suite log.
+        Write-SuiteSkips -LogPath $log
     }
 } finally { Pop-Location }
 if ($failures.Count) { throw "DxUi failed suites: $($failures -join '; '). See .build/logs and .build/reports." }

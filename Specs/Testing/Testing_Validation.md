@@ -163,7 +163,9 @@ must update the owning runtime contract and its tests; helper names and statemen
 
 Tests/Controls retains eight original visual baselines. Native suites cover control state/layout, theme, grids/trees,
 animation (including slider hover/press easing and keyboard thumb travel), native text and IME events, UIA lifetime and menus. Capability skips are emitted in logs and copied into
-receipts; a skip is not proof of that capability. CI defines all six native jobs; their fresh receipts establish execution results.
+receipts, and `test.ps1` prints each under its suite with the test it belongs to (`skipped <Test>: <reason>`), so a CI log
+shows which tests a missing capability left unrun; a skip is not proof of that capability. CI defines all six native jobs;
+their fresh receipts establish execution results.
 Physical touch, a human IME session and screen-reader interaction are manual adoption checks, not implied by synthetic
 messages or a green foundation suite.
 

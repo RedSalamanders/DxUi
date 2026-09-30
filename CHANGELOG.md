@@ -37,7 +37,8 @@
   slowest of the 816 non-foreground tests under AddressSanitizer (7.5 s); `DxUi.ControlTests.exe --test-timeout=<seconds>` and
   `test.ps1 -TestTimeout <seconds>` set it and 0 turns it off. Every run prints its deadline, every `[DONE]` marker carries the
   test's duration, and `test.ps1` reports a failing suite's exit code and `TIMEOUT:` line beside the last lines of its log
-  (`Tools/SuiteFailure.psm1`). The three resource fixtures report each sample, so their deadline bounds a cycle. A hidden
+  (`Tools/SuiteFailure.psm1`) and prints every capability skip under its suite as `skipped <Test>: <reason>`, so a CI log
+  shows which tests a missing desktop or foreground left unrun without the uploaded suite log. The three resource fixtures report each sample, so their deadline bounds a cycle. A hidden
   `--watchdog-self-test` switch runs a test that never returns, and `Tools/tests/Test-TestWatchdog.ps1` asserts the exit code,
   the line and the time, and that with the watchdog off the same test still hangs. The audit of the Menu, NativeTextInput and
   resource suites found no unbounded polling loop, `INFINITE` wait or UI Automation wait without a deadline, but two ways a
