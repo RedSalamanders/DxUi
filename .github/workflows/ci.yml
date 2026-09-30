@@ -59,12 +59,17 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - shell: pwsh
         run: ./vcpkg-install.ps1 -Platform ${{ matrix.platform }}
+      # Step limits (about twice the slowest runs: 13 min for test.ps1, 9 for a consumer build) end a hang the per-test
+      # watchdog cannot reach (Foundation, Embedded, the consumer) while the job still has time to upload its logs.
       - shell: pwsh
+        timeout-minutes: 25
         run: ./test.ps1 -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
       - shell: pwsh
+        timeout-minutes: 15
         run: ./test-consumer.ps1 -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
       - shell: pwsh
         if: matrix.configuration == 'ASan Debug'
+        timeout-minutes: 15
         run: ./test-consumer.ps1 -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }} -DisableStlAnnotations
       - name: Characterize menu resource scaling without capture
         if: ${{ !cancelled() && matrix.platform == 'x64' && matrix.configuration == 'Release' }}

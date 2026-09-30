@@ -77,7 +77,9 @@ the 816 tests of the 15 non-foreground suites took 2.5 s in x64 Debug (`TestColo
 `MenuExitLifetime` 3 s at most. 300 s is forty times the slowest ASan test and about five times a UI Automation client test that waits
 out its allowances (20 s to set up, 20 s to end and several 3 s notification waits), and it ends a hung job in five minutes
 instead of at the 40-minute limit. The foreground suites take the same deadline; the `[DONE]` durations of a foreground run show
-how close any of their tests comes.
+how close any of their tests comes. Native CI also bounds its steps, at about twice their slowest runs on 2026-09-30:
+`test.ps1` at 25 minutes (13 at most) and each consumer build at 15 (9 at most), so a hang the watchdog cannot reach
+(Foundation, Embedded, the consumer) still leaves the job time to upload its logs.
 `test.ps1` reports a control suite that exits nonzero with its exit code, the `TIMEOUT:` line when the watchdog ended it (also
 stored as `timeout` in the suite's receipt) and the last twelve lines of its log (`Tools/SuiteFailure.psm1`), and its final
 error carries the first two: `DxUi failed suites: Menu exited with code 124 (TIMEOUT: <TestName> after 300 s)`.
