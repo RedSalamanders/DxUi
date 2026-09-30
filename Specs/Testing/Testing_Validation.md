@@ -48,7 +48,12 @@ The foundation suite covers timing edge cases, nested stage restoration, reduced
 
 Repository tools are PowerShell 7 scripts with no other runtime; the validators live in `Tools/Validation.psm1` and
 the performance comparator in `Tools/PerformanceComparison.psm1`, and `Tools/tests/Invoke-ToolingTests.ps1` runs their
-tests. `validate-skills.ps1` checks all repository skills, reading front matter as a strict `key: value` subset of YAML
+tests. `validate.ps1` is the one validation entry point: it runs the five validators below and the tooling tests, each
+in its own process, and reports every failure before it fails. CI's validation job runs it, and `test.ps1` runs the
+tooling tests beside its native suites. The validators' file scans do not enter a nested git checkout, a directory other
+than the scanned root that holds a `.git` file or directory (such as an agent's worktree under `.claude/worktrees`):
+another checkout's files are not this tree's, and a half-edited copy cannot fail it.
+`validate-skills.ps1` checks all repository skills, reading front matter as a strict `key: value` subset of YAML
 that any YAML parser reads the same way; `validate-specs.ps1`
 checks local links, normative documents and plan indexes; `validate-dependencies.ps1` verifies historical origin
 metadata, current ownership paths and the exact pending dependency inventory. Original hashes describe the original

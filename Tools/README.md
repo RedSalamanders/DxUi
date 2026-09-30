@@ -1,12 +1,14 @@
 # Tool inventory
 
 Every repository tool is a PowerShell 7 script or module; no other runtime is needed. Root entry points
-(`build.ps1`, `test.ps1`, `format.ps1`, `gallery.ps1`, `performance.ps1`, `performance-paired.ps1`, `test-consumer.ps1`
-and the `validate-*.ps1` scripts) are the stable developer interface.
+(`build.ps1`, `test.ps1`, `format.ps1`, `gallery.ps1`, `performance.ps1`, `performance-paired.ps1`, `test-consumer.ps1`,
+`validate.ps1` and the `validate-*.ps1` scripts) are the stable developer interface. `validate.ps1` runs the five
+validators and the tooling tests in turn and reports every failure before it fails; CI's validation job runs it, and
+`test.ps1` runs the tooling tests beside its native suites.
 
 | Tool | Purpose |
 | --- | --- |
-| Validation.psm1 | The validators behind `validate-skills.ps1` (front matter as a strict `key: value` subset of YAML, and instructions), `validate-specs.ps1` (authority, local links, active-plan indexing, docs, gallery, design system and measurement receipts), `validate-dependencies.ps1` (historical origin metadata, owned paths, exact pending dependencies and supported-source independence), `validate-test-port.ps1` (every inherited test has a retained entry point or an explicit exclusion reason) and `validate-build-matrix.ps1` (every live native project and solution has six configurations; `-Root` also audits a consumer) |
+| Validation.psm1 | The runner behind `validate.ps1` (`Invoke-DxUiValidation`, each step in its own process so one step's module imports cannot disturb the next) and the validators behind `validate-skills.ps1` (front matter as a strict `key: value` subset of YAML, and instructions), `validate-specs.ps1` (authority, local links, active-plan indexing, docs, gallery, design system and measurement receipts), `validate-dependencies.ps1` (historical origin metadata, owned paths, exact pending dependencies and supported-source independence), `validate-test-port.ps1` (every inherited test has a retained entry point or an explicit exclusion reason) and `validate-build-matrix.ps1` (every live native project and solution has six configurations; `-Root` also audits a consumer). Their file scans skip nested git checkouts, such as worktrees under `.claude/worktrees` |
 | PerformanceComparison.psm1, Compare-Performance.ps1 | Matched complex-UI measurements, noise bands, resource budgets and regression advice; the comparison JSON `performance.ps1` and `performance-paired.ps1` write; the library source fingerprint and benchmark input list every receipt records; and the paired-set verdict (`Compare-PerformanceSet`: an exact Mann-Whitney U test per phase and metric with the bands, exact budgets stay exact) |
 | PairedRun.psm1 | What `performance-paired.ps1` measures and in what order: baseline and candidate selection, refusal of a pair with nothing to compare, named-tree validation, the harness overlay onto a tree with its restore, and the repeated A, B, B, A schedule |
 | Install-ClangFormat.ps1 | Fetches the pinned clang-format 22.1.3 wheel, checks its SHA-256 and extracts only the executable under `.build/format` |
@@ -14,8 +16,8 @@ and the `validate-*.ps1` scripts) are the stable developer interface.
 | ConsumerUpdate.psm1 | Shared bounded, read-only advisory about a newer validated main commit; never changes a pin or fails a build |
 | ConsumerBuild.psm1 | Evaluate actual MSBuild/compiler/linker/SDK identities and produce an isolated consumer output fingerprint |
 | tests/Invoke-ToolingTests.ps1 | Runs the validator and comparator tests below; needs no native build |
-| tests/Test-Validation.ps1 | Owned-source evolution, path/dependency boundaries, a second static library and skill front matter |
-| tests/Test-Docs.ps1 | Catalog usage coverage, gallery integrity, fenced-code link parsing, measurement ownership and the design system |
+| tests/Test-Validation.ps1 | Owned-source evolution, path/dependency boundaries, a second static library and skill front matter; a nested checkout under owned source; `validate.ps1` running every step and reporting each failure, and its steps, CI and `test.ps1` staying wired |
+| tests/Test-Docs.ps1 | Catalog usage coverage, gallery integrity, fenced-code link parsing, measurement ownership and the design system; a whole specification tree, and nested git checkouts (a worktree, a clone) left out of the Markdown scan and its count |
 | tests/Test-TestPort.ps1 | Count, origin, missing case and incomplete-disposition regressions |
 | tests/Test-BuildMatrix.ps1 | Missing configurations, duplicate entries, silent Debug fallback and missing solution build mappings |
 | tests/Test-PerformanceComparison.ps1 | Regression, missing evidence, fixture mismatch and hard-budget failures; every stored comparison reproduced exactly; the exact rank test against closed forms, a published example and an enumeration with ties; and set verdicts on synthetic receipts (identical distributions, a 20% FPS drop, a shift inside the band, exact budgets, spread, too few runs) |

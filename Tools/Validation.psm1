@@ -87,7 +87,10 @@ function Get-PySuffix([string] $Name) {
 }
 
 function Get-TreeItems([string] $Root, [string] $Pattern = '*', [string[]] $PruneNames = @(), [switch] $IncludeDirectories) {
-    # pathlib's rglob, including hidden entries; directories named in PruneNames are not entered.
+    # pathlib's rglob, including hidden entries. Directories named in PruneNames are not entered, and neither is one that
+    # holds a .git entry, a file or a directory: that is another checkout (a nested repository, or a linked worktree such
+    # as .claude/worktrees/<name> under the main checkout), whose files this tree does not own. The walk's own root is
+    # entered whether or not it has a .git entry.
     $items = [Collections.Generic.List[string]]::new()
     if (-not [IO.Directory]::Exists($Root)) { return }
     $fileOptions = [IO.EnumerationOptions]::new()
@@ -102,6 +105,7 @@ function Get-TreeItems([string] $Root, [string] $Pattern = '*', [string[]] $Prun
         $directory = $pending.Pop()
         foreach ($file in [IO.Directory]::EnumerateFiles($directory, $Pattern, $fileOptions)) { $items.Add($file) }
         foreach ($child in [IO.Directory]::EnumerateDirectories($directory, '*', $directoryOptions)) {
+            if (Test-PathExists ([IO.Path]::Combine($child, '.git'))) { continue }
             if ($IncludeDirectories -and [IO.Enumeration.FileSystemName]::MatchesSimpleExpression($Pattern, [IO.Path]::GetFileName($child), [bool]$IsWindows)) { $items.Add($child) }
             if ([IO.Path]::GetFileName($child) -cnotin $PruneNames) { $pending.Push($child) }
         }
@@ -662,6 +666,36 @@ function Complete-DxUiValidation([Parameter(Mandatory)][pscustomobject] $Result,
     if ($Result.Failures.Count) { throw "$Name validation failed with $($Result.Failures.Count) finding(s)." }
 }
 
+function Get-DxUiValidationSteps {
+    # What validate.ps1 runs, relative to the repository root: every validator, then the tooling tests.
+    return @('validate-skills.ps1', 'validate-specs.ps1', 'validate-dependencies.ps1', 'validate-test-port.ps1',
+        'validate-build-matrix.ps1', 'Tools/tests/Invoke-ToolingTests.ps1')
+}
+
+function Invoke-DxUiValidation {
+    <# Runs every step in order, whether or not an earlier one failed, and returns one result per step (Step, Passed, Error).
+       A step fails by throwing or by exiting with a nonzero code; one that cannot be started fails like any other. Each
+       runs in its own PowerShell process. The validators and tests import this module and each other's with -Force, and a
+       script run from a module function shares that module's session, which the import would tear down under the runner. #>
+    param([Parameter(Mandatory)][string] $Root, [string[]] $Steps = @(Get-DxUiValidationSteps))
+    $results = [Collections.Generic.List[object]]::new()
+    foreach ($step in $Steps) {
+        Write-Host "== $step"
+        $path = Join-Path $Root $step
+        $failure = $null
+        if (-not [IO.File]::Exists($path)) { $failure = "$step does not exist" }
+        else {
+            # A step's output belongs on the console, not in this function's result.
+            & ([Environment]::ProcessPath) -NoProfile -NonInteractive -File $path | Out-Host
+            if ($LASTEXITCODE -ne 0) { $failure = "$step exited with code $LASTEXITCODE" }
+        }
+        if ($failure) { Write-Host "FAILED: $failure" }
+        $results.Add([pscustomobject]@{ Step = $step; Passed = -not $failure; Error = $failure })
+    }
+    return $results.ToArray()
+}
+
 Export-ModuleMember -Function Get-MarkdownProse, Test-DxUiDocs, Test-DxUiDesignSystem, Test-DxUiMeasurements, Test-DxUiSpecs,
     ConvertFrom-SkillFrontMatter, Test-DxUiSkills, Test-DxUiDependencies, Test-DxUiTestPort, Get-BuildMatrix,
-    Test-DxUiProjectConfigurations, Test-DxUiSolutionConfigurations, Test-DxUiBuildMatrix, Complete-DxUiValidation
+    Test-DxUiProjectConfigurations, Test-DxUiSolutionConfigurations, Test-DxUiBuildMatrix, Complete-DxUiValidation,
+    Get-DxUiValidationSteps, Invoke-DxUiValidation

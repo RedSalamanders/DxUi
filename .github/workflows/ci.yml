@@ -26,19 +26,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      # The hosted Ubuntu image ships PowerShell 7; every repository tool is a PowerShell script.
+      # The hosted Ubuntu image ships PowerShell 7; every repository tool is a PowerShell script. One entry point runs the
+      # five validators and the tooling tests and reports every failure before it fails.
       - shell: pwsh
-        run: ./validate-skills.ps1
-      - shell: pwsh
-        run: ./validate-specs.ps1
-      - shell: pwsh
-        run: ./validate-dependencies.ps1
-      - shell: pwsh
-        run: ./validate-test-port.ps1
-      - shell: pwsh
-        run: ./validate-build-matrix.ps1
-      - shell: pwsh
-        run: ./Tools/tests/Invoke-ToolingTests.ps1
+        run: ./validate.ps1
   native:
     strategy:
       fail-fast: false

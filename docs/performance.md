@@ -227,8 +227,12 @@ merged grid stays within the accepted V11 memory envelope.
 
 ## Other checks and formatting
 
-Run `validate-skills.ps1`, `validate-specs.ps1`, `validate-dependencies.ps1`, `validate-test-port.ps1`,
-`validate-build-matrix.ps1`, `format.ps1 -Check` and `Tools/tests/Invoke-ToolingTests.ps1`. The comparator behind
+Run `validate.ps1` and `format.ps1 -Check`. `validate.ps1` is the one validation entry point: it runs
+`validate-skills.ps1`, `validate-specs.ps1`, `validate-dependencies.ps1`, `validate-test-port.ps1`,
+`validate-build-matrix.ps1` and `Tools/tests/Invoke-ToolingTests.ps1`, each in its own process, reports every failure
+before it fails, and is what CI's validation job runs (each validator also runs alone, and `test.ps1` runs the tooling
+tests beside its native suites). No validator scan enters a nested git checkout, such as an agent's worktree under
+`.claude/worktrees`, so a half-edited copy cannot fail this tree. The comparator behind
 `performance.ps1` is `Tools/Compare-Performance.ps1`; its tests reproduce every stored paired comparison under
 Measurements exactly. Run x64 Debug/Release suites and build ARM64 Debug/Release for code
 changes; native ARM64 CI must also pass. Use `gallery.ps1 -PublishDocs` after visual/control changes and review all

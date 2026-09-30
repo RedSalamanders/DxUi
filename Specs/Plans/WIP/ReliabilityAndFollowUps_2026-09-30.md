@@ -65,8 +65,11 @@ reviewed before it merges here, until this plan can move to Done.
 
 ### Tooling
 
-- [ ] 10. One validation entry point. Accept: `validate.ps1` runs the five validators and the tooling tests, reporting
+- [x] 10. One validation entry point. Accept: `validate.ps1` runs the five validators and the tooling tests, reporting
   every failure; CI and `test.ps1` run the tooling tests.
+  Outcome: `validate.ps1` runs the five validators and the tooling tests, each in its own process, and reports every
+  failure before it fails; CI's validation job runs it and `test.ps1` runs the tooling tests. The validators' file scans
+  also skip nested git checkouts (worktrees), which had multiplied the Markdown count in a main checkout.
 - [ ] 11. Publishing `docs/gallery` after a merge is not manual. Accept: a manual-dispatch workflow regenerates and
   commits it on a chosen branch, with the same safeguards as the formatting workflow's apply mode.
 

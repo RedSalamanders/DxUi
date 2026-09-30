@@ -102,4 +102,63 @@ Invoke-FixtureCase 'a removed control leaves no stale component' {
     Assert-Contains (Test-DxUiDesignSystem $root).Failures 'Design-system component is not in the catalog: Button' 'stale component'
 }
 
+function Set-SpecsFixture([string] $Root) {
+    # The smallest tree Test-DxUiSpecs accepts: its authority files, an empty plan index, the docs and the design system.
+    $authority = @('AGENTS.md', 'Specs/README.md', 'Specs/Core/Core_Architecture.md', 'Specs/Core/Core_PerformanceAndResources.md',
+        'Specs/Build/Build_ToolchainAndConsumption.md', 'Specs/UI/UI_ControlsAndLayout.md', 'Specs/UI/UI_ThemeAndTypography.md',
+        'Specs/UI/UI_InputAndAccessibility.md', 'Specs/Rendering/Rendering_EmbeddedD3D11.md', 'Specs/Rendering/Rendering_Win32Host.md',
+        'Specs/Testing/Testing_Validation.md', 'Specs/Core/Core_Documentation.md', 'Specs/UI/UI_DesignSystem.md', 'Specs/DesignSystem/README.md',
+        'docs/README.md', 'docs/controls.md', 'docs/getting-started.md', 'docs/hosting.md', 'docs/performance.md', 'docs/gallery/README.md',
+        'docs/samples.md', 'Measurements/README.md')
+    foreach ($name in $authority) { Set-FixtureFile $Root $name "# $name`n" }
+    Set-FixtureFile $Root 'Specs/Plans/WIP/README.md' "# Active plans`n"
+    Set-DocsFixture $Root
+    Set-DesignSystemFixture $Root
+}
+
+function Get-MarkdownCount([object] $Result) {
+    return [int][regex]::Match($Result.Messages[0], 'Validated (\d+) Markdown files').Groups[1].Value
+}
+
+Invoke-FixtureCase 'a complete specification tree passes' {
+    param($root)
+    Set-SpecsFixture $root
+    $result = Test-DxUiSpecs $root
+    Assert-Equal 0 $result.Failures.Count "failures: $($result.Failures -join '; ')"
+    Assert-True ((Get-MarkdownCount $result) -gt 20) 'its Markdown files are counted'
+}
+
+Invoke-FixtureCase 'nested git checkouts are not part of the tree' {
+    param($root)
+    Set-SpecsFixture $root
+    $before = Get-MarkdownCount (Test-DxUiSpecs $root)
+    # A linked worktree (its .git is a file), as agents keep under .claude/worktrees, and a nested clone (a .git directory),
+    # each holding Markdown with broken links, as a half-edited copy would.
+    foreach ($name in @('.claude/worktrees/agent-a', 'vendor/clone')) {
+        Set-FixtureFile $root "$name/README.md" "[broken](missing.md)`n"
+        Set-FixtureFile $root "$name/docs/deep.md" "[also broken](nothing.md)`n"
+    }
+    Set-FixtureFile $root '.claude/worktrees/agent-a/.git' "gitdir: elsewhere`n"
+    New-Item -ItemType Directory -Path (Join-Path $root 'vendor/clone/.git') | Out-Null
+    $result = Test-DxUiSpecs $root
+    Assert-Equal 0 $result.Failures.Count "failures: $($result.Failures -join '; ')"
+    Assert-Equal $before (Get-MarkdownCount $result) 'the Markdown count excludes both nested checkouts'
+    # The same Markdown in an ordinary folder is validated, so the checkouts were skipped by rule, not overlooked.
+    Set-FixtureFile $root 'notes/README.md' "[broken](missing.md)`n"
+    $control = Test-DxUiSpecs $root
+    Assert-Equal ($before + 1) (Get-MarkdownCount $control) 'an ordinary folder is counted'
+    Assert-Equal 1 @($control.Failures | Where-Object { $_ -like '*README.md: broken reference missing.md' }).Count 'and its broken link is found'
+    # The tree being validated may itself be a checkout: its own .git entry never hides it.
+    Set-FixtureFile $root '.git' "gitdir: elsewhere`n"
+    Assert-Equal ($before + 1) (Get-MarkdownCount (Test-DxUiSpecs $root)) 'the root is walked even with a .git entry'
+}
+
+Invoke-FixtureCase 'measurement receipts of a nested checkout are not this tree''s' {
+    param($root)
+    Set-FixtureJson $root 'Measurements/other/run.json' @{ workloadOwner = 'Application'; fixture = 'app-scene' }
+    Assert-True (Test-DxUiMeasurements $root).Failures.Count 'an application receipt in the tree fails'
+    Set-FixtureFile $root 'Measurements/other/.git' "gitdir: elsewhere`n"
+    Assert-Equal 0 (Test-DxUiMeasurements $root).Failures.Count 'the same receipt in a nested checkout is not this tree''s'
+}
+
 Complete-TestRun 'Docs'
