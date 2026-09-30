@@ -81,13 +81,14 @@ animation callbacks, module-owned window procedures and menu invocation without 
 `gallery.ps1 -PublishDocs` publishes reviewed sheets and a generation receipt under `docs/gallery`, leaving runtime
 logs in `.build`. The receipt's `sourceDirty` excludes `docs/gallery`, which the command itself replaces. Docs/gallery maintenance follows [Core_Documentation](../Core/Core_Documentation.md).
 The formatting workflow uses `format.ps1` and the repository `.clang-format` on pushes and PRs, returning a patch
-when changes are needed. Formatting is pinned to clang-format 22.1.3; CI installs the Windows x64 wheel using the
-version and SHA256 in `Tools/requirements-format.txt`. `format.ps1` checks the version and accepts `-FormatterPath`
-or `DXUI_CLANG_FORMAT` before PATH/Visual Studio discovery, so a runner image update cannot silently change output.
+when changes are needed. Formatting is pinned to clang-format 22.1.3: `Tools/Install-ClangFormat.ps1` fetches the
+Windows x64 wheel by the version and SHA-256 it pins, verifies it and extracts only the executable under
+`.build/format`. `format.ps1` checks the version and accepts `-FormatterPath` or `DXUI_CLANG_FORMAT`, then that
+install, before PATH/Visual Studio discovery, so a runner image update cannot silently change output.
 Manual `apply_changes` mode commits formatting to the selected branch with ordinary push
 semantics; it never force-pushes, runs on pull_request_target, or grants fork PRs a write token. Branch protection
 still applies. Token-created commits require an explicit validation run or subsequent user push for fresh CI.
-Native CI installs Python for performance receipt validation. Each test invocation includes complex-UI FPS/memory,
+Repository tooling needs only PowerShell 7; no CI job installs another runtime. Each test invocation includes complex-UI FPS/memory,
 and implementation acceptance requires matched before/after evidence under the performance contract.
 
 RedXe already has an exact pin and synthetic preparation/input/text/UIA adapters; real IME/AT acceptance stays

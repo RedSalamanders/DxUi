@@ -19,9 +19,10 @@ its manual apply mode can commit formatting on a selected branch.
 Formatting requires clang-format 22.1.3. To use the same checksum-pinned Windows x64 tool as CI from the repository root:
 
 ```powershell
-python -m pip install --require-hashes --only-binary=:all: --no-deps --target .build/format -r Tools/requirements-format.txt
-./format.ps1 -Check -FormatterPath .build/format/clang_format/data/bin/clang-format.exe
+./Tools/Install-ClangFormat.ps1
+./format.ps1 -Check
 ```
 
-Omit `-Check` to apply formatting. `DXUI_CLANG_FORMAT` can supply the path for repeated use. The formatter is development
-tooling only; library consumers do not restore it.
+The installer downloads the pinned wheel, checks its SHA-256 and extracts only `clang-format.exe` under `.build/format`,
+where `format.ps1` looks first. Omit `-Check` to apply formatting. `-FormatterPath` or `DXUI_CLANG_FORMAT` can name
+another clang-format 22.1.3. The formatter is development tooling only; library consumers do not restore it.

@@ -2,17 +2,21 @@
 [CmdletBinding()] param([switch] $Check, [string] $FormatterPath = $env:DXUI_CLANG_FORMAT)
 $ErrorActionPreference = 'Stop'
 if (-not $FormatterPath) {
+    # The pinned install from Tools/Install-ClangFormat.ps1 first, then PATH, then Visual Studio's LLVM.
+    $pinned = Join-Path $PSScriptRoot '.build/format/clang_format/data/bin/clang-format.exe'
     $formatter = Get-Command clang-format.exe -ErrorAction SilentlyContinue
-    if (-not $formatter) {
+    if (Test-Path -LiteralPath $pinned -PathType Leaf) { $FormatterPath = $pinned }
+    elseif ($formatter) { $FormatterPath = $formatter.Source }
+    else {
         $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
         $installation = & $vswhere -latest -prerelease -products '*' -property installationPath
         $FormatterPath = Join-Path $installation 'VC/Tools/Llvm/x64/bin/clang-format.exe'
-    } else { $FormatterPath = $formatter.Source }
+    }
 }
-if (-not (Test-Path -LiteralPath $FormatterPath -PathType Leaf)) { throw 'clang-format not found; see CONTRIBUTING.md for the pinned formatter.' }
+if (-not (Test-Path -LiteralPath $FormatterPath -PathType Leaf)) { throw 'clang-format not found; run Tools/Install-ClangFormat.ps1 (see CONTRIBUTING.md).' }
 $formatterVersion = & $FormatterPath --version
 if ($LASTEXITCODE -ne 0 -or $formatterVersion -notmatch '^clang-format version 22\.1\.3(?:\s|$)') {
-    throw "DxUi requires clang-format 22.1.3; found '$formatterVersion'. Use -FormatterPath or DXUI_CLANG_FORMAT; see CONTRIBUTING.md."
+    throw "DxUi requires clang-format 22.1.3; found '$formatterVersion'. Run Tools/Install-ClangFormat.ps1, or use -FormatterPath or DXUI_CLANG_FORMAT; see CONTRIBUTING.md."
 }
 Write-Host "Formatter: $formatterVersion"
 $files = @('src','include','Tests','Samples') | ForEach-Object {

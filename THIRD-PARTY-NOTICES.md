@@ -12,7 +12,8 @@ WIL is used by the implemented controls, graphics and host services; it is no lo
 DxUi also links Windows SDK/system libraries, using the consumer's matching MSVC runtime. Those components are
 supplied under their respective Microsoft terms, not relicensed by this project's MIT license. System fonts are
 selected at runtime; DxUi ships no fonts or icon fonts. Generated gallery images illustrate the library's own
-palettes and controls. Python/PyYAML are validation tools, not linked or packaged library dependencies.
+palettes and controls. The pinned clang-format that `Tools/Install-ClangFormat.ps1` fetches for formatting is a
+development tool, not a linked or packaged library dependency.
 
 The former RedSalamander application dependency list (archive/image/network/viewer libraries and external theme
 palettes) did not describe DxUi and has been removed from LICENSE.txt. The original RedSalamander copyright notice

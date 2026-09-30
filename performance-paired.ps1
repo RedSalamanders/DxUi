@@ -29,10 +29,12 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# The measurement driver and every input performance.ps1 hashes into benchmarkSha256. Both builds use this
-# checkout's copies, so a comparison between them rejects any fixture difference.
-$harness = @('performance.ps1', 'Tests/Embedded/BenchmarkMain.h', 'Tests/Embedded/ComplexUiBenchmark.h',
-    'Tests/Support/HeapDiagnostic.h', 'Samples/ComplexUi/ComplexUiScene.h', 'Samples/EmbeddedControls/GraphicsFixture.h')
+# The measurement driver with its comparator, and every input performance.ps1 hashes into benchmarkSha256. Both builds
+# use this checkout's copies, so a comparison between them rejects any fixture difference, and a revision older than
+# the PowerShell comparator still has one.
+$harness = @('performance.ps1', 'Tools/Compare-Performance.ps1', 'Tools/PerformanceComparison.psm1', 'Tests/Embedded/BenchmarkMain.h',
+    'Tests/Embedded/ComplexUiBenchmark.h', 'Tests/Support/HeapDiagnostic.h', 'Samples/ComplexUi/ComplexUiScene.h',
+    'Samples/EmbeddedControls/GraphicsFixture.h')
 
 function Resolve-Commit([string] $Revision) {
     $commit = & git -C $PSScriptRoot rev-parse --verify --quiet "$Revision^{commit}"
@@ -111,12 +113,11 @@ function Invoke-Measurement([string] $Root, [string] $Name, [string] $ScenarioNa
 
 function Compare-Measurement([string] $Candidate, [string] $Baseline, [string] $Name, [switch] $Control) {
     $output = Join-Path $reports "$Name.comparison.json"
-    # Invoke-Python throws when the comparator flags a regression; the written status is the result.
+    # The comparator exits 1 when it flags a regression or invalid evidence; the written status is the result.
     try {
-        & (Join-Path $harnessRoot 'Tools/Invoke-Python.ps1') -Script (Join-Path $harnessRoot 'Tools/compare_performance.py') `
-            -Arguments @($Candidate, '--baseline', $Baseline, '--output', $output) | Out-Host
+        & (Join-Path $harnessRoot 'Tools/Compare-Performance.ps1') -Candidate $Candidate -Baseline $Baseline -Output $output | Out-Host
     } catch {
-        Write-Host "Comparator exit for ${Name}: $($_.Exception.Message)"
+        Write-Host "Comparator failure for ${Name}: $($_.Exception.Message)"
     }
     if (-not (Test-Path -LiteralPath $output -PathType Leaf)) { throw "The comparator wrote no result: $output" }
     $comparison = Get-Content -Raw -LiteralPath $output | ConvertFrom-Json

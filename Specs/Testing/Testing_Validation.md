@@ -46,7 +46,10 @@ Use the [performance contract](../Core/Core_PerformanceAndResources.md) for befo
 The short WARP benchmark reports completed offscreen throughput, not display refresh or hardware acceptance.
 The foundation suite covers timing edge cases, nested stage restoration, reduced motion and injected diagnostics.
 
-`validate-skills.ps1` checks all repository skills with repository-owned code and pinned PyYAML; `validate-specs.ps1`
+Repository tools are PowerShell 7 scripts with no other runtime; the validators live in `Tools/Validation.psm1` and
+the performance comparator in `Tools/PerformanceComparison.psm1`, and `Tools/tests/Invoke-ToolingTests.ps1` runs their
+tests. `validate-skills.ps1` checks all repository skills, reading front matter as a strict `key: value` subset of YAML
+that any YAML parser reads the same way; `validate-specs.ps1`
 checks local links, normative documents and plan indexes; `validate-dependencies.ps1` verifies historical origin
 metadata, current ownership paths and the exact pending dependency inventory. Original hashes describe the original
 commit only: editing owned source must not fail a hash check. New unresolved includes, missing owned files,
@@ -105,7 +108,7 @@ benchmark additionally fails a clean round with any C++ allocation and a dirty r
 per-frame allocation ceiling recorded in its receipt. Readback and PNG generation are fixture-only operations. The
 public standalone consumer must compile without private headers.
 
-`Tools/validate_test_port.py` enforces the original case count, unique origins, explicit exclusion reasons and retained/renamed entrypoints. Tooling regression tests verify that deleting a retained case or its disposition fails.
+`validate-test-port.ps1` enforces the original case count, unique origins, explicit exclusion reasons and retained/renamed entrypoints. Tooling regression tests verify that deleting a retained case or its disposition fails.
 `test.ps1` also runs the deterministic advisory fixture in `Tools/tests/Test-ConsumerUpdate.ps1`.
 It verifies same-pin silence, newer green main, pending/failed/missing/wrong-SHA validation,
 divergent/ahead pins, malformed upstream identity and offline behavior without network access.

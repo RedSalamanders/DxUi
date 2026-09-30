@@ -84,8 +84,7 @@ try {
     $receipt.measurement = 'Completed offscreen WARP frames, including clear and blocking one-pixel readback; no swap-chain presentation or vsync.'
     $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $OutputPath -Encoding utf8
     $comparison = $OutputPath + '.comparison.json'
-    $arguments = @($OutputPath, '--output', $comparison)
-    if ($Baseline) { $arguments += @('--baseline', [IO.Path]::GetFullPath($Baseline)) }
-    & (Join-Path $PSScriptRoot 'Tools/Invoke-Python.ps1') -Script (Join-Path $PSScriptRoot 'Tools/compare_performance.py') -Arguments $arguments
+    & (Join-Path $PSScriptRoot 'Tools/Compare-Performance.ps1') -Candidate $OutputPath -Baseline $Baseline -Output $comparison
+    if ($LASTEXITCODE -ne 0) { throw "The performance comparison requires advice or found invalid evidence: $comparison" }
     Write-Host "Performance receipt: $OutputPath"
 } finally { Pop-Location }

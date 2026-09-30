@@ -59,6 +59,6 @@ remain separate. See [the adoption record](Specs/Plans/Done/RedSalamanderMigrati
 [Capabilities](capabilities.json) lists supported library mechanisms separately from those pending integrations.
 
 Start with [AGENTS.md](AGENTS.md), [spec authority](Specs/README.md), and [active plans](Specs/Plans/WIP/README.md).
-Python 3.11+ plus `Tools/requirements-validation.txt` runs the skill/spec/dependency validators and tooling tests.
+Every repository tool is a PowerShell 7 script: build, test, formatting, the validators and the tooling tests.
 Historical source attribution is in [the import archive](Specs/Done/SourceImport/README.md); this repository is the root and home
 of DxUi, with no upstream source tree and no dependency on either application checkout.

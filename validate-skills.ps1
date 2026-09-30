@@ -1,3 +1,5 @@
 <# .SYNOPSIS Validates every repository-local DxUi skill. #>
 [CmdletBinding()] param()
-& (Join-Path $PSScriptRoot 'Tools/Invoke-Python.ps1') -Script (Join-Path $PSScriptRoot 'Tools/validate_skills.py')
+$ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'Tools/Validation.psm1') -Force
+Complete-DxUiValidation (Test-DxUiSkills $PSScriptRoot) 'Skill'

@@ -54,6 +54,7 @@ support and remaining gates are explicit. When implementation/tests pass, update
 the completed plan to Done. Do not leave a completed plan under WIP or close a deferred consumer migration early.
 
 Run `validate-skills.ps1`, `validate-specs.ps1`, `validate-dependencies.ps1` and `format.ps1 -Check` for relevant changes.
+Repository tooling is PowerShell only; tooling changes also run `Tools/tests/Invoke-ToolingTests.ps1`.
 Code changes require `test.ps1` in x64 Debug, Release and ASan Debug and builds in all three ARM64 configurations. ARM64 runtime support
 requires native execution. Renderer changes additionally need WARP, device-loss and recorded clean/dirty/hidden
 resource evidence; bootstrap foundation tests cannot satisfy those future gates.
