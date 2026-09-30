@@ -17,3 +17,5 @@ physical consumer mixed-DPI presentation, or real assistive-technology use. PR #
 its tree is identical to this qualified revision. The consumer pin is unchanged while the main
 commit receives its required push CI. Adopt through the normal validated-main workflow, preserving
 `f5c7fc7403e352425b8e82b7a4da1c042d942ede` for rollback.
+
+On 1 October 2026 each artifact directory dropped its `native-` prefix and now writes `ASan Debug` as `ASan`, within DxUi's 150-character path budget ([contract](../../../../Specs/Build/Build_ToolchainAndConsumption.md)). `manifest.txt` still names the artifacts as CI uploaded them, and the receipts are unchanged.

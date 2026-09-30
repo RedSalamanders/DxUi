@@ -16,3 +16,5 @@ RedSalamander's standard `Tools/Update-DxUi.ps1` accepted this exact successful 
 - I26 still owns integrated French long-text/native mixed-DPI, keyboard/UIA and real assistive-technology acceptance, paired application performance/resource evidence, final Issues/decision presentation and its own Done transition. H4/I18/I25 and other consumers are not closed by this handoff.
 
 The successful x64 ASan retry completed native UIA subscription in 125 ms (`Accessibility-retry.log`); the original pending-at-3000-ms failure remains linked above.
+
+On 1 October 2026 each artifact directory dropped its `native-` prefix and now writes `ASan Debug` as `ASan`, within DxUi's 150-character path budget ([contract](../../../../Specs/Build/Build_ToolchainAndConsumption.md)). `manifest.txt` still names the artifacts as CI uploaded them, and the receipts are unchanged.

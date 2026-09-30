@@ -85,3 +85,5 @@ Skills, specifications, dependencies and format checks pass after restoration. I
 validation rejected generic metadata named .json and missing raw-folder explanations; the archive
 now follows the existing .receipt.txt convention and supplies those explanations. Validator rules
 and evidence bytes remain unchanged.
+
+Until 1 October 2026 this packet was `associative-cache-rejected`. The directory was shortened to DxUi's 150-character path budget ([contract](../../../../Specs/Build/Build_ToolchainAndConsumption.md)). Nothing inside it changed, so its own paths and hashes still hold.
