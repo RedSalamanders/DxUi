@@ -3,12 +3,14 @@
 Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
 Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.
 
-## September 27 memory waiver
+## September 27 memory waiver, removed on September 30
 
 The user directed a waiver for the repeated clean private-memory flag and asked for the cost to be
-optimized. The [performance contract](../../Core/Core_PerformanceAndResources.md) records the waiver
+optimized. The [performance contract](../../Core/Core_PerformanceAndResources.md) recorded the waiver
 and its envelope: at most 1,175,552 clean-round private bytes (+4.6%) on the default fixture. The
-[optimization plan](MenuDescriptionMemory_2026-09-27.md) owns the remaining work.
+[optimization plan](MenuDescriptionMemory_2026-09-27.md) owned the remaining work. On 30 September a local paired set
+of six runs per side found clean private memory +0.36% (p = 0.70), within the band, as the hosted set had, and the
+waiver is removed.
 
 The correction below omitted one flag. Pair three also shows a dirty-round increase of 2,408,448
 private bytes (+8.67%) and +4.80% dirty working set, which pairs one and two do not repeat. It is

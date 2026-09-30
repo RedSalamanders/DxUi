@@ -26,3 +26,6 @@ Measurements/ReliabilityAndFollowUps/2026-09-30/paired-local/*.json -text -white
 Measurements/ReliabilityAndFollowUps/2026-09-30/paired-local/*.receipt.txt -text -whitespace
 Measurements/ReliabilityAndFollowUps/2026-09-30/paired-local/SHA256SUMS -text -whitespace
 Measurements/MenuDescriptions/2026-09-30/directed-input/** -text -whitespace
+Measurements/MenuDescriptions/2026-09-30/paired-local/*.json -text -whitespace
+Measurements/MenuDescriptions/2026-09-30/paired-local/*.receipt.txt -text -whitespace
+Measurements/MenuDescriptions/2026-09-30/paired-local/SHA256SUMS -text -whitespace
