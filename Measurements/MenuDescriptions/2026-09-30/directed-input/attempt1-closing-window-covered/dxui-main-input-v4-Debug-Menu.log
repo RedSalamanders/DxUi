@@ -1,0 +1,428 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Menu
+  [START] TestDescribedInfoRowPaintsItsDescription
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedInfoRowPaintsItsDescription (0.361 s)
+  [START] TestDescribedMenuRaisesFocusChangesForKeyboardRows
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuRaisesFocusChangesForKeyboardRows (0.767 s)
+  [START] TestDescribedMenuReleasesItsMemoryWhenItCloses
+    [TRACE] attached host dtor: begin
+Described menu resources before: 0 popups, 0 row layouts, 0 accessibility records, 18569496 heap bytes; open: 1 popups, 400 row layouts, 200 accessibility records, 27496113 heap bytes; closed: 0 popups, 0 row layouts, 0 accessibility records, 18576444 heap bytes (row elements still held 8; heap bytes are diagnostic only)
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuReleasesItsMemoryWhenItCloses (0.219 s)
+  [START] TestWindowHostTabRaisesAutomationFocusChanges
+Window-host Tab focus change reached the UIA client (1 event(s))
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostTabRaisesAutomationFocusChanges (0.785 s)
+  [START] TestWindowHostTreeArrowAnnouncesTheFocusedItem
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostTreeArrowAnnouncesTheFocusedItem (0.282 s)
+  [START] TestWindowHostElementSetFocusAnnouncesOnlyThatElement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostElementSetFocusAnnouncesOnlyThatElement (1.577 s)
+  [START] TestWindowHostClickThatActivatesAWindowUiAutomationHasAskedBeforeAnnouncesTheClickedControlOnce
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostClickThatActivatesAWindowUiAutomationHasAskedBeforeAnnouncesTheClickedControlOnce (2.841 s)
+  [START] TestWindowHostClickThatActivatesAWindowUiAutomationHasNotSeenLeavesTheClickedControlToItsFirstGetFocus
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostClickThatActivatesAWindowUiAutomationHasNotSeenLeavesTheClickedControlToItsFirstGetFocus (2.539 s)
+  [START] TestWindowHostReactivatingAWindowUiAutomationHasSeenAnnouncesItsFocusedControlOnce
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostReactivatingAWindowUiAutomationHasSeenAnnouncesItsFocusedControlOnce (3.377 s)
+  [START] TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange (1.306 s)
+  [START] TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside
+    [TRACE] attached host dtor: begin
+Menu pointer cursor: the arrow over the menu, the window's own cursor outside it
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside (0.662 s)
+  [START] TestMenuChoosesTheCursorWhenItOpensAndCloses
+Menu pointer restoration: restored=1 exact=1
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuChoosesTheCursorWhenItOpensAndCloses (0.795 s)
+  [START] TestMenuSurvivesAWindowClosingItFromSetCursor
+SKIPPED: another window covers the menu-closing window
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuSurvivesAWindowClosingItFromSetCursor (0.643 s)
+  [START] TestDescribedAsyncMenuRestoresFocusedOwnerChild
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedAsyncMenuRestoresFocusedOwnerChild (0.205 s)
+  [START] TestDescribedMenuWrapsFrenchTextAndPreservesIdentity
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuWrapsFrenchTextAndPreservesIdentity (0.177 s)
+  [START] TestDescribedMenuAccessibilityInvokesAndDisconnects
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuAccessibilityInvokesAndDisconnects (0.129 s)
+  [START] TestDescribedMenuPointerAndCancelledQueuedInvoke
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuPointerAndCancelledQueuedInvoke (0.168 s)
+  [START] TestDescribedMenuSubmenuKeepsSessionAndIdentity
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuSubmenuKeepsSessionAndIdentity (0.731 s)
+  [START] TestDescribedPointerMenuActivationSelectsNoRow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedPointerMenuActivationSelectsNoRow (0.128 s)
+  [START] TestDescribedMenuScrollRepublishesAccessibleGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuScrollRepublishesAccessibleGeometry (0.127 s)
+  [START] TestDescribedSubmenuSliderFocusKeepsSessionFocus
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedSubmenuSliderFocusKeepsSessionFocus (0.688 s)
+  [START] TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus (0.164 s)
+  [START] TestDescribedMenuFractionalDpiKeepsLaneAndWidths
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuFractionalDpiKeepsLaneAndWidths (0.154 s)
+  [START] TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu (0.290 s)
+  [START] TestPointerInputEventMouseMoveUsesDeliveredPoint
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPointerInputEventMouseMoveUsesDeliveredPoint (0.017 s)
+  [START] TestPointerInputEventButtonUsesDeliveredPointAndFlags
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPointerInputEventButtonUsesDeliveredPointAndFlags (0.026 s)
+  [START] TestPointerInputEventWheelUsesDeliveredScreenPoint
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPointerInputEventWheelUsesDeliveredScreenPoint (0.015 s)
+  [START] TestContextMenuDebugStateProbeBoundsWedgedWindowThread
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestContextMenuDebugStateProbeBoundsWedgedWindowThread (1.880 s)
+  [START] TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen (0.206 s)
+  [START] TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion (0.214 s)
+  [START] TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets (0.413 s)
+  [START] TestContextMenuShowAsyncSubmenuCloseKeepsSessionAlive
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestContextMenuShowAsyncSubmenuCloseKeepsSessionAlive (0.731 s)
+  [START] TestMenuGraphicalSliderSupportsClickDragAndAnimation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuGraphicalSliderSupportsClickDragAndAnimation (0.204 s)
+  [START] TestMenuMnemonicHonorsExplicitAmpersandLabels
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuMnemonicHonorsExplicitAmpersandLabels (0.730 s)
+  [START] TestMenuOpeningPointerUpCanBeIgnoredOutsideVisibleSurface
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuOpeningPointerUpCanBeIgnoredOutsideVisibleSurface (0.755 s)
+  [START] TestEmbeddedViewerContextMenuNativeConversionFiltersStandaloneCommands
+  [DONE] TestEmbeddedViewerContextMenuNativeConversionFiltersStandaloneCommands (0.000 s)
+  [START] TestMenuShadowMarginMouseUpLightDismissesAfterInitialRelease
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuShadowMarginMouseUpLightDismissesAfterInitialRelease (0.725 s)
+  [START] TestSplitButtonContextMenuSentMouseMessagesHoverAndInvokeImmediately
+    [TRACE] attached host dtor: begin
+Menu pointer restoration: restored=1 exact=1
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSplitButtonContextMenuSentMouseMessagesHoverAndInvokeImmediately (0.701 s)
+  [START] TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput
+    [TRACE] attached host dtor: begin
+Menu pointer restoration: restored=1 exact=1
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput (0.730 s)
+  [START] TestMenuKeyboardNavigationSkipsInfoRows
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuKeyboardNavigationSkipsInfoRows (0.183 s)
+  [START] TestMenuKeyboardRightArrowMatchesWindowsMenuLoop
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuKeyboardRightArrowMatchesWindowsMenuLoop (0.775 s)
+  [START] TestStationaryMouseDoesNotOverrideKeyboardRootSwitch
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestStationaryMouseDoesNotOverrideKeyboardRootSwitch (1.121 s)
+  [START] TestMenuPointerOverSiblingRootSwitchesOpenMenu
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuPointerOverSiblingRootSwitchesOpenMenu (0.699 s)
+  [START] TestMenuPopupMouseMoveUsesDeliveredPointForRootSwitch
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuPopupMouseMoveUsesDeliveredPointForRootSwitch (0.714 s)
+  [START] TestMenuOwnerMouseMoveRoutesRootSwitchImmediately
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuOwnerMouseMoveRoutesRootSwitchImmediately (0.742 s)
+  [START] TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup (0.718 s)
+  [START] TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar (0.865 s)
+  [START] TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch (0.732 s)
+  [START] TestMenuRootSwitchDoesNotPollCursorWhileIdle
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuRootSwitchDoesNotPollCursorWhileIdle (0.951 s)
+  [START] TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay (0.785 s)
+  [START] TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay (0.732 s)
+  [START] TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay (0.749 s)
+  [START] TestMenuKeyboardTabExitsMenuLoop
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuKeyboardTabExitsMenuLoop (0.206 s)
+  [START] TestMenuKeyboardF10ExitsMenuLoop
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuKeyboardF10ExitsMenuLoop (0.188 s)
+  [START] TestMenuKeyboardAltExitsMenuLoop
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuKeyboardAltExitsMenuLoop (0.186 s)
+  [START] TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop (0.746 s)
+  [START] TestNativeMenuBarRestoresFocusAfterMenuDismiss
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeMenuBarRestoresFocusAfterMenuDismiss (0.193 s)
+  [START] TestNativeMenuBarNestedPopupCanDestroyHostSafely
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeMenuBarNestedPopupCanDestroyHostSafely (0.654 s)
+  [START] TestMenuInfoRowsDoNotDismissOnClick
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuInfoRowsDoNotDismissOnClick (0.271 s)
+  [START] TestMenuPopupPositionClampsAcrossDpiMatrix
+  [DONE] TestMenuPopupPositionClampsAcrossDpiMatrix (0.000 s)
+  [START] TestMenuPopupPositionSupportsRightAlignedRootAnchors
+  [DONE] TestMenuPopupPositionSupportsRightAlignedRootAnchors (0.000 s)
+  [START] TestMenuPopupPositionSupportsAboveRightAlignedRootAnchors
+  [DONE] TestMenuPopupPositionSupportsAboveRightAlignedRootAnchors (0.000 s)
+  [START] TestMenuInfoRowsUseMeasuredValueColumnWidth
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuInfoRowsUseMeasuredValueColumnWidth (0.164 s)
+  [START] TestMenuStandardRowsDeriveAndAlignShortcutColumnFromTabbedText
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuStandardRowsDeriveAndAlignShortcutColumnFromTabbedText (0.182 s)
+  [START] TestMenuShortcutRowsReserveChevronLaneWhenAnySubmenuExists
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuShortcutRowsReserveChevronLaneWhenAnySubmenuExists (0.188 s)
+  [START] TestMenuBitmapIconsReachPopupLayout
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuBitmapIconsReachPopupLayout (0.180 s)
+  [START] TestMenuPopupMaterialsProduceDistinctCaptures
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuPopupMaterialsProduceDistinctCaptures (0.636 s)
+  [START] TestMenuRainbowHoverUsesSeededHighlightContrast
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuRainbowHoverUsesSeededHighlightContrast (0.206 s)
+  [START] TestMenuHoverContrastAppliesToGlyphsAcrossThemes
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuHoverContrastAppliesToGlyphsAcrossThemes (0.200 s)
+  [START] TestMenuRainbowCheckedItemUsesAccentIndicator
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuRainbowCheckedItemUsesAccentIndicator (0.196 s)
+  [START] TestMenuCheckedRowsDoNotPaintSecondFullRowSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuCheckedRowsDoNotPaintSecondFullRowSelection (0.237 s)
+  [START] TestMenuCheckedRowsDoNotPaintLeadingCheckedBox
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuCheckedRowsDoNotPaintLeadingCheckedBox (0.288 s)
+  [START] TestMenuPopupCompositionHostUsesTransparentShadowMargins
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuPopupCompositionHostUsesTransparentShadowMargins (0.211 s)
+  [START] TestMenuPopupWindowClassDoesNotUseNativeDropShadow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuPopupWindowClassDoesNotUseNativeDropShadow (0.181 s)
+  [START] TestMenuPopupSubmenuFlipsLeftNearRightEdge
+  [DONE] TestMenuPopupSubmenuFlipsLeftNearRightEdge (0.000 s)
+  [START] TestMenuPopupAcrylicLightVisualBaseline
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuPopupAcrylicLightVisualBaseline (0.250 s)
+  [START] TestMenuPopupKeepsSystemBackdropDisabledForAppRenderedMaterials
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuPopupKeepsSystemBackdropDisabledForAppRenderedMaterials (0.221 s)
+  [START] TestMenuAcrylicBackdropScenarioEmitsMetrics
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuAcrylicBackdropScenarioEmitsMetrics (0.788 s)
+  [START] TestSplitButtonContextMenuSentMouseMessagesHoverAndOutsideDismiss
+Menu pointer restoration: restored=1 exact=1
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSplitButtonContextMenuSentMouseMessagesHoverAndOutsideDismiss (0.710 s)
+  [START] TestContextMenuPopupRelayoutsOnDpiChanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestContextMenuPopupRelayoutsOnDpiChanged (0.178 s)
+  [START] TestContextMenuDpiRelayoutConstrainsOversizedContentToWorkArea
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestContextMenuDpiRelayoutConstrainsOversizedContentToWorkArea (0.186 s)
+[DONE] Menu (43.885 s)
+All DxUi tests passed.
+Foreground permission granted to the owned child.
+Restoration: childFocus=1 priorTargetPresent=1 priorTargetValid=1 foreground=1 cursorSaved=1 cursorRestored=1

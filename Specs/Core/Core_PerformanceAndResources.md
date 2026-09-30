@@ -71,28 +71,22 @@ rounds, so 2N runs per side after N repetitions.
   medians and each metric's run values, p-value, spread and verdict. Pairs are refused when there is nothing to
   compare: one commit for two revisions, or identical fingerprints when a working tree is named.
 
-### Described-menu clean private-memory waiver
+### Described-menu clean private memory
 
-On 2026-09-27 the user directed that described native menu entries (#24, merged as `6f769ab`)
-keep their measured common-scene memory cost under a recorded waiver, while an
-[optimization plan](../Plans/WIP/MenuDescriptionMemory_2026-09-27.md) works to remove it.
-In the three matched September 21 Release pairs against unchanged `78b3de3`
-([common-scene investigation](../../Measurements/MenuDescriptions/2026-09-21/README.md)),
-clean-round median private bytes rise by 823,296, 1,175,552 and 1,175,552 bytes
-(+3.23%, +4.56%, +4.51%), above the 2% band. Clean private peak rises by 2.12% to 4.68%;
-clean working set rises by 3.10% and 2.61% in pairs two and three. The accepted envelope is
-those recorded clean-round increases: at most 1,175,552 private bytes (+4.6%) on the default
-x64 Release WARP fixture.
+On 2026-09-27 the user directed a waiver for described native menu entries (#24, merged as `6f769ab`). In three
+matched September 21 Release pairs against `78b3de3`
+([common-scene investigation](../../Measurements/MenuDescriptions/2026-09-21/README.md)), clean-round median
+private bytes had risen by 823,296, 1,175,552 and 1,175,552 bytes (+3.23%, +4.56%, +4.51%). The waiver accepted up to
+1,175,552 bytes (+4.6%) on the default x64 Release WARP fixture while an
+[optimization plan](../Plans/WIP/MenuDescriptionMemory_2026-09-27.md) investigated. The scene opens no menu, and
+outside menu popups the change adds no allocation.
 
-The scene opens no menu, and outside menu popups the change adds no allocation. The nine-phase heap
-diagnostic shows the difference as allocator capacity (committed and free heap) rather than live
-data, and sixty-cycle retention medians converge. Neither establishes a cause or a settled bound.
-Pair three also flags a dirty-round increase of 2,408,448 private bytes (+8.67%) that pairs one and
-two do not repeat; it is not accepted, and the plan measures it again. This waiver does not cover
-timing, additional growth, other fixtures or consumer adoption. Thresholds, baselines and the
-deterministic allocation, surface and hidden-work budgets are unchanged, and the retained
-comparisons keep their `advice-required` status. Remove or tighten the waiver when the plan's
-paired measurements are within the investigation bands.
+On 2026-09-30 the waiver is removed, because the plan's repeated paired runs of `e47c836` against `6f769ab` are within
+the bands. A local set of six runs per side
+([receipts](../../Measurements/MenuDescriptions/2026-09-30/paired-local/README.md)) measures clean private bytes
++0.36% (p = 0.70) and dirty private bytes -0.89% (p = 0.56). The earlier hosted set measured clean private bytes
+-0.50% and -0.70%, and pair three's unaccepted dirty-round +8.67% did not repeat. Described menus now carry no memory
+envelope, and the regular investigation bands and exact budgets apply to them.
 
 ### I26 accepted multiline Grid memory tradeoff
 

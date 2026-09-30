@@ -30,6 +30,16 @@
   the right-to-left test, not a change). x64 Debug, Release and ASan Debug runs of the Grid, Rendering, Accessibility,
   Embedded and MultilineText suites are archived under `Measurements/GridTextOverflow/2026-09-30/verification`. API
   revision stays 2 (additive diagnostics accessors; a private member added).
+- The described-menu memory waiver is removed (plan `MenuDescriptionMemory_2026-09-27`). It accepted up to 1,175,552
+  clean-round private bytes (+4.6%) that the September 21 pairs measured for described native menus. A local paired
+  set of six runs per side (`e47c836` against `6f769ab`, the hosted set's harness) now finds +0.36% (p = 0.70), and dirty
+  -0.89% (p = 0.56), within the bands, as the hosted set did (-0.50%, -0.70%). Described menus carry no memory envelope
+  anymore; the receipts are under `Measurements/MenuDescriptions/2026-09-30/paired-local`.
+- `TestMenuSurvivesAWindowClosingItFromSetCursor` runs instead of skipping everywhere. Since it was added (PR 29) it
+  skipped in every run, local and x64 CI alike, as "another window covers the menu-closing window". On a developer
+  desktop the cover was the desktop application's own window, which takes the foreground back while the suite runs and
+  rises above the test's non-topmost window. The window is now topmost, and the skip names the covering window's
+  class and process. The full Menu suite runs with no skip on an interactive desktop.
 - Consumers can restore current pins again. #22 added measurement receipts with tracked paths of up to 176 characters.
   A consumer restores its pin under `<root>\.build\dependencies\DxUi\source\<commit>\`, and Git without long paths
   fails there once the full path passes 259 characters. RedXe's `main` CI has failed at restore since it pinned
