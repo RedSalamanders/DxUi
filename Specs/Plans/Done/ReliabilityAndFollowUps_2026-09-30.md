@@ -1,0 +1,175 @@
+# Test reliability, conclusive paired evidence and review follow-ups
+
+Status: DONE (2026-09-30). Library, tests and tooling; no consumer pin changes.
+Base: the PowerShell tooling port (PR #30) on the merged review work (`5561b61`).
+Owning contracts: [testing and validation](../../Testing/Testing_Validation.md),
+[performance](../../Core/Core_PerformanceAndResources.md), [input and accessibility](../../UI/UI_InputAndAccessibility.md),
+[controls and layout](../../UI/UI_ControlsAndLayout.md) and [documentation](../../Core/Core_Documentation.md).
+
+The developer decided on 2026-09-30 to implement the eleven improvements found while closing the
+[review follow-ups](../Done/ReviewFollowUps_2026-09-29.md), each implemented by a cheaper agent in its own worktree and
+reviewed before it merges here, until this plan can move to Done.
+
+## Execution
+
+### Test reliability
+
+- [x] 1. NativeTextInput survives a foreground thief. `TestNativeTextInputBackendActivatesTsfDocumentOnFocus` fails when
+  another window takes the foreground back right after the test window activates: activation is attempted and succeeds,
+  then the document is gone. A foreground log showed the desktop app retaking it 30-95 ms after each test window; three
+  of six local x64 Debug runs failed, and the unchanged baseline failed the same way. Accept: ten consecutive local runs
+  end in a pass or an explicit environment skip naming the foreground process, never the false failure; a genuine TSF
+  activation regression still fails. Done: the harness counts the `WM_ACTIVATEAPP` (FALSE) a takeover sends and
+  `RunWhileForegroundHeld` repeats a focus-and-pump sequence (five runs at most) until none arrives, so the four tests
+  that pump after taking focus (of 129; an emulated thief failed exactly those) make their former assertions on a run
+  that kept the foreground and skip naming the thief when none does; ten consecutive `test.ps1 -Suites NativeTextInput`
+  runs passed, three of them after a real takeover it repeated (`claude.exe` twice in the TSF test, PowerToys' Mouse
+  Without Borders helper once in the host-focus test).
+- [x] 2. A deterministic described-menu memory check. The test walks the process heap, so on a software renderer (the
+  GPU-less CI runners) it can only require half of the open memory back: the renderer's surfaces and caches swing by up
+  to about 3 MB per cycle. Accept: a test-only counter of DxUi's own live described-menu resources returns to its
+  pre-open value after close while a client holds row elements, on every renderer; pinning the rows fails the test.
+  Done: `DebugGetContextMenuResources` counts live menu popups, described-row text layouts and menu-popup accessibility
+  records, which a 200-row menu raises from 0 to 1, 400 and 200 and, with eight row elements held, closing returns to
+  0, 0 and 0 on any renderer (the heap is only printed); pinning a snapshot, keeping one after close or never freeing
+  a popup fails the test.
+- [x] 3. The control-test runner runs single tests. Only whole suites run today, which takes minutes. Accept:
+  `--test=<Name>[,<Name>]` (and `test.ps1 -Tests`) runs only the named tests; an unknown name fails the run; unfiltered
+  suites still run every test. Done: every runner registers its tests as `DXUI_RUN_TEST(TestName);` and `--test=` /
+  `-Tests` runs only the named ones (one Menu test in 4.3 s inside `test.ps1`), an unknown name exits 2, and the 17
+  unfiltered suites start the same 1,006 tests in the same order as their runners did at `cf6722f`.
+
+- [x] 12. The Menu suite never hangs a CI job. On PR 30's pull-request run (36715415304), x64 ASan Debug started the
+  Menu suite at 12:38 and printed nothing more until the job's 40-minute limit cancelled it; the push run of the same
+  commit passed the job in 11 minutes, and the PR changed no C++. Accept: the hanging wait is identified (the job's
+  uploaded suite log names the last test started) and bounded, so a stuck test fails fast with its name, and its root
+  cause is fixed when it is in the library.
+  Outcome: every control test and fixture suite without named tests runs under a condition-variable watchdog (300 s by
+  default, `--test-timeout=<seconds>`, 0 off) that ends a hung run with `TIMEOUT: <name> after <N> s` and exit code 124,
+  which `test.ps1` prints beside the log's last lines and a self-test proves (the same test with the watchdog off hangs), the
+  audit found no unbounded polling loop, `INFINITE` wait or UI Automation wait without a deadline but a driver thread that
+  gave up before it found its popup left `ContextMenu::Show` running for good and a UI Automation client thread was joined
+  after a bounded wait (both fixed; the Menu suite's foreground runs on PR 31's x64 CI pass), and the wait that hung
+  PR 30's job is not identified (its log is not kept), so the next hang names its test.
+
+### Performance evidence
+
+- [x] 4. Paired sets can establish a result on a noisy machine. One A1/B1/B2/A2 pass gives each side two runs, and on
+  2026-09-30 all 14 same-binary controls on the developer laptop drifted beyond their bands. Accept: repeated
+  interleaved passes and a per-metric verdict from an exact rank test together with the investigation band; exact
+  budgets stay exact; the performance contract states the rule.
+  Outcome: `-Repetitions` (default 3) repeats the interleaved pass and `Compare-PerformanceSet` gives each metric a
+  verdict from an exact Mann-Whitney U test with the investigation band, exact budgets staying exact and same-binary
+  spread only reported; the contract's paired-sets rule states it and six against six reaches p = 0.0022. The
+  close-out's set of `main` against the integrated tree, six runs per side in each of the three scenes
+  ([receipts](../../../Measurements/ReliabilityAndFollowUps/2026-09-30/paired-local/README.md)), is within the noise
+  budget in all three. No metric regressed or improved, while every one of the 18 same-binary controls drifted beyond
+  a band, so no single pass could have told a change from this laptop's noise.
+- [x] 5. Paired runs compare two trees. `performance-paired.ps1` refuses two uncommitted states on one commit, so the
+  review follow-up sets were run by hand. Accept: `-BaselinePath` and `-CandidatePath` measure existing trees with the
+  same harness overlay; identical sources are refused instead of identical commits.
+  Outcome: `-BaselinePath` and `-CandidatePath` measure named working trees as they are, overlaying the harness and
+  restoring their files afterwards, and a pair with a named tree is refused on an identical library source fingerprint
+  instead of an identical commit; the selection, refusal, overlay and fingerprint logic sits in the tested
+  `Tools/PairedRun.psm1`. On hardware, `main`'s worktree named as a path was measured as it was and left exactly as
+  found; this checkout named on both sides was refused at once; and a fresh worktree of the same commit was refused
+  on its identical library fingerprint before anything was built, then found clean.
+
+### Library follow-ups
+
+- [x] 6. Window-host UI Automation providers resolve their control without a tree scan. Each provider call searches the
+  retained tree (`FindAccessibilityPathForTarget`), O(N) per call and O(N^2) for a client walking every element.
+  Accept: resolution through an index built when a snapshot is published, with a deterministic test showing constant
+  work per resolution in a large tree; behavior unchanged.
+  Outcome: every published snapshot carries lookup tables (records by path, hit rectangles by kind, path and item,
+  control addresses), so in a window of 1,960 buttons a `Navigate` call examines 5.8 table slots on average (21 at most)
+  where a scan examined 4,901 records (9,796), a property read 3.5 (15) instead of 2,942 (5,880), and an event's control
+  lookup 17 nodes instead of 1,002 (2,001), the same per call in a tree of 245 buttons; a table hit is confirmed
+  against the live tree and a miss searches it, so behavior is unchanged, while what lives inside one control (a tree's
+  items by id, a grid's rows and cells) and hit testing a point still scan.
+- [x] 7. A click that activates the window announces the clicked control once. Today the system's activation focus event
+  and the host's own focus change can both report it. Accept: a UI Automation client test counts one event. Design,
+  second attempt: the first left every move of the gain's turn to the system's event, on the premise that UI Automation
+  answers it only once the loop turns, and failed x64 CI. What UI Automation does, traced with an in-process client on
+  Windows 11 build 26200: the first focus event of a window it has not seen is answered with a call of the fragment
+  root's `GetFocus`, on another thread, from the snapshot published when it runs; for a window it has seen, later events
+  are answered without `GetFocus` (only `WM_GETOBJECT` and a read of the root element's keyboard-focus property follow
+  the event, false while the focus is inside a control), so a click that moved focus first is reported by nothing, and
+  so is the activation itself. So the host announces the click itself in a window UI Automation has asked before, and
+  leaves the move to the first `GetFocus` call only in a window none has ever begun on: each call counts itself before
+  it loads the snapshot and the host reads the count after it stores the snapshot, all sequentially consistent, so with
+  the count at zero every later call reports the moved-to control. Comparing the count with its value at the gain
+  instead leaves the click unannounced in a window seen before, which the Menu test for that case shows. Tests: the
+  WindowHost suite decides each case without a desktop (including a call that a test gate holds before it counts itself)
+  and the Menu suite runs an in-process UI Automation client through a window seen before and a first activation. Left
+  open: the activation of a seen window whose focus is in a control is reported by nothing either (the host adds no
+  announcement for what a gain focuses or restores). Both real-client tests ran and passed on this machine in x64
+  Debug, Release and ASan Debug (Debug ten times in a row) and pass on PR 31's x64 CI.
+- [x] 8. A reparented ColorPicker is current. The review recorded a stale arrangement after reparenting; its cached
+  brushes may belong to the old host's device too. Accept: after moving between hosts or metrics, the picker matches one
+  created in the new place. Done: a move announced no flow direction or density, so a picker, stepper, tab header or
+  stack moved out of a right-to-left parent stayed mirrored and a tree or grid moved between densities kept its row
+  metrics, and `Control::Reparent` now announces what a moved control inherits (once, in its final place, only when
+  it differs) while the picker also releases its gradients and device reference when its host changes and
+  `Panel::ClearChildren` skips a slot emptied through `GetChildren()`; dpi, theme and density moves already matched a
+  fresh picker, and tests compare arrangements and painted windows with fresh controls and count the announcements,
+  each failing without the change it covers (a tab control across windows, the menu bar and the text field pass either
+  way: they invalidate on a host change or key their layouts), while the gallery is byte-identical.
+- [x] 9. Grid layouts of a grid that stops painting are released. A painting grid already releases every layout its
+  paint did not use, so what it keeps is its visible cells' layouts, which the frame-rate-first decision needs, plus
+  reusable string storage. A hidden, detached or re-modelled grid keeps its last paint's layouts until a next paint that
+  may never come. Accept: an attribution of what a painting grid holds, and release on hide, detach and model change,
+  with the painting path, its allocation budget and its tests unchanged. Done on `improve/grid-layout-release`: a
+  painting grid holds one value layout per cell its last paint drew, however far it has scrolled (28 in 32 entries for
+  the 6x4 multiline test grid, 66 in 128 for 10x6, 44 in 64 for ten single-line rows; the tail table keeps 32 entries
+  and no layout once a paint hits), 3,080 to 5,940 UTF-16 units (6 to 12 KB) of key strings and 5.1 to 13.6 KB of
+  tables, small beside the layouts themselves (a Release heap walk finds about 20 KB each: 570 KB for the 6x4 grid,
+  1.3 MB for 10x6, 934 KB for the single-line grid), and a grid hidden (itself, under a hidden panel, page host or
+  unselected tab, or in a hidden embedded view), detached or given another model now returns all of it and its ellipsis
+  sign, while a repaint and a one-row scroll lay out exactly what they did. The close-out's paired set shows the
+  painting path unchanged: identical allocations, and no timing or memory shift established. Where every cell holds
+  its own layout (`MultilineGridDistinct`), hidden private bytes are 0.52 MB lower (p = 0.026), and four of six runs
+  returned 0.87 to 1.22 MB at the hide. In the other two scenes the heap keeps the freed blocks committed, so process
+  memory does not show the release; the Grid suite's layout counters establish it. With this attribution the
+  developer accepted the retention on 2026-09-30: the performance contract's accepted Grid layout retention records
+  the envelope, one layout per cell of the last paint and none while the grid is not painting.
+
+### Tooling
+
+- [x] 10. One validation entry point. Accept: `validate.ps1` runs the five validators and the tooling tests, reporting
+  every failure; CI and `test.ps1` run the tooling tests.
+  Outcome: `validate.ps1` runs the five validators and the tooling tests, each in its own process, and reports every
+  failure before it fails; CI's validation job runs it and `test.ps1` runs the tooling tests. The validators' file scans
+  also skip nested git checkouts (worktrees), which had multiplied the Markdown count in a main checkout.
+- [x] 11. Publishing `docs/gallery` after a merge is not manual. Accept: a manual-dispatch workflow regenerates and
+  commits it on a chosen branch, with the same safeguards as the formatting workflow's apply mode.
+  Outcome: the manual `Publish docs gallery` workflow regenerates the gallery natively and commits it through the
+  tested `Tools/Commit-Gallery.ps1` with the formatting workflow's safeguards (dispatch only, an explicit boolean input,
+  `contents: write` for that job, an ordinary push, a no-op when only `generation.json` changed). Its first real run
+  follows the merge, because GitHub dispatches a workflow only once it is on the default branch, and it commits, so it
+  waits for the developer's go-ahead. The published sheets are a hosted runner's output from `ed1dea9`, before PR 29's
+  visual changes. Sheets rendered on another machine differ from them byte for byte whatever the source, so they
+  cannot show whether this plan changed any visuals; the close-out compares `main` with this branch on one machine
+  instead.
+
+### Close-out
+
+- [x] Every branch reviewed (diff, falsification, tests) and merged here; `test.ps1` in x64 Debug, Release and ASan
+  Debug, the three ARM64 builds, the validators, tooling tests and `format.ps1 -Check`; paired evidence for item 9 with
+  item 4's runner on a quiet machine; specs, docs and CHANGELOG; this plan moved to Done.
+  Outcome: every branch was reviewed, falsified and merged, and the integrated tree passes `test.ps1` in the three x64
+  configurations, builds in the three ARM64 ones, and passes `validate.ps1` and `format.ps1 -Check`. The close-out
+  found two defects of its own and fixed them. The watchdog's tooling test was not strict itself and failed six of its
+  cases under `test.ps1`, so every tooling test script is now strict and a test requires it. `test.ps1` also names
+  every capability skip now, which showed item 7's first version running, and failing, on x64 CI. The paired set of
+  `main` against the integrated tree is retained with its receipts (items 4, 5 and 9). `main` and this tree render
+  byte-identical galleries; `docs/gallery`, a hosted runner's render from before PR 29, was regenerated on the
+  developer machine from the final sources (`3acb196`), and the design system was republished (version 13) with those
+  sheets and the guidelines PR 29 changed. The developer accepted the Grid layout retention (item 9).
+
+## Execution model
+
+Agents work in separate worktrees on one branch per group: tests (1-3), grid (9), picker (8) and tooling (4, 5, 10,
+11) in a first wave, accessibility (6, 7) after the tests branch merges. The Menu, NativeTextInput, MenuResources and
+MenuResourceScaling suites need the real foreground, so only one agent runs them at a time. Agents run no benchmarks;
+paired measurements are taken here once the work is merged.

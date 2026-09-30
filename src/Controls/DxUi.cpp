@@ -393,6 +393,8 @@ void Control::SetVisible(bool visible) noexcept
         if (_host && _host->_embedded)
             ++_host->_interactionRevision;
         _visible = visible;
+        if (! visible)
+            OnHidden();
         RequestInvalidate();
         if (ControlHost* const host = GetHost())
         {
@@ -892,8 +894,32 @@ void Control::PropagateHost(ControlHost* host) noexcept
 
 void Control::SetParent(Panel* parent) noexcept
 {
-    _parent = parent;
+    Reparent(parent, parent ? parent->_host : nullptr);
+}
+
+void Control::Reparent(Panel* parent, ControlHost* host) noexcept
+{
+    // The flow direction and density a control inherits resolve through its parent chain (a root takes its host's
+    // density). A parent's own change is announced to its children; a move changes them just the same, so the moved
+    // control hears it the same way: once, after it stands in its final place, and only when a value differs. A child
+    // that inherits what its parent already has, and a host being torn down, announce nothing. The old parent is read
+    // to tell what differs, so it must still exist (as the old host, which PropagateHost reads, always had to).
+    const FlowDirection flowDirection = GetFlowDirection();
+    const Density density             = GetDensity();
+    _parent                           = parent;
     PropagateHost(parent ? parent->_host : nullptr);
+    if (host != _host)
+    {
+        PropagateHost(host);
+    }
+    if (GetFlowDirection() != flowDirection)
+    {
+        OnFlowDirectionChanged();
+    }
+    if (GetDensity() != density)
+    {
+        OnDensityChanged();
+    }
 }
 
 Panel* Control::GetParent() const noexcept
@@ -924,6 +950,10 @@ void Control::OnDensityChanged() noexcept
 }
 
 void Control::OnEnabledChanged(bool /*enabled*/) noexcept
+{
+}
+
+void Control::OnHidden() noexcept
 {
 }
 

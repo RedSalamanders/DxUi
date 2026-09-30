@@ -1,5 +1,6 @@
 #include "../../src/Controls/DxUi.Typography.h"
 #include "../Support/PerformanceCapture.h"
+#include "DxUiFocusEventClient.h"
 #include "DxUiTestHelpers.h"
 
 #include <array>
@@ -3126,6 +3127,234 @@ void TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement()
     Require(state.mouseMoveCount == 0u, "root-replacing hover control is not reused for mouse move after replacing the root");
 }
 
+// A window's focus gain is reported by one system event, and a click that activates the window sets its control after
+// WM_SETFOCUS, in the same turn of the message loop: in a window UI Automation has never asked for its focus the host
+// treats the focus moves of that turn as the event's to report (see the tests that follow). The turn ends when the
+// message the host posted at the gain is dispatched, when the window loses focus, or after 500 ms should a window
+// procedure never hand the host that message.
+void TestWindowHostFocusGainTurnEndsWithItsMessageOrTheLossOfFocusOrItsLimit()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* first = root->AddChild<Button>(L"Premier bouton");
+    first->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    window.Host().SetRoot(std::move(root));
+    window.PumpMessages();
+    Require(! window.Host().DebugIsInFocusGainTurn(), "a window that has not gained focus is in no turn");
+
+    SendMessageW(window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(window.Host().DebugIsInFocusGainTurn(), "gaining focus starts a turn");
+    window.PumpMessages();
+    Require(! window.Host().DebugIsInFocusGainTurn(), "the turn ends when the loop dispatches the message posted at the gain");
+
+    SendMessageW(window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(window.Host().DebugIsInFocusGainTurn(), "gaining focus again starts another turn");
+    SendMessageW(window.Hwnd(), WM_KILLFOCUS, 0, 0);
+    Require(! window.Host().DebugIsInFocusGainTurn(), "losing focus ends the turn");
+    window.PumpMessages();
+    Require(! window.Host().DebugIsInFocusGainTurn(), "the message posted at the earlier gain ends nothing more");
+
+    SendMessageW(window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(window.Host().DebugIsInFocusGainTurn(), "a third gain starts a turn whose message is held back");
+    Sleep(600);
+    Require(! window.Host().DebugIsInFocusGainTurn(), "a turn whose message never arrives ends after 500 ms");
+    window.PumpMessages();
+}
+
+// A window with two buttons that never holds the foreground (a gain is played by sending it WM_SETFOCUS), the fragment
+// root UI Automation calls GetFocus on, and a UI Automation client that listens, since the host compares its snapshots
+// only while one does.
+struct FocusGainTestWindow final
+{
+    FocusGainTestWindow()
+    {
+        auto tree = std::make_unique<DxUi::Panel>();
+        first     = tree->AddChild<DxUi::Button>(L"Premier bouton");
+        second    = tree->AddChild<DxUi::Button>(L"Second bouton");
+        first->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+        second->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+        window.Host().SetRoot(std::move(tree));
+        root.attach(DxUi::CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        Require(root != nullptr, "the window exposes its fragment root");
+        Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [] { return UiaClientsAreListening() != FALSE; }),
+                "a UI Automation client listens");
+        window.PumpMessages();
+    }
+
+    AttachedHostWindow window;
+    FocusEventClient client{window, window.Hwnd()}; // After the window it pumps, so it is destroyed first.
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    DxUi::Button* first  = nullptr;
+    DxUi::Button* second = nullptr;
+};
+
+// UI Automation answers the system's focus event for a window it has never asked about with a call of the fragment root's
+// GetFocus, on whatever thread, which reads the published snapshot when it runs. A click that activates such a window
+// moves focus after its WM_SETFOCUS, in the same turn, before UI Automation has acted: the host leaves that move to the
+// call, which reports the clicked control, for as long as no call has begun, because every call that begins later reads the
+// snapshot after the move. The window never holds the foreground here, so the decision is read from a count; the Menu suite
+// plays the click with a real UI Automation client.
+void TestWindowHostFocusMoveInTheGainTurnOfAWindowNoGetFocusHasBegunOnIsLeftToTheSystem()
+{
+    using namespace DxUi;
+    FocusGainTestWindow test;
+    ControlHost& host         = test.window.Host();
+    const uint64_t leftBefore = host.DebugGetFocusMovesLeftToSystemCount();
+    Require(DebugGetAccessibilityFocusResolutionCountForTest(test.window.Hwnd()) == 0u, "nothing has asked the new window for its focus");
+
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(host.GetFocusControl() == test.first, "the gain focuses the first button on the way");
+    Require(host.DebugIsInFocusGainTurn(), "the gain starts a turn");
+    Require(host.DebugGetFocusMovesLeftToSystemCount() == leftBefore, "what the gain itself focuses is the system's event to report, not a move left to it");
+
+    host.SetFocusControl(test.second);
+    Require(host.GetFocusControl() == test.second, "the click focuses the second button");
+    Require(host.DebugGetFocusMovesLeftToSystemCount() == leftBefore + 1u,
+            "a move in the gain's turn is left to the system's event while no GetFocus call has begun");
+    host.SetFocusControl(test.first);
+    Require(host.DebugGetFocusMovesLeftToSystemCount() == leftBefore + 2u, "so is a further move while still no call has begun");
+    Require(ReadFocusedElementName(*test.root) == L"Premier bouton", "the first call reports the control the host last moved focus to");
+
+    host.SetFocusControl(test.second);
+    Require(host.DebugIsInFocusGainTurn(), "the turn still runs");
+    Require(host.DebugGetFocusMovesLeftToSystemCount() == leftBefore + 2u,
+            "once a GetFocus call has begun, a further move in the turn is no longer left to the system's event");
+    Require(ReadFocusedElementName(*test.root) == L"Second bouton", "and the call that follows reports it");
+}
+
+// A GetFocus call that has begun since the gain may have answered the system's event before the click's move, so the
+// host announces that move itself, at worst as a duplicate.
+void TestWindowHostFocusMoveAfterAGetFocusCallHasBegunIsAnnouncedByTheHost()
+{
+    using namespace DxUi;
+    FocusGainTestWindow test;
+    ControlHost& host         = test.window.Host();
+    const uint64_t leftBefore = host.DebugGetFocusMovesLeftToSystemCount();
+
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(host.GetFocusControl() == test.first, "the gain focuses the first button on the way");
+    Require(ReadFocusedElementName(*test.root) == L"Premier bouton", "the call that answers the system's event reports the control the gain focused");
+    Require(DebugGetAccessibilityFocusResolutionCountForTest(test.window.Hwnd()) == 1u, "a GetFocus call counts itself once");
+
+    host.SetFocusControl(test.second);
+    Require(host.GetFocusControl() == test.second, "the click focuses the second button");
+    Require(host.DebugIsInFocusGainTurn(), "the move was made in the gain's turn");
+    Require(host.DebugGetFocusMovesLeftToSystemCount() == leftBefore, "the host does not leave the move to an event a GetFocus call may have answered");
+    Require(ReadFocusedElementName(*test.root) == L"Second bouton", "the next call reports the moved-to control");
+}
+
+// UI Automation answers a window it has asked about before from the element it last reported for it, and reports nothing
+// once that element has lost focus: the click that activates such a window is the host's to announce, whichever way the
+// earlier call fell. The count the decision reads is the window's whole history, not what happened since the gain.
+void TestWindowHostFocusMoveInTheGainTurnOfAWindowGetFocusHasBegunOnBeforeIsAnnouncedByTheHost()
+{
+    using namespace DxUi;
+    FocusGainTestWindow test;
+    ControlHost& host         = test.window.Host();
+    const uint64_t leftBefore = host.DebugGetFocusMovesLeftToSystemCount();
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(ReadFocusedElementName(*test.root) == L"Premier bouton", "UI Automation asked the fragment root for the focus of the window's first activation");
+    test.window.PumpMessages();
+    SendMessageW(test.window.Hwnd(), WM_KILLFOCUS, 0, 0);
+    Require(host.GetFocusControl() == test.first, "the first button keeps its logical focus while the window has none");
+
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(host.DebugIsInFocusGainTurn(), "the second activation starts a turn");
+    Require(DebugGetAccessibilityFocusResolutionCountForTest(test.window.Hwnd()) == 1u,
+            "nothing has asked the window for its focus since the first activation");
+    host.SetFocusControl(test.second);
+    Require(host.GetFocusControl() == test.second, "the click focuses the second button");
+    Require(host.DebugGetFocusMovesLeftToSystemCount() == leftBefore, "the host announces the click in a window UI Automation has asked before");
+}
+
+// Only the turn of the gain is the system's: a move after the loop has turned, after the window lost focus again, or after
+// the turn outlived its limit is the host's to announce, whether or not a GetFocus call has begun.
+void TestWindowHostFocusMovesOutsideTheGainTurnAreTheHosts()
+{
+    using namespace DxUi;
+    FocusGainTestWindow test;
+    ControlHost& host         = test.window.Host();
+    const uint64_t leftBefore = host.DebugGetFocusMovesLeftToSystemCount();
+
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    test.window.PumpMessages();
+    Require(! host.DebugIsInFocusGainTurn(), "the loop turned");
+    host.SetFocusControl(test.second);
+    Require(host.GetFocusControl() == test.second, "a click in the active window focuses the second button");
+    Require(host.DebugGetFocusMovesLeftToSystemCount() == leftBefore, "a move after the loop has turned is the host's");
+
+    SendMessageW(test.window.Hwnd(), WM_KILLFOCUS, 0, 0);
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(host.DebugIsInFocusGainTurn(), "gaining focus again starts a turn");
+    SendMessageW(test.window.Hwnd(), WM_KILLFOCUS, 0, 0);
+    host.SetFocusControl(test.first);
+    Require(host.GetFocusControl() == test.first, "a move after the window lost focus focuses the first button");
+    Require(host.DebugGetFocusMovesLeftToSystemCount() == leftBefore, "a move after the window lost focus is the host's");
+    test.window.PumpMessages();
+
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(host.DebugIsInFocusGainTurn(), "a third gain starts a turn whose message is held back");
+    Sleep(600);
+    host.SetFocusControl(test.second);
+    Require(host.GetFocusControl() == test.second, "a move after the turn outlived its limit focuses the second button");
+    Require(host.DebugGetFocusMovesLeftToSystemCount() == leftBefore, "a turn that outlived its limit leaves nothing to the system's event");
+    test.window.PumpMessages();
+}
+
+// UI Automation's call can be slow: it comes on a thread of its own at any time. One that has not yet counted itself when
+// the click moves focus reads the snapshot after the move and reports the clicked control, which is why the host leaves
+// that move to it. The test gate holds the call before it counts itself, as a client thread that has not got as far would
+// be.
+void TestWindowHostGetFocusHeldBeforeItCountsReportsTheMoveTheHostLeftToTheSystem()
+{
+    using namespace DxUi;
+    FocusGainTestWindow test;
+    ControlHost& host         = test.window.Host();
+    const uint64_t leftBefore = host.DebugGetFocusMovesLeftToSystemCount();
+    wil::unique_event entered(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_event release(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(entered && release, "create the gate events");
+    DebugSetAccessibilityFocusResolutionGateForTest(test.window.Hwnd(), entered.get(), release.get());
+    const auto clearGate = wil::scope_exit([&]() noexcept
+    {
+        static_cast<void>(SetEvent(release.get()));
+        DebugSetAccessibilityFocusResolutionGateForTest(nullptr, nullptr, nullptr);
+    });
+
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(host.GetFocusControl() == test.first, "the gain focuses the first button on the way");
+
+    // The call UI Automation makes to answer the system's event, on a thread of its own, as a provider call arrives.
+    std::wstring answer;
+    std::atomic<bool> answered{false};
+    std::jthread resolver([&]
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragment> focused;
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        VARIANT name{};
+        VariantInit(&name);
+        if (SUCCEEDED(test.root->GetFocus(focused.put())) && focused && SUCCEEDED(focused.query_to(simple.put())) &&
+            SUCCEEDED(simple->GetPropertyValue(UIA_NamePropertyId, &name)) && name.vt == VT_BSTR && name.bstrVal)
+        {
+            answer.assign(name.bstrVal, SysStringLen(name.bstrVal));
+        }
+        VariantClear(&name);
+        answered.store(true);
+    });
+    Require(WaitForSingleObject(entered.get(), 5000) == WAIT_OBJECT_0, "the call reaches the gate");
+    Require(! answered.load() && DebugGetAccessibilityFocusResolutionCountForTest(test.window.Hwnd()) == 0u, "the gate holds the call before it counts itself");
+
+    host.SetFocusControl(test.second);
+    Require(host.GetFocusControl() == test.second, "the click focuses the second button");
+    Require(host.DebugGetFocusMovesLeftToSystemCount() == leftBefore + 1u, "a move made while the call is held is left to the system's event");
+
+    Require(SetEvent(release.get()) != FALSE, "release the gate");
+    resolver.join();
+    Require(answer == L"Second bouton", "the call the gate held reports the control the host left to it");
+    Require(DebugGetAccessibilityFocusResolutionCountForTest(test.window.Hwnd()) == 1u, "the released call counts itself once");
+}
+
 } // namespace
 
 void TestWindowHostWorksWithoutOptionalSdkDebugLayer()
@@ -3151,90 +3380,80 @@ void TestWindowHostWorksWithoutOptionalSdkDebugLayer()
 
 void RunWindowHostTests()
 {
-    auto runTest = [](const char* name, void (*fn)())
-    {
-        std::cerr << "  [START] " << name << '\n' << std::flush;
-        fn();
-        std::cerr << "  [DONE] " << name << '\n' << std::flush;
-    };
-
-    runTest("TestWindowHostWorksWithoutOptionalSdkDebugLayer", TestWindowHostWorksWithoutOptionalSdkDebugLayer);
-    runTest("TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies", TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);
-    runTest("TestWindowHostKeyboardInputMarksFocusVisible", TestWindowHostKeyboardInputMarksFocusVisible);
-    runTest("TestWindowHostPointerInputClearsKeyboardFocusVisible", TestWindowHostPointerInputClearsKeyboardFocusVisible);
-    runTest("TestWindowHostRejectsForeignThreadDetachUntilOwnerDetaches", TestWindowHostRejectsForeignThreadDetachUntilOwnerDetaches);
-    runTest("TestWindowHostDetachKeepsSharedGraphicsAttachmentUntilControlTreeDestroyed",
-            TestWindowHostDetachKeepsSharedGraphicsAttachmentUntilControlTreeDestroyed);
-    runTest("TestWindowHostEmitsFrameStageMetricsForCaptureRender", TestWindowHostEmitsFrameStageMetricsForCaptureRender);
-    runTest("TestWindowHostBlocksLayoutMutationDuringRender", TestWindowHostBlocksLayoutMutationDuringRender);
-    runTest("TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads", TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads);
-    runTest("TestWindowHostMouseMoveUpdatesHoverTarget", TestWindowHostMouseMoveUpdatesHoverTarget);
-    runTest("TestWindowHostMouseLeaveOverForeignPopupClearsHover", TestWindowHostMouseLeaveOverForeignPopupClearsHover);
-    runTest("TestWindowHostMouseLeaveWithForeignCaptureClearsHover", TestWindowHostMouseLeaveWithForeignCaptureClearsHover);
-    runTest("TestWindowHostTabTraversal", TestWindowHostTabTraversal);
-    runTest("TestWindowHostShiftTabTraversal", TestWindowHostShiftTabTraversal);
-    runTest("TestWindowHostNativeFocusLossRetainsLogicalFocusForTraversal", TestWindowHostNativeFocusLossRetainsLogicalFocusForTraversal);
-    runTest("TestWindowHostReturnInvokesDefaultButtonWhenFocusedControlDoesNotOwnEnter",
-            TestWindowHostReturnInvokesDefaultButtonWhenFocusedControlDoesNotOwnEnter);
-    runTest("TestWindowHostReturnInvokesDefaultButtonWhenNoControlIsFocused", TestWindowHostReturnInvokesDefaultButtonWhenNoControlIsFocused);
-    runTest("TestWindowHostReturnDoesNotInvokeDefaultButtonWhenFocusedControlOwnsEnter",
-            TestWindowHostReturnDoesNotInvokeDefaultButtonWhenFocusedControlOwnsEnter);
-    runTest("TestButtonKeyboardActivationCanReplaceRootSafely", TestButtonKeyboardActivationCanReplaceRootSafely);
-    runTest("TestWindowHostSpaceAndReturnInvokeFocusedButtonWithoutDefaultButtonFallback",
-            TestWindowHostSpaceAndReturnInvokeFocusedButtonWithoutDefaultButtonFallback);
-    runTest("TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement", TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement);
-    runTest("TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement", TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement);
-    runTest("TestWindowHostDpiChangedIsHandled", TestWindowHostDpiChangedIsHandled);
-    runTest("TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow",
-            TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow);
-    runTest("TestWindowHostAttachedWindowsRenderAcrossUiThreads", TestWindowHostAttachedWindowsRenderAcrossUiThreads);
-    runTest("TestWindowHostEscapeInvokesCancelButton", TestWindowHostEscapeInvokesCancelButton);
-    runTest("TestWindowHostEscapeClosesComboPopupBeforeCancelButton", TestWindowHostEscapeClosesComboPopupBeforeCancelButton);
-    runTest("TestWindowHostMenuKeyInvokesFocusedButtonContextMenu", TestWindowHostMenuKeyInvokesFocusedButtonContextMenu);
-    runTest("TestWindowHostShiftF10InvokesFocusedToggleContextMenu", TestWindowHostShiftF10InvokesFocusedToggleContextMenu);
-    runTest("TestWindowHostMenuKeyInvokesFocusedCheckboxContextMenu", TestWindowHostMenuKeyInvokesFocusedCheckboxContextMenu);
-    runTest("TestWindowHostSpaceAndReturnToggleFocusedToggleWithoutDefaultButtonFallback",
-            TestWindowHostSpaceAndReturnToggleFocusedToggleWithoutDefaultButtonFallback);
-    runTest("TestWindowHostSpaceTogglesFocusedCheckboxAndReturnInvokesDefaultButton", TestWindowHostSpaceTogglesFocusedCheckboxAndReturnInvokesDefaultButton);
-    runTest("TestWindowHostMixedDialogKeyboardFlowKeepsCommandsOnFocusedControls", TestWindowHostMixedDialogKeyboardFlowKeepsCommandsOnFocusedControls);
-    runTest("TestWindowHostMixedDialogMouseFlowKeepsCommandsOnHitControls", TestWindowHostMixedDialogMouseFlowKeepsCommandsOnHitControls);
-    runTest("TestWindowHostMenuKeyInvokesFocusedTreeContextMenu", TestWindowHostMenuKeyInvokesFocusedTreeContextMenu);
-    runTest("TestWindowHostShiftF10InvokesFocusedTreeContextMenu", TestWindowHostShiftF10InvokesFocusedTreeContextMenu);
-    runTest("TestWindowHostMenuKeyInvokesFocusedGridContextMenu", TestWindowHostMenuKeyInvokesFocusedGridContextMenu);
-    runTest("TestWindowHostShiftF10InvokesFocusedGridContextMenu", TestWindowHostShiftF10InvokesFocusedGridContextMenu);
-    runTest("TestWindowHostMenuKeyInvokesFocusedTextFieldContextMenu", TestWindowHostMenuKeyInvokesFocusedTextFieldContextMenu);
-    runTest("TestWindowHostMenuKeyInvokesFocusedComboContextMenu", TestWindowHostMenuKeyInvokesFocusedComboContextMenu);
-    runTest("TestWindowHostSetRootClearsDestroyedTreeInteractionState", TestWindowHostSetRootClearsDestroyedTreeInteractionState);
-    runTest("TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot", TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot);
-    runTest("TestWindowHostProcessExitDetachAbandonsRetainedControlObserversBeforeNativeTeardown",
-            TestWindowHostProcessExitDetachAbandonsRetainedControlObserversBeforeNativeTeardown);
-    runTest("TestProcessExitShutdownMarshalsForeignWindowHostDetachToOwnerThread", TestProcessExitShutdownMarshalsForeignWindowHostDetachToOwnerThread);
-    runTest("TestWindowHostClearChildrenPrunesDestroyedTreeInteractionState", TestWindowHostClearChildrenPrunesDestroyedTreeInteractionState);
-    runTest("TestWindowHostKeyDownCallbackDisablingFocusPrunesBeforePostDispatchSync", TestWindowHostKeyDownCallbackDisablingFocusPrunesBeforePostDispatchSync);
-    runTest("TestWindowHostCharCallbackDisablingFocusPrunesBeforePostDispatchSync", TestWindowHostCharCallbackDisablingFocusPrunesBeforePostDispatchSync);
-    runTest("TestWindowHostFocusLossCallbackRevalidatesRequestedFocusTarget", TestWindowHostFocusLossCallbackRevalidatesRequestedFocusTarget);
-    runTest("TestWindowHostIgnoresObserverButtonsOutsideInstalledRoot", TestWindowHostIgnoresObserverButtonsOutsideInstalledRoot);
-    runTest("TestWindowHostIgnoresFocusAndCaptureOutsideInstalledRoot", TestWindowHostIgnoresFocusAndCaptureOutsideInstalledRoot);
-    runTest("TestWindowHostCaptureLossClearsPressedButtonState", TestWindowHostCaptureLossClearsPressedButtonState);
-    runTest("TestWindowHostResetInteractionStateNotifiesCapturedControl", TestWindowHostResetInteractionStateNotifiesCapturedControl);
-    runTest("TestWindowHostRedundantCaptureDoesNotCancelMouseDownCapture", TestWindowHostRedundantCaptureDoesNotCancelMouseDownCapture);
-    runTest("TestWindowHostRenderSurvivesForcedNullSolidBrushes", TestWindowHostRenderSurvivesForcedNullSolidBrushes);
-    runTest("TestWindowHostEditorControlsSurviveForcedNullSolidBrushes", TestWindowHostEditorControlsSurviveForcedNullSolidBrushes);
-    runTest("TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag", TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag);
-    runTest("TestWindowHostSmokeOverlayRendersBelowRootOverlay", TestWindowHostSmokeOverlayRendersBelowRootOverlay);
-    runTest("TestWindowHostOverlayHitTestingPrecedesContentHitTesting", TestWindowHostOverlayHitTestingPrecedesContentHitTesting);
-    runTest("TestWindowHostEscapeClosesMouseOpenedComboPopupBeforeCancelButton", TestWindowHostEscapeClosesMouseOpenedComboPopupBeforeCancelButton);
-    runTest("TestWindowHostTabTraversalIncludesComboBox", TestWindowHostTabTraversalIncludesComboBox);
-    runTest("TestWindowHostTabTraversalStaysConsistentAcrossFieldComboTreeGridAndButtons",
-            TestWindowHostTabTraversalStaysConsistentAcrossFieldComboTreeGridAndButtons);
-    runTest("TestWindowHostGroupedListNavigationKeepsTreeTypeaheadAndGridSelectionVisible",
-            TestWindowHostGroupedListNavigationKeepsTreeTypeaheadAndGridSelectionVisible);
-    runTest("TestWindowHostAltDownOpensComboPopup", TestWindowHostAltDownOpensComboPopup);
-    runTest("TestWindowHostAltUpClosesComboPopup", TestWindowHostAltUpClosesComboPopup);
-    runTest("TestWindowHostMnemonicActivatesButton", TestWindowHostMnemonicActivatesButton);
-    runTest("TestWindowHostLabelMnemonicTargetsField", TestWindowHostLabelMnemonicTargetsField);
-    runTest("TestWindowHostUnknownMnemonicRemainsUnhandled", TestWindowHostUnknownMnemonicRemainsUnhandled);
-    runTest("TestWindowHostHiddenAnimationTickDropsSubscriptionUntilShown", TestWindowHostHiddenAnimationTickDropsSubscriptionUntilShown);
-    runTest("TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation", TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation);
-    runTest("TestNoninteractiveWindowActivationBlockerRejectsFocusStealing", TestNoninteractiveWindowActivationBlockerRejectsFocusStealing);
+    DXUI_RUN_TEST(TestWindowHostWorksWithoutOptionalSdkDebugLayer);
+    DXUI_RUN_TEST(TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);
+    DXUI_RUN_TEST(TestWindowHostKeyboardInputMarksFocusVisible);
+    DXUI_RUN_TEST(TestWindowHostPointerInputClearsKeyboardFocusVisible);
+    DXUI_RUN_TEST(TestWindowHostRejectsForeignThreadDetachUntilOwnerDetaches);
+    DXUI_RUN_TEST(TestWindowHostDetachKeepsSharedGraphicsAttachmentUntilControlTreeDestroyed);
+    DXUI_RUN_TEST(TestWindowHostEmitsFrameStageMetricsForCaptureRender);
+    DXUI_RUN_TEST(TestWindowHostBlocksLayoutMutationDuringRender);
+    DXUI_RUN_TEST(TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads);
+    DXUI_RUN_TEST(TestWindowHostMouseMoveUpdatesHoverTarget);
+    DXUI_RUN_TEST(TestWindowHostMouseLeaveOverForeignPopupClearsHover);
+    DXUI_RUN_TEST(TestWindowHostMouseLeaveWithForeignCaptureClearsHover);
+    DXUI_RUN_TEST(TestWindowHostTabTraversal);
+    DXUI_RUN_TEST(TestWindowHostShiftTabTraversal);
+    DXUI_RUN_TEST(TestWindowHostNativeFocusLossRetainsLogicalFocusForTraversal);
+    DXUI_RUN_TEST(TestWindowHostFocusGainTurnEndsWithItsMessageOrTheLossOfFocusOrItsLimit);
+    DXUI_RUN_TEST(TestWindowHostFocusMoveInTheGainTurnOfAWindowNoGetFocusHasBegunOnIsLeftToTheSystem);
+    DXUI_RUN_TEST(TestWindowHostFocusMoveAfterAGetFocusCallHasBegunIsAnnouncedByTheHost);
+    DXUI_RUN_TEST(TestWindowHostFocusMoveInTheGainTurnOfAWindowGetFocusHasBegunOnBeforeIsAnnouncedByTheHost);
+    DXUI_RUN_TEST(TestWindowHostFocusMovesOutsideTheGainTurnAreTheHosts);
+    DXUI_RUN_TEST(TestWindowHostGetFocusHeldBeforeItCountsReportsTheMoveTheHostLeftToTheSystem);
+    DXUI_RUN_TEST(TestWindowHostReturnInvokesDefaultButtonWhenFocusedControlDoesNotOwnEnter);
+    DXUI_RUN_TEST(TestWindowHostReturnInvokesDefaultButtonWhenNoControlIsFocused);
+    DXUI_RUN_TEST(TestWindowHostReturnDoesNotInvokeDefaultButtonWhenFocusedControlOwnsEnter);
+    DXUI_RUN_TEST(TestButtonKeyboardActivationCanReplaceRootSafely);
+    DXUI_RUN_TEST(TestWindowHostSpaceAndReturnInvokeFocusedButtonWithoutDefaultButtonFallback);
+    DXUI_RUN_TEST(TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement);
+    DXUI_RUN_TEST(TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement);
+    DXUI_RUN_TEST(TestWindowHostDpiChangedIsHandled);
+    DXUI_RUN_TEST(TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow);
+    DXUI_RUN_TEST(TestWindowHostAttachedWindowsRenderAcrossUiThreads);
+    DXUI_RUN_TEST(TestWindowHostEscapeInvokesCancelButton);
+    DXUI_RUN_TEST(TestWindowHostEscapeClosesComboPopupBeforeCancelButton);
+    DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedButtonContextMenu);
+    DXUI_RUN_TEST(TestWindowHostShiftF10InvokesFocusedToggleContextMenu);
+    DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedCheckboxContextMenu);
+    DXUI_RUN_TEST(TestWindowHostSpaceAndReturnToggleFocusedToggleWithoutDefaultButtonFallback);
+    DXUI_RUN_TEST(TestWindowHostSpaceTogglesFocusedCheckboxAndReturnInvokesDefaultButton);
+    DXUI_RUN_TEST(TestWindowHostMixedDialogKeyboardFlowKeepsCommandsOnFocusedControls);
+    DXUI_RUN_TEST(TestWindowHostMixedDialogMouseFlowKeepsCommandsOnHitControls);
+    DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedTreeContextMenu);
+    DXUI_RUN_TEST(TestWindowHostShiftF10InvokesFocusedTreeContextMenu);
+    DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedGridContextMenu);
+    DXUI_RUN_TEST(TestWindowHostShiftF10InvokesFocusedGridContextMenu);
+    DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedTextFieldContextMenu);
+    DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedComboContextMenu);
+    DXUI_RUN_TEST(TestWindowHostSetRootClearsDestroyedTreeInteractionState);
+    DXUI_RUN_TEST(TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot);
+    DXUI_RUN_TEST(TestWindowHostProcessExitDetachAbandonsRetainedControlObserversBeforeNativeTeardown);
+    DXUI_RUN_TEST(TestProcessExitShutdownMarshalsForeignWindowHostDetachToOwnerThread);
+    DXUI_RUN_TEST(TestWindowHostClearChildrenPrunesDestroyedTreeInteractionState);
+    DXUI_RUN_TEST(TestWindowHostKeyDownCallbackDisablingFocusPrunesBeforePostDispatchSync);
+    DXUI_RUN_TEST(TestWindowHostCharCallbackDisablingFocusPrunesBeforePostDispatchSync);
+    DXUI_RUN_TEST(TestWindowHostFocusLossCallbackRevalidatesRequestedFocusTarget);
+    DXUI_RUN_TEST(TestWindowHostIgnoresObserverButtonsOutsideInstalledRoot);
+    DXUI_RUN_TEST(TestWindowHostIgnoresFocusAndCaptureOutsideInstalledRoot);
+    DXUI_RUN_TEST(TestWindowHostCaptureLossClearsPressedButtonState);
+    DXUI_RUN_TEST(TestWindowHostResetInteractionStateNotifiesCapturedControl);
+    DXUI_RUN_TEST(TestWindowHostRedundantCaptureDoesNotCancelMouseDownCapture);
+    DXUI_RUN_TEST(TestWindowHostRenderSurvivesForcedNullSolidBrushes);
+    DXUI_RUN_TEST(TestWindowHostEditorControlsSurviveForcedNullSolidBrushes);
+    DXUI_RUN_TEST(TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag);
+    DXUI_RUN_TEST(TestWindowHostSmokeOverlayRendersBelowRootOverlay);
+    DXUI_RUN_TEST(TestWindowHostOverlayHitTestingPrecedesContentHitTesting);
+    DXUI_RUN_TEST(TestWindowHostEscapeClosesMouseOpenedComboPopupBeforeCancelButton);
+    DXUI_RUN_TEST(TestWindowHostTabTraversalIncludesComboBox);
+    DXUI_RUN_TEST(TestWindowHostTabTraversalStaysConsistentAcrossFieldComboTreeGridAndButtons);
+    DXUI_RUN_TEST(TestWindowHostGroupedListNavigationKeepsTreeTypeaheadAndGridSelectionVisible);
+    DXUI_RUN_TEST(TestWindowHostAltDownOpensComboPopup);
+    DXUI_RUN_TEST(TestWindowHostAltUpClosesComboPopup);
+    DXUI_RUN_TEST(TestWindowHostMnemonicActivatesButton);
+    DXUI_RUN_TEST(TestWindowHostLabelMnemonicTargetsField);
+    DXUI_RUN_TEST(TestWindowHostUnknownMnemonicRemainsUnhandled);
+    DXUI_RUN_TEST(TestWindowHostHiddenAnimationTickDropsSubscriptionUntilShown);
+    DXUI_RUN_TEST(TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation);
+    DXUI_RUN_TEST(TestNoninteractiveWindowActivationBlockerRejectsFocusStealing);
 }

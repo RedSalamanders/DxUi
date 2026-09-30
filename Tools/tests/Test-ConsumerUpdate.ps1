@@ -1,5 +1,6 @@
 # Deterministic advisory tests: no network, credentials, lock mutation or product checkout.
 [CmdletBinding()] param()
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../ConsumerUpdate.psm1') -Force
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ('DxUi-update-' + [guid]::NewGuid().ToString('N'))

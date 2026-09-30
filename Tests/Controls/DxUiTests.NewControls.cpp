@@ -2214,118 +2214,118 @@ void TestTabControlCloseCallbacksCanReplaceRootSafely()
 
 void RunNewControlTests()
 {
-    TestTabControlCloseCallbacksCanReplaceRootSafely();
+    DXUI_RUN_TEST(TestTabControlCloseCallbacksCanReplaceRootSafely);
     // Button variant
-    TestButtonVariantDefaultIsStandard();
-    TestButtonVariantRoundtripsAllValues();
-    TestButtonVariantPaintPathsHandleMissingDeviceContext();
-    TestButtonDisclosureChevronAnimatesAndHonorsReducedMotion();
-    TestButtonDisclosureChevronAnimatesAfterAHiddenChange();
-    TestButtonDisclosureChevronPausesAcrossATickGap();
-    TestButtonChromeLayoutDifferentiatesSelectorDropDownAndSplit();
-    TestSelectorButtonChromeUsesStableCurrentValueTreatment();
-    TestButtonChromeCustomStylePreservesOverlayMetrics();
-    TestHyperlinkButtonClickInvokesCallback();
-    TestDropDownButtonKeyboardActivationInvokesDropDownCallback();
-    TestSelectorButtonUsesOneWholeSurfaceFlyoutAction();
-    TestButtonSuppressesTooltipThatRepeatsVisibleLabel();
-    TestNonInteractiveControlCanHostSupplementalTooltip();
-    TestDropDownButtonMnemonicInvokesDropDownCallback();
-    TestDropDownButtonCallbackCanReplaceRootSafely();
-    TestButtonMouseClickReleasesHostCaptureBeforeCallback();
-    TestSplitButtonDropDownMouseClickReleasesHostCaptureBeforeCallback();
-    TestButtonMouseLeaveClearsPressedState();
+    DXUI_RUN_TEST(TestButtonVariantDefaultIsStandard);
+    DXUI_RUN_TEST(TestButtonVariantRoundtripsAllValues);
+    DXUI_RUN_TEST(TestButtonVariantPaintPathsHandleMissingDeviceContext);
+    DXUI_RUN_TEST(TestButtonDisclosureChevronAnimatesAndHonorsReducedMotion);
+    DXUI_RUN_TEST(TestButtonDisclosureChevronAnimatesAfterAHiddenChange);
+    DXUI_RUN_TEST(TestButtonDisclosureChevronPausesAcrossATickGap);
+    DXUI_RUN_TEST(TestButtonChromeLayoutDifferentiatesSelectorDropDownAndSplit);
+    DXUI_RUN_TEST(TestSelectorButtonChromeUsesStableCurrentValueTreatment);
+    DXUI_RUN_TEST(TestButtonChromeCustomStylePreservesOverlayMetrics);
+    DXUI_RUN_TEST(TestHyperlinkButtonClickInvokesCallback);
+    DXUI_RUN_TEST(TestDropDownButtonKeyboardActivationInvokesDropDownCallback);
+    DXUI_RUN_TEST(TestSelectorButtonUsesOneWholeSurfaceFlyoutAction);
+    DXUI_RUN_TEST(TestButtonSuppressesTooltipThatRepeatsVisibleLabel);
+    DXUI_RUN_TEST(TestNonInteractiveControlCanHostSupplementalTooltip);
+    DXUI_RUN_TEST(TestDropDownButtonMnemonicInvokesDropDownCallback);
+    DXUI_RUN_TEST(TestDropDownButtonCallbackCanReplaceRootSafely);
+    DXUI_RUN_TEST(TestButtonMouseClickReleasesHostCaptureBeforeCallback);
+    DXUI_RUN_TEST(TestSplitButtonDropDownMouseClickReleasesHostCaptureBeforeCallback);
+    DXUI_RUN_TEST(TestButtonMouseLeaveClearsPressedState);
 
     // Checkbox indeterminate
-    TestCheckboxIndeterminateDefaultIsFalse();
-    TestCheckboxIndeterminateRoundtrips();
-    TestCheckboxIndeterminatePaintHandlesMissingDeviceContext();
+    DXUI_RUN_TEST(TestCheckboxIndeterminateDefaultIsFalse);
+    DXUI_RUN_TEST(TestCheckboxIndeterminateRoundtrips);
+    DXUI_RUN_TEST(TestCheckboxIndeterminatePaintHandlesMissingDeviceContext);
 
     // RadioButton + RadioButtons
-    TestRadioButtonsAddItemCreatesChildren();
-    TestRadioButtonsSetSelectedIndexUpdatesState();
-    TestRadioButtonClickSelectsAndDeselectsOthers();
-    TestRadioButtonSelectionChangedCanReplaceRootSafely();
-    TestRadioButtonPaintHandlesMissingDeviceContext();
+    DXUI_RUN_TEST(TestRadioButtonsAddItemCreatesChildren);
+    DXUI_RUN_TEST(TestRadioButtonsSetSelectedIndexUpdatesState);
+    DXUI_RUN_TEST(TestRadioButtonClickSelectsAndDeselectsOthers);
+    DXUI_RUN_TEST(TestRadioButtonSelectionChangedCanReplaceRootSafely);
+    DXUI_RUN_TEST(TestRadioButtonPaintHandlesMissingDeviceContext);
 
     // ProgressBar
-    TestProgressBarDefaultState();
-    TestProgressBarValueRoundtrips();
-    TestProgressBarRangeRoundtrips();
-    TestProgressBarIndeterminateRoundtrips();
-    TestProgressBarExplicitTrackHeightRoundtrips();
-    TestProgressBarIndeterminateRequestsAnimationWhenAttached();
-    TestProgressBarPaintHandlesMissingDeviceContext();
-    TestProgressBarDisabledIndeterminateStateDoesNotAnimateUntilReenabled();
-    TestProgressBarReducedMotionRestsIndeterminateSegment();
-    TestProgressBarIndeterminateTickSurvivesClockReset();
-    TestSliderSmallestStepStillMoves();
+    DXUI_RUN_TEST(TestProgressBarDefaultState);
+    DXUI_RUN_TEST(TestProgressBarValueRoundtrips);
+    DXUI_RUN_TEST(TestProgressBarRangeRoundtrips);
+    DXUI_RUN_TEST(TestProgressBarIndeterminateRoundtrips);
+    DXUI_RUN_TEST(TestProgressBarExplicitTrackHeightRoundtrips);
+    DXUI_RUN_TEST(TestProgressBarIndeterminateRequestsAnimationWhenAttached);
+    DXUI_RUN_TEST(TestProgressBarPaintHandlesMissingDeviceContext);
+    DXUI_RUN_TEST(TestProgressBarDisabledIndeterminateStateDoesNotAnimateUntilReenabled);
+    DXUI_RUN_TEST(TestProgressBarReducedMotionRestsIndeterminateSegment);
+    DXUI_RUN_TEST(TestProgressBarIndeterminateTickSurvivesClockReset);
+    DXUI_RUN_TEST(TestSliderSmallestStepStillMoves);
 
     // PageIndicator
-    TestPageIndicatorDefaultState();
-    TestPageIndicatorPageCountAndSelectionRoundtrip();
-    TestPageIndicatorClickSelectsPage();
-    TestPageIndicatorKeyboardNavigatesAndStopsAtEnds();
-    TestPageIndicatorSetSelectedIndexDoesNotFireCallback();
-    TestPageIndicatorSinglePageIsNotHittable();
-    TestPageIndicatorPaintHandlesMissingDeviceContext();
-    TestPageIndicatorSelectionCallbackCanReplaceRootSafely();
+    DXUI_RUN_TEST(TestPageIndicatorDefaultState);
+    DXUI_RUN_TEST(TestPageIndicatorPageCountAndSelectionRoundtrip);
+    DXUI_RUN_TEST(TestPageIndicatorClickSelectsPage);
+    DXUI_RUN_TEST(TestPageIndicatorKeyboardNavigatesAndStopsAtEnds);
+    DXUI_RUN_TEST(TestPageIndicatorSetSelectedIndexDoesNotFireCallback);
+    DXUI_RUN_TEST(TestPageIndicatorSinglePageIsNotHittable);
+    DXUI_RUN_TEST(TestPageIndicatorPaintHandlesMissingDeviceContext);
+    DXUI_RUN_TEST(TestPageIndicatorSelectionCallbackCanReplaceRootSafely);
 
     // Slider
-    TestSliderDefaultState();
-    TestSliderTouchFriendlyGeometry();
-    TestSliderTallControlDoesNotHitFarFromTrack();
-    TestSliderThumbGrabDoesNotSeekWhenContactHitsTouchHalo();
-    TestSliderKeyboardAndPointerInputUpdatesValue();
-    TestSliderVerticalAndRightToLeftGeometryMirrors();
-    TestSliderPaintHandlesMissingDeviceContext();
-    TestSliderSetValueSnapsDisplayedPosition();
-    TestSliderAcknowledgementStopsPendingAnimation();
-    TestSliderRejectsNonFiniteRangeAndSteps();
-    TestSliderOffCenterGrabAndCancel();
+    DXUI_RUN_TEST(TestSliderDefaultState);
+    DXUI_RUN_TEST(TestSliderTouchFriendlyGeometry);
+    DXUI_RUN_TEST(TestSliderTallControlDoesNotHitFarFromTrack);
+    DXUI_RUN_TEST(TestSliderThumbGrabDoesNotSeekWhenContactHitsTouchHalo);
+    DXUI_RUN_TEST(TestSliderKeyboardAndPointerInputUpdatesValue);
+    DXUI_RUN_TEST(TestSliderVerticalAndRightToLeftGeometryMirrors);
+    DXUI_RUN_TEST(TestSliderPaintHandlesMissingDeviceContext);
+    DXUI_RUN_TEST(TestSliderSetValueSnapsDisplayedPosition);
+    DXUI_RUN_TEST(TestSliderAcknowledgementStopsPendingAnimation);
+    DXUI_RUN_TEST(TestSliderRejectsNonFiniteRangeAndSteps);
+    DXUI_RUN_TEST(TestSliderOffCenterGrabAndCancel);
 
     // Toolbar
-    TestToolbarAddButtonCreatesChildren();
-    TestToolbarButtonHoverShowsTooltip();
-    TestToolbarButtonClickFiresCallback();
-    TestToolbarPaintHandlesMissingDeviceContext();
+    DXUI_RUN_TEST(TestToolbarAddButtonCreatesChildren);
+    DXUI_RUN_TEST(TestToolbarButtonHoverShowsTooltip);
+    DXUI_RUN_TEST(TestToolbarButtonClickFiresCallback);
+    DXUI_RUN_TEST(TestToolbarPaintHandlesMissingDeviceContext);
 
     // MenuBar
-    TestMenuBarSetItemsRoundtrips();
-    TestMenuBarClickInvokesOpenCallback();
-    TestMenuBarMouseOpenReleasesHostCaptureBeforeCallback();
-    TestMenuBarKeyboardNavigationOpensSelectedItem();
-    TestMenuBarMnemonicOpensMatchingItem();
-    TestFlowDirectionInheritanceRoundtrips();
-    TestHorizontalStackPanelRelayoutsWhenFlowDirectionChanges();
-    TestMenuBarRightToLeftMirrorsItemOrderAndArrowKeys();
-    TestMenuBarCompactDensityKeepsUsableItemHeight();
+    DXUI_RUN_TEST(TestMenuBarSetItemsRoundtrips);
+    DXUI_RUN_TEST(TestMenuBarClickInvokesOpenCallback);
+    DXUI_RUN_TEST(TestMenuBarMouseOpenReleasesHostCaptureBeforeCallback);
+    DXUI_RUN_TEST(TestMenuBarKeyboardNavigationOpensSelectedItem);
+    DXUI_RUN_TEST(TestMenuBarMnemonicOpensMatchingItem);
+    DXUI_RUN_TEST(TestFlowDirectionInheritanceRoundtrips);
+    DXUI_RUN_TEST(TestHorizontalStackPanelRelayoutsWhenFlowDirectionChanges);
+    DXUI_RUN_TEST(TestMenuBarRightToLeftMirrorsItemOrderAndArrowKeys);
+    DXUI_RUN_TEST(TestMenuBarCompactDensityKeepsUsableItemHeight);
 
     // TabControl
-    TestTabControlSelectionShowsOnlyTheActivePage();
-    TestTabControlHiddenTabsKeepStableIndicesAndLeaveTheHeader();
-    TestTabControlCloseButtonRemovesTabsAndInvokesCallback();
-    TestTabControlOverflowButtonsAndWheelScroll();
-    TestTabControlHeaderDividerExposesPaintableGeometry();
-    TestTabControlKeyboardNavigationHonorsRightToLeft();
+    DXUI_RUN_TEST(TestTabControlSelectionShowsOnlyTheActivePage);
+    DXUI_RUN_TEST(TestTabControlHiddenTabsKeepStableIndicesAndLeaveTheHeader);
+    DXUI_RUN_TEST(TestTabControlCloseButtonRemovesTabsAndInvokesCallback);
+    DXUI_RUN_TEST(TestTabControlOverflowButtonsAndWheelScroll);
+    DXUI_RUN_TEST(TestTabControlHeaderDividerExposesPaintableGeometry);
+    DXUI_RUN_TEST(TestTabControlKeyboardNavigationHonorsRightToLeft);
 
     // Oversized context menus
-    TestContextMenuPopupScrollsOversizedContent();
-    TestContextMenuPopupHonorsSessionMaxRootHeight();
+    DXUI_RUN_TEST(TestContextMenuPopupScrollsOversizedContent);
+    DXUI_RUN_TEST(TestContextMenuPopupHonorsSessionMaxRootHeight);
     RunMenuDescriptionTests();
 
     // StatusStrip
-    TestStatusStripTextRoundtrips();
-    TestStatusStripMultiSectionSetup();
-    TestStatusStripRightAlignedLeadingEllipsisSections();
-    TestStatusStripBlendWithWindowBackgroundRoundtrips();
-    TestStatusStripPaintHandlesMissingDeviceContext();
-    TestTagPickerAddsRemovesAndDedupesOptions();
+    DXUI_RUN_TEST(TestStatusStripTextRoundtrips);
+    DXUI_RUN_TEST(TestStatusStripMultiSectionSetup);
+    DXUI_RUN_TEST(TestStatusStripRightAlignedLeadingEllipsisSections);
+    DXUI_RUN_TEST(TestStatusStripBlendWithWindowBackgroundRoundtrips);
+    DXUI_RUN_TEST(TestStatusStripPaintHandlesMissingDeviceContext);
+    DXUI_RUN_TEST(TestTagPickerAddsRemovesAndDedupesOptions);
 
     // Smoke overlay
-    TestSmokeOverlayDefaultIsFalse();
-    TestSmokeOverlayRoundtrips();
+    DXUI_RUN_TEST(TestSmokeOverlayDefaultIsFalse);
+    DXUI_RUN_TEST(TestSmokeOverlayRoundtrips);
 
     // SetSystemBackdrop
-    TestSetSystemBackdropReturnsFalseWithoutHwnd();
+    DXUI_RUN_TEST(TestSetSystemBackdropReturnsFalseWithoutHwnd);
 }

@@ -7,7 +7,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 
 | Control | Configure and use |
 | --- | --- |
-| Panel | Own children with `AddChild<T>`; set explicit child bounds. Use as the root for fixed layouts. |
+| Panel | Own children with `AddChild<T>`; set explicit child bounds. Use as the root for fixed layouts. `GetChildren()` exposes the owning pointers: move a child out to give it to `SetRoot` or `PageHost::SetPage` (its slot stays empty and is skipped) and it is told the flow direction and density its new place gives it. |
 | PageHost | Transfer a root with `SetPage(unique_ptr<Control>, connectedAnimationKey)`; the host retains transition state. Advance animation through the containing host. |
 | CardPanel | A Panel with themed card chrome; position child bounds in host DIPs, including the card's origin. |
 | Label | Construct with text or call `SetText`; choose a font role for headings/body text. |
@@ -160,6 +160,9 @@ exception: its order depends on all of it), and is retained by that part, so rep
 The omission marker ends right-to-left text at its left end, an emoji at the end included, and trailing lines of other
 spaces or invisible characters add nothing. Single-line cells keep their layouts the same way (a repaint shapes
 nothing, a scroll shapes the entering row), and a long leading-aligned caption shapes only what its cell can show.
+A grid keeps its layouts only while it paints: hidden (itself, under a hidden panel or tab page, or in a hidden
+embedded view), removed from its host or given another model, it returns them all, and showing it shapes only the cells
+it then shows.
 See [the benchmark model](../Samples/ComplexUi/ComplexUiScene.h),
 [grid tests](../Tests/Controls/DxUiTests.Grid.cpp), [tree tests](../Tests/Controls/DxUiTests.Tree.cpp), and
 [gallery construction](../Tests/Controls/DxUiTests.Gallery.cpp) for concrete configurations and variants.

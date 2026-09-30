@@ -449,9 +449,21 @@ struct ContextMenuPopupItemPaintDebugState
     D2D1_COLOR_F chevronColor       = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
 };
 
+// What the process's context menus hold alive, counted exactly whatever the renderer and the allocator keep, so a test can
+// assert that a closed menu returned everything it held, even while a UI Automation client still holds one of its rows.
+struct ContextMenuResourceDebugState
+{
+    size_t popups               = 0; // Menu popups alive: the root of each open menu and every open submenu.
+    size_t rowLayouts           = 0; // Text layouts the rows of those popups hold (a described row holds a primary and a secondary one).
+    size_t accessibilityRecords = 0; // Control records of the UI Automation snapshots published for menu popups that are still alive, wherever held.
+
+    [[nodiscard]] bool operator==(const ContextMenuResourceDebugState&) const noexcept = default;
+};
+
 struct WindowHostBitmapCapture;
 
 [[nodiscard]] bool DebugGetContextMenuPopupState(HWND hwnd, ContextMenuPopupDebugState& outState) noexcept;
+[[nodiscard]] ContextMenuResourceDebugState DebugGetContextMenuResources() noexcept;
 void DebugSetContextMenuStateProbeStallForTest(HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
 [[nodiscard]] bool DebugGetContextMenuPopupItemRect(HWND hwnd, size_t itemIndex, D2D1_RECT_F& outRectDip) noexcept;
 [[nodiscard]] bool DebugGetContextMenuItemDisplayText(const MenuFlyoutItem& item, std::wstring& outText);
@@ -1520,11 +1532,18 @@ protected:
     }
     virtual void PropagateHost(ControlHost* host) noexcept;
     void SetParent(Panel* parent) noexcept;
+    // Puts the control under `parent` (none for a host's root or a page) in `host`, then announces the flow direction
+    // and density it now inherits (OnFlowDirectionChanged, OnDensityChanged) if they differ from before, as a parent's
+    // own change is announced to its children. Nothing is announced when they do not differ.
+    void Reparent(Panel* parent, ControlHost* host) noexcept;
     [[nodiscard]] Panel* GetParent() const noexcept;
     virtual void OnBoundsChanged() noexcept;
     virtual void OnFlowDirectionChanged() noexcept;
     virtual void OnDensityChanged() noexcept;
     virtual void OnEnabledChanged(bool enabled) noexcept;
+    // Called when this control, or an ancestor, is hidden: it is not painted until shown again. A control releases what
+    // its next paint rebuilds on demand (the Grid's retained text layouts); showing needs no call. Containers forward it.
+    virtual void OnHidden() noexcept;
     virtual void OnHostDpiChanged(ControlHost& host) noexcept;
     virtual void OnFocusChanged(ControlHost& host, bool focused);
     virtual void OnHoverChanged(ControlHost& host, bool hovered);
@@ -1581,6 +1600,8 @@ public:
     {
         return _children.size();
     }
+    // The owning pointers. A child moved out of the span (to give it to ControlHost::SetRoot or PageHost::SetPage) leaves
+    // a null slot that every panel operation skips; do it while the panel and the child's host still exist.
     [[nodiscard]] std::span<std::unique_ptr<Control>> GetChildren() noexcept;
     [[nodiscard]] std::span<const std::unique_ptr<Control>> GetChildren() const noexcept;
     [[nodiscard]] size_t GetLogicalChildCount() const noexcept override;
@@ -1599,6 +1620,7 @@ protected:
     void PropagateHost(ControlHost* host) noexcept override;
     void OnFlowDirectionChanged() noexcept override;
     void OnDensityChanged() noexcept override;
+    void OnHidden() noexcept override;
     void OnHostDpiChanged(ControlHost& host) noexcept override;
     [[nodiscard]] std::vector<std::unique_ptr<Control>>& AccessChildren() noexcept;
     [[nodiscard]] const std::vector<std::unique_ptr<Control>>& AccessChildren() const noexcept;
@@ -1642,6 +1664,7 @@ protected:
     void OnBoundsChanged() noexcept override;
     void OnFlowDirectionChanged() noexcept override;
     void OnDensityChanged() noexcept override;
+    void OnHidden() noexcept override;
     void OnHostDpiChanged(ControlHost& host) noexcept override;
 
 private:
@@ -3535,8 +3558,13 @@ public:
         uint64_t hits            = 0u;
         uint64_t layoutCreations = 0u; // DirectWrite layouts created for multiline cells, temporary ones included.
         uint64_t shapedUnits     = 0u; // UTF-16 units handed to those layouts.
-        size_t retainedLayouts   = 0u;
+        size_t retainedLayouts   = 0u; // Live layouts in the value table, and its entries.
         size_t capacity          = 0u;
+        size_t displayLayouts    = 0u; // The same for the omitted-tail table: the value entries share its layouts and it lets go at the next paint that hits.
+        size_t displayCapacity   = 0u;
+        size_t textUnits         = 0u;    // UTF-16 units of heap storage the two tables' key strings and the scratch string hold.
+        size_t tableBytes        = 0u;    // Bytes of the two tables' entries.
+        bool ellipsis            = false; // The ellipsis trimming sign of the omitted tails, or its text format, is held.
     };
     [[nodiscard]] GridDebugTextLayoutStatistics DebugGetTextLayoutStatistics() const noexcept;
 #endif
@@ -3559,6 +3587,10 @@ public:
     bool OnSelectAll(ControlHost& host) override;
     [[nodiscard]] WindowHostCursorKind ResolveCursorKind(ControlHost& host, D2D1_POINT_2F pointDip) const noexcept override;
     void OnDensityChanged() noexcept override;
+
+protected:
+    void PropagateHost(ControlHost* host) noexcept override;
+    void OnHidden() noexcept override;
 
 private:
     enum class HitZone : uint8_t
@@ -3696,6 +3728,9 @@ private:
                                                    const D2D1_RECT_F& textRect,
                                                    const D2D1_RECT_F& viewportRect) const;
     void DrawCellText(ControlHost& host, const GridCellData& cellData, const D2D1_RECT_F& bounds, const D2D1_COLOR_F& color) const;
+    // Returns every retained layout, its string storage and the tables themselves, for a grid that stops painting (hidden,
+    // detached from its host or given another model): the next paint, if any, rebuilds what it shows.
+    void ReleaseCellTextResources() noexcept;
     mutable std::vector<CellTextLayoutCache> _cellTextLayouts;
     mutable std::vector<CellDisplayLayoutCache> _cellDisplayLayouts;
     mutable std::wstring _cellVisibleText; // Scratch for an omitted tail's visible text.
@@ -4159,6 +4194,9 @@ public:
     [[nodiscard]] TextField& HexField() noexcept;
     [[nodiscard]] Button& OkButton() noexcept;
     [[nodiscard]] Button& CancelButton() noexcept;
+#if DXUI_ENABLE_DIAGNOSTICS
+    [[nodiscard]] bool DebugHasCachedBrushes() const noexcept;
+#endif
 
     void Paint(ControlHost& host) const override;
     bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
@@ -4168,6 +4206,7 @@ public:
     void OnCaptureLost(ControlHost& host) override;
 
 protected:
+    void PropagateHost(ControlHost* host) noexcept override;
     void OnBoundsChanged() noexcept override;
     void OnEnabledChanged(bool enabled) noexcept override;
     void OnFlowDirectionChanged() noexcept override;
@@ -4204,7 +4243,9 @@ private:
     Drag _drag        = Drag::None;
     bool _syncing     = false;
     // Hue-independent unit-space gradients, placed by a brush transform: neither a hue change nor a layout move
-    // recreates them. The retained device reference keeps a recreated device from aliasing the cached one.
+    // recreates them. The retained device reference keeps a recreated device from aliasing the cached one. They
+    // belong to the host being painted for, so a host change releases them (PropagateHost). The arrangement follows
+    // the flow direction through OnFlowDirectionChanged, which a move announces (Control::Reparent).
     mutable wil::com_ptr<ID2D1Device> _brushDevice;
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _saturationBrush;
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _valueBrush;
@@ -4340,6 +4381,11 @@ public:
     [[nodiscard]] uint64_t DebugGetInvalidateCount() const noexcept;
     // UI Automation focus-changed events this host raised itself (the window's own focus event is the system's).
     [[nodiscard]] uint64_t DebugGetFocusAnnouncementCount() const noexcept;
+    // Focus moves the host left to the system's focus event rather than announce: moves made in the message-loop turn in
+    // which the window gained focus while no call of the fragment root's GetFocus had ever begun (see OnSetFocus).
+    [[nodiscard]] uint64_t DebugGetFocusMovesLeftToSystemCount() const noexcept;
+    // Whether the window gained focus in the message-loop turn still running (see OnSetFocus).
+    [[nodiscard]] bool DebugIsInFocusGainTurn() const noexcept;
     [[nodiscard]] uint64_t DebugGetRenderCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetResizeCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetResizeFailureCount() const noexcept;
@@ -4383,6 +4429,7 @@ private:
     friend struct EmbeddedAccessibilityAccess;
     void* _embeddedAccessibilityTarget          = nullptr;
     bool _gainingWindowFocus                    = false; // In OnSetFocus: the system's focus event reports the element.
+    ULONGLONG _focusGainTurnStartedMs           = 0u;    // From OnSetFocus until the message loop turns: the event may still report.
     uint64_t _interactionRevision               = 0;
     bool _embedded                              = false;
     bool _embeddedAnimationRequested            = false;
@@ -4409,6 +4456,8 @@ private:
     void OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect) noexcept;
     void OnSize(UINT widthPx, UINT heightPx) noexcept;
     void OnSetFocus() noexcept;
+    void BeginFocusGainTurn() noexcept;
+    [[nodiscard]] bool IsInFocusGainTurn() const noexcept;
     void OnKillFocus(bool clearRetainedFocus) noexcept;
     void ActivateTextInput(Control* control) noexcept;
     void DeactivateTextInput(bool restoreHostFocus) noexcept;
@@ -4580,6 +4629,7 @@ private:
     TooltipLayer _tooltipLayer;
     mutable uint64_t _debugInvalidateCount                      = 0u;
     uint64_t _debugFocusAnnouncementCount                       = 0u;
+    uint64_t _debugFocusMovesLeftToSystemCount                  = 0u;
     mutable uint64_t _debugRenderCount                          = 0u;
     mutable uint64_t _debugResizeCount                          = 0u;
     mutable uint64_t _debugResizeFailureCount                   = 0u;

@@ -2,6 +2,149 @@
 
 ## Unreleased
 
+- Window-host UI Automation providers resolve their control without scanning the tree (plan
+  `ReliabilityAndFollowUps_2026-09-30`, item 6): every provider call searched the published records for its control's
+  path (several times per call, so a client walking every element of a window paid for the whole tree on each one), and
+  every event searched the live tree for its control. Each snapshot now carries lookup tables built as it is published
+  (records by path, hit rectangles by kind, path and item, and control addresses), so a provider call examines a few
+  table slots and an event a search of the sorted addresses (about log2 of the records) and a walk down its path. In a
+  window of 1,960 buttons a `Navigate` call examined 4,901 records on average (9,796 at most) and now 5.8 (21), a
+  property read 2,942 (5,880) and now 3.5 (15), `get_BoundingRectangle` 2,942 (3,921) and now 3.4 (11), a pattern
+  query 2,942 (5,880) and now 3.5 (15), and an event's control lookup 1,002 tree nodes (2,001) and now 17 (17); a tree
+  of 245 buttons costs the same per call as one of 1,960. What a provider or event reaches is unchanged: the tables
+  describe the snapshot's own tree, a control they hold is confirmed against the live tree before it is used, one they
+  do not hold (added since the publish, hidden, no element) is searched for there as before, and stale elements still
+  answer `UIA_E_ELEMENTNOTAVAILABLE`. What lives inside one control (a tree's items by id, a grid's rows and cells) and
+  hit testing a point still scan. Test-only diagnostics count what resolutions examine, resolve an event's path and
+  check the tables against a scan of the records.
+- A click that activates a window announces the clicked control once (plan `ReliabilityAndFollowUps_2026-09-30`, item
+  7): the click sets its control after the window's `WM_SETFOCUS`, in the same turn of its message loop and before UI
+  Automation has acted on the system's activation focus event, and the host announced that move besides the event, so a
+  client could hear the clicked control twice. What the event reports depends on what UI Automation knows of the window:
+  the first focus event of a window it has not reported before is answered with a call of the fragment root's
+  `GetFocus`, on whatever thread, which reads the published snapshot when it runs, and its later ones without
+  `GetFocus`, from whether the window's root element has the keyboard focus, which reports nothing while the focus is
+  inside a control (observed on Windows 11 build 26200). A window that gained focus now leaves a focus move of that turn
+  to the event only while no `GetFocus` call has ever begun on it, and announces the move itself otherwise (at worst as
+  a duplicate, never not at all): each call counts itself in the window's provider target before it loads the snapshot,
+  and the host reads the count after it stores the snapshot of the move, all four operations sequentially consistent, so
+  with the count at zero every call that follows loads the snapshot after the store and reports the clicked control. The
+  host posts itself a message at the gain whose dispatch ends the turn (as does losing focus, or 500 ms without it,
+  should a window procedure never hand it to the host); a click in the window that is already active, or any move in a
+  later turn, is announced by the host as before. The WindowHost suite tests the decision without a desktop (a first
+  gain's move left to the system and announced once a call has begun, a window asked before, the turn's three ends, and
+  a call that a test gate holds on a thread of its own before it counts itself), and the Menu suite plays a click that
+  activates a window with an in-process UI Automation client in both cases: a window UI Automation has asked before (the
+  client hears the clicked control once, and last) and a first activation whose `GetFocus` call the gate holds until
+  after the click (it hears the clicked control as often as it hears the control of a first activation, and never the
+  control the activation focused on the way). A window procedure must pass the private message (`WM_APP + 0x06D`) to
+  `HandleMessage`, as it does the accessibility ones. API revision stays 2 (additive diagnostics accessors
+  `ControlHost::DebugIsInFocusGainTurn` and `DebugGetFocusMovesLeftToSystemCount`; private members changed).
+- A hung control test ends the run with its name instead of holding a CI job (plan `ReliabilityAndFollowUps_2026-09-30`,
+  item 12). On the pull-request run of PR 30 the x64 ASan Debug job printed nothing for the 35 minutes between starting the
+  Menu suite and the job's 40-minute limit, and its log named no test. Every control test a suite runner starts through
+  `DXUI_RUN_TEST`, and every fixture suite without named tests, now runs under a watchdog: one thread waits for the deadline
+  on a condition variable (it never polls) and, when a test outlives it, writes `TIMEOUT: <TestName> after <N> s` and
+  terminates the process with exit code 124, since a stuck test cannot be unwound. The deadline is 300 s, forty times the
+  slowest of the 816 non-foreground tests under AddressSanitizer (7.5 s); `DxUi.ControlTests.exe --test-timeout=<seconds>` and
+  `test.ps1 -TestTimeout <seconds>` set it and 0 turns it off. Every run prints its deadline, every `[DONE]` marker carries the
+  test's duration, and `test.ps1` reports a failing suite's exit code and `TIMEOUT:` line beside the last lines of its log
+  (`Tools/SuiteFailure.psm1`) and prints every capability skip under its suite as `skipped <Test>: <reason>`, so a CI log
+  shows which tests a missing desktop or foreground left unrun without the uploaded suite log. The three resource fixtures report each sample, so their deadline bounds a cycle. A hidden
+  `--watchdog-self-test` switch runs a test that never returns, and `Tools/tests/Test-TestWatchdog.ps1` asserts the exit code,
+  the line and the time, and that with the watchdog off the same test still hangs. The audit of the Menu, NativeTextInput and
+  resource suites found no unbounded polling loop, `INFINITE` wait or UI Automation wait without a deadline, but two ways a
+  test could still hang: a driver thread that gave up before it found its popup left the owner thread in `ContextMenu::Show`'s
+  modal loop for good (every driver now starts with `DismissMenusIfDriverFails`, which a new test with a driver that fails
+  at once requires to close the menu, and a source scan requires in every driver), and a UI Automation client thread was
+  joined after a pumped wait of 3 s although its teardown may need the pumping thread (the Menu and Accessibility tests
+  that join one now wait as long as its setup was allowed, 20 s, and fail the test). Tests and tooling only: no library code
+  changed, and the five gallery sheets are byte-identical, so `docs/gallery` needs no update.
+- A `Grid` that stops painting returns its retained text layouts (plan `ReliabilityAndFollowUps_2026-09-30`, item 9):
+  hidden itself or under a hidden ancestor (an unselected tab page, a collapsed panel or page host), in a hidden
+  embedded view, detached from its host or given another model, it releases its layouts, their key strings, its tables
+  and its ellipsis sign at once, and showing it lays out only the cells it then shows, once. Until now such a grid kept
+  its last paint's layouts until a next paint that might never come. A painting grid holds one layout per cell it drew
+  last, however far it has scrolled (28 in 32 entries for a 6x4 multiline test grid, 66 in 128 for 10x6, 44 in 64 for
+  ten single-line rows) with 6 to 12 KB of key strings and 5 to 14 KB of tables; the layouts are the bulk, about 20 KB
+  of process heap each (570 KB for the 6x4 grid, 934 KB for the single-line grid, measured in Release as what a hide
+  returns). Painting, the layouts' lifetime while painting and its allocations are unchanged. The hook is a protected
+  `Control::OnHidden`, which panels and page hosts forward; a hidden or minimized native window keeps its layouts.
+  With this attribution the developer accepted the retention the review follow-ups introduced for their frame rate
+  (`Default` dirty rate +11.3%, p = 0.029, over both 2026-09-29 sets): the performance contract's accepted Grid layout
+  retention bounds it to one layout per cell of the last paint, and none while the grid is not painting.
+- Publishing `docs/gallery` after a merge is no longer a manual copy (plan `ReliabilityAndFollowUps_2026-09-30`, item
+  11): the manual `Publish docs gallery` workflow (`.github/workflows/gallery.yml`) regenerates the gallery from a native
+  x64 Release build with `gallery.ps1 -PublishDocs`, validates the specifications and commits it to the branch it runs
+  on. Like the formatting workflow's apply mode it runs only on `workflow_dispatch` with an explicit boolean input, holds
+  `contents: write` for that one job, pushes normally and never forces, and never runs on `pull_request_target`. It
+  commits only when a sheet, the HTML index or the README changed (`generation.json` records the source commit and so
+  differs after every commit); `Tools/Commit-Gallery.ps1` makes that decision and is tested against fixture repositories.
+  `docs/gallery` itself was last rendered on a hosted runner from `ed1dea9`, before PR 29's visual changes; it is
+  regenerated here on the developer machine from the final sources (`main` and this tree render byte-identical sheets
+  there), and the design system is republished with those sheets and the guidelines PR 29 changed.
+- One validation entry point (plan `ReliabilityAndFollowUps_2026-09-30`, item 10): `validate.ps1` runs the five
+  validators and the tooling tests, each in its own process, reports every failure before it fails, and is what CI's
+  validation job runs; `test.ps1` now also runs the tooling tests. The validators' file scans no longer enter a nested
+  git checkout (a directory other than the scanned root holding a `.git` file or directory, such as an agent's worktree
+  under `.claude/worktrees`): validating a main checkout counted every worktree's copy of the Markdown (1,069 files
+  instead of about 214), so a half-edited worktree could fail it. Every tooling test script now sets strict mode itself,
+  which a tooling test requires: `test.ps1` is strict and the scripts it calls inherit it, so the new watchdog test passed
+  11 of 11 cases alone and failed 6 under `test.ps1` (`.Count` on a function's output unrolled to one line or none).
+- Paired sets can establish a result on a noisy machine (plan `ReliabilityAndFollowUps_2026-09-30`, item 4):
+  `performance-paired.ps1 -Repetitions N` (default 3, at most 10) repeats the interleaved A, B, B, A pass, so each side
+  has 2N runs, and judges every phase and metric on all runs at once: an exact two-sided Mann-Whitney U test (counted
+  over the observed ranks, ties included, no approximation) of the baseline run medians against the candidate's, with
+  the median shift and the metric's band (5% timing and FPS, 2% process memory). A metric is `regressed` or `improved`
+  only when p < 0.05 and the shift exceeds the band, and any rise in an exact budget (surface bytes, replacement peak,
+  allocations) in any candidate run is `regressed`; a set with a regressed metric is `advice-required`. Same-binary
+  spread is reported, not a veto. Six runs against six reach p = 0.0022 when completely separated; two against two
+  cannot reach 0.05. The first pass keeps its receipt and comparison names, and `Compare-PerformanceSet` in
+  `Tools/PerformanceComparison.psm1` is tested on synthetic receipts. The performance contract and guide state the rule.
+- `performance-paired.ps1` compares two trees (plan `ReliabilityAndFollowUps_2026-09-30`, item 5): `-BaselinePath` and
+  `-CandidatePath` measure existing DxUi working trees as they are, uncommitted work included, with this checkout's
+  harness written into them for the run and their files put back afterwards. A pair with a named tree is refused when
+  the two library source fingerprints are identical instead of when the commits are; revisions keep the commit rule.
+  `summary.json` records each side's revision or path, commit and fingerprint. The receipt's source fingerprint and
+  benchmark input list moved unchanged into `Tools/PerformanceComparison.psm1`, and `Tools/PairedRun.psm1` with its
+  tests owns tree selection, the refusal rules, named-tree validation and the harness overlay.
+- A moved control is told what it now inherits (plan `ReliabilityAndFollowUps_2026-09-30`, item 8). A control's flow
+  direction and density are inherited through its parents and a parent's own change is announced to its children, but
+  a move (`ControlHost::SetRoot`, `PageHost::SetPage`, `Panel::AddChild`) announced nothing, so a control that keeps an
+  arrangement for them kept the one of its old place: a `ColorPicker` (its steppers, hex field and buttons), a
+  `NumericStepper`, a `TabControl` (its header, unless its host changed too) or a horizontal `StackPanel` moved out of
+  a right-to-left parent stayed mirrored, and a `Tree` or `Grid` moved between densities kept its row metrics.
+  `Control::Reparent` (which `SetParent` calls, and `SetRoot` and `SetPage` use in place of `SetParent` plus
+  `PropagateHost`) compares what the control inherits before and after and announces `OnFlowDirectionChanged` /
+  `OnDensityChanged` once, in its final place, only when a value differs: adding a child that inherits what its parent
+  has, replacing a root and clearing a panel announce nothing, while a child added under a right-to-left or compact
+  parent, and a root arriving in a compact host, now hear what they inherit. `ColorPicker` also releases its gradient
+  brushes and their Direct2D device reference when its host changes instead of holding the old host's device until its
+  next paint, and `Panel::ClearChildren` skips the empty slot a child moved out through `GetChildren()` leaves (it
+  dereferenced it). The menu bar and the text field key their layouts on these inputs and were never stale. API
+  revision stays 2 (additive diagnostics accessor `ColorPicker::DebugHasCachedBrushes` and protected
+  `Control::Reparent`).
+- The described-menu memory check is deterministic. `DebugGetContextMenuResources` (a test-only diagnostics hook) counts
+  the live menu popups, the text layouts their described rows hold and the accessibility records of menu-popup
+  snapshots, exactly and whatever the renderer and the allocator keep; the fixture asserts that all three return to
+  their value before the menu opened after it closes while a client holds eight row elements. It no longer bounds the
+  process heap, which a software renderer's surfaces and caches (WARP, or the Basic Render Driver of a GPU-less
+  runner) swing by up to about 3 MB, and it now runs under AddressSanitizer too. A window-host provider that pins a
+  snapshot, a target that keeps its last snapshot after the window closes and a popup that is never freed each fail it.
+- NativeTextInput's focus fixtures survive another application taking the foreground. Windows then deactivates the
+  window and the host releases its native text session, TSF document included, as designed; the desktop application
+  hosting a session did so 30-95 ms after each test window activated and failed the TSF document fixture in three of
+  six local runs. The four fixtures that pump after taking focus repeat their sequence (`RunWhileForegroundHeld`, five
+  runs at most) until no application takes the foreground and then make exactly their former assertions; when one takes
+  it every time they record a capability skip naming its executable, and a regression with the foreground held still
+  fails. Two deterministic fixtures deliver the takeover as Windows sends it, and `DxUi.ControlTests.exe
+  --foreground-thief[=<minMs>,<maxMs>]` reproduces the desktop application on demand.
+- The control-test runner runs single tests: `DxUi.ControlTests.exe --suite=<Suite> --test=<Name>[,<Name>...]` and
+  `test.ps1 -Suites <Suite> -Tests <Name>[,<Name>]` run only the named test functions of the suite. Every suite runner
+  registers its tests as `DXUI_RUN_TEST(TestName);`, which checks the filter and prints the test's `[START]`/`[DONE]`
+  markers. A name no selected suite registers, a malformed list or a fixture suite without named tests fails the run
+  (exit code 2) instead of passing with nothing run, and a filtered `test.ps1` run keeps its own log and receipt
+  (`*.filtered`), so it never replaces the receipt of the whole suite.
 - Repository tooling is PowerShell only (plan `PowerShellTooling_2026-09-30`): the spec, skill, dependency,
   inherited-test and build-matrix validators, the performance comparator and their tests are PowerShell modules and
   scripts, so `test.ps1`, the validators and CI need no Python, pip or PyYAML. The comparator reproduces every stored

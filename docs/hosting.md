@@ -58,11 +58,19 @@ messages through `HandleMessage(hwnd, message, wParam, lParam, handled)`; return
 otherwise continue normal window dispatch. This mode owns native graphics, text/accessibility and presentation
 services. The application still owns the top-level window and event-blocked message loop.
 While the window holds the foreground's keyboard focus, moving focus between its controls (or a tree's items and a
-grid's rows) raises the UI Automation focus change a screen reader follows; the window's own activation is reported by
-the system's focus event. An element whose control was removed, or replaced at the same place in the tree, reports
-`UIA_E_ELEMENTNOTAVAILABLE`, and the replacement's elements get new runtime ids; after adding or removing children,
-call `RefreshAccessibilitySnapshot` (or let the next focus, size, pointer or state change do it) so clients see the
-new tree, which also tells them to navigate again (StructureChanged).
+grid's rows) raises the UI Automation focus change a screen reader follows. The window's own activation is reported by
+the system's focus event, which UI Automation answers from the fragment root's `GetFocus` the first time it sees the
+window and afterwards from whether the window's root element has the keyboard focus, reporting nothing while the focus
+is inside a control. The host therefore announces the control a click that activated the window focused (it is set
+after the window's `WM_SETFOCUS`, in the same message-loop turn), except in a window `GetFocus` has never been called
+on, where it leaves that move to the call that answers the first event, which reports the clicked control. Forward
+every message, not only input, to `HandleMessage`: the host posts private `WM_APP`-range messages to its window
+(accessibility actions, and the one that ends that turn), and a window procedure that never passes the second on
+leaves that move to the system's event for up to 500 ms after the window gains focus. An element whose control was
+removed, or replaced at the same place in the tree, reports `UIA_E_ELEMENTNOTAVAILABLE`, and the replacement's
+elements get new runtime ids; after adding or removing children, call `RefreshAccessibilitySnapshot` (or let the next
+focus, size, pointer or state change do it) so clients see the new tree, which also tells them to navigate again
+(StructureChanged).
 When the archive is linked into several modules, each module owns its native menu and animation window classes.
 Keep each module loaded while its hosts, windows, callbacks or UI-thread resources remain alive.
 

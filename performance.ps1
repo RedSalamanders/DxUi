@@ -16,6 +16,8 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+# The comparator module also owns the receipt's source fingerprint and benchmark inputs; a paired run copies it with this file.
+Import-Module (Join-Path $PSScriptRoot 'Tools/PerformanceComparison.psm1') -Force
 $native = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 if (($Platform -eq 'ARM64' -and $native -ne 'Arm64') -or ($Platform -eq 'x64' -and $native -ne 'X64')) {
     throw 'Performance evidence requires native execution matching the requested architecture.'
@@ -65,16 +67,11 @@ try {
     $receipt.sourceCommit = (& git rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0) { throw 'Cannot identify source commit.' }
     $receipt.sourceDirty = [bool](& git status --porcelain)
-    $sources = @(& git ls-files --cached --others --exclude-standard -- src include Build Directory.Build.props Directory.Build.targets vcpkg.json vcpkg-tool.json)
-    if ($LASTEXITCODE -ne 0) { throw 'Cannot enumerate library inputs.' }
-    $hashes = foreach ($source in ($sources | Sort-Object -Unique)) { "$source $((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash)" }
-    $sha = [Security.Cryptography.SHA256]::Create()
-    try { $receipt.sourceFingerprint = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($hashes -join "`n")))) }
-    finally { $sha.Dispose() }
+    $receipt.sourceFingerprint = Get-SourceFingerprint -Root $PSScriptRoot
     $receipt.executableSha256 = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
     $receipt.workloadOwner = 'DxUi'
     $receipt.benchmarkInputs = [ordered]@{}
-    foreach ($inputPath in @('Tests/Embedded/BenchmarkMain.h', 'Tests/Embedded/ComplexUiBenchmark.h', 'Tests/Support/HeapDiagnostic.h', 'Samples/ComplexUi/ComplexUiScene.h', 'Samples/EmbeddedControls/GraphicsFixture.h')) {
+    foreach ($inputPath in Get-BenchmarkInputPaths) {
         $receipt.benchmarkInputs[$inputPath] = (Get-FileHash -LiteralPath $inputPath -Algorithm SHA256).Hash
     }
     $fixtureIdentity = ($receipt.benchmarkInputs.GetEnumerator() | ForEach-Object { "$($_.Key) $($_.Value)" }) -join "`n"

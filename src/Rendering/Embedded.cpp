@@ -206,6 +206,9 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
     if (! visible)
     {
         ReleaseSurface();
+        // Nothing paints while the view is hidden, so its controls return what painting rebuilds (a Grid's text layouts).
+        if (_host._root)
+            _host._root->OnHidden();
         _state->animationSuspended        = _host._embeddedAnimationRequested;
         _host._embeddedAnimationRequested = false;
     }

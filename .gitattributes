@@ -22,3 +22,6 @@ Measurements/ReviewFixes/2026-09-29/slot-hash-experiment/*.json -text -whitespac
 Measurements/ReviewFixes/2026-09-29/**/SHA256SUMS -text -whitespace
 Measurements/ReviewFollowUps/2026-09-29/paired-local/**/*.json -text -whitespace
 Measurements/ReviewFollowUps/2026-09-29/**/SHA256SUMS -text -whitespace
+Measurements/ReliabilityAndFollowUps/2026-09-30/paired-local/*.json -text -whitespace
+Measurements/ReliabilityAndFollowUps/2026-09-30/paired-local/*.receipt.txt -text -whitespace
+Measurements/ReliabilityAndFollowUps/2026-09-30/paired-local/SHA256SUMS -text -whitespace

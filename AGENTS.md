@@ -53,8 +53,9 @@ Use one indexed WIP plan for multi-step changes. Current intended behavior belon
 support and remaining gates are explicit. When implementation/tests pass, update normative requirements and move
 the completed plan to Done. Do not leave a completed plan under WIP or close a deferred consumer migration early.
 
-Run `validate-skills.ps1`, `validate-specs.ps1`, `validate-dependencies.ps1` and `format.ps1 -Check` for relevant changes.
-Repository tooling is PowerShell only; tooling changes also run `Tools/tests/Invoke-ToolingTests.ps1`.
+Run `validate.ps1` (the five `validate-*.ps1` validators and `Tools/tests/Invoke-ToolingTests.ps1`, reporting every
+failure before it fails) and `format.ps1 -Check` for relevant changes. Repository tooling is PowerShell only, and
+`test.ps1` also runs the tooling tests.
 Code changes require `test.ps1` in x64 Debug, Release and ASan Debug and builds in all three ARM64 configurations. ARM64 runtime support
 requires native execution. Renderer changes additionally need WARP, device-loss and recorded clean/dirty/hidden
 resource evidence; bootstrap foundation tests cannot satisfy those future gates.

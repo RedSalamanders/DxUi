@@ -1,7 +1,7 @@
 # Performance and resources
 
 Status: normative current contract
-Last reviewed: 2026-09-07
+Last reviewed: 2026-09-30
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -18,22 +18,58 @@ Retain the original baseline and measure again after the change. Record exact so
 fingerprints, compiler/dependencies, architecture/configuration, hardware/OS/driver, power policy, resolution/DPI,
 visible controls/data size and repetitions. Run serially on the same quiet fixture. Cross-machine, changed-workload,
 Debug/Release or x64/ARM64 comparisons cannot establish non-regression. If a new benchmark is required, run the same
-harness against both implementations; `performance-paired.ps1` builds a detached baseline with the candidate's
-harness inputs and runs A1/B1/B2/A2 serially. A missing baseline is explicitly unpaired and cannot close an implementation
-performance gate. Documentation/tool-only changes that leave compiled library inputs unchanged record that fact.
+harness against both implementations; `performance-paired.ps1` measures a baseline (a revision in a detached
+worktree, or an existing tree named as it is) and a candidate (this checkout, a revision or a named tree) with this
+checkout's harness inputs and runs the interleaved A/B/B/A pass serially, repeated as a [paired set](#paired-sets).
+It refuses a pair with nothing to compare: two revisions that name one commit, or, when a tree is named, two
+identical library source fingerprints; each side's revision or path, commit and fingerprint are recorded. A missing
+baseline is explicitly unpaired and cannot close an implementation performance gate. Documentation/tool-only changes
+that leave compiled library inputs unchanged record that fact.
 
 DxUi MUST NOT accept a confirmed performance or memory regression silently. Compare FPS, frame/input percentiles,
 preparation and composition costs, allocations/bytes, surface/cache residency and peaks, private bytes/working set,
 resource counts, idle activity and long-run retention. Keep all samples and investigate repeatable degradation,
 including trends smaller than automated noise bands. `performance.ps1` compares five-round medians, with 5% timing/FPS
-and 2% process-memory investigation bands; deterministic surface/allocation budgets allow no growth. Those bands
-address measurement noise, not a permitted regression budget. Repeat suspicious results against the retained baseline.
-Never relax a threshold, omit a workload or replace the baseline merely to make a test pass.
+and 2% process-memory investigation bands; deterministic surface/allocation budgets allow no growth. A
+[paired set](#paired-sets) applies the same bands to repeated runs. Those bands address measurement noise, not a
+permitted regression budget. Repeat suspicious results against the retained baseline. Never relax a threshold, omit a
+workload or replace the baseline merely to make a test pass.
 
 On confirmed degradation, stop accepting/merging the affected development, present the measured deltas and suspected
 cause, ask the developer for advice, and propose options with quantified costs: optimize the affected path/caches,
 reduce optional scope, or defer/revert the change. Any explicitly approved tradeoff needs durable rationale and the
 chosen resource budget in this contract or its owning domain; a WIP note alone cannot waive a requirement.
+
+### Paired sets
+
+A single receipt pair cannot tell a change from a machine that drifts between runs; on 2026-09-30 all 14 same-binary
+controls of one developer laptop drifted beyond their bands. A paired set can: `performance-paired.ps1` runs the
+interleaved pass A, B, B, A serially, repeats it `-Repetitions` times (default 3) and judges every scenario phase
+(clean, dirty) and metric on all runs at once. Each side's sample is its run medians, the median of each run's five
+rounds, so 2N runs per side after N repetitions.
+
+- The baseline and candidate samples are compared by an exact two-sided Mann-Whitney U test whose null distribution is
+  counted over the observed ranks, ties averaged, never approximated. A metric is `regressed` (`improved`) only when
+  p < 0.05 and the candidate's median of run medians lies beyond the metric's investigation band (5% timing and FPS,
+  2% process memory) on the worse (better) side; otherwise it is `within-noise`. A shift inside the band, or beyond it
+  without separation from noise, is not a verdict and stays in the retained values, and trends inside the bands
+  remain subject to the investigation above.
+- Exact budgets (surface bytes, replacement peak, composition and C++ allocations) stay exact. Any candidate run above
+  the median of the baseline runs is `regressed`, whatever the rank test says, and no band applies.
+- Each side's spread across its own runs is reported with the verdicts for context. It is not a veto: it cannot
+  waive a regressed metric or invalidate the set. Runs of one side must be of one binary and library source, and both
+  sides of one fixture, or the set is `invalid-evidence`.
+- A set is `advice-required` when any metric is `regressed` and `within-noise-budget` otherwise. `advice-required` is
+  a measured finding, not an acceptance: it confirms on a repeat on the same quiet fixture and then follows the
+  advice rule above, with the developer choosing among optimization, reduced scope and deferral. `within-noise-budget`
+  states that no change was established, which is not evidence that none exists. A set never replaces a baseline or
+  relaxes a band. A scenario makes about 26 metric tests, so a chance verdict is possible.
+- What a set can establish is bounded by its runs: complete separation reaches p = 2 / C(4N, 2N), which is 0.0022 for
+  the default six against six, 0.029 for four against four and 0.33 for two against two. A single pass therefore
+  cannot reach p < 0.05 and can establish only a rise in an exact budget. Each set records its smallest attainable p.
+- The retained `summary.json` keeps each side's revision or path, commit and library source fingerprint, every run's
+  medians and each metric's run values, p-value, spread and verdict. Pairs are refused when there is nothing to
+  compare: one commit for two revisions, or identical fingerprints when a working tree is named.
 
 ### Described-menu clean private-memory waiver
 
@@ -83,6 +119,8 @@ bytes 4.0–5.9 MB lower, dirty peaks about 9.7 MB lower and clean private bytes
 allocations. That removes most of the cost accepted above; the envelope stays until a developer tightens it after a
 quiet-fixture repeat.
 
+### Accepted Grid layout retention
+
 On 2026-09-29 the developer set the priority for Grid text layouts: the best frame rate first, then the least memory
 for it. That replaces the memory-first rejection of the associative-cache experiment for the Grid. The
 [review follow-ups](../Plans/Done/ReviewFollowUps_2026-09-29.md) keep cell layouts in 32-way set-associative tables
@@ -91,9 +129,27 @@ layouts as well. Two local paired sets against the review fixes
 ([receipts](../../Measurements/ReviewFollowUps/2026-09-29/paired-local/README.md)) record equal or fewer dirty-round
 allocations and no clean-round allocation in all three scenes, and a higher `Default` dirty rate in all four crossings
 (+5.1% to +14.5%). B's median private bytes averaged -0.08 to +0.52 MB from A's per scene and phase. Every
-same-binary control in both sets drifted beyond its band, so these sets establish neither the gain nor the cost, and
-no memory envelope is accepted. If a quiet-fixture repeat confirms the increase, the developer chooses between
-accepting it, reducing scope (such as not retaining single-line captions) and deferral.
+same-binary control in both sets drifted beyond its band, so neither set alone establishes the gain or the cost.
+Pooled (four runs per side) and judged by the paired-set rule, the `Default` dirty rate is 11.3% higher (p = 0.029),
+and no memory change is established in any scene (the largest, `Default` dirty private bytes +2.4%, has p = 0.11).
+
+What a painting grid keeps is one layout per cell its last paint drew, about 20 KB each, and the
+[reliability follow-ups](../Plans/Done/ReliabilityAndFollowUps_2026-09-30.md) return all of it when the grid stops
+painting: hidden (itself, under a hidden ancestor or in a hidden embedded view), detached or given another model. Their
+local paired set against `main`, six runs per side in each scene
+([receipts](../../Measurements/ReliabilityAndFollowUps/2026-09-30/paired-local/README.md)), keeps the painting path's
+allocations identical and establishes no timing or memory change while painting. Where every cell holds its own
+layout, hidden private bytes are 0.52 MB lower (p = 0.026); elsewhere the heap keeps the freed blocks committed, and
+the Grid suite's layout counters establish the release.
+
+On 2026-09-30 the developer accepted this retention for its frame rate. The accepted envelope is what the Grid
+suite's counters and the Release heap walk of the reliability follow-ups record: while it paints, a Grid keeps at most
+one text layout per cell its last paint drew, about 20 KB each (about 0.57 MB for a 6x4 multiline grid, 0.93 MB for
+ten single-line rows, 1.3 MB for 10x6), with their key strings (6 to 12 KB) and tables (5 to 14 KB), which on the
+complex-UI fixtures is the about 0.5 MB of private bytes the 2026-09-29 sets recorded; hidden, detached or given
+another model, it keeps none. Layouts beyond the cells of the last paint, any layout kept by a grid that is not
+painting, and any rise in the painting path's allocations remain regressions that need developer advice. The
+accepted retention is bounded by the cells on screen, not by the model's size.
 
 ### I19 accepted resource trade-off
 

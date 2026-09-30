@@ -559,6 +559,293 @@ void TestGridSingleLineLayoutsSurviveRepaintAndScroll()
     }
 }
 
+// A painting grid keeps one layout per cell it drew last, however far it has scrolled: the tables never accumulate the
+// rows it left. (The omitted-tail table holds a layout only in the paint that builds it, to share it among values with
+// the same visible text; the value entries keep the layouts, and the next paint that hits them releases the tail table's,
+// which keeps the storage of its entries alone.) Prints what a painting grid holds for the fixtures above: live layouts
+// and entries per table, the string storage their keys hold (UTF-16 units, two bytes each) and the bytes of the tables,
+// fresh and after scrolling through every row.
+void TestGridPaintedLayoutsAreThoseOfItsVisibleCells()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(),
+                 nullptr,
+                 0,
+                 0,
+                 static_cast<int>(window.Host().DipsToPixels(760.0f)),
+                 static_cast<int>(window.Host().DipsToPixels(640.0f)),
+                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    struct Geometry
+    {
+        const char* kind;
+        bool multiline;
+        size_t rowCount;
+        size_t columnCount;
+        float rowHeight;
+    };
+    for (const auto& [kind, multiline, rowCount, columnCount, rowHeight] : {Geometry{"multiline", true, 6u, 4u, 48.0f},
+                                                                            Geometry{"multiline", true, 7u, 4u, 48.0f},
+                                                                            Geometry{"multiline", true, 10u, 6u, 48.0f},
+                                                                            Geometry{"single-line", false, 10u, 4u, 28.0f},
+                                                                            Geometry{"single-line", false, 10u, 4u, 22.96f}})
+    {
+        const size_t modelRows = rowCount + 8u;
+        DistinctMultilineGridModel model(modelRows, columnCount, multiline);
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(
+            10.0f, 10.0f, 10.0f + (static_cast<float>(columnCount) * 110.0f) + 20.0f, 10.0f + 30.0f + (static_cast<float>(rowCount) * rowHeight) + 20.0f));
+        grid->SetHeaderHeightDip(30.0f);
+        grid->SetRowHeightDip(rowHeight);
+        grid->SetLineClamp(2u);
+        grid->SetModel(&model);
+        window.Host().SetRoot(std::move(root));
+        const auto countDrawnCells = [&]
+        {
+            size_t cells = 0u;
+            for (size_t row = 0u; row < modelRows; ++row)
+                for (size_t column = 0u; column < columnCount; ++column)
+                    cells += grid->GetVisibleCellRect(row, column).has_value() ? 1u : 0u;
+            return cells;
+        };
+        const auto describe = [](const Grid::GridDebugTextLayoutStatistics& held)
+        {
+            std::ostringstream text;
+            text << "value table " << held.retainedLayouts << " layouts of " << held.capacity << " entries, omitted-tail table " << held.displayLayouts
+                 << " of " << held.displayCapacity << ", keys " << held.textUnits << " units (" << held.textUnits * sizeof(wchar_t) << " bytes), tables "
+                 << held.tableBytes << " bytes, ellipsis sign " << (held.ellipsis ? "held" : "none");
+            return text.str();
+        };
+        static_cast<void>(CaptureAttachedHostWindowBitmap(window, "painted grid, first paint"));
+        const size_t drawnCells = countDrawnCells();
+        const auto fresh        = grid->DebugGetTextLayoutStatistics();
+        std::cout << "Grid holds, " << kind << " " << rowCount << "x" << columnCount << " distinct cells at " << rowHeight << " DIP rows (" << drawnCells
+                  << " drawn cells): " << describe(fresh) << '\n';
+        Require(fresh.retainedLayouts == drawnCells, "a painting grid keeps one value layout per cell it drew");
+        Require((fresh.displayCapacity > 0u) == multiline, "only multiline cells with an omitted tail use the tail table");
+        // Scrolling through every row leaves the layouts of the cells then in view only, not those of the rows it passed.
+        size_t mostLayouts = 0u;
+        for (size_t row = 1u; row + rowCount <= modelRows; ++row)
+        {
+            grid->DebugSetScrollOffsets(static_cast<float>(row) * rowHeight, 0.0f);
+            static_cast<void>(CaptureAttachedHostWindowBitmap(window, "painted grid, scrolled"));
+            const auto scrolled = grid->DebugGetTextLayoutStatistics();
+            mostLayouts         = std::max({mostLayouts, scrolled.retainedLayouts, scrolled.displayLayouts});
+        }
+        const auto scrolled = grid->DebugGetTextLayoutStatistics();
+        std::cout << "Grid holds, " << kind << " " << rowCount << "x" << columnCount << " after scrolling through every row: " << describe(scrolled) << '\n';
+        Require(mostLayouts <= drawnCells + columnCount, "scrolling never leaves more layouts than the cells in view and a partly visible row");
+        window.Host().SetRoot(nullptr);
+    }
+}
+
+using GridLayoutStatistics = DxUi::Grid::GridDebugTextLayoutStatistics;
+
+// Nothing left: no layout in either table, no table entry, no string storage and no ellipsis sign.
+void RequireNoRetainedGridLayouts(const GridLayoutStatistics& statistics, const char* context)
+{
+    Require(statistics.retainedLayouts == 0u && statistics.displayLayouts == 0u && statistics.capacity == 0u && statistics.displayCapacity == 0u &&
+                statistics.textUnits == 0u && statistics.tableBytes == 0u && ! statistics.ellipsis,
+            context);
+}
+
+// Removes its subtree from the host without destroying it, which is what ClearChildren, SetRoot and PageHost do on their
+// way to destroying it: the grids in it then stop painting while they are still alive.
+class HostDetachingPanel final : public DxUi::Panel
+{
+public:
+    void DetachFromHost() noexcept
+    {
+        PropagateHost(nullptr);
+    }
+
+    void AttachToHost(DxUi::ControlHost& host) noexcept
+    {
+        PropagateHost(&host);
+    }
+};
+
+// A grid that stops painting keeps no layouts: hidden itself, under a hidden panel or page host, removed from its host or
+// given another model, it returns its layouts, their string storage and its tables at once, since no later paint will
+// release the ones its last paint used. Showing it again lays out only what it shows, exactly as its first paint did, and
+// paints the same pixels; the paths that paint are unchanged.
+void TestGridReleasesItsLayoutsWhenItStopsPainting()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(),
+                 nullptr,
+                 0,
+                 0,
+                 static_cast<int>(window.Host().DipsToPixels(760.0f)),
+                 static_cast<int>(window.Host().DipsToPixels(640.0f)),
+                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    constexpr size_t rowCount    = 6u;
+    constexpr size_t columnCount = 4u;
+    constexpr float rowHeight    = 48.0f;
+    // The tree of every step: root > outer panel > page host > page > grid.
+    struct Scene
+    {
+        HostDetachingPanel* root = nullptr;
+        Panel* outer             = nullptr;
+        PageHost* pages          = nullptr;
+        Grid* grid               = nullptr;
+        ControlHost* host        = nullptr;
+        IGridModel* model        = nullptr;
+        IGridModel* otherModel   = nullptr;
+    };
+    struct Step
+    {
+        const char* name;
+        bool paintedWhileStopped; // The window still paints around what is hidden; a detached or re-modelled grid would paint again.
+        void (*stop)(const Scene&);
+        void (*resume)(const Scene&);
+    };
+    const std::array<Step, 5> steps{{
+        {"hidden itself", true, [](const Scene& scene) { scene.grid->SetVisible(false); }, [](const Scene& scene) { scene.grid->SetVisible(true); }},
+        {"under a hidden page host",
+         true,
+         [](const Scene& scene) { scene.pages->SetVisible(false); },
+         [](const Scene& scene) { scene.pages->SetVisible(true); }},
+        {"under a hidden panel", true, [](const Scene& scene) { scene.outer->SetVisible(false); }, [](const Scene& scene) { scene.outer->SetVisible(true); }},
+        {"detached from its host",
+         false,
+         [](const Scene& scene) { scene.root->DetachFromHost(); },
+         [](const Scene& scene) { scene.root->AttachToHost(*scene.host); }},
+        {"given another model",
+         false,
+         [](const Scene& scene) { scene.grid->SetModel(scene.otherModel); },
+         [](const Scene& scene) { scene.grid->SetModel(scene.model); }},
+    }};
+    for (const bool multiline : {true, false})
+    {
+        for (const Step& step : steps)
+        {
+            const std::string context = std::string(multiline ? "multiline grid " : "single-line grid ") + step.name;
+            const auto require        = [&context](bool condition, const char* what) { Require(condition, (context + ": " + what).c_str()); };
+            DistinctMultilineGridModel model(rowCount + 4u, columnCount, multiline);
+            DistinctMultilineGridModel otherModel(rowCount + 4u, columnCount, multiline);
+            auto root = std::make_unique<HostDetachingPanel>();
+            Scene scene{.root = root.get(), .host = &window.Host(), .model = &model, .otherModel = &otherModel};
+            scene.outer = root->AddChild<Panel>();
+            scene.pages = scene.outer->AddChild<PageHost>();
+            scene.pages->SetBounds(D2D1::RectF(0.0f, 0.0f, 760.0f, 640.0f));
+            window.Host().SetRoot(std::move(root));
+            auto page  = std::make_unique<Panel>();
+            scene.grid = page->AddChild<Grid>();
+            scene.grid->SetBounds(D2D1::RectF(
+                10.0f, 10.0f, 10.0f + (static_cast<float>(columnCount) * 110.0f) + 20.0f, 10.0f + 30.0f + (static_cast<float>(rowCount) * rowHeight) + 20.0f));
+            scene.grid->SetHeaderHeightDip(30.0f);
+            scene.grid->SetRowHeightDip(rowHeight);
+            scene.grid->SetLineClamp(2u);
+            scene.grid->SetModel(&model);
+            scene.pages->SetPage(std::move(page));
+            const auto first = CaptureAttachedHostWindowBitmap(window, "grid before it stops painting");
+            const auto cold  = scene.grid->DebugGetTextLayoutStatistics(); // What a first paint lays out and keeps.
+            // A scroll a row down and back leaves entries released by the paints between, whose string storage later keys
+            // reuse (the scratch string of an omitted tail takes some): what a grid that has painted for a while holds.
+            for (const float offset : {rowHeight, 0.0f})
+            {
+                scene.grid->DebugSetScrollOffsets(offset, 0.0f);
+                static_cast<void>(CaptureAttachedHostWindowBitmap(window, "grid scrolled a row and back"));
+            }
+            const auto held = scene.grid->DebugGetTextLayoutStatistics();
+            require(held.retainedLayouts == cold.retainedLayouts && held.retainedLayouts > 0u && held.capacity > 0u && held.textUnits > 0u &&
+                        held.tableBytes > 0u && (held.displayCapacity > 0u) == multiline && held.ellipsis == multiline,
+                    "a painted grid holds layouts and their storage");
+
+            step.stop(scene);
+            RequireNoRetainedGridLayouts(scene.grid->DebugGetTextLayoutStatistics(), (context + ": it returns every layout, string and table").c_str());
+            if (step.paintedWhileStopped)
+            {
+                static_cast<void>(CaptureAttachedHostWindowBitmap(window, "grid while stopped"));
+                const auto stopped = scene.grid->DebugGetTextLayoutStatistics();
+                RequireNoRetainedGridLayouts(stopped, (context + ": nothing rebuilds them while the window paints around it").c_str());
+                require(stopped.lookups == held.lookups, "a grid that is not painted asks for no layout");
+            }
+            step.resume(scene);
+            const auto beforePaint = scene.grid->DebugGetTextLayoutStatistics();
+            const auto shown       = CaptureAttachedHostWindowBitmap(window, "grid painting again");
+            const auto rebuilt     = scene.grid->DebugGetTextLayoutStatistics();
+            require(rebuilt.layoutCreations - beforePaint.layoutCreations == cold.layoutCreations, "painting again lays out only what its first paint did");
+            require(rebuilt.retainedLayouts == cold.retainedLayouts && rebuilt.capacity == cold.capacity && rebuilt.displayCapacity == cold.displayCapacity,
+                    "painting again keeps the layouts of what it shows in tables of the size its first paint needed");
+            require(shown.bgraPixels == first.bgraPixels, "painting again draws the pixels of the first paint");
+            static_cast<void>(CaptureAttachedHostWindowBitmap(window, "grid repainted"));
+            require(scene.grid->DebugGetTextLayoutStatistics().layoutCreations == rebuilt.layoutCreations, "a repaint of unchanged cells lays nothing out");
+            window.Host().SetRoot(nullptr);
+        }
+    }
+}
+
+// A tab page that is not selected is hidden by its tab control: its grid (the page itself, or inside a panel page)
+// returns its layouts when the selection moves away and lays out what it shows when it returns.
+void TestGridInAnUnselectedTabReleasesItsLayouts()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    SetWindowPos(window.Hwnd(),
+                 nullptr,
+                 0,
+                 0,
+                 static_cast<int>(window.Host().DipsToPixels(760.0f)),
+                 static_cast<int>(window.Host().DipsToPixels(640.0f)),
+                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    auto theme          = window.Host().GetTheme();
+    theme.reducedMotion = true;
+    window.Host().SetTheme(theme);
+    DistinctMultilineGridModel model(6u, 4u);
+    auto root  = std::make_unique<Panel>();
+    auto* tabs = root->AddChild<TabControl>();
+    tabs->SetBounds(D2D1::RectF(10.0f, 10.0f, 750.0f, 630.0f));
+    auto* pageGrid  = tabs->AddTab<Grid>(L"Grid page");
+    auto* panel     = tabs->AddTab<Panel>(L"Panel page");
+    auto* panelGrid = panel->AddChild<Grid>();
+    panelGrid->SetBounds(D2D1::RectF(20.0f, 60.0f, 500.0f, 400.0f));
+    for (Grid* grid : {pageGrid, panelGrid})
+    {
+        grid->SetHeaderHeightDip(30.0f);
+        grid->SetRowHeightDip(48.0f);
+        grid->SetLineClamp(2u);
+        grid->SetModel(&model);
+    }
+    window.Host().SetRoot(std::move(root));
+    const auto paintSelected = [&](const char* context) { static_cast<void>(CaptureAttachedHostWindowBitmap(window, context)); };
+    tabs->SetSelectedIndex(0u);
+    paintSelected("the grid page is selected");
+    const auto pageHeld = pageGrid->DebugGetTextLayoutStatistics();
+    Require(pageHeld.retainedLayouts > 0u && pageHeld.displayCapacity > 0u && pageHeld.textUnits > 0u,
+            "the selected grid page holds layouts and their storage");
+    RequireNoRetainedGridLayouts(panelGrid->DebugGetTextLayoutStatistics(), "a grid on a page that was never selected holds none");
+    tabs->SetSelectedIndex(1u);
+    RequireNoRetainedGridLayouts(pageGrid->DebugGetTextLayoutStatistics(), "selecting another tab returns the layouts of the grid page");
+    paintSelected("the panel page is selected");
+    const auto panelHeld = panelGrid->DebugGetTextLayoutStatistics();
+    Require(panelHeld.retainedLayouts > 0u && panelHeld.displayCapacity > 0u && panelHeld.textUnits > 0u,
+            "the grid on the selected panel page holds layouts and their storage");
+    RequireNoRetainedGridLayouts(pageGrid->DebugGetTextLayoutStatistics(), "the unselected grid page keeps none while the window paints");
+    tabs->SetSelectedIndex(0u);
+    RequireNoRetainedGridLayouts(panelGrid->DebugGetTextLayoutStatistics(), "selecting another tab returns the layouts of the grid on the panel page");
+    const uint64_t creations = pageGrid->DebugGetTextLayoutStatistics().layoutCreations;
+    paintSelected("the grid page is selected again");
+    const auto pageBack = pageGrid->DebugGetTextLayoutStatistics();
+    Require(pageBack.retainedLayouts == pageHeld.retainedLayouts && pageBack.capacity == pageHeld.capacity &&
+                pageBack.displayCapacity == pageHeld.displayCapacity,
+            "selecting the grid page again keeps the layouts of what it shows in tables of the size its first paint needed");
+    Require(pageBack.layoutCreations - creations == pageHeld.layoutCreations, "selecting the grid page again lays out what its first paint did");
+    window.Host().SetRoot(nullptr);
+}
+
 // A leading-aligned single-line caption far longer than its cell shapes only the prefix that overflows the cell (the
 // rest is clipped away) and paints exactly like a twin shaped whole that still overflows the cell; a caption the table
 // keeps repaints without laying anything out.
@@ -2410,50 +2697,45 @@ void TestAttachedHostRecoversAfterSimulatedDeviceLoss()
 
 void RunRenderingTests()
 {
-    TestGridMultilineClampPreservesCompleteModelText();
-    TestGridMultilineShortRowsPaintClippedFirstLine();
-    TestGridMultilineTrailingSeparatorsMatchTrimmedTwin();
-    TestGridMultilineLayoutsSurviveRepaintForEveryDistinctVisibleCell();
-    TestGridMultilineOversizedValueShapesOnlyItsVisiblePrefix();
-    TestGridSingleLineLayoutsSurviveRepaintAndScroll();
-    TestGridSingleLineOversizedCaptionShapesOnlyItsVisiblePrefix();
-    TestGridMultilineOmissionMarkerFollowsTheTextDirection();
-    TestMultilineButtonPaintUsesMultipleTextRows();
-    const auto runTest = [](const char* name, void (*fn)())
-    {
-        std::cerr << "  [START] " << name << '\n' << std::flush;
-        fn();
-        std::cerr << "  [DONE] " << name << '\n' << std::flush;
-    };
+    DXUI_RUN_TEST(TestGridMultilineClampPreservesCompleteModelText);
+    DXUI_RUN_TEST(TestGridMultilineShortRowsPaintClippedFirstLine);
+    DXUI_RUN_TEST(TestGridMultilineTrailingSeparatorsMatchTrimmedTwin);
+    DXUI_RUN_TEST(TestGridMultilineLayoutsSurviveRepaintForEveryDistinctVisibleCell);
+    DXUI_RUN_TEST(TestGridMultilineOversizedValueShapesOnlyItsVisiblePrefix);
+    DXUI_RUN_TEST(TestGridSingleLineLayoutsSurviveRepaintAndScroll);
+    DXUI_RUN_TEST(TestGridPaintedLayoutsAreThoseOfItsVisibleCells);
+    DXUI_RUN_TEST(TestGridReleasesItsLayoutsWhenItStopsPainting);
+    DXUI_RUN_TEST(TestGridInAnUnselectedTabReleasesItsLayouts);
+    DXUI_RUN_TEST(TestGridSingleLineOversizedCaptionShapesOnlyItsVisiblePrefix);
+    DXUI_RUN_TEST(TestGridMultilineOmissionMarkerFollowsTheTextDirection);
+    DXUI_RUN_TEST(TestMultilineButtonPaintUsesMultipleTextRows);
 
-    runTest("TestSharedTransientSurfaceRendersOrdinaryPressedAndHighContrastPolicies", TestSharedTransientSurfaceRendersOrdinaryPressedAndHighContrastPolicies);
-    runTest("TestThroughputGraphBandsStayBelowHistoryLine", TestThroughputGraphBandsStayBelowHistoryLine);
-    runTest("TestThroughputGraphHueChurnPerformanceScenario", TestThroughputGraphHueChurnPerformanceScenario);
-    runTest("TestDxUiCoreControlsDarkVisualBaseline", TestDxUiCoreControlsDarkVisualBaseline);
-    runTest("TestDxUiCoreControlsLightVisualBaseline", TestDxUiCoreControlsLightVisualBaseline);
-    runTest("TestDxUiHighContrastVisualBaseline", TestDxUiHighContrastVisualBaseline);
-    runTest("TestProgressBarReducedMotionIndeterminateCaptureIsStatic", TestProgressBarReducedMotionIndeterminateCaptureIsStatic);
-    runTest("TestDxUiPopupAndBarsVisualBaseline", TestDxUiPopupAndBarsVisualBaseline);
-    runTest("TestDxUiPopupAndBarsAcrylicLightVisualBaseline", TestDxUiPopupAndBarsAcrylicLightVisualBaseline);
-    runTest("TestDxUiPageTransitionVisualBaseline", TestDxUiPageTransitionVisualBaseline);
-    runTest("TestDxUiAdvancedControlsVisualBaseline", TestDxUiAdvancedControlsVisualBaseline);
-    runTest("TestAttachedComboBoxPopupHoverDoesNotRepaintWhenHoveredItemStaysTheSame", TestAttachedComboBoxPopupHoverDoesNotRepaintWhenHoveredItemStaysTheSame);
-    runTest("TestAttachedGridPaintHandlesDegenerateScrollbarTracks", TestAttachedGridPaintHandlesDegenerateScrollbarTracks);
-    runTest("TestGridIncludesBottomClippedTrailingRow", TestGridIncludesBottomClippedTrailingRow);
-    runTest("TestAttachedLargeGridVisibleWorkStaysBoundedAfterScroll", TestAttachedLargeGridVisibleWorkStaysBoundedAfterScroll);
-    runTest("TestAttachedLargeGridPaintReusesCellDataStringStorage", TestAttachedLargeGridPaintReusesCellDataStringStorage);
-    runTest("TestAttachedLargeIconBadgeGridVisibleWorkStaysBoundedAfterScroll", TestAttachedLargeIconBadgeGridVisibleWorkStaysBoundedAfterScroll);
-    runTest("TestAttachedGridBottomScrollKeepsFirstVisibleRowFlushWithHeader", TestAttachedGridBottomScrollKeepsFirstVisibleRowFlushWithHeader);
-    runTest("TestAttachedLargeGridLongRunScrollingStaysBoundedWithoutResizeChurn", TestAttachedLargeGridLongRunScrollingStaysBoundedWithoutResizeChurn);
-    runTest("TestAttachedLargeGroupedGridVisibleWorkStaysBoundedAfterScroll", TestAttachedLargeGroupedGridVisibleWorkStaysBoundedAfterScroll);
-    runTest("TestAttachedLargeCheckboxGridVisibleWorkStaysBoundedAfterScroll", TestAttachedLargeCheckboxGridVisibleWorkStaysBoundedAfterScroll);
-    runTest("TestAttachedLargeGroupedGridLongRunScrollingStaysBoundedWithoutResizeChurn",
-            TestAttachedLargeGroupedGridLongRunScrollingStaysBoundedWithoutResizeChurn);
-    runTest("TestAttachedLargeCheckboxGridLongRunScrollingStaysBoundedWithoutResizeChurn",
-            TestAttachedLargeCheckboxGridLongRunScrollingStaysBoundedWithoutResizeChurn);
-    runTest("TestAttachedComboBoxPopupScrollingStaysStable", TestAttachedComboBoxPopupScrollingStaysStable);
-    runTest("TestAttachedComboBoxPopupLongRunScrollingStaysStable", TestAttachedComboBoxPopupLongRunScrollingStaysStable);
-    runTest("TestAttachedHostSameSizeRepaintDoesNotResizeSwapChain", TestAttachedHostSameSizeRepaintDoesNotResizeSwapChain);
-    runTest("TestAttachedHostResizeDoesNotFlushD2DInWrongState", TestAttachedHostResizeDoesNotFlushD2DInWrongState);
-    runTest("TestAttachedHostRecoversAfterSimulatedDeviceLoss", TestAttachedHostRecoversAfterSimulatedDeviceLoss);
+    DXUI_RUN_TEST(TestSharedTransientSurfaceRendersOrdinaryPressedAndHighContrastPolicies);
+    DXUI_RUN_TEST(TestThroughputGraphBandsStayBelowHistoryLine);
+    DXUI_RUN_TEST(TestThroughputGraphHueChurnPerformanceScenario);
+    DXUI_RUN_TEST(TestDxUiCoreControlsDarkVisualBaseline);
+    DXUI_RUN_TEST(TestDxUiCoreControlsLightVisualBaseline);
+    DXUI_RUN_TEST(TestDxUiHighContrastVisualBaseline);
+    DXUI_RUN_TEST(TestProgressBarReducedMotionIndeterminateCaptureIsStatic);
+    DXUI_RUN_TEST(TestDxUiPopupAndBarsVisualBaseline);
+    DXUI_RUN_TEST(TestDxUiPopupAndBarsAcrylicLightVisualBaseline);
+    DXUI_RUN_TEST(TestDxUiPageTransitionVisualBaseline);
+    DXUI_RUN_TEST(TestDxUiAdvancedControlsVisualBaseline);
+    DXUI_RUN_TEST(TestAttachedComboBoxPopupHoverDoesNotRepaintWhenHoveredItemStaysTheSame);
+    DXUI_RUN_TEST(TestAttachedGridPaintHandlesDegenerateScrollbarTracks);
+    DXUI_RUN_TEST(TestGridIncludesBottomClippedTrailingRow);
+    DXUI_RUN_TEST(TestAttachedLargeGridVisibleWorkStaysBoundedAfterScroll);
+    DXUI_RUN_TEST(TestAttachedLargeGridPaintReusesCellDataStringStorage);
+    DXUI_RUN_TEST(TestAttachedLargeIconBadgeGridVisibleWorkStaysBoundedAfterScroll);
+    DXUI_RUN_TEST(TestAttachedGridBottomScrollKeepsFirstVisibleRowFlushWithHeader);
+    DXUI_RUN_TEST(TestAttachedLargeGridLongRunScrollingStaysBoundedWithoutResizeChurn);
+    DXUI_RUN_TEST(TestAttachedLargeGroupedGridVisibleWorkStaysBoundedAfterScroll);
+    DXUI_RUN_TEST(TestAttachedLargeCheckboxGridVisibleWorkStaysBoundedAfterScroll);
+    DXUI_RUN_TEST(TestAttachedLargeGroupedGridLongRunScrollingStaysBoundedWithoutResizeChurn);
+    DXUI_RUN_TEST(TestAttachedLargeCheckboxGridLongRunScrollingStaysBoundedWithoutResizeChurn);
+    DXUI_RUN_TEST(TestAttachedComboBoxPopupScrollingStaysStable);
+    DXUI_RUN_TEST(TestAttachedComboBoxPopupLongRunScrollingStaysStable);
+    DXUI_RUN_TEST(TestAttachedHostSameSizeRepaintDoesNotResizeSwapChain);
+    DXUI_RUN_TEST(TestAttachedHostResizeDoesNotFlushD2DInWrongState);
+    DXUI_RUN_TEST(TestAttachedHostRecoversAfterSimulatedDeviceLoss);
 }

@@ -28,6 +28,7 @@ void RunMenuResourceTests()
     AttachedHostWindow owner;
     const auto sample = [](const char* mode, int cycle, const char* phase)
     {
+        NoteDxUiTestProgress(); // This fixture is one watchdog unit: every sample restarts the deadline, so it bounds a cycle.
         PROCESS_MEMORY_COUNTERS_EX memory{};
         memory.cb     = sizeof(memory);
         DWORD handles = 0;
@@ -115,6 +116,7 @@ void RunMenuResourceScalingTests()
     std::optional<SIZE> surfaceSize;
     const auto sample = [&](const Variant& variant, int cycle, const char* phase)
     {
+        NoteDxUiTestProgress();
         PROCESS_MEMORY_COUNTERS_EX memory{};
         memory.cb     = sizeof(memory);
         DWORD handles = 0u;
@@ -220,6 +222,7 @@ void RunMenuTextLayoutResourceTests()
     std::array<Row, rowCount> layouts;
     const auto sample = [&](int cycle, int mode, const char* phase)
     {
+        NoteDxUiTestProgress();
         PROCESS_MEMORY_COUNTERS_EX memory{};
         memory.cb = sizeof(memory);
         Require(GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory), sizeof(memory)) != FALSE,

@@ -44,11 +44,67 @@ scenarios and the performance receipt path in each suite receipt. `-PerformanceB
 comparison and fails for a suspected regression or invalid evidence; no baseline is explicitly `unpaired`.
 Use the [performance contract](../Core/Core_PerformanceAndResources.md) for before/after acceptance and regression advice.
 The short WARP benchmark reports completed offscreen throughput, not display refresh or hardware acceptance.
+`DxUi.ControlTests.exe --suite=<Suite> --test=<Name>[,<Name>...]` (`test.ps1 -Suites <Suite> -Tests <Name>[,<Name>]`) runs
+only the named test functions of the selected suite, so one test iterates in seconds instead of a whole suite in minutes.
+Names are exact, case-sensitive function names, and every suite runner registers each of its tests as
+`DXUI_RUN_TEST(TestName);`, which checks the filter and prints the test's `[START]`/`[DONE]` markers; a test is never
+called directly from a runner. A name that no selected suite registers fails the run (exit code 2, naming it) instead of
+passing with nothing run, and the fixture suites without named tests (`MenuResources`, `MenuResourceScaling`,
+`MenuTextLayoutResources`, `MenuExitLifetime`, `Gallery`, `ButtonContrast`) reject `--test`. Without the option every
+test of a suite runs, in its order. A filtered `test.ps1` run is partial evidence: it still runs the benchmark, but its log
+and receipt take a `.filtered` suffix and record the names, so they never replace the receipt of the whole suite.
+`Tools/tests/Test-TestFilter.ps1` checks this contract against the built executable in every `test.ps1` run that includes a
+control suite, and that no runner calls a test directly.
+
+Every control test is bounded, so a hung test cannot hold a CI job. On the pull-request run of PR 30 the x64 ASan Debug job
+printed nothing for the 35 minutes between starting the Menu suite and the job's 40-minute limit, and its log named no test.
+`DXUI_RUN_TEST` arms a watchdog before each test and disarms it after, and the runner arms a fixture suite without named tests
+(`MenuResources`, `MenuResourceScaling`, `MenuTextLayoutResources`, `MenuExitLifetime`, `Gallery`, `ButtonContrast`) as one
+unit; the three resource fixtures call `NoteDxUiTestProgress` at every sample, so their deadline restarts and bounds a cycle
+instead of the whole fixture. One watchdog thread (`Tests/Support/TestWatchdog.h`) waits for the armed deadline on a condition
+variable with a timeout and never polls. A test that outlives its deadline ends the run: the watchdog writes
+`TIMEOUT: <TestName> after <N> s` to the stderr handle and terminates the process with exit code 124 (the code of
+`timeout(1)`; a failed check exits 1 and a usage error 2). It terminates instead of unwinding because the test thread is stuck
+and may hold the locks of the C++ streams, so the line bypasses them and what stdout still buffers is lost; the
+`[START]`/`[DONE]` markers and failures are on stderr. The deadline is 300 s per test; `--test-timeout=<seconds>`
+(`test.ps1 -TestTimeout <seconds>`) sets it and 0 turns it off, as debugging a test needs. Every run prints its deadline on a
+`[WATCHDOG]` line and every `[DONE]` marker carries the duration (`[DONE] <TestName> (1.234 s)`), so a log shows how close a
+test came. The number comes from measurement: on 2026-09-30, on the developer's machine while other builds ran, the slowest of
+the 816 tests of the 15 non-foreground suites took 2.5 s in x64 Debug (`TestColorPickerMovedBetweenHostsMatchesAFreshOne`),
+2.4 s in x64 Release (`TestGridReleasesItsLayoutsWhenItStopsPainting`) and 7.5 s in x64 ASan Debug
+(`TestAttachedLargeGroupedGridLongRunScrollingStaysBoundedWithoutResizeChurn`), the slowest suite (Rendering) took 18 s, 17 s and
+33 s, and of the fixture suites `Gallery` took 5 s, 4.5 s and 10 s and `ButtonContrast`, `MenuTextLayoutResources` and
+`MenuExitLifetime` 3 s at most. 300 s is forty times the slowest ASan test and about five times a UI Automation client test that waits
+out its allowances (20 s to set up, 20 s to end and several 3 s notification waits), and it ends a hung job in five minutes
+instead of at the 40-minute limit. The foreground suites take the same deadline; the `[DONE]` durations of a foreground run show
+how close any of their tests comes. Native CI also bounds its steps, at about twice their slowest runs on 2026-09-30:
+`test.ps1` at 25 minutes (13 at most) and each consumer build at 15 (9 at most), so a hang the watchdog cannot reach
+(Foundation, Embedded, the consumer) still leaves the job time to upload its logs.
+`test.ps1` reports a control suite that exits nonzero with its exit code, the `TIMEOUT:` line when the watchdog ended it (also
+stored as `timeout` in the suite's receipt) and the last twelve lines of its log (`Tools/SuiteFailure.psm1`), and its final
+error carries the first two: `DxUi failed suites: Menu exited with code 124 (TIMEOUT: <TestName> after 300 s)`.
+The hidden switch `DxUi.ControlTests.exe --watchdog-self-test[=test|fixture|progress]` is in no suite and reached by no
+`test.ps1` run: `test` runs one test that blocks forever on an event nobody sets, `fixture` a fixture suite that does, and
+`progress` a fixture that outlives its deadline as a whole but reports progress every second and so ends by itself.
+`Tools/tests/Test-TestWatchdog.ps1` runs them (2 s deadline, 3 s for `progress`) and asserts the exit code, the `TIMEOUT:` line,
+that the run ended at its deadline and spent almost no CPU waiting; that the same test with `--test-timeout=0` is still hanging
+when the script gives up on it after 6 s (the falsification of the rest: every run in the script is bounded, kills only its own
+child, and a broken watchdog fails a case instead of hanging the script); the option's defaults and its rejection of malformed
+values; and that the log of a redirected run, as `test.ps1` writes it, yields a failure report naming the exit code and the hung
+test. `test.ps1` runs it after the build in every run that includes a control suite.
 The foundation suite covers timing edge cases, nested stage restoration, reduced motion and injected diagnostics.
 
 Repository tools are PowerShell 7 scripts with no other runtime; the validators live in `Tools/Validation.psm1` and
 the performance comparator in `Tools/PerformanceComparison.psm1`, and `Tools/tests/Invoke-ToolingTests.ps1` runs their
-tests. `validate-skills.ps1` checks all repository skills, reading front matter as a strict `key: value` subset of YAML
+tests. `validate.ps1` is the one validation entry point: it runs the five validators below and the tooling tests, each
+in its own process, and reports every failure before it fails. CI's validation job runs it, and `test.ps1` runs the
+tooling tests beside its native suites. Every script under `Tools/tests` sets `Set-StrictMode -Version Latest` itself,
+as `test.ps1` and `Invoke-ToolingTests.ps1` do, because the scripts they call inherit it: a script that is not strict
+itself can pass when run alone and fail under them, and a tooling test requires it. The validators' file scans do not
+enter a nested git checkout, a directory other than the scanned root that holds a `.git` file or directory (such as an
+agent's worktree under `.claude/worktrees`): another checkout's files are not this tree's, and a half-edited copy
+cannot fail it.
+`validate-skills.ps1` checks all repository skills, reading front matter as a strict `key: value` subset of YAML
 that any YAML parser reads the same way; `validate-specs.ps1`
 checks local links, normative documents and plan indexes; `validate-dependencies.ps1` verifies historical origin
 metadata, current ownership paths and the exact pending dependency inventory. Original hashes describe the original
@@ -67,6 +123,17 @@ Cursor fixtures retain the original and actual aligned positions in physical coo
 and restore only while the cursor still has that aligned position. Popup-context alignment
 must not apply a second DPI conversion. An outer harness verifies restoration and must not
 force the saved cursor position over unexpected movement merely to make the check pass.
+A blocking `ContextMenu::Show` runs its modal loop on the owner thread and returns only when the menu closes, and the driver
+thread is what closes it, so a driver that fails before it has a popup to dismiss (the popup can come up later than the driver's
+wait on a slow runner) once left the owner thread there for good: the test hung where it should have reported the failure the
+driver recorded. Every driver in the Menu suite therefore begins with `DismissMenusIfDriverFails`, which does nothing when the
+driver succeeded and otherwise keeps closing the popups of its owner for up to eight seconds, stopping early once the ones it
+closed are gone; `TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu` (in the described-menu group, so also in the
+nonactivating NewControls lane) has a driver that fails at once, before its popup exists, and requires the guard to close the
+menu that then comes up and the owner thread's `Show` to return, and a source scan in `Tools/tests/Test-TestWatchdog.ps1`
+requires the guard first in every driver. A UI Automation client thread a Menu or Accessibility test joins is waited for,
+pumping, for as long as its setup was allowed (20 s) and then fails the test, since its teardown may need the pumping thread and
+a join does not pump.
 
 Embedded WARP fixtures cover DPI, dirty/clean/hidden behavior, paint-dirty pointer Down after hover or keyboard
 focus, alpha, hostile state, negative origins, device loss,
@@ -96,7 +163,9 @@ must update the owning runtime contract and its tests; helper names and statemen
 
 Tests/Controls retains eight original visual baselines. Native suites cover control state/layout, theme, grids/trees,
 animation (including slider hover/press easing and keyboard thumb travel), native text and IME events, UIA lifetime and menus. Capability skips are emitted in logs and copied into
-receipts; a skip is not proof of that capability. CI defines all six native jobs; their fresh receipts establish execution results.
+receipts, and `test.ps1` prints each under its suite with the test it belongs to (`skipped <Test>: <reason>`), so a CI log
+shows which tests a missing capability left unrun; a skip is not proof of that capability. CI defines all six native jobs;
+their fresh receipts establish execution results.
 Physical touch, a human IME session and screen-reader interaction are manual adoption checks, not implied by synthetic
 messages or a green foundation suite.
 
@@ -122,6 +191,34 @@ remain unchanged across runner environments.
 The default `MenuExitLifetime` process suite leaves an asynchronous menu open with capture and calls
 `std::exit(0)`, so CRT thread-local teardown destroys the live controller. Returning normally fails the suite;
 ASan profiles catch reentrant destruction. It needs no foreground input.
+
+The described-menu release fixture (`TestDescribedMenuReleasesItsMemoryWhenItCloses`) opens a 200-row menu twice, holds
+eight of its UI Automation row elements past the close and asserts on `DebugGetContextMenuResources`, the library's own
+exact counts of live menu popups, row text layouts and menu-popup accessibility records: they rise while the menu is open
+and return to their value before it opened once it closed. The count is independent of the renderer and the allocator,
+so it holds on a software renderer (WARP, or the Basic Render Driver of a GPU-less runner) and under AddressSanitizer.
+The process heap is printed beside it for diagnosis only: a software renderer's surfaces and caches share it and swing by
+up to about 3 MB between identical open/close cycles.
+
+Fixtures that take real focus can lose it to another application: the desktop application hosting a developer's
+session took the foreground back 30-95 ms after each test window activated. Windows then sends the window
+`WM_ACTIVATEAPP` (FALSE), `WM_ACTIVATE` (inactive) and `WM_KILLFOCUS`, and the host releases its native text session,
+TSF document included, as designed, so a fixture that asserts state which only holds while the window keeps the
+foreground failed on a takeover it says nothing about. Such a fixture runs its focus-and-pump sequence through
+`RunWhileForegroundHeld` (`Tests/Controls/DxUiTestHelpers.h`): the harness window counts the `WM_ACTIVATEAPP` (FALSE)
+deliveries, the sequence repeats after a takeover (the window re-activates through `TryActivateDxUiTestWindow`; five runs
+at most) and the assertions are made on the run that kept the foreground, so they are exactly those of a run without a
+thief. A run in which no application took the foreground is never repeated, so a regression still fails, and each
+repeat is logged as `[FOREGROUND] <executable> (process <id>) took the foreground in run <n> of <max>`. When another
+application takes the foreground in every run, the fixture records a capability skip naming its executable and process
+id. The NativeTextInput fixtures that pump after taking focus (host focus, the TSF document, the system caret, the
+key-to-paint scenario) use it, and two deterministic fixtures deliver the takeover as Windows sends it to a window nobody
+can activate: the sequence repeats once, and stops after the maximum with the application named.
+`DxUi.ControlTests.exe --foreground-thief[=<minMs>,<maxMs>]` (default 30,95) reproduces the desktop application: a worker
+thread takes the foreground for its own window that long after a window of the process became the foreground window. It
+reports how often it did, and says so when no window of the process ever held the foreground (Windows keeps it with the
+application the user is working in, so there was nothing to take and no takeover was exercised). It needs real focus, so
+`--no-activate` rejects it, and it is an opt-in check that a suite survives a thief, not part of `test.ps1`.
 
 Native menu input fixtures wait for a visible popup: the hidden measurement HWND is not ready for input.
 Cold creation has a separate five-second setup allowance; owner-message-flood hover and invocation checks

@@ -368,7 +368,9 @@ void UnregisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexc
 void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept;
 // Republishes a window host's snapshot and raises what changed for clients: StructureChanged when semantic controls
 // were added, removed or replaced, and the focus change when another element took focus inside a window that holds
-// the foreground's keyboard focus (while the window itself gains focus, the system's focus event reports it).
+// the foreground's keyboard focus. While the window itself gains focus, the system's focus event reports it; a move
+// later in the turn of the gain is left to that event only in a window whose fragment-root GetFocus no call has ever
+// begun on, because the first such call reports the moved-to element (see ReporterOfFocusMove).
 void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
 void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
 // True for a native menu popup window. Explicit UIA focus of a row in such a popup tracks
@@ -384,6 +386,25 @@ void DebugSetAccessibilityUiActionDispatchTimeoutForTest(DWORD timeoutMs) noexce
 void DebugResetAccessibilityUiActionExecutionCountForTest() noexcept;
 [[nodiscard]] uint32_t DebugGetAccessibilityUiActionExecutionCountForTest() noexcept;
 void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t limit) noexcept;
+// How many calls of `hwnd`'s fragment-root GetFocus have begun: each counts itself before it reads the snapshot. The
+// largest uint64_t when the window has no registered host.
+[[nodiscard]] uint64_t DebugGetAccessibilityFocusResolutionCountForTest(HWND hwnd) noexcept;
+// Holds every call of `hwnd`'s fragment-root GetFocus before it counts itself or reads the snapshot, so a test decides
+// when the system's focus event is answered: each call sets `enteredEvent` on arrival and waits, for at most five seconds
+// and never indefinitely, for `releaseEvent`. Null events clear the gate and return once the calls it held have left it.
+void DebugSetAccessibilityFocusResolutionGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
+// Counting starts at zero when enabled and covers every record, table slot and tree node a provider call or event
+// examines to resolve a control on the calling thread; it is off (and free) otherwise.
+void DebugSetAccessibilityResolutionCountingForTest(bool enabled) noexcept;
+void DebugResetAccessibilityResolutionVisitCountForTest() noexcept;
+[[nodiscard]] uint64_t DebugGetAccessibilityResolutionVisitCountForTest() noexcept;
+// The path a window host's UI Automation events use for `control`: its child indices from the root in indices, and
+// their number in depth. False when the control has no element in the window. Never dereferences a control that is
+// not in the tree.
+[[nodiscard]] bool DebugResolveWindowHostEventPathForTest(HWND hwnd, const Control* control, std::span<uint16_t> indices, uint32_t& depth) noexcept;
+// How many lookups in the published snapshot's tables disagree with a scan of its records: zero once the snapshot
+// matches the tree (after RefreshAccessibilitySnapshot). The largest size_t when the window has no snapshot.
+[[nodiscard]] size_t DebugCountAccessibilityIndexMismatchesForTest(HWND hwnd) noexcept;
 #endif
 
 // Scrollbar shared helpers (shared by Grid and Tree)

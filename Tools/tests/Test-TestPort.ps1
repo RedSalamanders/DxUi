@@ -1,5 +1,6 @@
 # Inherited-test accounting: count, origin, missing case and incomplete-disposition regressions.
 [CmdletBinding()] param()
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Validation.psm1') -Force
