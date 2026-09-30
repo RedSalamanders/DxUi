@@ -21,7 +21,7 @@ and the `validate-*.ps1` scripts) are the stable developer interface.
 | tests/TestSupport.psm1 | Assertions and fixture trees under `.build/tooling-fixtures` for those tests |
 | tests/Test-ConsumerUpdate.ps1 | Same/new/pending/failed/divergent/offline advisory decisions and immutable-pin checks, without network access |
 | tests/Test-AsanRuntime.ps1 | Actual MSBuild ARM64 runtime staging and fail-closed missing-runtime regression |
-| tests/Test-TestFilter.ps1 | The built `DxUi.ControlTests.exe` runs only the tests `--test=` names, in suite order, fails an unknown or malformed name and a fixture suite, and runs every registered test without it; `test.ps1` runs it after the build |
+| tests/Test-TestFilter.ps1 | The built `DxUi.ControlTests.exe` runs only the tests `--test=` names, in suite order, fails an unknown or malformed name and a fixture suite, and runs every registered test without it; no runner calls a test directly, bypassing the filter; `test.ps1` runs it after the build |
 
 `test-consumer.ps1` restores and builds a relocated exact-pin public consumer in an isolated output directory,
 renders the supplied-device example, and rejects five invalid-pin/dirty-source cases. `gallery.ps1` generates the

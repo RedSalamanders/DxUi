@@ -54,7 +54,7 @@ passing with nothing run, and the fixture suites without named tests (`MenuResou
 test of a suite runs, in its order. A filtered `test.ps1` run is partial evidence: it still runs the benchmark, but its log
 and receipt take a `.filtered` suffix and record the names, so they never replace the receipt of the whole suite.
 `Tools/tests/Test-TestFilter.ps1` checks this contract against the built executable in every `test.ps1` run that includes a
-control suite.
+control suite, and that no runner calls a test directly.
 The foundation suite covers timing edge cases, nested stage restoration, reduced motion and injected diagnostics.
 
 Repository tools are PowerShell 7 scripts with no other runtime; the validators live in `Tools/Validation.psm1` and

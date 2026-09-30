@@ -53,6 +53,15 @@ Invoke-TestCase 'a fixture suite without named tests rejects the filter before i
         Assert-Equal 0 $suitesStarted.Count "$suite starts nothing"
     }
 }
+Invoke-TestCase 'no runner calls a test directly, so the filter can select every test' {
+    $direct = foreach ($file in Get-ChildItem -Path (Join-Path $repo 'Tests/Controls/DxUiTests*') -File) {
+        $source = [IO.File]::ReadAllText($file.FullName)
+        foreach ($runner in [regex]::Matches($source, '(?ms)^void (Run\w+)\(\)\r?\n\{(.*?)^\}')) {
+            foreach ($call in [regex]::Matches($runner.Groups[2].Value, '(?m)^\s+(Test\w+)\(\);')) { "$($file.Name): $($runner.Groups[1].Value) calls $($call.Groups[1].Value)" }
+        }
+    }
+    Assert-Equal 0 @($direct).Count "runners register tests as DXUI_RUN_TEST(TestName); ($(@($direct) -join '; '))"
+}
 Invoke-TestCase 'without the filter a suite runs every test its runner registers' {
     $run = Invoke-Runner $grid
     Assert-Equal 0 $run.Exit 'the unfiltered Grid suite passes'
