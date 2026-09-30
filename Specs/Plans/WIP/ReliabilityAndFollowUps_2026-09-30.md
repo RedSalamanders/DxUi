@@ -28,6 +28,12 @@ reviewed before it merges here, until this plan can move to Done.
   `--test=<Name>[,<Name>]` (and `test.ps1 -Tests`) runs only the named tests; an unknown name fails the run; unfiltered
   suites still run every test.
 
+- [ ] 12. The Menu suite never hangs a CI job. On PR 30's pull-request run (36715415304), x64 ASan Debug started the
+  Menu suite at 12:38 and printed nothing more until the job's 40-minute limit cancelled it; the push run of the same
+  commit passed the job in 11 minutes, and the PR changed no C++. Accept: the hanging wait is identified (the job's
+  uploaded suite log names the last test started) and bounded, so a stuck test fails fast with its name, and its root
+  cause is fixed when it is in the library.
+
 ### Performance evidence
 
 - [x] 4. Paired sets can establish a result on a noisy machine. One A1/B1/B2/A2 pass gives each side two runs, and on
