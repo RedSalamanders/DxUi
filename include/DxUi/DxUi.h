@@ -4386,6 +4386,10 @@ public:
     [[nodiscard]] uint64_t DebugGetFocusMovesLeftToSystemCount() const noexcept;
     // Whether the window gained focus in the message-loop turn still running (see OnSetFocus).
     [[nodiscard]] bool DebugIsInFocusGainTurn() const noexcept;
+    // Gains of a window whose fragment root had been asked for its focus before, whose focused element the host announced
+    // when the gain's turn ended because UI Automation reports nothing for them (see BeginFocusGainTurn). Counted when the
+    // host decides, whether or not the window holds the foreground for the announcement to reach a client.
+    [[nodiscard]] uint64_t DebugGetReactivationAnnouncementCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetRenderCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetResizeCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetResizeFailureCount() const noexcept;
@@ -4430,6 +4434,9 @@ private:
     void* _embeddedAccessibilityTarget          = nullptr;
     bool _gainingWindowFocus                    = false; // In OnSetFocus: the system's focus event reports the element.
     ULONGLONG _focusGainTurnStartedMs           = 0u;    // From OnSetFocus until the message loop turns: the event may still report.
+    WPARAM _focusGainTurnId                     = 0u;    // The turn the posted end message names; an earlier turn's message ends nothing.
+    uint64_t _focusGainResolutions              = 0u;    // Fragment-root GetFocus calls begun when the latest gain began.
+    bool _focusGainTurnAnnounced                = false; // The host announced a focus move of the gain's turn itself.
     uint64_t _interactionRevision               = 0;
     bool _embedded                              = false;
     bool _embeddedAnimationRequested            = false;
@@ -4630,6 +4637,7 @@ private:
     mutable uint64_t _debugInvalidateCount                      = 0u;
     uint64_t _debugFocusAnnouncementCount                       = 0u;
     uint64_t _debugFocusMovesLeftToSystemCount                  = 0u;
+    uint64_t _debugReactivationAnnouncementCount                = 0u;
     mutable uint64_t _debugRenderCount                          = 0u;
     mutable uint64_t _debugResizeCount                          = 0u;
     mutable uint64_t _debugResizeFailureCount                   = 0u;

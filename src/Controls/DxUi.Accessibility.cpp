@@ -75,6 +75,34 @@ struct EmbeddedAccessibilityAccess
     {
         ++host._debugFocusMovesLeftToSystemCount;
     }
+
+    // A gain begins while `focusResolutions` fragment-root GetFocus calls have begun.
+    static void BeginFocusGain(ControlHost& host, uint64_t focusResolutions) noexcept
+    {
+        host._focusGainResolutions   = focusResolutions;
+        host._focusGainTurnAnnounced = false;
+    }
+
+    // The host announced a focus move before the gain's turn ended (a move after the turn's 500 ms limit included), so
+    // the end of the turn has nothing left to report.
+    static void NoteFocusMoveAnnounced(ControlHost& host) noexcept
+    {
+        if (host._focusGainTurnStartedMs != 0u)
+            host._focusGainTurnAnnounced = true;
+    }
+
+    // What the gain focused or restored reaches no client unless the host announces it: UI Automation had asked for the
+    // window's focus before the gain began, so it answers the gain without asking, and the host announced no move of the
+    // turn since.
+    [[nodiscard]] static bool FocusGainIsUnreported(const ControlHost& host) noexcept
+    {
+        return host._focusGainResolutions != 0u && ! host._focusGainTurnAnnounced;
+    }
+
+    static void CountReactivationAnnouncement(ControlHost& host) noexcept
+    {
+        ++host._debugReactivationAnnouncementCount;
+    }
 };
 
 namespace
@@ -1871,6 +1899,15 @@ const AccessibilityControlNavigationSnapshot* ResolveSnapshotControlRecord(const
         return FindControlNavigationRecord(snapshot, snapshot.semanticControlOrder.front());
     }
     return nullptr;
+}
+
+// What the window's root element answers when UI Automation asks whether it has the keyboard focus, as its provider's
+// GetPropertyValue does: true only for a root that stands for its single semantic control while that control is focused.
+// It is how UI Automation reports the gain of a window it asked for its focus before (EndWindowHostFocusGainTurn).
+[[nodiscard]] bool RootElementHasKeyboardFocus(const AccessibilitySnapshot& snapshot) noexcept
+{
+    const AccessibilityControlNavigationSnapshot* const record = ResolveSnapshotControlRecord(snapshot, AccessibilityFragmentKind::Root, ControlPath{});
+    return record && record->controlVisible && record->controlHasFocus;
 }
 
 std::optional<size_t> FindSemanticControlOrderIndex(const AccessibilitySnapshot& snapshot, const ControlPath& path) noexcept
@@ -8997,12 +9034,52 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexce
     switch (EmbeddedAccessibilityAccess::ReporterOfFocusMove(*host, focusResolutions))
     {
         case EmbeddedAccessibilityAccess::FocusMoveReporter::Host:
+            EmbeddedAccessibilityAccess::NoteFocusMoveAnnounced(*host);
             if (AnnounceWindowHostFocus(hwnd))
                 EmbeddedAccessibilityAccess::CountFocusAnnouncement(*host);
             break;
         case EmbeddedAccessibilityAccess::FocusMoveReporter::SystemUnanswered: EmbeddedAccessibilityAccess::CountFocusMoveLeftToSystem(*host); break;
         case EmbeddedAccessibilityAccess::FocusMoveReporter::SystemAtGain: break;
     }
+}
+
+void BeginWindowHostFocusGain(HWND hwnd, ControlHost* host) noexcept
+{
+    if (! hwnd || ! host)
+        return;
+
+    uint64_t focusResolutions = 0u;
+    {
+        const std::scoped_lock lock(GetAccessibilityTargetMutex());
+        const auto* target = static_cast<const WindowHostAccessibilityTarget*>(GetPropW(hwnd, kWindowHostPropName));
+        // Read as the gain begins, before it publishes anything. UI Automation asks a window for its focus only for the
+        // first focus event it answers, so a call counted here answered an earlier event and this gain will be answered
+        // without asking, while a call this gain's event brings comes later and reads what the gain published.
+        if (target && target->host.load(std::memory_order_acquire) == host)
+            focusResolutions = target->focusResolutions.load(std::memory_order_seq_cst);
+    }
+    EmbeddedAccessibilityAccess::BeginFocusGain(*host, focusResolutions);
+}
+
+void EndWindowHostFocusGainTurn(HWND hwnd, ControlHost* host) noexcept
+{
+    if (! hwnd || ! host || ! EmbeddedAccessibilityAccess::FocusGainIsUnreported(*host) || ! UiaClientsAreListening())
+        return;
+
+    {
+        const std::scoped_lock lock(GetAccessibilityTargetMutex());
+        const auto* target = static_cast<const WindowHostAccessibilityTarget*>(GetPropW(hwnd, kWindowHostPropName));
+        if (! target || target->host.load(std::memory_order_acquire) != host)
+            return;
+        const auto snapshot = target->snapshot.load(std::memory_order_seq_cst);
+        // UI Automation reports the root element itself when the root says it has the keyboard focus.
+        if (! snapshot || ! snapshot->alive || ! snapshot->hasRetainedRoot || RootElementHasKeyboardFocus(*snapshot))
+            return;
+    }
+    EmbeddedAccessibilityAccess::CountReactivationAnnouncement(*host);
+    // Raised outside the publish lock, like the host's other focus changes: clients may call back into these providers.
+    if (AnnounceWindowHostFocus(hwnd))
+        EmbeddedAccessibilityAccess::CountFocusAnnouncement(*host);
 }
 
 void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept

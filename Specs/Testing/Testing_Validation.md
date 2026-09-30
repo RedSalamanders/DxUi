@@ -214,6 +214,14 @@ application takes the foreground in every run, the fixture records a capability 
 id. The NativeTextInput fixtures that pump after taking focus (host focus, the TSF document, the system caret, the
 key-to-paint scenario) use it, and two deterministic fixtures deliver the takeover as Windows sends it to a window nobody
 can activate: the sequence repeats once, and stops after the maximum with the application named.
+A fixture with several windows, or with windows a later run must not inherit (one UI Automation has never seen), plays
+each run with windows of its own through `RunUntilForegroundHeld`, of which `RunWhileForegroundHeld` is the one-window
+form. The run reports whether another application took the foreground from any of its windows, and the same rule
+decides. The Menu suite's click-activation and reactivation fixtures do so (`PlayActivatingClickTest`). Each attempt
+builds its scenario afresh. An expectation that fails records the first failure, with the names the UI Automation
+client heard, instead of ending the test, and a wait in an attempt that failed or lost the foreground returns at once.
+The attempt that kept the foreground decides, so its first failure fails the test. Under `--foreground-thief`, which
+takes the foreground within 95 ms of every activation, these fixtures record the skip after five attempts.
 `DxUi.ControlTests.exe --foreground-thief[=<minMs>,<maxMs>]` (default 30,95) reproduces the desktop application: a worker
 thread takes the foreground for its own window that long after a window of the process became the foreground window. It
 reports how often it did, and says so when no window of the process ever held the foreground (Windows keeps it with the
