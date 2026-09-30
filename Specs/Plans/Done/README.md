@@ -1,5 +1,7 @@
 # Completed plans
 
+- [Multiline caret viewport](MultilineCaretViewport_2026-10-01.md) — completed 2026-10-01 (30 WARP states, three x64 suite profiles and ARM64 cross-builds; recorded Debug timing tradeoff accepted; consumer adoption remains separate).
+
 - [Native accessibility provider lifetime](NativeProviderLifetime_2026-09-28.md) — completed 2026-09-30 (native identity and focus-reentry guards; exact-source six-profile CI, paired resource review with retained limits, explicit consumer pin49 adoption; consumer I26/H4 remain open).
 
 - [Bounded grid text and clipping](GridTextOverflow_2026-09-21.md) — completed 2026-09-28 (full-value text, bounded cached layouts, six native profiles and accepted measured costs; qualified feature pin 73ba explicitly selected by RedSalamander).

@@ -101,6 +101,11 @@ qualify these library capabilities. ARM64 Menu records nine foreground capabilit
 real consumer screen-reader, physical mixed-DPI and application adoption remain separate gates.
 
 DxUi owns the implemented controls in `src/Controls` and their standalone tests in `Tests/Controls`.
+Multiline TextField caret paint uses the same pixel-snapped text viewport as glyphs and
+selection. A partially visible line paints only its visible caret segment; a caret scrolled
+fully outside the viewport paints nothing. Clipping does not move the caret, alter selection
+or scroll, or change native text-service geometry. Qualify PageDown, wheel scrolling and
+selection in editable and read-only fields at 96, 144 and 192 DPI.
 Source is edited in place here; historical import records do not freeze it. Consumer-specific bridges remain
 separate work as recorded in capabilities.json.
 

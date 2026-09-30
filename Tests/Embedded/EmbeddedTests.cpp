@@ -273,6 +273,7 @@ __declspec(noinline) static int RunFunctionalTests()
     Check(! DxUi::IsContextMenuDiagnosticsEnabled(), "clearing sink disables native diagnostics");
     GraphicsFixture gpu;
     Hr(gpu.Create(), "supplied WARP device");
+    TestMultilineCaretViewport(gpu);
     TestEmbeddedTextInput(gpu);
     TestEmbeddedAccessibility(gpu);
     TestLocalizedShortViewport(gpu,

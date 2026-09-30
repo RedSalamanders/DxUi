@@ -24,7 +24,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | MenuBar | Supply `MenuBarItem` records through `SetItems`; handle `SetOnOpenItem` and hover changes. Native menu operations require the HWND integration. |
 | TabControl | Add populated tab pages with `AddTab`; handle selection, close-request, closed and reorder callbacks as needed. |
 | ColorSwatch | Configure the displayed color and handle `SetOnClick` to launch your color selection flow. |
-| TextField | Set text/editing options; handle `SetOnTextChanged`, `SetOnSubmitted` and `SetOnBlur`. Full IME/native text behavior needs the appropriate host bridge. |
+| TextField | Set text/editing options; handle `SetOnTextChanged`, `SetOnSubmitted` and `SetOnBlur`. Multiline caret paint stays inside the text viewport, including partial lines and wheel scrolling; scrolling preserves selection and complete text. Full IME/native text behavior needs the appropriate host bridge. |
 | ComboBox | Supply `Item` records with `SetItems`; use `SetOnSelectionChanged`, text/submission callbacks and popup requests for editable selection. For touch, call `SetMinimumPopupItemHeight(48.0f)`; the gallery Modern open variant uses it. |
 | TagPicker | Call `SetOptions(allLabel, values)`, `SetSelectedValues` and `SetOnSelectionChanged` for multiple named choices. |
 | StatusStrip | Use `SetText` for one value or `SetSections` and `SetSectionText` for multiple aligned status values. |

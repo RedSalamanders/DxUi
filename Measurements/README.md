@@ -4,6 +4,10 @@ This directory retains reviewed evidence from DxUi's own samples and benchmarks.
 interfaces, but use synthetic data and require no RedXe or RedSalamander checkout, plugin, settings or services.
 Application adoption measurements belong in their application's repository.
 
+- [Multiline caret viewport, 2026-10-01](MultilineCaretViewport/2026-10-01/README.md): failing-before pixels,
+  60 passing local functional suites, final three-profile WARP regression, ARM64 cross-builds, gallery,
+  bounded common timing series and same-binary control. The developer accepted the recorded Debug timing tradeoff.
+
 - [Grid native CI, 2026-09-21](GridTextOverflow/2026-09-21/native-ci/README.md): six native profiles,
   retained accessibility classification retry and explicit ARM64 Menu capability skips; recorded memory and timing
   costs are accepted. Later combined qualification and explicit pin handoff complete at 73ba below.

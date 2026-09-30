@@ -1,0 +1,65 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+Complex UI clean round 1: 2347.02 completed offscreen FPS; p95 0.5433 ms; private 212664320 bytes
+Complex UI clean round 2: 2353.31 completed offscreen FPS; p95 0.5735 ms; private 216854528 bytes
+Complex UI clean round 3: 2481.25 completed offscreen FPS; p95 0.4714 ms; private 219099136 bytes
+Complex UI clean round 4: 2455.52 completed offscreen FPS; p95 0.4553 ms; private 222232576 bytes
+Complex UI clean round 5: 2175.62 completed offscreen FPS; p95 0.6139 ms; private 225067008 bytes
+Complex UI dirty round 1: 99.9119 completed offscreen FPS; p95 11.4275 ms; private 367755264 bytes
+Complex UI dirty round 2: 98.061 completed offscreen FPS; p95 10.6474 ms; private 502644736 bytes
+Complex UI dirty round 3: 99.3054 completed offscreen FPS; p95 11.9712 ms; private 534126592 bytes
+Complex UI dirty round 4: 98.0663 completed offscreen FPS; p95 12.6059 ms; private 536186880 bytes
+Complex UI dirty round 5: 97.0154 completed offscreen FPS; p95 13.3767 ms; private 537616384 bytes
+Performance comparison: unpaired
+Performance receipt: C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\reports\Performance-x64-ASan Debug-f4dbd88e979e4ea1a48c5f9b1ecee4f9.json
+PASS AddressSanitizer detection probe (isolated expected failure)
+Running Foundation (x64 ASan Debug)
+PASS Foundation (0 capability skips recorded)
+Running Embedded (x64 ASan Debug)
+PASS Embedded (0 capability skips recorded)
+Running Grid (x64 ASan Debug)
+PASS Grid (0 capability skips recorded)
+Running Theme (x64 ASan Debug)
+PASS Theme (0 capability skips recorded)
+Running Control (x64 ASan Debug)
+PASS Control (0 capability skips recorded)
+Running MenuAccessibility (x64 ASan Debug)
+PASS MenuAccessibility (0 capability skips recorded)
+Running Menu (x64 ASan Debug)
+PASS Menu (9 capability skips recorded)
+Running MenuExitLifetime (x64 ASan Debug)
+PASS MenuExitLifetime (0 capability skips recorded)
+Running NewControls (x64 ASan Debug)
+PASS NewControls (0 capability skips recorded)
+Running TextField (x64 ASan Debug)
+PASS TextField (0 capability skips recorded)
+Running NativeTextInput (x64 ASan Debug)
+PASS NativeTextInput (0 capability skips recorded)
+Running MultilineText (x64 ASan Debug)
+PASS MultilineText (0 capability skips recorded)
+Running ReadOnly (x64 ASan Debug)
+PASS ReadOnly (0 capability skips recorded)
+Running ComboBox (x64 ASan Debug)
+PASS ComboBox (0 capability skips recorded)
+Running Tree (x64 ASan Debug)
+PASS Tree (0 capability skips recorded)
+Running Tooltip (x64 ASan Debug)
+PASS Tooltip (0 capability skips recorded)
+Running Rendering (x64 ASan Debug)
+PASS Rendering (0 capability skips recorded)
+Running Animation (x64 ASan Debug)
+PASS Animation (0 capability skips recorded)
+Running Accessibility (x64 ASan Debug)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 ASan Debug)
+PASS WindowHost (0 capability skips recorded)
+All 20 requested suites passed.

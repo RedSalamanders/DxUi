@@ -1,0 +1,64 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+Complex UI clean round 1: 2602.68 completed offscreen FPS; p95 0.443 ms; private 28516352 bytes
+Complex UI clean round 2: 2617.68 completed offscreen FPS; p95 0.4366 ms; private 28545024 bytes
+Complex UI clean round 3: 2675.53 completed offscreen FPS; p95 0.4028 ms; private 29257728 bytes
+Complex UI clean round 4: 2480.57 completed offscreen FPS; p95 0.5344 ms; private 30330880 bytes
+Complex UI clean round 5: 2663.86 completed offscreen FPS; p95 0.4038 ms; private 31629312 bytes
+Complex UI dirty round 1: 461.043 completed offscreen FPS; p95 2.4368 ms; private 31109120 bytes
+Complex UI dirty round 2: 460.215 completed offscreen FPS; p95 2.5081 ms; private 31436800 bytes
+Complex UI dirty round 3: 476.447 completed offscreen FPS; p95 2.2458 ms; private 31473664 bytes
+Complex UI dirty round 4: 406.151 completed offscreen FPS; p95 3.8813 ms; private 31682560 bytes
+Complex UI dirty round 5: 462.023 completed offscreen FPS; p95 2.4722 ms; private 31490048 bytes
+Performance comparison: unpaired
+Performance receipt: C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\reports\Performance-x64-Debug-44618700eb654985bdad650c4cd63b7c.json
+Running Foundation (x64 Debug)
+PASS Foundation (0 capability skips recorded)
+Running Embedded (x64 Debug)
+PASS Embedded (0 capability skips recorded)
+Running Grid (x64 Debug)
+PASS Grid (0 capability skips recorded)
+Running Theme (x64 Debug)
+PASS Theme (0 capability skips recorded)
+Running Control (x64 Debug)
+PASS Control (0 capability skips recorded)
+Running MenuAccessibility (x64 Debug)
+PASS MenuAccessibility (0 capability skips recorded)
+Running Menu (x64 Debug)
+PASS Menu (9 capability skips recorded)
+Running MenuExitLifetime (x64 Debug)
+PASS MenuExitLifetime (0 capability skips recorded)
+Running NewControls (x64 Debug)
+PASS NewControls (0 capability skips recorded)
+Running TextField (x64 Debug)
+PASS TextField (0 capability skips recorded)
+Running NativeTextInput (x64 Debug)
+PASS NativeTextInput (0 capability skips recorded)
+Running MultilineText (x64 Debug)
+PASS MultilineText (0 capability skips recorded)
+Running ReadOnly (x64 Debug)
+PASS ReadOnly (0 capability skips recorded)
+Running ComboBox (x64 Debug)
+PASS ComboBox (0 capability skips recorded)
+Running Tree (x64 Debug)
+PASS Tree (0 capability skips recorded)
+Running Tooltip (x64 Debug)
+PASS Tooltip (0 capability skips recorded)
+Running Rendering (x64 Debug)
+PASS Rendering (0 capability skips recorded)
+Running Animation (x64 Debug)
+PASS Animation (0 capability skips recorded)
+Running Accessibility (x64 Debug)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 Debug)
+PASS WindowHost (0 capability skips recorded)
+All 20 requested suites passed.

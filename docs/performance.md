@@ -153,6 +153,14 @@ The `dxui-complex-ui-v2` scene is a new fixture, so its baseline/repeat pair dem
 on unchanged library code, not an implementation speedup. Never compare it to `complex-ui-v1` as if the workload
 were identical. Presentation, hardware-GPU, input latency and long-duration acceptance require additional evidence.
 
+## Multiline caret viewport
+
+The [multiline caret qualification](../Measurements/MultilineCaretViewport/2026-10-01/README.md)
+retains functional/pixel passes, unchanged deterministic resource budgets, bounded A/B measurements
+and a same-binary control. The developer accepted the recorded Debug timing differences on October 1;
+their cause remains unproven. Release has no aggregate flag. This disposition does not replace
+consumer adoption, presentation, DPI or accessibility validation.
+
 ## ARM64 evidence
 
 On the current development computer, Windows and the PowerShell process both report **X64**. Local ARM64 validation

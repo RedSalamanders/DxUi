@@ -1,0 +1,1250 @@
+[
+  {
+    "configuration": "Debug",
+    "scenario": "clean",
+    "metric": "fps",
+    "baseline": 2538.5049325,
+    "candidate": 2536.4979175,
+    "delta": -2.0070150000001377,
+    "percent": -0.079062875722824,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        2629.433883,
+        2447.575982,
+        2403.918387,
+        2682.367458
+      ],
+      "B": [
+        2485.707184,
+        2458.724168,
+        2630.627076,
+        2587.288651
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "clean",
+    "metric": "frameP50Ms",
+    "baseline": 0.3743,
+    "candidate": 0.3786,
+    "delta": 0.0042999999999999705,
+    "percent": 1.1488111140796065,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0.3637,
+        0.3849,
+        0.4064,
+        0.3579
+      ],
+      "B": [
+        0.3762,
+        0.4004,
+        0.3629,
+        0.381
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "clean",
+    "metric": "frameP95Ms",
+    "baseline": 0.4541,
+    "candidate": 0.4628,
+    "delta": 0.008699999999999986,
+    "percent": 1.9158775600088163,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0.4433,
+        0.4688,
+        0.4649,
+        0.3975
+      ],
+      "B": [
+        0.4653,
+        0.4669,
+        0.4603,
+        0.4568
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "clean",
+    "metric": "prepareP95Ms",
+    "baseline": 0.0009,
+    "candidate": 0.0009,
+    "delta": 0.0,
+    "percent": 0.0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0.0009,
+        0.0009,
+        0.001,
+        0.0009
+      ],
+      "B": [
+        0.0009,
+        0.0009,
+        0.0009,
+        0.0009
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "clean",
+    "metric": "composeCpuP95Ms",
+    "baseline": 0.01225,
+    "candidate": 0.01185,
+    "delta": -0.00040000000000000105,
+    "percent": -3.2653061224489854,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0.0119,
+        0.0126,
+        0.0138,
+        0.0111
+      ],
+      "B": [
+        0.0117,
+        0.0131,
+        0.0115,
+        0.012
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "clean",
+    "metric": "privateBytes",
+    "baseline": 29777920.0,
+    "candidate": 29888512.0,
+    "delta": 110592.0,
+    "percent": 0.37138927097661867,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        29552640,
+        30887936,
+        30003200,
+        29401088
+      ],
+      "B": [
+        29810688,
+        30871552,
+        29966336,
+        29208576
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "clean",
+    "metric": "privatePeakBytes",
+    "baseline": 29968384.0,
+    "candidate": 29988864.0,
+    "delta": 20480.0,
+    "percent": 0.06833868653044473,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        29933568,
+        31080448,
+        30003200,
+        29401088
+      ],
+      "B": [
+        30003200,
+        30904320,
+        29974528,
+        29278208
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "clean",
+    "metric": "workingSetBytes",
+    "baseline": 45985792.0,
+    "candidate": 46196736.0,
+    "delta": 210944.0,
+    "percent": 0.4587155963302836,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        45535232,
+        47112192,
+        46309376,
+        45662208
+      ],
+      "B": [
+        46166016,
+        46972928,
+        46227456,
+        45600768
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "clean",
+    "metric": "workingSetPeakBytes",
+    "baseline": 46151680.0,
+    "candidate": 46202880.0,
+    "delta": 51200.0,
+    "percent": 0.11093854004882164,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        45965312,
+        47169536,
+        46338048,
+        45662208
+      ],
+      "B": [
+        46178304,
+        46993408,
+        46227456,
+        45600768
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "clean",
+    "metric": "surfaceBytes",
+    "baseline": 3686400.0,
+    "candidate": 3686400.0,
+    "delta": 0.0,
+    "percent": 0.0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ],
+      "B": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "clean",
+    "metric": "replacementPeakBytes",
+    "baseline": 3686400.0,
+    "candidate": 3686400.0,
+    "delta": 0.0,
+    "percent": 0.0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ],
+      "B": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "clean",
+    "metric": "cppAllocations",
+    "baseline": 0.0,
+    "candidate": 0.0,
+    "delta": 0.0,
+    "percent": 0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "clean",
+    "metric": "composeAllocations",
+    "baseline": 0.0,
+    "candidate": 0.0,
+    "delta": 0.0,
+    "percent": 0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "dirty",
+    "metric": "fps",
+    "baseline": 462.66078255,
+    "candidate": 459.36501469999996,
+    "delta": -3.295767850000061,
+    "percent": -0.7123508138803358,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        475.8783227,
+        455.0066658,
+        452.1577533,
+        470.3148993
+      ],
+      "B": [
+        451.7354547,
+        444.636132,
+        466.9945747,
+        476.900149
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "dirty",
+    "metric": "frameP50Ms",
+    "baseline": 2.08735,
+    "candidate": 2.1418,
+    "delta": 0.05445000000000011,
+    "percent": 2.6085706757371874,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        2.089,
+        2.1527,
+        2.0318,
+        2.0857
+      ],
+      "B": [
+        2.1777,
+        2.2038,
+        2.1059,
+        2.0534
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "dirty",
+    "metric": "frameP95Ms",
+    "baseline": 2.3655999999999997,
+    "candidate": 2.4501,
+    "delta": 0.08450000000000024,
+    "percent": 3.5720324653365054,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        2.2618,
+        2.484,
+        2.3373,
+        2.3939
+      ],
+      "B": [
+        2.4171,
+        2.5192,
+        2.4831,
+        2.2807
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "dirty",
+    "metric": "prepareP95Ms",
+    "baseline": 1.61775,
+    "candidate": 1.65595,
+    "delta": 0.03820000000000001,
+    "percent": 2.361304280636678,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        1.6228,
+        1.7022,
+        1.599,
+        1.6127
+      ],
+      "B": [
+        1.7,
+        1.8093,
+        1.5699,
+        1.6119
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "dirty",
+    "metric": "composeCpuP95Ms",
+    "baseline": 0.0243,
+    "candidate": 0.020450000000000003,
+    "delta": -0.003849999999999996,
+    "percent": -15.843621399176943,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0.0254,
+        0.0217,
+        0.0232,
+        0.0326
+      ],
+      "B": [
+        0.021,
+        0.0237,
+        0.0199,
+        0.0174
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "dirty",
+    "metric": "privateBytes",
+    "baseline": 31739904.0,
+    "candidate": 31803392.0,
+    "delta": 63488.0,
+    "percent": 0.20002580978191187,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        32018432,
+        31531008,
+        30744576,
+        31948800
+      ],
+      "B": [
+        31539200,
+        31854592,
+        31891456,
+        31752192
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "dirty",
+    "metric": "privatePeakBytes",
+    "baseline": 31768576.0,
+    "candidate": 31864832.0,
+    "delta": 96256.0,
+    "percent": 0.30299123259411864,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        32026624,
+        31584256,
+        30756864,
+        31952896
+      ],
+      "B": [
+        31584256,
+        31948800,
+        31907840,
+        31821824
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "dirty",
+    "metric": "workingSetBytes",
+    "baseline": 47859712.0,
+    "candidate": 47855616.0,
+    "delta": -4096.0,
+    "percent": -0.00855834652745413,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        47960064,
+        47759360,
+        47042560,
+        48013312
+      ],
+      "B": [
+        47738880,
+        47702016,
+        48103424,
+        47972352
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "dirty",
+    "metric": "workingSetPeakBytes",
+    "baseline": 47890432.0,
+    "candidate": 47921152.0,
+    "delta": 30720.0,
+    "percent": 0.06414642490590872,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        47976448,
+        47804416,
+        47042560,
+        48181248
+      ],
+      "B": [
+        47808512,
+        47837184,
+        48103424,
+        48005120
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "dirty",
+    "metric": "surfaceBytes",
+    "baseline": 3686400.0,
+    "candidate": 3686400.0,
+    "delta": 0.0,
+    "percent": 0.0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ],
+      "B": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "dirty",
+    "metric": "replacementPeakBytes",
+    "baseline": 3686400.0,
+    "candidate": 3686400.0,
+    "delta": 0.0,
+    "percent": 0.0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ],
+      "B": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "dirty",
+    "metric": "cppAllocations",
+    "baseline": 10280.0,
+    "candidate": 10280.0,
+    "delta": 0.0,
+    "percent": 0.0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        10280,
+        10280,
+        10280,
+        10280
+      ],
+      "B": [
+        10280,
+        10280,
+        10280,
+        10280
+      ]
+    }
+  },
+  {
+    "configuration": "Debug",
+    "scenario": "dirty",
+    "metric": "composeAllocations",
+    "baseline": 0.0,
+    "candidate": 0.0,
+    "delta": 0.0,
+    "percent": 0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "clean",
+    "metric": "fps",
+    "baseline": 2293.3221845,
+    "candidate": 2298.9457384999996,
+    "delta": 5.6235539999997854,
+    "percent": 0.24521430255233234,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        2366.863905,
+        2405.175939,
+        2219.780464,
+        2153.988648
+      ],
+      "B": [
+        2222.777917,
+        2425.668423,
+        2375.11356,
+        2182.738901
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "clean",
+    "metric": "frameP50Ms",
+    "baseline": 0.4192,
+    "candidate": 0.4074,
+    "delta": -0.011800000000000033,
+    "percent": -2.814885496183217,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0.403,
+        0.4042,
+        0.4342,
+        0.4426
+      ],
+      "B": [
+        0.4347,
+        0.3995,
+        0.4097,
+        0.4051
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "clean",
+    "metric": "frameP95Ms",
+    "baseline": 0.54765,
+    "candidate": 0.5272,
+    "delta": -0.020449999999999968,
+    "percent": -3.734136766182772,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0.5432,
+        0.5144,
+        0.5521,
+        0.5527
+      ],
+      "B": [
+        0.5611,
+        0.5193,
+        0.4887,
+        0.5351
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "clean",
+    "metric": "prepareP95Ms",
+    "baseline": 0.0011,
+    "candidate": 0.0011,
+    "delta": 0.0,
+    "percent": 0.0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0.0011,
+        0.0011,
+        0.0011,
+        0.0012
+      ],
+      "B": [
+        0.0012,
+        0.0011,
+        0.0011,
+        0.0011
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "clean",
+    "metric": "composeCpuP95Ms",
+    "baseline": 0.01625,
+    "candidate": 0.01615,
+    "delta": -9.99999999999994e-05,
+    "percent": -0.6153846153846065,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0.0158,
+        0.0159,
+        0.0166,
+        0.0172
+      ],
+      "B": [
+        0.0173,
+        0.0151,
+        0.0158,
+        0.0165
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "clean",
+    "metric": "privateBytes",
+    "baseline": 219346944.0,
+    "candidate": 219348992.0,
+    "delta": 2048.0,
+    "percent": 0.0009336806625404037,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        219123712,
+        219856896,
+        219459584,
+        219234304
+      ],
+      "B": [
+        219484160,
+        219213824,
+        219504640,
+        219213824
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "clean",
+    "metric": "privatePeakBytes",
+    "baseline": 219346944.0,
+    "candidate": 219348992.0,
+    "delta": 2048.0,
+    "percent": 0.0009336806625404037,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        219123712,
+        219856896,
+        219459584,
+        219234304
+      ],
+      "B": [
+        219484160,
+        219213824,
+        219504640,
+        219213824
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "clean",
+    "metric": "workingSetBytes",
+    "baseline": 147230720.0,
+    "candidate": 147177472.0,
+    "delta": -53248.0,
+    "percent": -0.03616636528028794,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        147091456,
+        147369984,
+        147382272,
+        146903040
+      ],
+      "B": [
+        147259392,
+        147083264,
+        147267584,
+        147095552
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "clean",
+    "metric": "workingSetPeakBytes",
+    "baseline": 147230720.0,
+    "candidate": 147177472.0,
+    "delta": -53248.0,
+    "percent": -0.03616636528028794,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        147091456,
+        147369984,
+        147382272,
+        146903040
+      ],
+      "B": [
+        147259392,
+        147083264,
+        147267584,
+        147095552
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "clean",
+    "metric": "surfaceBytes",
+    "baseline": 3686400.0,
+    "candidate": 3686400.0,
+    "delta": 0.0,
+    "percent": 0.0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ],
+      "B": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "clean",
+    "metric": "replacementPeakBytes",
+    "baseline": 3686400.0,
+    "candidate": 3686400.0,
+    "delta": 0.0,
+    "percent": 0.0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ],
+      "B": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "clean",
+    "metric": "cppAllocations",
+    "baseline": 0.0,
+    "candidate": 0.0,
+    "delta": 0.0,
+    "percent": 0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "clean",
+    "metric": "composeAllocations",
+    "baseline": 0.0,
+    "candidate": 0.0,
+    "delta": 0.0,
+    "percent": 0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "dirty",
+    "metric": "fps",
+    "baseline": 99.07623337999999,
+    "candidate": 97.99359172,
+    "delta": -1.082641659999993,
+    "percent": -1.0927359903233236,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        98.93839106,
+        99.99530022,
+        99.2140757,
+        97.02819615
+      ],
+      "B": [
+        98.89174494,
+        100.5816132,
+        97.0954385,
+        94.28754212
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "dirty",
+    "metric": "frameP50Ms",
+    "baseline": 9.7196,
+    "candidate": 9.79725,
+    "delta": 0.07765000000000022,
+    "percent": 0.7989011893493547,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        9.6641,
+        9.6778,
+        9.7614,
+        9.9204
+      ],
+      "B": [
+        9.8562,
+        9.7094,
+        9.7383,
+        10.0181
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "dirty",
+    "metric": "frameP95Ms",
+    "baseline": 12.448,
+    "candidate": 12.2777,
+    "delta": -0.170300000000001,
+    "percent": -1.368091259640114,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        12.1955,
+        12.2059,
+        12.6901,
+        12.7229
+      ],
+      "B": [
+        12.5159,
+        12.0395,
+        11.8951,
+        12.6889
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "dirty",
+    "metric": "prepareP95Ms",
+    "baseline": 10.9116,
+    "candidate": 10.82315,
+    "delta": -0.08844999999999992,
+    "percent": -0.8106052274643449,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        10.9243,
+        10.8989,
+        11.2404,
+        10.6322
+      ],
+      "B": [
+        10.701,
+        9.6744,
+        10.9453,
+        11.8354
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "dirty",
+    "metric": "composeCpuP95Ms",
+    "baseline": 0.01925,
+    "candidate": 0.020749999999999998,
+    "delta": 0.0014999999999999979,
+    "percent": 7.792207792207773,
+    "flag": true,
+    "processMedians": {
+      "A": [
+        0.0185,
+        0.0192,
+        0.0193,
+        0.0215
+      ],
+      "B": [
+        0.0236,
+        0.0179,
+        0.0171,
+        0.0265
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "dirty",
+    "metric": "privateBytes",
+    "baseline": 534171648.0,
+    "candidate": 534179840.0,
+    "delta": 8192.0,
+    "percent": 0.0015335894427703778,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        534134784,
+        534253568,
+        534208512,
+        532942848
+      ],
+      "B": [
+        534159360,
+        534200320,
+        531148800,
+        534499328
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "dirty",
+    "metric": "privatePeakBytes",
+    "baseline": 534171648.0,
+    "candidate": 534179840.0,
+    "delta": 8192.0,
+    "percent": 0.0015335894427703778,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        534134784,
+        534253568,
+        534208512,
+        532942848
+      ],
+      "B": [
+        534159360,
+        534200320,
+        532680704,
+        534679552
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "dirty",
+    "metric": "workingSetBytes",
+    "baseline": 326326272.0,
+    "candidate": 326430720.0,
+    "delta": 104448.0,
+    "percent": 0.032007229868402653,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        326393856,
+        326258688,
+        326557696,
+        325775360
+      ],
+      "B": [
+        326410240,
+        326451200,
+        325083136,
+        326713344
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "dirty",
+    "metric": "workingSetPeakBytes",
+    "baseline": 326326272.0,
+    "candidate": 326430720.0,
+    "delta": 104448.0,
+    "percent": 0.032007229868402653,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        326393856,
+        326258688,
+        326557696,
+        325775360
+      ],
+      "B": [
+        326410240,
+        326451200,
+        325083136,
+        326713344
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "dirty",
+    "metric": "surfaceBytes",
+    "baseline": 3686400.0,
+    "candidate": 3686400.0,
+    "delta": 0.0,
+    "percent": 0.0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ],
+      "B": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "dirty",
+    "metric": "replacementPeakBytes",
+    "baseline": 3686400.0,
+    "candidate": 3686400.0,
+    "delta": 0.0,
+    "percent": 0.0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ],
+      "B": [
+        3686400,
+        3686400,
+        3686400,
+        3686400
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "dirty",
+    "metric": "cppAllocations",
+    "baseline": 10280.0,
+    "candidate": 10280.0,
+    "delta": 0.0,
+    "percent": 0.0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        10280,
+        10280,
+        10280,
+        10280
+      ],
+      "B": [
+        10280,
+        10280,
+        10280,
+        10280
+      ]
+    }
+  },
+  {
+    "configuration": "ASan Debug",
+    "scenario": "dirty",
+    "metric": "composeAllocations",
+    "baseline": 0.0,
+    "candidate": 0.0,
+    "delta": 0.0,
+    "percent": 0,
+    "flag": false,
+    "processMedians": {
+      "A": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "B": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  }
+]

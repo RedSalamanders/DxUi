@@ -2,6 +2,7 @@
 
 | Status | Plan | Next action |
 |---|---|---|
+| — | No active library plans. | Consumer/platform follow-ups remain separately owned below. |
 
 Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md` and
 `../Done/RedSalamanderMigration.md`. Further ARM64 and ASan qualification is
