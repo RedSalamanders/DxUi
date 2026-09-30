@@ -252,8 +252,16 @@ void TestGridMultilineRightToLeftFlowKeepsMarkerSideAndClipping()
     const std::wstring arabicTwin      = L"مرحبا بالعالم الجميل";
     const std::wstring arabicEmojiTwin = L"مرحبا بالعالم الجميل \xD83D\xDCF7";
     MultilineBed bed({{L"", L""}}, {220.0f, 220.0f}, 40.0f, 1u, D2D1::RectF(20.0f, 20.0f, 470.0f, 120.0f));
+    // The Grid reads no flow direction, so its right-to-left paint is its left-to-right one. Reported, not required: a grid that
+    // mirrored would still satisfy everything below, which reads the rectangles the grid reports.
+    bed.model.SetText(0u, 0u, latin);
+    bed.model.SetText(0u, 1u, arabic);
+    bed.grid->NotifyDataChanged();
+    const auto leftToRight = bed.Paint("the cells in a left-to-right flow");
     bed.grid->SetFlowDirection(FlowDirection::RightToLeft);
     Require(bed.grid->GetFlowDirection() == FlowDirection::RightToLeft, "the grid's flow is right to left");
+    std::cout << "Grid in a right-to-left flow against the same grid in a left-to-right flow: "
+              << Describe(MeasureDifference(bed.Paint("the cells in a right-to-left flow"), leftToRight)) << '\n';
     struct Placement
     {
         LONG twinRight       = 0;
@@ -387,6 +395,7 @@ void TestGridMultilineCellNarrowerThanItsWordKeepsInkInsideAndOffersTheValue()
         }
     }
 }
+
 // Clipping is not reflow. A cell that the viewport cuts (under the header or the left edge, or by the bottom or right edge)
 // keeps the layout of its whole cell: what survives is the same pixels the whole cell paints there. The vertical scroll rests on
 // whole rows, so a scrolled grid is a shifted crop of the unscrolled one, and so is the grid the scrollbar thumb is dragging, which
@@ -521,6 +530,7 @@ void TestGridMultilineCellCutByTheViewportPaintsAShiftedCropOfItsWholeSelf()
         Require(MeasureDifference(clipped, unscrolled, body).pixels > 300u, "the fractional scroll moved the text");
     }
 }
+
 // A host whose dpi changes: the grid's layouts are in device-independent units and its cells keep their DIP geometry, and what
 // it paints at the new dpi is what a fresh grid paints there, at the larger dpis and back at 96. Retained and fresh share one
 // host so the two differ in nothing but the layouts one of them kept.

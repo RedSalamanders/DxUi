@@ -160,6 +160,8 @@ struct Difference
 // Fails naming what differs, so a failed pixel comparison says where and how much, not only that it failed.
 inline void RequireIdentical(const WindowHostBitmapCapture& actual, const WindowHostBitmapCapture& expected, const RECT& region, const std::string& what)
 {
+    // A pixel outside a capture reads as 0, so captures of two sizes would compare equal where both are blank.
+    Require(actual.widthPx == expected.widthPx && actual.heightPx == expected.heightPx, (what + ": the captures are the same size").c_str());
     const Difference difference = MeasureDifference(actual, expected, region);
     if (difference.pixels != 0u)
         std::cerr << "    [DIFFERENCE] " << what << ": " << Describe(difference) << '\n';
