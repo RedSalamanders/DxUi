@@ -1185,7 +1185,11 @@ void Panel::ClearChildren() noexcept
 {
     for (auto& child : _children)
     {
-        child->PropagateHost(nullptr);
+        // GetChildren hands out the owning pointers: a child moved out of one leaves a null slot, as everywhere here.
+        if (child)
+        {
+            child->PropagateHost(nullptr);
+        }
     }
     _children.clear();
 }
@@ -1355,8 +1359,7 @@ void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnim
     if (page)
     {
         page->SetBounds(GetBounds());
-        page->SetParent(nullptr);
-        page->PropagateHost(GetHost());
+        page->Reparent(nullptr, GetHost());
     }
 
     ControlHost* const host = GetHost();

@@ -1559,7 +1559,6 @@ void ColorPicker::Arrange() noexcept
     const D2D1_RECT_F bounds = GetBounds();
     const D2D1_RECT_F strip  = GetHueStripRect();
     const bool rtl           = IsRightToLeft();
-    _arrangedRightToLeft     = rtl;
     const float columnLeft   = rtl ? bounds.left + kGapDip : strip.right + kGapDip;
     const float columnRight  = rtl ? strip.left - kGapDip : bounds.right - kGapDip;
     const float columnWidth  = (std::max)(0.0f, columnRight - columnLeft);
@@ -1912,13 +1911,6 @@ void ColorPicker::PropagateHost(ControlHost* host) noexcept
         _saturationBrush.reset();
         _valueBrush.reset();
         _hueBrush.reset();
-    }
-    // A parent change announces no flow direction, so a picker moved out of a right-to-left parent would keep the
-    // arrangement of its old place (children mirrored under a field and strip that no longer are). This also runs
-    // while a host or parent is torn down, where the direction is the one it arranged for and nothing is redone.
-    if (IsRightToLeft() != _arrangedRightToLeft)
-    {
-        OnFlowDirectionChanged();
     }
 }
 

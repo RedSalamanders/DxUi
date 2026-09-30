@@ -1367,8 +1367,7 @@ void ControlHost::SetRoot(std::unique_ptr<Control> root)
     _cancelButton  = nullptr;
     if (_root)
     {
-        _root->SetParent(nullptr);
-        _root->PropagateHost(this);
+        _root->Reparent(nullptr, this);
         _root->SetBounds(D2D1::RectF(0.0f, 0.0f, PixelsToDip(static_cast<float>(_widthPx)), PixelsToDip(static_cast<float>(_heightPx))));
     }
     RefreshWindowHostAccessibilitySnapshot(_hwnd, this);

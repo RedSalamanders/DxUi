@@ -7,7 +7,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 
 | Control | Configure and use |
 | --- | --- |
-| Panel | Own children with `AddChild<T>`; set explicit child bounds. Use as the root for fixed layouts. |
+| Panel | Own children with `AddChild<T>`; set explicit child bounds. Use as the root for fixed layouts. `GetChildren()` exposes the owning pointers: move a child out to give it to `SetRoot` or `PageHost::SetPage` (its slot stays empty and is skipped) and it is told the flow direction and density its new place gives it. |
 | PageHost | Transfer a root with `SetPage(unique_ptr<Control>, connectedAnimationKey)`; the host retains transition state. Advance animation through the containing host. |
 | CardPanel | A Panel with themed card chrome; position child bounds in host DIPs, including the card's origin. |
 | Label | Construct with text or call `SetText`; choose a font role for headings/body text. |
