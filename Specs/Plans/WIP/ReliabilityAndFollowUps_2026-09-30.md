@@ -49,11 +49,18 @@ reviewed before it merges here, until this plan can move to Done.
 - [ ] 8. A reparented ColorPicker is current. The review recorded a stale arrangement after reparenting; its cached
   brushes may belong to the old host's device too. Accept: after moving between hosts or metrics, the picker matches one
   created in the new place.
-- [ ] 9. Grid layouts of a grid that stops painting are released. A painting grid already releases every layout its
+- [x] 9. Grid layouts of a grid that stops painting are released. A painting grid already releases every layout its
   paint did not use, so what it keeps is its visible cells' layouts, which the frame-rate-first decision needs, plus
   reusable string storage. A hidden, detached or re-modelled grid keeps its last paint's layouts until a next paint that
   may never come. Accept: an attribution of what a painting grid holds, and release on hide, detach and model change,
-  with the painting path, its allocation budget and its tests unchanged.
+  with the painting path, its allocation budget and its tests unchanged. Done on `improve/grid-layout-release`: a
+  painting grid holds one value layout per cell its last paint drew, however far it has scrolled (28 in 32 entries for
+  the 6x4 multiline test grid, 66 in 128 for 10x6, 44 in 64 for ten single-line rows; the tail table keeps 32 entries
+  and no layout once a paint hits), 3,080 to 5,940 UTF-16 units (6 to 12 KB) of key strings and 5.1 to 13.6 KB of
+  tables, small beside the layouts themselves (a Release heap walk finds about 20 KB each: 570 KB for the 6x4 grid,
+  1.3 MB for 10x6, 934 KB for the single-line grid), and a grid hidden (itself, under a hidden panel, page host or
+  unselected tab, or in a hidden embedded view), detached or given another model now returns all of it and its ellipsis
+  sign, while a repaint and a one-row scroll lay out exactly what they did.
 
 ### Tooling
 

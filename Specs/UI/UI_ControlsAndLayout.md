@@ -113,6 +113,7 @@ physical application DPI presentation and real assistive-technology journeys req
   removed from its host or given another model, it releases its layouts, their key strings and its tables at once, and
   showing it shapes only what it then shows, as its first paint did. `Control::OnHidden` carries the notice and panels
   and page hosts forward it; the painting path, its allocations and its layouts' lifetime while painting are unchanged.
+  A hidden or minimized native window keeps its controls' layouts, as it keeps its swap chain for a quick show.
 - In right-to-left flow a control's text format reads right to left, so captions and titles use leading alignment
   (their start side, beside a mirrored indicator or at a tab's right edge), never trailing.
 

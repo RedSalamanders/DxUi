@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- A `Grid` that stops painting returns its retained text layouts (plan `ReliabilityAndFollowUps_2026-09-30`, item 9):
+  hidden itself or under a hidden ancestor (an unselected tab page, a collapsed panel or page host), in a hidden
+  embedded view, detached from its host or given another model, it releases its layouts, their key strings, its tables
+  and its ellipsis sign at once, and showing it lays out only the cells it then shows, once. Until now such a grid kept
+  its last paint's layouts until a next paint that might never come. A painting grid holds one layout per cell it drew
+  last, however far it has scrolled (28 in 32 entries for a 6x4 multiline test grid, 66 in 128 for 10x6, 44 in 64 for
+  ten single-line rows) with 6 to 12 KB of key strings and 5 to 14 KB of tables; the layouts are the bulk, about 20 KB
+  of process heap each (570 KB for the 6x4 grid, 934 KB for the single-line grid, measured in Release as what a hide
+  returns). Painting, the layouts' lifetime while painting and its allocations are unchanged. The hook is a protected
+  `Control::OnHidden`, which panels and page hosts forward; a hidden or minimized native window keeps its layouts.
 - Repository tooling is PowerShell only (plan `PowerShellTooling_2026-09-30`): the spec, skill, dependency,
   inherited-test and build-matrix validators, the performance comparator and their tests are PowerShell modules and
   scripts, so `test.ps1`, the validators and CI need no Python, pip or PyYAML. The comparator reproduces every stored
