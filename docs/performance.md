@@ -10,7 +10,10 @@ reduces layout churn but increases private memory; its prototype was restored, a
 comparison attempts remain explicitly excluded from qualification. The
 [review follow-ups](../Specs/Plans/Done/ReviewFollowUps_2026-09-29.md) later adopted set-associative Grid layout
 tables under a frame-rate-first priority, which the performance contract records with their
-[paired runs](../Measurements/ReviewFollowUps/2026-09-29/paired-local/README.md).
+[paired runs](../Measurements/ReviewFollowUps/2026-09-29/paired-local/README.md). The
+[reliability follow-ups](../Specs/Plans/Done/ReliabilityAndFollowUps_2026-09-30.md) release a grid's layouts when it
+stops painting; their [six-run paired set](../Measurements/ReliabilityAndFollowUps/2026-09-30/paired-local/README.md)
+is the first judged by the rank-test verdict.
 
 ## Run and compare
 

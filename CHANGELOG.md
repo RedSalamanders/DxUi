@@ -58,6 +58,9 @@
   of process heap each (570 KB for the 6x4 grid, 934 KB for the single-line grid, measured in Release as what a hide
   returns). Painting, the layouts' lifetime while painting and its allocations are unchanged. The hook is a protected
   `Control::OnHidden`, which panels and page hosts forward; a hidden or minimized native window keeps its layouts.
+  With this attribution the developer accepted the retention the review follow-ups introduced for their frame rate
+  (`Default` dirty rate +11.3%, p = 0.029, over both 2026-09-29 sets): the performance contract's accepted Grid layout
+  retention bounds it to one layout per cell of the last paint, and none while the grid is not painting.
 - Publishing `docs/gallery` after a merge is no longer a manual copy (plan `ReliabilityAndFollowUps_2026-09-30`, item
   11): the manual `Publish docs gallery` workflow (`.github/workflows/gallery.yml`) regenerates the gallery from a native
   x64 Release build with `gallery.ps1 -PublishDocs`, validates the specifications and commits it to the branch it runs

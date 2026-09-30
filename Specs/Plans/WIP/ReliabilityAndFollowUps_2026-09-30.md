@@ -60,15 +60,20 @@ reviewed before it merges here, until this plan can move to Done.
   budgets stay exact; the performance contract states the rule.
   Outcome: `-Repetitions` (default 3) repeats the interleaved pass and `Compare-PerformanceSet` gives each metric a
   verdict from an exact Mann-Whitney U test with the investigation band, exact budgets staying exact and same-binary
-  spread only reported; the contract's paired-sets rule states it, six against six reaches p = 0.0022, and a real
-  quiet-machine set remains for the close-out.
+  spread only reported; the contract's paired-sets rule states it and six against six reaches p = 0.0022. The
+  close-out's set of `main` against the integrated tree, six runs per side in each of the three scenes
+  ([receipts](../../../Measurements/ReliabilityAndFollowUps/2026-09-30/paired-local/README.md)), is within the noise
+  budget in all three. No metric regressed or improved, while every one of the 18 same-binary controls drifted beyond
+  a band, so no single pass could have told a change from this laptop's noise.
 - [x] 5. Paired runs compare two trees. `performance-paired.ps1` refuses two uncommitted states on one commit, so the
   review follow-up sets were run by hand. Accept: `-BaselinePath` and `-CandidatePath` measure existing trees with the
   same harness overlay; identical sources are refused instead of identical commits.
   Outcome: `-BaselinePath` and `-CandidatePath` measure named working trees as they are, overlaying the harness and
   restoring their files afterwards, and a pair with a named tree is refused on an identical library source fingerprint
   instead of an identical commit; the selection, refusal, overlay and fingerprint logic sits in the tested
-  `Tools/PairedRun.psm1`, and a real paired run on hardware remains for the close-out.
+  `Tools/PairedRun.psm1`. On hardware, `main`'s worktree named as a path was measured as it was and left exactly as
+  found; this checkout named on both sides was refused at once; and a fresh worktree of the same commit was refused
+  on its identical library fingerprint before anything was built, then found clean.
 
 ### Library follow-ups
 
@@ -105,7 +110,13 @@ reviewed before it merges here, until this plan can move to Done.
   tables, small beside the layouts themselves (a Release heap walk finds about 20 KB each: 570 KB for the 6x4 grid,
   1.3 MB for 10x6, 934 KB for the single-line grid), and a grid hidden (itself, under a hidden panel, page host or
   unselected tab, or in a hidden embedded view), detached or given another model now returns all of it and its ellipsis
-  sign, while a repaint and a one-row scroll lay out exactly what they did.
+  sign, while a repaint and a one-row scroll lay out exactly what they did. The close-out's paired set shows the
+  painting path unchanged: identical allocations, and no timing or memory shift established. Where every cell holds
+  its own layout (`MultilineGridDistinct`), hidden private bytes are 0.52 MB lower (p = 0.026), and four of six runs
+  returned 0.87 to 1.22 MB at the hide. In the other two scenes the heap keeps the freed blocks committed, so process
+  memory does not show the release; the Grid suite's layout counters establish it. With this attribution the
+  developer accepted the retention on 2026-09-30: the performance contract's accepted Grid layout retention records
+  the envelope, one layout per cell of the last paint and none while the grid is not painting.
 
 ### Tooling
 

@@ -119,6 +119,8 @@ bytes 4.0–5.9 MB lower, dirty peaks about 9.7 MB lower and clean private bytes
 allocations. That removes most of the cost accepted above; the envelope stays until a developer tightens it after a
 quiet-fixture repeat.
 
+### Accepted Grid layout retention
+
 On 2026-09-29 the developer set the priority for Grid text layouts: the best frame rate first, then the least memory
 for it. That replaces the memory-first rejection of the associative-cache experiment for the Grid. The
 [review follow-ups](../Plans/Done/ReviewFollowUps_2026-09-29.md) keep cell layouts in 32-way set-associative tables
@@ -127,9 +129,27 @@ layouts as well. Two local paired sets against the review fixes
 ([receipts](../../Measurements/ReviewFollowUps/2026-09-29/paired-local/README.md)) record equal or fewer dirty-round
 allocations and no clean-round allocation in all three scenes, and a higher `Default` dirty rate in all four crossings
 (+5.1% to +14.5%). B's median private bytes averaged -0.08 to +0.52 MB from A's per scene and phase. Every
-same-binary control in both sets drifted beyond its band, so these sets establish neither the gain nor the cost, and
-no memory envelope is accepted. If a quiet-fixture repeat confirms the increase, the developer chooses between
-accepting it, reducing scope (such as not retaining single-line captions) and deferral.
+same-binary control in both sets drifted beyond its band, so neither set alone establishes the gain or the cost.
+Pooled (four runs per side) and judged by the paired-set rule, the `Default` dirty rate is 11.3% higher (p = 0.029),
+and no memory change is established in any scene (the largest, `Default` dirty private bytes +2.4%, has p = 0.11).
+
+What a painting grid keeps is one layout per cell its last paint drew, about 20 KB each, and the
+[reliability follow-ups](../Plans/Done/ReliabilityAndFollowUps_2026-09-30.md) return all of it when the grid stops
+painting: hidden (itself, under a hidden ancestor or in a hidden embedded view), detached or given another model. Their
+local paired set against `main`, six runs per side in each scene
+([receipts](../../Measurements/ReliabilityAndFollowUps/2026-09-30/paired-local/README.md)), keeps the painting path's
+allocations identical and establishes no timing or memory change while painting. Where every cell holds its own
+layout, hidden private bytes are 0.52 MB lower (p = 0.026); elsewhere the heap keeps the freed blocks committed, and
+the Grid suite's layout counters establish the release.
+
+On 2026-09-30 the developer accepted this retention for its frame rate. The accepted envelope is what the Grid
+suite's counters and the Release heap walk of the reliability follow-ups record: while it paints, a Grid keeps at most
+one text layout per cell its last paint drew, about 20 KB each (about 0.57 MB for a 6x4 multiline grid, 0.93 MB for
+ten single-line rows, 1.3 MB for 10x6), with their key strings (6 to 12 KB) and tables (5 to 14 KB), which on the
+complex-UI fixtures is the about 0.5 MB of private bytes the 2026-09-29 sets recorded; hidden, detached or given
+another model, it keeps none. Layouts beyond the cells of the last paint, any layout kept by a grid that is not
+painting, and any rise in the painting path's allocations remain regressions that need developer advice. The
+accepted retention is bounded by the cells on screen, not by the model's size.
 
 ### I19 accepted resource trade-off
 

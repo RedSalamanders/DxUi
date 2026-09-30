@@ -1,0 +1,243 @@
+{
+  "compiler": 195136257,
+  "fixture": "dxui-complex-ui-multiline-grid-v1",
+  "renderer": "WARP",
+  "width": 1280,
+  "height": 720,
+  "dpi": 96,
+  "controls": 83,
+  "modelRows": 1000,
+  "framesPerRound": 40,
+  "roundCount": 5,
+  "dirtyAllocationCeilingPerFrame": 64,
+  "scenarios": [
+    {
+      "name": "clean",
+      "rounds": [
+        {
+          "fps": 1078.899954,
+          "frameP50Ms": 0.8911,
+          "frameP95Ms": 1.1224,
+          "prepareP95Ms": 0.0013,
+          "composeCpuP95Ms": 0.0229,
+          "cppAllocations": 0,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 32514048,
+          "privatePeakBytes": 34615296,
+          "privateGrowthBytes": -2101248,
+          "workingSetBytes": 47149056,
+          "workingSetPeakBytes": 47792128
+        },
+        {
+          "fps": 1030.094202,
+          "frameP50Ms": 0.9095,
+          "frameP95Ms": 1.1969,
+          "prepareP95Ms": 0.0006,
+          "composeCpuP95Ms": 0.0182,
+          "cppAllocations": 0,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 31125504,
+          "privatePeakBytes": 32514048,
+          "privateGrowthBytes": -1388544,
+          "workingSetBytes": 47112192,
+          "workingSetPeakBytes": 47185920
+        },
+        {
+          "fps": 1024.527181,
+          "frameP50Ms": 0.953,
+          "frameP95Ms": 1.1069,
+          "prepareP95Ms": 0.0006,
+          "composeCpuP95Ms": 0.0197,
+          "cppAllocations": 0,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 31125504,
+          "privatePeakBytes": 31125504,
+          "privateGrowthBytes": 0,
+          "workingSetBytes": 47108096,
+          "workingSetPeakBytes": 47112192
+        },
+        {
+          "fps": 874.3131178,
+          "frameP50Ms": 1.0966,
+          "frameP95Ms": 1.4324,
+          "prepareP95Ms": 0.0009,
+          "composeCpuP95Ms": 0.0251,
+          "cppAllocations": 0,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 31059968,
+          "privatePeakBytes": 31125504,
+          "privateGrowthBytes": -65536,
+          "workingSetBytes": 47067136,
+          "workingSetPeakBytes": 47108096
+        },
+        {
+          "fps": 957.9369869,
+          "frameP50Ms": 0.9906,
+          "frameP95Ms": 1.2633,
+          "prepareP95Ms": 0.0009,
+          "composeCpuP95Ms": 0.0221,
+          "cppAllocations": 0,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 30990336,
+          "privatePeakBytes": 31059968,
+          "privateGrowthBytes": -69632,
+          "workingSetBytes": 47013888,
+          "workingSetPeakBytes": 47067136
+        }
+      ]
+    },
+    {
+      "name": "dirty",
+      "rounds": [
+        {
+          "fps": 77.00903085,
+          "frameP50Ms": 12.8095,
+          "frameP95Ms": 14.0616,
+          "prepareP95Ms": 13.1362,
+          "composeCpuP95Ms": 0.0186,
+          "cppAllocations": 1080,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 32714752,
+          "privatePeakBytes": 32714752,
+          "privateGrowthBytes": 1724416,
+          "workingSetBytes": 47906816,
+          "workingSetPeakBytes": 47906816
+        },
+        {
+          "fps": 77.3910397,
+          "frameP50Ms": 13.0156,
+          "frameP95Ms": 13.4563,
+          "prepareP95Ms": 12.5199,
+          "composeCpuP95Ms": 0.0216,
+          "cppAllocations": 1080,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 32489472,
+          "privatePeakBytes": 32731136,
+          "privateGrowthBytes": -225280,
+          "workingSetBytes": 47845376,
+          "workingSetPeakBytes": 48283648
+        },
+        {
+          "fps": 76.7472961,
+          "frameP50Ms": 12.9485,
+          "frameP95Ms": 13.9743,
+          "prepareP95Ms": 12.966,
+          "composeCpuP95Ms": 0.023,
+          "cppAllocations": 1080,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 32702464,
+          "privatePeakBytes": 32722944,
+          "privateGrowthBytes": 212992,
+          "workingSetBytes": 48377856,
+          "workingSetPeakBytes": 48377856
+        },
+        {
+          "fps": 78.32325574,
+          "frameP50Ms": 12.6254,
+          "frameP95Ms": 14.2277,
+          "prepareP95Ms": 13.1313,
+          "composeCpuP95Ms": 0.0197,
+          "cppAllocations": 1080,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 31846400,
+          "privatePeakBytes": 32702464,
+          "privateGrowthBytes": -856064,
+          "workingSetBytes": 47874048,
+          "workingSetPeakBytes": 48517120
+        },
+        {
+          "fps": 74.78873584,
+          "frameP50Ms": 13.2818,
+          "frameP95Ms": 14.3068,
+          "prepareP95Ms": 13.3107,
+          "composeCpuP95Ms": 0.0181,
+          "cppAllocations": 1080,
+          "composeAllocations": 0,
+          "surfaceBytes": 3686400,
+          "replacementPeakBytes": 3686400,
+          "privateBytes": 31477760,
+          "privatePeakBytes": 32710656,
+          "privateGrowthBytes": -368640,
+          "workingSetBytes": 47116288,
+          "workingSetPeakBytes": 48054272
+        }
+      ]
+    }
+  ],
+  "hiddenPreparations": 0,
+  "hiddenComposites": 0,
+  "memoryPhases": [
+    {
+      "name": "entry",
+      "privateBytes": 2170880,
+      "workingSetBytes": 11079680
+    },
+    {
+      "name": "device",
+      "privateBytes": 6770688,
+      "workingSetBytes": 15880192
+    },
+    {
+      "name": "scene",
+      "privateBytes": 8781824,
+      "workingSetBytes": 19816448
+    },
+    {
+      "name": "warm",
+      "privateBytes": 30371840,
+      "workingSetBytes": 41963520
+    },
+    {
+      "name": "capture",
+      "privateBytes": 34615296,
+      "workingSetBytes": 47730688
+    },
+    {
+      "name": "hidden",
+      "privateBytes": 31481856,
+      "workingSetBytes": 47124480
+    }
+  ],
+  "platform": "x64",
+  "configuration": "Release",
+  "nativeArchitecture": "X64",
+  "machine": "LT-PF5VDAGE",
+  "cpu": "AMD Ryzen AI 7 PRO 350 w/ Radeon 860M",
+  "os": "Microsoft Windows 10.0.26200",
+  "warpVersion": "10.0.26100.9278 (WinBuild.160101.0800)",
+  "powerPolicy": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)",
+  "buildSkipped": true,
+  "completedUtc": "2026-09-30T16:35:32.1568918Z",
+  "sourceCommit": "4df0fe0fb3bba6f7c9ac9382f73adf86e916ec4e",
+  "sourceDirty": true,
+  "sourceFingerprint": "BC93C3153975C5B70F9091BEC72D2BEBC88D12987807495E76677F8806958316",
+  "executableSha256": "C171344251E25D22054B445B55586BEBDB24CD5D7E4795BC2C2A95BFCFD10E8D",
+  "workloadOwner": "DxUi",
+  "benchmarkInputs": {
+    "Tests/Embedded/BenchmarkMain.h": "EC05A1004C8968625D2B6A4D8312D9FC6DA4877AA308D94E57F6BC52B3D482B2",
+    "Tests/Embedded/ComplexUiBenchmark.h": "0B03DDA5F3F47E60B88E72A0B68AE3B2A25CC0DBE2554A651BC5FCFD191DAFDC",
+    "Tests/Support/HeapDiagnostic.h": "C9C5E000FD2A5AB888EF730959D8E88FB166177A8667F077D1AE3E1D8D6AFA64",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "benchmarkSha256": "F9D66318E82EB344391494C5302785443D254A8AE18AB65C5FBC9FE80E60A5AE",
+  "measurement": "Completed offscreen WARP frames, including clear and blocking one-pixel readback; no swap-chain presentation or vsync."
+}

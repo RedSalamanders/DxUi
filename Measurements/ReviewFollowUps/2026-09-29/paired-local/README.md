@@ -93,5 +93,5 @@ allocate nothing.
   +1.42 MB, while an unchanged binary drifts by up to 0.91 MB (-3.4%, `Default` set 2, A2 against A1). About half a
   megabyte is what the design retains: the tables keep the layouts of the cells in view and of the previous paint (so
   scrolling never evicts a row still in view), and single-line captions now keep theirs. The
-  [performance contract](../../../../Specs/Core/Core_PerformanceAndResources.md#i26-accepted-multiline-grid-memory-tradeoff)
-  records the developer's priority and what remains to decide.
+  [performance contract](../../../../Specs/Core/Core_PerformanceAndResources.md#accepted-grid-layout-retention)
+  records the developer's priority and, since 2026-09-30, the accepted retention.
