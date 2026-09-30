@@ -776,21 +776,97 @@ HWND WaitForOwnedContextMenuPopupWindow(HWND ownerHwnd, std::chrono::millisecond
 
 bool WaitForWindowDestroyed(HWND hwnd, std::chrono::milliseconds timeout);
 
+// Closes the popup the owner has open, if it has one; returns whether there was one.
+bool DismissOwnedContextMenuPopupOnce(HWND ownerHwnd) noexcept
+{
+    const HWND popupHwnd = FindOwnedContextMenuPopupWindow(ownerHwnd);
+    if (! popupHwnd)
+    {
+        return false;
+    }
+
+    DWORD_PTR unused = 0;
+    static_cast<void>(SendMessageTimeoutW(popupHwnd, WM_KEYDOWN, VK_ESCAPE, 0, SMTO_ABORTIFHUNG, 1000u, &unused));
+    static_cast<void>(WaitForWindowDestroyed(popupHwnd, std::chrono::milliseconds(120)));
+    return true;
+}
+
 void DismissOwnedContextMenuPopupChain(HWND ownerHwnd) noexcept
 {
     for (int attempt = 0; attempt < 16; ++attempt)
     {
-        if (HWND popupHwnd = FindOwnedContextMenuPopupWindow(ownerHwnd))
+        if (! DismissOwnedContextMenuPopupOnce(ownerHwnd))
         {
-            DWORD_PTR unused = 0;
-            static_cast<void>(SendMessageTimeoutW(popupHwnd, WM_KEYDOWN, VK_ESCAPE, 0, SMTO_ABORTIFHUNG, 1000u, &unused));
-            static_cast<void>(WaitForWindowDestroyed(popupHwnd, std::chrono::milliseconds(120)));
+            std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        }
+    }
+}
+
+// Closes every popup the owner opens within `allowance`, and stops early once the popups it closed are gone for good. Returns
+// whether it closed any.
+bool DismissOwnedContextMenusForAtMost(HWND ownerHwnd, std::chrono::milliseconds allowance) noexcept
+{
+    const auto deadline = std::chrono::steady_clock::now() + allowance;
+    bool dismissedAny   = false;
+    int quietPolls      = 0;
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+        if (DismissOwnedContextMenuPopupOnce(ownerHwnd))
+        {
+            dismissedAny = true;
+            quietPolls   = 0;
             continue;
         }
 
+        if (dismissedAny && ++quietPolls >= 5)
+        {
+            break;
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
     }
+
+    return dismissedAny;
 }
+
+// ContextMenu::Show runs its modal loop on the owner thread and returns only when the menu closes, and the driver thread is what
+// closes it. A driver that fails before it has a popup to dismiss (the popup can come up later than the driver's wait on a slow
+// runner) would leave the owner thread in that loop for good: the test would hang where it should report the failure the driver
+// recorded. Declare it first in a driver, before its first wait: when the driver leaves with a failure it keeps closing what
+// comes up, for a few seconds. It does nothing when the driver succeeded, which has closed the menu itself. A test that wants to
+// know whether it closed a menu passes `dismissedAny`, which is written when the driver leaves.
+class DismissMenusIfDriverFails final
+{
+public:
+    DismissMenusIfDriverFails(HWND ownerHwnd, const std::string& driverFailure, bool* dismissedAny = nullptr) noexcept
+        : _ownerHwnd(ownerHwnd),
+          _driverFailure(driverFailure),
+          _dismissedAny(dismissedAny)
+    {
+    }
+    DismissMenusIfDriverFails(const DismissMenusIfDriverFails&)            = delete;
+    DismissMenusIfDriverFails& operator=(const DismissMenusIfDriverFails&) = delete;
+    DismissMenusIfDriverFails(DismissMenusIfDriverFails&&)                 = delete;
+    DismissMenusIfDriverFails& operator=(DismissMenusIfDriverFails&&)      = delete;
+
+    ~DismissMenusIfDriverFails()
+    {
+        if (_driverFailure.empty())
+        {
+            return;
+        }
+
+        const bool dismissed = DismissOwnedContextMenusForAtMost(_ownerHwnd, std::chrono::seconds(8));
+        if (_dismissedAny)
+        {
+            *_dismissedAny = dismissed;
+        }
+    }
+
+private:
+    HWND _ownerHwnd;
+    const std::string& _driverFailure;
+    bool* _dismissedAny;
+};
 
 [[nodiscard]] bool SendMenuKeyForMenuSuite(HWND popupHwnd, WPARAM virtualKey) noexcept
 {
@@ -905,6 +981,7 @@ void TestContextMenuDebugStateProbeBoundsWedgedWindowThread()
     });
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
         const HWND popupHwnd    = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"State probe");
         if (! popupHwnd)
@@ -941,6 +1018,39 @@ void TestContextMenuDebugStateProbeBoundsWedgedWindowThread()
     Require(wedgedElapsed >= std::chrono::milliseconds(900) && wedgedElapsed < std::chrono::milliseconds(1800),
             "wedged menu debug-state probe returns within the bounded test timeout");
     Require(! result.has_value(), "dismissed menu debug-state timeout popup returns no command");
+}
+
+// A driver whose wait for its popup timed out returns without one to dismiss, and a popup that merely came up late then stays
+// open under the owner thread's modal loop for good. This driver gives up at once, before its popup exists, as that driver did:
+// the guard every driver starts with closes the menu when it comes up, so the failure is reported and the owner thread returns.
+// Without the guard this test never returns, and the watchdog ends the run naming it.
+void TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow ownerWindow;
+    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+    ownerWindow.PumpMessages();
+
+    const std::vector<MenuFlyoutItem> items{{.text = L"Late popup", .enabled = true, .commandId = 91601}};
+    std::string driverFailure;
+    bool closedByGuard = false;
+    std::thread driver([&]
+    {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure, &closedByGuard);
+        driverFailure = "the driver gave up before its popup came up";
+    });
+
+    const auto started              = std::chrono::steady_clock::now();
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, ownerWindow.Host().GetTheme());
+    const auto elapsed              = std::chrono::steady_clock::now() - started;
+    driver.join();
+
+    Require(! driverFailure.empty(), "the failing driver recorded its failure for the test to report");
+    Require(closedByGuard, "the guard of the failed driver closed the menu that came up after the driver gave up");
+    Require(! result.has_value(), "the menu a failed driver left open is closed without invoking a command");
+    Require(elapsed < std::chrono::seconds(8), "the menu a failed driver left open is closed within the guard's allowance");
 }
 
 void TestEmbeddedViewerContextMenuNativeConversionFiltersStandaloneCommands()
@@ -1035,6 +1145,7 @@ void RunMenuDismissalKeyScenario(UINT message, WPARAM virtualKey, const char* ap
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -1081,6 +1192,7 @@ void TestSplitButtonContextMenuSentMouseMessagesHoverAndOutsideDismiss()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
 
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Find Now");
@@ -1203,6 +1315,7 @@ void TestSplitButtonContextMenuSentMouseMessagesHoverAndInvokeImmediately()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
 
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Find Now");
@@ -1389,6 +1502,7 @@ void TestSplitButtonContextMenuOwnerMessageFloodDoesNotStarvePointerInput()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
 
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Find Now");
@@ -1564,6 +1678,7 @@ DxUi::WindowHostBitmapCapture CaptureMenuPopupBitmapForTheme(const DxUi::ThemePa
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -1647,6 +1762,7 @@ void TestMenuKeyboardNavigationSkipsInfoRows()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -1738,6 +1854,7 @@ void TestMenuKeyboardRightArrowMatchesWindowsMenuLoop()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND aPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"A1");
         if (! aPopupHwnd)
         {
@@ -1902,6 +2019,7 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND aPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"A1");
         if (! aPopupHwnd)
         {
@@ -2093,6 +2211,7 @@ void TestMenuPointerOverSiblingRootSwitchesOpenMenu()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND viewPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"View one");
         if (! viewPopupHwnd)
         {
@@ -2207,6 +2326,7 @@ void TestMenuPopupMouseMoveUsesDeliveredPointForRootSwitch()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND viewPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"View one");
         if (! viewPopupHwnd)
         {
@@ -2307,6 +2427,7 @@ void TestMenuOwnerMouseMoveRoutesRootSwitchImmediately()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND viewPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"View one");
         if (! viewPopupHwnd)
         {
@@ -2400,6 +2521,7 @@ void TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND viewPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"View one");
         if (! viewPopupHwnd)
         {
@@ -2518,6 +2640,7 @@ void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND viewPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"View one");
         if (! viewPopupHwnd)
         {
@@ -2664,6 +2787,7 @@ void TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND viewPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"View one");
         if (! viewPopupHwnd)
         {
@@ -2805,6 +2929,7 @@ void TestMenuRootSwitchDoesNotPollCursorWhileIdle()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND viewPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"View one");
         if (! viewPopupHwnd)
         {
@@ -2859,6 +2984,7 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND rootPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
         if (! rootPopupHwnd)
         {
@@ -2955,6 +3081,7 @@ void TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND rootPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
         if (! rootPopupHwnd)
         {
@@ -3052,6 +3179,7 @@ void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND rootPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
         if (! rootPopupHwnd)
         {
@@ -3235,6 +3363,7 @@ void TestMenuKeyboardLeftArrowMatchesWindowsMenuLoop()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND bPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"B1");
         if (! bPopupHwnd)
         {
@@ -3347,6 +3476,7 @@ void TestNativeMenuBarRestoresFocusAfterMenuDismiss()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -3438,6 +3568,7 @@ void TestNativeMenuBarNestedPopupCanDestroyHostSafely()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
         const HWND popupHwnd    = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Open");
         if (! popupHwnd)
@@ -3495,6 +3626,7 @@ void TestMenuInfoRowsDoNotDismissOnClick()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -3669,6 +3801,7 @@ void TestMenuInfoRowsUseMeasuredValueColumnWidth()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -3740,6 +3873,7 @@ void TestMenuStandardRowsDeriveAndAlignShortcutColumnFromTabbedText()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -3811,6 +3945,7 @@ void TestMenuShortcutRowsReserveChevronLaneWhenAnySubmenuExists()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -3881,6 +4016,7 @@ void TestMenuBitmapIconsReachPopupLayout()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -3986,6 +4122,7 @@ void TestMenuRainbowHoverUsesSeededHighlightContrast()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -4075,6 +4212,7 @@ void TestMenuHoverContrastAppliesToGlyphsAcrossThemes()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -4158,6 +4296,7 @@ void TestMenuRainbowCheckedItemUsesAccentIndicator()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -4243,6 +4382,7 @@ void TestMenuCheckedRowsDoNotPaintSecondFullRowSelection()
         ContextMenuPopupDebugState popupState{};
         std::thread driver([&]
         {
+            const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), failure);
             const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
             if (! popupHwnd)
             {
@@ -4346,6 +4486,7 @@ void TestMenuCheckedRowsDoNotPaintLeadingCheckedBox()
         ContextMenuPopupDebugState popupState{};
         std::thread driver([&]
         {
+            const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), failure);
             const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
             if (! popupHwnd)
             {
@@ -4438,6 +4579,7 @@ void TestMenuPopupCompositionHostUsesTransparentShadowMargins()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -4579,6 +4721,7 @@ void TestMenuPopupWindowClassDoesNotUseNativeDropShadow()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -4636,6 +4779,7 @@ void TestMenuPopupAcrylicLightVisualBaseline()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -4717,6 +4861,7 @@ void TestMenuPopupKeepsSystemBackdropDisabledForAppRenderedMaterials()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -4816,6 +4961,7 @@ void TestMenuMnemonicHonorsExplicitAmpersandLabels()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
 
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Save & Close");
@@ -4903,6 +5049,7 @@ void TestMenuOpeningPointerUpCanBeIgnoredOutsideVisibleSurface()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
 
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Ignore Release");
@@ -4958,6 +5105,7 @@ void TestMenuShadowMarginMouseUpLightDismissesAfterInitialRelease()
     std::string driverFailure;
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
 
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Shadow Desktop");
@@ -5020,6 +5168,7 @@ void TestMenuAcrylicBackdropScenarioEmitsMetrics()
 
     std::thread driver([&]
     {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
@@ -6452,7 +6601,9 @@ void TestDescribedMenuRaisesFocusChangesForKeyboardRows()
     const auto stopClient = wil::scope_exit([&]() noexcept
     {
         SetEvent(stop.get());
-        static_cast<void>(waitUntil(kNotificationDeadlineMs, [&] { return finished.load(); }));
+        // The jthread joins after this without pumping, and the client's teardown may need this thread's providers to answer:
+        // wait for it here, pumping, as long as its setup was allowed, and fail instead of hanging in the join.
+        Require(waitUntil(kClientSetupAllowanceMs, [&] { return finished.load(); }), "the UIA focus client thread ends");
     });
     Require(waitUntil(kClientSetupAllowanceMs, [&] { return ready.load(); }) && SUCCEEDED(setup.load()), "subscribe UIA focus changes");
 
@@ -6555,7 +6706,9 @@ public:
     ~FocusEventClient()
     {
         SetEvent(_stop.get());
-        static_cast<void>(WaitUntil(kNotificationDeadlineMs, [this] { return _finished.load(); }));
+        // The thread member joins after this without pumping, and the client's teardown may need this thread's providers to
+        // answer: wait for it here, pumping, as long as its setup was allowed, and fail instead of hanging in the join.
+        Require(WaitUntil(kSetupAllowanceMs, [this] { return _finished.load(); }), "the UIA focus client thread ends");
     }
 
     template <typename Predicate> [[nodiscard]] bool WaitUntil(ULONGLONG timeoutMs, const Predicate& predicate) const
@@ -7297,6 +7450,7 @@ void RunMenuDescriptionTests()
     DXUI_RUN_TEST(TestDescribedSubmenuSliderFocusKeepsSessionFocus);
     DXUI_RUN_TEST(TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus);
     DXUI_RUN_TEST(TestDescribedMenuFractionalDpiKeepsLaneAndWidths);
+    DXUI_RUN_TEST(TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu);
 }
 
 #include "DxUiTests.MenuResources.h"

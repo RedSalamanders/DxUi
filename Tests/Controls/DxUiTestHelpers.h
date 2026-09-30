@@ -5,6 +5,7 @@
 #include "../../src/Controls/DxUi.h"
 #include "../../src/Support/Diagnostics.h"
 #include "../../src/Support/WindowMessages.h"
+#include "../Support/TestWatchdog.h"
 #include "../Support/TestWindowActivationGuard.h"
 
 #include <UIAutomation.h>
@@ -17,6 +18,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
@@ -97,7 +99,18 @@ inline void SetDxUiTestFilter(std::vector<std::string> names)
     return unmatched;
 }
 
-// Runs one test with its [START]/[DONE] markers unless --test= leaves it out. Returns whether it ran.
+// The unit of work under way (a test, or a fixture suite without named tests) has made progress: its watchdog deadline starts
+// over. A fixture that repeats one cycle many times reports each cycle, so the deadline bounds a cycle instead of the whole
+// fixture.
+inline void NoteDxUiTestProgress()
+{
+    DxUi::TestSupport::TestWatchdog::Instance().Renew();
+}
+
+// Runs one test with its [START]/[DONE] markers, and its duration on [DONE], unless --test= leaves it out. Returns whether it ran.
+// Every test runs under the watchdog's deadline (--test-timeout=<seconds>, 0 turns it off): a test that outlives it ends the run
+// with "TIMEOUT: <name> after <N> s" and exit code 124 instead of holding a CI job until the job's time limit. A fixture suite
+// without named tests is one unit and is armed by the runner (see DxUiTests.cpp); see Tests/Support/TestWatchdog.h.
 inline bool RunDxUiTest(const char* name, void (*test)())
 {
     DxUiTestFilter& filter = GetDxUiTestFilter();
@@ -116,8 +129,12 @@ inline bool RunDxUiTest(const char* name, void (*test)())
             return false;
     }
     std::cerr << "  [START] " << name << '\n' << std::flush;
-    test();
-    std::cerr << "  [DONE] " << name << '\n' << std::flush;
+    const auto started = std::chrono::steady_clock::now();
+    {
+        const DxUi::TestSupport::ScopedTestDeadline deadline(name);
+        test();
+    }
+    std::cerr << std::format("  [DONE] {} ({:.3f} s)\n", name, std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count()) << std::flush;
     return true;
 }
 

@@ -39,11 +39,18 @@ reviewed before it merges here, until this plan can move to Done.
   `-Tests` runs only the named ones (one Menu test in 4.3 s inside `test.ps1`), an unknown name exits 2, and the 17
   unfiltered suites start the same 1,006 tests in the same order as their runners did at `cf6722f`.
 
-- [ ] 12. The Menu suite never hangs a CI job. On PR 30's pull-request run (36715415304), x64 ASan Debug started the
+- [x] 12. The Menu suite never hangs a CI job. On PR 30's pull-request run (36715415304), x64 ASan Debug started the
   Menu suite at 12:38 and printed nothing more until the job's 40-minute limit cancelled it; the push run of the same
   commit passed the job in 11 minutes, and the PR changed no C++. Accept: the hanging wait is identified (the job's
   uploaded suite log names the last test started) and bounded, so a stuck test fails fast with its name, and its root
   cause is fixed when it is in the library.
+  Outcome: every control test and fixture suite without named tests runs under a condition-variable watchdog (300 s by
+  default, `--test-timeout=<seconds>`, 0 off) that ends a hung run with `TIMEOUT: <name> after <N> s` and exit code 124,
+  which `test.ps1` prints beside the log's last lines and a self-test proves (the same test with the watchdog off hangs), the
+  audit found no unbounded polling loop, `INFINITE` wait or UI Automation wait without a deadline but a driver thread that
+  gave up before it found its popup left `ContextMenu::Show` running for good and a UI Automation client thread was joined
+  after a bounded wait (both fixed, the Menu suite's foreground run pending), and the wait that hung PR 30's job is not
+  identified (its log is not kept), so the next hang names its test.
 
 ### Performance evidence
 
