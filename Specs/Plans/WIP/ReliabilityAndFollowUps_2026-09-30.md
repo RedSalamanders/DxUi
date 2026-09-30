@@ -65,10 +65,16 @@ reviewed before it merges here, until this plan can move to Done.
 
 ### Library follow-ups
 
-- [ ] 6. Window-host UI Automation providers resolve their control without a tree scan. Each provider call searches the
+- [x] 6. Window-host UI Automation providers resolve their control without a tree scan. Each provider call searches the
   retained tree (`FindAccessibilityPathForTarget`), O(N) per call and O(N^2) for a client walking every element.
   Accept: resolution through an index built when a snapshot is published, with a deterministic test showing constant
   work per resolution in a large tree; behavior unchanged.
+  Outcome: every published snapshot carries lookup tables (records by path, hit rectangles by kind, path and item,
+  control addresses), so in a window of 1,960 buttons a `Navigate` call examines 5.8 table slots on average (21 at most)
+  where a scan examined 4,901 records (9,796), a property read 3.5 (15) instead of 2,942 (5,880), and an event's control
+  lookup 17 nodes instead of 1,002 (2,001), the same per call in a tree of 245 buttons; a table hit is confirmed
+  against the live tree and a miss searches it, so behavior is unchanged, while what lives inside one control (a tree's
+  items by id, a grid's rows and cells) and hit testing a point still scan.
 - [ ] 7. A click that activates the window announces the clicked control once. Today the system's activation focus
   event and the host's own focus change can both report it. Accept: a UI Automation client test counts one event.
 - [x] 8. A reparented ColorPicker is current. The review recorded a stale arrangement after reparenting; its cached

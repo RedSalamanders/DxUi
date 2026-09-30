@@ -6823,6 +6823,82 @@ void TestWindowHostElementSetFocusAnnouncesOnlyThatElement()
     Require(client.LastName() == L"Second bouton", "the element a UIA client focused is the last one it hears");
 }
 
+// The click that activates a window sets its control after the window's WM_SETFOCUS, in the same turn of its message
+// loop, and UI Automation resolves the system's focus event through the fragment root's GetFocus only once that loop
+// turns: the event already reports the clicked control, so the host adds none and a client hears it once, as it hears the
+// control an activation focuses, and never the control the activation focused on the way. The click is played as Windows
+// plays it (the window is activated, then its button-down arrives before the loop turns) without real input.
+void TestWindowHostClickThatActivatesTheWindowAnnouncesTheClickedControlOnce()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* first  = root->AddChild<Button>(L"Premier bouton");
+    auto* second = root->AddChild<Button>(L"Second bouton");
+    first->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    second->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+    window.Host().SetRoot(std::move(root));
+    AttachedHostWindow elsewhere;
+    elsewhere.Host().SetRoot(std::make_unique<Button>(L"Ailleurs"));
+    FocusEventClient client(window, window.Hwnd());
+    if (! TryActivateDxUiTestWindow(elsewhere.Hwnd()) || ! TryActivateDxUiTestWindow(window.Hwnd()))
+    {
+        SkipDxUiTest("DxUi click activation announcements require an interactive desktop");
+        return;
+    }
+    // An activation alone: the system's event is the only report, and this is how often the client hears one.
+    Require(GetFocus() == window.Hwnd() && window.Host().GetFocusControl() == first, "activation focuses the first button");
+    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Premier bouton") >= 1u; }),
+            "a UIA client hears the control an activation focused");
+    client.Settle();
+    const size_t heardPerSystemEvent = client.Count(L"Premier bouton");
+    const auto clickOn               = [&](const Control& control)
+    {
+        const D2D1_RECT_F bounds = control.GetBounds();
+        const LPARAM point       = MAKELPARAM(static_cast<WORD>(std::lround(window.Host().DipsToPixels((bounds.left + bounds.right) / 2.0f))),
+                                              static_cast<WORD>(std::lround(window.Host().DipsToPixels((bounds.top + bounds.bottom) / 2.0f))));
+        SendMessageW(window.Hwnd(), WM_LBUTTONDOWN, MK_LBUTTON, point);
+        SendMessageW(window.Hwnd(), WM_LBUTTONUP, 0, point);
+    };
+
+    // Another window takes the foreground and the click reaches this one: activation first, then the button-down, with
+    // no message pumped in between.
+    Require(TryActivateDxUiTestWindow(elsewhere.Hwnd()), "another window takes the foreground");
+    window.Host().SetFocusControl(nullptr);
+    client.Settle();
+    const uint64_t announcedBefore = window.Host().DebugGetFocusAnnouncementCount();
+    Require(TryActivateDxUiTestWindow(window.Hwnd()) && GetFocus() == window.Hwnd(), "the click activates the window");
+    Require(window.Host().GetFocusControl() == first, "the activation focuses the first button on the way");
+    Require(window.Host().DebugIsInFocusGainTurn(), "the activation's turn is still running when the click arrives");
+    clickOn(*second);
+    Require(window.Host().GetFocusControl() == second, "the click focuses the clicked button");
+    Require(window.Host().DebugGetFocusAnnouncementCount() == announcedBefore, "the host adds no announcement to the system's activation event");
+    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Second bouton") >= 1u; }),
+            "a UIA client hears the clicked button");
+    client.Settle();
+    if (client.Count(L"Second bouton") != heardPerSystemEvent || client.Count(L"Premier bouton") != heardPerSystemEvent)
+        client.PrintNames();
+    Require(client.Count(L"Second bouton") == heardPerSystemEvent, "a client hears the clicked button once, as it hears the control of an activation");
+    Require(client.Count(L"Premier bouton") == heardPerSystemEvent, "a client never hears the button the activation focused on the way");
+
+    // Once the loop has turned, a click in the active window is the host's to announce.
+    const size_t heardFirstBefore = client.Count(L"Premier bouton");
+    clickOn(*first);
+    Require(window.Host().GetFocusControl() == first, "a click in the active window focuses the clicked button");
+    Require(window.Host().DebugGetFocusAnnouncementCount() == announcedBefore + 1u, "the host announces a click in the active window once");
+    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Premier bouton") > heardFirstBefore; }),
+            "a UIA client hears the button clicked in the active window");
+
+    // Should its window procedure never hand the host the message that ends the turn, the host announces regardless
+    // once the turn has outlived its 500 ms limit.
+    Require(TryActivateDxUiTestWindow(elsewhere.Hwnd()) && TryActivateDxUiTestWindow(window.Hwnd()) && GetFocus() == window.Hwnd(),
+            "the window is activated again");
+    Sleep(600);
+    const uint64_t announcedAtLimit = window.Host().DebugGetFocusAnnouncementCount();
+    window.Host().SetFocusControl(second);
+    Require(window.Host().DebugGetFocusAnnouncementCount() == announcedAtLimit + 1u, "a focus move is announced once the turn has outlived its limit");
+}
+
 // Focus that moves in a window which has just lost the foreground is not announced. Until its thread processes the
 // deactivation, Win32 still reports that window as focused (GetFocus), as when a queued message moves focus right after
 // the user switched to another application. A screen reader follows the foreground, so the host announces only while
@@ -6896,6 +6972,7 @@ void TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange()
     Require(client.Count(L"Second bouton") == 0u, "a window that lost the foreground announces no focus change");
 
     Require(TryActivateDxUiTestWindow(window.Hwnd()), "the window returns to the foreground");
+    client.Settle(); // The message loop turns and the activation's own event is resolved: the move below is the host's to announce.
     window.Host().SetFocusControl(first);
     Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Premier bouton") >= 1u; }),
             "the same window in the foreground announces its focus change");
@@ -7205,6 +7282,7 @@ void RunMenuDescriptionTests()
     DXUI_RUN_TEST(TestWindowHostTabRaisesAutomationFocusChanges);
     DXUI_RUN_TEST(TestWindowHostTreeArrowAnnouncesTheFocusedItem);
     DXUI_RUN_TEST(TestWindowHostElementSetFocusAnnouncesOnlyThatElement);
+    DXUI_RUN_TEST(TestWindowHostClickThatActivatesTheWindowAnnouncesTheClickedControlOnce);
     DXUI_RUN_TEST(TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange);
     DXUI_RUN_TEST(TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside);
     DXUI_RUN_TEST(TestMenuChoosesTheCursorWhenItOpensAndCloses);

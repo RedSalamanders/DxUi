@@ -4381,6 +4381,9 @@ public:
     [[nodiscard]] uint64_t DebugGetInvalidateCount() const noexcept;
     // UI Automation focus-changed events this host raised itself (the window's own focus event is the system's).
     [[nodiscard]] uint64_t DebugGetFocusAnnouncementCount() const noexcept;
+    // Whether the window gained focus in the message-loop turn still running, whose focus moves are left to the system's
+    // focus event (see OnSetFocus).
+    [[nodiscard]] bool DebugIsInFocusGainTurn() const noexcept;
     [[nodiscard]] uint64_t DebugGetRenderCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetResizeCount() const noexcept;
     [[nodiscard]] uint64_t DebugGetResizeFailureCount() const noexcept;
@@ -4424,6 +4427,7 @@ private:
     friend struct EmbeddedAccessibilityAccess;
     void* _embeddedAccessibilityTarget          = nullptr;
     bool _gainingWindowFocus                    = false; // In OnSetFocus: the system's focus event reports the element.
+    ULONGLONG _focusGainTurnStartedMs           = 0u;    // From OnSetFocus until the message loop turns: the same event reports.
     uint64_t _interactionRevision               = 0;
     bool _embedded                              = false;
     bool _embeddedAnimationRequested            = false;
@@ -4450,6 +4454,8 @@ private:
     void OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect) noexcept;
     void OnSize(UINT widthPx, UINT heightPx) noexcept;
     void OnSetFocus() noexcept;
+    void BeginFocusGainTurn() noexcept;
+    [[nodiscard]] bool IsInFocusGainTurn() const noexcept;
     void OnKillFocus(bool clearRetainedFocus) noexcept;
     void ActivateTextInput(Control* control) noexcept;
     void DeactivateTextInput(bool restoreHostFocus) noexcept;

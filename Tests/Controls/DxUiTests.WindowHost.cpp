@@ -3126,6 +3126,40 @@ void TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement()
     Require(state.mouseMoveCount == 0u, "root-replacing hover control is not reused for mouse move after replacing the root");
 }
 
+// A window's focus gain is reported by one system event that UI Automation resolves once the message loop turns, so the
+// host leaves the focus moves of that turn to it (a click sets its control after WM_SETFOCUS, in the same turn; the
+// Menu suite plays that click with real activation). The turn ends when the message the host posted at the gain is
+// dispatched, when the window loses focus, or after 500 ms should a window procedure never hand the host that message.
+void TestWindowHostFocusGainTurnEndsWithItsMessageOrTheLossOfFocusOrItsLimit()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* first = root->AddChild<Button>(L"Premier bouton");
+    first->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    window.Host().SetRoot(std::move(root));
+    window.PumpMessages();
+    Require(! window.Host().DebugIsInFocusGainTurn(), "a window that has not gained focus is in no turn");
+
+    SendMessageW(window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(window.Host().DebugIsInFocusGainTurn(), "gaining focus starts a turn");
+    window.PumpMessages();
+    Require(! window.Host().DebugIsInFocusGainTurn(), "the turn ends when the loop dispatches the message posted at the gain");
+
+    SendMessageW(window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(window.Host().DebugIsInFocusGainTurn(), "gaining focus again starts another turn");
+    SendMessageW(window.Hwnd(), WM_KILLFOCUS, 0, 0);
+    Require(! window.Host().DebugIsInFocusGainTurn(), "losing focus ends the turn");
+    window.PumpMessages();
+    Require(! window.Host().DebugIsInFocusGainTurn(), "the message posted at the earlier gain ends nothing more");
+
+    SendMessageW(window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(window.Host().DebugIsInFocusGainTurn(), "a third gain starts a turn whose message is held back");
+    Sleep(600);
+    Require(! window.Host().DebugIsInFocusGainTurn(), "a turn whose message never arrives ends after 500 ms");
+    window.PumpMessages();
+}
+
 } // namespace
 
 void TestWindowHostWorksWithoutOptionalSdkDebugLayer()
@@ -3166,6 +3200,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostTabTraversal);
     DXUI_RUN_TEST(TestWindowHostShiftTabTraversal);
     DXUI_RUN_TEST(TestWindowHostNativeFocusLossRetainsLogicalFocusForTraversal);
+    DXUI_RUN_TEST(TestWindowHostFocusGainTurnEndsWithItsMessageOrTheLossOfFocusOrItsLimit);
     DXUI_RUN_TEST(TestWindowHostReturnInvokesDefaultButtonWhenFocusedControlDoesNotOwnEnter);
     DXUI_RUN_TEST(TestWindowHostReturnInvokesDefaultButtonWhenNoControlIsFocused);
     DXUI_RUN_TEST(TestWindowHostReturnDoesNotInvokeDefaultButtonWhenFocusedControlOwnsEnter);

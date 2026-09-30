@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+- Window-host UI Automation providers resolve their control without scanning the tree (plan
+  `ReliabilityAndFollowUps_2026-09-30`, item 6): every provider call searched the published records for its control's
+  path (several times per call, so a client walking every element of a window paid for the whole tree on each one), and
+  every event searched the live tree for its control. Each snapshot now carries lookup tables built as it is published
+  (records by path, hit rectangles by kind, path and item, and control addresses), so a provider call examines a few
+  table slots and an event a search of the sorted addresses (about log2 of the records) and a walk down its path. In a
+  window of 1,960 buttons a `Navigate` call examined 4,901 records on average (9,796 at most) and now 5.8 (21), a
+  property read 2,942 (5,880) and now 3.5 (15), `get_BoundingRectangle` 2,942 (3,921) and now 3.4 (11), a pattern
+  query 2,942 (5,880) and now 3.5 (15), and an event's control lookup 1,002 tree nodes (2,001) and now 17 (17); a tree
+  of 245 buttons costs the same per call as one of 1,960. What a provider or event reaches is unchanged: the tables
+  describe the snapshot's own tree, a control they hold is confirmed against the live tree before it is used, one they
+  do not hold (added since the publish, hidden, no element) is searched for there as before, and stale elements still
+  answer `UIA_E_ELEMENTNOTAVAILABLE`. What lives inside one control (a tree's items by id, a grid's rows and cells) and
+  hit testing a point still scan. Test-only diagnostics count what resolutions examine, resolve an event's path and
+  check the tables against a scan of the records.
+- A click that activates a window announces the clicked control once (plan `ReliabilityAndFollowUps_2026-09-30`, item
+  7): the click sets its control after the window's `WM_SETFOCUS`, in the same turn of its message loop, and the host
+  announced that move besides the system's activation focus event, which UI Automation resolves through the fragment
+  root's `GetFocus` only once the loop turns, so a client heard the clicked control twice. A window that gained focus
+  now leaves the focus moves of the rest of that turn to the system's event: the host posts itself a message at the
+  gain whose dispatch ends the turn (as does losing focus, or 500 ms without it, should a window procedure never hand it
+  to the host). A click in the window that is already active, or any move in a later turn, is announced by the host as
+  before. The Menu suite plays the click as Windows does and counts the host's announcements and what an in-process UI
+  Automation client hears, and the WindowHost suite tests how a turn begins and ends. A window procedure must pass the
+  private message (`WM_APP + 0x06D`) to `HandleMessage`, as it does the accessibility ones. API revision stays 2
+  (additive diagnostics accessor `ControlHost::DebugIsInFocusGainTurn`).
 - A `Grid` that stops painting returns its retained text layouts (plan `ReliabilityAndFollowUps_2026-09-30`, item 9):
   hidden itself or under a hidden ancestor (an unselected tab page, a collapsed panel or page host), in a hidden
   embedded view, detached from its host or given another model, it releases its layouts, their key strings, its tables

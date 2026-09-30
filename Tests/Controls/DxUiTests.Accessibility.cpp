@@ -5259,6 +5259,267 @@ void TestNumericStepperStepButtonsAreNamedForAutomation()
             "no step button is announced as a private-use glyph");
 }
 
+// What a call examines to resolve a control, as the diagnostics counter counts it, for each kind of call a client makes.
+struct AccessibilityResolutionCost
+{
+    uint64_t worst = 0u;
+    uint64_t total = 0u;
+    size_t calls   = 0u;
+
+    [[nodiscard]] double Average() const noexcept
+    {
+        return calls == 0u ? 0.0 : static_cast<double>(total) / static_cast<double>(calls);
+    }
+
+    template <typename Call> void Measure(const Call& call)
+    {
+        DxUi::DebugResetAccessibilityResolutionVisitCountForTest();
+        call();
+        const uint64_t visited = DxUi::DebugGetAccessibilityResolutionVisitCountForTest();
+        worst                  = (std::max)(worst, visited);
+        total += visited;
+        ++calls;
+    }
+};
+
+// A window of panels holding 49 buttons each: 40 of them are about 2,000 controls.
+class LargeAccessibilityWindow final
+{
+public:
+    static constexpr size_t kPerGroup = 49u;
+
+    explicit LargeAccessibilityWindow(size_t groupCount)
+    {
+        using namespace DxUi;
+        auto root = std::make_unique<Panel>();
+        for (size_t group = 0u; group < groupCount; ++group)
+        {
+            auto* panel = root->AddChild<Panel>();
+            groups.push_back(panel);
+            panel->SetBounds(D2D1::RectF(static_cast<float>(group) * 120.0f, 0.0f, static_cast<float>(group + 1u) * 120.0f, 1000.0f));
+            for (size_t index = 0u; index < kPerGroup; ++index)
+            {
+                auto* button = panel->AddChild<Button>(std::format(L"Bouton {}-{}", group, index));
+                button->SetBounds(D2D1::RectF(static_cast<float>(group) * 120.0f,
+                                              static_cast<float>(index) * 20.0f,
+                                              static_cast<float>(group + 1u) * 120.0f - 8.0f,
+                                              static_cast<float>(index) * 20.0f + 18.0f));
+                buttons.push_back(button);
+            }
+        }
+        window.Host().SetRoot(std::move(root));
+    }
+
+    AttachedHostWindow window;
+    std::vector<DxUi::Panel*> groups;
+    std::vector<DxUi::Button*> buttons;
+};
+
+struct AccessibilityWalkCosts
+{
+    AccessibilityResolutionCost navigate;
+    AccessibilityResolutionCost name;
+    AccessibilityResolutionCost bounds;
+    AccessibilityResolutionCost pattern;
+};
+
+// Walks every element of the window from its root, as a client does, reading a name, bounds and a pattern of each.
+[[nodiscard]] AccessibilityWalkCosts WalkAccessibilityElements(LargeAccessibilityWindow& target)
+{
+    AccessibilityWalkCosts costs;
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(DxUi::CreateWindowHostAccessibilityProvider(target.window.Hwnd()));
+    Require(rootProvider != nullptr, "the large window publishes a UIA root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+    RequireSucceeded(rootProvider.query_to(rootFragment.put()), "the large window's root navigates");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> element;
+    costs.navigate.Measure([&] { RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, element.put()), "the root has a first child"); });
+    size_t walked = 0u;
+    while (element)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(element.query_to(simple.put()), "an element is a simple provider");
+        std::wstring elementName;
+        costs.name.Measure([&] { elementName = ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "an element's name is readable"); });
+        Require(elementName == std::format(L"Bouton {}-{}", walked / LargeAccessibilityWindow::kPerGroup, walked % LargeAccessibilityWindow::kPerGroup),
+                "the walk reaches every button in tree order");
+        UiaRect rect{};
+        costs.bounds.Measure([&] { RequireSucceeded(element->get_BoundingRectangle(&rect), "an element's bounds are readable"); });
+        Require(rect.width > 0.0 && rect.height > 0.0, "an element's bounds are its button's");
+        wil::com_ptr_nothrow<IUnknown> invoke;
+        costs.pattern.Measure([&] { RequireSucceeded(simple->GetPatternProvider(UIA_InvokePatternId, invoke.put()), "an element's patterns are queryable"); });
+        Require(invoke != nullptr, "every button exposes Invoke");
+        wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+        costs.navigate.Measure([&] { RequireSucceeded(element->Navigate(NavigateDirection_NextSibling, next.put()), "an element navigates to its sibling"); });
+        element = std::move(next);
+        ++walked;
+    }
+    Require(walked == target.buttons.size(), "the walk reaches every button");
+    return costs;
+}
+
+// What resolving a window host's controls examines: a provider call reads its control's record from tables built when
+// the snapshot was published, so its cost stays the same as the tree grows. A client that walks every element of a
+// window of about 2,000 controls examines a few table slots per call, where a scan of the published records examined
+// about 1,000 on average for each lookup (4,901 per Navigate call before the tables, 5.8 after).
+void TestAccessibilityProvidersResolveTheirControlWithoutScanningTheTree()
+{
+    using namespace DxUi;
+    DebugSetAccessibilityResolutionCountingForTest(true);
+    const auto stopCounting = wil::scope_exit([]() noexcept { DebugSetAccessibilityResolutionCountingForTest(false); });
+    LargeAccessibilityWindow fewControls(5u);
+    const AccessibilityWalkCosts smallCosts = WalkAccessibilityElements(fewControls);
+    LargeAccessibilityWindow manyControls(40u);
+    const AccessibilityWalkCosts largeCosts = WalkAccessibilityElements(manyControls);
+    const auto report                       = [](const char* what, const AccessibilityResolutionCost& cost)
+    {
+        std::cout << "Accessibility resolution: " << what << " examined " << cost.Average() << " on average, " << cost.worst << " at most, over " << cost.calls
+                  << " calls\n";
+    };
+    report("Navigate (245 buttons)", smallCosts.navigate);
+    report("Navigate (1,960 buttons)", largeCosts.navigate);
+    report("GetPropertyValue (1,960 buttons)", largeCosts.name);
+    report("get_BoundingRectangle (1,960 buttons)", largeCosts.bounds);
+    report("GetPatternProvider (1,960 buttons)", largeCosts.pattern);
+
+    // A few table probes per lookup and a few lookups per call, however many controls the window holds.
+    constexpr uint64_t kMostExaminedPerCall = 32u;
+    Require(largeCosts.navigate.worst <= kMostExaminedPerCall, "Navigate resolves its element and its sibling in a few steps");
+    Require(largeCosts.name.worst <= kMostExaminedPerCall, "reading a property resolves the element's control in a few steps");
+    Require(largeCosts.bounds.worst <= kMostExaminedPerCall, "reading bounds resolves the element's control and hit rectangle in a few steps");
+    Require(largeCosts.pattern.worst <= kMostExaminedPerCall, "querying a pattern resolves the element's control in a few steps");
+    const auto sameAsSmall = [](const AccessibilityResolutionCost& few, const AccessibilityResolutionCost& many)
+    { return many.Average() <= few.Average() * 1.5 + 1.0; };
+    Require(sameAsSmall(smallCosts.navigate, largeCosts.navigate) && sameAsSmall(smallCosts.name, largeCosts.name) &&
+                sameAsSmall(smallCosts.bounds, largeCosts.bounds) && sameAsSmall(smallCosts.pattern, largeCosts.pattern),
+            "a call costs no more in a tree eight times the size");
+
+    // An event resolves the path of the control it is about the same way: the child indices from the root.
+    const auto resolveEventPath = [&](const DxUi::Control* control, uint32_t& depth, std::array<uint16_t, 16>& indices)
+    { return DebugResolveWindowHostEventPathForTest(manyControls.window.Hwnd(), control, indices, depth); };
+    AccessibilityResolutionCost eventPath;
+    for (size_t position = 0u; position < manyControls.buttons.size(); ++position)
+    {
+        uint32_t depth = 0u;
+        std::array<uint16_t, 16> indices{};
+        bool resolved = false;
+        eventPath.Measure([&] { resolved = resolveEventPath(manyControls.buttons[position], depth, indices); });
+        Require(resolved && depth == 2u && indices[0] == position / LargeAccessibilityWindow::kPerGroup &&
+                    indices[1] == position % LargeAccessibilityWindow::kPerGroup,
+                "an event finds its button's path");
+    }
+    report("event path (1,960 buttons)", eventPath);
+    // A search of the sorted addresses (about log2 of 1,960) and two walks down a path two levels deep.
+    constexpr uint64_t kMostExaminedPerEvent = 24u;
+    Require(eventPath.worst <= kMostExaminedPerEvent, "an event finds its control's path without searching the tree");
+
+    // The tables describe the published tree. A control added since has no entry and is still found, as a search of
+    // the live tree would find it; one removed or hidden is not, and a control that is no element never is.
+    uint32_t depth = 0u;
+    std::array<uint16_t, 16> indices{};
+    auto* added = manyControls.groups[7]->AddChild<Button>(L"Ajouté");
+    added->SetBounds(D2D1::RectF(840.0f, 980.0f, 952.0f, 998.0f));
+    Require(resolveEventPath(added, depth, indices) && depth == 2u && indices[0] == 7u && indices[1] == LargeAccessibilityWindow::kPerGroup,
+            "a control added since the last publish is still found");
+    Require(! resolveEventPath(manyControls.groups[7], depth, indices), "a panel is no element");
+    manyControls.groups[9]->SetVisible(false);
+    Require(! resolveEventPath(manyControls.buttons[9u * LargeAccessibilityWindow::kPerGroup + 4u], depth, indices),
+            "a control under a hidden panel is no element");
+    const Button* const removed = manyControls.buttons[11u * LargeAccessibilityWindow::kPerGroup + 5u];
+    manyControls.groups[11]->ClearChildren();
+    Require(! resolveEventPath(removed, depth, indices), "a removed control is no element and is never dereferenced");
+}
+
+// The lookup tables built with each snapshot answer as a scan of its records does, for every kind of fragment it holds
+// (controls, tree items, grid headers, rows and cells, a password field's reveal button, a scrolled panel's clipped
+// hits) and at the deepest path it records, before and after the tree changes.
+void TestAccessibilityLookupTablesAgreeWithAScanOfTheRecords()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root       = std::make_unique<Panel>();
+    auto* treeLabel = root->AddChild<Label>(L"Categories");
+    treeLabel->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 24.0f));
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 28.0f, 240.0f, 88.0f));
+    MutableTreeModel treeModel;
+    treeModel.SetVisibleItems(
+        {TreeItemData{.id = 1u, .text = L"General"}, TreeItemData{.id = 2u, .text = L"Panes"}, TreeItemData{.id = 3u, .text = L"Viewers"}});
+    tree->SetModel(&treeModel);
+    tree->SetSelectedItemId(2u);
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 120.0f, 240.0f, 188.0f));
+    MultiRowGridModel gridModel(6u);
+    grid->SetModel(&gridModel);
+    auto* field = root->AddChild<TextField>(L"secret");
+    field->SetMasked(true);
+    field->SetAccessibleName(L"Mot de passe");
+    field->SetBounds(D2D1::RectF(0.0f, 192.0f, 220.0f, 224.0f));
+    auto* scroll = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(300.0f, 0.0f, 520.0f, 120.0f));
+    scroll->SetContentHeight(260.0f);
+    scroll->SetScrollOffset(80.0f);
+    scroll->AddChild<Button>(L"Au-dessus")->SetBounds(D2D1::RectF(312.0f, 12.0f, 480.0f, 48.0f));
+    scroll->AddChild<Button>(L"Visible")->SetBounds(D2D1::RectF(312.0f, 112.0f, 480.0f, 148.0f));
+    auto* hidden = root->AddChild<Panel>();
+    hidden->AddChild<Button>(L"Caché")->SetBounds(D2D1::RectF(0.0f, 0.0f, 100.0f, 30.0f));
+    hidden->SetVisible(false);
+    // A snapshot records paths of at most 16 indices: the button at the 16th level is an element, the one below it is not.
+    Panel* level = root->AddChild<Panel>();
+    for (size_t nested = 2u; nested <= 15u; ++nested)
+        level = level->AddChild<Panel>();
+    auto* deepest = level->AddChild<Button>(L"Le plus profond");
+    deepest->SetBounds(D2D1::RectF(0.0f, 400.0f, 100.0f, 430.0f));
+    auto* tooDeep = level->AddChild<Panel>()->AddChild<Button>(L"Trop profond");
+    tooDeep->SetBounds(D2D1::RectF(0.0f, 440.0f, 100.0f, 470.0f));
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field);
+    window.Host().RefreshAccessibilitySnapshot();
+    Require(DebugCountAccessibilityIndexMismatchesForTest(window.Hwnd()) == 0u, "every lookup agrees with a scan of the records");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the window publishes a UIA root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+    RequireSucceeded(rootProvider.query_to(rootFragment.put()), "the root navigates");
+    std::vector<std::wstring> names;
+    wil::com_ptr_nothrow<IRawElementProviderFragment> element;
+    RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, element.put()), "the root has a first child");
+    while (element)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(element.query_to(simple.put()), "an element is a simple provider");
+        names.push_back(ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "an element's name is readable"));
+        UiaRect rect{};
+        RequireSucceeded(element->get_BoundingRectangle(&rect), "an element's bounds are readable");
+        if (names.back() == L"Visible" || names.back() == L"Le plus profond")
+            Require(rect.width > 0.0 && rect.height > 0.0, "an element in view has bounds");
+        wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+        RequireSucceeded(element->Navigate(NavigateDirection_NextSibling, next.put()), "an element navigates to its sibling");
+        element = std::move(next);
+    }
+    const auto listed = [&](std::wstring_view name) { return std::ranges::find(names, name) != names.end(); };
+    Require(listed(L"Categories") && listed(L"Mot de passe") && listed(L"Le plus profond"), "the walk reaches controls at every level, the 16th included");
+    Require(! listed(L"Trop profond") && ! listed(L"Caché"), "a control below the 16th level and one under a hidden panel are no elements");
+
+    uint32_t depth = 0u;
+    std::array<uint16_t, 16> indices{};
+    Require(DebugResolveWindowHostEventPathForTest(window.Hwnd(), deepest, indices, depth) && depth == 16u, "an event finds the button at the 16th level");
+    Require(! DebugResolveWindowHostEventPathForTest(window.Hwnd(), tooDeep, indices, depth), "an event finds no path below the 16th level");
+    Require(DebugResolveWindowHostEventPathForTest(window.Hwnd(), field, indices, depth) && depth == 1u && indices[0] == 3u,
+            "an event finds the password field");
+
+    // The same after the tree changes and is published again.
+    scroll->SetScrollOffset(0.0f);
+    scroll->AddChild<Button>(L"Ajouté")->SetBounds(D2D1::RectF(312.0f, 60.0f, 480.0f, 90.0f));
+    window.Host().SetFocusControl(tree);
+    window.Host().RefreshAccessibilitySnapshot();
+    Require(DebugCountAccessibilityIndexMismatchesForTest(window.Hwnd()) == 0u, "every lookup still agrees after the tree changed");
+    scroll->ClearChildren();
+    window.Host().RefreshAccessibilitySnapshot();
+    Require(DebugCountAccessibilityIndexMismatchesForTest(window.Hwnd()) == 0u, "every lookup still agrees after controls were removed");
+}
+
 } // namespace
 
 void RunAccessibilityTests()
@@ -5313,6 +5574,8 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityProviderExposesNativeImeTextEditRanges);
     DXUI_RUN_TEST(TestAccessibilityNativeTextInputRaisesTextAndTextEditEventCounters);
     DXUI_RUN_TEST(TestAccessibilityGridSnapshotRebuildMeetsTenThousandRowSelectionBudget);
+    DXUI_RUN_TEST(TestAccessibilityProvidersResolveTheirControlWithoutScanningTheTree);
+    DXUI_RUN_TEST(TestAccessibilityLookupTablesAgreeWithAScanOfTheRecords);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesTreeAndGridMetadata);
     DXUI_RUN_TEST(TestAccessibilityTreeItemProviderKeepsStableIdentityAcrossReorder);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns);

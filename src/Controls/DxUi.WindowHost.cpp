@@ -2198,6 +2198,11 @@ uint64_t ControlHost::DebugGetFocusAnnouncementCount() const noexcept
     return _debugFocusAnnouncementCount;
 }
 
+bool ControlHost::DebugIsInFocusGainTurn() const noexcept
+{
+    return IsInFocusGainTurn();
+}
+
 UINT ControlHost::DebugGetModifierState() const noexcept
 {
     return _modifierState;
@@ -2379,6 +2384,12 @@ LRESULT ControlHost::HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bo
         handled = true;
         DetachForProcessExit();
         return TRUE;
+    }
+    if (msg == WndMsg::kWindowHostFocusGainTurnEnd)
+    {
+        handled                 = true;
+        _focusGainTurnStartedMs = 0u;
+        return 0;
     }
 
     CancelStaleCapture();
@@ -3905,6 +3916,9 @@ void ControlHost::OnSetFocus() noexcept
     // element: whatever this activation focuses or restores is published, never announced a second time.
     const bool wasGainingWindowFocus = std::exchange(_gainingWindowFocus, true);
     const auto endGainingWindowFocus = wil::scope_exit([this, wasGainingWindowFocus]() noexcept { _gainingWindowFocus = wasGainingWindowFocus; });
+    // UI Automation resolves that event only once the message loop turns, so what the rest of this turn moves is
+    // reported by it too: the click that activates the window sets its control after WM_SETFOCUS, in the same turn.
+    const auto beginFocusGainTurn = wil::scope_exit([this]() noexcept { BeginFocusGainTurn(); });
     PruneStaleInteractionState();
     if (IsInteractionDiagnosticsEnabled(_hwnd))
     {
@@ -3947,8 +3961,29 @@ void ControlHost::OnSetFocus() noexcept
     }
 }
 
+// The turn ends when the message posted here is dispatched. A click's button-down comes from the same retrieval of the
+// loop as the WM_SETFOCUS its activation sends, so it is handled before this message, and UI Automation cannot resolve
+// the system's event before the loop turns.
+void ControlHost::BeginFocusGainTurn() noexcept
+{
+    if (_focusGainTurnStartedMs != 0u || ! _hwnd || PostMessageW(_hwnd, WndMsg::kWindowHostFocusGainTurnEnd, 0, 0) == FALSE)
+    {
+        return;
+    }
+
+    _focusGainTurnStartedMs = (std::max)(GetTickCount64(), ULONGLONG{1u});
+}
+
+bool ControlHost::IsInFocusGainTurn() const noexcept
+{
+    // A window procedure that never hands the host that message would keep its focus moves unannounced for good.
+    constexpr ULONGLONG kFocusGainTurnLimitMs = 500u;
+    return _focusGainTurnStartedMs != 0u && GetTickCount64() - _focusGainTurnStartedMs < kFocusGainTurnLimitMs;
+}
+
 void ControlHost::OnKillFocus(bool clearRetainedFocus) noexcept
 {
+    _focusGainTurnStartedMs = 0u;
     DeactivateTextInput(false);
     PruneStaleInteractionState();
     _modifierState = 0u;
