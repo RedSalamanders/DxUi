@@ -60,6 +60,69 @@ inline void SkipDxUiTest(const char* reason)
     std::cerr << "SKIPPED: " << reason << '\n';
 }
 
+// --test=<Name>[,<Name>...] limits a run to the named test functions of the selected suites. Suite runners start every test
+// through DXUI_RUN_TEST, so a run without the option executes all of them in order, and a name that no selected suite
+// registers is reported when the suites end instead of passing with nothing run. Names are exact and case-sensitive.
+struct DxUiTestFilter
+{
+    bool active = false;
+    std::vector<std::string> names;
+    std::vector<bool> matched;
+};
+
+inline DxUiTestFilter& GetDxUiTestFilter() noexcept
+{
+    static DxUiTestFilter filter;
+    return filter;
+}
+
+inline void SetDxUiTestFilter(std::vector<std::string> names)
+{
+    DxUiTestFilter& filter = GetDxUiTestFilter();
+    filter.active          = true;
+    filter.matched.assign(names.size(), false);
+    filter.names = std::move(names);
+}
+
+// The requested test names that no suite registered a test for.
+[[nodiscard]] inline std::vector<std::string> UnmatchedDxUiTestNames()
+{
+    const DxUiTestFilter& filter = GetDxUiTestFilter();
+    std::vector<std::string> unmatched;
+    for (size_t index = 0u; index < filter.names.size(); ++index)
+    {
+        if (! filter.matched[index])
+            unmatched.push_back(filter.names[index]);
+    }
+    return unmatched;
+}
+
+// Runs one test with its [START]/[DONE] markers unless --test= leaves it out. Returns whether it ran.
+inline bool RunDxUiTest(const char* name, void (*test)())
+{
+    DxUiTestFilter& filter = GetDxUiTestFilter();
+    if (filter.active)
+    {
+        bool selected = false;
+        for (size_t index = 0u; index < filter.names.size(); ++index)
+        {
+            if (filter.names[index] == name)
+            {
+                filter.matched[index] = true;
+                selected              = true;
+            }
+        }
+        if (! selected)
+            return false;
+    }
+    std::cerr << "  [START] " << name << '\n' << std::flush;
+    test();
+    std::cerr << "  [DONE] " << name << '\n' << std::flush;
+    return true;
+}
+
+#define DXUI_RUN_TEST(test) RunDxUiTest(#test, test)
+
 [[nodiscard]] inline bool WaitForDxUiThreadFocus(HWND hwnd, DWORD timeoutMs = 800u) noexcept
 {
     const ULONGLONG deadline = GetTickCount64() + timeoutMs;
@@ -225,6 +288,30 @@ inline void SetDxUiTestWindowsCanActivate(bool value) noexcept
 {
     DxUiTestWindowsCanActivateFlag() = value;
 }
+
+// Test windows created while it lives cannot be activated, whatever the suite allows. A test that simulates another
+// application taking the foreground stays deterministic this way: no application can really take it from such a window.
+class ScopedNonActivatingTestWindows final
+{
+public:
+    ScopedNonActivatingTestWindows() noexcept : _previous(DxUiTestWindowsCanActivateFlag())
+    {
+        SetDxUiTestWindowsCanActivate(false);
+    }
+
+    ~ScopedNonActivatingTestWindows()
+    {
+        SetDxUiTestWindowsCanActivate(_previous);
+    }
+
+    ScopedNonActivatingTestWindows(const ScopedNonActivatingTestWindows&)            = delete;
+    ScopedNonActivatingTestWindows& operator=(const ScopedNonActivatingTestWindows&) = delete;
+    ScopedNonActivatingTestWindows(ScopedNonActivatingTestWindows&&)                 = delete;
+    ScopedNonActivatingTestWindows& operator=(ScopedNonActivatingTestWindows&&)      = delete;
+
+private:
+    bool _previous;
+};
 
 inline constexpr std::wstring_view kDxUiHarnessArtifactSegment{L"dxui"};
 
@@ -714,6 +801,20 @@ public:
         _maximumTrackSizePx = outerSizePx;
     }
 
+    // How often another application took the foreground from this window: Windows then sends WM_ACTIVATEAPP with FALSE and
+    // the thread of the window it activated. The host reacts as designed and releases its native text session, so state a
+    // test observes across a pump is gone; see RunWhileForegroundHeld.
+    [[nodiscard]] uint32_t ForegroundLossCount() const noexcept
+    {
+        return _foregroundLossCount;
+    }
+
+    // The thread of the window that took the foreground in the latest such loss, 0 when Windows named none.
+    [[nodiscard]] DWORD LastForegroundThiefThreadId() const noexcept
+    {
+        return _lastForegroundThiefThreadId;
+    }
+
     void PumpMessages(DWORD maximumDurationMs = INFINITE) const
     {
         const ULONGLONG started = GetTickCount64();
@@ -768,6 +869,11 @@ private:
         }
         if (self)
         {
+            if (msg == WM_ACTIVATEAPP && wp == FALSE)
+            {
+                ++self->_foregroundLossCount;
+                self->_lastForegroundThiefThreadId = static_cast<DWORD>(lp);
+            }
             bool handled         = false;
             const LRESULT result = self->_host.HandleMessage(hwnd, msg, wp, lp, handled);
             if (msg == WM_NCDESTROY)
@@ -787,7 +893,104 @@ private:
     wil::unique_hwnd _hwnd;
     DxUi::WindowHost _host;
     SIZE _maximumTrackSizePx{};
+    uint32_t _foregroundLossCount      = 0u;
+    DWORD _lastForegroundThiefThreadId = 0u;
 };
+
+// Names the process that owns a thread, for messages that say who took the foreground: "Claude.exe (process 8900)".
+[[nodiscard]] inline std::string DescribeThreadProcessForTest(DWORD threadId)
+{
+    DWORD processId = 0u;
+    if (const wil::unique_handle thread(OpenThread(THREAD_QUERY_LIMITED_INFORMATION, FALSE, threadId)); thread)
+        processId = GetProcessIdOfThread(thread.get());
+    if (processId == 0u)
+        return "another application";
+    if (const wil::unique_handle process(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, processId)); process)
+    {
+        wchar_t path[MAX_PATH]{};
+        DWORD length = static_cast<DWORD>(std::size(path));
+        if (QueryFullProcessImageNameW(process.get(), 0, path, &length) != FALSE)
+        {
+            const std::wstring fileName = std::filesystem::path(std::wstring_view(path, length)).filename().wstring();
+            std::string name;
+            for (const wchar_t ch : fileName)
+                name.push_back(ch < 0x80 ? static_cast<char>(ch) : '?');
+            return std::format("{} (process {})", name, processId);
+        }
+    }
+    return std::format("process {}", processId);
+}
+
+// What became of a sequence run by RunWhileForegroundHeld.
+struct ForegroundRunResult
+{
+    bool held           = false; // A run ended without another application having taken the foreground from its window.
+    int runs            = 0;
+    DWORD thiefThreadId = 0u; // The thread of the window that took the foreground in the latest lost run.
+
+    // Why the sequence could not be observed, for the capability skip.
+    [[nodiscard]] std::string SkipReason(const char* what) const
+    {
+        // Windows names the thread it activated; when it names none, the foreground window says who holds it now.
+        DWORD thread = thiefThreadId;
+        if (thread == 0u)
+        {
+            if (const HWND foreground = GetForegroundWindow())
+                thread = GetWindowThreadProcessId(foreground, nullptr);
+        }
+        return std::format("{} needs its window to keep the foreground, but {} took it in each of {} runs", what, DescribeThreadProcessForTest(thread), runs);
+    }
+};
+
+// Runs `sequence`, the steps that move focus and pump messages, until one run ends without another application having
+// taken the foreground from `window`, at most `maximumRuns` times. Such a takeover makes the host release its native text
+// session, TSF document included, as designed; a desktop application retaking the foreground a few tens of milliseconds
+// after a test window activated did so mid-test and failed assertions that it says nothing about. The caller asserts on
+// the state the run that kept the foreground left, so its assertions are exactly those of a run without a thief, and a
+// regression still fails: a run nobody took the foreground from is never repeated. After a lost run the window is
+// activated again through the harness's activation helper (best effort). `sequence` must be safe to run again. When
+// another application takes the foreground in every run, the result says who, and ForegroundHeldOrSkip records the skip.
+template <typename Sequence> [[nodiscard]] ForegroundRunResult RunWhileForegroundHeld(AttachedHostWindow& window, Sequence&& sequence, int maximumRuns = 5)
+{
+    ForegroundRunResult result{};
+    while (result.runs < maximumRuns)
+    {
+        const uint32_t lossesBefore = window.ForegroundLossCount();
+        ++result.runs;
+        sequence();
+        if (window.ForegroundLossCount() == lossesBefore)
+        {
+            result.held = true;
+            return result;
+        }
+        result.thiefThreadId = window.LastForegroundThiefThreadId();
+        std::cerr << "    [FOREGROUND] " << DescribeThreadProcessForTest(result.thiefThreadId) << " took the foreground in run " << result.runs << " of "
+                  << maximumRuns << '\n'
+                  << std::flush;
+        if (result.runs < maximumRuns)
+            static_cast<void>(TryActivateDxUiTestWindow(window.Hwnd()));
+    }
+    return result;
+}
+
+// True when a run kept the foreground; otherwise records the capability skip naming who took it and returns false.
+[[nodiscard]] inline bool ForegroundHeldOrSkip(const ForegroundRunResult& run, const char* what)
+{
+    if (! run.held)
+        SkipDxUiTest(run.SkipReason(what).c_str());
+    return run.held;
+}
+
+// Delivers to `window` what Windows sends when another application's window takes the foreground from it, in the order
+// Windows sends it, so a test reproduces the takeover without a second application. `thiefThreadId` is the thread of
+// the window that took the foreground.
+inline void SimulateForegroundTheftForTest(HWND window, DWORD thiefThreadId)
+{
+    static_cast<void>(SendMessageW(window, WM_NCACTIVATE, FALSE, 0));
+    static_cast<void>(SendMessageW(window, WM_ACTIVATE, MAKEWPARAM(WA_INACTIVE, 0), 0));
+    static_cast<void>(SendMessageW(window, WM_ACTIVATEAPP, FALSE, static_cast<LPARAM>(thiefThreadId)));
+    static_cast<void>(SendMessageW(window, WM_KILLFOCUS, 0, 0));
+}
 
 class ClipboardHostWindow final
 {

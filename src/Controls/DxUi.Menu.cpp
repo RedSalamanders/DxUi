@@ -20,6 +20,7 @@
 #include <windowsx.h>
 
 #include "../Support/Diagnostics.h"
+#include "../Support/LiveResourceCount.h"
 #include "../Support/Utilities.h"
 #include "../Support/WindowMessages.h"
 
@@ -1092,6 +1093,9 @@ struct MenuPopup
     std::vector<MenuFlyoutItem> ownedItems;
     std::vector<float> itemOffsetsDip;
     std::vector<MenuDescriptionLayout> descriptionLayouts;
+    // What DebugGetContextMenuResources reports for this popup while it lives: itself and the layouts its rows hold.
+    Detail::LiveResourceCount livePopup{Detail::LiveResource::MenuPopup, 1u};
+    Detail::LiveResourceCount liveRowLayouts;
     uint64_t descriptionPreparationCount = 0;
     const MenuFlyoutItem* items          = nullptr;
     size_t itemCount                     = 0;
@@ -2448,7 +2452,11 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
             row.textWidthDip = textWidth;
             row.heightDip = 2.0f * kDescriptionPaddingDip + std::ceil(row.primaryMetrics.height) + kDescriptionGapDip + std::ceil(row.secondaryMetrics.height);
         }
+        size_t layoutCount = 0u;
+        for (const MenuDescriptionLayout& row : prepared)
+            layoutCount += (row.primary ? 1u : 0u) + (row.secondary ? 1u : 0u);
         popup.descriptionLayouts = std::move(prepared);
+        popup.liveRowLayouts     = Detail::LiveResourceCount(Detail::LiveResource::MenuRowLayout, layoutCount);
         popup.RebuildItemOffsets();
         popup.contentHeightDip = popup.itemOffsetsDip.back() + kMenuPaddingBottomDip;
         ++popup.descriptionPreparationCount;
@@ -6051,6 +6059,13 @@ bool DebugGetContextMenuPopupState(HWND hwnd, ContextMenuPopupDebugState& outSta
     }
 
     return TryGetMenuPopupState(*popup, outState);
+}
+
+ContextMenuResourceDebugState DebugGetContextMenuResources() noexcept
+{
+    return ContextMenuResourceDebugState{.popups               = Detail::LiveResourceCount::Live(Detail::LiveResource::MenuPopup),
+                                         .rowLayouts           = Detail::LiveResourceCount::Live(Detail::LiveResource::MenuRowLayout),
+                                         .accessibilityRecords = Detail::LiveResourceCount::Live(Detail::LiveResource::MenuAccessibilityRecord)};
 }
 
 void DebugSetContextMenuStateProbeStallForTest(HANDLE enteredEvent, HANDLE releaseEvent) noexcept

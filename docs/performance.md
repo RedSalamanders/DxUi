@@ -235,7 +235,11 @@ tests beside its native suites). No validator scan enters a nested git checkout,
 `.claude/worktrees`, so a half-edited copy cannot fail this tree. The comparator behind
 `performance.ps1` is `Tools/Compare-Performance.ps1`; its tests reproduce every stored paired comparison under
 Measurements exactly. Run x64 Debug/Release suites and build ARM64 Debug/Release for code
-changes; native ARM64 CI must also pass. Use `gallery.ps1 -PublishDocs` after visual/control changes and review all
+changes; native ARM64 CI must also pass. To iterate on one control test instead of its whole suite, run
+`./test.ps1 -Configuration Debug -Platform x64 -SkipBuild -Suites Menu -Tests TestDescribedMenuReleasesItsMemoryWhenItCloses`
+(or `DxUi.ControlTests.exe --suite=Menu --test=<Name>[,<Name>]`): only the named tests run, an unknown name fails the run,
+and the receipt is a separate `*.filtered.json` file. It supports development; a change is validated by the whole suites.
+Use `gallery.ps1 -PublishDocs` after visual/control changes and review all
 generated sheets. CI's x64 Release job runs the same command and uploads its `docs/gallery` output as
 `docs-gallery-x64-Release` for review. To publish it after a merge, run the manual
 [Publish docs gallery workflow](../.github/workflows/gallery.yml) on the branch with its `publish_docs` input enabled:

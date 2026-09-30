@@ -1150,38 +1150,31 @@ void TestComboBoxRainbowPopupUsesAccentDerivedHighlight()
 
 void RunComboBoxTests()
 {
-    auto runTest = [](const char* name, void (*fn)())
-    {
-        std::cerr << "  [START] " << name << '\n' << std::flush;
-        fn();
-        std::cerr << "  [DONE] " << name << '\n' << std::flush;
-    };
-
-    runTest("TestComboRightClickInvokesContextMenuWithoutOpeningPopup", TestComboRightClickInvokesContextMenuWithoutOpeningPopup);
-    runTest("TestComboBoxClosesOnFocusLoss", TestComboBoxClosesOnFocusLoss);
-    runTest("TestComboBoxSecondClickTogglesPopupClosed", TestComboBoxSecondClickTogglesPopupClosed);
-    runTest("TestAttachedComboBoxSentMouseHoverAndOutsideDismiss", TestAttachedComboBoxSentMouseHoverAndOutsideDismiss);
-    runTest("TestComboBoxPopupOverlayBlocksUnderlyingHover", TestComboBoxPopupOverlayBlocksUnderlyingHover);
-    runTest("TestComboBoxPopupOverlayBlocksUnderlyingClick", TestComboBoxPopupOverlayBlocksUnderlyingClick);
-    runTest("TestComboBoxPopupInsideScrolledPanelUsesViewportCoordinates", TestComboBoxPopupInsideScrolledPanelUsesViewportCoordinates);
-    runTest("TestScrollPanelPaintsOverlaysInScrolledViewportCoordinates", TestScrollPanelPaintsOverlaysInScrolledViewportCoordinates);
-    runTest("TestAttachedComboBoxPopupMouseLeaveRestoresKeyboardHighlightedItem", TestAttachedComboBoxPopupMouseLeaveRestoresKeyboardHighlightedItem);
-    runTest("TestComboBoxPopupFlipsAboveWhenBelowSpaceIsInsufficient", TestComboBoxPopupFlipsAboveWhenBelowSpaceIsInsufficient);
-    runTest("TestAttachedComboBoxFlippedPopupItemRectsStayInsidePopupBounds", TestAttachedComboBoxFlippedPopupItemRectsStayInsidePopupBounds);
-    runTest("TestComboBoxPageDownUsesClampedVisiblePopupRows", TestComboBoxPageDownUsesClampedVisiblePopupRows);
-    runTest("TestComboBoxPopupWidensForLongVisibleEntries", TestComboBoxPopupWidensForLongVisibleEntries);
-    runTest("TestComboBoxPopupWidthRemainsStableAcrossPopupScroll", TestComboBoxPopupWidthRemainsStableAcrossPopupScroll);
-    runTest("TestComboBoxPopupScrollbarPagesLongLists", TestComboBoxPopupScrollbarPagesLongLists);
-    runTest("TestComboBoxPopupScrollbarThumbGutterDragThroughWindowHost", TestComboBoxPopupScrollbarThumbGutterDragThroughWindowHost);
-    runTest("TestComboBoxPopupCapsVisibleItemsAndScrolls", TestComboBoxPopupCapsVisibleItemsAndScrolls);
-    runTest("TestComboBoxTypeaheadSelectsMatchingItem", TestComboBoxTypeaheadSelectsMatchingItem);
-    runTest("TestComboBoxEightItemsAllFitInDefaultPopup", TestComboBoxEightItemsAllFitInDefaultPopup);
-    runTest("TestComboBoxSetMaxVisibleItemsAllowsLargerPopup", TestComboBoxSetMaxVisibleItemsAllowsLargerPopup);
-    runTest("TestComboBoxTouchRowsKeepGeometryAndSelectionCoherent", TestComboBoxTouchRowsKeepGeometryAndSelectionCoherent);
-    runTest("TestComboBoxLocalizedNoMatchesRefreshesOpenPopup", TestComboBoxLocalizedNoMatchesRefreshesOpenPopup);
-    runTest("TestComboBoxCompactEditableTextRectPreservesInsetAndWidth", TestComboBoxCompactEditableTextRectPreservesInsetAndWidth);
-    runTest("TestNativeEditableComboBoxEmojiUsesColorFontRendering", TestNativeEditableComboBoxEmojiUsesColorFontRendering);
-    runTest("TestComboBoxCompactPopupItemTextRectPreservesInsetAndWidth", TestComboBoxCompactPopupItemTextRectPreservesInsetAndWidth);
-    runTest("TestComboBoxPopupUsesRoundSmallCornerRadius", TestComboBoxPopupUsesRoundSmallCornerRadius);
-    runTest("TestComboBoxRainbowPopupUsesAccentDerivedHighlight", TestComboBoxRainbowPopupUsesAccentDerivedHighlight);
+    DXUI_RUN_TEST(TestComboRightClickInvokesContextMenuWithoutOpeningPopup);
+    DXUI_RUN_TEST(TestComboBoxClosesOnFocusLoss);
+    DXUI_RUN_TEST(TestComboBoxSecondClickTogglesPopupClosed);
+    DXUI_RUN_TEST(TestAttachedComboBoxSentMouseHoverAndOutsideDismiss);
+    DXUI_RUN_TEST(TestComboBoxPopupOverlayBlocksUnderlyingHover);
+    DXUI_RUN_TEST(TestComboBoxPopupOverlayBlocksUnderlyingClick);
+    DXUI_RUN_TEST(TestComboBoxPopupInsideScrolledPanelUsesViewportCoordinates);
+    DXUI_RUN_TEST(TestScrollPanelPaintsOverlaysInScrolledViewportCoordinates);
+    DXUI_RUN_TEST(TestAttachedComboBoxPopupMouseLeaveRestoresKeyboardHighlightedItem);
+    DXUI_RUN_TEST(TestComboBoxPopupFlipsAboveWhenBelowSpaceIsInsufficient);
+    DXUI_RUN_TEST(TestAttachedComboBoxFlippedPopupItemRectsStayInsidePopupBounds);
+    DXUI_RUN_TEST(TestComboBoxPageDownUsesClampedVisiblePopupRows);
+    DXUI_RUN_TEST(TestComboBoxPopupWidensForLongVisibleEntries);
+    DXUI_RUN_TEST(TestComboBoxPopupWidthRemainsStableAcrossPopupScroll);
+    DXUI_RUN_TEST(TestComboBoxPopupScrollbarPagesLongLists);
+    DXUI_RUN_TEST(TestComboBoxPopupScrollbarThumbGutterDragThroughWindowHost);
+    DXUI_RUN_TEST(TestComboBoxPopupCapsVisibleItemsAndScrolls);
+    DXUI_RUN_TEST(TestComboBoxTypeaheadSelectsMatchingItem);
+    DXUI_RUN_TEST(TestComboBoxEightItemsAllFitInDefaultPopup);
+    DXUI_RUN_TEST(TestComboBoxSetMaxVisibleItemsAllowsLargerPopup);
+    DXUI_RUN_TEST(TestComboBoxTouchRowsKeepGeometryAndSelectionCoherent);
+    DXUI_RUN_TEST(TestComboBoxLocalizedNoMatchesRefreshesOpenPopup);
+    DXUI_RUN_TEST(TestComboBoxCompactEditableTextRectPreservesInsetAndWidth);
+    DXUI_RUN_TEST(TestNativeEditableComboBoxEmojiUsesColorFontRendering);
+    DXUI_RUN_TEST(TestComboBoxCompactPopupItemTextRectPreservesInsetAndWidth);
+    DXUI_RUN_TEST(TestComboBoxPopupUsesRoundSmallCornerRadius);
+    DXUI_RUN_TEST(TestComboBoxRainbowPopupUsesAccentDerivedHighlight);
 }

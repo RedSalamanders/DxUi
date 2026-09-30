@@ -2,6 +2,7 @@
 #include "../../src/Support/AnimationDispatcher.h"
 #include "DxUiTestHelpers.h"
 
+#include "../Support/ForegroundThief.h"
 #include "../Support/PerformanceCapture.h"
 #include <optional>
 #include <string>
@@ -71,6 +72,8 @@ int wmain(int argc, wchar_t** argv)
     const auto restoreClipboard = wil::scope_exit([]() noexcept { DxUi::testTextClipboard = nullptr; });
 
     std::optional<std::wstring> suiteFilter;
+    std::vector<std::string> testNames;
+    std::optional<std::pair<DWORD, DWORD>> foregroundThiefDelayMs;
     std::optional<std::filesystem::path> perfJsonlPath;
     std::optional<std::filesystem::path> galleryOutputPath;
     std::optional<std::filesystem::path> galleryOutputDirectory;
@@ -81,6 +84,9 @@ int wmain(int argc, wchar_t** argv)
     {
         const std::wstring_view arg                         = argv[argIndex] ? std::wstring_view(argv[argIndex]) : std::wstring_view{};
         constexpr std::wstring_view kSuitePrefix            = L"--suite=";
+        constexpr std::wstring_view kTestPrefix             = L"--test=";
+        constexpr std::wstring_view kForegroundThiefFlag    = L"--foreground-thief";
+        constexpr std::wstring_view kForegroundThiefPrefix  = L"--foreground-thief=";
         constexpr std::wstring_view kPerfJsonlPrefix        = L"--perf-jsonl=";
         constexpr std::wstring_view kGalleryPrefix          = L"--gallery-output=";
         constexpr std::wstring_view kGalleryDirectoryPrefix = L"--gallery-output-directory=";
@@ -93,6 +99,61 @@ int wmain(int argc, wchar_t** argv)
                 return 2;
             }
             suiteFilter = std::wstring(arg.substr(kSuitePrefix.size()));
+            continue;
+        }
+        if (arg.rfind(kTestPrefix, 0) == 0)
+        {
+            // A comma-separated list of test function names, each a C++ identifier. Repeating the option adds to the list.
+            const auto isIdentifierChar = [](wchar_t ch) noexcept
+            { return ch == L'_' || (ch >= L'0' && ch <= L'9') || (ch >= L'A' && ch <= L'Z') || (ch >= L'a' && ch <= L'z'); };
+            std::wstring_view list = arg.substr(kTestPrefix.size());
+            for (bool more = true; more;)
+            {
+                const size_t comma           = list.find(L',');
+                const std::wstring_view name = list.substr(0, comma);
+                if (name.empty() || ! std::all_of(name.begin(), name.end(), isIdentifierChar))
+                {
+                    std::wcerr << L"Expected --test=<Name>[,<Name>...] with test function names.\n";
+                    return 2;
+                }
+                std::string narrowName;
+                for (const wchar_t ch : name)
+                    narrowName.push_back(static_cast<char>(ch));
+                testNames.push_back(std::move(narrowName));
+                more = comma != std::wstring_view::npos;
+                if (more)
+                    list.remove_prefix(comma + 1u);
+            }
+            continue;
+        }
+        if (arg == kForegroundThiefFlag || arg.rfind(kForegroundThiefPrefix, 0) == 0)
+        {
+            // The delay range in milliseconds between a window of this process becoming the foreground window and the thief
+            // taking the foreground; the bare flag reproduces the 30-95 ms of the desktop application that did so.
+            foregroundThiefDelayMs = std::pair<DWORD, DWORD>{30u, 95u};
+            if (arg != kForegroundThiefFlag)
+            {
+                const auto parseMilliseconds = [](std::wstring_view digits) -> std::optional<DWORD>
+                {
+                    if (digits.empty() || digits.size() > 5u ||
+                        ! std::all_of(digits.begin(), digits.end(), [](wchar_t ch) noexcept { return ch >= L'0' && ch <= L'9'; }))
+                        return std::nullopt;
+                    DWORD value = 0u;
+                    for (const wchar_t ch : digits)
+                        value = value * 10u + static_cast<DWORD>(ch - L'0');
+                    return value;
+                };
+                const std::wstring_view range    = arg.substr(kForegroundThiefPrefix.size());
+                const size_t comma               = range.find(L',');
+                const std::optional<DWORD> first = parseMilliseconds(range.substr(0, comma));
+                const std::optional<DWORD> last  = comma == std::wstring_view::npos ? std::nullopt : parseMilliseconds(range.substr(comma + 1u));
+                if (! first || ! last || first.value() > last.value())
+                {
+                    std::wcerr << L"Expected --foreground-thief[=<minMs>,<maxMs>] with minMs <= maxMs.\n";
+                    return 2;
+                }
+                foregroundThiefDelayMs = std::pair<DWORD, DWORD>{first.value(), last.value()};
+            }
             continue;
         }
         if (arg == L"--write-baselines")
@@ -158,6 +219,10 @@ int wmain(int argc, wchar_t** argv)
     }
 
     SetDxUiWriteBaselines(writeBaselines);
+    if (! testNames.empty())
+    {
+        SetDxUiTestFilter(testNames);
+    }
     if (perfJsonlPath.has_value())
     {
 #if defined(NDEBUG)
@@ -185,6 +250,19 @@ int wmain(int argc, wchar_t** argv)
         return _wcsicmp(wideName.c_str(), suiteFilter->c_str()) == 0;
     };
 
+    // These suites are one fixture each, with no test functions a name could select.
+    if (! testNames.empty() && suiteFilter.has_value())
+    {
+        for (const char* fixtureSuite : {"MenuTextLayoutResources", "MenuResourceScaling", "MenuResources", "Gallery", "ButtonContrast", "MenuExitLifetime"})
+        {
+            if (shouldRunSuite(fixtureSuite))
+            {
+                std::wcerr << L"--test cannot select tests within the " << *suiteFilter << L" suite: it has no individually named tests.\n";
+                return 2;
+            }
+        }
+    }
+
     const auto suiteCanActivate = [](const char* name) noexcept
     {
         return _stricmp(name, "Menu") == 0 || _stricmp(name, "NativeTextInput") == 0 || _stricmp(name, "MenuResources") == 0 ||
@@ -199,12 +277,35 @@ int wmain(int argc, wchar_t** argv)
         return 2;
     }
 
+    if (blockActivation && foregroundThiefDelayMs.has_value())
+    {
+        // The thief takes the foreground itself, which --no-activate promises no run does.
+        std::wcerr << L"--foreground-thief cannot combine with --no-activate.\n";
+        return 2;
+    }
+
     DxUi::TestSupport::ScopedWindowActivationBlocker activationBlocker;
     if (blockActivation && ! activationBlocker.Start())
     {
         std::wcerr << L"Failed to install the DxUi no-activation guard.\n";
         return 2;
     }
+
+    std::optional<DxUi::TestSupport::ForegroundThief> foregroundThief;
+    if (foregroundThiefDelayMs.has_value())
+    {
+        foregroundThief.emplace(foregroundThiefDelayMs->first, foregroundThiefDelayMs->second);
+    }
+    const auto reportForegroundThefts = wil::scope_exit([&]
+    {
+        if (foregroundThief.has_value())
+        {
+            std::cerr << "[THIEF] foreground taken " << foregroundThief->TheftCount() << " times";
+            if (! foregroundThief->OwnForegroundSeen())
+                std::cerr << " (no window of this process ever held the foreground, so no takeover was exercised)";
+            std::cerr << '\n' << std::flush;
+        }
+    });
 
     auto runSuite = [&](const char* name, void (*fn)())
     {
@@ -350,6 +451,15 @@ int wmain(int argc, wchar_t** argv)
     if (! ranAnySuite)
     {
         std::wcerr << L"Unknown suite filter: " << suiteFilter.value_or(L"<empty>") << L'\n';
+        return 2;
+    }
+    if (const std::vector<std::string> unknownTests = UnmatchedDxUiTestNames(); ! unknownTests.empty())
+    {
+        // A name no selected suite registers would otherwise pass with nothing run.
+        std::cerr << "Unknown test name for the selected suites:";
+        for (const std::string& name : unknownTests)
+            std::cerr << ' ' << name;
+        std::cerr << "\nNames are exact, case-sensitive test function names.\n";
         return 2;
     }
 

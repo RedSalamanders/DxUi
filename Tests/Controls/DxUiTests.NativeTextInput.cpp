@@ -408,8 +408,14 @@ void TestNativeTextInputBackendFocusesHostWithoutBridgeChild()
         SkipDxUiTest("native text input requires an interactive desktop for host focus assertions");
         return;
     }
-    window.Host().SetFocusControl(field);
-    window.PumpMessages();
+    // Another application taking the foreground while the window pumps releases the native session: repeat until none does.
+    const auto focusField = [&]
+    {
+        window.Host().SetFocusControl(field);
+        window.PumpMessages();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, focusField), "native text input host focus assertions"))
+        return;
 
     Require(window.Host().GetTextInputBackend() == TextInputBackend::Native, "window host keeps the native backend after text focus");
     Require(window.Host().GetFocusControl() == field, "native text input keeps retained focus on the text field");
@@ -426,17 +432,26 @@ void TestNativeTextInputBackendActivatesTsfDocumentOnFocus()
     AttachedHostWindow window;
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
-    const NativeTextInputEventCounters beforeCounters = window.Host().DebugGetNativeTextInputEventCounters();
-
     auto root   = std::make_unique<Panel>();
     auto* field = root->AddChild<TextField>(L"alpha beta");
     field->SetBounds(D2D1::RectF(12.0f, 16.0f, 260.0f, 44.0f));
 
     window.Host().SetRoot(std::move(root));
-    window.Host().SetFocusControl(field);
-    window.PumpMessages();
+    // Another application taking the foreground while the window pumps releases the TSF document, as designed: repeat the
+    // focus until a run keeps the foreground, then make the assertions on that run.
+    NativeTextInputEventCounters beforeCounters{};
+    NativeTextInputEventCounters counters{};
+    const auto focusField = [&]
+    {
+        window.Host().SetFocusControl(nullptr);
+        beforeCounters = window.Host().DebugGetNativeTextInputEventCounters();
+        window.Host().SetFocusControl(field);
+        window.PumpMessages();
+        counters = window.Host().DebugGetNativeTextInputEventCounters();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, focusField), "native text input TSF document assertions"))
+        return;
 
-    const NativeTextInputEventCounters counters = window.Host().DebugGetNativeTextInputEventCounters();
     Require(counters.tsfActivationAttemptCount > beforeCounters.tsfActivationAttemptCount,
             "native text input attempts TSF document activation when a text field gains focus");
     Require(counters.tsfActivationSuccessCount > beforeCounters.tsfActivationSuccessCount,
@@ -447,6 +462,74 @@ void TestNativeTextInputBackendActivatesTsfDocumentOnFocus()
     Require(! window.Host().DebugHasActiveNativeTextInputTsfDocument(), "native text input releases the TSF document/context when focus leaves the field");
     Require(window.Host().DebugGetNativeTextInputEventCounters().tsfDeactivationCount > counters.tsfDeactivationCount,
             "native text input counts TSF document deactivation when focus leaves the field");
+}
+
+// A desktop application retaking the foreground makes the host release its native session, TSF document included. The
+// takeover is delivered as Windows sends it; the sequence then repeats, so the TSF assertions of the test above keep their
+// meaning on a run that kept the foreground and never fail because of a thief.
+void TestNativeTextInputTsfSequenceRepeatsAfterTheForegroundIsTaken()
+{
+    using namespace DxUi;
+
+    const ScopedNonActivatingTestWindows nonActivatingWindows; // The takeover is simulated: nothing real may add to it.
+    AttachedHostWindow window;
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"alpha beta");
+    field->SetBounds(D2D1::RectF(12.0f, 16.0f, 260.0f, 44.0f));
+    window.Host().SetRoot(std::move(root));
+
+    int runs                                = 0;
+    bool documentAliveAfterTheFirstTakeover = true;
+    const auto focusField                   = [&]
+    {
+        ++runs;
+        window.Host().SetFocusControl(nullptr);
+        window.Host().SetFocusControl(field);
+        if (runs == 1)
+        {
+            SimulateForegroundTheftForTest(window.Hwnd(), GetCurrentThreadId());
+            documentAliveAfterTheFirstTakeover = window.Host().DebugHasActiveNativeTextInputTsfDocument();
+        }
+        window.PumpMessages();
+    };
+    const ForegroundRunResult run = RunWhileForegroundHeld(window, focusField);
+
+    Require(! documentAliveAfterTheFirstTakeover, "a foreground taken from the window releases its TSF document");
+    Require(run.held && run.runs == 2 && runs == 2, "a foreground taken in the first run repeats the sequence once");
+    Require(window.Host().DebugHasActiveNativeTextInputTsfDocument(), "the run that kept the foreground left the TSF document active");
+}
+
+void TestForegroundHoldGivesUpAfterTheMaximumRunsAndNamesWhoTookIt()
+{
+    using namespace DxUi;
+
+    const ScopedNonActivatingTestWindows nonActivatingWindows; // The takeover is simulated: nothing real may add to it.
+    AttachedHostWindow window;
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"alpha");
+    field->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
+    window.Host().SetRoot(std::move(root));
+
+    int runs              = 0;
+    const auto focusField = [&]
+    {
+        ++runs;
+        window.Host().SetFocusControl(field);
+        SimulateForegroundTheftForTest(window.Hwnd(), GetCurrentThreadId());
+        window.PumpMessages();
+    };
+    const ForegroundRunResult run = RunWhileForegroundHeld(window, focusField, 3);
+
+    Require(! run.held && run.runs == 3 && runs == 3, "a foreground taken in every run stops after the maximum number of runs");
+    Require(run.thiefThreadId == GetCurrentThreadId(), "the result keeps the thread of the window that took the foreground");
+    const std::string thief  = DescribeThreadProcessForTest(run.thiefThreadId);
+    const std::string reason = run.SkipReason("the TSF document assertions");
+    Require(thief.find(".exe (process ") != std::string::npos, "the thief's process is named by its executable");
+    Require(reason.find(thief) != std::string::npos && reason.find("3 runs") != std::string::npos, "the skip reason names the application and the runs");
 }
 
 void TestNativeTextInputBackendOwnsSystemCaretOnHostHwnd()
@@ -466,8 +549,14 @@ void TestNativeTextInputBackendOwnsSystemCaretOnHostHwnd()
         SkipDxUiTest("native text input requires an interactive desktop for system caret assertions");
         return;
     }
-    window.Host().SetFocusControl(field);
-    window.PumpMessages();
+    // Another application taking the foreground while the window pumps destroys the caret: repeat until none does.
+    const auto focusField = [&]
+    {
+        window.Host().SetFocusControl(field);
+        window.PumpMessages();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, focusField), "native text input system caret assertions"))
+        return;
 
     D2D1_RECT_F caretRectDip{};
     RECT caretRectScreenPx{};
@@ -6310,14 +6399,25 @@ void TestNativeTextInputBackendKeyToPaintMetricScenario()
     field->SetBounds(D2D1::RectF(12.0f, 16.0f, 240.0f, 44.0f));
 
     window.Host().SetRoot(std::move(root));
-    window.Host().SetFocusControl(field);
-    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
-    window.PumpMessages();
-
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_CHAR, L'Z', 0));
-
+    // Another application taking the foreground while the window pumps releases the native session the key needs: repeat
+    // until none does, each repeat from the text the field began with.
     NativeTextInputState state;
-    Require(window.Host().TryReadNativeTextInputState(field, state), "native key-to-paint scenario reads focused native state after key input");
+    bool stateRead     = false;
+    auto typeIntoField = [&, repeated = false]() mutable
+    {
+        if (std::exchange(repeated, true))
+            field->SetText(L"alpha");
+        window.Host().SetFocusControl(field);
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        window.PumpMessages();
+
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_CHAR, L'Z', 0));
+        stateRead = window.Host().TryReadNativeTextInputState(field, state);
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, typeIntoField), "native key-to-paint scenario"))
+        return;
+
+    Require(stateRead, "native key-to-paint scenario reads focused native state after key input");
     Require(state.text == L"alphaZ", "native key-to-paint scenario mutates retained text before paint");
 
     RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
@@ -6332,133 +6432,135 @@ void TestNativeTextInputBackendKeyToPaintMetricScenario()
 
 void RunNativeTextInputTests()
 {
-    TestNativeClipboardTransportBenchmark();
-    TestNativeClipboardLargeSelections();
-    TestNativeClipboardFailuresPreserveText();
-    TestEmbeddedClipboardRejectsLargeNativePayload();
-    TestApplicationTextStoreInsertionAndLayout();
-    TestApplicationTextStoreTransactions();
-    TestApplicationTextStoreDeferredLocks();
-    TestApplicationCompositionCancelAfterFocusReplacement();
-    TestApplicationTextStoreFailuresAndGeometry();
-    TestApplicationTextServiceLifecycle();
-    TestApplicationClipboardCommands();
-    TestBoundedClipboardDecode();
-    TestWindowHostDefaultsToNativeTextInputBackend();
-    TestNativeTextInputBackendFocusesHostWithoutBridgeChild();
-    TestNativeTextInputBackendActivatesTsfDocumentOnFocus();
-    TestNativeTextInputBackendOwnsSystemCaretOnHostHwnd();
-    TestNativeTextInputBackendMovesSystemCaretAfterKeyInput();
-    TestNativeTextInputBackendClearsSessionWhenRootResets();
-    TestNativeTextInputBackendClearsSessionWhenFocusedControlBecomesStale();
-    TestNativeTextInputBackendUpdatesCaretWhenFocusedFieldMoves();
-    TestNativeTextInputBackendHostFocusLossControlsNativeSession();
-    TestNativeTextInputBackendTabMovesFocusToNextControl();
-    TestNativeTextInputBackendMultilineDialogKeysStayHostOwned();
-    TestNativeTextInputBackendEnterInvokesDefaultButton();
-    TestNativeTextInputBackendEscapeInvokesCancelButton();
-    TestNativeTextInputBackendRevealedMaskedFieldRemasksBeforeEscapeCancel();
-    TestNativeTextInputBackendMenuKeyInvokesContextMenu();
-    TestNativeTextInputBackendMultilineContextMenuKeysStayOnHostHwnd();
-    TestNativeTextInputBackendSyncsPrintableCharIntoSessionState();
-    TestNativeTextInputBackendSingleLineTabCharAndPasteReplacementSyncState();
-    TestNativeTextInputBackendStateMirrorsInheritedFlowDirection();
-    TestNativeTextInputBackendSyncsFocusedInheritedFlowDirectionChanges();
-    TestNativeTextInputBackendEditableComboSyncsTextAndFlowDirection();
-    TestNativeTextInputBackendEditableComboCommandsAndPopupSyncState();
-    TestNativeTextInputBackendEditableComboExactMatchCommandsSyncSelection();
-    TestNativeTextInputBackendEditableComboDeleteKeysAndPathWordDeleteSyncState();
-    TestNativeTextInputBackendSyncsPrintableSysCharIntoSessionState();
-    TestNativeTextInputTextStoreRequiresLockAndExposesTextSelectionGeometry();
-    TestNativeTextInputTextStoreRejectsDestroyedControlDuringTeardown();
-    TestNativeTextInputTextStoreExposesOwnerCompositionSink();
-    TestNativeTextInputTextStoreExposesAcp2Surface();
-    TestNativeTextInputTextStoreMixedBiDiGeometryUsesTextViewport();
-    TestNativeTextInputTextStoreMultilineTextExtUsesCaretLineGeometry();
-    TestNativeTextInputTextStoreWrappedTextExtSpansVisualLineGeometry();
-    TestNativeTextInputTextStoreMultilinePointMapsToLineCaretAcp();
-    TestNativeTextInputTextStoreWrappedPointMapsToVisualLineCaretAcp();
-    TestNativeTextInputTextStoreReportsNoLayoutForEmptyBounds();
-    TestNativeTextInputTextStoreInsertAtSelectionMutatesRetainedTextAndNotifiesSink();
-    TestNativeTextInputTextStoreEmojiRangeUsesLogicalUtf16Acp();
-    TestNativeTextInputTextStoreSetTextReplacesRangeAndNotifiesSink();
-    TestNativeTextInputTextStoreCallbackInvalidation();
-    TestNativeTextInputTextStoreExternalRetainedChangesNotifySink();
-    TestNativeTextInputTextStoreExternalChangeNotificationHandlesSinkRequestedLock();
-    TestNativeTextInputTextStoreRepeatedEmojiExternalChangesStayBounded();
-    TestNativeTextInputTextStoreUnadviseRequiresAdvisedSink();
-    TestNativeTextInputTextStoreReadWriteLockBracketsEditTransactionAndRejectsReentrantLock();
-    TestNativeTextInputTextStoreEditableComboBoxSelectionAndMutation();
-    TestNativeTextInputBackendKeyToPaintMetricScenario();
-    TestNativeTextInputBackendImeStartEndUpdatesCompositionState();
-    TestNativeTextInputBackendReadOnlySuppressesImeComposition();
-    TestNativeTextInputBackendImeStartTracksSelectedCompositionRange();
-    TestNativeTextInputBackendImeNoPayloadWithoutActiveCompositionDoesNotStartRange();
-    TestNativeTextInputBackendImeWindowsTrackCaretRect();
-    TestNativeTextInputBackendMultilineImeWindowsTrackCaretAcrossLines();
-    TestNativeTextInputBackendImeWindowsUpdateWhenFocusedFieldMoves();
-    TestNativeTextInputBackendMultilineImeWindowsUpdateWhenFocusedFieldMoves();
-    TestNativeTextInputBackendImeWindowsUpdateWhenEditableComboMoves();
-    TestNativeTextInputBackendImeWindowsUpdateAfterProgrammaticTextFieldCaretMove();
-    TestNativeTextInputBackendImeWindowsUpdateAfterProgrammaticEditableComboCaretMove();
-    TestNativeTextInputBackendImeWindowsUpdateAfterFocusedTextFieldPaddingChange();
-    TestNativeTextInputBackendImeWindowsUpdateAfterFocusedEditableComboDensityChange();
-    TestNativeTextInputBackendImeWindowsUpdateAfterDpiChange();
-    TestNativeTextInputBackendImeWindowsUpdateAfterMultilineScroll();
-    TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement();
-    TestNativeTextInputBackendImeCompositionPayloadPreviewsAndCancelRestoresBase();
-    TestNativeTextInputBackendImeCompositionPaintExposesStyledInlineRanges();
-    TestNativeTextInputBackendImeCompositionPaintExposesEditableComboInlineRanges();
-    TestNativeTextInputBackendImeMultilineWrappedPreviewThenResultCommitsAtOriginalAnchor();
-    TestNativeTextInputBackendImeCompositionOwnsSpecialKeys();
-    TestNativeTextInputBackendImeCompositionLetsModifiedNavigationKeysRoute();
-    TestNativeTextInputBackendMultilineImeCompositionOwnsSpecialKeys();
-    TestNativeTextInputBackendImeResultOnlyResumesHostKeyRouting();
-    TestNativeTextInputBackendImeResultAndCompositionKeepsKeyOwnership();
-    TestNativeTextInputBackendSyncsKeySelectionIntoSessionState();
-    TestNativeTextInputBackendExposesBackendNeutralTextInputState();
-    TestNativeTextInputBackendSurrogatePairDeletionSyncsState();
-    TestNativeTextInputBackendEmojiZwJDeletionSyncsState();
-    TestNativeTextInputBackendRegionalIndicatorFlagDeletionSyncsState();
-    TestNativeTextInputBackendEmojiSuffixDeletionSyncsState();
-    TestNativeTextInputBackendEmojiShiftSelectionSyncsState();
-    TestNativeTextInputBackendCtrlWordDeletionSyncsState();
-    TestNativeTextInputBackendPointerCaretPlacementSyncsState();
-    TestNativeTextInputBackendSingleLineDoubleClickSelectsWordOnHostHwnd();
-    TestNativeTextInputBackendSingleLineRepeatedClicksWithoutClassDoubleClicksSelectWord();
-    TestNativeTextInputBackendSingleLineThirdClickSelectsAllOnHostHwnd();
-    TestNativeTextInputBackendSingleLineDragSelectionReplacesRangeOnHostHwnd();
-    TestNativeTextInputBackendMixedBiDiDragSelectionCopiesLogicalOrderOnHostHwnd();
-    TestNativeTextInputBackendMixedBiDiPointerHitTestMatchesDirectWriteVisualOrderOnHostHwnd();
-    TestNativeTextInputBackendBiDiPointerScenarioMatrixMatchesDirectWriteOnHostHwnd();
-    TestNativeTextInputBackendBiDiKeyboardLogicalBoundaryCommandsSyncState();
-    TestNativeTextInputBackendMixedBiDiEditTransactionsPreserveLogicalOrder();
-    TestNativeTextInputBackendPointerHitTestDoesNotSplitEmojiTextElements();
-    TestNativeTextInputBackendEditableComboPointerHitTestDoesNotSplitEmojiTextElement();
-    TestNativeTextInputBackendNoSelectionCopyLeavesClipboardUnchanged();
-    TestNativeTextInputBackendCtrlCopyCutPasteSyncsState();
-    TestNativeTextInputBackendUndoRedoAndRedoClear();
-    TestNativeTextInputBackendEditTransactionsNotifyOnceAndIgnoreNoOps();
-    TestNativeTextInputBackendEmojiClipboardReplacementUndoRedo();
-    TestNativeTextInputBackendMaskedHiddenSuppressesCopyAndCut();
-    TestNativeTextInputBackendMaskedExactPolicyCountsTextElements();
-    TestNativeTextInputBackendMaskedConcealedPolicyUsesStableBuckets();
-    TestNativeTextInputBackendMaskedConcealedPolicyRegeneratesEpochs();
-    TestNativeTextInputBackendConcealedEditingAffordancesAndPointerPolicy();
-    TestNativeTextInputBackendRevealedMaskedFieldAllowsCopyAndCut();
-    TestNativeTextInputBackendRevealedMaskedFieldRemasksOnBlurReadOnlyAndDisable();
-    TestNativeTextInputBackendImeCompositionClearsOnWindowDeactivate();
-    TestNativeTextInputBackendRevealedMaskedFieldRemasksOnWindowDeactivate();
-    TestNativeTextInputBackendMaskedRevealButtonRemasksOnCaptureLoss();
-    TestNativeTextInputBackendMaskedRevealButtonPeeksWithoutClearingSecret();
-    TestNativeTextInputBackendMaskedRevealButtonSupportsKeyboardPeek();
-    TestNativeTextInputBackendPasswordRevealModesControlAffordanceAndVisibility();
-    TestNativeTextInputBackendReadOnlyAllowsCopyAndSuppressesMutation();
-    TestNativeTextInputBackendMultilineCtrlCopyPastePreservesLogicalNewlines();
-    TestNativeTextInputBackendMultilineCharAndReturnReplacementSyncState();
-    TestNativeTextInputBackendEditMessagesCopyPasteCutClearSelection();
-    TestNativeTextInputBackendEditMessagesRoundTripWin32Protocol();
-    TestNativeTextInputBackendEditMessagesSetTextClearsComposition();
-    TestNativeTextInputBackendEditMessagesFallBackWithoutTextInput();
-    TestNativeTextInputBackendClearWithoutSelectionLeavesTextAndClipboardUnchanged();
+    DXUI_RUN_TEST(TestNativeClipboardTransportBenchmark);
+    DXUI_RUN_TEST(TestNativeClipboardLargeSelections);
+    DXUI_RUN_TEST(TestNativeClipboardFailuresPreserveText);
+    DXUI_RUN_TEST(TestEmbeddedClipboardRejectsLargeNativePayload);
+    DXUI_RUN_TEST(TestApplicationTextStoreInsertionAndLayout);
+    DXUI_RUN_TEST(TestApplicationTextStoreTransactions);
+    DXUI_RUN_TEST(TestApplicationTextStoreDeferredLocks);
+    DXUI_RUN_TEST(TestApplicationCompositionCancelAfterFocusReplacement);
+    DXUI_RUN_TEST(TestApplicationTextStoreFailuresAndGeometry);
+    DXUI_RUN_TEST(TestApplicationTextServiceLifecycle);
+    DXUI_RUN_TEST(TestApplicationClipboardCommands);
+    DXUI_RUN_TEST(TestBoundedClipboardDecode);
+    DXUI_RUN_TEST(TestWindowHostDefaultsToNativeTextInputBackend);
+    DXUI_RUN_TEST(TestNativeTextInputBackendFocusesHostWithoutBridgeChild);
+    DXUI_RUN_TEST(TestNativeTextInputBackendActivatesTsfDocumentOnFocus);
+    DXUI_RUN_TEST(TestNativeTextInputTsfSequenceRepeatsAfterTheForegroundIsTaken);
+    DXUI_RUN_TEST(TestForegroundHoldGivesUpAfterTheMaximumRunsAndNamesWhoTookIt);
+    DXUI_RUN_TEST(TestNativeTextInputBackendOwnsSystemCaretOnHostHwnd);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMovesSystemCaretAfterKeyInput);
+    DXUI_RUN_TEST(TestNativeTextInputBackendClearsSessionWhenRootResets);
+    DXUI_RUN_TEST(TestNativeTextInputBackendClearsSessionWhenFocusedControlBecomesStale);
+    DXUI_RUN_TEST(TestNativeTextInputBackendUpdatesCaretWhenFocusedFieldMoves);
+    DXUI_RUN_TEST(TestNativeTextInputBackendHostFocusLossControlsNativeSession);
+    DXUI_RUN_TEST(TestNativeTextInputBackendTabMovesFocusToNextControl);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMultilineDialogKeysStayHostOwned);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEnterInvokesDefaultButton);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEscapeInvokesCancelButton);
+    DXUI_RUN_TEST(TestNativeTextInputBackendRevealedMaskedFieldRemasksBeforeEscapeCancel);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMenuKeyInvokesContextMenu);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMultilineContextMenuKeysStayOnHostHwnd);
+    DXUI_RUN_TEST(TestNativeTextInputBackendSyncsPrintableCharIntoSessionState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendSingleLineTabCharAndPasteReplacementSyncState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendStateMirrorsInheritedFlowDirection);
+    DXUI_RUN_TEST(TestNativeTextInputBackendSyncsFocusedInheritedFlowDirectionChanges);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEditableComboSyncsTextAndFlowDirection);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEditableComboCommandsAndPopupSyncState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEditableComboExactMatchCommandsSyncSelection);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEditableComboDeleteKeysAndPathWordDeleteSyncState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendSyncsPrintableSysCharIntoSessionState);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreRequiresLockAndExposesTextSelectionGeometry);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreRejectsDestroyedControlDuringTeardown);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreExposesOwnerCompositionSink);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreExposesAcp2Surface);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreMixedBiDiGeometryUsesTextViewport);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreMultilineTextExtUsesCaretLineGeometry);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreWrappedTextExtSpansVisualLineGeometry);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreMultilinePointMapsToLineCaretAcp);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreWrappedPointMapsToVisualLineCaretAcp);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreReportsNoLayoutForEmptyBounds);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreInsertAtSelectionMutatesRetainedTextAndNotifiesSink);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreEmojiRangeUsesLogicalUtf16Acp);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreSetTextReplacesRangeAndNotifiesSink);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreCallbackInvalidation);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreExternalRetainedChangesNotifySink);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreExternalChangeNotificationHandlesSinkRequestedLock);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreRepeatedEmojiExternalChangesStayBounded);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreUnadviseRequiresAdvisedSink);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreReadWriteLockBracketsEditTransactionAndRejectsReentrantLock);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreEditableComboBoxSelectionAndMutation);
+    DXUI_RUN_TEST(TestNativeTextInputBackendKeyToPaintMetricScenario);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeStartEndUpdatesCompositionState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendReadOnlySuppressesImeComposition);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeStartTracksSelectedCompositionRange);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeNoPayloadWithoutActiveCompositionDoesNotStartRange);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsTrackCaretRect);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMultilineImeWindowsTrackCaretAcrossLines);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsUpdateWhenFocusedFieldMoves);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMultilineImeWindowsUpdateWhenFocusedFieldMoves);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsUpdateWhenEditableComboMoves);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsUpdateAfterProgrammaticTextFieldCaretMove);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsUpdateAfterProgrammaticEditableComboCaretMove);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsUpdateAfterFocusedTextFieldPaddingChange);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsUpdateAfterFocusedEditableComboDensityChange);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsUpdateAfterDpiChange);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsUpdateAfterMultilineScroll);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeCompositionPayloadPreviewsAndCancelRestoresBase);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeCompositionPaintExposesStyledInlineRanges);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeCompositionPaintExposesEditableComboInlineRanges);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeMultilineWrappedPreviewThenResultCommitsAtOriginalAnchor);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeCompositionOwnsSpecialKeys);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeCompositionLetsModifiedNavigationKeysRoute);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMultilineImeCompositionOwnsSpecialKeys);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeResultOnlyResumesHostKeyRouting);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeResultAndCompositionKeepsKeyOwnership);
+    DXUI_RUN_TEST(TestNativeTextInputBackendSyncsKeySelectionIntoSessionState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendExposesBackendNeutralTextInputState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendSurrogatePairDeletionSyncsState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEmojiZwJDeletionSyncsState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendRegionalIndicatorFlagDeletionSyncsState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEmojiSuffixDeletionSyncsState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEmojiShiftSelectionSyncsState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendCtrlWordDeletionSyncsState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendPointerCaretPlacementSyncsState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendSingleLineDoubleClickSelectsWordOnHostHwnd);
+    DXUI_RUN_TEST(TestNativeTextInputBackendSingleLineRepeatedClicksWithoutClassDoubleClicksSelectWord);
+    DXUI_RUN_TEST(TestNativeTextInputBackendSingleLineThirdClickSelectsAllOnHostHwnd);
+    DXUI_RUN_TEST(TestNativeTextInputBackendSingleLineDragSelectionReplacesRangeOnHostHwnd);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMixedBiDiDragSelectionCopiesLogicalOrderOnHostHwnd);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMixedBiDiPointerHitTestMatchesDirectWriteVisualOrderOnHostHwnd);
+    DXUI_RUN_TEST(TestNativeTextInputBackendBiDiPointerScenarioMatrixMatchesDirectWriteOnHostHwnd);
+    DXUI_RUN_TEST(TestNativeTextInputBackendBiDiKeyboardLogicalBoundaryCommandsSyncState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMixedBiDiEditTransactionsPreserveLogicalOrder);
+    DXUI_RUN_TEST(TestNativeTextInputBackendPointerHitTestDoesNotSplitEmojiTextElements);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEditableComboPointerHitTestDoesNotSplitEmojiTextElement);
+    DXUI_RUN_TEST(TestNativeTextInputBackendNoSelectionCopyLeavesClipboardUnchanged);
+    DXUI_RUN_TEST(TestNativeTextInputBackendCtrlCopyCutPasteSyncsState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendUndoRedoAndRedoClear);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEditTransactionsNotifyOnceAndIgnoreNoOps);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEmojiClipboardReplacementUndoRedo);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMaskedHiddenSuppressesCopyAndCut);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMaskedExactPolicyCountsTextElements);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMaskedConcealedPolicyUsesStableBuckets);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMaskedConcealedPolicyRegeneratesEpochs);
+    DXUI_RUN_TEST(TestNativeTextInputBackendConcealedEditingAffordancesAndPointerPolicy);
+    DXUI_RUN_TEST(TestNativeTextInputBackendRevealedMaskedFieldAllowsCopyAndCut);
+    DXUI_RUN_TEST(TestNativeTextInputBackendRevealedMaskedFieldRemasksOnBlurReadOnlyAndDisable);
+    DXUI_RUN_TEST(TestNativeTextInputBackendImeCompositionClearsOnWindowDeactivate);
+    DXUI_RUN_TEST(TestNativeTextInputBackendRevealedMaskedFieldRemasksOnWindowDeactivate);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMaskedRevealButtonRemasksOnCaptureLoss);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMaskedRevealButtonPeeksWithoutClearingSecret);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMaskedRevealButtonSupportsKeyboardPeek);
+    DXUI_RUN_TEST(TestNativeTextInputBackendPasswordRevealModesControlAffordanceAndVisibility);
+    DXUI_RUN_TEST(TestNativeTextInputBackendReadOnlyAllowsCopyAndSuppressesMutation);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMultilineCtrlCopyPastePreservesLogicalNewlines);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMultilineCharAndReturnReplacementSyncState);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEditMessagesCopyPasteCutClearSelection);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEditMessagesRoundTripWin32Protocol);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEditMessagesSetTextClearsComposition);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEditMessagesFallBackWithoutTextInput);
+    DXUI_RUN_TEST(TestNativeTextInputBackendClearWithoutSelectionLeavesTextAndClipboardUnchanged);
 }

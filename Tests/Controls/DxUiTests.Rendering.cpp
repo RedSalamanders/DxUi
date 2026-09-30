@@ -2697,53 +2697,45 @@ void TestAttachedHostRecoversAfterSimulatedDeviceLoss()
 
 void RunRenderingTests()
 {
-    TestGridMultilineClampPreservesCompleteModelText();
-    TestGridMultilineShortRowsPaintClippedFirstLine();
-    TestGridMultilineTrailingSeparatorsMatchTrimmedTwin();
-    TestGridMultilineLayoutsSurviveRepaintForEveryDistinctVisibleCell();
-    TestGridMultilineOversizedValueShapesOnlyItsVisiblePrefix();
-    TestGridSingleLineLayoutsSurviveRepaintAndScroll();
-    TestGridPaintedLayoutsAreThoseOfItsVisibleCells();
-    TestGridReleasesItsLayoutsWhenItStopsPainting();
-    TestGridInAnUnselectedTabReleasesItsLayouts();
-    TestGridSingleLineOversizedCaptionShapesOnlyItsVisiblePrefix();
-    TestGridMultilineOmissionMarkerFollowsTheTextDirection();
-    TestMultilineButtonPaintUsesMultipleTextRows();
-    const auto runTest = [](const char* name, void (*fn)())
-    {
-        std::cerr << "  [START] " << name << '\n' << std::flush;
-        fn();
-        std::cerr << "  [DONE] " << name << '\n' << std::flush;
-    };
+    DXUI_RUN_TEST(TestGridMultilineClampPreservesCompleteModelText);
+    DXUI_RUN_TEST(TestGridMultilineShortRowsPaintClippedFirstLine);
+    DXUI_RUN_TEST(TestGridMultilineTrailingSeparatorsMatchTrimmedTwin);
+    DXUI_RUN_TEST(TestGridMultilineLayoutsSurviveRepaintForEveryDistinctVisibleCell);
+    DXUI_RUN_TEST(TestGridMultilineOversizedValueShapesOnlyItsVisiblePrefix);
+    DXUI_RUN_TEST(TestGridSingleLineLayoutsSurviveRepaintAndScroll);
+    DXUI_RUN_TEST(TestGridPaintedLayoutsAreThoseOfItsVisibleCells);
+    DXUI_RUN_TEST(TestGridReleasesItsLayoutsWhenItStopsPainting);
+    DXUI_RUN_TEST(TestGridInAnUnselectedTabReleasesItsLayouts);
+    DXUI_RUN_TEST(TestGridSingleLineOversizedCaptionShapesOnlyItsVisiblePrefix);
+    DXUI_RUN_TEST(TestGridMultilineOmissionMarkerFollowsTheTextDirection);
+    DXUI_RUN_TEST(TestMultilineButtonPaintUsesMultipleTextRows);
 
-    runTest("TestSharedTransientSurfaceRendersOrdinaryPressedAndHighContrastPolicies", TestSharedTransientSurfaceRendersOrdinaryPressedAndHighContrastPolicies);
-    runTest("TestThroughputGraphBandsStayBelowHistoryLine", TestThroughputGraphBandsStayBelowHistoryLine);
-    runTest("TestThroughputGraphHueChurnPerformanceScenario", TestThroughputGraphHueChurnPerformanceScenario);
-    runTest("TestDxUiCoreControlsDarkVisualBaseline", TestDxUiCoreControlsDarkVisualBaseline);
-    runTest("TestDxUiCoreControlsLightVisualBaseline", TestDxUiCoreControlsLightVisualBaseline);
-    runTest("TestDxUiHighContrastVisualBaseline", TestDxUiHighContrastVisualBaseline);
-    runTest("TestProgressBarReducedMotionIndeterminateCaptureIsStatic", TestProgressBarReducedMotionIndeterminateCaptureIsStatic);
-    runTest("TestDxUiPopupAndBarsVisualBaseline", TestDxUiPopupAndBarsVisualBaseline);
-    runTest("TestDxUiPopupAndBarsAcrylicLightVisualBaseline", TestDxUiPopupAndBarsAcrylicLightVisualBaseline);
-    runTest("TestDxUiPageTransitionVisualBaseline", TestDxUiPageTransitionVisualBaseline);
-    runTest("TestDxUiAdvancedControlsVisualBaseline", TestDxUiAdvancedControlsVisualBaseline);
-    runTest("TestAttachedComboBoxPopupHoverDoesNotRepaintWhenHoveredItemStaysTheSame", TestAttachedComboBoxPopupHoverDoesNotRepaintWhenHoveredItemStaysTheSame);
-    runTest("TestAttachedGridPaintHandlesDegenerateScrollbarTracks", TestAttachedGridPaintHandlesDegenerateScrollbarTracks);
-    runTest("TestGridIncludesBottomClippedTrailingRow", TestGridIncludesBottomClippedTrailingRow);
-    runTest("TestAttachedLargeGridVisibleWorkStaysBoundedAfterScroll", TestAttachedLargeGridVisibleWorkStaysBoundedAfterScroll);
-    runTest("TestAttachedLargeGridPaintReusesCellDataStringStorage", TestAttachedLargeGridPaintReusesCellDataStringStorage);
-    runTest("TestAttachedLargeIconBadgeGridVisibleWorkStaysBoundedAfterScroll", TestAttachedLargeIconBadgeGridVisibleWorkStaysBoundedAfterScroll);
-    runTest("TestAttachedGridBottomScrollKeepsFirstVisibleRowFlushWithHeader", TestAttachedGridBottomScrollKeepsFirstVisibleRowFlushWithHeader);
-    runTest("TestAttachedLargeGridLongRunScrollingStaysBoundedWithoutResizeChurn", TestAttachedLargeGridLongRunScrollingStaysBoundedWithoutResizeChurn);
-    runTest("TestAttachedLargeGroupedGridVisibleWorkStaysBoundedAfterScroll", TestAttachedLargeGroupedGridVisibleWorkStaysBoundedAfterScroll);
-    runTest("TestAttachedLargeCheckboxGridVisibleWorkStaysBoundedAfterScroll", TestAttachedLargeCheckboxGridVisibleWorkStaysBoundedAfterScroll);
-    runTest("TestAttachedLargeGroupedGridLongRunScrollingStaysBoundedWithoutResizeChurn",
-            TestAttachedLargeGroupedGridLongRunScrollingStaysBoundedWithoutResizeChurn);
-    runTest("TestAttachedLargeCheckboxGridLongRunScrollingStaysBoundedWithoutResizeChurn",
-            TestAttachedLargeCheckboxGridLongRunScrollingStaysBoundedWithoutResizeChurn);
-    runTest("TestAttachedComboBoxPopupScrollingStaysStable", TestAttachedComboBoxPopupScrollingStaysStable);
-    runTest("TestAttachedComboBoxPopupLongRunScrollingStaysStable", TestAttachedComboBoxPopupLongRunScrollingStaysStable);
-    runTest("TestAttachedHostSameSizeRepaintDoesNotResizeSwapChain", TestAttachedHostSameSizeRepaintDoesNotResizeSwapChain);
-    runTest("TestAttachedHostResizeDoesNotFlushD2DInWrongState", TestAttachedHostResizeDoesNotFlushD2DInWrongState);
-    runTest("TestAttachedHostRecoversAfterSimulatedDeviceLoss", TestAttachedHostRecoversAfterSimulatedDeviceLoss);
+    DXUI_RUN_TEST(TestSharedTransientSurfaceRendersOrdinaryPressedAndHighContrastPolicies);
+    DXUI_RUN_TEST(TestThroughputGraphBandsStayBelowHistoryLine);
+    DXUI_RUN_TEST(TestThroughputGraphHueChurnPerformanceScenario);
+    DXUI_RUN_TEST(TestDxUiCoreControlsDarkVisualBaseline);
+    DXUI_RUN_TEST(TestDxUiCoreControlsLightVisualBaseline);
+    DXUI_RUN_TEST(TestDxUiHighContrastVisualBaseline);
+    DXUI_RUN_TEST(TestProgressBarReducedMotionIndeterminateCaptureIsStatic);
+    DXUI_RUN_TEST(TestDxUiPopupAndBarsVisualBaseline);
+    DXUI_RUN_TEST(TestDxUiPopupAndBarsAcrylicLightVisualBaseline);
+    DXUI_RUN_TEST(TestDxUiPageTransitionVisualBaseline);
+    DXUI_RUN_TEST(TestDxUiAdvancedControlsVisualBaseline);
+    DXUI_RUN_TEST(TestAttachedComboBoxPopupHoverDoesNotRepaintWhenHoveredItemStaysTheSame);
+    DXUI_RUN_TEST(TestAttachedGridPaintHandlesDegenerateScrollbarTracks);
+    DXUI_RUN_TEST(TestGridIncludesBottomClippedTrailingRow);
+    DXUI_RUN_TEST(TestAttachedLargeGridVisibleWorkStaysBoundedAfterScroll);
+    DXUI_RUN_TEST(TestAttachedLargeGridPaintReusesCellDataStringStorage);
+    DXUI_RUN_TEST(TestAttachedLargeIconBadgeGridVisibleWorkStaysBoundedAfterScroll);
+    DXUI_RUN_TEST(TestAttachedGridBottomScrollKeepsFirstVisibleRowFlushWithHeader);
+    DXUI_RUN_TEST(TestAttachedLargeGridLongRunScrollingStaysBoundedWithoutResizeChurn);
+    DXUI_RUN_TEST(TestAttachedLargeGroupedGridVisibleWorkStaysBoundedAfterScroll);
+    DXUI_RUN_TEST(TestAttachedLargeCheckboxGridVisibleWorkStaysBoundedAfterScroll);
+    DXUI_RUN_TEST(TestAttachedLargeGroupedGridLongRunScrollingStaysBoundedWithoutResizeChurn);
+    DXUI_RUN_TEST(TestAttachedLargeCheckboxGridLongRunScrollingStaysBoundedWithoutResizeChurn);
+    DXUI_RUN_TEST(TestAttachedComboBoxPopupScrollingStaysStable);
+    DXUI_RUN_TEST(TestAttachedComboBoxPopupLongRunScrollingStaysStable);
+    DXUI_RUN_TEST(TestAttachedHostSameSizeRepaintDoesNotResizeSwapChain);
+    DXUI_RUN_TEST(TestAttachedHostResizeDoesNotFlushD2DInWrongState);
+    DXUI_RUN_TEST(TestAttachedHostRecoversAfterSimulatedDeviceLoss);
 }

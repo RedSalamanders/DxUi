@@ -3151,90 +3151,74 @@ void TestWindowHostWorksWithoutOptionalSdkDebugLayer()
 
 void RunWindowHostTests()
 {
-    auto runTest = [](const char* name, void (*fn)())
-    {
-        std::cerr << "  [START] " << name << '\n' << std::flush;
-        fn();
-        std::cerr << "  [DONE] " << name << '\n' << std::flush;
-    };
-
-    runTest("TestWindowHostWorksWithoutOptionalSdkDebugLayer", TestWindowHostWorksWithoutOptionalSdkDebugLayer);
-    runTest("TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies", TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);
-    runTest("TestWindowHostKeyboardInputMarksFocusVisible", TestWindowHostKeyboardInputMarksFocusVisible);
-    runTest("TestWindowHostPointerInputClearsKeyboardFocusVisible", TestWindowHostPointerInputClearsKeyboardFocusVisible);
-    runTest("TestWindowHostRejectsForeignThreadDetachUntilOwnerDetaches", TestWindowHostRejectsForeignThreadDetachUntilOwnerDetaches);
-    runTest("TestWindowHostDetachKeepsSharedGraphicsAttachmentUntilControlTreeDestroyed",
-            TestWindowHostDetachKeepsSharedGraphicsAttachmentUntilControlTreeDestroyed);
-    runTest("TestWindowHostEmitsFrameStageMetricsForCaptureRender", TestWindowHostEmitsFrameStageMetricsForCaptureRender);
-    runTest("TestWindowHostBlocksLayoutMutationDuringRender", TestWindowHostBlocksLayoutMutationDuringRender);
-    runTest("TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads", TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads);
-    runTest("TestWindowHostMouseMoveUpdatesHoverTarget", TestWindowHostMouseMoveUpdatesHoverTarget);
-    runTest("TestWindowHostMouseLeaveOverForeignPopupClearsHover", TestWindowHostMouseLeaveOverForeignPopupClearsHover);
-    runTest("TestWindowHostMouseLeaveWithForeignCaptureClearsHover", TestWindowHostMouseLeaveWithForeignCaptureClearsHover);
-    runTest("TestWindowHostTabTraversal", TestWindowHostTabTraversal);
-    runTest("TestWindowHostShiftTabTraversal", TestWindowHostShiftTabTraversal);
-    runTest("TestWindowHostNativeFocusLossRetainsLogicalFocusForTraversal", TestWindowHostNativeFocusLossRetainsLogicalFocusForTraversal);
-    runTest("TestWindowHostReturnInvokesDefaultButtonWhenFocusedControlDoesNotOwnEnter",
-            TestWindowHostReturnInvokesDefaultButtonWhenFocusedControlDoesNotOwnEnter);
-    runTest("TestWindowHostReturnInvokesDefaultButtonWhenNoControlIsFocused", TestWindowHostReturnInvokesDefaultButtonWhenNoControlIsFocused);
-    runTest("TestWindowHostReturnDoesNotInvokeDefaultButtonWhenFocusedControlOwnsEnter",
-            TestWindowHostReturnDoesNotInvokeDefaultButtonWhenFocusedControlOwnsEnter);
-    runTest("TestButtonKeyboardActivationCanReplaceRootSafely", TestButtonKeyboardActivationCanReplaceRootSafely);
-    runTest("TestWindowHostSpaceAndReturnInvokeFocusedButtonWithoutDefaultButtonFallback",
-            TestWindowHostSpaceAndReturnInvokeFocusedButtonWithoutDefaultButtonFallback);
-    runTest("TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement", TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement);
-    runTest("TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement", TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement);
-    runTest("TestWindowHostDpiChangedIsHandled", TestWindowHostDpiChangedIsHandled);
-    runTest("TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow",
-            TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow);
-    runTest("TestWindowHostAttachedWindowsRenderAcrossUiThreads", TestWindowHostAttachedWindowsRenderAcrossUiThreads);
-    runTest("TestWindowHostEscapeInvokesCancelButton", TestWindowHostEscapeInvokesCancelButton);
-    runTest("TestWindowHostEscapeClosesComboPopupBeforeCancelButton", TestWindowHostEscapeClosesComboPopupBeforeCancelButton);
-    runTest("TestWindowHostMenuKeyInvokesFocusedButtonContextMenu", TestWindowHostMenuKeyInvokesFocusedButtonContextMenu);
-    runTest("TestWindowHostShiftF10InvokesFocusedToggleContextMenu", TestWindowHostShiftF10InvokesFocusedToggleContextMenu);
-    runTest("TestWindowHostMenuKeyInvokesFocusedCheckboxContextMenu", TestWindowHostMenuKeyInvokesFocusedCheckboxContextMenu);
-    runTest("TestWindowHostSpaceAndReturnToggleFocusedToggleWithoutDefaultButtonFallback",
-            TestWindowHostSpaceAndReturnToggleFocusedToggleWithoutDefaultButtonFallback);
-    runTest("TestWindowHostSpaceTogglesFocusedCheckboxAndReturnInvokesDefaultButton", TestWindowHostSpaceTogglesFocusedCheckboxAndReturnInvokesDefaultButton);
-    runTest("TestWindowHostMixedDialogKeyboardFlowKeepsCommandsOnFocusedControls", TestWindowHostMixedDialogKeyboardFlowKeepsCommandsOnFocusedControls);
-    runTest("TestWindowHostMixedDialogMouseFlowKeepsCommandsOnHitControls", TestWindowHostMixedDialogMouseFlowKeepsCommandsOnHitControls);
-    runTest("TestWindowHostMenuKeyInvokesFocusedTreeContextMenu", TestWindowHostMenuKeyInvokesFocusedTreeContextMenu);
-    runTest("TestWindowHostShiftF10InvokesFocusedTreeContextMenu", TestWindowHostShiftF10InvokesFocusedTreeContextMenu);
-    runTest("TestWindowHostMenuKeyInvokesFocusedGridContextMenu", TestWindowHostMenuKeyInvokesFocusedGridContextMenu);
-    runTest("TestWindowHostShiftF10InvokesFocusedGridContextMenu", TestWindowHostShiftF10InvokesFocusedGridContextMenu);
-    runTest("TestWindowHostMenuKeyInvokesFocusedTextFieldContextMenu", TestWindowHostMenuKeyInvokesFocusedTextFieldContextMenu);
-    runTest("TestWindowHostMenuKeyInvokesFocusedComboContextMenu", TestWindowHostMenuKeyInvokesFocusedComboContextMenu);
-    runTest("TestWindowHostSetRootClearsDestroyedTreeInteractionState", TestWindowHostSetRootClearsDestroyedTreeInteractionState);
-    runTest("TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot", TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot);
-    runTest("TestWindowHostProcessExitDetachAbandonsRetainedControlObserversBeforeNativeTeardown",
-            TestWindowHostProcessExitDetachAbandonsRetainedControlObserversBeforeNativeTeardown);
-    runTest("TestProcessExitShutdownMarshalsForeignWindowHostDetachToOwnerThread", TestProcessExitShutdownMarshalsForeignWindowHostDetachToOwnerThread);
-    runTest("TestWindowHostClearChildrenPrunesDestroyedTreeInteractionState", TestWindowHostClearChildrenPrunesDestroyedTreeInteractionState);
-    runTest("TestWindowHostKeyDownCallbackDisablingFocusPrunesBeforePostDispatchSync", TestWindowHostKeyDownCallbackDisablingFocusPrunesBeforePostDispatchSync);
-    runTest("TestWindowHostCharCallbackDisablingFocusPrunesBeforePostDispatchSync", TestWindowHostCharCallbackDisablingFocusPrunesBeforePostDispatchSync);
-    runTest("TestWindowHostFocusLossCallbackRevalidatesRequestedFocusTarget", TestWindowHostFocusLossCallbackRevalidatesRequestedFocusTarget);
-    runTest("TestWindowHostIgnoresObserverButtonsOutsideInstalledRoot", TestWindowHostIgnoresObserverButtonsOutsideInstalledRoot);
-    runTest("TestWindowHostIgnoresFocusAndCaptureOutsideInstalledRoot", TestWindowHostIgnoresFocusAndCaptureOutsideInstalledRoot);
-    runTest("TestWindowHostCaptureLossClearsPressedButtonState", TestWindowHostCaptureLossClearsPressedButtonState);
-    runTest("TestWindowHostResetInteractionStateNotifiesCapturedControl", TestWindowHostResetInteractionStateNotifiesCapturedControl);
-    runTest("TestWindowHostRedundantCaptureDoesNotCancelMouseDownCapture", TestWindowHostRedundantCaptureDoesNotCancelMouseDownCapture);
-    runTest("TestWindowHostRenderSurvivesForcedNullSolidBrushes", TestWindowHostRenderSurvivesForcedNullSolidBrushes);
-    runTest("TestWindowHostEditorControlsSurviveForcedNullSolidBrushes", TestWindowHostEditorControlsSurviveForcedNullSolidBrushes);
-    runTest("TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag", TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag);
-    runTest("TestWindowHostSmokeOverlayRendersBelowRootOverlay", TestWindowHostSmokeOverlayRendersBelowRootOverlay);
-    runTest("TestWindowHostOverlayHitTestingPrecedesContentHitTesting", TestWindowHostOverlayHitTestingPrecedesContentHitTesting);
-    runTest("TestWindowHostEscapeClosesMouseOpenedComboPopupBeforeCancelButton", TestWindowHostEscapeClosesMouseOpenedComboPopupBeforeCancelButton);
-    runTest("TestWindowHostTabTraversalIncludesComboBox", TestWindowHostTabTraversalIncludesComboBox);
-    runTest("TestWindowHostTabTraversalStaysConsistentAcrossFieldComboTreeGridAndButtons",
-            TestWindowHostTabTraversalStaysConsistentAcrossFieldComboTreeGridAndButtons);
-    runTest("TestWindowHostGroupedListNavigationKeepsTreeTypeaheadAndGridSelectionVisible",
-            TestWindowHostGroupedListNavigationKeepsTreeTypeaheadAndGridSelectionVisible);
-    runTest("TestWindowHostAltDownOpensComboPopup", TestWindowHostAltDownOpensComboPopup);
-    runTest("TestWindowHostAltUpClosesComboPopup", TestWindowHostAltUpClosesComboPopup);
-    runTest("TestWindowHostMnemonicActivatesButton", TestWindowHostMnemonicActivatesButton);
-    runTest("TestWindowHostLabelMnemonicTargetsField", TestWindowHostLabelMnemonicTargetsField);
-    runTest("TestWindowHostUnknownMnemonicRemainsUnhandled", TestWindowHostUnknownMnemonicRemainsUnhandled);
-    runTest("TestWindowHostHiddenAnimationTickDropsSubscriptionUntilShown", TestWindowHostHiddenAnimationTickDropsSubscriptionUntilShown);
-    runTest("TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation", TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation);
-    runTest("TestNoninteractiveWindowActivationBlockerRejectsFocusStealing", TestNoninteractiveWindowActivationBlockerRejectsFocusStealing);
+    DXUI_RUN_TEST(TestWindowHostWorksWithoutOptionalSdkDebugLayer);
+    DXUI_RUN_TEST(TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);
+    DXUI_RUN_TEST(TestWindowHostKeyboardInputMarksFocusVisible);
+    DXUI_RUN_TEST(TestWindowHostPointerInputClearsKeyboardFocusVisible);
+    DXUI_RUN_TEST(TestWindowHostRejectsForeignThreadDetachUntilOwnerDetaches);
+    DXUI_RUN_TEST(TestWindowHostDetachKeepsSharedGraphicsAttachmentUntilControlTreeDestroyed);
+    DXUI_RUN_TEST(TestWindowHostEmitsFrameStageMetricsForCaptureRender);
+    DXUI_RUN_TEST(TestWindowHostBlocksLayoutMutationDuringRender);
+    DXUI_RUN_TEST(TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads);
+    DXUI_RUN_TEST(TestWindowHostMouseMoveUpdatesHoverTarget);
+    DXUI_RUN_TEST(TestWindowHostMouseLeaveOverForeignPopupClearsHover);
+    DXUI_RUN_TEST(TestWindowHostMouseLeaveWithForeignCaptureClearsHover);
+    DXUI_RUN_TEST(TestWindowHostTabTraversal);
+    DXUI_RUN_TEST(TestWindowHostShiftTabTraversal);
+    DXUI_RUN_TEST(TestWindowHostNativeFocusLossRetainsLogicalFocusForTraversal);
+    DXUI_RUN_TEST(TestWindowHostReturnInvokesDefaultButtonWhenFocusedControlDoesNotOwnEnter);
+    DXUI_RUN_TEST(TestWindowHostReturnInvokesDefaultButtonWhenNoControlIsFocused);
+    DXUI_RUN_TEST(TestWindowHostReturnDoesNotInvokeDefaultButtonWhenFocusedControlOwnsEnter);
+    DXUI_RUN_TEST(TestButtonKeyboardActivationCanReplaceRootSafely);
+    DXUI_RUN_TEST(TestWindowHostSpaceAndReturnInvokeFocusedButtonWithoutDefaultButtonFallback);
+    DXUI_RUN_TEST(TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement);
+    DXUI_RUN_TEST(TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement);
+    DXUI_RUN_TEST(TestWindowHostDpiChangedIsHandled);
+    DXUI_RUN_TEST(TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow);
+    DXUI_RUN_TEST(TestWindowHostAttachedWindowsRenderAcrossUiThreads);
+    DXUI_RUN_TEST(TestWindowHostEscapeInvokesCancelButton);
+    DXUI_RUN_TEST(TestWindowHostEscapeClosesComboPopupBeforeCancelButton);
+    DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedButtonContextMenu);
+    DXUI_RUN_TEST(TestWindowHostShiftF10InvokesFocusedToggleContextMenu);
+    DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedCheckboxContextMenu);
+    DXUI_RUN_TEST(TestWindowHostSpaceAndReturnToggleFocusedToggleWithoutDefaultButtonFallback);
+    DXUI_RUN_TEST(TestWindowHostSpaceTogglesFocusedCheckboxAndReturnInvokesDefaultButton);
+    DXUI_RUN_TEST(TestWindowHostMixedDialogKeyboardFlowKeepsCommandsOnFocusedControls);
+    DXUI_RUN_TEST(TestWindowHostMixedDialogMouseFlowKeepsCommandsOnHitControls);
+    DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedTreeContextMenu);
+    DXUI_RUN_TEST(TestWindowHostShiftF10InvokesFocusedTreeContextMenu);
+    DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedGridContextMenu);
+    DXUI_RUN_TEST(TestWindowHostShiftF10InvokesFocusedGridContextMenu);
+    DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedTextFieldContextMenu);
+    DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedComboContextMenu);
+    DXUI_RUN_TEST(TestWindowHostSetRootClearsDestroyedTreeInteractionState);
+    DXUI_RUN_TEST(TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot);
+    DXUI_RUN_TEST(TestWindowHostProcessExitDetachAbandonsRetainedControlObserversBeforeNativeTeardown);
+    DXUI_RUN_TEST(TestProcessExitShutdownMarshalsForeignWindowHostDetachToOwnerThread);
+    DXUI_RUN_TEST(TestWindowHostClearChildrenPrunesDestroyedTreeInteractionState);
+    DXUI_RUN_TEST(TestWindowHostKeyDownCallbackDisablingFocusPrunesBeforePostDispatchSync);
+    DXUI_RUN_TEST(TestWindowHostCharCallbackDisablingFocusPrunesBeforePostDispatchSync);
+    DXUI_RUN_TEST(TestWindowHostFocusLossCallbackRevalidatesRequestedFocusTarget);
+    DXUI_RUN_TEST(TestWindowHostIgnoresObserverButtonsOutsideInstalledRoot);
+    DXUI_RUN_TEST(TestWindowHostIgnoresFocusAndCaptureOutsideInstalledRoot);
+    DXUI_RUN_TEST(TestWindowHostCaptureLossClearsPressedButtonState);
+    DXUI_RUN_TEST(TestWindowHostResetInteractionStateNotifiesCapturedControl);
+    DXUI_RUN_TEST(TestWindowHostRedundantCaptureDoesNotCancelMouseDownCapture);
+    DXUI_RUN_TEST(TestWindowHostRenderSurvivesForcedNullSolidBrushes);
+    DXUI_RUN_TEST(TestWindowHostEditorControlsSurviveForcedNullSolidBrushes);
+    DXUI_RUN_TEST(TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag);
+    DXUI_RUN_TEST(TestWindowHostSmokeOverlayRendersBelowRootOverlay);
+    DXUI_RUN_TEST(TestWindowHostOverlayHitTestingPrecedesContentHitTesting);
+    DXUI_RUN_TEST(TestWindowHostEscapeClosesMouseOpenedComboPopupBeforeCancelButton);
+    DXUI_RUN_TEST(TestWindowHostTabTraversalIncludesComboBox);
+    DXUI_RUN_TEST(TestWindowHostTabTraversalStaysConsistentAcrossFieldComboTreeGridAndButtons);
+    DXUI_RUN_TEST(TestWindowHostGroupedListNavigationKeepsTreeTypeaheadAndGridSelectionVisible);
+    DXUI_RUN_TEST(TestWindowHostAltDownOpensComboPopup);
+    DXUI_RUN_TEST(TestWindowHostAltUpClosesComboPopup);
+    DXUI_RUN_TEST(TestWindowHostMnemonicActivatesButton);
+    DXUI_RUN_TEST(TestWindowHostLabelMnemonicTargetsField);
+    DXUI_RUN_TEST(TestWindowHostUnknownMnemonicRemainsUnhandled);
+    DXUI_RUN_TEST(TestWindowHostHiddenAnimationTickDropsSubscriptionUntilShown);
+    DXUI_RUN_TEST(TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation);
+    DXUI_RUN_TEST(TestNoninteractiveWindowActivationBlockerRejectsFocusStealing);
 }

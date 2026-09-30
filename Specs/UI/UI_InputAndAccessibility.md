@@ -49,7 +49,9 @@ arrow. That window is messaged from a posted message, outside the menu's own han
 handling may close the menu. The cursor is chosen once more when the menu takes or moves capture, and the window under
 the pointer chooses again as soon as the menu closes. These are one-shot reads of the pointer; an idle menu never polls
 it. A described menu's layouts and accessibility proxies exist only while it is open: closing it returns them, even
-while a client still holds its row elements.
+while a client still holds its row elements. `DebugGetContextMenuResources` counts them exactly (popups, row text
+layouts and the accessibility records of menu-popup snapshots, wherever held), so a test asserts that a closed menu
+holds none, whatever the renderer and allocator keep.
 
 Custom controls overriding `OnFocusChanged` MUST invoke their base implementation so `HasFocus`,
 focus chrome and UIA keyboard-focus properties acknowledge the host transition. A stored host

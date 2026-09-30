@@ -58,6 +58,27 @@
   dereferenced it). The menu bar and the text field key their layouts on these inputs and were never stale. API
   revision stays 2 (additive diagnostics accessor `ColorPicker::DebugHasCachedBrushes` and protected
   `Control::Reparent`).
+- The described-menu memory check is deterministic. `DebugGetContextMenuResources` (a test-only diagnostics hook) counts
+  the live menu popups, the text layouts their described rows hold and the accessibility records of menu-popup
+  snapshots, exactly and whatever the renderer and the allocator keep; the fixture asserts that all three return to
+  their value before the menu opened after it closes while a client holds eight row elements. It no longer bounds the
+  process heap, which a software renderer's surfaces and caches (WARP, or the Basic Render Driver of a GPU-less
+  runner) swing by up to about 3 MB, and it now runs under AddressSanitizer too. A window-host provider that pins a
+  snapshot, a target that keeps its last snapshot after the window closes and a popup that is never freed each fail it.
+- NativeTextInput's focus fixtures survive another application taking the foreground. Windows then deactivates the
+  window and the host releases its native text session, TSF document included, as designed; the desktop application
+  hosting a session did so 30-95 ms after each test window activated and failed the TSF document fixture in three of
+  six local runs. The four fixtures that pump after taking focus repeat their sequence (`RunWhileForegroundHeld`, five
+  runs at most) until no application takes the foreground and then make exactly their former assertions; when one takes
+  it every time they record a capability skip naming its executable, and a regression with the foreground held still
+  fails. Two deterministic fixtures deliver the takeover as Windows sends it, and `DxUi.ControlTests.exe
+  --foreground-thief[=<minMs>,<maxMs>]` reproduces the desktop application on demand.
+- The control-test runner runs single tests: `DxUi.ControlTests.exe --suite=<Suite> --test=<Name>[,<Name>...]` and
+  `test.ps1 -Suites <Suite> -Tests <Name>[,<Name>]` run only the named test functions of the suite. Every suite runner
+  registers its tests as `DXUI_RUN_TEST(TestName);`, which checks the filter and prints the test's `[START]`/`[DONE]`
+  markers. A name no selected suite registers, a malformed list or a fixture suite without named tests fails the run
+  (exit code 2) instead of passing with nothing run, and a filtered `test.ps1` run keeps its own log and receipt
+  (`*.filtered`), so it never replaces the receipt of the whole suite.
 - Repository tooling is PowerShell only (plan `PowerShellTooling_2026-09-30`): the spec, skill, dependency,
   inherited-test and build-matrix validators, the performance comparator and their tests are PowerShell modules and
   scripts, so `test.ps1`, the validators and CI need no Python, pip or PyYAML. The comparator reproduces every stored

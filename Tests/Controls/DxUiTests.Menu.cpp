@@ -6304,38 +6304,13 @@ public:
     return busy;
 }
 
-// Whether window hosts here render in software: WARP, or the Basic Render Driver of a machine without a GPU such as a
-// CI runner. Its surfaces and caches then live in the process heap, where the live-heap walk counts them too. Asks the
-// device helper the window hosts use, with the same hardware-first choice.
-[[nodiscard, maybe_unused]] bool WindowHostsRenderInSoftware()
-{
-    const std::array<D3D_FEATURE_LEVEL, 3> levels{D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1};
-    wil::com_ptr_nothrow<ID3D11Device> device;
-    wil::com_ptr_nothrow<ID3D11DeviceContext> context;
-    D3D_FEATURE_LEVEL level    = D3D_FEATURE_LEVEL_11_0;
-    D3D_DRIVER_TYPE driverType = D3D_DRIVER_TYPE_UNKNOWN;
-    RequireSucceeded(DxUi::CreateD3D11DeviceWithWarpFallback(D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, false, device.put(), &level, context.put(), &driverType),
-                     "create the device window hosts would use");
-    if (driverType == D3D_DRIVER_TYPE_WARP)
-        return true;
-    const auto dxgiDevice = device.try_query<IDXGIDevice>();
-    wil::com_ptr_nothrow<IDXGIAdapter> adapter;
-    DXGI_ADAPTER_DESC description{};
-    Require(dxgiDevice && SUCCEEDED(dxgiDevice->GetAdapter(adapter.put())) && SUCCEEDED(adapter->GetDesc(&description)), "identify the window-host adapter");
-    constexpr UINT kMicrosoftVendorId = 0x1414u; // WARP and the Basic Render Driver
-    return description.VendorId == kMicrosoftVendorId;
-}
-
 // A described menu retains shaped layouts and accessibility proxies for every row while it is open; closing it must
-// return them, even while a UI Automation client still holds one of its elements.
+// return them, even while a UI Automation client still holds one of its elements. DxUi's own live resources are counted
+// exactly, so the check holds on every renderer and allocator. The process heap is printed for diagnosis only: a software
+// renderer's surfaces and caches share it and swing by up to about 3 MB between identical open/close cycles.
 void TestDescribedMenuReleasesItsMemoryWhenItCloses()
 {
     using namespace DxUi;
-#if defined(__SANITIZE_ADDRESS__)
-    // AddressSanitizer serves allocations from its own shadow-mapped pools, which a process-heap walk cannot see.
-    SkipDxUiTest("described-menu live-heap comparison needs the process heaps AddressSanitizer replaces");
-    return;
-#else
     AttachedHostWindow owner;
     std::vector<MenuFlyoutItem> items;
     for (int index = 0; index < 200; ++index)
@@ -6345,7 +6320,20 @@ void TestDescribedMenuReleasesItsMemoryWhenItCloses()
                                        .secondaryText = std::format(L"D:\\Sauvegardes\\Collection déjà présente\\Génération {}", index)});
     ContextMenuSessionCallbacks callbacks{};
     callbacks.maxRootHeightDip = 300.0f;
-    const auto openAndClose    = [&](bool holdElements, uint64_t* openBytes)
+    struct Sample
+    {
+        ContextMenuResourceDebugState resources;
+        uint64_t heapBytes = 0u; // Diagnostic only; AddressSanitizer serves allocations from pools a process-heap walk cannot see.
+    };
+    const auto sample = []
+    {
+        Sample taken{DebugGetContextMenuResources()};
+#if ! defined(__SANITIZE_ADDRESS__)
+        taken.heapBytes = MeasureLiveHeapBytesForMenuSuite();
+#endif
+        return taken;
+    };
+    const auto openAndClose = [&](bool holdElements, Sample* open)
     {
         bool closed        = false;
         const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "released menu anchor maps to screen");
@@ -6371,8 +6359,8 @@ void TestDescribedMenuReleasesItsMemoryWhenItCloses()
                 row = std::move(next);
             }
         }
-        if (openBytes)
-            *openBytes = MeasureLiveHeapBytesForMenuSuite();
+        if (open)
+            *open = sample();
         SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
         owner.PumpMessages();
         Require(closed && WaitForWindowDestroyed(popup, std::chrono::milliseconds(2000)), "described menu closes");
@@ -6381,21 +6369,30 @@ void TestDescribedMenuReleasesItsMemoryWhenItCloses()
     };
     // Warm the fonts, the formats and the accessibility machinery once, so later samples see only the menu.
     static_cast<void>(openAndClose(true, nullptr));
-    const uint64_t before = MeasureLiveHeapBytesForMenuSuite();
-    uint64_t open         = 0u;
-    const auto heldRows   = openAndClose(true, &open);
-    const uint64_t closed = MeasureLiveHeapBytesForMenuSuite();
-    const bool software   = WindowHostsRenderInSoftware();
-    std::cout << "Described menu live heap: before " << before << ", open " << open << ", closed " << closed << " bytes (row elements still held "
-              << heldRows.size() << (software ? "; software renderer" : "") << ")\n";
-    Require(open > before + 1024u * 1024u, "a 200-row described menu holds its layouts while open");
-    // A menu the held elements pinned would keep nearly all it held while open. With a GPU the walk sees only this
-    // process's own allocations, so the menu must return to within 64 KiB. A software renderer's surfaces and caches
-    // share the heap and swing by up to about 3 MB between identical open/close cycles, with or without held
-    // elements, so there at least half of the menu's memory must come back.
-    const uint64_t allowance = software ? (open - before) / 2u : 64u * 1024u;
-    Require(closed < before + allowance, "closing the described menu returns its memory, although a client still holds row elements");
-#endif
+    const Sample before = sample();
+    Sample open;
+    const auto heldRows = openAndClose(true, &open);
+    const Sample closed = sample();
+    const auto describe = [](const Sample& taken)
+    {
+        return std::format("{} popups, {} row layouts, {} accessibility records, {} heap bytes",
+                           taken.resources.popups,
+                           taken.resources.rowLayouts,
+                           taken.resources.accessibilityRecords,
+                           taken.heapBytes);
+    };
+    std::cout << "Described menu resources before: " << describe(before) << "; open: " << describe(open) << "; closed: " << describe(closed)
+              << " (row elements still held " << heldRows.size() << "; heap bytes are diagnostic only)\n";
+    Require(open.resources.popups > before.resources.popups, "an open described menu has a popup");
+    Require(open.resources.rowLayouts >= before.resources.rowLayouts + items.size(), "a 200-row described menu holds a text layout per row while open");
+    Require(open.resources.accessibilityRecords >= before.resources.accessibilityRecords + items.size(),
+            "a 200-row described menu publishes an accessibility record per row while open");
+    // Held elements must not pin what the menu held: everything is back to its value before the menu opened.
+    Require(closed.resources.popups == before.resources.popups, "closing the described menu returns its popup, although a client still holds row elements");
+    Require(closed.resources.rowLayouts == before.resources.rowLayouts,
+            "closing the described menu returns its text layouts, although a client still holds row elements");
+    Require(closed.resources.accessibilityRecords == before.resources.accessibilityRecords,
+            "closing the described menu returns its accessibility records, although a client still holds row elements");
 }
 
 void TestDescribedMenuRaisesFocusChangesForKeyboardRows()
@@ -7202,38 +7199,26 @@ void TestDescribedMenuFractionalDpiKeepsLaneAndWidths()
 
 void RunMenuDescriptionTests()
 {
-    std::cerr << "  [START] TestDescribedInfoRowPaintsItsDescription\n" << std::flush;
-    TestDescribedInfoRowPaintsItsDescription();
-    std::cerr << "  [START] TestDescribedMenuRaisesFocusChangesForKeyboardRows\n" << std::flush;
-    TestDescribedMenuRaisesFocusChangesForKeyboardRows();
-    TestDescribedMenuReleasesItsMemoryWhenItCloses();
-    TestWindowHostTabRaisesAutomationFocusChanges();
-    TestWindowHostTreeArrowAnnouncesTheFocusedItem();
-    TestWindowHostElementSetFocusAnnouncesOnlyThatElement();
-    TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange();
-    TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside();
-    TestMenuChoosesTheCursorWhenItOpensAndCloses();
-    TestMenuSurvivesAWindowClosingItFromSetCursor();
-    std::cerr << "  [START] TestDescribedAsyncMenuRestoresFocusedOwnerChild\n" << std::flush;
-    TestDescribedAsyncMenuRestoresFocusedOwnerChild();
-    std::cerr << "  [START] TestDescribedMenuWrapsFrenchTextAndPreservesIdentity\n" << std::flush;
-    TestDescribedMenuWrapsFrenchTextAndPreservesIdentity();
-    std::cerr << "  [START] TestDescribedMenuAccessibilityInvokesAndDisconnects\n" << std::flush;
-    TestDescribedMenuAccessibilityInvokesAndDisconnects();
-    std::cerr << "  [START] TestDescribedMenuPointerAndCancelledQueuedInvoke\n" << std::flush;
-    TestDescribedMenuPointerAndCancelledQueuedInvoke();
-    std::cerr << "  [START] TestDescribedMenuSubmenuKeepsSessionAndIdentity\n" << std::flush;
-    TestDescribedMenuSubmenuKeepsSessionAndIdentity();
-    std::cerr << "  [START] TestDescribedPointerMenuActivationSelectsNoRow\n" << std::flush;
-    TestDescribedPointerMenuActivationSelectsNoRow();
-    std::cerr << "  [START] TestDescribedMenuScrollRepublishesAccessibleGeometry\n" << std::flush;
-    TestDescribedMenuScrollRepublishesAccessibleGeometry();
-    std::cerr << "  [START] TestDescribedSubmenuSliderFocusKeepsSessionFocus\n" << std::flush;
-    TestDescribedSubmenuSliderFocusKeepsSessionFocus();
-    std::cerr << "  [START] TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus\n" << std::flush;
-    TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus();
-    std::cerr << "  [START] TestDescribedMenuFractionalDpiKeepsLaneAndWidths\n" << std::flush;
-    TestDescribedMenuFractionalDpiKeepsLaneAndWidths();
+    DXUI_RUN_TEST(TestDescribedInfoRowPaintsItsDescription);
+    DXUI_RUN_TEST(TestDescribedMenuRaisesFocusChangesForKeyboardRows);
+    DXUI_RUN_TEST(TestDescribedMenuReleasesItsMemoryWhenItCloses);
+    DXUI_RUN_TEST(TestWindowHostTabRaisesAutomationFocusChanges);
+    DXUI_RUN_TEST(TestWindowHostTreeArrowAnnouncesTheFocusedItem);
+    DXUI_RUN_TEST(TestWindowHostElementSetFocusAnnouncesOnlyThatElement);
+    DXUI_RUN_TEST(TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange);
+    DXUI_RUN_TEST(TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside);
+    DXUI_RUN_TEST(TestMenuChoosesTheCursorWhenItOpensAndCloses);
+    DXUI_RUN_TEST(TestMenuSurvivesAWindowClosingItFromSetCursor);
+    DXUI_RUN_TEST(TestDescribedAsyncMenuRestoresFocusedOwnerChild);
+    DXUI_RUN_TEST(TestDescribedMenuWrapsFrenchTextAndPreservesIdentity);
+    DXUI_RUN_TEST(TestDescribedMenuAccessibilityInvokesAndDisconnects);
+    DXUI_RUN_TEST(TestDescribedMenuPointerAndCancelledQueuedInvoke);
+    DXUI_RUN_TEST(TestDescribedMenuSubmenuKeepsSessionAndIdentity);
+    DXUI_RUN_TEST(TestDescribedPointerMenuActivationSelectsNoRow);
+    DXUI_RUN_TEST(TestDescribedMenuScrollRepublishesAccessibleGeometry);
+    DXUI_RUN_TEST(TestDescribedSubmenuSliderFocusKeepsSessionFocus);
+    DXUI_RUN_TEST(TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus);
+    DXUI_RUN_TEST(TestDescribedMenuFractionalDpiKeepsLaneAndWidths);
 }
 
 #include "DxUiTests.MenuResources.h"
@@ -7243,12 +7228,11 @@ void RunMenuTests()
     // Also exercise described rows with real native focus; the nonactivating
     // NewControls lane cannot alone detect a popup stealing Win32 focus.
     RunMenuDescriptionTests();
-    auto runTest = [](const char* name, void (*fn)())
+    // Every menu test starts with a stopped animation dispatcher.
+    const auto runTest = [](const char* name, void (*fn)())
     {
-        std::cerr << "  [START] " << name << '\n' << std::flush;
-        fn();
-        DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
-        std::cerr << "  [DONE] " << name << '\n' << std::flush;
+        if (RunDxUiTest(name, fn))
+            DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
     };
 
     runTest("TestPointerInputEventMouseMoveUsesDeliveredPoint", TestPointerInputEventMouseMoveUsesDeliveredPoint);

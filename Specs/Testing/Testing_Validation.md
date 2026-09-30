@@ -44,6 +44,17 @@ scenarios and the performance receipt path in each suite receipt. `-PerformanceB
 comparison and fails for a suspected regression or invalid evidence; no baseline is explicitly `unpaired`.
 Use the [performance contract](../Core/Core_PerformanceAndResources.md) for before/after acceptance and regression advice.
 The short WARP benchmark reports completed offscreen throughput, not display refresh or hardware acceptance.
+`DxUi.ControlTests.exe --suite=<Suite> --test=<Name>[,<Name>...]` (`test.ps1 -Suites <Suite> -Tests <Name>[,<Name>]`) runs
+only the named test functions of the selected suite, so one test iterates in seconds instead of a whole suite in minutes.
+Names are exact, case-sensitive function names, and every suite runner registers each of its tests as
+`DXUI_RUN_TEST(TestName);`, which checks the filter and prints the test's `[START]`/`[DONE]` markers; a test is never
+called directly from a runner. A name that no selected suite registers fails the run (exit code 2, naming it) instead of
+passing with nothing run, and the fixture suites without named tests (`MenuResources`, `MenuResourceScaling`,
+`MenuTextLayoutResources`, `MenuExitLifetime`, `Gallery`, `ButtonContrast`) reject `--test`. Without the option every
+test of a suite runs, in its order. A filtered `test.ps1` run is partial evidence: it still runs the benchmark, but its log
+and receipt take a `.filtered` suffix and record the names, so they never replace the receipt of the whole suite.
+`Tools/tests/Test-TestFilter.ps1` checks this contract against the built executable in every `test.ps1` run that includes a
+control suite, and that no runner calls a test directly.
 The foundation suite covers timing edge cases, nested stage restoration, reduced motion and injected diagnostics.
 
 Repository tools are PowerShell 7 scripts with no other runtime; the validators live in `Tools/Validation.psm1` and
@@ -127,6 +138,34 @@ remain unchanged across runner environments.
 The default `MenuExitLifetime` process suite leaves an asynchronous menu open with capture and calls
 `std::exit(0)`, so CRT thread-local teardown destroys the live controller. Returning normally fails the suite;
 ASan profiles catch reentrant destruction. It needs no foreground input.
+
+The described-menu release fixture (`TestDescribedMenuReleasesItsMemoryWhenItCloses`) opens a 200-row menu twice, holds
+eight of its UI Automation row elements past the close and asserts on `DebugGetContextMenuResources`, the library's own
+exact counts of live menu popups, row text layouts and menu-popup accessibility records: they rise while the menu is open
+and return to their value before it opened once it closed. The count is independent of the renderer and the allocator,
+so it holds on a software renderer (WARP, or the Basic Render Driver of a GPU-less runner) and under AddressSanitizer.
+The process heap is printed beside it for diagnosis only: a software renderer's surfaces and caches share it and swing by
+up to about 3 MB between identical open/close cycles.
+
+Fixtures that take real focus can lose it to another application: the desktop application hosting a developer's
+session took the foreground back 30-95 ms after each test window activated. Windows then sends the window
+`WM_ACTIVATEAPP` (FALSE), `WM_ACTIVATE` (inactive) and `WM_KILLFOCUS`, and the host releases its native text session,
+TSF document included, as designed, so a fixture that asserts state which only holds while the window keeps the
+foreground failed on a takeover it says nothing about. Such a fixture runs its focus-and-pump sequence through
+`RunWhileForegroundHeld` (`Tests/Controls/DxUiTestHelpers.h`): the harness window counts the `WM_ACTIVATEAPP` (FALSE)
+deliveries, the sequence repeats after a takeover (the window re-activates through `TryActivateDxUiTestWindow`; five runs
+at most) and the assertions are made on the run that kept the foreground, so they are exactly those of a run without a
+thief. A run in which no application took the foreground is never repeated, so a regression still fails, and each
+repeat is logged as `[FOREGROUND] <executable> (process <id>) took the foreground in run <n> of <max>`. When another
+application takes the foreground in every run, the fixture records a capability skip naming its executable and process
+id. The NativeTextInput fixtures that pump after taking focus (host focus, the TSF document, the system caret, the
+key-to-paint scenario) use it, and two deterministic fixtures deliver the takeover as Windows sends it to a window nobody
+can activate: the sequence repeats once, and stops after the maximum with the application named.
+`DxUi.ControlTests.exe --foreground-thief[=<minMs>,<maxMs>]` (default 30,95) reproduces the desktop application: a worker
+thread takes the foreground for its own window that long after a window of the process became the foreground window. It
+reports how often it did, and says so when no window of the process ever held the foreground (Windows keeps it with the
+application the user is working in, so there was nothing to take and no takeover was exercised). It needs real focus, so
+`--no-activate` rejects it, and it is an opt-in check that a suite survives a thief, not part of `test.ps1`.
 
 Native menu input fixtures wait for a visible popup: the hidden measurement HWND is not ready for input.
 Cold creation has a separate five-second setup allowance; owner-message-flood hover and invocation checks
