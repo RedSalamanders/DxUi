@@ -149,8 +149,9 @@ void TestGridMultilineDecomposedAccentsPaintLikePrecomposed()
 // the ones that can show), so the cell must paint what a short twin with the same start paints, a twin short enough to be shaped
 // whole. The same values also show the surrogate guard at work: shaping never hands DirectWrite half of a pair, which costs one
 // unit of shaping in the alignments where the cut falls inside a pair and nothing in the others, so the shaped units of the
-// alignments differ by exactly one when the tail is made of pairs. (Removing the guard changes no pixel, since the cut is
-// invisible; the units are what shows it.)
+// alignments differ by one when the tail is made of pairs (by two at a clamp of one, where the unwrapped line is shaped a
+// second time and the step back counts twice). Removing the guard changes no pixel, since the cut is invisible; the units are
+// what shows it.
 void TestGridMultilineShapedPrefixCutInsideAClusterPaintsLikeItsShortTwin()
 {
     using namespace DxUi;
@@ -230,7 +231,8 @@ void TestGridMultilineShapedPrefixCutInsideAClusterPaintsLikeItsShortTwin()
         Require(observation.most - observation.least <= 2u,
                 (what + ": the alignments of a tail shape at most a step back (one unit, or two where the line is shaped twice) apart").c_str());
         if (observation.surrogates)
-            Require(observation.most > observation.least, (what + ": in some alignment the cut falls inside a surrogate pair, and shaping steps back from it").c_str());
+            Require(observation.most > observation.least,
+                    (what + ": in some alignment the cut falls inside a surrogate pair, and shaping steps back from it").c_str());
     }
 }
 
