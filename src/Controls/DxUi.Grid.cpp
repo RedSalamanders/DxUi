@@ -366,6 +366,12 @@ constexpr size_t kCellTextLayoutInitialEntries = 32u;
 constexpr size_t kCellTextLayoutMaxEntries     = 16384u;
 constexpr size_t kMaxRetainedCellTextUnits     = 4096u;
 
+// The ceiling of the layout tables: kCellTextLayoutMaxEntries unless a test lowered it (Grid::DebugSetTextLayoutEntryLimit).
+[[nodiscard]] size_t ResolveCellTextLayoutEntryLimit(size_t debugLimit) noexcept
+{
+    return debugLimit != 0u ? debugLimit : kCellTextLayoutMaxEntries;
+}
+
 // Cell boxes come from scrolled coordinates, so boxes of one size differ in their last float bits from row to row. A
 // key rounds them to 1/64 DIP, so such cells share one entry: its layout keeps the exact box of the cell that built it,
 // and the others differ from it by far less than a pixel.
@@ -2006,7 +2012,7 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
                                                      keyHash,
                                                      _cellTextPaintGeneration,
                                                      kCellTextLayoutInitialEntries,
-                                                     kCellTextLayoutMaxEntries,
+                                                     ResolveCellTextLayoutEntryLimit(_debugTextLayoutEntryLimit),
                                                      [&](const CellTextLayoutCache& candidate)
     {
         if (candidate.format.get() != format || candidate.width != keyWidth || candidate.height != keyHeight || candidate.lineClamp != clamp)
@@ -2221,7 +2227,7 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
                                                           displayHash,
                                                           _cellTextPaintGeneration,
                                                           kCellTextLayoutInitialEntries,
-                                                          kCellTextLayoutMaxEntries,
+                                                          ResolveCellTextLayoutEntryLimit(_debugTextLayoutEntryLimit),
                                                           [&](const CellDisplayLayoutCache& candidate)
     { return candidate.format.get() == format && candidate.width == keyWidth && candidate.paintHeight == cache.paintHeight && candidate.text == visibleText; },
                                                           shared);
@@ -2275,7 +2281,7 @@ const Grid::CellTextLayoutCache* Grid::PrepareSingleLineCellLayout(const Control
                                                          keyHash,
                                                          _cellTextPaintGeneration,
                                                          kCellTextLayoutInitialEntries,
-                                                         kCellTextLayoutMaxEntries,
+                                                         ResolveCellTextLayoutEntryLimit(_debugTextLayoutEntryLimit),
                                                          [&](const CellTextLayoutCache& candidate)
         {
             return candidate.lineClamp == 0u && candidate.format.get() == format && candidate.width == keyWidth && candidate.height == keyHeight &&
@@ -2910,6 +2916,18 @@ Grid::GridDebugTextLayoutStatistics Grid::DebugGetTextLayoutStatistics() const n
     statistics.tableBytes = (_cellTextLayouts.capacity() * sizeof(CellTextLayoutCache)) + (_cellDisplayLayouts.capacity() * sizeof(CellDisplayLayoutCache));
     statistics.ellipsis   = _cellEllipsis != nullptr || _cellEllipsisFormat != nullptr;
     return statistics;
+}
+
+void Grid::DebugSetTextLayoutEntryLimit(size_t maxEntries) noexcept
+{
+    // The tables take power-of-two sizes from kCellTextLayoutInitialEntries up, and a table at or above its ceiling stops
+    // growing, so a ceiling between two sizes would let the next doubling pass it: round down to one.
+    _debugTextLayoutEntryLimit = maxEntries == 0u ? 0u : std::max(kCellTextLayoutInitialEntries, std::bit_floor(maxEntries));
+}
+
+size_t Grid::DebugGetTextLayoutEntryLimit() const noexcept
+{
+    return ResolveCellTextLayoutEntryLimit(_debugTextLayoutEntryLimit);
 }
 
 void Grid::DebugSetScrollOffsets(float verticalScrollDip, float horizontalScrollDip) noexcept

@@ -6,8 +6,10 @@
 #include "../../src/Support/PostedPayload.h"
 #include <DxUi/ControlCatalog.h>
 #include <DxUi/Diagnostics.h>
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <limits>
 #include <new>
@@ -180,6 +182,239 @@ __declspec(noinline) static void TestHiddenViewReleasesGridLayouts(GraphicsFixtu
     }
 }
 
+// Synthetic French cells for the pixel checks below. `Twin` drops what the first row's two cells omit (their third paragraph), so
+// it differs from `Full` only by the omission marker; `Empty` blanks every cell, the reference whose pixels a check subtracts.
+struct FrenchGridModel final : DxUi::IGridModel
+{
+    enum class Kind
+    {
+        Full,
+        Twin,
+        Empty
+    };
+    Kind kind;
+    explicit FrenchGridModel(Kind modelKind) : kind(modelKind)
+    {
+    }
+    size_t GetRowCount() const noexcept override
+    {
+        return 4;
+    }
+    size_t GetColumnCount() const noexcept override
+    {
+        return 2;
+    }
+    DxUi::GridColumnDesc GetColumn(size_t column) const override
+    {
+        return {std::to_wstring(column), L"Colonne " + std::to_wstring(column), 220};
+    }
+    void GetCellData(size_t row, size_t column, DxUi::GridCellData& cell) const override
+    {
+        cell.multiline = true;
+        if (kind == Kind::Empty)
+            return;
+        if (row == 0)
+        {
+            cell.text = column == 0 ? L"Première ligne française détaillée\nDeuxième ligne avec é et \U0001F4F7"
+                                    : L"Synchronisation terminée\nAucune erreur à signaler";
+            if (kind == Kind::Full)
+                cell.text += column == 0 ? L"\nTroisième ligne masquée par l’ellipse" : L"\nRapport disponible dans le journal";
+            return;
+        }
+        cell.text = column == 0
+                        ? L"Une très longue phrase française qui passe à la ligne plusieurs fois : vérifier la configuration du serveur principal avant "
+                          L"la mise en production prévue pour la semaine prochaine."
+                        : L"État de la revue : en attente de validation par la responsable du service, priorité élevée, merci de répondre avant vendredi "
+                          L"pour que la publication reste possible.";
+        cell.text += L" (ligne " + std::to_wstring(row) + L")";
+    }
+    std::optional<size_t> FindRowByStableId(uint64_t id) const noexcept override
+    {
+        return id < 4 ? std::optional<size_t>(static_cast<size_t>(id)) : std::nullopt;
+    }
+};
+
+struct FrenchGridScene
+{
+    FrenchGridModel model; // Destroy the view before the model it borrows.
+    DxUi::EmbeddedHost view;
+    DxUi::Grid* grid = nullptr;
+    explicit FrenchGridScene(FrenchGridModel::Kind kind = FrenchGridModel::Kind::Full) : model(kind)
+    {
+    }
+    HRESULT Initialize(ID3D11Device* device, uint32_t lineClamp = 2)
+    {
+        std::shared_ptr<DxUi::GraphicsDevice> graphics;
+        RETURN_IF_FAILED(DxUi::GraphicsDevice::Create(device, graphics));
+        RETURN_IF_FAILED(view.Attach(std::move(graphics)));
+        auto theme          = DxUi::MakeDefaultThemePalette(false);
+        theme.reducedMotion = true;
+        view.Controls().SetTheme(theme);
+        auto root = std::make_unique<DxUi::Panel>();
+        grid      = root->AddChild<DxUi::Grid>();
+        grid->SetBounds(D2D1::RectF(8, 8, 472, 232));
+        grid->SetHeaderHeightDip(30);
+        grid->SetRowHeightDip(64);
+        grid->SetLineClamp(lineClamp);
+        grid->SetModel(&model);
+        view.Controls().SetRoot(std::move(root));
+        return S_OK;
+    }
+};
+
+// Prepares the scene at `dpi` (the 480 x 240 DIP view, in physical pixels), composites it on the fixture's device and reads it back.
+static void RenderFrenchGrid(GraphicsFixture& gpu, FrenchGridScene& scene, float dpi, std::vector<uint8_t>& pixels)
+{
+    const UINT width  = static_cast<UINT>(480 * dpi / 96);
+    const UINT height = static_cast<UINT>(240 * dpi / 96);
+    if (gpu.width != width || gpu.height != height)
+        Hr(gpu.Resize(width, height), "resize the target for the French grid");
+    Hr(scene.view.Prepare(width, height, dpi), "prepare the French grid");
+    gpu.Bind();
+    Hr(scene.view.Composite(gpu.context.get(), gpu.Viewport()), "compose the French grid");
+    Hr(gpu.Read(pixels), "read the French grid");
+}
+
+// A multiline grid in an embedded view on the supplied WARP device, with long French cells clamped to two lines in 64-DIP rows. The
+// read-back pixels show the omission marker after the second line (the full cell and its twin without the omitted paragraph differ
+// only after the twin's last character) and no third line; hiding and showing the view, replacing the device (hidden or not) and
+// every dpi (144, 192, and back) reproduce the pixels of a fresh view made the same way, the grid keeping its dpi-independent layouts.
+__declspec(noinline) static void TestEmbeddedMultilineGridFrenchCells(GraphicsFixture& gpu)
+{
+    const UINT savedWidth  = gpu.width;
+    const UINT savedHeight = gpu.height;
+    FrenchGridScene full(FrenchGridModel::Kind::Full);
+    FrenchGridScene twin(FrenchGridModel::Kind::Twin);
+    FrenchGridScene empty(FrenchGridModel::Kind::Empty);
+    Hr(full.Initialize(gpu.device.get()), "French grid");
+    Hr(twin.Initialize(gpu.device.get()), "French twin grid");
+    Hr(empty.Initialize(gpu.device.get()), "empty French grid");
+    std::vector<uint8_t> fullPixels, twinPixels, emptyPixels;
+    RenderFrenchGrid(gpu, full, 96, fullPixels);
+    RenderFrenchGrid(gpu, twin, 96, twinPixels);
+    RenderFrenchGrid(gpu, empty, 96, emptyPixels);
+    const auto pixelAt = [](const std::vector<uint8_t>& pixels, UINT width, UINT x, UINT y) -> uint32_t
+    {
+        uint32_t value = 0;
+        memcpy(&value, pixels.data() + (size_t(y) * width + x) * 4, 4);
+        return value;
+    };
+    Check(full.grid->DebugGetTextLayoutStatistics().displayCapacity > 0, "the embedded grid trims its long cells");
+    for (size_t column = 0; column < 2; ++column)
+    {
+        const DxUi::GridCellLayoutMetrics metrics = full.grid->GetCellLayoutMetrics(full.view.Controls(), 0, column);
+        const UINT left                           = static_cast<UINT>(metrics.textRect.left);
+        const UINT right                          = static_cast<UINT>(metrics.textRect.right);
+        const UINT top                            = static_cast<UINT>(metrics.textRect.top);
+        const UINT bottom                         = static_cast<UINT>(metrics.textRect.bottom);
+        // The twin's ink, row by row: where each line of the twin ends. The omission marker belongs after the end of the second
+        // line, and a third line (ink where the twin has none) would be a row the twin does not paint.
+        std::vector<int> rowRight(bottom - top, -1);
+        UINT twinLeft = right;
+        for (UINT y = top; y < bottom; ++y)
+            for (UINT x = left; x < right; ++x)
+                if (pixelAt(twinPixels, 480, x, y) != pixelAt(emptyPixels, 480, x, y))
+                {
+                    twinLeft          = (std::min)(twinLeft, x);
+                    rowRight[y - top] = (std::max)(rowRight[y - top], static_cast<int>(x));
+                }
+        Check(twinLeft < right && std::ranges::count_if(rowRight, [](int edge) { return edge >= 0; }) > 10, "the twin cell paints its two lines");
+        size_t inside = 0;
+        size_t marker = 0;
+        for (UINT y = top; y < bottom; ++y)
+            for (UINT x = left; x < right; ++x)
+                if (pixelAt(fullPixels, 480, x, y) != pixelAt(twinPixels, 480, x, y))
+                {
+                    const int edge = rowRight[y - top];
+                    if (edge < 0 || static_cast<int>(x) + 3 < edge)
+                        ++inside;
+                    else if (static_cast<int>(x) > edge)
+                        ++marker;
+                }
+        std::cout << "Embedded multiline grid cell 0," << column << ": twin ink from " << twinLeft << ", changed inside or on rows the twin leaves blank "
+                  << inside << ", marker pixels " << marker << '\n';
+        Check(inside == 0 && marker > 0, "the cell differs from its twin by an omission marker after the second line, with no third line");
+    }
+    // A long wrapped cell shows two lines: fewer ink rows than the same grid at clamp three, and more than a line.
+    const auto inkRows = [&](const std::vector<uint8_t>& pixels, size_t row)
+    {
+        const DxUi::GridCellLayoutMetrics metrics = full.grid->GetCellLayoutMetrics(full.view.Controls(), row, 0);
+        size_t rows                               = 0;
+        for (UINT y = static_cast<UINT>(metrics.textRect.top); y < static_cast<UINT>(metrics.textRect.bottom); ++y)
+        {
+            for (UINT x = static_cast<UINT>(metrics.textRect.left); x < static_cast<UINT>(metrics.textRect.right); ++x)
+                if (pixelAt(pixels, 480, x, y) != pixelAt(emptyPixels, 480, x, y))
+                {
+                    ++rows;
+                    break;
+                }
+        }
+        return rows;
+    };
+    FrenchGridScene threeLines(FrenchGridModel::Kind::Full);
+    Hr(threeLines.Initialize(gpu.device.get(), 3), "French grid at clamp three");
+    std::vector<uint8_t> threeLinePixels;
+    RenderFrenchGrid(gpu, threeLines, 96, threeLinePixels);
+    const size_t twoLineRows   = inkRows(fullPixels, 1);
+    const size_t threeLineRows = inkRows(threeLinePixels, 1);
+    std::cout << "Embedded multiline grid row 1: ink rows " << twoLineRows << " at clamp 2, " << threeLineRows << " at clamp 3\n";
+    Check(twoLineRows > 10 && twoLineRows * 4 < threeLineRows * 3, "a wrapped cell paints two lines at clamp two, not the third");
+
+    // Hide and show: the layouts go and come back, and the pixels are the same.
+    const auto shown = full.grid->DebugGetTextLayoutStatistics();
+    full.view.SetVisible(false);
+    const auto hidden = full.grid->DebugGetTextLayoutStatistics();
+    Check(hidden.retainedLayouts == 0 && hidden.displayLayouts == 0, "hiding the view returns the grid's layouts");
+    Check(full.view.Prepare(480, 240) == S_FALSE && full.view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE,
+          "a hidden view prepares and composites nothing");
+    full.view.SetVisible(true);
+    std::vector<uint8_t> reshown;
+    RenderFrenchGrid(gpu, full, 96, reshown);
+    Check(reshown == fullPixels, "showing the view again paints the pixels it painted before");
+    Check(full.grid->DebugGetTextLayoutStatistics().layoutCreations - hidden.layoutCreations == shown.layoutCreations,
+          "showing lays out only what the grid shows, as its first paint did");
+
+    // A replacement device, the view shown and then hidden: another WARP device and pool, the same pixels.
+    GraphicsFixture replacement;
+    Hr(replacement.Create(), "replacement WARP device for the French grid");
+    std::shared_ptr<DxUi::GraphicsDevice> next;
+    Hr(DxUi::GraphicsDevice::Create(replacement.device.get(), next), "replacement pool for the French grid");
+    Hr(full.view.ReplaceDevice(next), "replace the device of the French grid");
+    Hr(full.view.Prepare(480, 240), "prepare on the replacement device");
+    replacement.Bind();
+    Hr(full.view.Composite(replacement.context.get(), replacement.Viewport()), "compose on the replacement device");
+    std::vector<uint8_t> replaced;
+    Hr(replacement.Read(replaced), "read the replacement device");
+    Check(replaced == fullPixels, "a replacement device paints the pixels of the first one");
+    full.view.SetVisible(false);
+    std::shared_ptr<DxUi::GraphicsDevice> back;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), back), "pool on the first device again");
+    Hr(full.view.ReplaceDevice(back), "replace the device of the hidden French grid");
+    full.view.SetVisible(true);
+    RenderFrenchGrid(gpu, full, 96, reshown);
+    Check(reshown == fullPixels, "a device replaced while hidden paints the same pixels when shown");
+
+    // Dpi: one view changes dpi; a fresh view is made at each. Layouts are in device-independent units, so the changed view keeps them.
+    FrenchGridScene changing(FrenchGridModel::Kind::Full);
+    Hr(changing.Initialize(gpu.device.get()), "French grid whose dpi changes");
+    std::vector<uint8_t> changed, fresh;
+    RenderFrenchGrid(gpu, changing, 96, changed);
+    for (const float dpi : {144.0f, 192.0f, 96.0f, 192.0f})
+    {
+        const auto before = changing.grid->DebugGetTextLayoutStatistics();
+        RenderFrenchGrid(gpu, changing, dpi, changed);
+        const auto after = changing.grid->DebugGetTextLayoutStatistics();
+        FrenchGridScene made(FrenchGridModel::Kind::Full);
+        Hr(made.Initialize(gpu.device.get()), "fresh French grid at the new dpi");
+        RenderFrenchGrid(gpu, made, dpi, fresh);
+        std::cout << "Embedded multiline grid at " << dpi << " dpi: layouts created by the change " << after.layoutCreations - before.layoutCreations
+                  << ", retained " << after.retainedLayouts << '\n';
+        Check(changed.size() == fresh.size() && changed == fresh, "a view whose dpi changed paints what a fresh view paints at that dpi");
+        Check(after.retainedLayouts > 0, "the grid holds layouts at the new dpi");
+    }
+    if (gpu.width != savedWidth || gpu.height != savedHeight)
+        Hr(gpu.Resize(savedWidth, savedHeight), "restore the fixture target");
+}
 // A hover or focus Invalidate must not swallow the following Down. The host message loop
 // prepares after input, so a paint-dirty view is the normal state at the start of a tap.
 __declspec(noinline) static void TestPointerGesturesOnPaintDirtyView(GraphicsFixture& gpu)
@@ -318,6 +553,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRightToLeftTabTitleStartsAtTheRight(gpu);
     TestSurfaceLifetime(gpu);
     TestHiddenViewReleasesGridLayouts(gpu);
+    TestEmbeddedMultilineGridFrenchCells(gpu);
     TestPointerGesturesOnPaintDirtyView(gpu);
     TestTickDirtying(gpu);
     TestCacheBounds(gpu);
