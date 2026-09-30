@@ -39,48 +39,50 @@ constexpr double kValueEpsilon      = 1e-9;
     return D2D1::RectF(left, rect.top, left + Width(rect), rect.bottom);
 }
 
-[[nodiscard]] bool SameRect(const D2D1_RECT_F& a, const D2D1_RECT_F& b) noexcept
+// GetSolidBrush returns null after a brush failure or device loss; like the shared helpers, skip the draw
+// instead of handing Direct2D a null brush.
+[[nodiscard]] ID2D1SolidColorBrush* ResolveBrush(ControlHost& host, const D2D1_COLOR_F& color) noexcept
 {
-    return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom;
+    return host.GetDeviceContext() ? host.GetSolidBrush(color) : nullptr;
 }
 
 void FillRect(ControlHost& host, const D2D1_RECT_F& rect, const D2D1_COLOR_F& color) noexcept
 {
-    if (auto* dc = host.GetDeviceContext())
+    if (auto* brush = ResolveBrush(host, color))
     {
-        dc->FillRectangle(rect, host.GetSolidBrush(color));
+        host.GetDeviceContext()->FillRectangle(rect, brush);
     }
 }
 
 void StrokeRect(ControlHost& host, const D2D1_RECT_F& rect, const D2D1_COLOR_F& color, float strokeWidth) noexcept
 {
-    if (auto* dc = host.GetDeviceContext())
+    if (auto* brush = ResolveBrush(host, color))
     {
-        dc->DrawRectangle(rect, host.GetSolidBrush(color), strokeWidth);
+        host.GetDeviceContext()->DrawRectangle(rect, brush, strokeWidth);
     }
 }
 
 void FillCircle(ControlHost& host, D2D1_POINT_2F center, float radius, const D2D1_COLOR_F& color) noexcept
 {
-    if (auto* dc = host.GetDeviceContext())
+    if (auto* brush = ResolveBrush(host, color))
     {
-        dc->FillEllipse(D2D1::Ellipse(center, radius, radius), host.GetSolidBrush(color));
+        host.GetDeviceContext()->FillEllipse(D2D1::Ellipse(center, radius, radius), brush);
     }
 }
 
 void StrokeCircle(ControlHost& host, D2D1_POINT_2F center, float radius, const D2D1_COLOR_F& color, float strokeWidth) noexcept
 {
-    if (auto* dc = host.GetDeviceContext())
+    if (auto* brush = ResolveBrush(host, color))
     {
-        dc->DrawEllipse(D2D1::Ellipse(center, radius, radius), host.GetSolidBrush(color), strokeWidth);
+        host.GetDeviceContext()->DrawEllipse(D2D1::Ellipse(center, radius, radius), brush, strokeWidth);
     }
 }
 
 void StrokeLine(ControlHost& host, D2D1_POINT_2F from, D2D1_POINT_2F to, const D2D1_COLOR_F& color, float strokeWidth) noexcept
 {
-    if (auto* dc = host.GetDeviceContext())
+    if (auto* brush = ResolveBrush(host, color))
     {
-        dc->DrawLine(from, to, host.GetSolidBrush(color), strokeWidth);
+        host.GetDeviceContext()->DrawLine(from, to, brush, strokeWidth);
     }
 }
 
@@ -125,6 +127,34 @@ void StrokeLine(ControlHost& host, D2D1_POINT_2F from, D2D1_POINT_2F to, const D
         return 10 + (ch - L'A');
     }
     return -1;
+}
+
+// The same number as an IME or a locale keyboard types it: full-width forms, Arabic-Indic and extended
+// Arabic-Indic digits, the Arabic decimal separator and the Unicode minus sign read as their ASCII equivalents.
+[[nodiscard]] wchar_t NormalizeNumericCharacter(wchar_t ch) noexcept
+{
+    if (ch >= L'\xFF10' && ch <= L'\xFF19')
+    {
+        return static_cast<wchar_t>(L'0' + (ch - L'\xFF10'));
+    }
+    if (ch >= L'\x0660' && ch <= L'\x0669')
+    {
+        return static_cast<wchar_t>(L'0' + (ch - L'\x0660'));
+    }
+    if (ch >= L'\x06F0' && ch <= L'\x06F9')
+    {
+        return static_cast<wchar_t>(L'0' + (ch - L'\x06F0'));
+    }
+    switch (ch)
+    {
+        case L'\xFF0B': return L'+';
+        case L'\xFF0D':
+        case L'\x2212': return L'-';
+        case L'\xFF0E':
+        case L'\x066B': return L'.';
+        case L'\xFF0C': return L',';
+        default: return ch;
+    }
 }
 
 [[nodiscard]] size_t HexDigitCount(std::wstring_view text) noexcept
@@ -365,7 +395,9 @@ float Splitter::ClampPosition(float positionDip) const noexcept
         return (std::max)(_minimumFirstDip, positionDip);
     }
     const float maximum = (std::max)(_minimumFirstDip, extent - _thicknessDip - _minimumSecondDip);
-    return (std::clamp)(positionDip, _minimumFirstDip, maximum);
+    // An extent too small for both minimums still keeps the separator inside the control: the first pane gives way
+    // rather than overflowing and inverting the separator rectangle.
+    return (std::min)((std::clamp)(positionDip, _minimumFirstDip, maximum), (std::max)(0.0f, extent - _thicknessDip));
 }
 
 void Splitter::SetPosition(float positionDip) noexcept
@@ -691,6 +723,7 @@ NumericStepper::NumericStepper()
     _decrement->SetVariant(ButtonVariant::IconOnly);
     _increment->SetFocusable(false);
     _decrement->SetFocusable(false);
+    SetStepButtonNames(L"Increase", L"Decrease");
     _increment->SetOnClick([this]
     {
         if (ControlHost* host = GetHost())
@@ -719,23 +752,40 @@ NumericStepper::NumericStepper()
         {
             return;
         }
+        // Typing needs focus. A change without it (UI Automation's ValuePattern, SetTextAndNotify) gets no later
+        // Enter or focus loss, so it is committed (or reverted) at once instead of leaving an edit open.
+        const bool typing                  = _field->HasFocus();
         const std::optional<double> parsed = ParseValue(text);
         if (! parsed.has_value())
         {
+            if (! typing)
+            {
+                static_cast<void>(CommitEdit(GetHost()));
+            }
             return;
         }
         if (! _editing)
         {
-            _editing   = true;
-            _editStart = _value;
+            _editing       = true;
+            _editPreviewed = false;
+            _editStart     = _value;
         }
         const double clamped = ClampValue(parsed.value());
-        if (std::fabs(clamped - _value) <= kValueEpsilon)
+        if (std::fabs(clamped - _value) > kValueEpsilon)
         {
-            return;
+            _value          = clamped;
+            _editPreviewed  = true;
+            const auto life = GetLifetimeToken();
+            NotifyChange(NumericStepperChangePhase::Preview);
+            if (life.expired())
+            {
+                return;
+            }
         }
-        _value = clamped;
-        NotifyChange(NumericStepperChangePhase::Preview);
+        if (! typing)
+        {
+            static_cast<void>(CommitEdit(GetHost()));
+        }
     });
     _field->SetOnPreviewKeyDown([this](ControlHost& host, UINT virtualKey, UINT modifiers) -> bool
     {
@@ -756,6 +806,12 @@ NumericStepper::NumericStepper()
     _field->SetOnSubmitted([this] { static_cast<void>(CommitEdit(GetHost())); });
     _field->SetOnBlur([this] { static_cast<void>(CommitEdit(GetHost())); });
     SyncText();
+}
+
+void NumericStepper::SetStepButtonNames(std::wstring increaseName, std::wstring decreaseName)
+{
+    _increment->SetAccessibleName(std::move(increaseName));
+    _decrement->SetAccessibleName(std::move(decreaseName));
 }
 
 void NumericStepper::SetLabel(std::wstring label, float widthDip)
@@ -846,7 +902,8 @@ double NumericStepper::GetLargeStep() const noexcept
 void NumericStepper::SetDecimals(uint8_t decimals) noexcept
 {
     _decimals = (std::min)(decimals, static_cast<uint8_t>(6));
-    SyncText();
+    // The value is what the text shows: re-round it to the new precision, silently like SetValue.
+    SetValue(_value);
 }
 
 uint8_t NumericStepper::GetDecimals() const noexcept
@@ -868,8 +925,9 @@ double NumericStepper::ClampValue(double value) const noexcept
 
 void NumericStepper::SetValue(double value) noexcept
 {
-    _value   = ClampValue(value);
-    _editing = false;
+    _value         = ClampValue(value);
+    _editing       = false;
+    _editPreviewed = false;
     SyncText();
     RequestInvalidate();
 }
@@ -896,7 +954,14 @@ bool NumericStepper::Nudge(ControlHost& host, int direction, bool large) noexcep
         return false;
     }
     const double amount = (large ? _largeStep : _step) * (direction > 0 ? 1.0 : -1.0);
-    const double target = ClampValue(_value + amount);
+    double target       = ClampValue(_value + amount);
+    if (std::fabs(target - _value) <= kValueEpsilon)
+    {
+        // A step finer than the shown decimals rounds back to the current value; move one shown unit instead
+        // of refusing in one direction only. The limits still refuse.
+        const double unit = std::pow(10.0, -static_cast<double>(_decimals));
+        target            = ClampValue(_value + (direction > 0 ? unit : -unit));
+    }
     if (std::fabs(target - _value) <= kValueEpsilon)
     {
         return false;
@@ -909,8 +974,11 @@ void NumericStepper::ApplyValue(ControlHost* host, double value, NumericStepperC
 {
     const double clamped = ClampValue(value);
     const bool changed   = std::fabs(clamped - _value) > kValueEpsilon;
+    // An open edit that already previewed this value still needs its terminal Commit.
+    const bool previewed = _editing && _editPreviewed;
     _value               = clamped;
     _editing             = false;
+    _editPreviewed       = false;
     SyncText();
     if (host)
     {
@@ -920,7 +988,7 @@ void NumericStepper::ApplyValue(ControlHost* host, double value, NumericStepperC
     {
         RequestInvalidate();
     }
-    if (changed || phase != NumericStepperChangePhase::Commit)
+    if (changed || previewed || phase != NumericStepperChangePhase::Commit)
     {
         NotifyChange(phase);
     }
@@ -988,7 +1056,7 @@ std::optional<double> NumericStepper::ParseValue(std::wstring_view text) noexcep
     bool sawPoint = false;
     for (size_t index = 0; index < text.size(); ++index)
     {
-        wchar_t ch = text[index];
+        wchar_t ch = NormalizeNumericCharacter(text[index]);
         if (ch == L',')
         {
             ch = L'.';
@@ -1033,8 +1101,15 @@ std::optional<double> NumericStepper::ParseValue(std::wstring_view text) noexcep
 
 void NumericStepper::SyncText()
 {
+    // SetText resets the caret and undo history and republishes the host's accessibility snapshot; an unchanged
+    // text (the common case while a picker drag moves another channel) needs none of that.
+    std::wstring text = FormatValue(_value);
+    if (_field->GetText() == text)
+    {
+        return;
+    }
     _syncing = true;
-    _field->SetText(FormatValue(_value));
+    _field->SetText(std::move(text));
     _syncing = false;
 }
 
@@ -1049,10 +1124,19 @@ bool NumericStepper::CommitEdit(ControlHost* host) noexcept
         }
         return false;
     }
-    const double start = _editStart;
-    const double value = parsed.has_value() ? ClampValue(parsed.value()) : _value;
-    _value             = value;
-    _editing           = false;
+    if (! parsed.has_value())
+    {
+        // Text that does not parse reverts to the committed value. Ending the edit as a cancel tells a consumer
+        // that applied the earlier preview to restore it, rather than committing a value the field no longer shows.
+        CancelEdit(host);
+        return false;
+    }
+    const double start   = _editStart;
+    const double value   = ClampValue(parsed.value());
+    const bool previewed = _editPreviewed;
+    _value               = value;
+    _editing             = false;
+    _editPreviewed       = false;
     SyncText();
     if (host)
     {
@@ -1062,7 +1146,9 @@ bool NumericStepper::CommitEdit(ControlHost* host) noexcept
     {
         RequestInvalidate();
     }
-    if (std::fabs(value - start) > kValueEpsilon)
+    // An edit that previewed and came back to its start value still ends with a Commit, so every preview is
+    // followed by a terminal Commit or Cancel.
+    if (std::fabs(value - start) > kValueEpsilon || previewed)
     {
         NotifyChange(NumericStepperChangePhase::Commit);
         return true;
@@ -1077,8 +1163,9 @@ void NumericStepper::CancelEdit(ControlHost* host) noexcept
         SyncText();
         return;
     }
-    _value   = ClampValue(_editStart);
-    _editing = false;
+    _value         = ClampValue(_editStart);
+    _editing       = false;
+    _editPreviewed = false;
     SyncText();
     if (host)
     {
@@ -1158,14 +1245,17 @@ void NumericStepper::Paint(ControlHost& host) const
         {
             label = MirrorRect(label, bounds);
         }
-        DrawCenteredText(host, _label, label, FontRole::Body, text, rtl ? DWRITE_TEXT_ALIGNMENT_TRAILING : DWRITE_TEXT_ALIGNMENT_LEADING);
+        // The format reads in the flow direction, so leading is the start side.
+        DrawCenteredText(
+            host, _label, label, FontRole::Body, text, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, GetFlowDirection());
     }
     if (_unitWidthDip > 0.0f && ! _unit.empty() && _field)
     {
         const D2D1_RECT_F field = _field->GetBounds();
         D2D1_RECT_F unit        = rtl ? D2D1::RectF(field.left - kGapDip - _unitWidthDip, bounds.top, field.left - kGapDip, bounds.bottom)
                                       : D2D1::RectF(field.right + kGapDip, bounds.top, field.right + kGapDip + _unitWidthDip, bounds.bottom);
-        DrawCenteredText(host, _unit, unit, FontRole::Small, subtle, rtl ? DWRITE_TEXT_ALIGNMENT_TRAILING : DWRITE_TEXT_ALIGNMENT_LEADING);
+        DrawCenteredText(
+            host, _unit, unit, FontRole::Small, subtle, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, GetFlowDirection());
     }
     Panel::Paint(host);
 }
@@ -1218,19 +1308,24 @@ ColorPicker::ColorPicker()
         stepper->SetStep(1.0);
         stepper->SetLargeStep(10.0);
         stepper->SetDecimals(0);
-        stepper->SetOnChange([this](NumericStepperChange change)
+        stepper->SetOnChange([this, stepper](NumericStepperChange)
         {
-            if (_syncing || change.phase == NumericStepperChangePhase::Cancel)
+            if (_syncing)
             {
                 return;
             }
+            // Previews, commits and cancels all re-derive the color: a canceled component has restored its start
+            // value, so the picker follows it instead of keeping the abandoned preview.
             const uint32_t argb = PackRgb(Channel(_red->GetValue()), Channel(_green->GetValue()), Channel(_blue->GetValue()), 255u);
-            ApplyArgb(GetHost(), argb, true);
+            ApplyArgb(GetHost(), argb, true, stepper);
         });
     }
-    _red->SetLabel(_labels.red, 14.0f);
-    _green->SetLabel(_labels.green, 14.0f);
-    _blue->SetLabel(_labels.blue, 14.0f);
+    _red->SetLabel(_labels.red, _labels.channelLabelWidthDip);
+    _green->SetLabel(_labels.green, _labels.channelLabelWidthDip);
+    _blue->SetLabel(_labels.blue, _labels.channelLabelWidthDip);
+    _red->SetStepButtonNames(_labels.increaseRed, _labels.decreaseRed);
+    _green->SetStepButtonNames(_labels.increaseGreen, _labels.decreaseGreen);
+    _blue->SetStepButtonNames(_labels.increaseBlue, _labels.decreaseBlue);
     _hex->SetOnTextChanged([this](std::wstring_view text)
     {
         if (_syncing)
@@ -1238,30 +1333,47 @@ ColorPicker::ColorPicker()
             return;
         }
         // Live preview waits for all six digits; "#abc" would otherwise flash a short-form color mid-typing.
+        // The typed text is left alone (no "#"/case rewrite under the caret); focus loss or Enter normalizes it.
         if (const std::optional<uint32_t> parsed = ParseHexColor(text); parsed.has_value() && HexDigitCount(text) == 6u)
         {
-            ApplyArgb(GetHost(), parsed.value(), true);
+            ApplyArgb(GetHost(), parsed.value(), true, _hex);
         }
     });
+    // The preview callback may destroy the picker (a consumer closing its popup), so nothing touches it afterwards.
     _hex->SetOnSubmitted([this]
     {
         ControlHost* host = GetHost();
+        const auto life   = GetLifetimeToken();
         if (const std::optional<uint32_t> parsed = ParseHexColor(_hex->GetText()); parsed.has_value())
         {
-            ApplyArgb(host, parsed.value(), true);
+            ApplyArgb(host, parsed.value(), true, _hex);
         }
-        if (host)
+        if (host && ! life.expired())
         {
             Commit(*host);
         }
     });
     _hex->SetOnBlur([this]
     {
+        const auto life = GetLifetimeToken();
         if (const std::optional<uint32_t> parsed = ParseHexColor(_hex->GetText()); parsed.has_value())
         {
-            ApplyArgb(GetHost(), parsed.value(), true);
+            ApplyArgb(GetHost(), parsed.value(), true, _hex);
         }
-        SyncChildren();
+        if (! life.expired())
+        {
+            SyncChildren();
+        }
+    });
+    // Escape cancels from the hex field too, as from the picker itself.
+    _hex->SetOnPreviewKeyDown([this](ControlHost& host, UINT virtualKey, UINT) -> bool
+    {
+        if (virtualKey != VK_ESCAPE)
+        {
+            return false;
+        }
+        Cancel(host);
+        return true;
     });
     _hex->SetAccessibleName(_labels.hex);
     _ok->SetOnClick([this]
@@ -1284,13 +1396,21 @@ ColorPicker::ColorPicker()
 
 void ColorPicker::SetLabels(Labels labels)
 {
-    _labels = std::move(labels);
-    _red->SetLabel(_labels.red, 14.0f);
-    _green->SetLabel(_labels.green, 14.0f);
-    _blue->SetLabel(_labels.blue, 14.0f);
+    _labels          = std::move(labels);
+    const auto width = [](float value, float fallback) noexcept { return std::isfinite(value) ? std::clamp(value, 0.0f, kMaxLabelWidthDip) : fallback; };
+    _labels.channelLabelWidthDip = width(_labels.channelLabelWidthDip, 14.0f);
+    _labels.hexLabelWidthDip     = width(_labels.hexLabelWidthDip, 26.0f);
+    _labels.swatchWidthDip       = width(_labels.swatchWidthDip, kSwatchWidthDip);
+    _red->SetLabel(_labels.red, _labels.channelLabelWidthDip);
+    _green->SetLabel(_labels.green, _labels.channelLabelWidthDip);
+    _blue->SetLabel(_labels.blue, _labels.channelLabelWidthDip);
+    _red->SetStepButtonNames(_labels.increaseRed, _labels.decreaseRed);
+    _green->SetStepButtonNames(_labels.increaseGreen, _labels.decreaseGreen);
+    _blue->SetStepButtonNames(_labels.increaseBlue, _labels.decreaseBlue);
     _hex->SetAccessibleName(_labels.hex);
     _ok->SetText(_labels.ok);
     _cancel->SetText(_labels.cancel);
+    Arrange();
     RequestInvalidate();
 }
 
@@ -1382,14 +1502,15 @@ D2D1_RECT_F ColorPicker::GetHueStripRect() const noexcept
 D2D1_RECT_F ColorPicker::GetNewSwatchRect() const noexcept
 {
     const D2D1_RECT_F strip = GetHueStripRect();
-    const float left        = IsRightToLeft() ? (strip.left - kGapDip - 2.0f * kSwatchWidthDip - kGapDip) : (strip.right + kGapDip);
-    return D2D1::RectF(left, strip.top, left + kSwatchWidthDip, strip.top + kSwatchDip);
+    const float swatchWidth = _labels.swatchWidthDip;
+    const float left        = IsRightToLeft() ? (strip.left - kGapDip - 2.0f * swatchWidth - kGapDip) : (strip.right + kGapDip);
+    return D2D1::RectF(left, strip.top, left + swatchWidth, strip.top + kSwatchDip);
 }
 
 D2D1_RECT_F ColorPicker::GetCurrentSwatchRect() const noexcept
 {
     const D2D1_RECT_F fresh = GetNewSwatchRect();
-    return D2D1::RectF(fresh.right + kGapDip, fresh.top, fresh.right + kGapDip + kSwatchWidthDip, fresh.bottom);
+    return D2D1::RectF(fresh.right + kGapDip, fresh.top, fresh.right + kGapDip + _labels.swatchWidthDip, fresh.bottom);
 }
 
 NumericStepper& ColorPicker::RedField() noexcept
@@ -1440,10 +1561,13 @@ void ColorPicker::Arrange() noexcept
     _red->SetBounds(row(y));
     _green->SetBounds(row(y + rowStep));
     _blue->SetBounds(row(y + 2.0f * rowStep));
+    // The hex caption takes its slot at the row's start, and the field the rest; Paint draws the caption in this slot.
     const D2D1_RECT_F hexRow = row(y + 3.0f * rowStep);
-    const float hexLabel     = 26.0f;
-    _hex->SetBounds(rtl ? D2D1::RectF(hexRow.left, hexRow.top, (std::max)(hexRow.left, hexRow.right - hexLabel - kGapDip), hexRow.bottom)
-                        : D2D1::RectF((std::min)(hexRow.right, hexRow.left + hexLabel + kGapDip), hexRow.top, hexRow.right, hexRow.bottom));
+    const float hexLabel     = (std::min)(_labels.hexLabelWidthDip, Width(hexRow));
+    _hexCaptionRect          = rtl ? D2D1::RectF(hexRow.right - hexLabel, hexRow.top, hexRow.right, hexRow.bottom)
+                                   : D2D1::RectF(hexRow.left, hexRow.top, hexRow.left + hexLabel, hexRow.bottom);
+    _hex->SetBounds(rtl ? D2D1::RectF(hexRow.left, hexRow.top, (std::max)(hexRow.left, _hexCaptionRect.left - kGapDip), hexRow.bottom)
+                        : D2D1::RectF((std::min)(hexRow.right, _hexCaptionRect.right + kGapDip), hexRow.top, hexRow.right, hexRow.bottom));
     const float buttonTop   = bounds.bottom - kGapDip - kRowDip;
     const float buttonWidth = (std::min)(kButtonWidthDip, (std::max)(0.0f, (Width(bounds) - 3.0f * kGapDip) * 0.5f));
     D2D1_RECT_F ok =
@@ -1458,17 +1582,33 @@ void ColorPicker::Arrange() noexcept
     _cancel->SetBounds(cancel);
 }
 
-void ColorPicker::SyncChildren() noexcept
+void ColorPicker::SyncChildren(const Control* source) noexcept
 {
+    // Rewriting a field resets its caret, selection and undo history, so the one being edited is skipped.
     _syncing = true;
-    _red->SetValue(static_cast<double>((_argb >> 16) & 0xFFu));
-    _green->SetValue(static_cast<double>((_argb >> 8) & 0xFFu));
-    _blue->SetValue(static_cast<double>(_argb & 0xFFu));
-    _hex->SetText(FormatHexColor(_argb));
+    if (source != _red)
+    {
+        _red->SetValue(static_cast<double>((_argb >> 16) & 0xFFu));
+    }
+    if (source != _green)
+    {
+        _green->SetValue(static_cast<double>((_argb >> 8) & 0xFFu));
+    }
+    if (source != _blue)
+    {
+        _blue->SetValue(static_cast<double>(_argb & 0xFFu));
+    }
+    if (source != _hex)
+    {
+        if (std::wstring hex = FormatHexColor(_argb); _hex->GetText() != hex)
+        {
+            _hex->SetText(std::move(hex));
+        }
+    }
     _syncing = false;
 }
 
-void ColorPicker::ApplyArgb(ControlHost* host, uint32_t argb, bool notify) noexcept
+void ColorPicker::ApplyArgb(ControlHost* host, uint32_t argb, bool notify, const Control* source) noexcept
 {
     const uint32_t opaque = argb | 0xFF000000u;
     if (opaque == _argb)
@@ -1477,7 +1617,7 @@ void ColorPicker::ApplyArgb(ControlHost* host, uint32_t argb, bool notify) noexc
     }
     _argb = opaque;
     _hsv  = HsvFromArgb(opaque, &_hsv);
-    SyncChildren();
+    SyncChildren(source);
     if (host)
     {
         Invalidate(*host);
@@ -1532,7 +1672,8 @@ void ColorPicker::UpdateFromPoint(ControlHost& host, D2D1_POINT_2F point) noexce
         const D2D1_RECT_F field = GetFieldRect();
         const float width       = (std::max)(1.0f, Width(field));
         const float height      = (std::max)(1.0f, Height(field));
-        hsv.saturation          = (std::clamp)((point.x - field.left) / width, 0.0f, 1.0f);
+        const float along       = IsRightToLeft() ? field.right - point.x : point.x - field.left;
+        hsv.saturation          = (std::clamp)(along / width, 0.0f, 1.0f);
         hsv.value               = 1.0f - (std::clamp)((point.y - field.top) / height, 0.0f, 1.0f);
     }
     else if (_drag == Drag::Hue)
@@ -1550,22 +1691,22 @@ void ColorPicker::UpdateFromPoint(ControlHost& host, D2D1_POINT_2F point) noexce
 
 void ColorPicker::EnsureBrushes(ControlHost& host) const noexcept
 {
-    auto* dc                = host.GetDeviceContext();
-    const D2D1_RECT_F field = GetFieldRect();
-    const D2D1_RECT_F strip = GetHueStripRect();
+    auto* dc = host.GetDeviceContext();
     if (! dc)
     {
         return;
     }
-    if (dc == _brushContext && _brushHue == _hsv.hue && SameRect(field, _brushField) && SameRect(strip, _brushStrip) && _saturationBrush && _valueBrush &&
-        _hueBrush)
+    wil::com_ptr<ID2D1Device> device;
+    dc->GetDevice(device.put());
+    if (device && device == _brushDevice && _saturationBrush && _valueBrush && _hueBrush)
     {
         return;
     }
-    const D2D1_COLOR_F hueColor                 = ColorFromArgb(ArgbFromHsv(HsvColor{_hsv.hue, 1.0f, 1.0f}, 255u));
+    // Unit-space gradients: Paint places them with a transform. The field is the pure hue under white that fades
+    // out to the right (saturation) and black that fades in downwards (value), so no stop depends on the hue.
     const D2D1_GRADIENT_STOP saturationStops[2] = {
         D2D1::GradientStop(0.0f, D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f)),
-        D2D1::GradientStop(1.0f, hueColor),
+        D2D1::GradientStop(1.0f, D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.0f)),
     };
     const D2D1_GRADIENT_STOP valueStops[2] = {
         D2D1::GradientStop(0.0f, D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f)),
@@ -1580,13 +1721,10 @@ void ColorPicker::EnsureBrushes(ControlHost& host) const noexcept
         D2D1::GradientStop(5.0f / 6.0f, D2D1::ColorF(1.0f, 0.0f, 1.0f, 1.0f)),
         D2D1::GradientStop(1.0f, D2D1::ColorF(1.0f, 0.0f, 0.0f, 1.0f)),
     };
-    _saturationBrush = MakeGradientBrush(dc, D2D1::Point2F(field.left, field.top), D2D1::Point2F(field.right, field.top), saturationStops, 2u);
-    _valueBrush      = MakeGradientBrush(dc, D2D1::Point2F(field.left, field.top), D2D1::Point2F(field.left, field.bottom), valueStops, 2u);
-    _hueBrush        = MakeGradientBrush(dc, D2D1::Point2F(strip.left, strip.top), D2D1::Point2F(strip.left, strip.bottom), hueStops, 7u);
-    _brushContext    = dc;
-    _brushHue        = _hsv.hue;
-    _brushField      = field;
-    _brushStrip      = strip;
+    _saturationBrush = MakeGradientBrush(dc, D2D1::Point2F(0.0f, 0.0f), D2D1::Point2F(1.0f, 0.0f), saturationStops, 2u);
+    _valueBrush      = MakeGradientBrush(dc, D2D1::Point2F(0.0f, 0.0f), D2D1::Point2F(0.0f, 1.0f), valueStops, 2u);
+    _hueBrush        = MakeGradientBrush(dc, D2D1::Point2F(0.0f, 0.0f), D2D1::Point2F(0.0f, 1.0f), hueStops, 7u);
+    _brushDevice     = (_saturationBrush && _valueBrush && _hueBrush) ? std::move(device) : nullptr;
 }
 
 void ColorPicker::Paint(ControlHost& host) const
@@ -1596,27 +1734,34 @@ void ColorPicker::Paint(ControlHost& host) const
     const D2D1_RECT_F field   = GetFieldRect();
     const D2D1_RECT_F strip   = GetHueStripRect();
     EnsureBrushes(host);
-    if (dc)
+    const auto toRect = [](const D2D1_RECT_F& rect) noexcept
+    { return D2D1::Matrix3x2F::Scale(Width(rect), Height(rect)) * D2D1::Matrix3x2F::Translation(rect.left, rect.top); };
+    if (dc && _saturationBrush && _valueBrush && Width(field) > 0.0f && Height(field) > 0.0f)
     {
-        if (_saturationBrush && _valueBrush)
-        {
-            dc->FillRectangle(field, _saturationBrush.get());
-            dc->FillRectangle(field, _valueBrush.get());
-        }
-        else
-        {
-            dc->FillRectangle(field, host.GetSolidBrush(ColorFromArgb(_argb)));
-        }
-        if (_hueBrush)
-        {
-            dc->FillRectangle(strip, _hueBrush.get());
-        }
+        FillRect(host, field, ColorFromArgb(ArgbFromHsv(HsvColor{_hsv.hue, 1.0f, 1.0f}, 255u)));
+        // Right-to-left flow mirrors the saturation axis: white at the trailing (right) edge.
+        const D2D1_MATRIX_3X2_F mirror = IsRightToLeft() ? D2D1::Matrix3x2F::Scale(-1.0f, 1.0f, D2D1::Point2F(0.5f, 0.0f)) : D2D1::Matrix3x2F::Identity();
+        _saturationBrush->SetTransform(mirror * toRect(field));
+        _valueBrush->SetTransform(toRect(field));
+        dc->FillRectangle(field, _saturationBrush.get());
+        dc->FillRectangle(field, _valueBrush.get());
+    }
+    else
+    {
+        FillRect(host, field, ColorFromArgb(_argb));
+    }
+    if (dc && _hueBrush && Width(strip) > 0.0f && Height(strip) > 0.0f)
+    {
+        _hueBrush->SetTransform(toRect(strip));
+        dc->FillRectangle(strip, _hueBrush.get());
     }
     StrokeRect(host, field, theme.border, 1.0f);
     StrokeRect(host, strip, theme.border, 1.0f);
 
-    // Markers: a two-ring circle in the field, a two-line bar on the strip, both visible on any color.
-    const D2D1_POINT_2F marker = D2D1::Point2F(field.left + _hsv.saturation * Width(field), field.top + (1.0f - _hsv.value) * Height(field));
+    // Markers: a two-ring circle in the field, a two-line bar on the strip, both visible on any color. Saturation
+    // grows away from the leading edge, mirrored in right-to-left flow like the keys that step it.
+    const float markerX        = IsRightToLeft() ? field.right - _hsv.saturation * Width(field) : field.left + _hsv.saturation * Width(field);
+    const D2D1_POINT_2F marker = D2D1::Point2F(markerX, field.top + (1.0f - _hsv.value) * Height(field));
     StrokeCircle(host, marker, kFieldMarkerRadius, D2D1::ColorF(0.0f, 0.0f, 0.0f, 1.0f), 1.0f);
     StrokeCircle(host, marker, kFieldMarkerRadius - 1.0f, D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f), 1.0f);
     const float hueY = strip.top + (_hsv.hue / 360.0f) * Height(strip);
@@ -1632,16 +1777,16 @@ void ColorPicker::Paint(ControlHost& host) const
     DrawCenteredText(host, _labels.currentColor, D2D1::RectF(current.left, current.bottom, current.right, current.bottom + 16.0f), FontRole::Small, caption);
     if (_hex)
     {
-        const D2D1_RECT_F hex   = _hex->GetBounds();
-        const bool rtl          = IsRightToLeft();
-        const D2D1_RECT_F label = rtl ? D2D1::RectF(hex.right + kGapDip, hex.top, hex.right + kGapDip + 26.0f, hex.bottom)
-                                      : D2D1::RectF(hex.left - kGapDip - 26.0f, hex.top, hex.left - kGapDip, hex.bottom);
+        // The format reads in the flow direction, so leading is the start side.
         DrawCenteredText(host,
                          _labels.hex,
-                         label,
+                         _hexCaptionRect,
                          FontRole::Body,
                          IsEnabled() ? theme.text : theme.disabledText,
-                         rtl ? DWRITE_TEXT_ALIGNMENT_TRAILING : DWRITE_TEXT_ALIGNMENT_LEADING);
+                         DWRITE_TEXT_ALIGNMENT_LEADING,
+                         DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                         false,
+                         GetFlowDirection());
     }
     if (HasFocus() && host.IsKeyboardFocusVisible())
     {
@@ -1669,7 +1814,6 @@ bool ColorPicker::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool right
         return false;
     }
     host.SetFocusControl(this);
-    _dragStartArgb = _argb;
     host.CaptureMouse(this);
     UpdateFromPoint(host, point);
     return true;
@@ -1751,6 +1895,13 @@ void ColorPicker::OnCaptureLost(ControlHost& host)
 void ColorPicker::OnBoundsChanged() noexcept
 {
     Panel::OnBoundsChanged();
+    Arrange();
+}
+
+void ColorPicker::OnFlowDirectionChanged() noexcept
+{
+    Panel::OnFlowDirectionChanged();
+    // The field, strip and swatches mirror as they are computed; the child fields must be placed again.
     Arrange();
 }
 

@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-09-28
+Last reviewed: 2026-09-29
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -63,7 +63,10 @@ physical application DPI presentation and real assistive-technology journeys req
   stable scroll/focus anchor, clamps offsets and makes the focused control reachable. The consumer
   supplies work-area constraints; a child control does not move or activate the host window.
 - Disclosure preserves caller-owned state, exposes expanded/collapsed semantics and removes hidden
-  children from navigation, input and rendering work. Checkbox checked state remains distinct from
+  children from navigation, input and rendering work. The chevron's rotation runs on its own animation ticks: it
+  starts at the first one, so a state changed while the button or an ancestor is hidden rotates once it is shown
+  again, from where it rested, and a gap in the ticks (hidden mid-rotation, or a stalled thread) advances it at most
+  100 ms, so it resumes where it paused instead of jumping to the end. Reduced motion snaps it. Checkbox checked state remains distinct from
   focus/hover/pressed/disabled; checked paint and UIA Toggle always agree. Checkbox honors opt-in
   `SetMultiline(true)` for its complete caption. Measure Body text within the control width minus
   36 DIP and reserve 6 DIP of vertical padding; its default remains single-line.
@@ -71,15 +74,40 @@ physical application DPI presentation and real assistive-technology journeys req
   be arranged in a separate wrapped detail view without duplicating the grid's data authority.
   Multiline cells honor `SetLineClamp` and available complete-line height, with an ellipsis when
   content is omitted. Explicit paragraphs follow the same contract as automatically wrapped lines.
-  Trailing line or paragraph separators are not content: they add no ellipsis and do not shift
-  centring, and the ellipsis follows the last visible character. When not even one line fits, the
+  Trailing line breaks (CR, LF, NEL, VT, FF, LS, PS) and blank lines after them are not content: they
+  add no ellipsis and do not shift centring, and the ellipsis follows the last visible character. When not even one line fits, the
   first line is centred and clipped to the text area like a single-line cell, never left blank or
   painted into neighbouring rows. A partially visible row keeps its full-cell layout and is clipped
   without reflow or recentering. Rendering does not shorten model, clipboard, tooltip or UIA values;
   hovering offers the full value whenever paint omits, trims or clips text, or a horizontally
   scrolled viewport hides part of it. Consumers reserve sufficient row height for readable text.
-  The implementation uses bounded retained layouts for multiline cells, shared by paint and the
-  tooltip; clean composition does no shaping. Qualification is tracked in the grid overflow WIP plan.
+  Every visible multiline value keeps its shaped layout from paint to paint in a table keyed by value (identical
+  values share one layout, and values whose visible text is the same share its omitted-tail layout): a repaint of
+  unchanged cells shapes nothing and scrolling either way shapes only the rows that enter. The table grows while the
+  values of the current and the previous paint crowd one of its sets, up to 16,384 entries, and returns what a paint
+  no longer uses. Keys round the layout box to 1/64 DIP, so cells of one size share an entry wherever scrolling puts them (its
+  layout keeps the exact box of the cell that built it, which the others differ from by far less than a pixel).
+  A value shapes only what it can show: whole paragraphs until the lines that can show are filled (the clamp, or fewer
+  when the cell's height holds fewer at 0.8 em a line) and, within them, a prefix that is final once it lays out a line
+  beyond the one after those lines or, unwrapped, once it overflows the cell with no right-to-left or
+  directional-control text (such text shapes its whole line). A first prefix sized from the font that falls short
+  doubles at most three times, then takes its paragraphs. An unwrapped line's height, and so its centring, comes from
+  the text it shows. An entry keeps the text it was shaped from, with how the value continues after it (no break, a
+  break, a CR LF pair), so a value far longer than a cell can show is retained by that prefix, any value starting the
+  same way shares it, and its repaint shapes nothing; a key longer than 4,096 units, or twice the first prefix of a
+  larger cell, is laid out per use (a whole long right-to-left line). The omission marker ends the visible text in that
+  text's own direction, read by character (an emoji or other symbol has none): in a left-to-right grid a
+  right-to-left last line gets it at its left end. Trailing lines of white space or of default-ignorable characters
+  (zero-width space and joiners, directional marks, embeddings and isolates, variation selectors, byte order mark, soft
+  hyphen) add nothing. Layouts are shared by paint and the tooltip; clean composition does no shaping. Qualification
+  is tracked in the grid overflow WIP plan.
+- Single-line Grid captions keep their layouts in the same table, keyed by the whole caption (up to 4,096 units; a
+  longer one is laid out per use), and paint exactly as a centred-text draw of the caption would: unwrapped,
+  vertically centred and clipped to the text rectangle. A leading-aligned caption on one paragraph shapes only the
+  prefix that overflows its cell, when that prefix holds no right-to-left or directional-control text; centred and
+  trailing captions overflow by their whole line, so they shape all of it. The hover check reads the painted layout.
+- In right-to-left flow a control's text format reads right to left, so captions and titles use leading alignment
+  (their start side, beside a mirrored indicator or at a tab's right edge), never trailing.
 
 The consumer chooses information hierarchy and whether repeated text is useful. Shared controls
 must support a single semantic heading with associated labelled values and complete exact-value
@@ -189,9 +217,12 @@ commits, Escape while dragging and capture loss restore the drag-start position 
 (vertical bar) or Up/Down (horizontal bar) move `kKeyboardStepDip` (8 DIP), Shift moves `kKeyboardLargeStepDip`
 (32 DIP), Home and End go to the limits; keyboard moves and `RequestPosition` notify `Commit` once. The separator
 paints the theme border at rest, a border/accent blend when hovered and the accent while dragging, with a three-dot
-grip; the horizontal or vertical resize cursor applies over the hit band and during a drag. The persisted position is
-consumer state. In an EmbeddedHost the consumer applies pane bounds on its next preparation, not inside the change
-callback. That bounds revision keeps the drag while the splitter stays in the tree, enabled and visible
+grip; the horizontal or vertical resize cursor applies over the hit band and during a drag. UI Automation exposes it
+as a Thumb (a focusable separator) with RangeValue: the position between the limits the pane minimums allow, small
+and large changes equal to the keyboard steps, and `SetValue` committing once like the keyboard (refused mid-drag).
+Consumers name it with `SetAccessibleName`. The persisted position is consumer state. In an EmbeddedHost the consumer applies pane bounds on its next preparation, not inside the change
+callback. That bounds revision keeps the drag while the splitter stays in the tree and it and its ancestors stay
+enabled and visible
 ([`Rendering_EmbeddedD3D11.md`](../Rendering/Rendering_EmbeddedD3D11.md)).
 
 ### Numeric stepper
@@ -202,15 +233,28 @@ painted, not child controls. Values clamp to `SetMinimum` / `SetMaximum` (defaul
 `SetDecimals` (0–6) using `.` as the separator; `ParseValue` accepts an optional sign, digits and one `.` or `,`
 fraction with surrounding whitespace. Text that parses previews immediately (`NumericStepperChangePhase::Preview`)
 and opens an edit whose start value Escape restores (`Cancel`). Enter, focus loss, the buttons, Up/Down (Shift:
-`SetLargeStep`), `RequestValue` and `Nudge` commit once; text that does not parse reverts to the committed value.
-`SetValue` clamps, rewrites the text and never notifies. Disabling the stepper disables its three children.
-Right-to-left flow mirrors label, field, unit and buttons.
+`SetLargeStep`), `RequestValue` and `Nudge` commit once; text that does not parse reverts to the committed value,
+and an open edit whose text no longer parses ends as `Cancel`, never committing the preview it abandoned.
+`SetValue` clamps, rewrites the text and never notifies; `SetDecimals` re-rounds the value the same way. A step finer
+than the shown decimals still moves one shown unit. Text changed without focus (UI Automation's ValuePattern) has no
+later Enter or focus loss and commits, or reverts, at once. The step buttons draw icon glyphs, so they carry UI Automation names:
+English "Increase" and "Decrease" by default, and the consumer's complete localized names through
+`SetStepButtonNames(increase, decrease)`. An
+unchanged text is not rewritten, so the field keeps its caret and undo history. Disabling the stepper disables its
+three children.
+Right-to-left flow mirrors label, field, unit and buttons; label and unit read right to left with leading alignment.
 
 ### Color picker
 
 `ColorPicker` is a Panel with a saturation/value field (`kFieldDip` square), a vertical hue strip, new and current
 swatches, R/G/B `NumericStepper`s (0–255), a hex `TextField` (`#RRGGBB`, `RRGGBB`, `#RGB`, `RGB`) and OK/Cancel
-buttons whose captions come from `SetLabels`; the library ships no localized strings for it. `SetColor` sets the
+buttons whose captions come from `SetLabels`; the library ships no localized strings for it. `Labels` also sizes the
+R/G/B caption slot (`channelLabelWidthDip`, 14), the hex caption slot (`hexLabelWidthDip`, 26) and each swatch, whose
+caption it fits beneath (`swatchWidthDip`, 44), so translated captions are not cut to the English widths; a picker
+wider than `kDefaultWidthDip` leaves room for wider swatches. A width that is not finite takes its default, and the
+widths stay within 0 and `kMaxLabelWidthDip` (4,096); the hex caption is drawn in the slot `Arrange` reserves for it.
+`Labels` also names the channel steppers' step buttons (`increaseRed` … `decreaseBlue`, English "Increase red" …
+"Decrease blue" by default) as whole phrases, since word order varies between languages. `SetColor` sets the
 editing and current colors without notifying; `SetCurrentColor` changes the reference swatch only. Pointer drags on
 the field or strip, typed component values, hex text and `SampleColor` (host eyedropper) preview
 (`ColorPickerChangePhase::Preview`); OK, Enter and `Commit` copy the editing color into the current swatch and
@@ -218,8 +262,11 @@ notify `Commit`; Cancel, Escape, `Cancel` and capture loss during a drag restore
 `Cancel`. Left/Right step saturation (mirrored in right-to-left flow) and Up/Down step value by 1/255, Page Up/Down
 step hue by one degree; Shift multiplies by ten. Grays keep the last hue and black keeps the last saturation so the
 field marker does not jump. `HsvFromArgb`, `ArgbFromHsv`, `ParseHexColor` and `FormatHexColor` are public helpers.
-Gradient brushes are created on the first paint per device context and reused until the hue or geometry changes.
-Alpha is always opaque.
+The field or component being typed in keeps its text, caret and undo history while the others follow; focus loss,
+Enter, OK and Cancel normalize it (`#RRGGBB`). A canceled component edit restores its value and the picker follows it
+with a preview. The field paints the pure hue under unit-space white and black gradients placed by a brush transform:
+its three gradient brushes are created once per Direct2D device (held by reference, so a recreated device cannot
+alias them) and neither hue changes nor layout moves recreate them. Alpha is always opaque.
 
 ### Consumer-selected popup row minimum
 
@@ -242,10 +289,17 @@ The normal light/dark appearance keeps its existing visual treatment.
 
 `Tree::SetReorderEnabled` arms a pointer drag on a row (not the expander or the scrollbar). After the pointer moves
 at least 4 DIP, the tree draws an insertion line on the top or bottom half of the row under the pointer, or highlights
-the row when the pointer is in its middle and that row has children. Release calls `IDxTreeDelegate::OnTreeReorder`
+the row when the pointer is in its middle and that row has children. Release calls `ITreeDelegate::OnTreeReorder`
 once with the source id, the target id and `TreeDropPlace` (`Before`, `After` or `Inside`). The tree does not change
-the model. Escape and capture loss cancel and do not call the delegate. A click that does not travel 4 DIP selects
-as before and does not reorder.
+the model. The dragged row's own visible descendants (the deeper rows that follow it) are never targets, so a drop
+cannot make a row its own ancestor. Escape and capture loss cancel and do not call the delegate; so do disabling or
+hiding the tree or an ancestor, and `SetModel`. `NotifyDataChanged` during a drag re-resolves the dragged row by id
+and clears the target until the next pointer move; a removed row ends the drag. A wheel scroll during the drag
+retargets the row now under the pointer, and moving within one drop zone repaints nothing. The release point
+decides the drop, a second (right) button cancels, and model id 0 is an ordinary row. A click that does not travel
+4 DIP selects as before, does not reorder and reports its release unhandled. Row drag is pointer-only: consumers
+provide the keyboard or command equivalent. Row `iconText` in the private-use range uses the icon font; any other
+icon text keeps the small UI font, as in Grid.
 
 ### Localized built-in text
 

@@ -18,6 +18,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <wrl/implements.h>
 
 // The resource probe is included after the owned menu fixture helpers below.
 
@@ -2410,8 +2411,8 @@ void TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup()
 
         pendingMenuBarHoverRootSwitch.store(1, std::memory_order_release);
         pendingMenuBarHoverSequence.store(2u, std::memory_order_release);
-        if (PostMessageW(viewPopupHwnd, DxUi::WndMsg::kDxUiContextMenuRootHoverChanged, 0u, 1u) == 0 ||
-            PostMessageW(viewPopupHwnd, DxUi::WndMsg::kDxUiContextMenuRootHoverChanged, 1u, 2u) == 0)
+        if (PostMessageW(viewPopupHwnd, DxUi::WndMsg::kContextMenuRootHoverChanged, 0u, 1u) == 0 ||
+            PostMessageW(viewPopupHwnd, DxUi::WndMsg::kContextMenuRootHoverChanged, 1u, 2u) == 0)
         {
             driverFailure = "View popup receives the direct synthetic menu-bar hover switch messages";
             return;
@@ -2578,7 +2579,7 @@ void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
 
         pendingMenuBarHoverRootSwitch.store(1, std::memory_order_release);
         pendingMenuBarHoverSequence.store(1u, std::memory_order_release);
-        if (PostMessageW(viewPopupHwnd, DxUi::WndMsg::kDxUiContextMenuRootHoverChanged, 1u, 1u) == 0)
+        if (PostMessageW(viewPopupHwnd, DxUi::WndMsg::kContextMenuRootHoverChanged, 1u, 1u) == 0)
         {
             driverFailure = "overlapping popup can receive the synthetic menu-bar hover switch message";
             return;
@@ -5814,6 +5815,56 @@ void TestDescribedMenuWrapsFrenchTextAndPreservesIdentity()
     Require(WaitForWindowDestroyed(popup), "described menu closes after invocation");
 }
 
+void TestDescribedInfoRowPaintsItsDescription()
+{
+    using namespace DxUi;
+    // An Info row with a description is measured taller for it, so it must also paint it (not leave the space blank).
+    AttachedHostWindow owner;
+    const std::wstring description = L"Across every volume in this library";
+    std::vector<MenuFlyoutItem> items{{.text = L"Open volumes", .commandId = 9101, .secondaryText = description},
+                                      {.kind = MenuItemKind::Info, .text = L"Used Space:", .acceleratorText = L"561 GB", .secondaryText = description}};
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "described info menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}, ContextMenuSessionCallbacks{}),
+            "described info menu opens");
+    const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Open volumes");
+    Require(popup != nullptr, "described info menu appears");
+    const auto dismiss = wil::scope_exit([&]() noexcept
+    {
+        if (IsWindow(popup))
+            SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    });
+    ContextMenuPopupDebugState state{};
+    WindowHostBitmapCapture capture{};
+    ContextMenuPopupItemLayoutDebugState command{};
+    ContextMenuPopupItemLayoutDebugState info{};
+    Require(DebugGetContextMenuPopupState(popup, state) && DebugCaptureContextMenuPopupBitmap(popup, capture), "described info menu captures");
+    Require(DebugGetContextMenuPopupItemLayout(popup, 0, command) && DebugGetContextMenuPopupItemLayout(popup, 1, info), "described rows expose geometry");
+    const float scale    = static_cast<float>(state.dpi) / 96.0f;
+    const auto inkInside = [&](const D2D1_RECT_F& rectDip)
+    {
+        const LONG left   = (std::max)(0L, static_cast<LONG>(std::ceil(rectDip.left * scale)));
+        const LONG top    = (std::max)(0L, static_cast<LONG>(std::ceil(rectDip.top * scale)));
+        const LONG right  = (std::min)(static_cast<LONG>(capture.widthPx), static_cast<LONG>(std::floor(rectDip.right * scale)));
+        const LONG bottom = (std::min)(static_cast<LONG>(capture.heightPx), static_cast<LONG>(std::floor(rectDip.bottom * scale)));
+        if (right <= left + 1 || bottom <= top)
+            return size_t{0u};
+        // The short description leaves the end of its first line empty: that pixel is the row background.
+        const auto pixel = [&](LONG x, LONG y) { return &capture.bgraPixels[(static_cast<size_t>(y) * capture.widthPx + static_cast<size_t>(x)) * 4u]; };
+        const uint8_t* background = pixel(right - 1, top);
+        size_t ink                = 0u;
+        for (LONG y = top; y < bottom; ++y)
+            for (LONG x = left; x < right; ++x)
+            {
+                const uint8_t* value = pixel(x, y);
+                const int difference = (std::max)({std::abs(value[0] - background[0]), std::abs(value[1] - background[1]), std::abs(value[2] - background[2])});
+                ink += difference > 48 ? 1u : 0u;
+            }
+        return ink;
+    };
+    Require(inkInside(command.secondaryTextRectDip) > 20u, "a described command row paints its description");
+    Require(inkInside(info.secondaryTextRectDip) > 20u, "a described Info row paints its description in its measured space");
+}
+
 void TestDescribedAsyncMenuRestoresFocusedOwnerChild()
 {
     using namespace DxUi;
@@ -6203,6 +6254,853 @@ void TestDescribedSubmenuSliderFocusKeepsSessionFocus()
     Require(GetFocus() == popup, "UIA focus of a submenu slider row keeps native focus on the root popup");
     ContextMenuPopupDebugState state{};
     Require(DebugGetContextMenuPopupState(child, state) && state.keyboardIndex == 1u, "UIA focus tracks the submenu slider row logically");
+    // Focusing the submenu popup itself (its root fragment) must not activate it either: activation would deactivate
+    // the root popup and dismiss the whole asynchronous session.
+    RequireSucceeded(rootFragment->SetFocus(), "a screen reader can focus the described submenu root");
+    owner.PumpMessages();
+    Require(! closed && IsWindow(popup) && IsWindow(child) && GetFocus() == popup,
+            "UIA focus of a submenu root keeps the asynchronous session and native focus on the root popup");
+}
+
+class MenuRowFocusObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+                                                                       IUIAutomationFocusChangedEventHandler,
+                                                                       Microsoft::WRL::FtmBase>
+{
+public:
+    std::atomic<unsigned int> firstRow{0};
+    std::atomic<unsigned int> secondRow{0};
+    HRESULT STDMETHODCALLTYPE HandleFocusChangedEvent(IUIAutomationElement* sender) noexcept override
+    {
+        // The name is cached with the event, so the handler never calls back into the provider's thread.
+        wil::unique_bstr name;
+        if (! sender || FAILED(sender->get_CachedName(name.put())) || ! name)
+            return S_OK;
+        const std::wstring_view rowName(name.get(), SysStringLen(name.get()));
+        if (rowName == L"Première destination")
+            firstRow.fetch_add(1);
+        else if (rowName == L"Deuxième destination")
+            secondRow.fetch_add(1);
+        return S_OK;
+    }
+};
+
+// Live bytes in every process heap: what the process still holds, independent of how much the heaps keep committed.
+[[nodiscard, maybe_unused]] uint64_t MeasureLiveHeapBytesForMenuSuite()
+{
+    std::array<HANDLE, 128> heaps{};
+    const DWORD count = GetProcessHeaps(static_cast<DWORD>(heaps.size()), heaps.data());
+    Require(count > 0u && count <= heaps.size(), "enumerate the process heaps");
+    uint64_t busy = 0u;
+    for (DWORD index = 0u; index < count; ++index)
+    {
+        if (! HeapLock(heaps[index]))
+            continue;
+        const auto unlock = wil::scope_exit([&] { HeapUnlock(heaps[index]); });
+        PROCESS_HEAP_ENTRY entry{};
+        while (HeapWalk(heaps[index], &entry))
+            if ((entry.wFlags & PROCESS_HEAP_ENTRY_BUSY) != 0u)
+                busy += entry.cbData;
+    }
+    return busy;
+}
+
+// Whether window hosts here render in software: WARP, or the Basic Render Driver of a machine without a GPU such as a
+// CI runner. Its surfaces and caches then live in the process heap, where the live-heap walk counts them too. Asks the
+// device helper the window hosts use, with the same hardware-first choice.
+[[nodiscard, maybe_unused]] bool WindowHostsRenderInSoftware()
+{
+    const std::array<D3D_FEATURE_LEVEL, 3> levels{D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1};
+    wil::com_ptr_nothrow<ID3D11Device> device;
+    wil::com_ptr_nothrow<ID3D11DeviceContext> context;
+    D3D_FEATURE_LEVEL level    = D3D_FEATURE_LEVEL_11_0;
+    D3D_DRIVER_TYPE driverType = D3D_DRIVER_TYPE_UNKNOWN;
+    RequireSucceeded(DxUi::CreateD3D11DeviceWithWarpFallback(D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, false, device.put(), &level, context.put(), &driverType),
+                     "create the device window hosts would use");
+    if (driverType == D3D_DRIVER_TYPE_WARP)
+        return true;
+    const auto dxgiDevice = device.try_query<IDXGIDevice>();
+    wil::com_ptr_nothrow<IDXGIAdapter> adapter;
+    DXGI_ADAPTER_DESC description{};
+    Require(dxgiDevice && SUCCEEDED(dxgiDevice->GetAdapter(adapter.put())) && SUCCEEDED(adapter->GetDesc(&description)), "identify the window-host adapter");
+    constexpr UINT kMicrosoftVendorId = 0x1414u; // WARP and the Basic Render Driver
+    return description.VendorId == kMicrosoftVendorId;
+}
+
+// A described menu retains shaped layouts and accessibility proxies for every row while it is open; closing it must
+// return them, even while a UI Automation client still holds one of its elements.
+void TestDescribedMenuReleasesItsMemoryWhenItCloses()
+{
+    using namespace DxUi;
+#if defined(__SANITIZE_ADDRESS__)
+    // AddressSanitizer serves allocations from its own shadow-mapped pools, which a process-heap walk cannot see.
+    SkipDxUiTest("described-menu live-heap comparison needs the process heaps AddressSanitizer replaces");
+    return;
+#else
+    AttachedHostWindow owner;
+    std::vector<MenuFlyoutItem> items;
+    for (int index = 0; index < 200; ++index)
+        items.push_back(MenuFlyoutItem{.kind          = MenuItemKind::Standard,
+                                       .text          = std::format(L"Archives photographiques {}", index),
+                                       .commandId     = 9400 + index,
+                                       .secondaryText = std::format(L"D:\\Sauvegardes\\Collection déjà présente\\Génération {}", index)});
+    ContextMenuSessionCallbacks callbacks{};
+    callbacks.maxRootHeightDip = 300.0f;
+    const auto openAndClose    = [&](bool holdElements, uint64_t* openBytes)
+    {
+        bool closed        = false;
+        const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "released menu anchor maps to screen");
+        Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&](std::optional<int>) noexcept { closed = true; }, callbacks),
+                "described menu opens");
+        const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
+        Require(popup != nullptr, "described menu appears");
+        WindowHostBitmapCapture capture{};
+        Require(DebugCaptureContextMenuPopupBitmap(popup, capture), "described menu paints its rows");
+        capture = {};
+        std::vector<wil::com_ptr_nothrow<IRawElementProviderFragment>> heldRows;
+        if (holdElements)
+        {
+            wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+            root.attach(CreateWindowHostAccessibilityProvider(popup));
+            wil::com_ptr_nothrow<IRawElementProviderFragment> row;
+            Require(root && SUCCEEDED(root.query_to(row.put())), "a UI Automation client reaches the described menu");
+            for (NavigateDirection direction = NavigateDirection_FirstChild; heldRows.size() < 8u; direction = NavigateDirection_NextSibling)
+            {
+                wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+                Require(SUCCEEDED(row->Navigate(direction, next.put())) && next, "a UI Automation client holds several described rows");
+                heldRows.push_back(next);
+                row = std::move(next);
+            }
+        }
+        if (openBytes)
+            *openBytes = MeasureLiveHeapBytesForMenuSuite();
+        SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+        owner.PumpMessages();
+        Require(closed && WaitForWindowDestroyed(popup, std::chrono::milliseconds(2000)), "described menu closes");
+        owner.PumpMessages();
+        return heldRows; // The caller keeps the elements past the close, as a screen reader may.
+    };
+    // Warm the fonts, the formats and the accessibility machinery once, so later samples see only the menu.
+    static_cast<void>(openAndClose(true, nullptr));
+    const uint64_t before = MeasureLiveHeapBytesForMenuSuite();
+    uint64_t open         = 0u;
+    const auto heldRows   = openAndClose(true, &open);
+    const uint64_t closed = MeasureLiveHeapBytesForMenuSuite();
+    const bool software   = WindowHostsRenderInSoftware();
+    std::cout << "Described menu live heap: before " << before << ", open " << open << ", closed " << closed << " bytes (row elements still held "
+              << heldRows.size() << (software ? "; software renderer" : "") << ")\n";
+    Require(open > before + 1024u * 1024u, "a 200-row described menu holds its layouts while open");
+    // A menu the held elements pinned would keep nearly all it held while open. With a GPU the walk sees only this
+    // process's own allocations, so the menu must return to within 64 KiB. A software renderer's surfaces and caches
+    // share the heap and swing by up to about 3 MB between identical open/close cycles, with or without held
+    // elements, so there at least half of the menu's memory must come back.
+    const uint64_t allowance = software ? (open - before) / 2u : 64u * 1024u;
+    Require(closed < before + allowance, "closing the described menu returns its memory, although a client still holds row elements");
+#endif
+}
+
+void TestDescribedMenuRaisesFocusChangesForKeyboardRows()
+{
+    using namespace DxUi;
+    // Win32 focus stays on the session's root popup, so no system focus event reports a row change: the popup raises
+    // UIA focus changes itself, or a screen reader cannot follow keyboard navigation through described rows.
+    constexpr ULONGLONG kClientSetupAllowanceMs = 20000;
+    constexpr ULONGLONG kNotificationDeadlineMs = 3000;
+    AttachedHostWindow owner;
+    wil::com_ptr_nothrow<MenuRowFocusObserver> observer;
+    observer.attach(Microsoft::WRL::Make<MenuRowFocusObserver>().Detach());
+    Require(observer != nullptr, "allocate the menu row focus observer");
+    wil::unique_event stop(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(bool(stop), "create the UIA client stop event");
+    std::atomic<bool> ready{false};
+    std::atomic<bool> finished{false};
+    std::atomic<HRESULT> setup{E_PENDING};
+    std::jthread client([&]
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        const auto uninitialize   = wil::scope_exit([&]
+        {
+            if (SUCCEEDED(initialized))
+                CoUninitialize();
+        });
+        wil::com_ptr_nothrow<IUIAutomation> automation;
+        wil::com_ptr_nothrow<IUIAutomationCacheRequest> cache;
+        HRESULT hr = initialized;
+        if (SUCCEEDED(hr))
+            hr = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(automation.put()));
+        if (SUCCEEDED(hr))
+            hr = automation->CreateCacheRequest(cache.put());
+        if (SUCCEEDED(hr))
+            hr = cache->AddProperty(UIA_NamePropertyId);
+        if (SUCCEEDED(hr))
+            hr = automation->AddFocusChangedEventHandler(cache.get(), observer.get());
+        setup.store(hr);
+        ready.store(true);
+        if (SUCCEEDED(hr))
+        {
+            static_cast<void>(WaitForSingleObject(stop.get(), 15000));
+            static_cast<void>(automation->RemoveFocusChangedEventHandler(observer.get()));
+        }
+        finished.store(true);
+    });
+    const auto waitUntil = [&](ULONGLONG timeoutMs, const auto& predicate)
+    {
+        const auto deadline = GetTickCount64() + timeoutMs;
+        while (! predicate() && GetTickCount64() < deadline)
+        {
+            owner.PumpMessages();
+            Sleep(1);
+        }
+        return predicate();
+    };
+    const auto stopClient = wil::scope_exit([&]() noexcept
+    {
+        SetEvent(stop.get());
+        static_cast<void>(waitUntil(kNotificationDeadlineMs, [&] { return finished.load(); }));
+    });
+    Require(waitUntil(kClientSetupAllowanceMs, [&] { return ready.load(); }) && SUCCEEDED(setup.load()), "subscribe UIA focus changes");
+
+    const std::vector<MenuFlyoutItem> items{
+        {.text = L"Première", .commandId = 9201, .secondaryText = L"Archives familiales", .accessibleName = L"Première destination"},
+        {.text = L"Deuxième", .commandId = 9202, .secondaryText = L"Collection du musée", .accessibleName = L"Deuxième destination"}};
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "described focus menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}), "described focus menu opens");
+    const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
+    const HWND popup   = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Première");
+    Require(popup != nullptr, "described focus menu appears");
+    ContextMenuPopupDebugState state{};
+    const auto requireRow = [&](size_t row, const char* context)
+    {
+        const bool alive = IsWindow(popup) != FALSE && DebugGetContextMenuPopupState(popup, state);
+        if (! alive || state.keyboardIndex != row)
+            std::cerr << "    [MENU] popupAlive=" << alive << " keyboardIndex=" << (state.keyboardIndex ? static_cast<long long>(*state.keyboardIndex) : -1)
+                      << '\n';
+        Require(alive && state.keyboardIndex == row, context);
+    };
+    // The first row's event proves row focus changes reach the client. UIA may also resolve the popup's own
+    // activation lazily to that same row, so only the second row, reached after it, is decisive.
+    SendMessageW(popup, WM_KEYDOWN, VK_HOME, 0);
+    requireRow(0u, "the keyboard reaches the first described row");
+    Require(waitUntil(kNotificationDeadlineMs, [&] { return observer->firstRow.load() >= 1u; }),
+            "a UIA client receives a focus change for the first described row");
+    const unsigned int before = observer->secondRow.load();
+    SendMessageW(popup, WM_KEYDOWN, VK_DOWN, 0);
+    requireRow(1u, "the keyboard reaches the second described row");
+    Require(waitUntil(kNotificationDeadlineMs, [&] { return observer->secondRow.load() > before; }),
+            "a UIA client receives a focus change for the described row the keyboard reached");
+}
+
+class FocusNameRecorder final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+                                                                    IUIAutomationFocusChangedEventHandler,
+                                                                    Microsoft::WRL::FtmBase>
+{
+public:
+    HRESULT STDMETHODCALLTYPE HandleFocusChangedEvent(IUIAutomationElement* sender) noexcept override
+    {
+        // The name is cached with the event, so the handler never calls back into the provider's thread.
+        wil::unique_bstr name;
+        if (! sender || FAILED(sender->get_CachedName(name.put())) || ! name)
+            return S_OK;
+        try
+        {
+            const std::scoped_lock lock(_mutex);
+            _names.emplace_back(name.get(), SysStringLen(name.get()));
+        }
+        catch (const std::bad_alloc&)
+        {
+            // A dropped name fails the test's own count; the client callback never throws.
+        }
+        return S_OK;
+    }
+
+    [[nodiscard]] size_t Count(std::wstring_view name) const
+    {
+        const std::scoped_lock lock(_mutex);
+        return static_cast<size_t>(std::ranges::count(_names, name));
+    }
+
+    [[nodiscard]] std::wstring LastName() const
+    {
+        const std::scoped_lock lock(_mutex);
+        return _names.empty() ? std::wstring{} : _names.back();
+    }
+
+    [[nodiscard]] std::vector<std::wstring> Names() const
+    {
+        const std::scoped_lock lock(_mutex);
+        return _names;
+    }
+
+private:
+    mutable std::mutex _mutex;
+    std::vector<std::wstring> _names;
+};
+
+// An in-process UIA client on its own MTA thread, as a screen reader is another process: it records the names of
+// focus-changed events and focuses a named element of the window on request. Providers answer on the window's thread,
+// so every wait pumps it.
+class FocusEventClient final
+{
+public:
+    static constexpr ULONGLONG kSetupAllowanceMs       = 20000; // Cold client setup has exceeded 3 s on hosted runners.
+    static constexpr ULONGLONG kNotificationDeadlineMs = 3000;
+
+    FocusEventClient(const AttachedHostWindow& pump, HWND target) : _pump(pump), _target(target)
+    {
+        _recorder.attach(Microsoft::WRL::Make<FocusNameRecorder>().Detach());
+        Require(_recorder != nullptr && _stop && _request, "allocate the UIA focus client");
+        _thread = std::jthread([this] { Run(); });
+        Require(WaitUntil(kSetupAllowanceMs, [this] { return _ready.load(); }) && SUCCEEDED(_setup.load()), "subscribe UIA focus changes");
+    }
+
+    FocusEventClient(const FocusEventClient&)            = delete;
+    FocusEventClient& operator=(const FocusEventClient&) = delete;
+
+    ~FocusEventClient()
+    {
+        SetEvent(_stop.get());
+        static_cast<void>(WaitUntil(kNotificationDeadlineMs, [this] { return _finished.load(); }));
+    }
+
+    template <typename Predicate> [[nodiscard]] bool WaitUntil(ULONGLONG timeoutMs, const Predicate& predicate) const
+    {
+        const ULONGLONG deadline = GetTickCount64() + timeoutMs;
+        while (! predicate() && GetTickCount64() < deadline)
+        {
+            _pump.PumpMessages();
+            Sleep(1);
+        }
+        return predicate();
+    }
+
+    // Lets events already raised reach the client before a test asserts that one never came.
+    void Settle() const
+    {
+        static_cast<void>(WaitUntil(500u, [] { return false; }));
+    }
+
+    [[nodiscard]] size_t Count(std::wstring_view name) const
+    {
+        return _recorder->Count(name);
+    }
+
+    [[nodiscard]] std::wstring LastName() const
+    {
+        return _recorder->LastName();
+    }
+
+    // For a failure report: every name heard, in order.
+    void PrintNames() const
+    {
+        std::cerr << "    [UIA] focus names heard:";
+        for (const std::wstring& name : _recorder->Names())
+        {
+            std::cerr << " '";
+            for (const wchar_t unit : name)
+                std::cerr << (unit < 0x80 ? static_cast<char>(unit) : '?');
+            std::cerr << "'";
+        }
+        std::cerr << '\n';
+    }
+
+    // IUIAutomationElement::SetFocus on the target window's element with this name.
+    [[nodiscard]] HRESULT FocusElementNamed(std::wstring name)
+    {
+        _requestName = std::move(name);
+        _requestResult.store(E_PENDING);
+        SetEvent(_request.get());
+        static_cast<void>(WaitUntil(kSetupAllowanceMs, [this] { return _requestResult.load() != E_PENDING; }));
+        return _requestResult.load();
+    }
+
+private:
+    void Run() noexcept
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        const auto uninitialize   = wil::scope_exit([&]
+        {
+            if (SUCCEEDED(initialized))
+                CoUninitialize();
+        });
+        wil::com_ptr_nothrow<IUIAutomation> automation;
+        wil::com_ptr_nothrow<IUIAutomationCacheRequest> cache;
+        HRESULT hr = initialized;
+        if (SUCCEEDED(hr))
+            hr = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(automation.put()));
+        if (SUCCEEDED(hr))
+            hr = automation->CreateCacheRequest(cache.put());
+        if (SUCCEEDED(hr))
+            hr = cache->AddProperty(UIA_NamePropertyId);
+        if (SUCCEEDED(hr))
+            hr = automation->AddFocusChangedEventHandler(cache.get(), _recorder.get());
+        _setup.store(hr);
+        _ready.store(true);
+        if (SUCCEEDED(hr))
+        {
+            const std::array<HANDLE, 2> events{_stop.get(), _request.get()};
+            while (WaitForMultipleObjects(static_cast<DWORD>(events.size()), events.data(), FALSE, 30000) == WAIT_OBJECT_0 + 1)
+                _requestResult.store(FocusNamed(*automation.get()));
+            static_cast<void>(automation->RemoveFocusChangedEventHandler(_recorder.get()));
+        }
+        _finished.store(true);
+    }
+
+    [[nodiscard]] HRESULT FocusNamed(IUIAutomation& automation) const noexcept
+    {
+        wil::com_ptr_nothrow<IUIAutomationElement> root;
+        HRESULT hr = automation.ElementFromHandle(_target, root.put());
+        VARIANT name{};
+        VariantInit(&name);
+        const auto clearName = wil::scope_exit([&] { VariantClear(&name); });
+        name.vt              = VT_BSTR;
+        name.bstrVal         = SysAllocStringLen(_requestName.data(), static_cast<UINT>(_requestName.size()));
+        if (SUCCEEDED(hr) && ! name.bstrVal)
+            hr = E_OUTOFMEMORY;
+        wil::com_ptr_nothrow<IUIAutomationCondition> condition;
+        if (SUCCEEDED(hr))
+            hr = automation.CreatePropertyCondition(UIA_NamePropertyId, name, condition.put());
+        wil::com_ptr_nothrow<IUIAutomationElement> element;
+        if (SUCCEEDED(hr))
+            hr = root->FindFirst(TreeScope_Descendants, condition.get(), element.put());
+        if (SUCCEEDED(hr) && ! element)
+            hr = UIA_E_ELEMENTNOTAVAILABLE;
+        if (SUCCEEDED(hr))
+            hr = element->SetFocus();
+        return hr;
+    }
+
+    const AttachedHostWindow& _pump;
+    HWND _target = nullptr;
+    wil::com_ptr_nothrow<FocusNameRecorder> _recorder;
+    wil::unique_event _stop{CreateEventW(nullptr, TRUE, FALSE, nullptr)};
+    wil::unique_event _request{CreateEventW(nullptr, FALSE, FALSE, nullptr)};
+    std::wstring _requestName;
+    std::atomic<HRESULT> _requestResult{S_OK};
+    std::atomic<HRESULT> _setup{E_PENDING};
+    std::atomic<bool> _ready{false};
+    std::atomic<bool> _finished{false};
+    std::jthread _thread; // Last: it joins before the state it uses is destroyed.
+};
+
+// Win32 focus stays on a host window while Tab moves focus between its controls, so the host raises the UIA focus
+// change itself or a screen reader stays silent. It runs in this activating suite because the window must hold focus.
+void TestWindowHostTabRaisesAutomationFocusChanges()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root       = std::make_unique<Panel>();
+    auto* rootPanel = root.get();
+    auto* first     = root->AddChild<Button>(L"Premier bouton");
+    auto* second    = root->AddChild<Button>(L"Second bouton");
+    first->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    second->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+    window.Host().SetRoot(std::move(root));
+    FocusEventClient client(window, window.Hwnd());
+    const uint64_t announcedBefore = window.Host().DebugGetFocusAnnouncementCount();
+    if (! TryActivateDxUiTestWindow(window.Hwnd()))
+    {
+        SkipDxUiTest("DxUi window-host UIA focus changes require an interactive desktop");
+        return;
+    }
+    // Activation focuses the first button. Windows reports the window's new focus itself and UI Automation asks the
+    // fragment root which element has it, so the client hears that button while the host adds no second event.
+    Require(GetFocus() == window.Hwnd() && window.Host().GetFocusControl() == first, "activation focuses the first button");
+    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Premier bouton") >= 1u; }),
+            "a UIA client hears the control the window's activation focused");
+    Require(window.Host().DebugGetFocusAnnouncementCount() == announcedBefore, "the host adds no announcement to the window's own focus event");
+
+    SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_TAB, 0);
+    Require(window.Host().GetFocusControl() == second, "Tab moves focus to the second button");
+    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Second bouton") >= 1u; }),
+            "a UIA client receives a focus change for the control Tab reached");
+    Require(window.Host().DebugGetFocusAnnouncementCount() == announcedBefore + 1u, "the host announces a focus move inside its focused window once");
+    std::cout << "Window-host Tab focus change reached the UIA client (" << client.Count(L"Second bouton") << " event(s))\n";
+
+    // With no control focused the window itself has focus, as GetFocus reports it, and a client hears the window by
+    // its title. (The test window's class skips DefWindowProc at creation, so the title is set here.)
+    Require(SetWindowTextW(window.Hwnd(), L"Essai de focus") != FALSE, "title the test window");
+    window.Host().SetFocusControl(nullptr);
+    const bool heardWindow = client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Essai de focus") >= 1u; });
+    if (! heardWindow)
+        client.PrintNames();
+    Require(heardWindow, "a UIA client hears the window when no control has focus");
+
+    // Removing the focused control (its panel clears its children) drops its focus at the host's next message, which
+    // publishes it: the client hears the window then.
+    window.Host().SetFocusControl(first);
+    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.LastName() == L"Premier bouton"; }),
+            "the client hears the first button again");
+    client.Settle(); // UI Automation may deliver an earlier window event a second time; count only what follows.
+    const size_t windowHeard = client.Count(L"Essai de focus");
+    rootPanel->ClearChildren();
+    Require(PostMessageW(window.Hwnd(), WM_NULL, 0, 0) != FALSE, "queue a message for the host");
+    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Essai de focus") > windowHeard; }),
+            "a UIA client hears the window once the focused control is removed");
+    Require(window.Host().GetFocusControl() == nullptr, "the removed control no longer has focus");
+}
+
+// Arrow keys move focus between a tree's items while the tree control keeps it: the host announces the item, as
+// GetFocus reports it, so a screen reader reads the row the keyboard reached rather than the whole tree again.
+void TestWindowHostTreeArrowAnnouncesTheFocusedItem()
+{
+    using namespace DxUi;
+    MutableTreeModel model;
+    model.SetVisibleItems({TreeItemData{.id = 71u, .text = L"Alpha"}, TreeItemData{.id = 72u, .text = L"Beta"}});
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    tree->SetModel(&model);
+    tree->SetSelectedItemId(71u);
+    root->AddChild<Button>(L"Après")->SetBounds(D2D1::RectF(0.0f, 128.0f, 120.0f, 160.0f));
+    window.Host().SetRoot(std::move(root));
+    if (! TryActivateDxUiTestWindow(window.Hwnd()))
+    {
+        SkipDxUiTest("DxUi tree item UIA focus changes require an interactive desktop");
+        return;
+    }
+    window.Host().SetFocusControl(tree);
+    Require(window.Host().GetFocusControl() == tree, "the tree has focus");
+
+    FocusEventClient client(window, window.Hwnd());
+    SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_DOWN, 0);
+    Require(tree->GetSelectedItemId() == std::optional<uint64_t>{72u}, "Down moves the tree to its second item");
+    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Beta") >= 1u; }),
+            "a UIA client receives a focus change naming the tree item the keyboard reached");
+}
+
+// An element's SetFocus in an inactive window focuses that element only: the host moves its logical focus before the
+// window takes Win32 focus, so the activation neither focuses nor announces the window's first control on the way.
+// (UIA's own client path first focuses the hosting window, which announces the window's current focus as a dialog's
+// activation does; this provider call is what follows it, or what runs when that window focus did not happen.)
+void TestWindowHostElementSetFocusAnnouncesOnlyThatElement()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* first  = root->AddChild<Button>(L"Premier bouton");
+    auto* second = root->AddChild<Button>(L"Second bouton");
+    first->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    second->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+    window.Host().SetRoot(std::move(root));
+    AttachedHostWindow elsewhere;
+    elsewhere.Host().SetRoot(std::make_unique<Button>(L"Ailleurs"));
+    if (! TryActivateDxUiTestWindow(window.Hwnd()) || ! TryActivateDxUiTestWindow(elsewhere.Hwnd()))
+    {
+        SkipDxUiTest("DxUi element SetFocus announcements require an interactive desktop");
+        return;
+    }
+    // Activation focused the window's first control; a window a client reaches has usually lost that focus.
+    window.Host().SetFocusControl(nullptr);
+    Require(GetFocus() == elsewhere.Hwnd() && window.Host().GetFocusControl() == nullptr, "the window is inactive with no focused control");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the window exposes its fragment root");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+    RequireSucceeded(rootProvider.query_to(rootFragment.put()), "the fragment root navigates");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> firstElement;
+    RequireSucceeded(rootFragment->Navigate(NavigateDirection_FirstChild, firstElement.put()), "reach the first button's element");
+    Require(firstElement != nullptr, "the first button has an element");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> secondElement;
+    RequireSucceeded(firstElement->Navigate(NavigateDirection_NextSibling, secondElement.put()), "reach the second button's element");
+    Require(secondElement != nullptr, "the second button has an element");
+
+    FocusEventClient client(window, window.Hwnd());
+    RequireSucceeded(secondElement->SetFocus(), "the second button's element takes focus");
+    Require(window.Host().GetFocusControl() == second && GetFocus() == window.Hwnd(), "the second button has focus in the now focused window");
+    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Second bouton") >= 1u; }),
+            "a client hears the element that took focus");
+    client.Settle();
+    Require(client.Count(L"Premier bouton") == 0u, "a client never hears the first control, which never had focus");
+
+    // The same request through UIA: it focuses the hosting window first, so a client may hear that window's current
+    // focus on the way, but the element it asked for is the one it hears last.
+    Require(TryActivateDxUiTestWindow(elsewhere.Hwnd()), "the other window is active again");
+    window.Host().SetFocusControl(nullptr);
+    const size_t heardBefore = client.Count(L"Second bouton");
+    RequireSucceeded(client.FocusElementNamed(L"Second bouton"), "a UIA client focuses the second button");
+    Require(window.Host().GetFocusControl() == second, "the second button has focus again");
+    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Second bouton") > heardBefore; }),
+            "the UIA client hears the element it focused");
+    client.Settle();
+    Require(client.LastName() == L"Second bouton", "the element a UIA client focused is the last one it hears");
+}
+
+// Focus that moves in a window which has just lost the foreground is not announced. Until its thread processes the
+// deactivation, Win32 still reports that window as focused (GetFocus), as when a queued message moves focus right after
+// the user switched to another application. A screen reader follows the foreground, so the host announces only while
+// its window holds the foreground's keyboard focus.
+void TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* first  = root->AddChild<Button>(L"Premier bouton");
+    auto* second = root->AddChild<Button>(L"Second bouton");
+    first->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    second->SetBounds(D2D1::RectF(8.0f, 48.0f, 200.0f, 80.0f));
+    window.Host().SetRoot(std::move(root));
+    if (! TryActivateDxUiTestWindow(window.Hwnd()))
+    {
+        SkipDxUiTest("DxUi foreground focus announcements require an interactive desktop");
+        return;
+    }
+    window.Host().SetFocusControl(first);
+
+    FocusEventClient client(window, window.Hwnd());
+    // The window that takes the foreground belongs to another thread, which activates it as another application's
+    // would: this thread only learns of its deactivation when it next processes messages.
+    wil::unique_event foregroundReady(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    wil::unique_event foregroundStop(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(foregroundReady && foregroundStop, "create the foreground thread events");
+    std::atomic<HWND> foreground{nullptr};
+    std::jthread foregroundThread([&]
+    {
+        static constexpr wchar_t kClassName[] = L"DxUiTests.ForegroundThreadWindow";
+        WNDCLASSEXW windowClass{};
+        windowClass.cbSize        = sizeof(windowClass);
+        windowClass.lpfnWndProc   = DefWindowProcW;
+        windowClass.hInstance     = GetModuleHandleW(nullptr);
+        windowClass.lpszClassName = kClassName;
+        static_cast<void>(RegisterClassExW(&windowClass));
+        wil::unique_hwnd hwnd(CreateWindowExW(
+            0u, kClassName, L"DxUiTests foreground", WS_OVERLAPPED | WS_VISIBLE, -32000, -32000, 200, 120, nullptr, nullptr, windowClass.hInstance, nullptr));
+        static_cast<void>(SetForegroundWindow(hwnd.get()));
+        foreground.store(hwnd.get());
+        SetEvent(foregroundReady.get());
+        const HANDLE stopHandle = foregroundStop.get();
+        while (MsgWaitForMultipleObjects(1u, &stopHandle, FALSE, 30000u, QS_ALLINPUT) == WAIT_OBJECT_0 + 1u)
+        {
+            MSG message{};
+            while (PeekMessageW(&message, nullptr, 0u, 0u, PM_REMOVE) != FALSE)
+            {
+                TranslateMessage(&message);
+                DispatchMessageW(&message);
+            }
+        }
+    });
+    const auto stopForeground = wil::scope_exit([&]() noexcept { SetEvent(foregroundStop.get()); });
+    Require(WaitForSingleObject(foregroundReady.get(), 5000u) == WAIT_OBJECT_0 && foreground.load() != nullptr, "create a window on another thread");
+
+    // No pumping here: this thread must not process its deactivation before the focus move below.
+    const ULONGLONG foregroundDeadline = GetTickCount64() + 2000u;
+    while (GetForegroundWindow() != foreground.load() && GetTickCount64() < foregroundDeadline)
+        Sleep(10);
+    if (GetForegroundWindow() != foreground.load() || GetFocus() != window.Hwnd())
+    {
+        std::cerr << "    [FOCUS] foreground=" << (GetForegroundWindow() == foreground.load()) << " threadFocus=" << (GetFocus() == window.Hwnd()) << '\n';
+        SkipDxUiTest("DxUi foreground focus announcements need the other thread's window in the foreground");
+        return;
+    }
+
+    window.Host().SetFocusControl(second);
+    Require(window.Host().GetFocusControl() == second, "focus moves to the second button after the window lost the foreground");
+    client.Settle();
+    Require(client.Count(L"Second bouton") == 0u, "a window that lost the foreground announces no focus change");
+
+    Require(TryActivateDxUiTestWindow(window.Hwnd()), "the window returns to the foreground");
+    window.Host().SetFocusControl(first);
+    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Premier bouton") >= 1u; }),
+            "the same window in the foreground announces its focus change");
+}
+
+// While the menu holds capture Windows sends no WM_SETCURSOR, so a cursor the window had set (a resize or text cursor)
+// would stay over the menu. The menu shows the arrow over its popups and lets a window of its thread under the pointer
+// choose its own cursor outside them.
+void TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    SetWindowPos(owner.Hwnd(), nullptr, 100, 100, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(owner.Hwnd(), SW_SHOWNOACTIVATE);
+    owner.PumpMessages();
+    // A window of this thread whose class cursor is the text cursor, below the owner and clear of the menu.
+    static constexpr wchar_t kTextWindowClass[] = L"DxUiTests.MenuCursorTextWindow";
+    WNDCLASSEXW textClass{};
+    textClass.cbSize        = sizeof(textClass);
+    textClass.lpfnWndProc   = DefWindowProcW;
+    textClass.hInstance     = GetModuleHandleW(nullptr);
+    textClass.hCursor       = LoadCursorW(nullptr, IDC_IBEAM);
+    textClass.lpszClassName = kTextWindowClass;
+    Require(RegisterClassExW(&textClass) != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS, "register the text-cursor window class");
+    wil::unique_hwnd textWindow(CreateWindowExW(
+        WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, kTextWindowClass, L"", WS_POPUP | WS_VISIBLE, 100, 520, 240, 120, nullptr, nullptr, textClass.hInstance, nullptr));
+    Require(textWindow != nullptr, "create the text-cursor window");
+    owner.PumpMessages();
+
+    const HCURSOR arrow      = LoadCursorW(nullptr, IDC_ARROW);
+    const HCURSOR textCursor = LoadCursorW(nullptr, IDC_IBEAM);
+    const HCURSOR resize     = LoadCursorW(nullptr, IDC_SIZEWE);
+    const std::vector<MenuFlyoutItem> items{{.text = L"Ouvrir", .commandId = 9301}, {.text = L"Fermer", .commandId = 9302}};
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "cursor menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}), "cursor menu opens");
+    const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
+    const HWND popup   = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Ouvrir");
+    Require(popup != nullptr, "cursor menu appears");
+    owner.PumpMessages();
+
+    RECT popupRect{};
+    RECT textRect{};
+    Require(GetWindowRect(popup, &popupRect) != FALSE && GetWindowRect(textWindow.get(), &textRect) != FALSE, "read the menu and text window rectangles");
+    const POINT overMenu{(popupRect.left + popupRect.right) / 2, popupRect.top + 14};
+    const POINT overText{(textRect.left + textRect.right) / 2, (textRect.top + textRect.bottom) / 2};
+    if (WindowFromPoint(overMenu) != popup || WindowFromPoint(overText) != textWindow.get())
+    {
+        SkipDxUiTest("another window covers the menu cursor test windows");
+        return;
+    }
+    SetCursor(resize); // The window's own cursor when the pointer reaches the menu.
+    static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_MOUSEMOVE, 0, overMenu));
+    Require(GetCursor() == arrow, "the arrow shows over the menu whatever cursor the window had set");
+    static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_MOUSEMOVE, 0, overText));
+    owner.PumpMessages(); // The forward is posted, so no window's WM_SETCURSOR runs inside a menu handler.
+    Require(GetCursor() == textCursor, "outside the menu the window under the pointer chooses its own cursor");
+    static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_MOUSEMOVE, 0, overMenu));
+    Require(GetCursor() == arrow, "the arrow shows again when the pointer returns to the menu");
+    std::cout << "Menu pointer cursor: the arrow over the menu, the window's own cursor outside it\n";
+}
+
+// Opening a menu chooses the cursor at the pointer at once: the window under it keeps its own cursor, where a cursor
+// set before the menu took capture (a resize cursor at the owner's edge) would otherwise stay, since a captured pointer
+// sends no WM_SETCURSOR. Closing lets that window choose again after the arrow shown over the menu. The physical
+// cursor is placed over that window for the test and restored afterwards.
+void TestMenuChoosesTheCursorWhenItOpensAndCloses()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    SetWindowPos(owner.Hwnd(), nullptr, 100, 100, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(owner.Hwnd(), SW_SHOWNOACTIVATE);
+    owner.PumpMessages();
+    static constexpr wchar_t kTextWindowClass[] = L"DxUiTests.MenuCursorTextWindow";
+    WNDCLASSEXW textClass{};
+    textClass.cbSize        = sizeof(textClass);
+    textClass.lpfnWndProc   = DefWindowProcW;
+    textClass.hInstance     = GetModuleHandleW(nullptr);
+    textClass.hCursor       = LoadCursorW(nullptr, IDC_IBEAM);
+    textClass.lpszClassName = kTextWindowClass;
+    Require(RegisterClassExW(&textClass) != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS, "register the text-cursor window class");
+    wil::unique_hwnd textWindow(CreateWindowExW(
+        WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, kTextWindowClass, L"", WS_POPUP | WS_VISIBLE, 100, 520, 240, 120, nullptr, nullptr, textClass.hInstance, nullptr));
+    Require(textWindow != nullptr, "create the text-cursor window");
+    // The physical cursor must meet this window, whatever else is on the desktop; it is never activated.
+    Require(SetWindowPos(textWindow.get(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) != FALSE, "raise the text-cursor window");
+    owner.PumpMessages();
+    RECT textRect{};
+    Require(GetWindowRect(textWindow.get(), &textRect) != FALSE, "read the text-cursor window rectangle");
+    const POINT overText{(textRect.left + textRect.right) / 2, (textRect.top + textRect.bottom) / 2};
+    if (WindowFromPoint(overText) != textWindow.get())
+    {
+        SkipDxUiTest("another window covers the menu cursor test window");
+        return;
+    }
+    ScopedMenuPointerFixture pointer(owner.Hwnd());
+    if (! pointer.AlignCursor(overText))
+    {
+        SkipDxUiTest("the menu open-and-close cursor test places the physical cursor");
+        return;
+    }
+    // Let the moves the placement generated arrive before the owner's own cursor is set.
+    for (int round = 0; round < 5; ++round)
+    {
+        owner.PumpMessages();
+        Sleep(10);
+    }
+
+    const HCURSOR arrow      = LoadCursorW(nullptr, IDC_ARROW);
+    const HCURSOR textCursor = LoadCursorW(nullptr, IDC_IBEAM);
+    SetCursor(LoadCursorW(nullptr, IDC_SIZEWE));
+    const std::vector<MenuFlyoutItem> items{{.text = L"Ouvrir", .commandId = 9311}, {.text = L"Fermer", .commandId = 9312}};
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "cursor menu anchor maps to screen");
+    bool closed        = false;
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&closed](std::optional<int>) noexcept { closed = true; }),
+            "cursor menu opens");
+    const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
+    const HWND popup   = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Ouvrir");
+    Require(popup != nullptr, "cursor menu appears");
+    owner.PumpMessages(); // The forward is posted.
+    Require(GetCursor() == textCursor, "an opening menu lets the window under the pointer choose its cursor");
+
+    RECT popupRect{};
+    Require(GetWindowRect(popup, &popupRect) != FALSE, "read the menu popup rectangle");
+    const POINT overMenu{(popupRect.left + popupRect.right) / 2, popupRect.top + 14};
+    static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_MOUSEMOVE, 0, overMenu));
+    Require(GetCursor() == arrow, "the arrow shows over the open menu");
+    SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+    owner.PumpMessages();
+    Require(closed && WaitForWindowDestroyed(popup, std::chrono::milliseconds(2000)), "the cursor menu closes");
+    owner.PumpMessages();
+    Require(GetCursor() == textCursor, "a closing menu lets the window under the pointer choose its cursor again");
+}
+
+// A window under the pointer may close the menu from its WM_SETCURSOR handling (focus-follows-mouse activation,
+// Escape sent to the popup). The menu forwards the cursor outside its own handlers, so nothing the close frees is
+// touched afterwards; AddressSanitizer reports a use after free if the forward runs inside pointer routing.
+HWND g_menuClosingCursorPopup = nullptr;
+
+LRESULT CALLBACK MenuClosingCursorWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    if (message == WM_SETCURSOR && g_menuClosingCursorPopup && IsWindow(g_menuClosingCursorPopup) != FALSE)
+    {
+        const HWND popup         = g_menuClosingCursorPopup;
+        g_menuClosingCursorPopup = nullptr;
+        static_cast<void>(SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0));
+        SetCursor(LoadCursorW(nullptr, IDC_HAND));
+        return TRUE;
+    }
+    return DefWindowProcW(hwnd, message, wParam, lParam);
+}
+
+void TestMenuSurvivesAWindowClosingItFromSetCursor()
+{
+    using namespace DxUi;
+    AttachedHostWindow owner;
+    SetWindowPos(owner.Hwnd(), nullptr, 100, 100, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(owner.Hwnd(), SW_SHOWNOACTIVATE);
+    owner.PumpMessages();
+    static constexpr wchar_t kClosingWindowClass[] = L"DxUiTests.MenuClosingCursorWindow";
+    WNDCLASSEXW closingClass{};
+    closingClass.cbSize        = sizeof(closingClass);
+    closingClass.lpfnWndProc   = MenuClosingCursorWindowProc;
+    closingClass.hInstance     = GetModuleHandleW(nullptr);
+    closingClass.lpszClassName = kClosingWindowClass;
+    Require(RegisterClassExW(&closingClass) != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS, "register the menu-closing window class");
+    wil::unique_hwnd closingWindow(CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
+                                                   kClosingWindowClass,
+                                                   L"",
+                                                   WS_POPUP | WS_VISIBLE,
+                                                   100,
+                                                   520,
+                                                   240,
+                                                   120,
+                                                   nullptr,
+                                                   nullptr,
+                                                   closingClass.hInstance,
+                                                   nullptr));
+    Require(closingWindow != nullptr, "create the menu-closing window");
+    owner.PumpMessages();
+
+    bool closed = false;
+    const std::vector<MenuFlyoutItem> items{{.text = L"Copier", .commandId = 9311}, {.text = L"Coller", .commandId = 9312}};
+    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "closing-cursor menu anchor maps to screen");
+    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&](std::optional<int>) noexcept { closed = true; }),
+            "closing-cursor menu opens");
+    const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
+    const HWND popup   = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Copier");
+    Require(popup != nullptr, "closing-cursor menu appears");
+    owner.PumpMessages();
+    RECT closingRect{};
+    Require(GetWindowRect(closingWindow.get(), &closingRect) != FALSE, "read the menu-closing window rectangle");
+    const POINT overClosing{(closingRect.left + closingRect.right) / 2, (closingRect.top + closingRect.bottom) / 2};
+    if (WindowFromPoint(overClosing) != closingWindow.get())
+    {
+        SkipDxUiTest("another window covers the menu-closing window");
+        return;
+    }
+    g_menuClosingCursorPopup = popup;
+    static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_MOUSEMOVE, 0, overClosing));
+    owner.PumpMessages();
+    g_menuClosingCursorPopup = nullptr;
+    Require(closed && WaitForWindowDestroyed(popup, std::chrono::milliseconds(2000)), "the window's WM_SETCURSOR handling closes the menu cleanly");
 }
 
 void TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus()
@@ -6304,6 +7202,18 @@ void TestDescribedMenuFractionalDpiKeepsLaneAndWidths()
 
 void RunMenuDescriptionTests()
 {
+    std::cerr << "  [START] TestDescribedInfoRowPaintsItsDescription\n" << std::flush;
+    TestDescribedInfoRowPaintsItsDescription();
+    std::cerr << "  [START] TestDescribedMenuRaisesFocusChangesForKeyboardRows\n" << std::flush;
+    TestDescribedMenuRaisesFocusChangesForKeyboardRows();
+    TestDescribedMenuReleasesItsMemoryWhenItCloses();
+    TestWindowHostTabRaisesAutomationFocusChanges();
+    TestWindowHostTreeArrowAnnouncesTheFocusedItem();
+    TestWindowHostElementSetFocusAnnouncesOnlyThatElement();
+    TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange();
+    TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside();
+    TestMenuChoosesTheCursorWhenItOpensAndCloses();
+    TestMenuSurvivesAWindowClosingItFromSetCursor();
     std::cerr << "  [START] TestDescribedAsyncMenuRestoresFocusedOwnerChild\n" << std::flush;
     TestDescribedAsyncMenuRestoresFocusedOwnerChild();
     std::cerr << "  [START] TestDescribedMenuWrapsFrenchTextAndPreservesIdentity\n" << std::flush;

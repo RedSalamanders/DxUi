@@ -72,7 +72,7 @@ struct MotionPolicy
 // Set on the owning UI thread; the sink is borrowed until reset. It must be noexcept and non-reentrant.
 using FrameMetricSink = void (*)(void* context, std::wstring_view metric, uint64_t value) noexcept;
 void SetFrameMetricSink(FrameMetricSink sink, void* context) noexcept;
-[[nodiscard]] bool IsDxUiRenderStageActiveForDebug() noexcept;
-void EmitDxUiRenderMutationBlockedForDebug() noexcept;
+[[nodiscard]] bool IsRenderStageActiveForDebug() noexcept;
+void EmitRenderMutationBlockedForDebug() noexcept;
 void EmitFrameMetric(std::wstring_view metric, uint64_t valueUs) noexcept;
 } // namespace DxUi

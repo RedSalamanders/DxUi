@@ -76,6 +76,25 @@ timing/memory flags, menu benchmark differences, or additional growth. Existing 
 bands and deterministic allocation/surface/hidden-work budgets remain unchanged. It neither
 updates a consumer pin nor replaces the remaining functional and integrated qualification.
 
+On 2026-09-29 the [review fixes](../Plans/Done/ReviewFixes_2026-09-29.md) stopped drawing multiline cells with
+`D2D1_DRAW_TEXT_OPTIONS_CLIP` on their fractional layout box. A local paired set against `40c6c21`
+([receipts](../../Measurements/ReviewFixes/2026-09-29/paired-local/README.md)) measured MultilineGrid dirty private
+bytes 4.0–5.9 MB lower, dirty peaks about 9.7 MB lower and clean private bytes 5.0–6.9 MB lower, with unchanged
+allocations. That removes most of the cost accepted above; the envelope stays until a developer tightens it after a
+quiet-fixture repeat.
+
+On 2026-09-29 the developer set the priority for Grid text layouts: the best frame rate first, then the least memory
+for it. That replaces the memory-first rejection of the associative-cache experiment for the Grid. The
+[review follow-ups](../Plans/Done/ReviewFollowUps_2026-09-29.md) keep cell layouts in 32-way set-associative tables
+(at most 16,384 entries; an entry the current or previous paint used is never evicted) and keep single-line captions'
+layouts as well. Two local paired sets against the review fixes
+([receipts](../../Measurements/ReviewFollowUps/2026-09-29/paired-local/README.md)) record equal or fewer dirty-round
+allocations and no clean-round allocation in all three scenes, and a higher `Default` dirty rate in all four crossings
+(+5.1% to +14.5%). B's median private bytes averaged -0.08 to +0.52 MB from A's per scene and phase. Every
+same-binary control in both sets drifted beyond its band, so these sets establish neither the gain nor the cost, and
+no memory envelope is accepted. If a quiet-fixture repeat confirms the increase, the developer chooses between
+accepting it, reducing scope (such as not retaining single-line captions) and deferral.
+
 ### I19 accepted resource trade-off
 
 On 2026-09-13 the user accepted the measured static-library adoption trade-off and

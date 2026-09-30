@@ -1,7 +1,7 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-09-20
+Last reviewed: 2026-09-29
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -41,9 +41,47 @@ actions carry popup-instance identity so HWND reuse cannot dispatch an old actio
 retained providers disconnect on teardown. Implementation and validation are tracked in the
 [menu description plan](../Plans/WIP/MenuDescriptions_2026-09-21.md).
 
+While a popup holds mouse capture Windows sends no `WM_SETCURSOR`, so the menu chooses the cursor on every delivered
+pointer move: the standard arrow over its popups (and while one drags a slider or scrollbar), and outside them the
+cursor the window under the pointer chooses when that window belongs to the menu's thread (it receives
+`WM_NCHITTEST` then `WM_SETCURSOR` as without capture); another thread's window is never messaged and shows the
+arrow. That window is messaged from a posted message, outside the menu's own handlers, so its `WM_SETCURSOR`
+handling may close the menu. The cursor is chosen once more when the menu takes or moves capture, and the window under
+the pointer chooses again as soon as the menu closes. These are one-shot reads of the pointer; an idle menu never polls
+it. A described menu's layouts and accessibility proxies exist only while it is open: closing it returns them, even
+while a client still holds its row elements.
+
 Custom controls overriding `OnFocusChanged` MUST invoke their base implementation so `HasFocus`,
 focus chrome and UIA keyboard-focus properties acknowledge the host transition. A stored host
 focus pointer alone is insufficient. Consumers qualify both visible focus and raw provider state.
+
+Win32 focus stays on a window host's HWND while focus moves between its controls (Tab, arrows, pointer,
+`SetFocusControl`), so the host raises the UIA focus-changed event itself, from the difference between two published
+snapshots, for the element GetFocus reports: a tree's focused item, a grid's focused row, a control, or the window
+itself once no control has focus. It raises it only while its window holds the foreground's keyboard focus and a
+client listens: a window that has just lost the foreground (a queued message moving focus after the user switched
+away) announces nothing. When the window itself gains focus, Windows raises the focus event and UI Automation asks the
+fragment root's GetFocus for the element, so whatever that activation focuses or restores is published but not
+announced a second time. An element's SetFocus moves the host's logical focus before it takes Win32 focus, so the
+activation never first focuses (and reports) the window's first control; a UIA client's SetFocus first has UI
+Automation focus the hosting window, which reports the window's current focus the way a dialog's activation does, and
+the requested element is the last one reported. A click that activates the window can report the clicked control
+twice, once through the system's activation event and once as the host's own focus move, because the host cannot know
+whether a client has already resolved the former. Native menu popups raise theirs once a keyboard transition
+completes, and embedded hosts raise theirs from the snapshot diff. A focus-changed callback that removes the control
+it was told about leaves no control focused. A control disabled, hidden or removed while it has focus loses it at the
+host's next message, which publishes the change, so a client hears the window. Replacing the whole tree
+(`SetRoot`) is compared with the tree before it, not with the empty snapshot standing in during the swap.
+
+A window-host element keeps the identity of the control it was created for, as an embedded element does. Once that
+control is removed, or another control takes its tree path (a rebuilt list or tree), every call on the old element,
+including a tree item's or grid row's, returns `UIA_E_ELEMENTNOTAVAILABLE` and never reaches the new control, and the
+new control's elements (its items and rows too) have different runtime ids: they carry a per-process serial the
+control receives when first published, which no later control reuses. A republish that adds, removes or replaces
+a semantic control raises StructureChanged (ChildrenInvalidated) on the window's element, so a client navigates again.
+Structural changes alone (`AddChild`, `ClearChildren`) republish the tree at the next focus, size, pointer or state
+change, or through `RefreshAccessibilitySnapshot`. An event about a control comes from that control's element; only
+the control a collapsed semantic root stands for reports through the window's element.
 
 Buttons with acknowledged disclosure state expose ExpandCollapse, consistent state properties and
 state-change notifications. Expand/Collapse requests are idempotent against current acknowledged state,
@@ -89,8 +127,12 @@ tree, with stale-focus/capture pruning. A second Down on the same control within
 16 DIP slop calls `OnMouseDoubleClick` (word selection, row activation) instead of `OnMouseDown`. Pointer Down/Move/Up/Wheel switch the host to pointer modality so keyboard-only
 focus chrome does not appear on a touch. Hit-testing stays valid while the cached surface is paint-dirty. A changed interaction revision makes a new hit
 incoherent until the next preparation. A drag already captured continues when some other control's bounds change and
-the captured control stays in the tree, enabled, visible, and unmoved. Moving, hiding, disabling or removing the
-captured control, or resizing the view, cancels that drag.
+the captured control stays in the tree and unmoved, with it and every ancestor enabled and visible. Moving, hiding,
+disabling or removing the captured control, hiding or disabling an ancestor, or resizing the view, cancels that drag.
+The next preparation applies that rule; input dispatched while the bounds revision is still unprepared cancels the
+drag, so a consumer applies pane layout on its next preparation rather than inside the change callback.
+WindowHost applies the same rule at message entry: a captured control that is still in the tree but no longer
+interactive receives `OnCaptureLost` (its drag reports Cancel) instead of losing the capture silently.
 ControlHost retains native Win32 TSF/IME and UIA behavior, exercised by the
 ported suites. EmbeddedHost owns no OS-focus HWND. Application-side `TextInputServices` borrows the caller's HWND;
 `AttachAccessibility` publishes providers without creating one. Cross-plugin COM/POD transport, composition/IME

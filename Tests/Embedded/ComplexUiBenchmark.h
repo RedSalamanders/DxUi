@@ -37,7 +37,26 @@ inline void WriteHeapDiagnostic(std::ostream& output)
     DxUiTestSupport::WriteHeapDiagnostic(output, [](bool ok, const char* reason) { Check(ok, reason); });
 }
 
-inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool retention = false, bool heapDiagnostic = false, bool paced = false)
+// Distinct per-column text: every visible cell differs, so a layout cache keyed by value must retain one layout per
+// visible cell. The repeated-name multiline fixture shows one text across a row and hides cache conflicts.
+inline void FillDistinctCellTexts(ComplexUiModel& model)
+{
+    static constexpr std::array<std::wstring_view, 4> openings{L"Élément ", L"Synchronisation ", L"Chemin C:\\Données\\Projet ", L"État de la revue "};
+    static constexpr std::array<std::wstring_view, 4> endings{
+        L" : vérifier la configuration du serveur principal.\nDeuxième ligne avec é et 📷.",
+        L" : échec après trois tentatives, consulter le journal détaillé.\nNouvelle tentative prévue.",
+        L"\\rapport final révisé.docx\nModifié par l’équipe de validation.",
+        L" : en attente de validation par la responsable du service.\nPriorité élevée.",
+    };
+    model.cellTexts.clear();
+    model.cellTexts.reserve(model.names.size() * openings.size());
+    for (size_t row = 0u; row < model.names.size(); ++row)
+        for (size_t column = 0u; column < openings.size(); ++column)
+            model.cellTexts.push_back(std::wstring(openings[column]) + std::to_wstring(row) + std::wstring(endings[column]));
+}
+
+inline void Run(
+    const wchar_t* outputPath, bool multilineGrid = false, bool retention = false, bool heapDiagnostic = false, bool paced = false, bool distinctCells = false)
 {
     // Stage samples stay outside frame timing and help distinguish initialization,
     // image encoding and retained rendering costs when process totals regress.
@@ -50,10 +69,14 @@ inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool rete
     memoryPhases[1] = Memory();
     ComplexUiScene scene;
     scene.model.multilineGrid = multilineGrid;
-    if (multilineGrid)
+    // The distinct scene keeps the Tree's short names: the long names below reach the Tree too, whose single-line
+    // rows then draw the emoji through the color-font path every frame and dominate the frame instead of the grid.
+    if (multilineGrid && ! distinctCells)
         for (size_t i = 0u; i < scene.model.names.size(); ++i)
             scene.model.names[i] = L"Description française détaillée de l’élément " + std::to_wstring(i) +
                                    L" : vérifier les informations avant de poursuivre.\nUne deuxième phrase complète avec é et 📷.";
+    if (distinctCells)
+        FillDistinctCellTexts(scene.model);
     Hr(scene.Initialize(gpu.device.get()), "benchmark independent scene");
     if (multilineGrid)
     {
@@ -89,7 +112,10 @@ inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool rete
     }
     memoryPhases[3] = Memory();
     // Capture once outside measurement; reviewable proof that the workload has populated controls.
-    Hr(gpu.Save(multilineGrid ? L".build/test-artifacts/complex-ui-multiline-grid.png" : L".build/test-artifacts/complex-ui.png"), "complex UI screenshot");
+    Hr(gpu.Save(distinctCells   ? L".build/test-artifacts/complex-ui-multiline-grid-distinct.png"
+                : multilineGrid ? L".build/test-artifacts/complex-ui-multiline-grid.png"
+                                : L".build/test-artifacts/complex-ui.png"),
+       "complex UI screenshot");
     memoryPhases[4] = Memory();
     std::ofstream output{std::filesystem::path(outputPath)};
     Check(bool(output), "benchmark output file");
@@ -97,6 +123,7 @@ inline void Run(const wchar_t* outputPath, bool multilineGrid = false, bool rete
            << (paced            ? "dxui-complex-ui-multiline-grid-heap-paced-v1"
                : heapDiagnostic ? "dxui-complex-ui-multiline-grid-heap-v1"
                : retention      ? "dxui-complex-ui-multiline-grid-retention-v1"
+               : distinctCells  ? "dxui-complex-ui-multiline-grid-distinct-v1"
                : multilineGrid  ? "dxui-complex-ui-multiline-grid-v1"
                                 : "dxui-complex-ui-v2")
            << "\",\"renderer\":\"WARP\",\"width\":1280,\"height\":720,\"dpi\":96,"

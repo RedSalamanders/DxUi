@@ -3,12 +3,13 @@
 .PARAMETER Scenario Default uses single-line grid cells. MultilineGrid uses French multiline cells; MultilineGridRetention adds six complete scroll passes with resource samples.
 MultilineGridHeap adds process-local heap walks outside timed rounds for attribution; its retention timing is diagnostic, not performance acceptance.
 MultilineGridHeapPaced additionally targets 50 retention frames/second to distinguish frame-count retention from wall-clock cleanup effects.
+MultilineGridDistinct gives every grid cell its own French multiline text, so a layout cache must hold one layout per visible cell.
 #>
 [CmdletBinding()]
 param(
     [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Release',
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
-    [ValidateSet('Default','MultilineGrid','MultilineGridRetention','MultilineGridHeap','MultilineGridHeapPaced')][string] $Scenario = 'Default',
+    [ValidateSet('Default','MultilineGrid','MultilineGridDistinct','MultilineGridRetention','MultilineGridHeap','MultilineGridHeapPaced')][string] $Scenario = 'Default',
     [string] $OutputPath = '',
     [string] $Baseline = '',
     [switch] $SkipBuild
@@ -20,7 +21,11 @@ if (($Platform -eq 'ARM64' -and $native -ne 'Arm64') -or ($Platform -eq 'x64' -a
     throw 'Performance evidence requires native execution matching the requested architecture.'
 }
 if (-not $SkipBuild) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform }
-if (-not $OutputPath) { $OutputPath = Join-Path $PSScriptRoot ".build/reports/Performance-$Platform-$Configuration.json" }
+if (-not $OutputPath) {
+    # One default receipt per scenario: a MultilineGrid run must not overwrite a retained Default receipt.
+    $scenarioSuffix = if ($Scenario -eq 'Default') { '' } else { "-$Scenario" }
+    $OutputPath     = Join-Path $PSScriptRoot ".build/reports/Performance-$Platform-$Configuration$scenarioSuffix.json"
+}
 $OutputPath = [IO.Path]::GetFullPath($OutputPath)
 if ($Baseline) {
     $Baseline = [IO.Path]::GetFullPath($Baseline)
@@ -33,13 +38,18 @@ Push-Location $PSScriptRoot
 try {
     $benchmarkArgument = switch ($Scenario) {
         'MultilineGrid' { '--benchmark-multiline-grid' }
+        'MultilineGridDistinct' { '--benchmark-multiline-grid-distinct' }
         'MultilineGridRetention' { '--benchmark-multiline-grid-retention' }
         'MultilineGridHeap' { '--benchmark-multiline-grid-heap' }
         'MultilineGridHeapPaced' { '--benchmark-multiline-grid-heap-paced' }
         default { '--benchmark' }
     }
+    # A receipt left at this path by an earlier run must never be re-stamped as this run's evidence: an executable
+    # that does not know the scenario flag runs its functional tests, exits 0 and writes nothing.
+    if (Test-Path -LiteralPath $OutputPath -PathType Leaf) { Remove-Item -LiteralPath $OutputPath }
     & $exe $benchmarkArgument $OutputPath
     if ($LASTEXITCODE -ne 0) { throw "Complex-UI benchmark failed with exit code $LASTEXITCODE. Executable: $exe" }
+    if (-not (Test-Path -LiteralPath $OutputPath -PathType Leaf)) { throw "The benchmark wrote no receipt for scenario ${Scenario}: $OutputPath. Executable: $exe" }
     $receipt = Get-Content -Raw -LiteralPath $OutputPath | ConvertFrom-Json -AsHashtable
     $receipt.platform = $Platform
     $receipt.configuration = $Configuration

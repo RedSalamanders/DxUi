@@ -412,47 +412,25 @@ HRESULT EmbeddedHost::Composite(ID3D11DeviceContext* context, const D3D11_VIEWPO
 }
 bool EmbeddedHost::CapturedDragContinues() const noexcept
 {
-    const Control* captured = _host._capturedControl;
-    if (! captured || ! captured->IsEnabled() || ! captured->IsVisible())
+    const Control* const captured = _host._capturedControl;
+    // Resolve the capture through the live tree before touching it: a removed control may already be destroyed.
+    // Ancestors count as well, so hiding or disabling a containing panel cancels like the control itself.
+    if (! IsControlEffectivelyInteractive(_host._root.get(), captured))
         return false;
     const D2D1_RECT_F bounds     = captured->GetBounds();
     const D2D1_RECT_F capturedAt = _host._capturedBounds;
-    if (bounds.left != capturedAt.left || bounds.top != capturedAt.top || bounds.right != capturedAt.right || bounds.bottom != capturedAt.bottom)
-        return false;
-    const auto contains = [](auto&& self, const Control* root, const Control* target) noexcept -> bool
-    {
-        if (! root)
-            return false;
-        if (root == target)
-            return true;
-        for (size_t i = 0; i < root->GetLogicalChildCount(); ++i)
-            if (self(self, root->GetLogicalChild(i), target))
-                return true;
-        return false;
-    };
-    return contains(contains, _host._root.get(), captured);
+    return bounds.left == capturedAt.left && bounds.top == capturedAt.top && bounds.right == capturedAt.right && bounds.bottom == capturedAt.bottom;
 }
 
 void EmbeddedHost::CancelPointer() noexcept
 {
-    // Validate by traversing live children without dereferencing a possibly removed captured pointer.
-    const auto contains = [](auto&& self, const Control* root, const Control* target) noexcept -> bool
-    {
-        if (! root)
-            return false;
-        if (root == target)
-            return true;
-        for (size_t i = 0; i < root->GetLogicalChildCount(); ++i)
-            if (self(self, root->GetLogicalChild(i), target))
-                return true;
-        return false;
-    };
     auto* captured         = _host._capturedControl;
     _host._capturedControl = nullptr;
     try
     {
-        // Hidden/disabled controls still need their draft canceled before ordinary interaction pruning.
-        if (captured && contains(contains, _host._root.get(), captured))
+        // Hidden/disabled controls still need their draft canceled before ordinary interaction pruning. Tree
+        // membership is resolved without dereferencing a possibly removed captured pointer.
+        if (captured && IsControlInTree(_host._root.get(), captured))
             captured->OnCaptureLost(_host);
         _host.ClearPendingPointerDoubleClick();
         _host.PruneStaleInteractionState();

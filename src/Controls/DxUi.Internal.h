@@ -2,11 +2,158 @@
 
 #include "DxUi.h"
 
+#include <algorithm>
+#include <bit>
+#include <new>
 #include <oleauto.h>
+#include <span>
 
 namespace DxUi
 {
 [[nodiscard]] std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept;
+
+// Retained text layouts (the Grid's multiline cells and their omitted tails) live in set-associative tables: a mixed
+// 64-bit key hash selects a set of kTextLayoutWays entries and the caller confirms a hit by comparing the whole key. A
+// table doubles, up to its bound, when the values of the current and the previous paint overflow a set, so no visible
+// value evicts another (scrolling back meets the values the last paint drew); the entries a paint did not use release
+// their layouts afterwards. Entries have text, keyHash, lastUse and layout members.
+inline constexpr size_t kTextLayoutWays = 32u;
+
+// FNV-1a over the UTF-16 units folds in the layout box and the caller's other key values, then MurmurHash3's fmix64
+// spreads every bit into the high bits that select the set: FNV-1a's low bits depend only on the low bits of each unit,
+// so similar values (the same words with another number) would otherwise crowd a few sets. The hash is the library's
+// own and no address enters it, so placement, and with it every allocation count, repeats from run to run and build to
+// build.
+[[nodiscard]] inline uint64_t HashTextLayoutKey(std::wstring_view text, float width, float height, uint64_t extra) noexcept
+{
+    uint64_t hash = 0xCBF29CE484222325ull;
+    for (const wchar_t unit : text)
+    {
+        hash ^= static_cast<uint16_t>(unit);
+        hash *= 0x100000001B3ull;
+    }
+    hash ^= (static_cast<uint64_t>(std::bit_cast<uint32_t>(width)) << 32u) | std::bit_cast<uint32_t>(height);
+    hash += extra * 0x9E3779B97F4A7C15ull;
+    hash ^= hash >> 33u;
+    hash *= 0xFF51AFD7ED558CCDull;
+    hash ^= hash >> 33u;
+    hash *= 0xC4CEB9FE1A85EC53ull;
+    hash ^= hash >> 33u;
+    return hash;
+}
+
+[[nodiscard]] inline size_t FindTextLayoutSetStart(uint64_t keyHash, size_t entryCount) noexcept
+{
+    const size_t sets = entryCount / kTextLayoutWays; // A power of two.
+    return (sets > 1u ? static_cast<size_t>(keyHash >> (64u - static_cast<unsigned>(std::countr_zero(sets)))) : 0u) * kTextLayoutWays;
+}
+
+// Grows a reused key or display string to the next power of two, so an entry settles after one allocation and the
+// similar values that later reuse it (the same column, another row) copy in place.
+inline void ReserveTextStorage(std::wstring& text, size_t size)
+{
+    if (text.capacity() < size)
+        text.reserve(std::bit_ceil(size));
+}
+
+// Whether a key string owns heap storage beyond the inline small-string buffer.
+[[nodiscard]] inline bool HoldsTextStorage(const std::wstring& text) noexcept
+{
+    return text.capacity() > std::wstring().capacity();
+}
+
+// Moves the entries into a table of entryCount entries: layouts the current paint uses first, so a smaller table only
+// drops older ones, then other layouts, then the string storage of released entries, which later keys reuse without
+// allocating.
+template <typename Entry> void ResizeTextLayoutTable(std::vector<Entry>& table, size_t entryCount, uint64_t generation)
+{
+    std::vector<Entry> resized(entryCount);
+    const auto place = [&resized, entryCount](Entry& entry)
+    {
+        const auto ways = std::span(resized).subspan(FindTextLayoutSetStart(entry.keyHash, entryCount), kTextLayoutWays);
+        const auto free = std::ranges::find_if(ways, [](const Entry& way) { return ! way.layout && ! HoldsTextStorage(way.text); });
+        if (free != ways.end())
+            *free = std::move(entry);
+    };
+    for (auto& entry : table)
+        if (entry.layout && entry.lastUse == generation)
+            place(entry);
+    for (auto& entry : table)
+        if (entry.layout)
+            place(entry);
+    for (auto& entry : table)
+        if (! entry.layout && HoldsTextStorage(entry.text))
+            place(entry);
+    table.swap(resized);
+}
+
+// The entry holding the key (hit), or the one to rebuild for it: the free way with the most string storage (reusing it
+// allocates nothing), else the least recently used layout neither the current nor the previous paint drew, else one
+// found after growing the table (at the bound, the least recently used way). Keeping the previous paint's layouts
+// matters when a paint meets new values first: scrolling up draws the entering row before the rows still in view, and
+// would otherwise evict their layouts just before drawing them.
+template <typename Entry, typename Matches>
+[[nodiscard]] Entry& FindTextLayoutEntry(
+    std::vector<Entry>& table, uint64_t keyHash, uint64_t generation, size_t initialEntries, size_t maxEntries, const Matches& matches, bool& hit)
+{
+    if (table.empty())
+        table.resize(initialEntries);
+    for (;;)
+    {
+        const auto ways = std::span(table).subspan(FindTextLayoutSetStart(keyHash, table.size()), kTextLayoutWays);
+        Entry* victim   = nullptr;
+        for (auto& entry : ways)
+        {
+            if (! entry.layout)
+            {
+                if (! victim || victim->layout || entry.text.capacity() > victim->text.capacity())
+                    victim = &entry;
+                continue;
+            }
+            if (entry.keyHash == keyHash && matches(entry))
+            {
+                hit = true;
+                return entry;
+            }
+            if (entry.lastUse + 1u < generation && (! victim || (victim->layout && entry.lastUse < victim->lastUse)))
+                victim = &entry;
+        }
+        hit = false;
+        if (victim)
+            return *victim;
+        if (table.size() >= maxEntries)
+            return *std::ranges::min_element(ways, {}, &Entry::lastUse);
+        ResizeTextLayoutTable(table, table.size() * 2u, generation);
+    }
+}
+
+// After a paint: entries it did not use release their layouts (their string storage serves later keys), and a table
+// used below an eighth of its size halves, returning the excess entries and strings.
+template <typename Entry, typename Release>
+void EndTextLayoutPaint(std::vector<Entry>& table, uint64_t generation, size_t initialEntries, const Release& release) noexcept
+{
+    size_t used = 0u;
+    for (auto& entry : table)
+    {
+        if (entry.layout && entry.lastUse == generation)
+        {
+            ++used;
+            continue;
+        }
+        release(entry);
+    }
+    if (table.size() > initialEntries && used * 8u < table.size())
+    {
+        try
+        {
+            ResizeTextLayoutTable(table, table.size() / 2u, generation);
+        }
+        catch (const std::bad_alloc&)
+        {
+            // Keeping the larger table is always correct; a later paint tries again.
+        }
+    }
+}
 struct safearray_deleter
 {
     void operator()(SAFEARRAY* sa) const noexcept
@@ -37,11 +184,14 @@ using unique_safearray = std::unique_ptr<SAFEARRAY, safearray_deleter>;
 void ResolveAdornmentColors(const ThemePalette& theme, AdornmentTone tone, D2D1_COLOR_F& fill, D2D1_COLOR_F& text) noexcept;
 [[nodiscard]] bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, TextInputAutomationEventKind kind) noexcept;
 void RaiseWindowHostDisclosureChanged(HWND hwnd, const Control* control, bool expanded) noexcept;
+// A native menu popup's row focus, raised once its keyboard transition completes (ordinary window hosts announce
+// focus from their snapshot changes instead).
+void RaiseWindowHostFocusChanged(HWND hwnd, const Control* control) noexcept;
 [[nodiscard]] ITextStoreACP* CreateNativeTextInputTextStore(ControlHost& host, Control& control) noexcept;
 void DetachNativeTextInputTextStore(IUnknown* store) noexcept;
 void DisconnectNativeTextInputTextStore(IUnknown* textStore) noexcept;
-[[nodiscard]] bool IsDxUiRenderStageActiveForDebug() noexcept;
-void EmitDxUiRenderMutationBlockedForDebug() noexcept;
+[[nodiscard]] bool IsRenderStageActiveForDebug() noexcept;
+void EmitRenderMutationBlockedForDebug() noexcept;
 [[nodiscard]] bool CaptureBackdropScreenRegion(const RECT& screenRect, WindowHostBitmapCapture& outCapture, std::wstring_view componentName) noexcept;
 
 inline constexpr float kMenuItemHeightDip                  = MenuBar::kDefaultHeightDip;
@@ -203,9 +353,22 @@ void DrawTextWithMnemonic(ControlHost& host,
 [[nodiscard]] ComboBoxVisualStyle ResolveComboBoxVisualStyle(
     const ThemePalette& theme, ComboBoxVariant variant, bool enabled, bool hovered, bool popupOpen, bool focused, bool keyboardFocused) noexcept;
 
+// Resolve `target` by walking the live tree under `root`; `target` is never dereferenced unless it is found there,
+// so a removed (possibly destroyed) control is a safe argument. Interactive also requires every ancestor to be
+// visible and enabled.
+[[nodiscard]] bool IsControlInTree(const Control* root, const Control* target) noexcept;
+// Item icon text (Grid cells, Tree rows): private-use glyphs need the icon font; letters, digits and symbols keep the
+// small UI font, which the icon font would draw as missing-glyph boxes.
+[[nodiscard]] bool IconTextUsesIconFont(std::wstring_view iconText) noexcept;
+[[nodiscard]] FontRole ResolveIconTextFontRole(std::wstring_view iconText) noexcept;
+[[nodiscard]] bool IsControlEffectivelyInteractive(const Control* root, const Control* target) noexcept;
+
 void RegisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept;
 void UnregisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept;
 void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept;
+// Republishes a window host's snapshot and raises what changed for clients: StructureChanged when semantic controls
+// were added, removed or replaced, and the focus change when another element took focus inside a window that holds
+// the foreground's keyboard focus (while the window itself gains focus, the system's focus event reports it).
 void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
 void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
 // True for a native menu popup window. Explicit UIA focus of a row in such a popup tracks

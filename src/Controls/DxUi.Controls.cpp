@@ -187,8 +187,10 @@ bool DrawShadowEffectPass(ControlHost& host, const D2D1_RECT_F& targetRect, floa
     return true;
 }
 
-constexpr std::wstring_view kFluentCheckGlyph    = L"\uE73E";
-constexpr std::wstring_view kFallbackCheckGlyph  = L"\u2713";
+constexpr std::wstring_view kFluentCheckGlyph   = L"\uE73E";
+constexpr std::wstring_view kFallbackCheckGlyph = L"\u2713";
+// The most one tick advances a disclosure rotation: a longer gap means the ticks stopped, and pauses it.
+constexpr uint64_t kDisclosureMaxTickStepMs      = 100u;
 constexpr float kTooltipOffsetXDip               = 14.0f;
 constexpr float kTooltipOffsetYDip               = 18.0f;
 constexpr float kTooltipViewportMarginDip        = 8.0f;
@@ -2017,7 +2019,8 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
         _disclosureTransition.progress      = target;
         _disclosureTransition.startProgress = target;
         _disclosureTransition.target        = target;
-        _disclosureTransition.startTickMs   = 0u;
+        _disclosureTransition.elapsedMs     = 0u;
+        _disclosureTransition.anchored      = false;
         _disclosureTransition.initialized   = true;
         _disclosureTransition.active        = false;
         RequestInvalidate();
@@ -2033,12 +2036,15 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
         return;
     }
 
+    ControlHost* const host = GetHost();
+    // The rotation runs on its own ticks: it starts at the first one, so a button hidden now (it gets none until it
+    // paints again) rotates when it shows, and a pause in them pauses it instead of skipping to the end.
     _disclosureExpanded                 = expanded;
     _disclosureTransition.startProgress = _disclosureTransition.progress;
     _disclosureTransition.target        = target;
-    _disclosureTransition.startTickMs   = GetTickCount64();
+    _disclosureTransition.elapsedMs     = 0u;
+    _disclosureTransition.anchored      = false;
     _disclosureTransition.initialized   = true;
-    ControlHost* const host             = GetHost();
     _disclosureTransition.active        = host && ! host->GetTheme().reducedMotion;
     if (_disclosureTransition.active)
     {
@@ -2127,6 +2133,11 @@ bool Button::Invoke(ControlHost& host, bool focusSelf)
 
 void Button::Paint(ControlHost& host) const
 {
+    // A disclosure rotation left pending while the button was hidden resumes ticking when it paints again.
+    if (_disclosureTransition.active)
+    {
+        host.RequestAnimation();
+    }
     const FlowDirection flowDirection = GetFlowDirection();
     const ButtonVisualStyle style     = ResolveButtonVisualStyle(host.GetTheme(),
                                                                  IsEnabled(),
@@ -2656,9 +2667,21 @@ bool Button::AdvanceDisclosureTransition(ControlHost& host, uint64_t nowTickMs) 
     {
         return false;
     }
-
-    const uint64_t elapsedMs       = nowTickMs > _disclosureTransition.startTickMs ? nowTickMs - _disclosureTransition.startTickMs : 0u;
-    const float linearProgress     = std::clamp(static_cast<float>(elapsedMs) / static_cast<float>(_disclosureAnimationDurationMs), 0.0f, 1.0f);
+    if (! _disclosureTransition.anchored)
+    {
+        // The first frame shows where the rotation starts; time runs from here.
+        _disclosureTransition.anchored   = true;
+        _disclosureTransition.lastTickMs = nowTickMs;
+        Invalidate(host);
+        return true;
+    }
+    // A longer gap than kDisclosureMaxTickStepMs means the ticks stopped (the button was hidden, or the thread
+    // stalled): it advances the rotation by one such step, so the chevron resumes where it was.
+    const uint64_t stepMs            = nowTickMs > _disclosureTransition.lastTickMs ? nowTickMs - _disclosureTransition.lastTickMs : 0u;
+    _disclosureTransition.lastTickMs = nowTickMs;
+    _disclosureTransition.elapsedMs += (std::min)(stepMs, kDisclosureMaxTickStepMs);
+    const float linearProgress =
+        std::clamp(static_cast<float>(_disclosureTransition.elapsedMs) / static_cast<float>(_disclosureAnimationDurationMs), 0.0f, 1.0f);
     const float easedProgress      = EvaluateEasing(EasingCurve::PointToPoint, linearProgress);
     _disclosureTransition.progress = std::lerp(_disclosureTransition.startProgress, _disclosureTransition.target, easedProgress);
     if (linearProgress >= 1.0f)
@@ -2968,7 +2991,8 @@ void Checkbox::Paint(ControlHost& host) const
                          FontRole::Body,
                          style.text,
                          GetMnemonic(),
-                         rightToLeft ? DWRITE_TEXT_ALIGNMENT_TRAILING : DWRITE_TEXT_ALIGNMENT_LEADING,
+                         // The text format reads in the flow's direction, so leading hugs the indicator on either side.
+                         DWRITE_TEXT_ALIGNMENT_LEADING,
                          DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
                          IsMultiline(),
                          GetFlowDirection());
@@ -3050,7 +3074,8 @@ void RadioButton::Paint(ControlHost& host) const
         FontRole::Body,
         style.text,
         GetMnemonic(),
-        rightToLeft ? DWRITE_TEXT_ALIGNMENT_TRAILING : DWRITE_TEXT_ALIGNMENT_LEADING,
+        // The text format reads in the flow's direction, so leading hugs the circle on either side.
+        DWRITE_TEXT_ALIGNMENT_LEADING,
         DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
         false,
         GetFlowDirection());
@@ -3261,6 +3286,9 @@ struct ProgressTrack
 
 void ProgressBar::SetValue(double value) noexcept
 {
+    // Like Slider, a non-finite value is rejected: NaN would reach UI Automation and never compare equal.
+    if (! std::isfinite(value))
+        return;
     _value = value;
     RequestInvalidate();
 }
@@ -3272,6 +3300,8 @@ double ProgressBar::GetValue() const noexcept
 
 void ProgressBar::SetMinimum(double minimum) noexcept
 {
+    if (! std::isfinite(minimum))
+        return;
     _minimum = minimum;
     RequestInvalidate();
 }
@@ -3283,6 +3313,8 @@ double ProgressBar::GetMinimum() const noexcept
 
 void ProgressBar::SetMaximum(double maximum) noexcept
 {
+    if (! std::isfinite(maximum))
+        return;
     _maximum = maximum;
     RequestInvalidate();
 }
@@ -3363,7 +3395,7 @@ void ProgressBar::Paint(ControlHost& host) const
     const D2D1_RECT_F bounds           = GetBounds();
 
     // Reduced motion paints a resting segment and requests no ticks.
-    if (_indeterminate && IsEnabled() && IsVisible() && ! theme.reducedMotion)
+    if (_indeterminate && IsEnabled() && IsVisible() && ! theme.reducedMotion && bounds.right > bounds.left && bounds.bottom > bounds.top)
     {
         host.RequestAnimation();
     }
@@ -3437,7 +3469,9 @@ void ProgressBar::Paint(ControlHost& host) const
 
 bool ProgressBar::Tick(ControlHost& host, uint64_t nowTickMs)
 {
-    if (! _indeterminate || ! IsEnabled() || ! IsVisible() || host.GetTheme().reducedMotion)
+    // An empty bar has nothing to sweep: it requests no frames until it has bounds again.
+    const D2D1_RECT_F bounds = GetBounds();
+    if (! _indeterminate || ! IsEnabled() || ! IsVisible() || host.GetTheme().reducedMotion || ! (bounds.right > bounds.left) || ! (bounds.bottom > bounds.top))
     {
         _lastTickMs = 0u;
         return false;
@@ -4647,7 +4681,8 @@ void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChange
     if (! std::isfinite(value))
         return;
     const double clamped = ClampValue(value);
-    if (std::fabs(clamped - _value) <= 0.0001)
+    // "Same target" absorbs floating noise, well below the smallest step (0.0001), so a minimum step still moves.
+    if (std::fabs(clamped - _value) <= (std::min)(0.0001, _step * 1.0e-3))
     {
         // A model acknowledgement can match the accepted target while the painted thumb is still easing.
         // SetValue is silent and immediate even for that same target; it must also retire animation work.
@@ -7400,7 +7435,7 @@ void TabControl::Paint(ControlHost& host) const
                          textRect,
                          FontRole::Body,
                          theme.text,
-                         IsRightToLeft() ? DWRITE_TEXT_ALIGNMENT_TRAILING : DWRITE_TEXT_ALIGNMENT_LEADING,
+                         DWRITE_TEXT_ALIGNMENT_LEADING, // The format reads in the flow direction, so leading is the start side.
                          DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
                          false,
                          GetFlowDirection());

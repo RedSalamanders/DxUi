@@ -2,8 +2,8 @@
 #include <windows.h>
 namespace DxUi::WndMsg
 {
-inline constexpr UINT kDxUiContextMenuRootHoverChanged = WM_APP + 0x539;
-inline constexpr UINT kDxUiAccessibilityAction         = WM_APP + 0x06A;
-inline constexpr UINT kDxUiAccessibilityCreateProvider = WM_APP + 0x06B;
-inline constexpr UINT kDxUiWindowHostProcessExitDetach = WM_APP + 0x06C;
+inline constexpr UINT kContextMenuRootHoverChanged = WM_APP + 0x539;
+inline constexpr UINT kAccessibilityAction         = WM_APP + 0x06A;
+inline constexpr UINT kAccessibilityCreateProvider = WM_APP + 0x06B;
+inline constexpr UINT kWindowHostProcessExitDetach = WM_APP + 0x06C;
 } // namespace DxUi::WndMsg

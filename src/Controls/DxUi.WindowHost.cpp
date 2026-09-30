@@ -137,7 +137,7 @@ namespace DxUi
 
 namespace
 {
-constexpr wchar_t kDxUiDiagnosticsProp[]       = L"DxUi.Diagnostics";
+constexpr wchar_t kDiagnosticsProp[]           = L"DxUi.Diagnostics";
 constexpr uint64_t kTooltipFallbackShowDelayMs = 500u;
 constexpr uint64_t kTooltipMinShowDelayMs      = 100u;
 constexpr uint64_t kTooltipMaxShowDelayMs      = 2500u;
@@ -526,7 +526,7 @@ template <typename... Args> void TraceWindowHostDiagnostics(std::wstring_view ev
 
 [[nodiscard]] bool IsInteractionDiagnosticsEnabled(HWND hwnd) noexcept
 {
-    return hwnd && GetPropW(hwnd, kDxUiDiagnosticsProp) != nullptr;
+    return hwnd && GetPropW(hwnd, kDiagnosticsProp) != nullptr;
 }
 
 [[nodiscard]] std::mutex& GetSharedWindowHostGraphicsResourcesMutex() noexcept
@@ -1011,6 +1011,13 @@ struct FocusAdvanceResult
     return control;
 }
 
+// Whether a control the host has focused is still alive and, when the host has a tree, still in it: a rootless host
+// may focus a control it does not own (SetFocusControl allows it).
+[[nodiscard]] bool IsFocusedControlStillHeld(const std::weak_ptr<int>& lifetime, const Control* root, Control* control) noexcept
+{
+    return root ? RevalidateDispatchedControl(lifetime, root, control) != nullptr : control && ! lifetime.expired();
+}
+
 struct ControlInteractionState
 {
     bool inTree                 = false;
@@ -1088,6 +1095,16 @@ struct ControlInteractionState
 
 } // namespace
 
+bool IsControlInTree(const Control* root, const Control* target) noexcept
+{
+    return ControlBelongsToTree(root, target);
+}
+
+bool IsControlEffectivelyInteractive(const Control* root, const Control* target) noexcept
+{
+    return ResolveControlInteractionState(root, target).effectivelyInteractive;
+}
+
 void ShutdownAllWindowHostsForProcessExit() noexcept
 {
     struct ShutdownTarget final
@@ -1129,7 +1146,7 @@ void ShutdownAllWindowHostsForProcessExit() noexcept
         }
 
         DWORD_PTR detachResult = 0u;
-        if (SendMessageTimeoutW(target.hwnd, WndMsg::kDxUiWindowHostProcessExitDetach, 0u, 0, SMTO_ABORTIFHUNG | SMTO_BLOCK, 5000u, &detachResult) == 0)
+        if (SendMessageTimeoutW(target.hwnd, WndMsg::kWindowHostProcessExitDetach, 0u, 0, SMTO_ABORTIFHUNG | SMTO_BLOCK, 5000u, &detachResult) == 0)
         {
             Debug::ErrorWithLastError(L"DxUi::ControlHost: owner-thread process-exit detach timed out for thread {}.", target.ownerThreadId);
         }
@@ -1687,8 +1704,16 @@ void ControlHost::SetFocusControl(Control* control, bool transferNativeFocus) no
     Debug::Perf::Emit(L"DxUi::FocusChange", L"", 0u, _focusedControl ? 1u : 0u, HasActiveTextInput() ? 1u : 0u);
     if (_onFocusChanged)
     {
-        _onFocusChanged(_focusedControl);
+        Control* const notified                   = _focusedControl;
+        const std::weak_ptr<int> notifiedLifetime = notified ? notified->GetLifetimeToken() : std::weak_ptr<int>{};
+        _onFocusChanged(notified);
+        // The callback may remove the control it was told about; a removed control is never published or announced.
+        if (notified && _focusedControl == notified && ! IsFocusedControlStillHeld(notifiedLifetime, _root.get(), notified))
+        {
+            _focusedControl = nullptr;
+        }
     }
+    // The republish raises the UIA focus change for the newly focused element (see RefreshWindowHostAccessibilitySnapshot).
     RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
     Invalidate();
 }
@@ -2069,7 +2094,7 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
         return GetTextFormat(role);
     }
 
-    const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(role);
+    const Typography::Spec spec = Typography::GetSpec(role);
     wil::com_ptr<IDWriteTextFormat> format;
     const HRESULT hrCreate = Typography::CreateTextFormat(_dwriteFactory.get(), spec, format.addressof());
     if (FAILED(hrCreate) || ! format)
@@ -2167,6 +2192,11 @@ std::optional<std::wstring> ControlHost::ReadTextFromClipboard() const noexcept
 uint64_t ControlHost::DebugGetInvalidateCount() const noexcept
 {
     return _debugInvalidateCount;
+}
+
+uint64_t ControlHost::DebugGetFocusAnnouncementCount() const noexcept
+{
+    return _debugFocusAnnouncementCount;
 }
 
 UINT ControlHost::DebugGetModifierState() const noexcept
@@ -2345,13 +2375,14 @@ LRESULT ControlHost::HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bo
         return 0;
     }
 
-    if (msg == WndMsg::kDxUiWindowHostProcessExitDetach)
+    if (msg == WndMsg::kWindowHostProcessExitDetach)
     {
         handled = true;
         DetachForProcessExit();
         return TRUE;
     }
 
+    CancelStaleCapture();
     PruneStaleInteractionState();
 
     LRESULT accessibilityResult = 0;
@@ -2982,8 +3013,8 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     }
     if (! _bodyTextFormat)
     {
-        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::Body);
-        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyTextFormat.addressof());
+        const Typography::Spec spec = Typography::GetSpec(FontRole::Body);
+        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyTextFormat.addressof());
         if (FAILED(hr) || ! _bodyTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for body text: 0x{:08X}", hr);
@@ -2992,8 +3023,8 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     }
     if (! _bodyStrongTextFormat)
     {
-        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::BodyStrong);
-        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyStrongTextFormat.addressof());
+        const Typography::Spec spec = Typography::GetSpec(FontRole::BodyStrong);
+        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyStrongTextFormat.addressof());
         if (FAILED(hr) || ! _bodyStrongTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for body-strong text: 0x{:08X}", hr);
@@ -3002,8 +3033,8 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     }
     if (! _bodyLargeTextFormat)
     {
-        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::BodyLarge);
-        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyLargeTextFormat.addressof());
+        const Typography::Spec spec = Typography::GetSpec(FontRole::BodyLarge);
+        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyLargeTextFormat.addressof());
         if (FAILED(hr) || ! _bodyLargeTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for body-large text: 0x{:08X}", hr);
@@ -3012,8 +3043,8 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     }
     if (! _listItemTextFormat)
     {
-        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::ListItem);
-        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _listItemTextFormat.addressof());
+        const Typography::Spec spec = Typography::GetSpec(FontRole::ListItem);
+        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _listItemTextFormat.addressof());
         if (FAILED(hr) || ! _listItemTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for list-item text: 0x{:08X}", hr);
@@ -3022,8 +3053,8 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     }
     if (! _titleTextFormat)
     {
-        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::Title);
-        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _titleTextFormat.addressof());
+        const Typography::Spec spec = Typography::GetSpec(FontRole::Title);
+        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _titleTextFormat.addressof());
         if (FAILED(hr) || ! _titleTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for title text: 0x{:08X}", hr);
@@ -3032,8 +3063,8 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     }
     if (! _subtitleTextFormat)
     {
-        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::Subtitle);
-        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _subtitleTextFormat.addressof());
+        const Typography::Spec spec = Typography::GetSpec(FontRole::Subtitle);
+        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _subtitleTextFormat.addressof());
         if (FAILED(hr) || ! _subtitleTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for subtitle text: 0x{:08X}", hr);
@@ -3042,8 +3073,8 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     }
     if (! _titleLargeTextFormat)
     {
-        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::TitleLarge);
-        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _titleLargeTextFormat.addressof());
+        const Typography::Spec spec = Typography::GetSpec(FontRole::TitleLarge);
+        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _titleLargeTextFormat.addressof());
         if (FAILED(hr) || ! _titleLargeTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for title-large text: 0x{:08X}", hr);
@@ -3052,8 +3083,8 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     }
     if (! _displayTextFormat)
     {
-        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::Display);
-        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _displayTextFormat.addressof());
+        const Typography::Spec spec = Typography::GetSpec(FontRole::Display);
+        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _displayTextFormat.addressof());
         if (FAILED(hr) || ! _displayTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for display text: 0x{:08X}", hr);
@@ -3062,8 +3093,8 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     }
     if (! _headerTextFormat)
     {
-        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::Header);
-        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _headerTextFormat.addressof());
+        const Typography::Spec spec = Typography::GetSpec(FontRole::Header);
+        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _headerTextFormat.addressof());
         if (FAILED(hr) || ! _headerTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for header text: 0x{:08X}", hr);
@@ -3072,8 +3103,8 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     }
     if (! _smallTextFormat)
     {
-        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::Small);
-        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _smallTextFormat.addressof());
+        const Typography::Spec spec = Typography::GetSpec(FontRole::Small);
+        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _smallTextFormat.addressof());
         if (FAILED(hr) || ! _smallTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for small text: 0x{:08X}", hr);
@@ -3087,8 +3118,8 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     }
     if (_fluentIconFontAvailable && ! _iconTextFormat)
     {
-        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::Icon);
-        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _iconTextFormat.addressof());
+        const Typography::Spec spec = Typography::GetSpec(FontRole::Icon);
+        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _iconTextFormat.addressof());
         if (FAILED(hr) || ! _iconTextFormat)
         {
             Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for fluent icon text: 0x{:08X}", hr);
@@ -3098,8 +3129,8 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     }
     if (_fluentIconFontAvailable && ! _heroIconTextFormat)
     {
-        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::HeroIcon);
-        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _heroIconTextFormat.addressof());
+        const Typography::Spec spec = Typography::GetSpec(FontRole::HeroIcon);
+        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _heroIconTextFormat.addressof());
         if (FAILED(hr) || ! _heroIconTextFormat)
         {
             Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for fluent hero icon text: 0x{:08X}", hr);
@@ -3108,8 +3139,8 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     }
     if (_fluentIconFontAvailable && ! _iconLargeTextFormat)
     {
-        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::IconLarge);
-        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _iconLargeTextFormat.addressof());
+        const Typography::Spec spec = Typography::GetSpec(FontRole::IconLarge);
+        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _iconLargeTextFormat.addressof());
         if (FAILED(hr) || ! _iconLargeTextFormat)
         {
             Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for fluent large icon text: 0x{:08X}", hr);
@@ -3118,8 +3149,8 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     }
     if (! _monoTextFormat)
     {
-        const Typography::TypographySpec spec = Typography::GetDxUiTypographySpec(FontRole::Monospace);
-        const HRESULT hr                      = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _monoTextFormat.addressof());
+        const Typography::Spec spec = Typography::GetSpec(FontRole::Monospace);
+        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _monoTextFormat.addressof());
         if (FAILED(hr) || ! _monoTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for monospace text: 0x{:08X}", hr);
@@ -3871,6 +3902,10 @@ void ControlHost::OnSize(UINT widthPx, UINT heightPx) noexcept
 
 void ControlHost::OnSetFocus() noexcept
 {
+    // Windows reports the window's new focus itself, and UI Automation asks the fragment root's GetFocus for the
+    // element: whatever this activation focuses or restores is published, never announced a second time.
+    const bool wasGainingWindowFocus = std::exchange(_gainingWindowFocus, true);
+    const auto endGainingWindowFocus = wil::scope_exit([this, wasGainingWindowFocus]() noexcept { _gainingWindowFocus = wasGainingWindowFocus; });
     PruneStaleInteractionState();
     if (IsInteractionDiagnosticsEnabled(_hwnd))
     {
@@ -3886,13 +3921,20 @@ void ControlHost::OnSetFocus() noexcept
         bool restoredFocus = false;
         if (! _focusedControl->HasFocus())
         {
-            _focusedControl->OnFocusChanged(*this, true);
+            Control* const restored           = _focusedControl;
+            const std::weak_ptr<int> lifetime = restored->GetLifetimeToken();
+            restored->OnFocusChanged(*this, true);
+            if (! IsFocusedControlStillHeld(lifetime, _root.get(), restored) && restored == _focusedControl)
+            {
+                _focusedControl = nullptr;
+            }
             restoredFocus = true;
         }
-        if (_focusedControl->SupportsTextInput())
+        if (_focusedControl && _focusedControl->SupportsTextInput())
         {
             ActivateTextInput(_focusedControl);
         }
+        RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
         if (restoredFocus)
         {
             Invalidate();
@@ -3938,6 +3980,40 @@ void ControlHost::OnKillFocus(bool clearRetainedFocus) noexcept
                     HasActiveTextInput() ? L"true" : L"false");
     }
     Invalidate();
+}
+
+void ControlHost::CancelStaleCapture() noexcept
+{
+    // PruneStaleInteractionState drops such a capture silently, which would leave a disabled or hidden slider,
+    // splitter, picker or tree mid-drag. A removed control is left to that prune and never dereferenced here.
+    Control* const captured = _capturedControl;
+    if (! captured || ! _root)
+    {
+        return;
+    }
+    const ControlInteractionState state = ResolveControlInteractionState(_root.get(), captured);
+    if (! state.inTree || state.effectivelyInteractive)
+    {
+        return;
+    }
+    const std::weak_ptr<int> lifetime = captured->GetLifetimeToken();
+    _capturedControl                  = nullptr;
+    if (_hwnd && GetCapture() == _hwnd)
+    {
+        // Re-enters HandleMessage with WM_CAPTURECHANGED, which finds no captured control to notify.
+        ReleaseCapture();
+    }
+    if (Control* const live = RevalidateDispatchedControl(lifetime, _root.get(), captured))
+    {
+        try
+        {
+            live->OnCaptureLost(*this);
+        }
+        catch (const std::exception&)
+        {
+            // Capture is already released; a failing cancel callback must not unwind through the window procedure.
+        }
+    }
 }
 
 void ControlHost::PruneStaleInteractionState() noexcept
@@ -4020,6 +4096,11 @@ void ControlHost::PruneStaleInteractionState() noexcept
                     static_cast<const void*>(_hoveredControl),
                     static_cast<const void*>(_capturedControl),
                     HasActiveTextInput() ? L"true" : L"false");
+    }
+    // A control disabled or removed while focused keeps the published focus until now: clients learn it left.
+    if (prunedFocus)
+    {
+        RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
     }
 }
 

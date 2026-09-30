@@ -7,7 +7,10 @@ The [Grid text-overflow investigation](../Measurements/GridTextOverflow/2026-09-
 retains matched original/candidate reports and unresolved resource flags; it is not an acceptance record.
 The [rejected associative-cache experiment](../Measurements/GridTextOverflow/2026-09-23/associative-cache-rejected/README.md)
 reduces layout churn but increases private memory; its prototype was restored, and invalid incremental
-comparison attempts remain explicitly excluded from qualification.
+comparison attempts remain explicitly excluded from qualification. The
+[review follow-ups](../Specs/Plans/Done/ReviewFollowUps_2026-09-29.md) later adopted set-associative Grid layout
+tables under a frame-rate-first priority, which the performance contract records with their
+[paired runs](../Measurements/ReviewFollowUps/2026-09-29/paired-local/README.md).
 
 ## Run and compare
 
@@ -24,12 +27,15 @@ Keep the baseline; never overwrite it with the candidate. Use separate files for
 When the benchmark itself changed, or the baseline predates it, measure both revisions with one harness:
 
 ```powershell
-.\performance-paired.ps1 -BaselineRevision <commit> -Scenario Default,MultilineGrid
+.\performance-paired.ps1 -BaselineRevision <commit> -Scenario Default,MultilineGrid,MultilineGridDistinct
 ```
 
 It creates a detached baseline worktree under `.build/paired`, copies this checkout's `performance.ps1` and
 benchmark inputs into it, builds both trees and runs A1, B1, B2, A2 serially (A is the baseline). B1/A1 and
-B2/A2 cross the change; A2/A1 and B2/B1 are same-source controls. `-CandidateRevision` measures a second
+B2/A2 cross the change; A2/A1 and B2/B1 are same-source controls. A control is judged two-sided: drift beyond a
+band in either direction reports `unstable-control` (with the drifting metrics), and that set's crossings are not
+evidence until a quieter repeat is stable. `-SkipBuild` reuses this checkout's build only; detached worktrees
+always build. `-CandidateRevision` measures a second
 historical revision instead of this checkout, still with this checkout's harness. Every receipt, comparison and
 `summary.json` is retained; flagged comparisons still need developer advice. A manual run of the
 [validation workflow](../.github/workflows/ci.yml) with `benchmark_baseline` (and optionally `benchmark_candidate`
@@ -63,8 +69,20 @@ both implementations. Its distinct fixture, `dxui-complex-ui-multiline-grid-v1`,
 sentences, explicit paragraphs, combining accents and an emoji, 64-DIP rows and a two-line clamp.
 The grid advances one row per dirty frame to exercise reuse across viewport changes. Other controls,
 round counts, completion readback, resource gates and measurement methods remain the same.
+All four columns of a row share one text, so a frame exercises only about six distinct layout-cache keys; the
+fixture understates cache misses for grids with distinct per-column text.
 The harness records `complex-ui-multiline-grid.png` outside timing. This optional fixture does not
 replace the default benchmark; never compare reports from the two different scenarios.
+`-Scenario MultilineGridDistinct` (`dxui-complex-ui-multiline-grid-distinct-v1`) keeps that geometry, clamp and
+scrolling but gives every cell its own French text (four column-specific sentences per row, with accents and an
+emoji), about 24 distinct layouts per frame, and keeps the Tree's short names; it records
+`complex-ui-multiline-grid-distinct.png`. Run it with `MultilineGrid` for any change to grid text layout or its
+cache: the repeated-text fixture cannot show conflict misses, and this one cannot show sharing between identical
+values. In `MultilineGrid`, drawing the Tree's long names with their color emoji on WARP takes most of a dirty frame
+and the multiline grid almost none of its time
+([frame-cost investigation](../Measurements/ReviewFollowUps/2026-09-29/frame-cost/README.md)), so a grid text-layout
+change shows there in allocations and memory long before it shows in FPS; the distinct scene's short Tree names
+leave its frame to the grid.
 
 Receipts record completed offscreen WARP FPS, p50/p95 total frame milliseconds, p95 preparation and CPU composition
 times, C++ allocation counts with the gated dirty per-frame ceiling (`dirtyAllocationCeilingPerFrame`: 64 in

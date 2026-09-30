@@ -27,7 +27,7 @@ constexpr GUID kTransientSurfaceGaussianBlurEffectId = {0x1feb6d69, 0x2fe6, 0x4a
 }
 } // namespace
 
-ModalLoopResult RunDxUiModalLoop(HWND hwnd, const ModalLoopOptions& options) noexcept
+ModalLoopResult RunModalLoop(HWND hwnd, const ModalLoopOptions& options) noexcept
 {
     const ModalLoopContinueCallback shouldContinue = options.shouldContinue ? options.shouldContinue : ContinueModalLoopByDefault;
     const std::wstring_view diagnosticName         = options.diagnosticName.empty() ? std::wstring_view(L"modal") : options.diagnosticName;
@@ -39,7 +39,7 @@ ModalLoopResult RunDxUiModalLoop(HWND hwnd, const ModalLoopOptions& options) noe
         if (getMessageResult == -1)
         {
             const DWORD lastError = GetLastError();
-            Debug::Warning(L"DxUi::RunDxUiModalLoop: GetMessageW failed for '{0}' (hwnd=0x{1:X}, lastError={2})",
+            Debug::Warning(L"DxUi::RunModalLoop: GetMessageW failed for '{0}' (hwnd=0x{1:X}, lastError={2})",
                            diagnosticName,
                            reinterpret_cast<uintptr_t>(hwnd),
                            lastError);
@@ -340,9 +340,9 @@ void Control::SetBounds(const D2D1_RECT_F& bounds) noexcept
 {
     if (_bounds.left != bounds.left || _bounds.top != bounds.top || _bounds.right != bounds.right || _bounds.bottom != bounds.bottom)
     {
-        if (IsDxUiRenderStageActiveForDebug())
+        if (IsRenderStageActiveForDebug())
         {
-            EmitDxUiRenderMutationBlockedForDebug();
+            EmitRenderMutationBlockedForDebug();
             return;
         }
 

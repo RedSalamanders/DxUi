@@ -113,7 +113,7 @@ void TestTreeExpanderReResolvesStableItemAfterSelectionReorder()
 {
     using namespace DxUi;
 
-    class ReorderingDelegate final : public IDxTreeDelegate
+    class ReorderingDelegate final : public ITreeDelegate
     {
     public:
         explicit ReorderingDelegate(MutableTreeModel& model) noexcept : _model(model)
@@ -177,7 +177,7 @@ void TestTreeSelectionDelegateCanReplaceRootSafely()
 {
     using namespace DxUi;
 
-    class RootReplacingDelegate final : public IDxTreeDelegate
+    class RootReplacingDelegate final : public ITreeDelegate
     {
     public:
         explicit RootReplacingDelegate(WindowHost& host) noexcept : _host(host)
@@ -1252,11 +1252,123 @@ void TestTreeDragReorderReportsDropAndEscapeCancels()
             "the middle of a parent row drops inside it");
 }
 
+void TestTreeDragReorderRejectsItsOwnSubtreeAndFollowsModelChanges()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 220.0f));
+    tree->SetReorderEnabled(true);
+
+    const TreeItemData group{.id = 10u, .text = L"Group", .depth = 0u, .hasChildren = true, .expanded = true};
+    const TreeItemData child{.id = 11u, .parentId = 10u, .text = L"Child", .depth = 1u, .hasChildren = true, .expanded = true};
+    const TreeItemData grandchild{.id = 12u, .parentId = 11u, .text = L"Grandchild", .depth = 2u};
+    const TreeItemData sibling{.id = 20u, .text = L"Sibling", .depth = 0u};
+    MutableTreeModel model;
+    model.SetVisibleItems({group, child, grandchild, sibling});
+    RecordingTreeDelegate delegate;
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    const auto centre = [&](size_t index)
+    {
+        const std::optional<D2D1_RECT_F> rect = tree->GetVisibleItemHitRect(index);
+        Require(rect.has_value(), "reorder rows have hit rectangles");
+        return D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f);
+    };
+    const auto drag = [&](size_t from, size_t to)
+    {
+        Require(tree->OnMouseDown(host, centre(from), false, 0u), "a row drag starts");
+        Require(tree->OnMouseMove(host, centre(to), 0u), "the row drag follows the pointer");
+        static_cast<void>(tree->OnMouseUp(host, centre(to), false, 0u));
+    };
+
+    // A drop into the dragged row's own subtree would make the row its own ancestor.
+    drag(0u, 1u);
+    drag(0u, 2u);
+    Require(delegate.reorderCount == 0u, "drops into the dragged row's own subtree are rejected");
+    drag(0u, 3u);
+    Require(delegate.reorderCount == 1u && delegate.lastDrop.sourceId == 10u && delegate.lastDrop.targetId == 20u, "a drop outside the subtree reports once");
+    drag(2u, 0u);
+    Require(delegate.reorderCount == 2u && delegate.lastDrop.sourceId == 12u && delegate.lastDrop.targetId == 10u, "an ancestor stays a valid target");
+
+    // Rows that move mid-drag re-resolve the dragged subtree; a removed row ends the drag without a report.
+    Require(tree->OnMouseDown(host, centre(1u), false, 0u), "a child row drag starts");
+    Require(tree->OnMouseMove(host, centre(3u), 0u), "the child row drag previews");
+    model.SetVisibleItems({TreeItemData{.id = 30u, .text = L"Inserted", .depth = 0u}, group, child, grandchild, sibling});
+    tree->NotifyDataChanged();
+    Require(tree->OnMouseMove(host, centre(3u), 0u), "the drag continues over the shifted rows");
+    static_cast<void>(tree->OnMouseUp(host, centre(3u), false, 0u));
+    Require(delegate.reorderCount == 2u, "the shifted grandchild is still inside the dragged subtree");
+    Require(tree->OnMouseDown(host, centre(2u), false, 0u), "the child row drag starts again");
+    Require(tree->OnMouseMove(host, centre(4u), 0u), "the child row drag previews again");
+    model.SetVisibleItems({sibling});
+    tree->NotifyDataChanged();
+    static_cast<void>(tree->OnMouseUp(host, centre(0u), false, 0u));
+    Require(delegate.reorderCount == 2u && host.GetCapturedControl() == nullptr, "a drag whose row was removed ends without a report");
+}
+
+void TestTreeIconFontAndReorderReleaseEdgeCases()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 220.0f));
+    tree->SetReorderEnabled(true);
+    MutableTreeModel model;
+    model.SetVisibleItems({
+        TreeItemData{.id = 0u, .text = L"Zero", .iconText = L"C"},
+        TreeItemData{.id = 1u, .text = L"One", .iconText = L"\xE8B7"},
+        TreeItemData{.id = 2u, .text = L"Two"},
+        TreeItemData{.id = 3u, .text = L"Three"},
+    });
+    RecordingTreeDelegate delegate;
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+
+    // Like Grid: letters keep the small UI font (the icon font draws them as boxes); private-use glyphs use the icon font.
+    TreeDebugRowVisualState state{};
+    Require(tree->DebugGetRowVisualState(host.GetTheme(), 0u, false, state) && ! state.iconUsesIconFont, "a letter icon keeps the small text font");
+    Require(tree->DebugGetRowVisualState(host.GetTheme(), 1u, false, state) && state.iconUsesIconFont, "a private-use icon glyph uses the icon font");
+
+    const auto centre = [&](size_t index)
+    {
+        const std::optional<D2D1_RECT_F> rect = tree->GetVisibleItemHitRect(index);
+        Require(rect.has_value(), "reorder rows have hit rectangles");
+        return D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f);
+    };
+    // Model id 0 is an ordinary row, and the release point (not the last move) decides the drop.
+    Require(tree->OnMouseDown(host, centre(0u), false, 0u), "the id 0 row drag starts");
+    Require(tree->OnMouseMove(host, centre(2u), 0u), "the id 0 row drag moves");
+    Require(tree->OnMouseUp(host, centre(3u), false, 0u), "a finished drag reports the release handled");
+    Require(delegate.reorderCount == 1u && delegate.lastDrop.sourceId == 0u && delegate.lastDrop.targetId == 3u,
+            "the id 0 row drops on the row under the release point");
+
+    // A second button cancels the drag; the left release that follows reports nothing.
+    Require(tree->OnMouseDown(host, centre(3u), false, 0u), "another drag starts");
+    Require(tree->OnMouseMove(host, centre(1u), 0u), "the drag moves");
+    static_cast<void>(tree->OnMouseDown(host, centre(1u), true, 0u));
+    Require(host.GetCapturedControl() == nullptr, "a right press releases the drag capture");
+    static_cast<void>(tree->OnMouseUp(host, centre(1u), false, 0u));
+    Require(delegate.reorderCount == 1u, "the canceled drag reports nothing");
+
+    // A click that never becomes a drag is not a handled drag.
+    Require(tree->OnMouseDown(host, centre(2u), false, 0u), "a click presses a row");
+    Require(! tree->OnMouseUp(host, centre(2u), false, 0u) && delegate.reorderCount == 1u, "a click without a drag is not reported as a handled drag");
+}
+
 void RunTreeTests()
 {
     TestTreeLocalizedEmptyStateRepaintsWithoutSelectionChange();
+    TestTreeIconFontAndReorderReleaseEdgeCases();
     TestTreePointerSelectionNotifiesDelegate();
     TestTreeDragReorderReportsDropAndEscapeCancels();
+    TestTreeDragReorderRejectsItsOwnSubtreeAndFollowsModelChanges();
     TestTreeExpanderClickRequestsToggle();
     TestTreeExpanderReResolvesStableItemAfterSelectionReorder();
     TestTreeSelectionDelegateCanReplaceRootSafely();

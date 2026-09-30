@@ -32,11 +32,11 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | StackPanel | Set orientation, gap and padding; call `SetChildExtent` for every child and `ApplyLayout` after content or bounds changes. |
 | ScrollPanel | Own a content tree, set the content extent, and handle `SetOnScrollChanged` if needed. It clips and translates pointer coordinates into content space. |
 | TooltipLayer | Usually managed through `ControlHost::SetTooltip`, `SetTooltipDelayed`, hide-delay and `ClearTooltip`; delayed behavior needs host ticks. |
-| Tree | Supply a borrowed `IDxTreeModel`, optional `IDxTreeDelegate`, then `NotifyDataChanged` when data changes. Use stable IDs for selection/expansion. |
-| Grid | Supply a borrowed `IDxGridModel` and optional `IDxGridDelegate`; configure columns, row height and selection. Call `NotifyDataChanged` after model changes. |
+| Tree | Supply a borrowed `ITreeModel`, optional `ITreeDelegate`, then `NotifyDataChanged` when data changes. Use stable IDs for selection/expansion. `iconText` in the private-use range uses the icon font; letters and symbols keep the UI font. `SetReorderEnabled` reports one `OnTreeReorder` per row drag (never into the row's own subtree); the tree does not move your model, and a keyboard reorder command is yours to provide. |
+| Grid | Supply a borrowed `IGridModel` and optional `IGridDelegate`; configure columns, row height and selection. Call `NotifyDataChanged` after model changes. |
 | Splitter | Size it over both panes, choose `SetOrientation`, set the pane minimums and `SetPosition`, then place your pane controls from `GetFirstPaneBounds` / `GetSecondPaneBounds` inside `SetOnChange(SplitterChange)` (preview while dragging, commit on release or keyboard, cancel on Escape or capture loss). Only the separator plus 2 DIP is hittable; the position you persist is your state. In an EmbeddedHost apply the pane bounds on your next Prepare rather than inside the callback, or the bounds change cancels the drag on the next pointer event. |
-| NumericStepper | Set range, `SetStep` / `SetLargeStep`, `SetDecimals`, an optional `SetLabel` / `SetUnit` with widths, and handle `SetOnChange(NumericStepperChange)`: typing previews, Enter, focus loss, the buttons and Up/Down (Shift: large step) commit, Escape cancels. `SetValue` is silent. Preferred height is `kDefaultHeightDip` (32). |
-| ColorPicker | Size it to `kDefaultWidthDip` x `kDefaultHeightDip` (316 x 236), supply captions through `SetLabels`, open it with `SetColor` and handle `SetOnChange(ColorPickerChange)`. Feed eyedropper results through `SampleColor`; OK or Enter commit, Cancel or Escape restore the current color. |
+| NumericStepper | Set range, `SetStep` / `SetLargeStep`, `SetDecimals`, an optional `SetLabel` / `SetUnit` with widths, and handle `SetOnChange(NumericStepperChange)`: typing previews, Enter, focus loss, the buttons and Up/Down (Shift: large step) commit, Escape cancels, and an edit whose text no longer parses reverts with a cancel. `SetValue` is silent. The step buttons are named "Increase" / "Decrease" for UI Automation; supply localized names with `SetStepButtonNames`. Preferred height is `kDefaultHeightDip` (32). |
+| ColorPicker | Size it to `kDefaultWidthDip` x `kDefaultHeightDip` (316 x 236), supply captions through `SetLabels`, open it with `SetColor` and handle `SetOnChange(ColorPickerChange)`. Feed eyedropper results through `SampleColor`; OK or Enter commit, Cancel or Escape restore the current color. For translated captions set `Labels::channelLabelWidthDip`, `hexLabelWidthDip` and `swatchWidthDip` (up to 4,096 DIPs; widen the picker for wider swatches), and name the channel step buttons with `Labels::increaseRed` … `decreaseBlue` (whole phrases). |
 
 ## Described native menu entries
 
@@ -62,6 +62,11 @@ scrollbar/DPI reflow preserves each row's final available width.
 Normal dismissal delivers the completion callback and restores the prior owner control as applicable.
 If the process/thread exits with an asynchronous menu still open, controller teardown releases its
 capture and windows without invoking application completion callbacks or re-entering finalization.
+A described menu's layouts and accessibility proxies exist only while it is open; closing returns them.
+
+While any menu is open the arrow cursor shows over its popups, whatever cursor the window had set. Outside them a
+window of the menu's thread chooses its own cursor through its usual `WM_SETCURSOR` handling, and chooses again as
+soon as the menu closes; other threads' windows show the arrow.
 
 ```cpp
 DxUi::MenuFlyoutItem item;
@@ -121,7 +126,9 @@ A Button with `SetDisclosureExpanded(bool)` exposes UIA ExpandCollapse as well a
 requests for the already acknowledged state do nothing. A changed request invokes the normal click
 callback; the application updates the state, content visibility and focus. `GetDisclosureExpanded()`
 returns that acknowledged optional state; `ClearDisclosureState()` removes the pattern. Disabled
-buttons reject UIA state changes. Embedded hosts publish the new snapshot after preparation, using
+buttons reject UIA state changes. The chevron's rotation starts at its first animation tick, so a state changed while
+the button (or its panel) is hidden rotates when it is shown again, and a pause in the ticks pauses the rotation.
+Embedded hosts publish the new snapshot after preparation, using
 their existing accessibility update path. Retained providers disconnect when their control is removed.
 
 ```cpp
@@ -146,7 +153,13 @@ an ellipsis, including explicit paragraphs; trailing line breaks are not content
 for one line still shows its first line, clipped like a single-line cell. Viewport clipping keeps
 text placement stable. Copy and accessibility still expose the full model value, and hovering
 shows it as a tooltip whenever lines are omitted or clipped; provide a complete detail view when
-the summary alone is insufficient. The gallery includes a long French summary.
+the summary alone is insufficient. The gallery includes a long French summary. Each visible value keeps its shaped
+layout between paints (a repaint of unchanged cells shapes nothing, scrolling either way shapes only the rows that
+enter), a very long value shapes only what it can show, wrapped or on one line (a whole right-to-left line is the
+exception: its order depends on all of it), and is retained by that part, so repainting or hovering it shapes nothing.
+The omission marker ends right-to-left text at its left end, an emoji at the end included, and trailing lines of other
+spaces or invisible characters add nothing. Single-line cells keep their layouts the same way (a repaint shapes
+nothing, a scroll shapes the entering row), and a long leading-aligned caption shapes only what its cell can show.
 See [the benchmark model](../Samples/ComplexUi/ComplexUiScene.h),
 [grid tests](../Tests/Controls/DxUiTests.Grid.cpp), [tree tests](../Tests/Controls/DxUiTests.Tree.cpp), and
 [gallery construction](../Tests/Controls/DxUiTests.Gallery.cpp) for concrete configurations and variants.

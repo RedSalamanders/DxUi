@@ -983,7 +983,7 @@ inline void RequireWrappedMultilineClipboardVisibleSelectionForTest(const DxUi::
     return candidateForm;
 }
 
-class SingleCellGridModel final : public DxUi::IDxGridModel
+class SingleCellGridModel final : public DxUi::IGridModel
 {
 public:
     explicit SingleCellGridModel(DxUi::GridCellData cellData) : _cellData(std::move(cellData))
@@ -1023,7 +1023,7 @@ private:
     DxUi::GridCellData _cellData;
 };
 
-class MultiRowGridModel final : public DxUi::IDxGridModel
+class MultiRowGridModel final : public DxUi::IGridModel
 {
 public:
     explicit MultiRowGridModel(size_t rowCount) : _rowCount(rowCount)
@@ -1069,7 +1069,7 @@ private:
     size_t _rowCount = 0u;
 };
 
-class GroupedGridModel final : public DxUi::IDxGridModel
+class GroupedGridModel final : public DxUi::IGridModel
 {
 public:
     struct Group
@@ -1174,7 +1174,7 @@ private:
     std::vector<Group> _groups;
 };
 
-class LargeGridModel final : public DxUi::IDxGridModel
+class LargeGridModel final : public DxUi::IGridModel
 {
 public:
     LargeGridModel(size_t rowCount, size_t columnCount, float columnWidthDip) : _rowCount(rowCount), _columnCount(columnCount), _columnWidthDip(columnWidthDip)
@@ -1222,7 +1222,7 @@ private:
     float _columnWidthDip = 120.0f;
 };
 
-class MutableRowGridModel final : public DxUi::IDxGridModel
+class MutableRowGridModel final : public DxUi::IGridModel
 {
 public:
     void SetRowIds(std::vector<uint64_t> rowIds)
@@ -1277,7 +1277,7 @@ private:
     std::vector<uint64_t> _rowIds;
 };
 
-class ColumnLayoutGridModel final : public DxUi::IDxGridModel
+class ColumnLayoutGridModel final : public DxUi::IGridModel
 {
 public:
     [[nodiscard]] size_t GetRowCount() const noexcept override
@@ -1362,14 +1362,14 @@ public:
     }
 };
 
-class RecordingGridDelegate : public DxUi::IDxGridDelegate
+class RecordingGridDelegate : public DxUi::IGridDelegate
 {
 public:
-    using DxUi::IDxGridDelegate::OnGridCheckboxToggled;
-    using DxUi::IDxGridDelegate::OnGridContextMenu;
-    using DxUi::IDxGridDelegate::OnGridGroupToggled;
-    using DxUi::IDxGridDelegate::OnGridRowActivated;
-    using DxUi::IDxGridDelegate::OnGridSelectionChanged;
+    using DxUi::IGridDelegate::OnGridCheckboxToggled;
+    using DxUi::IGridDelegate::OnGridContextMenu;
+    using DxUi::IGridDelegate::OnGridGroupToggled;
+    using DxUi::IGridDelegate::OnGridRowActivated;
+    using DxUi::IGridDelegate::OnGridSelectionChanged;
 
     void OnGridSortRequested(const DxUi::GridSortSpec& sortSpec) override
     {
@@ -1450,7 +1450,7 @@ private:
     GroupedGridModel* _model = nullptr;
 };
 
-class CheckboxGridModel final : public DxUi::IDxGridModel
+class CheckboxGridModel final : public DxUi::IGridModel
 {
 public:
     struct Row
@@ -1551,7 +1551,7 @@ private:
     size_t _checkboxColumnIndex = 0u;
 };
 
-class LargeCheckboxGridModel final : public DxUi::IDxGridModel
+class LargeCheckboxGridModel final : public DxUi::IGridModel
 {
 public:
     LargeCheckboxGridModel(size_t rowCount, size_t checkboxColumnIndex) : _rowCount(rowCount), _checkboxColumnIndex(checkboxColumnIndex)
@@ -1651,7 +1651,7 @@ private:
     CheckboxGridModel* _model = nullptr;
 };
 
-class DedicatedCheckboxColumnGridModel final : public DxUi::IDxGridModel
+class DedicatedCheckboxColumnGridModel final : public DxUi::IGridModel
 {
 public:
     [[nodiscard]] size_t GetRowCount() const noexcept override
@@ -1757,7 +1757,7 @@ private:
     DedicatedCheckboxColumnGridModel* _model = nullptr;
 };
 
-class StateImageColumnGridModel final : public DxUi::IDxGridModel
+class StateImageColumnGridModel final : public DxUi::IGridModel
 {
 public:
     [[nodiscard]] size_t GetRowCount() const noexcept override
@@ -1821,7 +1821,7 @@ public:
     }
 };
 
-class MutableTreeModel final : public DxUi::IDxTreeModel
+class MutableTreeModel final : public DxUi::ITreeModel
 {
 public:
     void SetVisibleItems(std::vector<DxUi::TreeItemData> items)
@@ -1843,7 +1843,7 @@ private:
     std::vector<DxUi::TreeItemData> _items;
 };
 
-class RecordingTreeDelegate final : public DxUi::IDxTreeDelegate
+class RecordingTreeDelegate final : public DxUi::ITreeDelegate
 {
 public:
     void OnTreeSelectionChanged(uint64_t itemId) override
@@ -1945,7 +1945,7 @@ private:
     std::vector<std::string>* _events = nullptr;
 };
 
-class EmptyGridModel final : public DxUi::IDxGridModel
+class EmptyGridModel final : public DxUi::IGridModel
 {
 public:
     [[nodiscard]] size_t GetRowCount() const noexcept override

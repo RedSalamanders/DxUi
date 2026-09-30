@@ -580,7 +580,7 @@ struct GalleryFlow
     return D2D1::RectF(x, y, x + resolvedWidthDip, y + heightDip);
 }
 
-class GalleryTreeModel final : public IDxTreeModel
+class GalleryTreeModel final : public ITreeModel
 {
 public:
     GalleryTreeModel()
@@ -607,7 +607,7 @@ private:
     std::vector<TreeItemData> _items;
 };
 
-class GalleryGridModel final : public IDxGridModel
+class GalleryGridModel final : public IGridModel
 {
 public:
     [[nodiscard]] size_t GetRowCount() const noexcept override

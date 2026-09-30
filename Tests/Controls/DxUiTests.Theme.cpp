@@ -2133,7 +2133,7 @@ void TestComboBoxHighContrastDisabledBordersStayVisible()
     return ((std::max)(first, second) + 0.05) / ((std::min)(first, second) + 0.05);
 }
 
-class TonedRowGridModel final : public DxUi::IDxGridModel
+class TonedRowGridModel final : public DxUi::IGridModel
 {
 public:
     [[nodiscard]] size_t GetRowCount() const noexcept override
@@ -2222,6 +2222,81 @@ void TestThemeColorsPaletteFallsBackForUnsuppliedAlertColors()
     const ThemePalette supplied         = MakeThemePalette(viewerTheme);
     RequireColorNear(supplied.infoFill, ColorFromArgb(0xFF18324Au), "a supplied alert fill is copied as given");
     RequireColorNear(supplied.infoText, ColorFromArgb(0xFFD6E8FFu), "a supplied alert text color is copied as given");
+}
+
+// Outside high contrast, a theme that supplies no alert colors keeps the default tones, so info, warning and error stay
+// apart and readable. Supplying half of a pair keeps that half and derives a readable partner for it.
+void TestThemeColorsPaletteKeepsDistinctReadableAlertTones()
+{
+    using namespace DxUi;
+
+    for (const bool dark : {false, true})
+    {
+        ThemeColors viewerTheme{.sizeBytes = sizeof(ThemeColors)};
+        viewerTheme.backgroundArgb          = dark ? 0xFF1B1B1Du : 0xFFF9F9FBu;
+        viewerTheme.textArgb                = dark ? 0xFFEDEEF2u : 0xFF1B1B1Du;
+        viewerTheme.selectionBackgroundArgb = 0xFF2266BBu;
+        viewerTheme.selectionTextArgb       = 0xFFFFFFFFu;
+        viewerTheme.accentArgb              = 0xFF2266BBu;
+        viewerTheme.darkMode                = dark ? TRUE : FALSE;
+        viewerTheme.darkBase                = dark ? TRUE : FALSE;
+
+        const ThemePalette palette  = MakeThemePalette(viewerTheme);
+        const ThemePalette defaults = MakeDefaultThemePalette(dark);
+        RequireColorNear(palette.infoFill, defaults.infoFill, "an unsupplied info tone keeps the default info fill");
+        RequireColorNear(palette.warningText, defaults.warningText, "an unsupplied warning tone keeps the default warning text");
+        std::array<D2D1_COLOR_F, 3> fills{};
+        size_t index = 0u;
+        for (const AdornmentTone tone : {AdornmentTone::Info, AdornmentTone::Warning, AdornmentTone::Error})
+        {
+            D2D1_COLOR_F text{};
+            ResolveAdornmentColors(palette, tone, fills[index], text);
+            Require(WcagContrastRatioForTest(text, fills[index]) >= 4.5, "each default alert tone is readable");
+            ++index;
+        }
+        Require(PackColorForTest(fills[0]) != PackColorForTest(fills[1]) && PackColorForTest(fills[1]) != PackColorForTest(fills[2]) &&
+                    PackColorForTest(fills[0]) != PackColorForTest(fills[2]),
+                "info, warning and error keep distinct default tones");
+
+        // Half a pair: the supplied color stays, its partner is derived readable.
+        viewerTheme.alertInfoBackgroundArgb = 0xFF10284Cu; // A navy fill, unreadable under the light theme's near-black text.
+        viewerTheme.alertWarningTextArgb    = 0xFFFFC83Du; // An amber text, unreadable on the light default warning fill.
+        const ThemePalette half             = MakeThemePalette(viewerTheme);
+        RequireColorNear(half.infoFill, ColorFromArgb(0xFF10284Cu), "a supplied info fill is kept");
+        Require(WcagContrastRatioForTest(half.infoText, half.infoFill) >= 4.5, "the text derived for a supplied fill is readable");
+        RequireColorNear(half.warningText, ColorFromArgb(0xFFFFC83Du), "a supplied warning text is kept");
+        Require(WcagContrastRatioForTest(half.warningText, half.warningFill) >= 4.5, "the fill derived for a supplied text is readable");
+
+        // Mid tones, where a lightness threshold picks the weaker of black and white: the partner is chosen by measured
+        // contrast, and one of pure black and pure white always reaches 4.5:1.
+        for (const uint32_t midTone : {0xFF808080u, 0xFF7A7A7Au, 0xFF2E8B57u, 0xFFD2691Eu, 0xFF8A2BE2u})
+        {
+            ThemeColors midTones              = viewerTheme;
+            midTones.alertErrorBackgroundArgb = midTone;
+            midTones.alertInfoBackgroundArgb  = 0u;
+            midTones.alertWarningTextArgb     = midTone;
+            const ThemePalette mid            = MakeThemePalette(midTones);
+            Require(WcagContrastRatioForTest(mid.errorText, mid.errorFill) >= 4.5, "the text derived for a mid-tone fill is readable");
+            Require(WcagContrastRatioForTest(mid.warningText, mid.warningFill) >= 4.5, "the fill derived for a mid-tone text is readable");
+        }
+
+        // A translucent fill paints with the window showing through it: its derived text is readable on what paints.
+        const auto paintedOver = [](const D2D1_COLOR_F& color, const D2D1_COLOR_F& ground)
+        {
+            return D2D1::ColorF(
+                ground.r + (color.r - ground.r) * color.a, ground.g + (color.g - ground.g) * color.a, ground.b + (color.b - ground.b) * color.a, 1.0f);
+        };
+        for (const uint32_t translucent : {0x20FFA500u, 0x33FFB900u, 0x40000000u, 0x80FFFFFFu})
+        {
+            ThemeColors glass                = viewerTheme;
+            glass.alertWarningBackgroundArgb = translucent;
+            glass.alertWarningTextArgb       = 0u;
+            const ThemePalette tinted        = MakeThemePalette(glass);
+            const D2D1_COLOR_F paintedFill   = paintedOver(tinted.warningFill, tinted.windowBackground);
+            Require(WcagContrastRatioForTest(paintedOver(tinted.warningText, paintedFill), paintedFill) >= 4.5,
+                    "the text derived for a translucent fill is readable on the fill as it paints");
+        }
+    }
 }
 
 void TestGridRowIconChromeFollowsResolvedRowVisuals()
@@ -2614,6 +2689,7 @@ void RunThemeTests()
     TestModifierCompositionCoversEveryCombination();
     TestThemeColorsPaletteDerivesDarkControlChrome();
     TestThemeColorsPaletteFallsBackForUnsuppliedAlertColors();
+    TestThemeColorsPaletteKeepsDistinctReadableAlertTones();
     TestThemeColorsPaletteDerivesLightControlChrome();
     TestThemeColorsPaletteDerivesDarkHighContrastChrome();
     TestListIconColorUsesSelectionFillChrome();

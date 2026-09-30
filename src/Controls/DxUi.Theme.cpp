@@ -114,21 +114,67 @@ using DxUi::Detail::StableVisualHash32Utf16V1;
     return DxUi::Detail::RelativeLuminanceFromSrgb(ClampUnit(color.r), ClampUnit(color.g), ClampUnit(color.b));
 }
 
-// A zero-alpha ARGB value, including the zero default, means the application supplied no color.
-[[nodiscard]] D2D1_COLOR_F ColorFromSuppliedArgb(uint32_t argb, const D2D1_COLOR_F& unsupplied) noexcept
-{
-    if ((argb >> 24) == 0u)
-    {
-        return unsupplied;
-    }
-    return ColorFromArgb(argb);
-}
-
 [[nodiscard]] double ContrastRatio(const D2D1_COLOR_F& foreground, const D2D1_COLOR_F& background) noexcept
 {
     const double foregroundLuminance = RelativeLuminance(foreground);
     const double backgroundLuminance = RelativeLuminance(background);
     return DxUi::Detail::ContrastRatioFromRelativeLuminance(foregroundLuminance, backgroundLuminance);
+}
+
+// Pure black or pure white, whichever contrasts more with `color` by measured WCAG contrast. One of them always reaches
+// 4.58:1 (near-black and near-white can fall to 4.42:1 against a mid tone).
+[[nodiscard]] D2D1_COLOR_F MostContrastingNeutral(const D2D1_COLOR_F& color) noexcept
+{
+    const D2D1_COLOR_F black = D2D1::ColorF(0.0f, 0.0f, 0.0f, 1.0f);
+    const D2D1_COLOR_F white = D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f);
+    return ContrastRatio(white, color) >= ContrastRatio(black, color) ? white : black;
+}
+
+// How a possibly translucent color paints over an opaque ground.
+[[nodiscard]] D2D1_COLOR_F PaintedOver(const D2D1_COLOR_F& color, const D2D1_COLOR_F& ground) noexcept
+{
+    const float alpha = ClampUnit(color.a);
+    return D2D1::ColorF(ground.r + (color.r - ground.r) * alpha, ground.g + (color.g - ground.g) * alpha, ground.b + (color.b - ground.b) * alpha, 1.0f);
+}
+
+// One alert tone (a fill and its text). A pair the application supplies is used as given. A color it leaves out comes
+// from the tone's default, so info, warning and error stay distinct; a high-contrast theme, whose system palette has
+// no tones, uses its text on its window background instead. Contrast is measured on what paints: a fill over the
+// window background, its text over that fill, so a translucent color is judged with the ground showing through it.
+// A text derived for a supplied fill is the tone's text, else the theme text, else black or white, and always reaches
+// 4.5:1. A ground derived for a supplied text is the window background, else black or white, whichever shows it best;
+// only a supplied text too translucent to stand out on any ground stays below 4.5:1.
+void ResolveAlertTone(uint32_t suppliedFillArgb,
+                      uint32_t suppliedTextArgb,
+                      const D2D1_COLOR_F& defaultFill,
+                      const D2D1_COLOR_F& defaultText,
+                      const ThemePalette& palette,
+                      D2D1_COLOR_F& fill,
+                      D2D1_COLOR_F& text) noexcept
+{
+    constexpr double kReadableContrast = 4.5;
+    const bool fillSupplied            = (suppliedFillArgb >> 24) != 0u;
+    const bool textSupplied            = (suppliedTextArgb >> 24) != 0u;
+    fill                               = fillSupplied ? ColorFromArgb(suppliedFillArgb) : (palette.highContrast ? palette.windowBackground : defaultFill);
+    text                               = textSupplied ? ColorFromArgb(suppliedTextArgb) : (palette.highContrast ? palette.text : defaultText);
+    const D2D1_COLOR_F window          = PaintedOver(palette.windowBackground, D2D1::ColorF(0.0f, 0.0f, 0.0f, 1.0f));
+    const auto contrastOn = [](const D2D1_COLOR_F& ink, const D2D1_COLOR_F& ground) noexcept { return ContrastRatio(PaintedOver(ink, ground), ground); };
+    const D2D1_COLOR_F paintedFill = PaintedOver(fill, window);
+    if ((fillSupplied && textSupplied) || contrastOn(text, paintedFill) >= kReadableContrast)
+        return;
+    if (! textSupplied)
+    {
+        text = contrastOn(palette.text, paintedFill) >= kReadableContrast ? palette.text : MostContrastingNeutral(paintedFill);
+        return;
+    }
+    if (contrastOn(text, window) >= kReadableContrast)
+    {
+        fill = palette.windowBackground;
+        return;
+    }
+    const D2D1_COLOR_F black = D2D1::ColorF(0.0f, 0.0f, 0.0f, 1.0f);
+    const D2D1_COLOR_F white = D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f);
+    fill                     = contrastOn(text, white) >= contrastOn(text, black) ? white : black;
 }
 
 [[nodiscard]] D2D1_COLOR_F ResolvePrimaryButtonTextColor(const ThemePalette& theme, const D2D1_COLOR_F& fill) noexcept
@@ -959,7 +1005,8 @@ ThemePalette MakeDefaultThemePalette(bool dark) noexcept
 
 ThemePalette MakeThemePalette(const ThemeColors& viewerTheme) noexcept
 {
-    ThemePalette palette             = MakeDefaultThemePalette(viewerTheme.darkMode != FALSE);
+    const ThemePalette defaults      = MakeDefaultThemePalette(viewerTheme.darkMode != FALSE);
+    ThemePalette palette             = defaults;
     const bool darkBase              = viewerTheme.darkBase != FALSE;
     palette.highContrast             = viewerTheme.highContrast != FALSE;
     palette.rainbowMode              = viewerTheme.rainbowMode != FALSE;
@@ -1000,14 +1047,23 @@ ThemePalette MakeThemePalette(const ThemeColors& viewerTheme) noexcept
         D2D1::ColorF(palette.selectionFill.r, palette.selectionFill.g, palette.selectionFill.b, viewerTheme.highContrast ? 1.0f : 0.55f);
     palette.toggleKnobFill        = ChooseContrastingTextColor(BlendColor(palette.inputFill, palette.border, darkBase ? 0.18f : 0.08f));
     palette.toggleKnobCheckedFill = palette.selectionText;
-    // Alert pairs are copied as given. System high-contrast palettes have none, so an unsupplied (zero-alpha) color
-    // falls back to `text` on `windowBackground` instead of painting status text and badges invisibly.
-    palette.infoFill    = ColorFromSuppliedArgb(viewerTheme.alertInfoBackgroundArgb, palette.windowBackground);
-    palette.infoText    = ColorFromSuppliedArgb(viewerTheme.alertInfoTextArgb, palette.text);
-    palette.warningFill = ColorFromSuppliedArgb(viewerTheme.alertWarningBackgroundArgb, palette.windowBackground);
-    palette.warningText = ColorFromSuppliedArgb(viewerTheme.alertWarningTextArgb, palette.text);
-    palette.errorFill   = ColorFromSuppliedArgb(viewerTheme.alertErrorBackgroundArgb, palette.windowBackground);
-    palette.errorText   = ColorFromSuppliedArgb(viewerTheme.alertErrorTextArgb, palette.text);
+    // Alert tones (see ResolveAlertTone). An unsupplied color is a zero-alpha value, including the zero default.
+    ResolveAlertTone(
+        viewerTheme.alertInfoBackgroundArgb, viewerTheme.alertInfoTextArgb, defaults.infoFill, defaults.infoText, palette, palette.infoFill, palette.infoText);
+    ResolveAlertTone(viewerTheme.alertWarningBackgroundArgb,
+                     viewerTheme.alertWarningTextArgb,
+                     defaults.warningFill,
+                     defaults.warningText,
+                     palette,
+                     palette.warningFill,
+                     palette.warningText);
+    ResolveAlertTone(viewerTheme.alertErrorBackgroundArgb,
+                     viewerTheme.alertErrorTextArgb,
+                     defaults.errorFill,
+                     defaults.errorText,
+                     palette,
+                     palette.errorFill,
+                     palette.errorText);
 
     // ── New design tokens ────────────────────────────────────────────
     palette.cardBackground    = palette.surfaceBackground;

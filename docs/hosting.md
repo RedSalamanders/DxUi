@@ -57,6 +57,12 @@ call `Attach(hwnd)` and check its boolean result, then install the tree and them
 messages through `HandleMessage(hwnd, message, wParam, lParam, handled)`; return that result when handled and
 otherwise continue normal window dispatch. This mode owns native graphics, text/accessibility and presentation
 services. The application still owns the top-level window and event-blocked message loop.
+While the window holds the foreground's keyboard focus, moving focus between its controls (or a tree's items and a
+grid's rows) raises the UI Automation focus change a screen reader follows; the window's own activation is reported by
+the system's focus event. An element whose control was removed, or replaced at the same place in the tree, reports
+`UIA_E_ELEMENTNOTAVAILABLE`, and the replacement's elements get new runtime ids; after adding or removing children,
+call `RefreshAccessibilitySnapshot` (or let the next focus, size, pointer or state change do it) so clients see the
+new tree, which also tells them to navigate again (StructureChanged).
 When the archive is linked into several modules, each module owns its native menu and animation window classes.
 Keep each module loaded while its hosts, windows, callbacks or UI-thread resources remain alive.
 

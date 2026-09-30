@@ -173,7 +173,7 @@ void EmitFrameMetric(std::wstring_view metric, uint64_t valueUs) noexcept
     }
 }
 
-bool IsDxUiRenderStageActiveForDebug() noexcept
+bool IsRenderStageActiveForDebug() noexcept
 {
 #if defined(_DEBUG) || DXUI_ENABLE_DIAGNOSTICS
     return g_currentDebugFrameStage == FrameStage::Render;
@@ -182,7 +182,7 @@ bool IsDxUiRenderStageActiveForDebug() noexcept
 #endif
 }
 
-void EmitDxUiRenderMutationBlockedForDebug() noexcept
+void EmitRenderMutationBlockedForDebug() noexcept
 {
     EmitFrameMetric(L"dxui.frame.render_layout_mutation_blocked", 1);
 }

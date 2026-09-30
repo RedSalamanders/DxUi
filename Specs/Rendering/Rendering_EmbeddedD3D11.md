@@ -86,9 +86,10 @@ replacement is not evidence of a physical fault.
 
 Hit-tested gestures require a prepared interaction revision. Captured continuation can update a live draft before its next
 paint. A bounds revision of some other control keeps that capture when the captured control is still in the tree,
-enabled, visible, and at the same bounds, so a splitter drag can reflow the panes on the next preparation. Moving the
-captured control itself, hiding it, disabling it, removing it, and any change of the view's size or DPI, cancels
-capture and disables input until prepare succeeds. A second Down on the
+it and every ancestor are enabled and visible, and it keeps the same bounds, so a splitter drag can reflow the panes
+on the next preparation. The check resolves the capture through the live tree before touching it, so a destroyed
+control is only released. Moving the captured control itself, hiding or disabling it or an ancestor, removing it, and
+any change of the view's size or DPI, cancels capture and disables input until prepare succeeds. A second Down on the
 same control within the system double-click interval and a 16 DIP slop is
 `OnMouseDoubleClick`. This prevents new hit rectangles from being used with an old texture. Keyboard continuation uses the
 same prepared interaction revision. A consumer must call Prepare between independent hit-tested gestures.

@@ -538,6 +538,100 @@ void TestNumericStepperTypingPreviewsEnterCommitsEscapeCancels()
     Require(events.Count(NumericStepperChangePhase::Commit) == 4u, "arrow nudges commit");
 }
 
+void TestNumericStepperUnparseableEditRevertsAndDecimalsRound()
+{
+    WindowHost host;
+    auto root     = std::make_unique<Panel>();
+    auto* stepper = root->AddChild<NumericStepper>();
+    stepper->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, NumericStepper::kDefaultHeightDip));
+    stepper->SetMinimum(0.0);
+    stepper->SetMaximum(100.0);
+    stepper->SetValue(5.0);
+    StepperEvents events;
+    stepper->SetOnChange([&](NumericStepperChange change)
+    {
+        events.phases.push_back(change.phase);
+        events.lastValue = change.value;
+    });
+    host.SetRoot(std::move(root));
+    TextField& field = stepper->Field();
+
+    TypeText(host, field, L"8");
+    Require(stepper->IsEditing() && stepper->GetValue() == 8.0 && events.Count(NumericStepperChangePhase::Preview) == 1u, "typing previews");
+    static_cast<void>(field.OnChar(host, L'x', 0));
+    Require(field.GetText() == L"8x" && stepper->GetValue() == 8.0, "text that stops parsing keeps the last preview while editing");
+    Require(field.OnKeyDown(host, VK_RETURN, 0), "Enter is handled");
+    Require(stepper->GetValue() == 5.0 && field.GetText() == L"5" && ! stepper->IsEditing(),
+            "an edit whose text no longer parses reverts to the committed value");
+    Require(events.Count(NumericStepperChangePhase::Commit) == 0u && events.Count(NumericStepperChangePhase::Cancel) == 1u && events.lastValue == 5.0,
+            "the reverted edit notifies cancel instead of committing the abandoned preview");
+
+    stepper->SetDecimals(2);
+    stepper->SetValue(1.2345);
+    Require(stepper->GetValue() == 1.23 && field.GetText() == L"1.23", "two decimals round the value and the text");
+    stepper->SetDecimals(0);
+    Require(stepper->GetValue() == 1.0 && field.GetText() == L"1", "fewer decimals re-round the value to the text it shows");
+    Require(events.Count(NumericStepperChangePhase::Commit) == 0u, "precision changes never notify");
+}
+
+void TestNumericStepperEditsEndWithCommitOrCancel()
+{
+    WindowHost host;
+    auto root     = std::make_unique<Panel>();
+    auto* stepper = root->AddChild<NumericStepper>();
+    stepper->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, NumericStepper::kDefaultHeightDip));
+    stepper->SetMinimum(0.0);
+    stepper->SetMaximum(100.0);
+    stepper->SetValue(40.0);
+    StepperEvents events;
+    stepper->SetOnChange([&](NumericStepperChange change)
+    {
+        events.phases.push_back(change.phase);
+        events.lastValue = change.value;
+    });
+    host.SetRoot(std::move(root));
+    TextField& field = stepper->Field();
+
+    // Every preview ends with Commit or Cancel, even when the edit returns to its start value.
+    TypeText(host, field, L"41");
+    Require(field.OnKeyDown(host, VK_BACK, 0), "Backspace is handled");
+    static_cast<void>(field.OnChar(host, L'0', 0));
+    Require(field.GetText() == L"40" && events.Count(NumericStepperChangePhase::Preview) >= 3u, "typing back to the start value previews each step");
+    Require(field.OnKeyDown(host, VK_RETURN, 0), "Enter is handled");
+    Require(events.Count(NumericStepperChangePhase::Commit) == 1u && events.lastValue == 40.0 && ! stepper->IsEditing(),
+            "an edit that previewed and returned to its start still commits");
+
+    // UI Automation's ValuePattern changes the text without focus: no Enter or focus loss follows, so it commits at once.
+    host.SetFocusControl(nullptr);
+    field.SetTextAndNotify(L"55");
+    Require(stepper->GetValue() == 55.0 && ! stepper->IsEditing(), "an unfocused text change commits at once");
+    Require(events.lastValue == 55.0 && events.phases.back() == NumericStepperChangePhase::Commit, "the unfocused change notifies commit");
+    field.SetTextAndNotify(L"abc");
+    Require(stepper->GetValue() == 55.0 && field.GetText() == L"55", "unfocused text that does not parse reverts at once");
+
+    // The digits an IME or a locale keyboard types parse like ASCII.
+    Require(NumericStepper::ParseValue(L"\xFF11\xFF12\xFF0E\xFF15") == 12.5, "full-width digits and point parse");
+    Require(NumericStepper::ParseValue(L"\x2212\x0663") == -3.0, "the minus sign and Arabic-Indic digits parse");
+    Require(NumericStepper::ParseValue(L"\x06F4\x066B\x06F5") == 4.5, "extended Arabic-Indic digits and the Arabic decimal separator parse");
+
+    // A step finer than the shown precision moves one shown unit rather than refusing in one direction.
+    stepper->SetStep(0.5);
+    stepper->SetValue(2.0);
+    Require(stepper->Nudge(host, -1, false) && stepper->GetValue() == 1.0, "a fine step below the shown precision still steps down");
+    Require(stepper->Nudge(host, +1, false) && stepper->GetValue() == 2.0, "and steps up");
+}
+
+void TestSplitterStaysInsideAnExtentBelowItsMinimums()
+{
+    Splitter splitter;
+    splitter.SetBounds(D2D1::RectF(0.0f, 0.0f, 40.0f, 100.0f));
+    splitter.SetPosition(10.0f);
+    const D2D1_RECT_F separator = splitter.GetSeparatorBounds();
+    Require(separator.left >= 0.0f && separator.right <= 40.0f && separator.left < separator.right,
+            "an extent smaller than both minimums keeps the separator inside the control");
+    Require(splitter.GetFirstPaneBounds().right <= 40.0f, "the first pane gives way instead of overflowing");
+}
+
 void TestNumericStepperDisabledAndLayout()
 {
     WindowHost host;
@@ -778,6 +872,12 @@ void TestColorPickerHueStripAndKeyboard()
     Require(picker->OnKeyDown(host, VK_LEFT, 0), "Left is handled in right-to-left flow");
     RequireFloatNear(picker->GetHsv().saturation, 10.0f / 255.0f, 0.001f, "Left raises the saturation in right-to-left flow");
     Require(picker->GetFieldRect().right > picker->GetHueStripRect().right, "right-to-left places the hue strip before the field");
+    Require(picker->RedField().GetBounds().right <= picker->GetHueStripRect().left, "a runtime flow change re-arranges the component fields");
+    const D2D1_RECT_F rtlField = picker->GetFieldRect();
+    Require(picker->OnMouseDown(host, D2D1::Point2F(rtlField.right - 1.0f, rtlField.top + 1.0f), false, 0), "a right-to-left field press starts a drag");
+    Require(picker->GetHsv().saturation < 0.01f, "right-to-left flow mirrors the saturation axis the keys step (zero at the right edge)");
+    Require(picker->OnMouseUp(host, D2D1::Point2F(rtlField.left + 1.0f, rtlField.top + 1.0f), false, 0), "the right-to-left drag ends");
+    Require(picker->GetHsv().saturation > 0.99f, "full saturation is at the left edge in right-to-left flow");
     Require(! picker->OnKeyDown(host, VK_TAB, 0), "Tab is not handled by the picker");
     Require(picker->OnKeyDown(host, VK_RETURN, 0), "Enter is handled");
     Require(picker->GetCurrentColor() == picker->GetColor() && events.Count(ColorPickerChangePhase::Commit) == 1u, "Enter commits");
@@ -862,6 +962,105 @@ void TestColorPickerTypedComponentsAndHex()
     Require(events.Count(ColorPickerChangePhase::Commit) == 1u, "Enter in the hex field commits once");
 }
 
+// The step buttons show glyphs, which say nothing to a screen reader: they carry names, English by default and the
+// consumer's localized ones once supplied. The picker's channel steppers name their channel.
+void TestNumericStepperStepButtonsCarryAutomationNames()
+{
+    using namespace DxUi;
+    NumericStepper stepper;
+    Require(stepper.IncrementButton().GetAccessibleName() == L"Increase" && stepper.DecrementButton().GetAccessibleName() == L"Decrease",
+            "step buttons have default names instead of their glyphs");
+    stepper.SetStepButtonNames(L"Augmenter la largeur", L"Diminuer la largeur");
+    Require(stepper.IncrementButton().GetAccessibleName() == L"Augmenter la largeur" && stepper.DecrementButton().GetAccessibleName() == L"Diminuer la largeur",
+            "step buttons take the consumer's localized names");
+    ColorPicker picker;
+    Require(picker.RedField().IncrementButton().GetAccessibleName() == L"Increase red" &&
+                picker.BlueField().DecrementButton().GetAccessibleName() == L"Decrease blue",
+            "the picker's channel step buttons name their channel");
+    ColorPicker::Labels labels = picker.GetLabels();
+    labels.increaseRed         = L"Augmenter le rouge";
+    labels.decreaseGreen       = L"Diminuer le vert";
+    labels.increaseBlue        = L"Augmenter le bleu";
+    picker.SetLabels(labels);
+    Require(picker.RedField().IncrementButton().GetAccessibleName() == L"Augmenter le rouge" &&
+                picker.GreenField().DecrementButton().GetAccessibleName() == L"Diminuer le vert" &&
+                picker.BlueField().IncrementButton().GetAccessibleName() == L"Augmenter le bleu",
+            "the picker's labels localize its channel step buttons");
+}
+
+// Translated captions need room: the channel and hex caption slots and the swatches follow the widths in Labels, so
+// "Rot", "Hexadezimal" or "Couleur actuelle" are not cut to the English slot widths.
+void TestColorPickerCaptionSlotsFollowTheLabelWidths()
+{
+    using namespace DxUi;
+    ColorPicker picker;
+    picker.SetBounds(D2D1::RectF(0.0f, 0.0f, 480.0f, ColorPicker::kDefaultHeightDip));
+    const float englishField    = picker.RedField().Field().GetBounds().left;
+    const float englishHex      = picker.HexField().GetBounds().left;
+    ColorPicker::Labels labels  = picker.GetLabels();
+    labels.red                  = L"Rot";
+    labels.green                = L"Grün";
+    labels.blue                 = L"Blau";
+    labels.hex                  = L"Hexadezimal";
+    labels.currentColor         = L"Couleur actuelle";
+    labels.channelLabelWidthDip = 34.0f;
+    labels.hexLabelWidthDip     = 82.0f;
+    labels.swatchWidthDip       = 84.0f;
+    picker.SetLabels(labels);
+    Require(std::fabs(picker.RedField().Field().GetBounds().left - (englishField + 20.0f)) < 0.01f &&
+                std::fabs(picker.BlueField().Field().GetBounds().left - (englishField + 20.0f)) < 0.01f,
+            "a wider channel caption slot moves every channel field by the difference");
+    Require(std::fabs(picker.HexField().GetBounds().left - (englishHex + 56.0f)) < 0.01f, "a wider hex caption slot moves the hex field by the difference");
+    const D2D1_RECT_F fresh   = picker.GetNewSwatchRect();
+    const D2D1_RECT_F current = picker.GetCurrentSwatchRect();
+    Require(std::fabs((fresh.right - fresh.left) - 84.0f) < 0.01f && std::fabs((current.right - current.left) - 84.0f) < 0.01f && current.left > fresh.right,
+            "both swatches, and the captions beneath them, take the supplied width side by side");
+
+    // An absurd width is bounded: the hex field keeps the rest of its row (none), never a negative or huge extent.
+    labels.channelLabelWidthDip = std::numeric_limits<float>::max();
+    labels.hexLabelWidthDip     = 1.0e30f;
+    picker.SetLabels(labels);
+    Require(picker.GetLabels().channelLabelWidthDip == ColorPicker::kMaxLabelWidthDip && picker.GetLabels().hexLabelWidthDip == ColorPicker::kMaxLabelWidthDip,
+            "caption widths are bounded");
+    const D2D1_RECT_F hexField = picker.HexField().GetBounds();
+    Require(hexField.right >= hexField.left && hexField.right <= picker.GetBounds().right,
+            "an oversized hex caption leaves the field an empty, in-bounds rectangle");
+}
+
+void TestColorPickerTypingKeepsTheEditedField()
+{
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* picker = root->AddChild<ColorPicker>();
+    picker->SetBounds(D2D1::RectF(0.0f, 0.0f, ColorPicker::kDefaultWidthDip, ColorPicker::kDefaultHeightDip));
+    picker->SetColor(0xFF112233u);
+    PickerEvents events;
+    picker->SetOnChange([&](ColorPickerChange change)
+    {
+        events.phases.push_back(change.phase);
+        events.lastArgb = change.argb;
+    });
+    host.SetRoot(std::move(root));
+
+    // The previewed hex field is not rewritten under the caret ("abcdef" -> "#ABCDEF" would leave the caret
+    // before the last digit); focus loss normalizes it.
+    TextField& hex = picker->HexField();
+    TypeText(host, hex, L"abcdef");
+    Require(picker->GetColor() == 0xFFABCDEFu && picker->RedField().GetValue() == 171.0, "six typed hex digits preview and resync the components");
+    Require(hex.GetText() == L"abcdef" && hex.GetCaretIndex() == 6u, "the hex field keeps the typed text and caret while editing");
+    host.SetFocusControl(nullptr);
+    Require(hex.GetText() == L"#ABCDEF", "focus loss normalizes the hex text");
+
+    // A typed component keeps its own edit open; Escape restores it and the picker follows it back.
+    NumericStepper& red = picker->RedField();
+    TypeText(host, red.Field(), L"12");
+    Require(picker->GetColor() == 0xFF0CCDEFu && hex.GetText() == L"#0CCDEF", "a typed component previews and resyncs the hex field");
+    Require(red.IsEditing() && red.Field().GetText() == L"12", "the typed component keeps its edit open");
+    Require(red.Field().OnKeyDown(host, VK_ESCAPE, 0), "Escape cancels the component edit");
+    Require(red.GetValue() == 171.0 && picker->GetColor() == 0xFFABCDEFu, "the picker follows the canceled component back");
+    Require(events.lastArgb == 0xFFABCDEFu && events.Count(ColorPickerChangePhase::Cancel) == 0u, "a component cancel previews the restored color");
+}
+
 void TestColorPickerDisabledAndPaint()
 {
     WindowHost host;
@@ -944,6 +1143,9 @@ void RunEditorControlTests()
     TestNumericStepperSetValueClampsSilently();
     TestNumericStepperNudgeAndButtonsCommit();
     TestNumericStepperTypingPreviewsEnterCommitsEscapeCancels();
+    TestNumericStepperUnparseableEditRevertsAndDecimalsRound();
+    TestNumericStepperEditsEndWithCommitOrCancel();
+    TestSplitterStaysInsideAnExtentBelowItsMinimums();
     TestNumericStepperDisabledAndLayout();
     TestNumericStepperChangeCallbackCanReplaceRootSafely();
 
@@ -955,6 +1157,9 @@ void RunEditorControlTests()
     TestColorPickerHueStripAndKeyboard();
     TestColorPickerCancelPaths();
     TestColorPickerTypedComponentsAndHex();
+    TestColorPickerTypingKeepsTheEditedField();
+    TestNumericStepperStepButtonsCarryAutomationNames();
+    TestColorPickerCaptionSlotsFollowTheLabelWidths();
     TestColorPickerDisabledAndPaint();
     TestColorPickerCommitCallbackCanReplaceRootSafely();
     TestEditorControlsAreCatalogued();

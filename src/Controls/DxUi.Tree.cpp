@@ -167,7 +167,7 @@ void DrawTreeRow(ControlHost& host,
         DrawCenteredText(host,
                          item.iconText,
                          layout.iconRect,
-                         host.HasFluentIconFont() ? FontRole::Icon : FontRole::Small,
+                         ResolveIconTextFontRole(item.iconText),
                          iconColor,
                          DWRITE_TEXT_ALIGNMENT_CENTER,
                          DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
@@ -192,7 +192,7 @@ void DrawTreeRow(ControlHost& host,
 
 } // namespace
 
-std::optional<size_t> IDxTreeModel::FindVisibleItemById(uint64_t itemId) const noexcept
+std::optional<size_t> ITreeModel::FindVisibleItemById(uint64_t itemId) const noexcept
 {
     TreeItemData itemData;
     for (size_t visibleIndex = 0u; visibleIndex < GetVisibleItemCount(); ++visibleIndex)
@@ -207,23 +207,23 @@ std::optional<size_t> IDxTreeModel::FindVisibleItemById(uint64_t itemId) const n
     return std::nullopt;
 }
 
-void IDxTreeDelegate::OnTreeSelectionChanged(uint64_t /*itemId*/)
+void ITreeDelegate::OnTreeSelectionChanged(uint64_t /*itemId*/)
 {
 }
 
-void IDxTreeDelegate::OnTreeItemInvoked(uint64_t /*itemId*/)
+void ITreeDelegate::OnTreeItemInvoked(uint64_t /*itemId*/)
 {
 }
 
-void IDxTreeDelegate::OnTreeToggleExpanded(uint64_t /*itemId*/, bool /*expanded*/)
+void ITreeDelegate::OnTreeToggleExpanded(uint64_t /*itemId*/, bool /*expanded*/)
 {
 }
 
-void IDxTreeDelegate::OnTreeContextMenu(uint64_t /*itemId*/, POINT /*screenPoint*/)
+void ITreeDelegate::OnTreeContextMenu(uint64_t /*itemId*/, POINT /*screenPoint*/)
 {
 }
 
-void IDxTreeDelegate::OnTreeReorder(const TreeDrop& /*drop*/)
+void ITreeDelegate::OnTreeReorder(const TreeDrop& /*drop*/)
 {
 }
 
@@ -234,23 +234,58 @@ void Tree::SetReorderEnabled(bool enabled) noexcept
         return;
     }
     _reorderEnabled = enabled;
-    if (! enabled)
+    if (! enabled && _reorderArmed)
     {
+        // Disabling mid-drag ends it like a cancel: no capture stays behind and the indicator is repainted away.
         ClearReorderDrag();
+        if (ControlHost* const host = GetHost(); host && host->GetCapturedControl() == this)
+        {
+            host->ReleaseMouseCapture();
+        }
+        RequestInvalidate();
     }
 }
 
 void Tree::ClearReorderDrag() noexcept
 {
-    _reorderArmed    = false;
-    _reorderDragging = false;
-    _reorderSourceId = 0u;
+    _reorderArmed       = false;
+    _reorderDragging    = false;
+    _reorderSourceId    = 0u;
+    _reorderSourceIndex = 0u;
+    _reorderSubtreeEnd  = 0u;
+    _reorderDropIndex   = 0u;
     _reorderDrop.reset();
 }
 
-std::optional<TreeDrop> Tree::ResolveReorderDrop(D2D1_POINT_2F point) const noexcept
+bool Tree::ResolveReorderSource() noexcept
 {
-    if (! _model || _reorderSourceId == 0u)
+    const std::optional<size_t> source = _model ? _model->FindVisibleItemById(_reorderSourceId) : std::nullopt;
+    if (! source.has_value())
+    {
+        return false;
+    }
+    // Visible rows are in pre-order, so the row's visible descendants are the run after it that is nested deeper.
+    TreeItemData item;
+    _model->GetVisibleItem(source.value(), item);
+    const uint32_t sourceDepth = item.depth;
+    const size_t count         = _model->GetVisibleItemCount();
+    size_t end                 = source.value() + 1u;
+    for (; end < count; ++end)
+    {
+        _model->GetVisibleItem(end, item);
+        if (item.depth <= sourceDepth)
+        {
+            break;
+        }
+    }
+    _reorderSourceIndex = source.value();
+    _reorderSubtreeEnd  = end;
+    return true;
+}
+
+std::optional<TreeDrop> Tree::ResolveReorderDrop(D2D1_POINT_2F point, size_t& targetIndex) const noexcept
+{
+    if (! _model || ! _reorderArmed)
     {
         return std::nullopt;
     }
@@ -259,9 +294,13 @@ std::optional<TreeDrop> Tree::ResolveReorderDrop(D2D1_POINT_2F point) const noex
     {
         return std::nullopt;
     }
+    if (index.value() > _reorderSourceIndex && index.value() < _reorderSubtreeEnd)
+    {
+        return std::nullopt; // Into its own subtree: the row would become its own ancestor.
+    }
     TreeItemData target;
     _model->GetVisibleItem(index.value(), target);
-    if (target.id == 0u || target.id == _reorderSourceId)
+    if (target.id == _reorderSourceId)
     {
         return std::nullopt;
     }
@@ -287,7 +326,24 @@ std::optional<TreeDrop> Tree::ResolveReorderDrop(D2D1_POINT_2F point) const noex
     {
         drop.place = TreeDropPlace::After;
     }
+    targetIndex = index.value();
     return drop;
+}
+
+void Tree::UpdateReorderDrop(ControlHost& host, D2D1_POINT_2F point) noexcept
+{
+    size_t targetIndex                 = 0u;
+    const std::optional<TreeDrop> drop = ResolveReorderDrop(point, targetIndex);
+    const bool unchanged =
+        drop.has_value() == _reorderDrop.has_value() &&
+        (! drop.has_value() || (drop->targetId == _reorderDrop->targetId && drop->place == _reorderDrop->place && targetIndex == _reorderDropIndex));
+    if (unchanged)
+    {
+        return; // Moving within one drop zone repaints nothing.
+    }
+    _reorderDrop      = drop;
+    _reorderDropIndex = targetIndex;
+    Invalidate(host);
 }
 
 Tree::Tree()
@@ -317,8 +373,17 @@ std::wstring_view Tree::GetEmptyStateText() const noexcept
     return _emptyStateText.empty() ? std::wstring_view(L"No data") : std::wstring_view(_emptyStateText);
 }
 
-void Tree::SetModel(IDxTreeModel* model) noexcept
+void Tree::SetModel(ITreeModel* model) noexcept
 {
+    // A row drag cannot outlive the model it started in: ids in another model name other rows.
+    if (_reorderArmed)
+    {
+        ClearReorderDrag();
+        if (ControlHost* const host = GetHost(); host && host->GetCapturedControl() == this)
+        {
+            host->ReleaseMouseCapture();
+        }
+    }
     // Non-owning pointer assignment. Caller responsible for model lifetime.
     _model                    = model;
     _wheelDeltaRemainder      = 0.0f;
@@ -330,7 +395,7 @@ void Tree::SetModel(IDxTreeModel* model) noexcept
     NotifyDataChanged();
 }
 
-void Tree::SetDelegate(IDxTreeDelegate* delegate) noexcept
+void Tree::SetDelegate(ITreeDelegate* delegate) noexcept
 {
     _delegate = delegate;
 }
@@ -348,6 +413,19 @@ void Tree::SetIndentDip(float indentDip) noexcept
 
 void Tree::NotifyDataChanged()
 {
+    if (_reorderArmed)
+    {
+        // Rows moved: the drop target is resolved again on the next pointer move, and the drag ends if its row is gone.
+        _reorderDrop.reset();
+        if (! ResolveReorderSource())
+        {
+            ClearReorderDrag();
+            if (ControlHost* const host = GetHost(); host && host->GetCapturedControl() == this)
+            {
+                host->ReleaseMouseCapture();
+            }
+        }
+    }
     InvalidateTreeTextMeasurementCaches();
     if (_selectedItemId && (! _model || ! _model->FindVisibleItemById(_selectedItemId.value())))
     {
@@ -436,7 +514,7 @@ bool Tree::RequestExpandedState(size_t visibleIndex, bool expanded) noexcept
 
     StartExpanderAnimation(item.id, item.expanded, expanded);
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
-    IDxTreeDelegate* const delegate       = _delegate;
+    ITreeDelegate* const delegate         = _delegate;
     delegate->OnTreeToggleExpanded(item.id, expanded);
     if (selfLifetime.expired())
     {
@@ -490,16 +568,17 @@ bool Tree::DebugGetRowVisualState(const ThemePalette& theme, size_t visibleIndex
     const bool hovered  = _hoveredVisibleIndex && _hoveredVisibleIndex.value() == visibleIndex;
     const TreeResolvedRowVisuals visuals =
         ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, HasFocus(), keyboardFocusVisible && HasFocus(), hovered);
-    out.fillArgb      = PackColor(visuals.fill);
-    out.textArgb      = PackColor(visuals.text);
-    out.iconArgb      = PackColor(visuals.icon);
-    out.expanderArgb  = PackColor(visuals.expander);
-    out.badgeFillArgb = PackColor(visuals.badgeFill);
-    out.badgeTextArgb = PackColor(visuals.badgeText);
-    out.focusArgb     = visuals.showFocus ? PackColor(visuals.focus) : 0u;
-    out.showFocus     = visuals.showFocus;
-    out.usesRainbow   = visuals.usesRainbow;
-    out.selected      = selected;
+    out.fillArgb         = PackColor(visuals.fill);
+    out.textArgb         = PackColor(visuals.text);
+    out.iconArgb         = PackColor(visuals.icon);
+    out.expanderArgb     = PackColor(visuals.expander);
+    out.badgeFillArgb    = PackColor(visuals.badgeFill);
+    out.badgeTextArgb    = PackColor(visuals.badgeText);
+    out.focusArgb        = visuals.showFocus ? PackColor(visuals.focus) : 0u;
+    out.showFocus        = visuals.showFocus;
+    out.usesRainbow      = visuals.usesRainbow;
+    out.selected         = selected;
+    out.iconUsesIconFont = ! item.iconText.empty() && IconTextUsesIconFont(item.iconText);
     return true;
 }
 
@@ -626,8 +705,8 @@ void Tree::Paint(ControlHost& host) const
 
     if (_reorderDrop.has_value())
     {
-        const std::optional<size_t> index     = _model->FindVisibleItemById(_reorderDrop->targetId);
-        const std::optional<D2D1_RECT_F> rect = index.has_value() ? GetVisibleItemHitRect(index.value()) : std::nullopt;
+        // The drop is resolved with its row index and cleared whenever the model changes, so no id scan per paint.
+        const std::optional<D2D1_RECT_F> rect = GetVisibleItemHitRect(_reorderDropIndex);
         if (rect.has_value())
         {
             if (_reorderDrop->place == TreeDropPlace::Inside)
@@ -745,8 +824,7 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         }
         if (_reorderDragging)
         {
-            _reorderDrop = ResolveReorderDrop(point);
-            Invalidate(host);
+            UpdateReorderDrop(host, point);
         }
         return true;
     }
@@ -815,6 +893,13 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     SyncScrollbarAnimation(host);
     if (rightButton)
     {
+        if (_reorderArmed)
+        {
+            // A second button cancels the row drag: its release would otherwise drop the capture without a cancel.
+            ClearReorderDrag();
+            host.ReleaseMouseCapture();
+            Invalidate(host);
+        }
         return OnContextMenu(host, false, point);
     }
 
@@ -861,12 +946,20 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     }
     else if (_reorderEnabled && hit.zone == HitZone::Item)
     {
-        _reorderArmed    = true;
-        _reorderDragging = false;
+        // Resolved by id: the selection callback above may already have changed the model.
         _reorderSourceId = hitItem.id;
-        _reorderPress    = point;
-        _reorderDrop.reset();
-        host.CaptureMouse(this);
+        if (ResolveReorderSource())
+        {
+            _reorderArmed    = true;
+            _reorderDragging = false;
+            _reorderPress    = point;
+            _reorderDrop.reset();
+            host.CaptureMouse(this);
+        }
+        else
+        {
+            ClearReorderDrag();
+        }
     }
     Invalidate(host);
     return true;
@@ -931,7 +1024,13 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
 
     if (_reorderArmed)
     {
-        const bool commit   = _reorderDragging && _reorderDrop.has_value() && _delegate != nullptr;
+        const bool dragged = _reorderDragging;
+        if (dragged)
+        {
+            // The release point decides the drop, not the last move (touch, synthetic or embedded input may differ).
+            UpdateReorderDrop(host, point);
+        }
+        const bool commit   = dragged && _reorderDrop.has_value() && _delegate != nullptr;
         const TreeDrop drop = _reorderDrop.value_or(TreeDrop{});
         ClearReorderDrag();
         host.ReleaseMouseCapture();
@@ -940,7 +1039,8 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         {
             _delegate->OnTreeReorder(drop);
         }
-        return true;
+        // A click that never became a drag reports unhandled, like the tree without reordering.
+        return dragged;
     }
 
     const bool wasDragging = _dragVerticalThumb;
@@ -989,6 +1089,11 @@ bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta
     _wheelDeltaRemainder -= static_cast<float>(wheelStepCount * WHEEL_DELTA);
     _verticalScrollDip -= static_cast<float>(wheelStepCount) * (_rowHeightDip * 3.0f);
     ClampScrollOffset();
+    if (_reorderDragging)
+    {
+        // Scrolling moves rows under a still pointer: the drop follows the row now beneath it.
+        UpdateReorderDrop(host, point);
+    }
     Invalidate(host);
     return true;
 }
@@ -1600,7 +1705,7 @@ bool Tree::SelectVisibleIndex(size_t visibleIndex, bool notifyDelegate)
     if (notifyDelegate && _delegate)
     {
         const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
-        IDxTreeDelegate* const delegate       = _delegate;
+        ITreeDelegate* const delegate         = _delegate;
         delegate->OnTreeSelectionChanged(item.id);
         if (selfLifetime.expired())
         {
