@@ -1543,6 +1543,13 @@ Button& ColorPicker::CancelButton() noexcept
     return *_cancel;
 }
 
+#if DXUI_ENABLE_DIAGNOSTICS
+bool ColorPicker::DebugHasCachedBrushes() const noexcept
+{
+    return _brushDevice || _saturationBrush || _valueBrush || _hueBrush;
+}
+#endif
+
 void ColorPicker::Arrange() noexcept
 {
     if (! _red || ! _green || ! _blue || ! _hex || ! _ok || ! _cancel)
@@ -1890,6 +1897,21 @@ void ColorPicker::OnCaptureLost(ControlHost& host)
     }
     _drag = Drag::None;
     Cancel(host);
+}
+
+void ColorPicker::PropagateHost(ControlHost* host) noexcept
+{
+    const bool hostChanged = GetHost() != host;
+    Panel::PropagateHost(host);
+    if (hostChanged)
+    {
+        // The gradients, and the device reference that keys them, belong to the host being left; the next paint
+        // makes them for the new host's device.
+        _brushDevice.reset();
+        _saturationBrush.reset();
+        _valueBrush.reset();
+        _hueBrush.reset();
+    }
 }
 
 void ColorPicker::OnBoundsChanged() noexcept

@@ -60,9 +60,16 @@ reviewed before it merges here, until this plan can move to Done.
   work per resolution in a large tree; behavior unchanged.
 - [ ] 7. A click that activates the window announces the clicked control once. Today the system's activation focus
   event and the host's own focus change can both report it. Accept: a UI Automation client test counts one event.
-- [ ] 8. A reparented ColorPicker is current. The review recorded a stale arrangement after reparenting; its cached
+- [x] 8. A reparented ColorPicker is current. The review recorded a stale arrangement after reparenting; its cached
   brushes may belong to the old host's device too. Accept: after moving between hosts or metrics, the picker matches one
-  created in the new place.
+  created in the new place. Done: a move announced no flow direction or density, so a picker, stepper, tab header or
+  stack moved out of a right-to-left parent stayed mirrored and a tree or grid moved between densities kept its row
+  metrics, and `Control::Reparent` now announces what a moved control inherits (once, in its final place, only when
+  it differs) while the picker also releases its gradients and device reference when its host changes and
+  `Panel::ClearChildren` skips a slot emptied through `GetChildren()`; dpi, theme and density moves already matched a
+  fresh picker, and tests compare arrangements and painted windows with fresh controls and count the announcements,
+  each failing without the change it covers (a tab control across windows, the menu bar and the text field pass either
+  way: they invalidate on a host change or key their layouts), while the gallery is byte-identical.
 - [x] 9. Grid layouts of a grid that stops painting are released. A painting grid already releases every layout its
   paint did not use, so what it keeps is its visible cells' layouts, which the frame-rate-first decision needs, plus
   reusable string storage. A hidden, detached or re-modelled grid keeps its last paint's layouts until a next paint that

@@ -116,6 +116,15 @@ physical application DPI presentation and real assistive-technology journeys req
   A hidden or minimized native window keeps its controls' layouts, as it keeps its swap chain for a quick show.
 - In right-to-left flow a control's text format reads right to left, so captions and titles use leading alignment
   (their start side, beside a mirrored indicator or at a tab's right edge), never trailing.
+- A control's flow direction and density are inherited through its parents (a root takes its host's density), and a
+  parent's own change is announced to its children (`OnFlowDirectionChanged`, `OnDensityChanged`). Moving a control to
+  another parent, a host's root or a page (`ControlHost::SetRoot`, `PageHost::SetPage`; `Control::Reparent`) announces
+  the values it now inherits the same way: once, after it stands in its final place, and only when they differ. A
+  control with its own flow direction or density, a child that inherits what its parent already has, and a tree being
+  torn down hear nothing. So a control that keeps an arrangement for them (steppers, the color picker, tab headers,
+  stack layouts, tree and grid row metrics) is current in its new place, and one that keys its layout on them (the
+  menu bar) was never stale. A child leaves a panel by moving its owning pointer out of `Panel::GetChildren()` (while
+  the panel and the child's host still exist); the empty slot is skipped by every panel operation.
 
 The consumer chooses information hierarchy and whether repeated text is useful. Shared controls
 must support a single semantic heading with associated labelled values and complete exact-value
@@ -274,7 +283,11 @@ The field or component being typed in keeps its text, caret and undo history whi
 Enter, OK and Cancel normalize it (`#RRGGBB`). A canceled component edit restores its value and the picker follows it
 with a preview. The field paints the pure hue under unit-space white and black gradients placed by a brush transform:
 its three gradient brushes are created once per Direct2D device (held by reference, so a recreated device cannot
-alias them) and neither hue changes nor layout moves recreate them. Alpha is always opaque.
+alias them) and neither hue changes nor layout moves recreate them; a host change releases them and the device
+reference, and the next paint on the new host's device makes them again. A picker moved to another parent or host is
+arranged for the flow direction its new place gives it (a move announces it, as the layout list above says: a picker
+moved out of a right-to-left parent no longer keeps its children mirrored) and lays out and paints as one created
+there, whatever the new host's dpi, theme or density. Alpha is always opaque.
 
 ### Consumer-selected popup row minimum
 

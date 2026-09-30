@@ -1520,6 +1520,10 @@ protected:
     }
     virtual void PropagateHost(ControlHost* host) noexcept;
     void SetParent(Panel* parent) noexcept;
+    // Puts the control under `parent` (none for a host's root or a page) in `host`, then announces the flow direction
+    // and density it now inherits (OnFlowDirectionChanged, OnDensityChanged) if they differ from before, as a parent's
+    // own change is announced to its children. Nothing is announced when they do not differ.
+    void Reparent(Panel* parent, ControlHost* host) noexcept;
     [[nodiscard]] Panel* GetParent() const noexcept;
     virtual void OnBoundsChanged() noexcept;
     virtual void OnFlowDirectionChanged() noexcept;
@@ -1584,6 +1588,8 @@ public:
     {
         return _children.size();
     }
+    // The owning pointers. A child moved out of the span (to give it to ControlHost::SetRoot or PageHost::SetPage) leaves
+    // a null slot that every panel operation skips; do it while the panel and the child's host still exist.
     [[nodiscard]] std::span<std::unique_ptr<Control>> GetChildren() noexcept;
     [[nodiscard]] std::span<const std::unique_ptr<Control>> GetChildren() const noexcept;
     [[nodiscard]] size_t GetLogicalChildCount() const noexcept override;
@@ -4176,6 +4182,9 @@ public:
     [[nodiscard]] TextField& HexField() noexcept;
     [[nodiscard]] Button& OkButton() noexcept;
     [[nodiscard]] Button& CancelButton() noexcept;
+#if DXUI_ENABLE_DIAGNOSTICS
+    [[nodiscard]] bool DebugHasCachedBrushes() const noexcept;
+#endif
 
     void Paint(ControlHost& host) const override;
     bool OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
@@ -4185,6 +4194,7 @@ public:
     void OnCaptureLost(ControlHost& host) override;
 
 protected:
+    void PropagateHost(ControlHost* host) noexcept override;
     void OnBoundsChanged() noexcept override;
     void OnEnabledChanged(bool enabled) noexcept override;
     void OnFlowDirectionChanged() noexcept override;
@@ -4221,7 +4231,9 @@ private:
     Drag _drag        = Drag::None;
     bool _syncing     = false;
     // Hue-independent unit-space gradients, placed by a brush transform: neither a hue change nor a layout move
-    // recreates them. The retained device reference keeps a recreated device from aliasing the cached one.
+    // recreates them. The retained device reference keeps a recreated device from aliasing the cached one. They
+    // belong to the host being painted for, so a host change releases them (PropagateHost). The arrangement follows
+    // the flow direction through OnFlowDirectionChanged, which a move announces (Control::Reparent).
     mutable wil::com_ptr<ID2D1Device> _brushDevice;
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _saturationBrush;
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _valueBrush;

@@ -2,8 +2,13 @@
 
 #include "../../include/DxUi/ControlCatalog.h"
 
+#include <cstring>
 #include <limits>
 #include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <utility>
 #include <vector>
 
 // Editor consumer controls: Splitter, NumericStepper, ColorPicker. See UI_ControlsAndLayout.md.
@@ -1107,6 +1112,922 @@ void TestColorPickerCommitCallbackCanReplaceRootSafely()
     Require(host.GetRoot() != nullptr, "the commit callback replaced the root safely");
 }
 
+// ── Moving a control ─────────────────────────────────────────────────────
+
+// A control inherits its flow direction and density through its parents. A parent's own change is announced to its
+// children, but a move announced nothing, so a control that arranges itself for them (steppers, pickers, tab headers,
+// stack layouts, row heights) kept the arrangement of its old place. Control::Reparent announces what differs. A
+// control moves by leaving its parent's slot (Panel::GetChildren hands out the owning pointers) and becoming a
+// host's root or a page, while the old parent and host still exist.
+
+using NamedRects = std::vector<std::pair<std::string, D2D1_RECT_F>>;
+
+void AppendStepperRects(NamedRects& rects, const std::string& name, NumericStepper& stepper)
+{
+    rects.emplace_back(name, stepper.GetBounds());
+    rects.emplace_back(name + " field", stepper.Field().GetBounds());
+    rects.emplace_back(name + " increase", stepper.IncrementButton().GetBounds());
+    rects.emplace_back(name + " decrease", stepper.DecrementButton().GetBounds());
+}
+
+// Every rectangle a picker arranges or computes, named for a failure message.
+[[nodiscard]] NamedRects MeasurePicker(ColorPicker& picker)
+{
+    NamedRects rects;
+    rects.emplace_back("picker", picker.GetBounds());
+    rects.emplace_back("field", picker.GetFieldRect());
+    rects.emplace_back("hue strip", picker.GetHueStripRect());
+    rects.emplace_back("new swatch", picker.GetNewSwatchRect());
+    rects.emplace_back("current swatch", picker.GetCurrentSwatchRect());
+    AppendStepperRects(rects, "red", picker.RedField());
+    AppendStepperRects(rects, "green", picker.GreenField());
+    AppendStepperRects(rects, "blue", picker.BlueField());
+    rects.emplace_back("hex", picker.HexField().GetBounds());
+    rects.emplace_back("ok", picker.OkButton().GetBounds());
+    rects.emplace_back("cancel", picker.CancelButton().GetBounds());
+    return rects;
+}
+
+[[nodiscard]] NamedRects MeasureStepper(NumericStepper& stepper)
+{
+    NamedRects rects;
+    AppendStepperRects(rects, "stepper", stepper);
+    return rects;
+}
+
+[[nodiscard]] NamedRects MeasureTabs(TabControl& tabs)
+{
+    NamedRects rects;
+    rects.emplace_back("tab control", tabs.GetBounds());
+    for (size_t index = 0u; index < tabs.GetTabCount(); ++index)
+    {
+        rects.emplace_back(std::format("tab {}", index), tabs.DebugGetTabRect(index));
+        if (tabs.IsTabClosable(index))
+        {
+            rects.emplace_back(std::format("close {}", index), tabs.DebugGetCloseButtonRect(index));
+        }
+    }
+    rects.emplace_back("back button", tabs.DebugGetBackButtonRect());
+    rects.emplace_back("forward button", tabs.DebugGetForwardButtonRect());
+    rects.emplace_back("header divider", tabs.DebugGetHeaderDividerRect());
+    rects.emplace_back("header scroll", D2D1::RectF(tabs.DebugGetHeaderScrollOffsetDip(), 0.0f, 0.0f, 0.0f));
+    if (const Control* const page = tabs.GetSelectedPage())
+    {
+        rects.emplace_back("selected page", page->GetBounds());
+    }
+    return rects;
+}
+
+[[nodiscard]] NamedRects MeasureMenuBar(MenuBar& menuBar, ControlHost& host)
+{
+    NamedRects rects;
+    for (size_t index = 0u; index < menuBar.GetItems().size(); ++index)
+    {
+        RECT rect{};
+        if (menuBar.TryGetItemScreenRect(host, index, rect))
+        {
+            rects.emplace_back(
+                std::format("item {}", index),
+                D2D1::RectF(static_cast<float>(rect.left), static_cast<float>(rect.top), static_cast<float>(rect.right), static_cast<float>(rect.bottom)));
+        }
+    }
+    return rects;
+}
+
+[[nodiscard]] NamedRects MeasureTextField(TextField& field, ControlHost& host)
+{
+    NamedRects rects;
+    rects.emplace_back("text field", field.GetBounds());
+    TextFieldDebugSingleLinePaintState state{};
+    if (field.DebugGetSingleLinePaintState(host, state))
+    {
+        rects.emplace_back("text", state.textRect);
+        rects.emplace_back("scroll", D2D1::RectF(state.horizontalScrollDip, 0.0f, 0.0f, 0.0f));
+    }
+    return rects;
+}
+// Empty when both are laid out alike; otherwise names every rectangle that differs.
+[[nodiscard]] std::string DescribeGeometryDifference(const NamedRects& actual, const NamedRects& expected)
+{
+    std::string difference;
+    if (actual.size() != expected.size())
+    {
+        return std::format("{} rectangles instead of {}; ", actual.size(), expected.size());
+    }
+    for (size_t index = 0u; index < actual.size(); ++index)
+    {
+        const D2D1_RECT_F& a = actual[index].second;
+        const D2D1_RECT_F& e = expected[index].second;
+        if (! RectNear(a, e))
+        {
+            difference += std::format("{} ({:.1f},{:.1f},{:.1f},{:.1f}) instead of ({:.1f},{:.1f},{:.1f},{:.1f}); ",
+                                      actual[index].first,
+                                      a.left,
+                                      a.top,
+                                      a.right,
+                                      a.bottom,
+                                      e.left,
+                                      e.top,
+                                      e.right,
+                                      e.bottom);
+        }
+    }
+    return difference;
+}
+
+// Empty when the captures are pixel-identical; otherwise the count and the box of the differing pixels.
+[[nodiscard]] std::string DescribeBitmapDifference(const WindowHostBitmapCapture& actual, const WindowHostBitmapCapture& expected)
+{
+    if (actual.widthPx != expected.widthPx || actual.heightPx != expected.heightPx || actual.bgraPixels.size() != expected.bgraPixels.size())
+    {
+        return std::format("{}x{} px instead of {}x{}", actual.widthPx, actual.heightPx, expected.widthPx, expected.heightPx);
+    }
+    size_t differing = 0u;
+    UINT left        = actual.widthPx;
+    UINT top         = actual.heightPx;
+    UINT right       = 0u;
+    UINT bottom      = 0u;
+    for (UINT y = 0u; y < actual.heightPx; ++y)
+    {
+        for (UINT x = 0u; x < actual.widthPx; ++x)
+        {
+            const size_t offset = (static_cast<size_t>(y) * actual.widthPx + x) * 4u;
+            if (std::memcmp(&actual.bgraPixels[offset], &expected.bgraPixels[offset], 4u) != 0)
+            {
+                ++differing;
+                left   = (std::min)(left, x);
+                top    = (std::min)(top, y);
+                right  = (std::max)(right, x);
+                bottom = (std::max)(bottom, y);
+            }
+        }
+    }
+    return differing == 0u ? std::string{} : std::format("{} pixels differ inside ({},{})-({},{})", differing, left, top, right, bottom);
+}
+
+[[nodiscard]] size_t CountPixelsDifferingFromCorner(const WindowHostBitmapCapture& capture) noexcept
+{
+    size_t count = 0u;
+    for (size_t offset = 4u; offset + 3u < capture.bgraPixels.size(); offset += 4u)
+    {
+        count += std::memcmp(&capture.bgraPixels[offset], capture.bgraPixels.data(), 4u) != 0 ? 1u : 0u;
+    }
+    return count;
+}
+
+WindowHostBitmapCapture CaptureWindow(AttachedHostWindow& window, const char* context)
+{
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.PumpMessages();
+    RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+    window.PumpMessages();
+    WindowHostBitmapCapture capture;
+    Require(window.Host().DebugCaptureBitmap(capture), context);
+    return capture;
+}
+
+// A host with a theme, a density and a dpi the system did not choose, whose client area is exactly `sizeDip`.
+void ConfigureHostPlace(AttachedHostWindow& window, UINT dpi, bool dark, Density density, D2D1_SIZE_F sizeDip)
+{
+    ThemePalette theme  = MakeDefaultThemePalette(dark);
+    theme.reducedMotion = true;
+    theme.density       = density;
+    window.Host().SetTheme(theme);
+    RECT outer{};
+    GetWindowRect(window.Hwnd(), &outer);
+    bool handled = false;
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKELONG(dpi, dpi), reinterpret_cast<LPARAM>(&outer), handled));
+    Require(handled && window.Host().GetDpi() == static_cast<float>(dpi), "the host takes the requested dpi");
+    RECT client{};
+    GetWindowRect(window.Hwnd(), &outer);
+    GetClientRect(window.Hwnd(), &client);
+    const float scale = static_cast<float>(dpi) / 96.0f;
+    SetWindowPos(window.Hwnd(),
+                 nullptr,
+                 0,
+                 0,
+                 (outer.right - outer.left) - (client.right - client.left) + static_cast<LONG>(std::lround(sizeDip.width * scale)),
+                 (outer.bottom - outer.top) - (client.bottom - client.top) + static_cast<LONG>(std::lround(sizeDip.height * scale)),
+                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    window.PumpMessages();
+    const D2D1_RECT_F clientDip = window.Host().GetClientBoundsDip();
+    Require(std::fabs(clientDip.right - sizeDip.width) < 0.01f && std::fabs(clientDip.bottom - sizeDip.height) < 0.01f,
+            "the host's client area is the requested size");
+}
+
+[[nodiscard]] std::unique_ptr<Control> TakeChild(Panel& parent, size_t index)
+{
+    return std::move(parent.GetChildren()[index]);
+}
+
+[[nodiscard]] wil::com_ptr<ID2D1Device> DirectDeviceOf(ControlHost& host)
+{
+    wil::com_ptr<ID2D1Device> device;
+    if (ID2D1DeviceContext* const context = host.GetDeviceContext())
+    {
+        context->GetDevice(device.put());
+    }
+    return device;
+}
+
+void PaintAndCachePicker(AttachedHostWindow& window, ColorPicker& picker, const char* context)
+{
+    static_cast<void>(CaptureWindow(window, context));
+    Require(picker.DebugHasCachedBrushes(), "painting the picker caches its gradients");
+}
+
+struct MovePlace
+{
+    UINT dpi;
+    bool dark;
+    Density density;
+};
+
+struct MoveScenario
+{
+    const char* name;
+    bool oldParentRightToLeft;
+    bool newDevice; // The new host draws on a Direct2D device made after the control painted for the old one.
+    MovePlace from;
+    MovePlace to;
+};
+
+// Moves a control made by `configure` from one window host to a second, whose client area is the control's size (so
+// setting the root changes no bounds: only the control itself can notice the move), and compares its arrangement
+// (`measure`) and the painted window with a fresh control made the same way in the second host.
+template <typename TControl, typename Configure, typename Measure>
+void ExpectMovedControlMatchesAFreshOne(const char* control, D2D1_SIZE_F size, std::span<const MoveScenario> scenarios, Configure configure, Measure measure)
+{
+    for (const MoveScenario& scenario : scenarios)
+    {
+        AttachedHostWindow oldWindow;
+        AttachedHostWindow newWindow;
+        ConfigureHostPlace(oldWindow, scenario.from.dpi, scenario.from.dark, scenario.from.density, size);
+        ConfigureHostPlace(newWindow, scenario.to.dpi, scenario.to.dark, scenario.to.density, size);
+
+        auto oldRoot = std::make_unique<Panel>();
+        if (scenario.oldParentRightToLeft)
+        {
+            oldRoot->SetFlowDirection(FlowDirection::RightToLeft);
+        }
+        Panel* const oldPanel = oldRoot.get();
+        auto* moved           = oldRoot->AddChild<TControl>();
+        configure(*moved);
+        moved->SetBounds(newWindow.Host().GetClientBoundsDip());
+        oldWindow.Host().SetRoot(std::move(oldRoot));
+        static_cast<void>(CaptureWindow(oldWindow, "the control paints in its first host"));
+        const wil::com_ptr<ID2D1Device> oldDevice = DirectDeviceOf(oldWindow.Host());
+        Require(oldDevice != nullptr, "the first host draws on a Direct2D device");
+        if (scenario.newDevice)
+        {
+            // Hidden, the first host stays on its device while the loss makes the next host build another.
+            ShowWindow(oldWindow.Hwnd(), SW_HIDE);
+            newWindow.Host().DebugSimulateDeviceLoss();
+        }
+
+        newWindow.Host().SetRoot(TakeChild(*oldPanel, 0u));
+        Require(newWindow.Host().GetRoot() == moved, "the second host holds the moved control");
+        const NamedRects movedRects              = measure(*moved, newWindow.Host());
+        const WindowHostBitmapCapture movedImage = CaptureWindow(newWindow, "the moved control paints in its new host");
+        Require(CountPixelsDifferingFromCorner(movedImage) > 200u, "the moved control painted something");
+        Require(! scenario.newDevice || DirectDeviceOf(newWindow.Host()) != oldDevice, "the second host draws on another Direct2D device");
+
+        auto created = std::make_unique<TControl>();
+        configure(*created);
+        TControl* const fresh = created.get();
+        newWindow.Host().SetRoot(std::move(created));
+        const NamedRects freshRects              = measure(*fresh, newWindow.Host());
+        const WindowHostBitmapCapture freshImage = CaptureWindow(newWindow, "a fresh control paints in the new host");
+
+        const std::string geometryDifference = DescribeGeometryDifference(movedRects, freshRects);
+        const std::string imageDifference    = DescribeBitmapDifference(movedImage, freshImage);
+        if (! geometryDifference.empty() || ! imageDifference.empty())
+        {
+            std::cerr << "moved " << control << ", " << scenario.name << ": rectangles: " << (geometryDifference.empty() ? "same" : geometryDifference)
+                      << " | pixels: " << (imageDifference.empty() ? "same" : imageDifference) << '\n';
+        }
+        Require(geometryDifference.empty(), "a moved control arranges itself like a fresh one");
+        Require(imageDifference.empty(), "a moved control paints like a fresh one");
+    }
+}
+
+// A picker that leaves a right-to-left parent is arranged for its new, left-to-right place, as a picker created there
+// is: it kept its children where a right-to-left flow puts them, overlapping the field, strip and swatches its own
+// rectangles (computed live) had already turned around.
+void TestColorPickerMovedOutOfARightToLeftParentIsArrangedForItsNewPlace()
+{
+    const D2D1_RECT_F bounds = D2D1::RectF(0.0f, 0.0f, ColorPicker::kDefaultWidthDip, ColorPicker::kDefaultHeightDip);
+    const auto expectFresh   = [&bounds](ColorPicker& moved, const char* context, FlowDirection freshFlow, bool explicitFlow)
+    {
+        PageHost freshPage;
+        freshPage.SetBounds(bounds);
+        auto created = std::make_unique<ColorPicker>();
+        if (explicitFlow)
+        {
+            created->SetFlowDirection(freshFlow);
+        }
+        freshPage.SetPage(std::move(created));
+        auto* fresh                  = static_cast<ColorPicker*>(freshPage.GetPage());
+        const std::string difference = DescribeGeometryDifference(MeasurePicker(moved), MeasurePicker(*fresh));
+        if (! difference.empty())
+        {
+            std::cerr << context << ": " << difference << '\n';
+        }
+        Require(difference.empty(), context);
+    };
+
+    auto oldRoot = std::make_unique<Panel>();
+    oldRoot->SetFlowDirection(FlowDirection::RightToLeft);
+    auto* picker = oldRoot->AddChild<ColorPicker>();
+    picker->SetBounds(bounds);
+    Require(picker->RedField().GetBounds().right <= picker->GetHueStripRect().left, "the picker inherits right-to-left flow: the steppers precede the strip");
+    const NamedRects inherited = MeasurePicker(*picker);
+
+    PageHost page;
+    page.SetBounds(bounds);
+    page.SetPage(TakeChild(*oldRoot, 0u));
+    Require(page.GetPage() == picker && ! picker->IsRightToLeft(), "the page holds the picker, no longer in right-to-left flow");
+    Require(picker->RedField().GetBounds().left >= picker->GetHueStripRect().right, "the steppers follow the strip again");
+    expectFresh(*picker, "a picker moved out of a right-to-left parent is arranged like one created in its page", FlowDirection::LeftToRight, false);
+    Require(! DescribeGeometryDifference(MeasurePicker(*picker), inherited).empty(), "the arrangement did change with the flow direction");
+
+    // An explicit flow direction travels with the picker: moving it changes nothing it inherits.
+    auto explicitRoot = std::make_unique<Panel>();
+    auto* explicitRtl = explicitRoot->AddChild<ColorPicker>();
+    explicitRtl->SetFlowDirection(FlowDirection::RightToLeft);
+    explicitRtl->SetBounds(bounds);
+    PageHost explicitPage;
+    explicitPage.SetBounds(bounds);
+    explicitPage.SetPage(TakeChild(*explicitRoot, 0u));
+    Require(explicitRtl->IsRightToLeft(), "an explicit right-to-left flow survives the move");
+    expectFresh(*explicitRtl, "a moved picker with an explicit flow is arranged like a fresh one with it", FlowDirection::RightToLeft, true);
+}
+
+constexpr MovePlace kBasePlace{96u, false, Density::Standard};
+constexpr MoveScenario kEveryPlace[] = {
+    {"same metrics", false, false, kBasePlace, kBasePlace},
+    {"a larger dpi", false, false, kBasePlace, {192u, false, Density::Standard}},
+    {"a smaller dpi", false, false, {144u, false, Density::Standard}, kBasePlace},
+    {"another theme", false, false, kBasePlace, {96u, true, Density::Standard}},
+    {"compact density", false, false, kBasePlace, {96u, false, Density::Compact}},
+    {"standard density", false, false, {96u, false, Density::Compact}, kBasePlace},
+    {"another Direct2D device", false, true, kBasePlace, kBasePlace},
+    {"a right-to-left parent", true, false, kBasePlace, kBasePlace},
+    {"a right-to-left parent, another device and every metric", true, true, {96u, false, Density::Compact}, {144u, true, Density::Standard}},
+};
+constexpr MoveScenario kRightToLeftPlaces[] = {
+    {"same metrics", false, false, kBasePlace, kBasePlace},
+    {"a right-to-left parent", true, false, kBasePlace, kBasePlace},
+    {"a right-to-left parent, another device and every metric", true, true, {96u, false, Density::Compact}, {144u, true, Density::Standard}},
+};
+
+// A picker across window hosts that differ in dpi, theme, density and Direct2D device, and out of a right-to-left
+// parent: what a host shows a control must not stay behind from the previous host.
+void TestColorPickerMovedBetweenHostsMatchesAFreshOne()
+{
+    const auto configure = [](ColorPicker& picker)
+    {
+        picker.SetColor(0xFF3A7BD5u);
+        picker.SetCurrentColor(0xFFC04030u);
+    };
+    const auto measure = [](ColorPicker& picker, ControlHost&) { return MeasurePicker(picker); };
+    ExpectMovedControlMatchesAFreshOne<ColorPicker>(
+        "color picker", D2D1::SizeF(ColorPicker::kDefaultWidthDip, ColorPicker::kDefaultHeightDip), kEveryPlace, configure, measure);
+}
+
+// A stepper keeps its field and buttons where its flow direction put them (its label and unit follow the field).
+void TestNumericStepperMovedBetweenHostsMatchesAFreshOne()
+{
+    const auto configure = [](NumericStepper& stepper)
+    {
+        stepper.SetLabel(L"X", 20.0f);
+        stepper.SetUnit(L"px", 24.0f);
+        stepper.SetValue(42.0);
+    };
+    const auto measure = [](NumericStepper& stepper, ControlHost&) { return MeasureStepper(stepper); };
+    ExpectMovedControlMatchesAFreshOne<NumericStepper>("numeric stepper", D2D1::SizeF(240.0f, 40.0f), kRightToLeftPlaces, configure, measure);
+}
+
+// A tab control across window hosts. Its own host change already invalidates its header layout, so this held before
+// the announcement; the hostless move below is the one that needs it.
+void TestTabControlMovedBetweenHostsMatchesAFreshOne()
+{
+    const auto configure = [](TabControl& tabs)
+    {
+        tabs.AddTab<Label>(L"General", L"General page");
+        tabs.AddTab<Label>(L"Advanced settings", L"Advanced page");
+        tabs.AddTab<Label>(L"About", L"About page");
+        tabs.SetTabClosable(1u, true);
+    };
+    const auto measure = [](TabControl& tabs, ControlHost&) { return MeasureTabs(tabs); };
+    ExpectMovedControlMatchesAFreshOne<TabControl>("tab control", D2D1::SizeF(360.0f, 120.0f), kRightToLeftPlaces, configure, measure);
+}
+
+// The menu bar and the text field key their layouts on the flow direction (and the host, bounds and metrics), so they
+// never went stale; they are here to show that the announcement leaves such controls right.
+void TestMenuBarMovedBetweenHostsMatchesAFreshOne()
+{
+    const auto configure = [](MenuBar& menuBar)
+    {
+        menuBar.SetItems({
+            MenuBarItem{.text = L"File", .mnemonic = L'F'},
+            MenuBarItem{.text = L"Edit", .mnemonic = L'E'},
+            MenuBarItem{.text = L"Help", .mnemonic = L'H', .rightJustified = true},
+        });
+    };
+    const auto measure = [](MenuBar& menuBar, ControlHost& host) { return MeasureMenuBar(menuBar, host); };
+    ExpectMovedControlMatchesAFreshOne<MenuBar>("menu bar", D2D1::SizeF(320.0f, 32.0f), kRightToLeftPlaces, configure, measure);
+}
+
+void TestTextFieldMovedBetweenHostsMatchesAFreshOne()
+{
+    const auto configure = [](TextField& field) { field.SetText(L"Move me \u0645\u0631\u062D\u0628\u0627 123"); };
+    const auto measure   = [](TextField& field, ControlHost& host) { return MeasureTextField(field, host); };
+    ExpectMovedControlMatchesAFreshOne<TextField>("text field", D2D1::SizeF(240.0f, 40.0f), kRightToLeftPlaces, configure, measure);
+}
+
+// The gradients (and the Direct2D device reference that keys them) belong to the host painted for. A picker that leaves
+// its host used to keep them, and so the old host's device, until it next painted somewhere.
+void TestColorPickerReleasesItsGradientsWhenItsHostChanges()
+{
+    const D2D1_SIZE_F size = D2D1::SizeF(ColorPicker::kDefaultWidthDip, ColorPicker::kDefaultHeightDip);
+    AttachedHostWindow oldWindow;
+    AttachedHostWindow newWindow;
+    ConfigureHostPlace(oldWindow, 96u, false, Density::Standard, size);
+    ConfigureHostPlace(newWindow, 96u, false, Density::Standard, size);
+
+    auto oldRoot          = std::make_unique<Panel>();
+    Panel* const oldPanel = oldRoot.get();
+    auto* picker          = oldRoot->AddChild<ColorPicker>();
+    picker->SetBounds(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
+    Require(! picker->DebugHasCachedBrushes(), "a picker that never painted holds no gradients");
+    oldWindow.Host().SetRoot(std::move(oldRoot));
+    PaintAndCachePicker(oldWindow, *picker, "the picker paints in its first host");
+
+    // A change of the parent's flow keeps them: the device is still the host's.
+    oldPanel->SetFlowDirection(FlowDirection::RightToLeft);
+    static_cast<void>(CaptureWindow(oldWindow, "the picker repaints after its parent's flow changed"));
+    Require(picker->DebugHasCachedBrushes(), "a flow change keeps the gradients");
+
+    newWindow.Host().SetRoot(TakeChild(*oldPanel, 0u));
+    Require(! picker->DebugHasCachedBrushes(), "leaving the first host releases the gradients and its device reference");
+    static_cast<void>(CaptureWindow(newWindow, "the picker paints in the second host"));
+    Require(picker->DebugHasCachedBrushes(), "the second host's first paint makes the gradients again");
+
+    // A picker parked in a page that has no host holds no device either.
+    auto parkedRoot          = std::make_unique<Panel>();
+    Panel* const parkedPanel = parkedRoot.get();
+    auto* parked             = parkedRoot->AddChild<ColorPicker>();
+    parked->SetBounds(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
+    newWindow.Host().SetRoot(std::move(parkedRoot));
+    PaintAndCachePicker(newWindow, *parked, "the picker paints under a panel root");
+    PageHost parking;
+    parking.SetBounds(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
+    parking.SetPage(TakeChild(*parkedPanel, 0u));
+    Require(parking.GetPage() == parked && ! parked->DebugHasCachedBrushes(), "a picker parked without a host releases the gradients");
+}
+
+// A control moved from a right-to-left panel into a page that has no host, so neither its host nor its bounds change:
+// only the announcement can tell it where it now is. It is compared with one made the same way in another page.
+template <typename TControl, typename Configure, typename Measure>
+void ExpectControlMovedToAPageMatchesAFreshOne(const char* control, const D2D1_RECT_F& bounds, Configure configure, Measure measure)
+{
+    auto oldRoot = std::make_unique<Panel>();
+    oldRoot->SetFlowDirection(FlowDirection::RightToLeft);
+    auto* moved = oldRoot->AddChild<TControl>();
+    moved->SetBounds(bounds);
+    configure(*moved);
+    const NamedRects inherited = measure(*moved);
+
+    PageHost page;
+    page.SetBounds(bounds);
+    page.SetPage(TakeChild(*oldRoot, 0u));
+    Require(page.GetPage() == moved && ! moved->IsRightToLeft(), "the page holds the control, no longer in right-to-left flow");
+
+    auto created = std::make_unique<TControl>();
+    created->SetBounds(bounds);
+    configure(*created);
+    PageHost freshPage;
+    freshPage.SetBounds(bounds);
+    freshPage.SetPage(std::move(created));
+    const std::string difference = DescribeGeometryDifference(measure(*moved), measure(*static_cast<TControl*>(freshPage.GetPage())));
+    if (! difference.empty())
+    {
+        std::cerr << "moved " << control << " (page): " << difference << '\n';
+    }
+    Require(difference.empty(), "a control moved out of a right-to-left parent is arranged like one created in its page");
+    Require(! DescribeGeometryDifference(measure(*moved), inherited).empty(), "the arrangement did change with the flow direction");
+}
+
+// A horizontal stack lays its children out from the right in right-to-left flow, and only when told to. It is told
+// when its flow direction changes, and a move changes it.
+void TestStackPanelMovedOutOfARightToLeftParentIsLaidOutForItsNewPlace()
+{
+    const auto configure = [](StackPanel& stack)
+    {
+        stack.SetOrientation(StackOrientation::Horizontal);
+        stack.SetGap(8.0f);
+        auto* first  = stack.AddChild<Button>(L"One");
+        auto* second = stack.AddChild<Button>(L"Two");
+        stack.SetChildExtent(first, 70.0f);
+        stack.SetChildExtent(second, 90.0f);
+        stack.ApplyLayout();
+    };
+    const auto measure = [](StackPanel& stack)
+    {
+        NamedRects rects;
+        for (size_t index = 0u; index < stack.GetChildren().size(); ++index)
+        {
+            rects.emplace_back(std::format("child {}", index), stack.GetChildren()[index]->GetBounds());
+        }
+        return rects;
+    };
+    ExpectControlMovedToAPageMatchesAFreshOne<StackPanel>("stack panel", D2D1::RectF(0.0f, 0.0f, 240.0f, 40.0f), configure, measure);
+}
+
+// A tab control's header layout (tab and close-button rectangles, overflow buttons) is cached and invalidated by name,
+// not keyed on the flow direction. It repairs itself when its host changes (the moves across windows above never
+// went stale), but not when a move keeps it hostless.
+void TestTabControlMovedOutOfARightToLeftParentIsLaidOutForItsNewPlace()
+{
+    const auto configure = [](TabControl& tabs)
+    {
+        tabs.AddTab<Label>(L"General", L"General page");
+        tabs.AddTab<Label>(L"Advanced settings", L"Advanced page");
+        tabs.AddTab<Label>(L"About", L"About page");
+        tabs.SetTabClosable(1u, true);
+    };
+    const auto measure = [](TabControl& tabs) { return MeasureTabs(tabs); };
+    ExpectControlMovedToAPageMatchesAFreshOne<TabControl>("tab control", D2D1::RectF(0.0f, 0.0f, 360.0f, 120.0f), configure, measure);
+}
+
+// Row heights depend on density and are made when it is announced (and when the row height is set). A tree or grid moved
+// from a compact parent to a standard place, or from a standard one into a compact host, must have the row metrics a
+// tree or grid given its row height in that place has. The oracle is configured after it stands in its place, so it
+// does not depend on the announcement under test.
+template <typename TControl, typename Configure, typename Measure>
+void ExpectMovedRowMetricsMatchAFreshOne(const char* control, Configure configure, Measure measure)
+{
+    struct DensityScenario
+    {
+        const char* name;
+        bool oldParentCompact;
+        Density oldHost;
+        Density newHost;
+    };
+    const DensityScenario scenarios[] = {
+        {"a compact parent into a standard host", true, Density::Standard, Density::Standard},
+        {"a standard parent into a compact host", false, Density::Standard, Density::Compact},
+        {"a compact parent into a compact host", true, Density::Standard, Density::Compact},
+        {"a compact host into a standard host", false, Density::Compact, Density::Standard},
+        {"the same standard density", false, Density::Standard, Density::Standard},
+    };
+    const D2D1_RECT_F bounds = D2D1::RectF(0.0f, 0.0f, 300.0f, 200.0f);
+    const auto themeOf       = [](Density density)
+    {
+        ThemePalette theme = MakeDefaultThemePalette(false);
+        theme.density      = density;
+        return theme;
+    };
+    std::optional<NamedRects> standardRows;
+    std::optional<NamedRects> compactRows;
+    for (const DensityScenario& scenario : scenarios)
+    {
+        WindowHost oldHost;
+        WindowHost newHost;
+        oldHost.SetTheme(themeOf(scenario.oldHost));
+        newHost.SetTheme(themeOf(scenario.newHost));
+
+        auto oldRoot = std::make_unique<Panel>();
+        if (scenario.oldParentCompact)
+        {
+            oldRoot->SetDensity(Density::Compact);
+        }
+        Panel* const oldPanel = oldRoot.get();
+        auto* moved           = oldRoot->AddChild<TControl>();
+        configure(*moved);
+        moved->SetBounds(bounds);
+        oldHost.SetRoot(std::move(oldRoot));
+
+        newHost.SetRoot(TakeChild(*oldPanel, 0u));
+        moved->SetBounds(bounds);
+        const NamedRects movedRows = measure(*moved, newHost);
+
+        auto created          = std::make_unique<TControl>();
+        TControl* const fresh = created.get();
+        newHost.SetRoot(std::move(created));
+        configure(*fresh);
+        fresh->SetBounds(bounds);
+        const NamedRects freshRows        = measure(*fresh, newHost);
+        std::optional<NamedRects>& oracle = scenario.newHost == Density::Compact ? compactRows : standardRows;
+        oracle                            = freshRows;
+
+        const std::string difference = DescribeGeometryDifference(movedRows, freshRows);
+        if (! difference.empty())
+        {
+            std::cerr << "moved " << control << ", " << scenario.name << ": " << difference << '\n';
+        }
+        Require(difference.empty(), "a moved control has the row metrics of one configured in its new place");
+    }
+    Require(compactRows.has_value() && standardRows.has_value() && ! DescribeGeometryDifference(*compactRows, *standardRows).empty(),
+            "the densities this test moves between give different row metrics");
+}
+
+void TestTreeMovedBetweenDensitiesMatchesAFreshOne()
+{
+    MutableTreeModel treeModel;
+    treeModel.SetVisibleItems({
+        TreeItemData{.id = 1u, .text = L"General"},
+        TreeItemData{.id = 2u, .text = L"Viewers"},
+    });
+    const auto configure = [&treeModel](Tree& tree)
+    {
+        tree.SetRowHeightDip(30.0f);
+        tree.SetModel(&treeModel);
+    };
+    const auto measure = [](Tree& tree, ControlHost& host)
+    {
+        NamedRects rows;
+        rows.emplace_back("row 0", tree.GetItemLayoutMetrics(host, 0u).rowRect);
+        rows.emplace_back("row 1", tree.GetItemLayoutMetrics(host, 1u).rowRect);
+        return rows;
+    };
+    ExpectMovedRowMetricsMatchAFreshOne<Tree>("tree", configure, measure);
+}
+
+void TestGridMovedBetweenDensitiesMatchesAFreshOne()
+{
+    MultiRowGridModel gridModel(4u);
+    const auto configure = [&gridModel](Grid& grid)
+    {
+        grid.SetRowHeightDip(46.0f);
+        grid.SetHeaderHeightDip(30.0f);
+        grid.SetModel(&gridModel);
+    };
+    const auto measure = [](Grid& grid, ControlHost& host)
+    {
+        NamedRects rows;
+        rows.emplace_back("cell 0", grid.GetCellLayoutMetrics(host, 0u, 0u).cellRect);
+        rows.emplace_back("cell 1", grid.GetCellLayoutMetrics(host, 1u, 0u).cellRect);
+        return rows;
+    };
+    ExpectMovedRowMetricsMatchAFreshOne<Grid>("grid", configure, measure);
+}
+
+// Counts the announcements a control hears in counters the test owns (a move may destroy the control), and where its
+// host stood when it heard them.
+class AnnouncementProbe final : public Panel
+{
+public:
+    struct Heard
+    {
+        size_t flowDirection     = 0u;
+        size_t density           = 0u;
+        ControlHost* flowHost    = nullptr;
+        ControlHost* densityHost = nullptr;
+    };
+
+    explicit AnnouncementProbe(Heard* heard) noexcept : _heard(heard)
+    {
+    }
+
+protected:
+    void OnFlowDirectionChanged() noexcept override
+    {
+        ++_heard->flowDirection;
+        _heard->flowHost = GetHost();
+        Panel::OnFlowDirectionChanged();
+    }
+
+    void OnDensityChanged() noexcept override
+    {
+        ++_heard->density;
+        _heard->densityHost = GetHost();
+        Panel::OnDensityChanged();
+    }
+
+private:
+    Heard* _heard;
+};
+
+// A move announces the flow direction and density the control now inherits, as a parent's own change is announced to
+// its children: once, once it stands in its final place, and only when a value differs.
+void TestMovingAControlAnnouncesWhatItNowInheritsOnce()
+{
+    using Heard             = AnnouncementProbe::Heard;
+    const auto densityTheme = [](Density density)
+    {
+        ThemePalette theme = MakeDefaultThemePalette(false);
+        theme.density      = density;
+        return theme;
+    };
+    const auto heardNothing = [](const Heard& heard) noexcept { return heard.flowDirection == 0u && heard.density == 0u; };
+
+    // A child that inherits what its parent has hears nothing, however deep it is added.
+    {
+        Panel parent;
+        Heard child;
+        Heard grandchild;
+        auto* probe = parent.AddChild<AnnouncementProbe>(&child);
+        probe->AddChild<AnnouncementProbe>(&grandchild);
+        Require(heardNothing(child) && heardNothing(grandchild), "adding children that inherit what their parents have announces nothing");
+    }
+
+    // Under a right-to-left, compact parent a new child, and a child of that child, hear both once.
+    {
+        Panel parent;
+        parent.SetFlowDirection(FlowDirection::RightToLeft);
+        parent.SetDensity(Density::Compact);
+        Heard child;
+        Heard grandchild;
+        auto* probe = parent.AddChild<AnnouncementProbe>(&child);
+        probe->AddChild<AnnouncementProbe>(&grandchild);
+        Require(child.flowDirection == 1u && child.density == 1u, "a child added under a right-to-left, compact parent hears both once");
+        Require(grandchild.flowDirection == 1u && grandchild.density == 1u, "and so does its own child");
+    }
+
+    // Moving out of such a parent: the moved control hears both once, and its child hears each once, through it.
+    {
+        Panel oldParent;
+        oldParent.SetFlowDirection(FlowDirection::RightToLeft);
+        oldParent.SetDensity(Density::Compact);
+        Heard moved;
+        Heard inner;
+        auto* probe = oldParent.AddChild<AnnouncementProbe>(&moved);
+        probe->AddChild<AnnouncementProbe>(&inner);
+        moved = Heard{};
+        inner = Heard{};
+        PageHost page;
+        page.SetPage(TakeChild(oldParent, 0u));
+        Require(moved.flowDirection == 1u && moved.density == 1u, "a control moved out of a right-to-left, compact parent hears both once");
+        Require(inner.flowDirection == 1u && inner.density == 1u, "and its child hears each once, through it");
+    }
+
+    // A child with its own density is not told about its parent's: it inherits nothing.
+    {
+        Panel oldParent;
+        oldParent.SetDensity(Density::Compact);
+        Heard moved;
+        Heard own;
+        auto* probe = oldParent.AddChild<AnnouncementProbe>(&moved);
+        auto* inner = probe->AddChild<AnnouncementProbe>(&own);
+        inner->SetDensity(Density::Compact);
+        moved = Heard{};
+        own   = Heard{};
+        PageHost page;
+        page.SetPage(TakeChild(oldParent, 0u));
+        Require(moved.density == 1u && own.density == 0u, "a child with its own density hears nothing of its parent's move");
+    }
+
+    // A control with its own flow direction and density inherits neither, so a move changes nothing for it.
+    {
+        Panel oldParent;
+        oldParent.SetFlowDirection(FlowDirection::RightToLeft);
+        oldParent.SetDensity(Density::Compact);
+        Heard moved;
+        auto* probe = oldParent.AddChild<AnnouncementProbe>(&moved);
+        probe->SetFlowDirection(FlowDirection::RightToLeft);
+        probe->SetDensity(Density::Compact);
+        moved = Heard{};
+        PageHost page;
+        page.SetPage(TakeChild(oldParent, 0u));
+        Require(heardNothing(moved), "a control with its own flow direction and density hears nothing when it moves");
+    }
+
+    // Places that give the same values announce nothing, into a page and into a host's root alike.
+    {
+        Panel oldParent;
+        Heard moved;
+        oldParent.AddChild<AnnouncementProbe>(&moved);
+        WindowHost host;
+        host.SetTheme(densityTheme(Density::Standard));
+        host.SetRoot(TakeChild(oldParent, 0u));
+        Require(heardNothing(moved), "moving between places with the same flow direction and density announces nothing");
+    }
+
+    // A root takes its host's density: a compact host announces it when the root arrives, once, with the host in place.
+    {
+        WindowHost host;
+        host.SetTheme(densityTheme(Density::Compact));
+        Heard root;
+        host.SetRoot(std::make_unique<AnnouncementProbe>(&root));
+        Require(root.flowDirection == 0u && root.density == 1u, "a root arriving in a compact host hears its density once");
+        Require(root.densityHost == &host, "and hears it standing in that host");
+    }
+
+    // Out of a right-to-left parent into a host: the direction is heard once, standing in the new host.
+    {
+        WindowHost oldHost;
+        WindowHost newHost;
+        auto oldRoot = std::make_unique<Panel>();
+        oldRoot->SetFlowDirection(FlowDirection::RightToLeft);
+        Panel* const oldPanel = oldRoot.get();
+        Heard moved;
+        oldRoot->AddChild<AnnouncementProbe>(&moved);
+        oldHost.SetRoot(std::move(oldRoot));
+        moved = Heard{};
+        newHost.SetRoot(TakeChild(*oldPanel, 0u));
+        Require(moved.flowDirection == 1u && moved.density == 0u && moved.flowHost == &newHost,
+                "a control moved into another host hears the direction it now inherits once, in place");
+    }
+
+    // The intermediate places do not count: from a compact parent into a compact host the density never differs, though
+    // the control passes through a place with no host on the way.
+    {
+        WindowHost oldHost;
+        WindowHost newHost;
+        newHost.SetTheme(densityTheme(Density::Compact));
+        auto oldRoot = std::make_unique<Panel>();
+        oldRoot->SetDensity(Density::Compact);
+        Panel* const oldPanel = oldRoot.get();
+        Heard moved;
+        oldRoot->AddChild<AnnouncementProbe>(&moved);
+        oldHost.SetRoot(std::move(oldRoot));
+        moved = Heard{};
+        newHost.SetRoot(TakeChild(*oldPanel, 0u));
+        Require(heardNothing(moved), "a control whose density is compact before and after hears nothing on the way");
+    }
+
+    // Tearing down announces nothing, though a root leaving a compact host stops inheriting its density.
+    {
+        WindowHost host;
+        host.SetTheme(densityTheme(Density::Compact));
+        Heard root;
+        Heard child;
+        auto rootProbe = std::make_unique<AnnouncementProbe>(&root);
+        rootProbe->AddChild<AnnouncementProbe>(&child);
+        host.SetRoot(std::move(rootProbe));
+        root  = Heard{};
+        child = Heard{};
+        host.SetRoot(nullptr);
+        Require(heardNothing(root) && heardNothing(child), "replacing the root announces nothing to the tree it drops");
+
+        Panel panel;
+        Heard cleared;
+        panel.SetFlowDirection(FlowDirection::RightToLeft);
+        panel.AddChild<AnnouncementProbe>(&cleared);
+        cleared = Heard{};
+        panel.ClearChildren();
+        Require(heardNothing(cleared), "clearing a panel announces nothing to its children");
+    }
+}
+
+// A null slot dereference is a hardware fault, not an exception: report it as a failure instead of ending the run.
+[[nodiscard]] bool ClearsWithoutFaulting(Panel& panel) noexcept
+{
+    __try
+    {
+        panel.ClearChildren();
+        return true;
+    }
+    __except (GetExceptionCode() == EXCEPTION_ACCESS_VIOLATION ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+    {
+        return false;
+    }
+}
+
+// Panel::GetChildren hands out the owning pointers, so a child can be moved out and leaves a null slot. Everything a
+// panel does with its children skips it: announcements, painting, hit testing, ticking, accessibility, focus and
+// clearing (which dereferenced it).
+void TestPanelSkipsTheSlotOfAChildMovedOutThroughGetChildren()
+{
+    AttachedHostWindow window;
+    auto root          = std::make_unique<Panel>();
+    Panel* const panel = root.get();
+    auto* first        = root->AddChild<Button>(L"First");
+    auto* second       = root->AddChild<Button>(L"Second");
+    auto* third        = root->AddChild<Button>(L"Third");
+    first->SetBounds(D2D1::RectF(10.0f, 10.0f, 110.0f, 40.0f));
+    second->SetBounds(D2D1::RectF(10.0f, 50.0f, 110.0f, 80.0f));
+    third->SetBounds(D2D1::RectF(10.0f, 90.0f, 110.0f, 120.0f));
+    window.Host().SetRoot(std::move(root));
+    static_cast<void>(CaptureWindow(window, "the panel paints with all its children"));
+
+    PageHost page;
+    page.SetBounds(D2D1::RectF(10.0f, 50.0f, 110.0f, 80.0f));
+    page.SetPage(TakeChild(*panel, 1u));
+    Require(page.GetPage() == second && panel->DebugChildCount() == 3u && ! panel->GetChildren()[1] && panel->GetLogicalChild(1u) == nullptr,
+            "the second button left an empty slot behind");
+
+    panel->SetFlowDirection(FlowDirection::RightToLeft);
+    panel->SetDensity(Density::Compact);
+    RECT windowRect{};
+    GetWindowRect(window.Hwnd(), &windowRect);
+    bool handled = false;
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKELONG(144u, 144u), reinterpret_cast<LPARAM>(&windowRect), handled));
+    Require(handled, "the host announces its dpi to the panel around the empty slot");
+    static_cast<void>(CaptureWindow(window, "the panel paints around the empty slot"));
+    Require(window.Host().DebugHitTestControl(D2D1::Point2F(60.0f, 65.0f)) == panel, "where the second button was, a hit test finds the panel");
+    Require(window.Host().DebugHitTestControl(D2D1::Point2F(60.0f, 25.0f)) == first, "and still finds the first button");
+    static_cast<void>(window.Host().DebugAnimationTickForTest(GetTickCount64()));
+    window.Host().RefreshAccessibilitySnapshot();
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_KEYDOWN, VK_TAB, 0, handled));
+    Require(handled && window.Host().GetFocusControl() != nullptr, "tabbing skips the empty slot");
+
+    Require(ClearsWithoutFaulting(*panel), "clearing the panel skips the empty slot");
+    Require(panel->DebugChildCount() == 0u, "clearing the panel removes every slot");
+}
+
 void TestEditorControlsAreCatalogued()
 {
     Require(GetControlCatalog().size() == 30u, "the catalog lists 30 controls");
@@ -1162,5 +2083,20 @@ void RunEditorControlTests()
     TestColorPickerCaptionSlotsFollowTheLabelWidths();
     TestColorPickerDisabledAndPaint();
     TestColorPickerCommitCallbackCanReplaceRootSafely();
+    TestColorPickerMovedOutOfARightToLeftParentIsArrangedForItsNewPlace();
+    TestColorPickerReleasesItsGradientsWhenItsHostChanges();
+
+    // Moving controls (Control::Reparent, Panel slots)
+    TestColorPickerMovedBetweenHostsMatchesAFreshOne();
+    TestNumericStepperMovedBetweenHostsMatchesAFreshOne();
+    TestTabControlMovedBetweenHostsMatchesAFreshOne();
+    TestMenuBarMovedBetweenHostsMatchesAFreshOne();
+    TestTextFieldMovedBetweenHostsMatchesAFreshOne();
+    TestStackPanelMovedOutOfARightToLeftParentIsLaidOutForItsNewPlace();
+    TestTabControlMovedOutOfARightToLeftParentIsLaidOutForItsNewPlace();
+    TestTreeMovedBetweenDensitiesMatchesAFreshOne();
+    TestGridMovedBetweenDensitiesMatchesAFreshOne();
+    TestMovingAControlAnnouncesWhatItNowInheritsOnce();
+    TestPanelSkipsTheSlotOfAChildMovedOutThroughGetChildren();
     TestEditorControlsAreCatalogued();
 }
