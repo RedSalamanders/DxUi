@@ -20,7 +20,9 @@ The CI x64 Release job regenerated the gallery from `217e602` with display-indep
 described-menu tile renders completely in all five reviewed sheets. The design system is republished
 with the described MenuBar guideline, preview and the regenerated sheets.
 
-Directed input restoration still needs an interactive developer desktop. It verifies that the tests
+Directed input restoration ran on 30 September on the developer's desktop and passed in all six runs
+([receipts](../../../Measurements/MenuDescriptions/2026-09-30/directed-input/README.md)); the note below describes
+what it had to cover. It verifies that the tests
 return the person's foreground window, focus and cursor, which no CI runner can stand in for. Rerun the
 V4 wrapper and runner retained in the grid's
 [interactive packet](../../../Measurements/GridTextOverflow/2026-09-21/qualification/interactive/README.md),
@@ -194,8 +196,12 @@ qualification remains in RedSalamander's File Operations plan.
 - [x] Verify French Unicode, repeated names, short viewports, pointer/keyboard/UIA, disabled
   entries, submenu behavior, owner focus and retained-provider teardown.
 - [x] Run x64 Debug/Release/ASan nonactivating tests and all ARM64 builds.
-- [ ] Complete directed input restoration across configurations: Debug and ASan Menu/NativeTextInput runs,
-  and a Release NativeTextInput run whose cursor check passes.
+- [x] Complete directed input restoration across configurations: Debug and ASan Menu/NativeTextInput runs,
+  and a Release NativeTextInput run whose cursor check passes. Done on 30 September from main `a0b4934` plus the
+  menu-closing test fix `e6cda48` ([receipts](../../../Measurements/MenuDescriptions/2026-09-30/directed-input/README.md)).
+  Menu and NativeTextInput ran under the retained V4 wrapper in x64 Debug, Release and ASan Debug, all six with zero
+  skips, restoring the foreground window, focus and cursor exactly. The first attempt stopped on one skip, a test
+  covered by the desktop application's own window; that attempt is kept, and the fix makes the test's window topmost.
 - [x] Qualify paired performance/resources: nothing flags timing against main, and the repeated clean
   private-memory flag is waived pending the [optimization plan](MenuDescriptionMemory_2026-09-27.md).
 - [x] Regenerate/review documentation gallery; run skills/spec/dependency/format validators.
