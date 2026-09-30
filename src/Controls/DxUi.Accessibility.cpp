@@ -7,8 +7,10 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <bit>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <format>
 #include <limits>
 #include <memory>
@@ -163,6 +165,18 @@ std::atomic<HANDLE> g_accessibilityUiActionPostedEvent{nullptr};
 std::atomic<DWORD> g_accessibilityUiActionDispatchTimeoutOverrideMs{0u};
 std::atomic<uint32_t> g_accessibilityUiActionExecutionCount{0u};
 std::atomic<size_t> g_accessibilityOffscreenSelectedRowMaterializationLimitOverride{0u};
+thread_local bool g_accessibilityResolutionCounting       = false;
+thread_local uint64_t g_accessibilityResolutionVisitCount = 0u;
+
+// The records, slots and tree nodes that resolving a control examined on this thread. Dormant unless a test enables
+// it, and per thread so that other threads' UI Automation calls neither add to it nor contend on it.
+void CountAccessibilityResolutionVisits(size_t visited) noexcept
+{
+    if (g_accessibilityResolutionCounting)
+    {
+        g_accessibilityResolutionVisitCount += visited;
+    }
+}
 
 [[nodiscard]] DWORD AccessibilityUiActionDispatchTimeoutMs() noexcept
 {
@@ -231,6 +245,10 @@ void MaybeStallTakenAccessibilityUiActionHandlerForTest() noexcept
 [[nodiscard]] constexpr std::wstring_view AccessibilityGridSnapshotPerfDetail() noexcept
 {
     return L"selection";
+}
+
+constexpr void CountAccessibilityResolutionVisits(size_t) noexcept
+{
 }
 #endif
 
@@ -419,6 +437,75 @@ struct AccessibilityGridCellSnapshotRecord
     size_t columnIndex                                          = 0u;
 };
 
+// A hash table of record ordinals. The caller hashes a key; probing steps from the slot that hash picks (by growing
+// strides, which visit every slot of a power-of-two table without the clusters that unit strides build) until the
+// caller's test accepts a record (its whole key matches) or a slot is empty. It is sized once, to a power of two of at
+// least four times its entries, when a snapshot is published and only read afterwards, so a lookup allocates nothing
+// and examines a slot or two however many records the snapshot holds.
+class AccessibilityOrdinalIndex final
+{
+public:
+    void Reserve(size_t entryCount)
+    {
+        const size_t slotCount = std::bit_ceil((std::max)(entryCount, size_t{1u}) * 4u);
+        _slots.assign(slotCount, 0u);
+        _mask = slotCount - 1u;
+    }
+
+    // Places the record unless the test accepts one placed on the way: the first record of a key is the one found.
+    template <typename Matches> void Place(uint64_t hash, uint32_t ordinal, const Matches& matches) noexcept
+    {
+        size_t stride = 0u;
+        for (size_t slot = static_cast<size_t>(hash) & _mask;; slot = (slot + ++stride) & _mask)
+        {
+            if (_slots[slot] == 0u)
+            {
+                _slots[slot] = ordinal + 1u;
+                return;
+            }
+            if (matches(_slots[slot] - 1u))
+            {
+                return;
+            }
+        }
+    }
+
+    template <typename Matches> [[nodiscard]] std::optional<uint32_t> Find(uint64_t hash, const Matches& matches) const noexcept
+    {
+        if (_slots.empty())
+        {
+            return std::nullopt;
+        }
+
+        size_t examined = 0u;
+        size_t stride   = 0u;
+        std::optional<uint32_t> found;
+        for (size_t slot = static_cast<size_t>(hash) & _mask; _slots[slot] != 0u; slot = (slot + ++stride) & _mask)
+        {
+            ++examined;
+            if (matches(_slots[slot] - 1u))
+            {
+                found = _slots[slot] - 1u;
+                break;
+            }
+        }
+        CountAccessibilityResolutionVisits(found ? examined : examined + 1u); // A miss also examines the empty slot that ends it.
+        return found;
+    }
+
+private:
+    std::vector<uint32_t> _slots; // A record's ordinal plus one; zero marks an empty slot.
+    size_t _mask = 0u;
+};
+
+// Where a record's control lived when it was published: compared, never dereferenced, so an event naming a control
+// that has since been removed (and perhaps destroyed) is safe.
+struct AccessibilityControlAddress
+{
+    uintptr_t address = 0u;
+    uint32_t ordinal  = 0u;
+};
+
 struct AccessibilitySnapshot
 {
     HWND hwnd     = nullptr;
@@ -433,8 +520,16 @@ struct AccessibilitySnapshot
     std::wstring windowName;
     std::optional<AccessibilityFocusedFragmentSnapshot> focusedFragment;
     std::vector<AccessibilityPointHitSnapshot> pointHitRecords;
+    // semanticControlOrder[i] is the path of controlNavigationRecords[i], both in tree order.
     std::vector<ControlPath> semanticControlOrder;
     std::vector<AccessibilityControlNavigationSnapshot> controlNavigationRecords;
+    // Resolving what a provider or an event names costs a probe or two whatever the size of the tree: these tables
+    // over the records above are filled once when the snapshot is published (IndexAccessibilitySnapshot) and only read
+    // afterwards. A control's record is found by its path, a fragment's hit rectangle by its kind, path and item, and a
+    // control's record by its address (sorted, so a search takes about log2 of the records).
+    AccessibilityOrdinalIndex controlRecordsByPath;
+    AccessibilityOrdinalIndex pointHitsByFragment;
+    std::vector<AccessibilityControlAddress> controlsByAddress;
 };
 
 [[nodiscard]] bool IsSemanticAccessibilityControl(const Control* control) noexcept;
@@ -442,6 +537,8 @@ struct AccessibilitySnapshot
 [[nodiscard]] bool SnapshotHasCollapsedSemanticRoot(const AccessibilitySnapshot& snapshot) noexcept;
 [[nodiscard]] const AccessibilityControlNavigationSnapshot* FindControlNavigationRecord(const AccessibilitySnapshot& snapshot,
                                                                                         const ControlPath& path) noexcept;
+[[nodiscard]] std::optional<uint32_t> FindControlRecordOrdinalByAddress(const AccessibilitySnapshot& snapshot, const Control* control) noexcept;
+void IndexAccessibilitySnapshot(AccessibilitySnapshot& snapshot);
 [[nodiscard]] std::wstring_view GetControlAccessibleName(const Control* root, const Control* control) noexcept;
 [[nodiscard]] std::wstring_view GetControlAccessibleValue(const Control* control) noexcept;
 [[nodiscard]] std::wstring GetControlAccessibleTextRangeText(const Control* control);
@@ -657,17 +754,18 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
                                              AreControlPathsEqual(snapshot->semanticControlOrder.front(), collapsedRootPath);
     }
     AppendAccessibilitySnapshotPointHits(host, root, ControlPath{}, *snapshot);
+    IndexAccessibilitySnapshot(*snapshot);
 
     // The host prunes a focused control that left the tree only at its next message, so find it by pointer before
-    // touching it: one removed with its panel's children in the meantime is gone, not focused.
+    // touching it: one removed with its panel's children in the meantime is gone, not focused. The records are the
+    // semantic controls the tree holds, and their addresses are only compared.
     Control* const focused = host.GetFocusControl();
     if (root && focused)
     {
-        ControlPath focusedPath{};
-        if (FindAccessibilityPathForTarget(root, ControlPath{}, focused, focusedPath) && IsSemanticAccessibilityControl(focused))
+        if (const std::optional<uint32_t> focusedOrdinal = FindControlRecordOrdinalByAddress(*snapshot, focused))
         {
             AccessibilityFocusedFragmentSnapshot focusedFragment{};
-            focusedFragment.path = focusedPath;
+            focusedFragment.path = snapshot->controlNavigationRecords[focusedOrdinal.value()].path;
 
             if (const auto* tree = dynamic_cast<const Tree*>(focused))
             {
@@ -771,6 +869,7 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
 
 template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TControl* root, const ControlPath& path) noexcept
 {
+    CountAccessibilityResolutionVisits(path.depth + 1u);
     TControl* current = root;
     for (uint32_t depth = 0u; depth < path.depth; ++depth)
     {
@@ -795,6 +894,7 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
 
 [[nodiscard]] bool IsControlPathVisible(const Control* root, const ControlPath& path) noexcept
 {
+    CountAccessibilityResolutionVisits(path.depth + 1u);
     const Control* current = root;
     if (! current || ! current->IsVisible())
     {
@@ -1194,14 +1294,18 @@ void AppendAccessibilitySnapshotPointHits(
 
 const AccessibilityPointHitSnapshot* FindSnapshotPointHit(const AccessibilitySnapshot& snapshot, D2D1_POINT_2F pointDip) noexcept
 {
+    size_t visited = 0u;
     for (const AccessibilityPointHitSnapshot& hit : snapshot.pointHitRecords)
     {
+        ++visited;
         if (PointInRect(hit.hitRectDip, pointDip))
         {
+            CountAccessibilityResolutionVisits(visited);
             return &hit;
         }
     }
 
+    CountAccessibilityResolutionVisits(visited);
     return nullptr;
 }
 
@@ -1231,6 +1335,106 @@ bool SnapshotPointHitMatchesFragment(const AccessibilityPointHitSnapshot& hit,
     return false;
 }
 
+// MurmurHash3's fmix64, as the retained text layouts' keys use it: every input bit reaches the low bits that pick a slot.
+[[nodiscard]] uint64_t MixAccessibilityHash(uint64_t hash) noexcept
+{
+    hash ^= hash >> 33u;
+    hash *= 0xFF51AFD7ED558CCDull;
+    hash ^= hash >> 33u;
+    hash *= 0xC4CEB9FE1A85EC53ull;
+    hash ^= hash >> 33u;
+    return hash;
+}
+
+[[nodiscard]] uint64_t HashControlPath(const ControlPath& path) noexcept
+{
+    uint64_t hash = (0xCBF29CE484222325ull ^ path.depth) * 0x100000001B3ull;
+    for (uint32_t depth = 0u; depth < path.depth; ++depth)
+    {
+        hash = (hash ^ path.indices[depth]) * 0x100000001B3ull;
+    }
+    return MixAccessibilityHash(hash);
+}
+
+// What identifies a hit record: its kind, its path and, as SnapshotPointHitMatchesFragment decides, the item within
+// the control that the kind names.
+[[nodiscard]] uint64_t HashPointHitKey(
+    AccessibilityFragmentKind kind, const ControlPath& path, size_t treeVisibleIndex, uint64_t gridRowId, size_t gridColumnIndex) noexcept
+{
+    constexpr uint64_t kRowFactor    = 0xD6E8FEB86659FD93ull;
+    constexpr uint64_t kColumnFactor = 0x165667B19E3779F9ull;
+    uint64_t hash                    = HashControlPath(path) + (static_cast<uint64_t>(kind) + 1u) * 0x9E3779B97F4A7C15ull;
+    switch (kind)
+    {
+        case AccessibilityFragmentKind::TreeItem: hash += treeVisibleIndex * 0xC2B2AE3D27D4EB4Full; break;
+        case AccessibilityFragmentKind::GridHeader: hash += gridColumnIndex * kColumnFactor; break;
+        case AccessibilityFragmentKind::GridRow: hash += gridRowId * kRowFactor; break;
+        case AccessibilityFragmentKind::GridCell: hash += gridRowId * kRowFactor + gridColumnIndex * kColumnFactor; break;
+        case AccessibilityFragmentKind::Root:
+        case AccessibilityFragmentKind::Control:
+        case AccessibilityFragmentKind::TextFieldPasswordRevealButton: break;
+    }
+    return MixAccessibilityHash(hash);
+}
+
+// Fills the snapshot's lookup tables from its finished records, as the last step of building it.
+void IndexAccessibilitySnapshot(AccessibilitySnapshot& snapshot)
+{
+    const auto& records = snapshot.controlNavigationRecords;
+    snapshot.controlRecordsByPath.Reserve(records.size());
+    for (size_t ordinal = 0u; ordinal < records.size(); ++ordinal)
+    {
+        const ControlPath& path = records[ordinal].path;
+        snapshot.controlRecordsByPath.Place(
+            HashControlPath(path), static_cast<uint32_t>(ordinal), [&](uint32_t placed) noexcept { return AreControlPathsEqual(records[placed].path, path); });
+    }
+
+    const auto& hits = snapshot.pointHitRecords;
+    snapshot.pointHitsByFragment.Reserve(hits.size());
+    for (size_t ordinal = 0u; ordinal < hits.size(); ++ordinal)
+    {
+        const AccessibilityPointHitSnapshot& hit = hits[ordinal];
+        if (hit.kind == AccessibilityFragmentKind::Root)
+        {
+            continue; // The window's own rectangle is never looked up by fragment.
+        }
+
+        snapshot.pointHitsByFragment.Place(HashPointHitKey(hit.kind, hit.path, hit.treeVisibleIndex, hit.gridRowId, hit.gridColumnIndex),
+                                           static_cast<uint32_t>(ordinal),
+                                           [&](uint32_t placed) noexcept
+        { return SnapshotPointHitMatchesFragment(hits[placed], hit.kind, hit.path, hit.treeVisibleIndex, hit.gridRowId, hit.gridColumnIndex); });
+    }
+
+    std::ranges::sort(snapshot.controlsByAddress, [](const AccessibilityControlAddress& first, const AccessibilityControlAddress& second) noexcept {
+        return first.address != second.address ? first.address < second.address : first.ordinal < second.ordinal;
+    });
+}
+
+std::optional<uint32_t> FindControlRecordOrdinalByAddress(const AccessibilitySnapshot& snapshot, const Control* control) noexcept
+{
+    const auto address = reinterpret_cast<uintptr_t>(control);
+    const auto& sorted = snapshot.controlsByAddress;
+    size_t low         = 0u;
+    size_t high        = sorted.size();
+    size_t examined    = 0u;
+    while (low < high)
+    {
+        ++examined;
+        const size_t middle = low + (high - low) / 2u;
+        if (sorted[middle].address < address)
+        {
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+
+    CountAccessibilityResolutionVisits(examined);
+    return low < sorted.size() && sorted[low].address == address ? std::optional<uint32_t>(sorted[low].ordinal) : std::nullopt;
+}
+
 std::optional<D2D1_RECT_F> FindSnapshotFragmentBounds(const AccessibilitySnapshot& snapshot,
                                                       AccessibilityFragmentKind kind,
                                                       const ControlPath& path,
@@ -1238,15 +1442,10 @@ std::optional<D2D1_RECT_F> FindSnapshotFragmentBounds(const AccessibilitySnapsho
                                                       uint64_t gridRowId,
                                                       size_t gridColumnIndex) noexcept
 {
-    for (const AccessibilityPointHitSnapshot& hit : snapshot.pointHitRecords)
-    {
-        if (SnapshotPointHitMatchesFragment(hit, kind, path, treeVisibleIndex, gridRowId, gridColumnIndex))
-        {
-            return hit.hitRectDip;
-        }
-    }
-
-    return std::nullopt;
+    const std::optional<uint32_t> ordinal = snapshot.pointHitsByFragment.Find(HashPointHitKey(kind, path, treeVisibleIndex, gridRowId, gridColumnIndex),
+                                                                              [&](uint32_t placed) noexcept
+    { return SnapshotPointHitMatchesFragment(snapshot.pointHitRecords[placed], kind, path, treeVisibleIndex, gridRowId, gridColumnIndex); });
+    return ordinal ? std::optional<D2D1_RECT_F>(snapshot.pointHitRecords[ordinal.value()].hitRectDip) : std::nullopt;
 }
 
 // A control's identity in runtime ids: a process-wide serial kept in its lifetime token (whose value is otherwise
@@ -1279,6 +1478,8 @@ void AppendAccessibilitySnapshotNavigation(
     if (IsSemanticAccessibilityControl(current))
     {
         snapshot.semanticControlOrder.push_back(basePath);
+        snapshot.controlsByAddress.push_back(AccessibilityControlAddress{.address = reinterpret_cast<uintptr_t>(current),
+                                                                         .ordinal = static_cast<uint32_t>(snapshot.controlNavigationRecords.size())});
 
         AccessibilityControlNavigationSnapshot record{};
         record.path                      = basePath;
@@ -1575,10 +1776,9 @@ void AppendAccessibilitySnapshotNavigation(
 
 const AccessibilityControlNavigationSnapshot* FindControlNavigationRecord(const AccessibilitySnapshot& snapshot, const ControlPath& path) noexcept
 {
-    const auto it = std::ranges::find_if(snapshot.controlNavigationRecords, [&](const AccessibilityControlNavigationSnapshot& record) noexcept {
-        return AreControlPathsEqual(record.path, path);
-    });
-    return it == snapshot.controlNavigationRecords.end() ? nullptr : &*it;
+    const std::optional<uint32_t> ordinal = snapshot.controlRecordsByPath.Find(
+        HashControlPath(path), [&](uint32_t placed) noexcept { return AreControlPathsEqual(snapshot.controlNavigationRecords[placed].path, path); });
+    return ordinal ? &snapshot.controlNavigationRecords[ordinal.value()] : nullptr;
 }
 
 const AccessibilityControlNavigationSnapshot* ResolveSnapshotControlRecord(const AccessibilitySnapshot& snapshot,
@@ -1598,15 +1798,9 @@ const AccessibilityControlNavigationSnapshot* ResolveSnapshotControlRecord(const
 
 std::optional<size_t> FindSemanticControlOrderIndex(const AccessibilitySnapshot& snapshot, const ControlPath& path) noexcept
 {
-    for (size_t index = 0u; index < snapshot.semanticControlOrder.size(); ++index)
-    {
-        if (AreControlPathsEqual(snapshot.semanticControlOrder[index], path))
-        {
-            return index;
-        }
-    }
-
-    return std::nullopt;
+    // The order lists the records' paths, so a record's place in it is its ordinal.
+    const AccessibilityControlNavigationSnapshot* const record = FindControlNavigationRecord(snapshot, path);
+    return record ? std::optional<size_t>(static_cast<size_t>(record - snapshot.controlNavigationRecords.data())) : std::nullopt;
 }
 
 bool SnapshotHasCollapsedSemanticRoot(const AccessibilitySnapshot& snapshot) noexcept
@@ -8270,9 +8464,16 @@ ITextRangeProvider* AccessibilityProvider::CreateTextDocumentRangeProvider(const
     return CreateTextRangeProvider(record.path, 0u, record.controlAccessibleText.size());
 }
 
-[[nodiscard]] bool FindAccessibilityPathForTarget(const Control* current, const ControlPath& basePath, const Control* target, ControlPath& outPath) noexcept
+[[nodiscard]] bool SearchAccessibilityPathForTarget(
+    const Control* current, const ControlPath& basePath, const Control* target, ControlPath& outPath, size_t& visited) noexcept
 {
-    if (! current || ! current->IsVisible())
+    if (! current)
+    {
+        return false;
+    }
+
+    ++visited;
+    if (! current->IsVisible())
     {
         return false;
     }
@@ -8303,13 +8504,42 @@ ITextRangeProvider* AccessibilityProvider::CreateTextDocumentRangeProvider(const
             continue;
         }
 
-        if (FindAccessibilityPathForTarget(children[index].get(), childPath, target, outPath))
+        if (SearchAccessibilityPathForTarget(children[index].get(), childPath, target, outPath, visited))
         {
             return true;
         }
     }
 
     return false;
+}
+
+[[nodiscard]] bool FindAccessibilityPathForTarget(const Control* current, const ControlPath& basePath, const Control* target, ControlPath& outPath) noexcept
+{
+    size_t visited   = 0u;
+    const bool found = SearchAccessibilityPathForTarget(current, basePath, target, outPath, visited);
+    CountAccessibilityResolutionVisits(visited);
+    return found;
+}
+
+// The path of `control` in a window host's live tree, which is what a search of that tree finds. While the published
+// snapshot still describes the tree, its table names the path and a walk down it confirms the control is there; a
+// control the snapshot does not hold (added since it was published, or hidden, or no element) is searched for.
+[[nodiscard]] bool FindWindowHostControlPath(const AccessibilitySnapshot* snapshot, Control* root, const Control* control, ControlPath& outPath) noexcept
+{
+    if (snapshot)
+    {
+        if (const std::optional<uint32_t> ordinal = FindControlRecordOrdinalByAddress(*snapshot, control))
+        {
+            const ControlPath& published = snapshot->controlNavigationRecords[ordinal.value()].path;
+            if (ResolveControlAtPath(root, published) == control && IsControlPathVisible(root, published) && IsSemanticAccessibilityControl(control))
+            {
+                outPath = published;
+                return true;
+            }
+        }
+    }
+
+    return FindAccessibilityPathForTarget(root, ControlPath{}, control, outPath);
 }
 
 } // namespace
@@ -8391,10 +8621,10 @@ AccessibilityTextUnitSpan GetEnclosingAccessibilityTextUnitSpan(std::wstring_vie
         return {};
     ControlHost* const host = target.get()->ResolveHost();
     ControlPath path{};
-    if (! host || ! FindAccessibilityPathForTarget(host->GetRoot(), ControlPath{}, control, path))
+    const auto snapshot = target.get()->snapshot.load(std::memory_order_acquire);
+    if (! host || ! FindWindowHostControlPath(snapshot.get(), host->GetRoot(), control, path))
         return {};
     wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
-    const auto snapshot = target.get()->snapshot.load(std::memory_order_acquire);
     if (snapshot && SnapshotPathIsCollapsedSemanticRoot(*snapshot, path))
     {
         const auto root = AcquireCanonicalRootProvider(target.get());
@@ -8509,7 +8739,8 @@ bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, 
 
     ControlHost* const host = target->ResolveHost();
     ControlPath controlPath{};
-    if (! host || ! FindAccessibilityPathForTarget(host->GetRoot(), ControlPath{}, control, controlPath))
+    const auto snapshot = target->snapshot.load(std::memory_order_acquire);
+    if (! host || ! FindWindowHostControlPath(snapshot.get(), host->GetRoot(), control, controlPath))
     {
         static_cast<void>(target->Release());
         return false;
@@ -9126,6 +9357,121 @@ uint32_t DebugGetAccessibilityUiActionExecutionCountForTest() noexcept
 void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t limit) noexcept
 {
     g_accessibilityOffscreenSelectedRowMaterializationLimitOverride.store(limit, std::memory_order_release);
+}
+
+void DebugSetAccessibilityResolutionCountingForTest(bool enabled) noexcept
+{
+    g_accessibilityResolutionVisitCount = 0u;
+    g_accessibilityResolutionCounting   = enabled;
+}
+
+void DebugResetAccessibilityResolutionVisitCountForTest() noexcept
+{
+    g_accessibilityResolutionVisitCount = 0u;
+}
+
+uint64_t DebugGetAccessibilityResolutionVisitCountForTest() noexcept
+{
+    return g_accessibilityResolutionVisitCount;
+}
+
+bool DebugResolveWindowHostEventPathForTest(HWND hwnd, const Control* control, std::span<uint16_t> indices, uint32_t& depth) noexcept
+{
+    depth                        = 0u;
+    constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
+    wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> target(AcquireWindowHostAccessibilityTarget(hwnd));
+    if (! target)
+        return false;
+    ControlHost* const host = target.get()->ResolveHost();
+    ControlPath path{};
+    const auto snapshot = target.get()->snapshot.load(std::memory_order_acquire);
+    if (! host || ! FindWindowHostControlPath(snapshot.get(), host->GetRoot(), control, path))
+        return false;
+    depth = path.depth;
+    for (uint32_t index = 0u; index < path.depth && index < indices.size(); ++index)
+        indices[index] = path.indices[index];
+    return true;
+}
+
+size_t DebugCountAccessibilityIndexMismatchesForTest(HWND hwnd) noexcept
+{
+    constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
+    wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> target(AcquireWindowHostAccessibilityTarget(hwnd));
+    const std::shared_ptr<const AccessibilitySnapshot> snapshot = target ? target.get()->snapshot.load(std::memory_order_acquire) : nullptr;
+    if (! snapshot)
+        return (std::numeric_limits<size_t>::max)();
+
+    // The checks are not resolutions to count.
+    const bool counting        = std::exchange(g_accessibilityResolutionCounting, false);
+    const auto restoreCounting = wil::scope_exit([&]() noexcept { g_accessibilityResolutionCounting = counting; });
+    ControlHost* const host    = target.get()->ResolveHost();
+    const auto& records        = snapshot->controlNavigationRecords;
+    const auto& hits           = snapshot->pointHitRecords;
+    size_t mismatches          = snapshot->semanticControlOrder.size() == records.size() ? 0u : 1u;
+
+    const auto scanRecord = [&](const ControlPath& path) noexcept -> const AccessibilityControlNavigationSnapshot*
+    {
+        for (const AccessibilityControlNavigationSnapshot& record : records)
+        {
+            if (AreControlPathsEqual(record.path, path))
+                return &record;
+        }
+        return nullptr;
+    };
+    const auto checkRecord = [&](const ControlPath& path) noexcept
+    {
+        if (FindControlNavigationRecord(*snapshot, path) != scanRecord(path))
+            ++mismatches;
+    };
+    for (size_t ordinal = 0u; ordinal < records.size(); ++ordinal)
+    {
+        const ControlPath& path = records[ordinal].path;
+        if (FindControlNavigationRecord(*snapshot, path) != &records[ordinal] || FindSemanticControlOrderIndex(*snapshot, path) != ordinal)
+            ++mismatches;
+        // Paths beside this one, which may or may not hold a record: the parent, the next sibling and the first child.
+        if (path.depth != 0u)
+        {
+            ControlPath parent = path;
+            --parent.depth;
+            checkRecord(parent);
+            ControlPath sibling = path;
+            ++sibling.indices[sibling.depth - 1u];
+            checkRecord(sibling);
+        }
+        if (path.depth < kAccessibilityMaxDepth)
+        {
+            ControlPath child            = path;
+            child.indices[child.depth++] = 0u;
+            checkRecord(child);
+        }
+        // The published control at this path, found by its address (the tree is expected to match its snapshot).
+        if (const Control* const live = host ? ResolveControlAtPath(host->GetRoot(), path) : nullptr;
+            live && FindControlRecordOrdinalByAddress(*snapshot, live) != ordinal)
+            ++mismatches;
+    }
+
+    const auto scanBounds = [&](const AccessibilityPointHitSnapshot& key, size_t treeVisibleIndex, uint64_t gridRowId, size_t gridColumnIndex) noexcept
+    {
+        std::optional<D2D1_RECT_F> expected;
+        for (const AccessibilityPointHitSnapshot& hit : hits)
+        {
+            if (SnapshotPointHitMatchesFragment(hit, key.kind, key.path, treeVisibleIndex, gridRowId, gridColumnIndex))
+            {
+                expected = hit.hitRectDip;
+                break;
+            }
+        }
+        const std::optional<D2D1_RECT_F> found = FindSnapshotFragmentBounds(*snapshot, key.kind, key.path, treeVisibleIndex, gridRowId, gridColumnIndex);
+        if (found.has_value() != expected.has_value() || (found && std::memcmp(&found.value(), &expected.value(), sizeof(D2D1_RECT_F)) != 0))
+            ++mismatches;
+    };
+    for (const AccessibilityPointHitSnapshot& hit : hits)
+    {
+        scanBounds(hit, hit.treeVisibleIndex, hit.gridRowId, hit.gridColumnIndex);
+        // The same fragment one item along, which may or may not exist.
+        scanBounds(hit, hit.treeVisibleIndex + 1u, hit.gridRowId + 1u, hit.gridColumnIndex + 1u);
+    }
+    return mismatches;
 }
 #endif
 } // namespace DxUi

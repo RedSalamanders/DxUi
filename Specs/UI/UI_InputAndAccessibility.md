@@ -1,7 +1,7 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-09-29
+Last reviewed: 2026-09-30
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -82,6 +82,18 @@ a semantic control raises StructureChanged (ChildrenInvalidated) on the window's
 Structural changes alone (`AddChild`, `ClearChildren`) republish the tree at the next focus, size, pointer or state
 change, or through `RefreshAccessibilitySnapshot`. An event about a control comes from that control's element; only
 the control a collapsed semantic root stands for reports through the window's element.
+
+An element resolves its control without scanning the tree. Each published snapshot carries lookup tables built with
+it: a control's record by its path (which also gives its place among its siblings), a fragment's hit rectangle by kind,
+path and item, and a control's record by its address. A provider call examines a few table slots, however many
+controls the window holds, where a scan of the records examined half of them for every call and a client walking every
+element paid that for each one; an event finds the path of its control by a search of the sorted addresses, about log2
+of the records, and a walk down that path to confirm it. The tables describe the tree as published, so an event about a
+control they do not hold (added since the publish, hidden, or no element) searches the live tree, as it always did, and
+a control they do hold is confirmed against the live tree before it is used. What lives inside one control still scans
+that control's own items (a tree's items by id, a grid's rows and cells), and a hit test by point scans the hit
+rectangles in paint order. A diagnostics counter of what resolutions examine, and a check of the tables against a scan
+of the records, back the tests.
 
 Buttons with acknowledged disclosure state expose ExpandCollapse, consistent state properties and
 state-change notifications. Expand/Collapse requests are idempotent against current acknowledged state,

@@ -384,6 +384,18 @@ void DebugSetAccessibilityUiActionDispatchTimeoutForTest(DWORD timeoutMs) noexce
 void DebugResetAccessibilityUiActionExecutionCountForTest() noexcept;
 [[nodiscard]] uint32_t DebugGetAccessibilityUiActionExecutionCountForTest() noexcept;
 void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t limit) noexcept;
+// Counting starts at zero when enabled and covers every record, table slot and tree node a provider call or event
+// examines to resolve a control on the calling thread; it is off (and free) otherwise.
+void DebugSetAccessibilityResolutionCountingForTest(bool enabled) noexcept;
+void DebugResetAccessibilityResolutionVisitCountForTest() noexcept;
+[[nodiscard]] uint64_t DebugGetAccessibilityResolutionVisitCountForTest() noexcept;
+// The path a window host's UI Automation events use for `control`: its child indices from the root in indices, and
+// their number in depth. False when the control has no element in the window. Never dereferences a control that is
+// not in the tree.
+[[nodiscard]] bool DebugResolveWindowHostEventPathForTest(HWND hwnd, const Control* control, std::span<uint16_t> indices, uint32_t& depth) noexcept;
+// How many lookups in the published snapshot's tables disagree with a scan of its records: zero once the snapshot
+// matches the tree (after RefreshAccessibilitySnapshot). The largest size_t when the window has no snapshot.
+[[nodiscard]] size_t DebugCountAccessibilityIndexMismatchesForTest(HWND hwnd) noexcept;
 #endif
 
 // Scrollbar shared helpers (shared by Grid and Tree)
