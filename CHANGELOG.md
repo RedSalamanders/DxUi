@@ -17,6 +17,17 @@
   answer `UIA_E_ELEMENTNOTAVAILABLE`. What lives inside one control (a tree's items by id, a grid's rows and cells) and
   hit testing a point still scan. Test-only diagnostics count what resolutions examine, resolve an event's path and
   check the tables against a scan of the records.
+- A click that activates a window announces the clicked control once (plan `ReliabilityAndFollowUps_2026-09-30`, item
+  7): the click sets its control after the window's `WM_SETFOCUS`, in the same turn of its message loop, and the host
+  announced that move besides the system's activation focus event, which UI Automation resolves through the fragment
+  root's `GetFocus` only once the loop turns, so a client heard the clicked control twice. A window that gained focus
+  now leaves the focus moves of the rest of that turn to the system's event: the host posts itself a message at the
+  gain whose dispatch ends the turn (as does losing focus, or 500 ms without it, should a window procedure never hand it
+  to the host). A click in the window that is already active, or any move in a later turn, is announced by the host as
+  before. The Menu suite plays the click as Windows does and counts the host's announcements and what an in-process UI
+  Automation client hears, and the WindowHost suite tests how a turn begins and ends. A window procedure must pass the
+  private message (`WM_APP + 0x06D`) to `HandleMessage`, as it does the accessibility ones. API revision stays 2
+  (additive diagnostics accessor `ControlHost::DebugIsInFocusGainTurn`).
 - A `Grid` that stops painting returns its retained text layouts (plan `ReliabilityAndFollowUps_2026-09-30`, item 9):
   hidden itself or under a hidden ancestor (an unselected tab page, a collapsed panel or page host), in a hidden
   embedded view, detached from its host or given another model, it releases its layouts, their key strings, its tables

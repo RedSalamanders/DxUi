@@ -39,7 +39,7 @@ struct EmbeddedAccessibilityAccess
 
     [[nodiscard]] static bool GainingWindowFocus(const ControlHost& host) noexcept
     {
-        return host._gainingWindowFocus;
+        return host._gainingWindowFocus || host.IsInFocusGainTurn();
     }
 
     static void CountFocusAnnouncement(ControlHost& host) noexcept
