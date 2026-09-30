@@ -11,3 +11,8 @@ Performance receipts retain their canonical JSON. Other raw JSON uses `.receipt.
 - `first/inputs.json` → `first/inputs.receipt.txt`
 - `first/library-hash.json` → `first/library-hash.receipt.txt`
 - `first/Rendering-receipt.json` → `first/Rendering-receipt.receipt.txt`
+
+On 1 October 2026 the Performance receipts kept the first 8 of their 32 run-id digits, within DxUi's 150-character path budget. Contents are unchanged:
+
+- `corrected/Performance-x64-Release-465181ac63314106b69885d6df75dc61.json` → `corrected/Performance-x64-Release-465181ac.json`, and its `.comparison.json`
+- `first/Performance-x64-Release-ae2f58a9a77f4ffd9f4daa7ecf5b263a.json` → `first/Performance-x64-Release-ae2f58a9.json`, and its `.comparison.json`

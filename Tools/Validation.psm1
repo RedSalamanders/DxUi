@@ -396,6 +396,17 @@ function Resolve-OwnedPath([string] $Root, [object] $Relative) {
     return $null
 }
 
+# A consumer restores its pin under <root>\.build\dependencies\DxUi\source\<commit>\, 74 characters after its root, and
+# Git without long paths cannot create a full path over 259 characters. This budget leaves roots of up to 35 characters.
+$script:ConsumerPathBudget = 150
+
+function Get-CommittablePaths([string] $Root) {
+    # What a commit of this tree would hold: tracked files and untracked ones git does not ignore, so ignored build
+    # output is not a finding. A tree that is not a checkout (a fixture) is walked instead.
+    if (Test-PathExists (Join-Path $Root '.git')) { return Get-GitPathList $Root @('ls-files', '-z', '--cached', '--others', '--exclude-standard') }
+    return [string[]]@(Get-TreeItems $Root | ForEach-Object { Get-RelativeText $_ $Root -Posix })
+}
+
 function Test-DxUiDependencies([Parameter(Mandatory)][string] $Root) {
     $Root = Get-FullPath $Root
     $failures = [Collections.Generic.List[string]]::new()
@@ -511,7 +522,13 @@ function Test-DxUiDependencies([Parameter(Mandatory)][string] $Root) {
         }
     }
     if ($libraries -gt 1) { $failures.Add('DxUi ships one static library; split targets are not supported') }
-    return New-ValidationResult $failures @("Validated $($origins.Count) historical origins, $($destinations.Count) owned paths, $($allowed.Count) pending dependency records and supported-source independence")
+    $committable = Get-CommittablePaths $Root
+    foreach ($path in $committable) {
+        if ($path.Length -gt $script:ConsumerPathBudget) {
+            $failures.Add("Path of $($path.Length) characters, over the $($script:ConsumerPathBudget) a consumer's pinned restore can check out: $path")
+        }
+    }
+    return New-ValidationResult $failures @("Validated $($origins.Count) historical origins, $($destinations.Count) owned paths, $($allowed.Count) pending dependency records, supported-source independence and $($committable.Count) paths within $($script:ConsumerPathBudget) characters")
 }
 
 # --- Inherited test accounting ----------------------------------------------------------------------------------
