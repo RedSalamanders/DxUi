@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `TestMenuSurvivesAWindowClosingItFromSetCursor` runs instead of skipping everywhere. Since it was added (PR 29) it
+  skipped in every run, local and x64 CI alike, as "another window covers the menu-closing window". On a developer
+  desktop the cover was the desktop application's own window, which takes the foreground back while the suite runs and
+  rises above the test's non-topmost window. The window is now topmost, and the skip names the covering window's
+  class and process. The full Menu suite runs with no skip on an interactive desktop.
 - The Menu suite's real-client focus fixtures (the click that activates a window UI Automation has or has not seen, and
   the reactivation of a seen window) no longer fail when another application takes the foreground (plan
   `SeenWindowReactivation_2026-09-30`, item 3). One failed a local Debug run while the desktop application and the Start
