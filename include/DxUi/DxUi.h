@@ -718,6 +718,8 @@ struct TreeDebugRowVisualState
     bool usesRainbow       = false;
     bool selected          = false;
     bool iconUsesIconFont  = false;
+    // The focused (current) item, which owns the focus ring. It is the selected item unless multi-select is on.
+    bool current = false;
 };
 
 struct GridSortGlyphVisualState
@@ -1367,11 +1369,18 @@ class ITreeDelegate
 public:
     virtual ~ITreeDelegate() = default;
 
+    // A user gesture (pointer, keyboard, typeahead or UI Automation) made `itemId` the selected item. With
+    // Tree::SetMultiSelectEnabled(true) it is the focused (current) item, which Ctrl+click or Ctrl+Space may have just
+    // deselected: read the selection from OnTreeSelectionSetChanged.
     virtual void OnTreeSelectionChanged(uint64_t itemId);
     virtual void OnTreeItemInvoked(uint64_t itemId);
     virtual void OnTreeToggleExpanded(uint64_t itemId, bool expanded);
     virtual void OnTreeContextMenu(uint64_t itemId, POINT screenPoint);
     virtual void OnTreeReorder(const TreeDrop& drop);
+    // Only with Tree::SetMultiSelectEnabled(true): the set of selected items changed, once per change, after
+    // OnTreeSelectionChanged for the same gesture and after a model change (`NotifyDataChanged`, `SetModel`) dropped
+    // selected items. `selectedItemIds` lists the selection in visible order and is valid during the call only.
+    virtual void OnTreeSelectionSetChanged(std::span<const uint64_t> selectedItemIds);
 };
 
 class GridSelectionModel final
@@ -3271,9 +3280,39 @@ public:
     {
         return _model;
     }
+    // Opt-in multiple selection, off by default: the tree then keeps exactly one selected item, as before. On, it keeps a
+    // set of selected items and, separately, the focused (current) item that GetSelectedItemId reports. Plain click or
+    // key selects one item and is the anchor; Ctrl+click toggles one; Shift+click (or Shift with Up, Down, Home, End,
+    // Page Up, Page Down) selects the visible range from the anchor; Ctrl with those keys moves the focus alone,
+    // Ctrl+Space toggles the focused item and Ctrl+A selects every visible item. The call is silent: enabling starts with
+    // the selected item alone, disabling keeps the focused item if it is selected, else the last selected one.
+    void SetMultiSelectEnabled(bool enabled) noexcept;
+    [[nodiscard]] bool MultiSelectEnabled() const noexcept
+    {
+        return _multiSelect;
+    }
+    // Single selection: the selected item. Multi-select: the focused (current) item, which need not be selected.
+    // `SetSelectedItemId` is silent and selects that item alone (none clears the selection).
     void SetSelectedItemId(std::optional<uint64_t> itemId) noexcept;
     [[nodiscard]] std::optional<uint64_t> GetSelectedItemId() const noexcept;
+    // The focused (current) item owns the focus ring and is where the keys start. It is the selected item, except with
+    // multi-select, where it may be outside the selection. `SetFocusedItemId` is silent and, with multi-select, moves the
+    // focus alone (UI Automation's SetFocus does); without multi-select it is SetSelectedItemId.
+    void SetFocusedItemId(std::optional<uint64_t> itemId) noexcept;
+    [[nodiscard]] std::optional<uint64_t> GetFocusedItemId() const noexcept;
+    // The selected items in visible order: the set with multi-select, else the selected item alone or nothing.
+    [[nodiscard]] std::vector<uint64_t> GetSelectedItemIds() const;
+    [[nodiscard]] bool IsItemSelected(uint64_t itemId) const noexcept;
+    // Silent. Selects the listed items that are visible rows, keeps the last of them as the focused item and the anchor.
+    // Without multi-select only that last visible item is selected.
+    void SetSelectedItemIds(std::span<const uint64_t> itemIds) noexcept;
+    // Selection by the user's action, as UI Automation does: Select replaces the selection with the item; with
+    // multi-select Add and Remove change only that item's membership (Add also makes it the focused item). Each notifies
+    // the delegate. False for an index that is not a visible row, and for Remove without multi-select; Add without it
+    // selects the item like Select.
     bool RequestSelectVisibleItem(size_t visibleIndex) noexcept;
+    bool RequestAddVisibleItemToSelection(size_t visibleIndex) noexcept;
+    bool RequestRemoveVisibleItemFromSelection(size_t visibleIndex) noexcept;
     bool RequestExpandedState(size_t visibleIndex, bool expanded) noexcept;
     [[nodiscard]] size_t GetFirstVisibleItemIndex() const noexcept;
     [[nodiscard]] std::optional<D2D1_RECT_F> GetVisibleItemHitRect(size_t visibleIndex) const noexcept;
@@ -3302,6 +3341,8 @@ public:
     bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers) override;
     bool OnChar(ControlHost& host, wchar_t ch, UINT modifiers) override;
     bool OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip) override;
+    // Multi-select only: selects every visible item (Ctrl+A); the focused item stays, or is the first item.
+    bool OnSelectAll(ControlHost& host) override;
     void OnDensityChanged() noexcept override;
 
 private:
@@ -3311,6 +3352,15 @@ private:
         Item,
         Expander,
         VerticalScrollbar,
+    };
+
+    // How a selection gesture lands on an item. Without multi-select every gesture replaces the selection.
+    enum class SelectMode : uint8_t
+    {
+        Replace,   // The item alone is selected and becomes the anchor.
+        Toggle,    // The item's membership flips; the anchor stays unless the selection was empty.
+        Range,     // The visible range from the anchor (or the focused item) to the item replaces the selection.
+        FocusOnly, // The item becomes the focused item and the selection stays as it is.
     };
 
     struct HitInfo
@@ -3367,6 +3417,17 @@ private:
     [[nodiscard]] std::optional<size_t> FindSelectedVisibleIndex() const noexcept;
     void EnsureVisibleIndex(size_t visibleIndex) noexcept;
     [[nodiscard]] bool SelectVisibleIndex(size_t visibleIndex, bool notifyDelegate);
+    // Lands a selection gesture on a visible row: updates the focused item and, with multi-select, the selection set by
+    // `mode`, then notifies the delegate (OnTreeSelectionChanged for the focused item, then OnTreeSelectionSetChanged once
+    // if the set changed). False when the index is not a row or the delegate destroyed the tree.
+    [[nodiscard]] bool SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyDelegate);
+    [[nodiscard]] std::vector<uint64_t> CollectVisibleItemIds() const;
+    // Drops selected items that are no longer visible rows and puts the rest in visible order (multi-select only).
+    void ReconcileSelectionWithModel();
+    // The delegate's OnTreeSelectionSetChanged, for a change from `previous`; false when the tree is gone after it.
+    [[nodiscard]] bool NotifySelectionSetChanged(const std::vector<uint64_t>& previous);
+    // The release of a click on a row of a multi-selection: the row becomes the whole selection (set callback only).
+    [[nodiscard]] bool CollapseSelectionToItem(uint64_t itemId);
     [[nodiscard]] bool ToggleExpanded(size_t visibleIndex);
     void RefreshAccessibilitySnapshot() const noexcept;
     [[nodiscard]] float ComputeExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept;
@@ -3390,7 +3451,11 @@ private:
     // Invalidation validated at message entry by PruneStaleInteractionState().
     ITreeModel* _model       = nullptr;
     ITreeDelegate* _delegate = nullptr;
+    // The selected item, or with multi-select the focused (current) item.
     std::optional<uint64_t> _selectedItemId;
+    // Multi-select only: the selected items and their anchor. Unused (empty) while `_multiSelect` is off.
+    GridSelectionModel _selection;
+    bool _multiSelect = false;
     std::optional<size_t> _hoveredVisibleIndex;
     float _rowHeightBaseDip    = 28.0f;
     float _rowHeightDip        = 28.0f;
@@ -3427,11 +3492,14 @@ private:
     mutable TreeTooltipOverflowCache _tooltipOverflowCache;
     ScrollbarHotPart _verticalScrollbarHotPart = ScrollbarHotPart::None;
     ScrollbarAnimationState _verticalScrollbarAnimation{};
-    bool _dragVerticalThumb   = false;
-    bool _reorderEnabled      = false;
-    bool _reorderArmed        = false;
-    bool _reorderDragging     = false;
-    uint64_t _reorderSourceId = 0u;
+    bool _dragVerticalThumb = false;
+    bool _reorderEnabled    = false;
+    bool _reorderArmed      = false;
+    bool _reorderDragging   = false;
+    // The press landed on a row of a multi-selection: it keeps the selection while pointer is down, and a release that
+    // never became a drag collapses the selection to that row (`_reorderSourceId`).
+    bool _reorderCollapsesSelection = false;
+    uint64_t _reorderSourceId       = 0u;
     // Visible rows (source, subtreeEnd) are the dragged row's own descendants: a drop there would make the row
     // its own ancestor. The drop index names the target row for painting while the model is unchanged.
     size_t _reorderSourceIndex = 0u;
