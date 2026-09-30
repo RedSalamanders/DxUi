@@ -560,10 +560,11 @@ void TestGridSingleLineLayoutsSurviveRepaintAndScroll()
 }
 
 // A painting grid keeps one layout per cell it drew last, however far it has scrolled: the tables never accumulate the
-// rows it left. (The omitted-tail table only shares a layout among the values that build it in one paint; once a paint
-// hits the value table's entries, those hold the layouts and the tail table keeps the storage of its entries alone.)
-// Prints what a painting grid holds for the fixtures above: live layouts and entries per table, the string storage their
-// keys hold (UTF-16 units, two bytes each) and the bytes of the tables, fresh and after scrolling through every row.
+// rows it left. (The omitted-tail table holds a layout only in the paint that builds it, to share it among values with
+// the same visible text; the value entries keep the layouts, and the next paint that hits them releases the tail table's,
+// which keeps the storage of its entries alone.) Prints what a painting grid holds for the fixtures above: live layouts
+// and entries per table, the string storage their keys hold (UTF-16 units, two bytes each) and the bytes of the tables,
+// fresh and after scrolling through every row.
 void TestGridPaintedLayoutsAreThoseOfItsVisibleCells()
 {
     using namespace DxUi;
@@ -749,9 +750,17 @@ void TestGridReleasesItsLayoutsWhenItStopsPainting()
             scene.grid->SetModel(&model);
             scene.pages->SetPage(std::move(page));
             const auto first = CaptureAttachedHostWindowBitmap(window, "grid before it stops painting");
-            const auto held  = scene.grid->DebugGetTextLayoutStatistics();
-            require(held.retainedLayouts > 0u && held.capacity > 0u && held.textUnits > 0u && held.tableBytes > 0u &&
-                        (held.displayCapacity > 0u) == multiline && held.ellipsis == multiline,
+            const auto cold  = scene.grid->DebugGetTextLayoutStatistics(); // What a first paint lays out and keeps.
+            // A scroll a row down and back leaves entries released by the paints between, whose string storage later keys
+            // reuse (the scratch string of an omitted tail takes some): what a grid that has painted for a while holds.
+            for (const float offset : {rowHeight, 0.0f})
+            {
+                scene.grid->DebugSetScrollOffsets(offset, 0.0f);
+                static_cast<void>(CaptureAttachedHostWindowBitmap(window, "grid scrolled a row and back"));
+            }
+            const auto held = scene.grid->DebugGetTextLayoutStatistics();
+            require(held.retainedLayouts == cold.retainedLayouts && held.retainedLayouts > 0u && held.capacity > 0u && held.textUnits > 0u &&
+                        held.tableBytes > 0u && (held.displayCapacity > 0u) == multiline && held.ellipsis == multiline,
                     "a painted grid holds layouts and their storage");
 
             step.stop(scene);
@@ -767,8 +776,8 @@ void TestGridReleasesItsLayoutsWhenItStopsPainting()
             const auto beforePaint = scene.grid->DebugGetTextLayoutStatistics();
             const auto shown       = CaptureAttachedHostWindowBitmap(window, "grid painting again");
             const auto rebuilt     = scene.grid->DebugGetTextLayoutStatistics();
-            require(rebuilt.layoutCreations - beforePaint.layoutCreations == held.layoutCreations, "painting again lays out only what its first paint did");
-            require(rebuilt.retainedLayouts == held.retainedLayouts && rebuilt.capacity == held.capacity && rebuilt.displayCapacity == held.displayCapacity,
+            require(rebuilt.layoutCreations - beforePaint.layoutCreations == cold.layoutCreations, "painting again lays out only what its first paint did");
+            require(rebuilt.retainedLayouts == cold.retainedLayouts && rebuilt.capacity == cold.capacity && rebuilt.displayCapacity == cold.displayCapacity,
                     "painting again keeps the layouts of what it shows in tables of the size its first paint needed");
             require(shown.bgraPixels == first.bgraPixels, "painting again draws the pixels of the first paint");
             static_cast<void>(CaptureAttachedHostWindowBitmap(window, "grid repainted"));
