@@ -43,12 +43,12 @@ struct EmbeddedAccessibilityAccess
     //
     // The system raises a focus event when the window gains focus, and UI Automation answers it in one of two ways. It
     // asks a window it has not reported before with a call of GetFocus, on whatever thread, which reads the snapshot
-    // published when the call runs. Its later focus events for the same window it answers without GetFocus, from the
-    // element it last reported for the window, and only while that element still has the keyboard focus. The click that
-    // activates a window moves focus in the same turn as the gain, before UI Automation has acted on the event, so in a
-    // window UI Automation has asked before, the moved-to element is the host's to announce: the event finds the element
-    // it knows no longer focused and reports nothing. In a window it has never asked, the GetFocus call that answers the
-    // event comes after the move and reports the moved-to element, so the host leaves the move to it.
+    // published when the call runs. A window it has reported it answers without GetFocus: it asks the window's root
+    // element whether it has the keyboard focus, and reports that element when it does and nothing when the focus is
+    // inside a control. The click that activates a window moves focus in the same turn as the gain, before UI Automation
+    // has acted on the event, so in a window UI Automation has asked before, the moved-to control is the host's to
+    // announce: nothing else reports it. In a window it has never asked, the GetFocus call that answers the event comes
+    // after the move and reports the moved-to element, so the host leaves the move to it.
     enum class FocusMoveReporter : uint8_t
     {
         Host,            // The host raises the focus change.

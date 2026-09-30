@@ -22,24 +22,24 @@
   Automation has acted on the system's activation focus event, and the host announced that move besides the event, so a
   client could hear the clicked control twice. What the event reports depends on what UI Automation knows of the window:
   the first focus event of a window it has not reported before is answered with a call of the fragment root's
-  `GetFocus`, on whatever thread, which reads the published snapshot when it runs, and its later ones are answered from
-  the element it last reported, reporting nothing once that element has lost focus (observed on Windows 11 build 26200).
-  A window that gained focus now leaves a focus move of that turn to the event only while no `GetFocus` call has ever
-  begun on it, and announces the move itself otherwise (at worst as a duplicate, never not at all): each call counts
-  itself in the window's provider target before it loads the snapshot, and the host reads the count after it stores the
-  snapshot of the move, all four operations sequentially consistent, so with the count at zero every call that follows
-  loads the snapshot after the store and reports the clicked control. The host posts itself a message at the gain whose
-  dispatch ends the turn (as does losing focus, or 500 ms without it, should a window procedure never hand it to the
-  host); a click in the window that is already active, or any move in a later turn, is announced by the host as before.
-  The WindowHost suite tests the decision without a desktop (a first gain's move left to the system and announced once a
-  call has begun, a window asked before, the turn's three ends, and a call that a test gate holds on a thread of its own
-  before it counts itself), and the Menu suite plays a click that activates a window with an in-process UI Automation
-  client in both cases: a window UI Automation has asked before (the client hears the clicked control once, and last)
-  and a first activation whose `GetFocus` call the gate holds until after the click (it hears the clicked control as
-  often as it hears the control of a first activation, and never the control the activation focused on the way). A
-  window procedure must pass the private message (`WM_APP + 0x06D`) to `HandleMessage`, as it does the accessibility
-  ones. API revision stays 2 (additive diagnostics accessors `ControlHost::DebugIsInFocusGainTurn` and
-  `DebugGetFocusMovesLeftToSystemCount`; private members changed).
+  `GetFocus`, on whatever thread, which reads the published snapshot when it runs, and its later ones without
+  `GetFocus`, from whether the window's root element has the keyboard focus, which reports nothing while the focus is
+  inside a control (observed on Windows 11 build 26200). A window that gained focus now leaves a focus move of that turn
+  to the event only while no `GetFocus` call has ever begun on it, and announces the move itself otherwise (at worst as
+  a duplicate, never not at all): each call counts itself in the window's provider target before it loads the snapshot,
+  and the host reads the count after it stores the snapshot of the move, all four operations sequentially consistent, so
+  with the count at zero every call that follows loads the snapshot after the store and reports the clicked control. The
+  host posts itself a message at the gain whose dispatch ends the turn (as does losing focus, or 500 ms without it,
+  should a window procedure never hand it to the host); a click in the window that is already active, or any move in a
+  later turn, is announced by the host as before. The WindowHost suite tests the decision without a desktop (a first
+  gain's move left to the system and announced once a call has begun, a window asked before, the turn's three ends, and
+  a call that a test gate holds on a thread of its own before it counts itself), and the Menu suite plays a click that
+  activates a window with an in-process UI Automation client in both cases: a window UI Automation has asked before (the
+  client hears the clicked control once, and last) and a first activation whose `GetFocus` call the gate holds until
+  after the click (it hears the clicked control as often as it hears the control of a first activation, and never the
+  control the activation focused on the way). A window procedure must pass the private message (`WM_APP + 0x06D`) to
+  `HandleMessage`, as it does the accessibility ones. API revision stays 2 (additive diagnostics accessors
+  `ControlHost::DebugIsInFocusGainTurn` and `DebugGetFocusMovesLeftToSystemCount`; private members changed).
 - A hung control test ends the run with its name instead of holding a CI job (plan `ReliabilityAndFollowUps_2026-09-30`,
   item 12). On the pull-request run of PR 30 the x64 ASan Debug job printed nothing for the 35 minutes between starting the
   Menu suite and the job's 40-minute limit, and its log named no test. Every control test a suite runner starts through

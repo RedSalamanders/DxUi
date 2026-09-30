@@ -6851,11 +6851,11 @@ public:
 };
 
 // UI Automation answers the first focus event of a window it has not seen with a call of the fragment root's GetFocus, and
-// its later focus events for the window from the element it last reported for it, reporting nothing once that element has
-// lost focus. The click that activates a window moves focus before UI Automation has acted on the event (it sets its
-// control after the window's WM_SETFOCUS, in the same turn of its message loop), so for a window UI Automation has seen the
-// event reports nothing and the host must announce the clicked control: a client hears it once, as it hears any control the
-// host announces, and last.
+// its later ones by asking the window's root element whether it has the keyboard focus, which reports nothing while the
+// focus is inside a control. The click that activates a window moves focus before UI Automation has acted on the event (it
+// sets its control after the window's WM_SETFOCUS, in the same turn of its message loop), so for a window UI Automation
+// has seen nothing else reports the clicked control and the host must announce it: a client hears it once, as it hears any
+// control the host announces, and last.
 void TestWindowHostClickThatActivatesAWindowUiAutomationHasAskedBeforeAnnouncesTheClickedControlOnce()
 {
     using namespace DxUi;

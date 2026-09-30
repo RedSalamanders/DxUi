@@ -3971,10 +3971,10 @@ void ControlHost::OnSetFocus() noexcept
 // the loop as the WM_SETFOCUS its activation sends, so it is handled first, before UI Automation has acted on the system's
 // focus event for the gain. What that event reports depends on what UI Automation already knows of the window: its first
 // focus event is answered by a call of the fragment root's GetFocus, which reads the snapshot published at that moment
-// (the click's move, unless the call came first), while a window it has resolved before is answered from the element it
-// last reported, which it drops once that element has lost focus. A move in the turn is therefore the event's to report
-// only while no GetFocus call has ever begun on the window, and the host announces it itself otherwise
-// (RefreshWindowHostAccessibilitySnapshot).
+// (the click's move, unless the call came first), while later ones are answered from the keyboard-focus property of the
+// window's root element, which reports nothing while the focus is inside a control. A move in the turn is therefore the
+// event's to report only while no GetFocus call has ever begun on the window, and the host announces it itself
+// otherwise (ReporterOfFocusMove).
 void ControlHost::BeginFocusGainTurn() noexcept
 {
     if (_focusGainTurnStartedMs != 0u || ! _hwnd || PostMessageW(_hwnd, WndMsg::kWindowHostFocusGainTurnEnd, 0, 0) == FALSE)
