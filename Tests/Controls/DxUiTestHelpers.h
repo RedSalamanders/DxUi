@@ -99,18 +99,18 @@ inline void SetDxUiTestFilter(std::vector<std::string> names)
     return unmatched;
 }
 
-// Every test runs under the watchdog's deadline (--test-timeout=<seconds>, 0 turns it off): a test that outlives it ends the run
-// with "TIMEOUT: <name> after <N> s" and exit code 124 instead of holding a CI job until the job's time limit. A fixture suite
-// without named tests is one unit and is armed by the runner (see DxUiTests.cpp). See Tests/Support/TestWatchdog.h.
-//
-// The unit under way has made progress: its deadline starts over. A fixture that repeats one cycle many times reports each cycle,
-// so the deadline bounds a cycle instead of the whole fixture.
+// The unit of work under way (a test, or a fixture suite without named tests) has made progress: its watchdog deadline starts
+// over. A fixture that repeats one cycle many times reports each cycle, so the deadline bounds a cycle instead of the whole
+// fixture.
 inline void NoteDxUiTestProgress()
 {
     DxUi::TestSupport::TestWatchdog::Instance().Renew();
 }
 
 // Runs one test with its [START]/[DONE] markers, and its duration on [DONE], unless --test= leaves it out. Returns whether it ran.
+// Every test runs under the watchdog's deadline (--test-timeout=<seconds>, 0 turns it off): a test that outlives it ends the run
+// with "TIMEOUT: <name> after <N> s" and exit code 124 instead of holding a CI job until the job's time limit. A fixture suite
+// without named tests is one unit and is armed by the runner (see DxUiTests.cpp); see Tests/Support/TestWatchdog.h.
 inline bool RunDxUiTest(const char* name, void (*test)())
 {
     DxUiTestFilter& filter = GetDxUiTestFilter();

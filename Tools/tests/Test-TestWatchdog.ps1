@@ -40,8 +40,9 @@ function Invoke-Bounded([string[]] $Arguments, [int] $BoundSeconds, [string] $Fi
 }
 function Get-Lines($Run, [string] $Pattern) { @($Run.Output | Where-Object { $_ -match $Pattern }) }
 
-# The CPU seconds a hanging run spends in two seconds once it has settled: a thread that polled would spend about two of them, one
-# that waits on an event or a condition variable spends none. The run is this script's own child and is killed afterwards.
+# The CPU seconds a hanging run spends in two seconds once its test has started (its marker is the last line it prints before it
+# hangs): a thread that polled would spend about two of them, one that waits on an event or a condition variable spends none. The
+# run is this script's own child and is killed afterwards.
 function Measure-HangingCpu([string[]] $Arguments) {
     $info = [Diagnostics.ProcessStartInfo]::new($exe)
     foreach ($argument in $Arguments) { $info.ArgumentList.Add($argument) }
@@ -52,12 +53,19 @@ function Measure-HangingCpu([string[]] $Arguments) {
     $process = [Diagnostics.Process]::Start($info)
     try {
         $stdout = $process.StandardOutput.ReadToEndAsync()
-        $stderr = $process.StandardError.ReadToEndAsync()
-        Start-Sleep -Milliseconds 1500
+        $settled = $false
+        $clock = [Diagnostics.Stopwatch]::StartNew()
+        while (-not $settled -and $clock.Elapsed.TotalSeconds -lt 30) {
+            $pending = $process.StandardError.ReadLineAsync()
+            while (-not $pending.Wait(250) -and $clock.Elapsed.TotalSeconds -lt 30) { }
+            if (-not $pending.IsCompleted -or $null -eq $pending.Result) { break }
+            $settled = $pending.Result -match '^  \[START\] '
+        }
+        if (-not $settled) { return [pscustomobject]@{ Started = $false; Alive = $false; Cpu = [double]::NaN } }
         $before = $process.TotalProcessorTime.TotalSeconds
         Start-Sleep -Seconds 2
         $after = $process.TotalProcessorTime.TotalSeconds
-        return [pscustomobject]@{ Alive = -not $process.HasExited; Cpu = $after - $before }
+        return [pscustomobject]@{ Started = $true; Alive = -not $process.HasExited; Cpu = $after - $before }
     } finally {
         if (-not $process.HasExited) { $process.Kill($true) }
         $process.WaitForExit()
@@ -102,6 +110,7 @@ Invoke-TestCase 'without a deadline the same test never returns' {
 Invoke-TestCase 'an armed watchdog waits instead of polling' {
     # Armed with a deadline a minute away, the hung run sits in its test and the watchdog sits on its condition variable.
     $idle = Measure-HangingCpu @('--watchdog-self-test', '--test-timeout=60')
+    Assert-True $idle.Started 'the run reached its hung test'
     Assert-True $idle.Alive 'the run is still hanging'
     Assert-True ($idle.Cpu -lt 0.5) "the hung run spent $($idle.Cpu) CPU seconds in two seconds"
 }
