@@ -80,6 +80,9 @@
   `contents: write` for that one job, pushes normally and never forces, and never runs on `pull_request_target`. It
   commits only when a sheet, the HTML index or the README changed (`generation.json` records the source commit and so
   differs after every commit); `Tools/Commit-Gallery.ps1` makes that decision and is tested against fixture repositories.
+  `docs/gallery` itself was last rendered on a hosted runner from `ed1dea9`, before PR 29's visual changes; it is
+  regenerated here on the developer machine from the final sources (`main` and this tree render byte-identical sheets
+  there), and the design system is republished with those sheets and the guidelines PR 29 changed.
 - One validation entry point (plan `ReliabilityAndFollowUps_2026-09-30`, item 10): `validate.ps1` runs the five
   validators and the tooling tests, each in its own process, reports every failure before it fails, and is what CI's
   validation job runs; `test.ps1` now also runs the tooling tests. The validators' file scans no longer enter a nested

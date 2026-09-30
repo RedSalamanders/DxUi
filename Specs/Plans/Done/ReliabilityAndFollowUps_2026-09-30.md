@@ -1,6 +1,6 @@
 # Test reliability, conclusive paired evidence and review follow-ups
 
-Status: ACTIVE (2026-09-30). Library, tests and tooling; no consumer pin changes.
+Status: DONE (2026-09-30). Library, tests and tooling; no consumer pin changes.
 Base: the PowerShell tooling port (PR #30) on the merged review work (`5561b61`).
 Owning contracts: [testing and validation](../../Testing/Testing_Validation.md),
 [performance](../../Core/Core_PerformanceAndResources.md), [input and accessibility](../../UI/UI_InputAndAccessibility.md),
@@ -49,8 +49,8 @@ reviewed before it merges here, until this plan can move to Done.
   which `test.ps1` prints beside the log's last lines and a self-test proves (the same test with the watchdog off hangs), the
   audit found no unbounded polling loop, `INFINITE` wait or UI Automation wait without a deadline but a driver thread that
   gave up before it found its popup left `ContextMenu::Show` running for good and a UI Automation client thread was joined
-  after a bounded wait (both fixed, the Menu suite's foreground run pending), and the wait that hung PR 30's job is not
-  identified (its log is not kept), so the next hang names its test.
+  after a bounded wait (both fixed; the Menu suite's foreground runs on PR 31's x64 CI pass), and the wait that hung
+  PR 30's job is not identified (its log is not kept), so the next hang names its test.
 
 ### Performance evidence
 
@@ -87,7 +87,7 @@ reviewed before it merges here, until this plan can move to Done.
   lookup 17 nodes instead of 1,002 (2,001), the same per call in a tree of 245 buttons; a table hit is confirmed
   against the live tree and a miss searches it, so behavior is unchanged, while what lives inside one control (a tree's
   items by id, a grid's rows and cells) and hit testing a point still scan.
-- [ ] 7. A click that activates the window announces the clicked control once. Today the system's activation focus event
+- [x] 7. A click that activates the window announces the clicked control once. Today the system's activation focus event
   and the host's own focus change can both report it. Accept: a UI Automation client test counts one event. Design,
   second attempt: the first left every move of the gain's turn to the system's event, on the premise that UI Automation
   answers it only once the loop turns, and failed x64 CI. What UI Automation does, traced with an in-process client on
@@ -103,7 +103,8 @@ reviewed before it merges here, until this plan can move to Done.
   WindowHost suite decides each case without a desktop (including a call that a test gate holds before it counts itself)
   and the Menu suite runs an in-process UI Automation client through a window seen before and a first activation. Left
   open: the activation of a seen window whose focus is in a control is reported by nothing either (the host adds no
-  announcement for what a gain focuses or restores). Leave unticked until those tests pass on x64 CI.
+  announcement for what a gain focuses or restores). Both real-client tests ran and passed on this machine in x64
+  Debug, Release and ASan Debug (Debug ten times in a row) and pass on PR 31's x64 CI.
 - [x] 8. A reparented ColorPicker is current. The review recorded a stale arrangement after reparenting; its cached
   brushes may belong to the old host's device too. Accept: after moving between hosts or metrics, the picker matches one
   created in the new place. Done: a move announced no flow direction or density, so a picker, stepper, tab header or
@@ -153,9 +154,18 @@ reviewed before it merges here, until this plan can move to Done.
 
 ### Close-out
 
-- [ ] Every branch reviewed (diff, falsification, tests) and merged here; `test.ps1` in x64 Debug, Release and ASan
+- [x] Every branch reviewed (diff, falsification, tests) and merged here; `test.ps1` in x64 Debug, Release and ASan
   Debug, the three ARM64 builds, the validators, tooling tests and `format.ps1 -Check`; paired evidence for item 9 with
   item 4's runner on a quiet machine; specs, docs and CHANGELOG; this plan moved to Done.
+  Outcome: every branch was reviewed, falsified and merged, and the integrated tree passes `test.ps1` in the three x64
+  configurations, builds in the three ARM64 ones, and passes `validate.ps1` and `format.ps1 -Check`. The close-out
+  found two defects of its own and fixed them. The watchdog's tooling test was not strict itself and failed six of its
+  cases under `test.ps1`, so every tooling test script is now strict and a test requires it. `test.ps1` also names
+  every capability skip now, which showed item 7's first version running, and failing, on x64 CI. The paired set of
+  `main` against the integrated tree is retained with its receipts (items 4, 5 and 9). `main` and this tree render
+  byte-identical galleries; `docs/gallery`, a hosted runner's render from before PR 29, was regenerated on the
+  developer machine from the final sources (`3acb196`), and the design system was republished (version 13) with those
+  sheets and the guidelines PR 29 changed. The developer accepted the Grid layout retention (item 9).
 
 ## Execution model
 

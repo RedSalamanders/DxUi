@@ -27,32 +27,32 @@
       "files": {
         "theme-controls-light.png": {
           "name": "theme-controls-light.png",
-          "blob": "d38b180bea6b6aded43e12868a040360",
-          "size": 340335,
+          "blob": "e454037d0d4b1f1bdb4d85c59906cc2a",
+          "size": 337834,
           "type": "image/png"
         },
         "theme-controls-dark.png": {
           "name": "theme-controls-dark.png",
-          "blob": "3d14488c20b41812850e2ddec5e0b221",
-          "size": 342168,
+          "blob": "f6167baf07b012d233df468896b33676",
+          "size": 339345,
           "type": "image/png"
         },
         "theme-controls-high-contrast.png": {
           "name": "theme-controls-high-contrast.png",
-          "blob": "d96a623d81143ab09ce661997018e5fd",
-          "size": 337002,
+          "blob": "ba75902964f9c31e4d2dfc26758992a1",
+          "size": 335346,
           "type": "image/png"
         },
         "theme-controls-rainbow-light.png": {
           "name": "theme-controls-rainbow-light.png",
-          "blob": "f8fafd6e3a7123363caa77b599f2747a",
-          "size": 341967,
+          "blob": "3a02424ac34ccbb86cac1e891a526287",
+          "size": 339288,
           "type": "image/png"
         },
         "theme-controls-rainbow-dark.png": {
           "name": "theme-controls-rainbow-dark.png",
-          "blob": "4054a9876a2c144cb392bea87342db12",
-          "size": 343787,
+          "blob": "0942eab85e0f0bb78216ff6d28e72532",
+          "size": 340765,
           "type": "image/png"
         },
         "embedded-controls.png": {
@@ -71,8 +71,8 @@
   },
   "lastChange": {
     "by": "eric-jesover",
-    "at": "2026-09-28T05:41:33Z",
-    "via": "Claude Code · RedSalamanders/DxUi@ej/elegant-einstein-lmooqh",
-    "note": "Indeterminate ProgressBar rests centered under reduced motion; unsupplied alert colors fall back to text on windowBackground; gallery sheets regenerated from ed1dea9."
+    "at": "2026-09-30T18:15:43Z",
+    "via": "Claude Code · RedSalamanders/DxUi@improve/reliability-follow-ups",
+    "note": "Guidelines from PR 29: alert colors keep their default tones unless an app supplies them, the disclosure chevron's timing, ColorPicker and NumericStepper translation and right-to-left layout, Grid and Tree interface names; gallery sheets regenerated from 3acb196."
   }
 }
