@@ -545,7 +545,9 @@ struct WindowHostAccessibilityTarget final
     }
 
     std::atomic<ULONG> _referenceCount{1u};
-    HWND hwnd            = nullptr;
+    HWND hwnd = nullptr;
+    // Decided once: only a menu popup's snapshots count for DebugGetContextMenuResources.
+    const bool menuPopup = IsNativeMenuPopupWindow(hwnd);
     bool embedded        = false;
     DWORD threadId       = GetCurrentThreadId();
     uint64_t runtimeId   = 0;
@@ -712,7 +714,7 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
         for (auto& record : snapshot->controlNavigationRecords)
             record.controlHasFocus = false;
     }
-    if (IsNativeMenuPopupWindow(target.hwnd))
+    if (target.menuPopup)
         snapshot->liveMenuRecords = Detail::LiveResourceCount(Detail::LiveResource::MenuAccessibilityRecord, snapshot->controlNavigationRecords.size());
     WindowHostSnapshotChanges changes{};
     std::shared_ptr<const AccessibilitySnapshot> previous = target.snapshot.load(std::memory_order_acquire);
