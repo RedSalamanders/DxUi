@@ -1,0 +1,1399 @@
+{
+  "runId": 36358394952,
+  "headSha": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+  "workflowStatus": "in_progress",
+  "validationJob": "success",
+  "x64Profiles": {
+    "Debug": {
+      "suite_count": 20,
+      "suites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "Menu",
+        "MenuAccessibility",
+        "MenuExitLifetime",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "performance_reports": [
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        }
+      ],
+      "binary_hashes_by_path": {
+        "D:\\a\\DxUi\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe": [
+          "6138CE1FDAC8A70E0AC42E5ADDAB22EFA90569D8CBFA143D3DC0EA2090F24BAF"
+        ],
+        "D:\\a\\DxUi\\DxUi\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe": [
+          "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82"
+        ],
+        "D:\\a\\DxUi\\DxUi\\.build\\x64\\Debug\\DxUi.FoundationTests.exe": [
+          "98D14B3E4748BE279CE8502BD580BF3D3C6E0B2DD6516C5AF666036009461122"
+        ]
+      },
+      "skipped_suites": []
+    },
+    "Release": {
+      "suite_count": 22,
+      "suites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "Menu",
+        "MenuAccessibility",
+        "MenuExitLifetime",
+        "MenuResourceScaling",
+        "MenuTextLayoutResources",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "performance_reports": [
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-e9153e7228f74d3b82642b21fb1a046b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-e9153e7228f74d3b82642b21fb1a046b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-e9153e7228f74d3b82642b21fb1a046b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 9V74 80-Core Processor",
+          "configuration": "Release",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        }
+      ],
+      "binary_hashes_by_path": {
+        "D:\\a\\DxUi\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe": [
+          "82F252F528CEED56E488977194011D0BB356CC8DB946E7C5252BE980B4D3251B"
+        ],
+        "D:\\a\\DxUi\\DxUi\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe": [
+          "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168"
+        ],
+        "D:\\a\\DxUi\\DxUi\\.build\\x64\\Release\\DxUi.FoundationTests.exe": [
+          "D8E6C4917A9BB512F89A58DF8395DB0CB8E231B91EAA07661A126C2CD50E24C0"
+        ]
+      },
+      "skipped_suites": []
+    },
+    "ASan Debug": {
+      "suite_count": 20,
+      "suites": [
+        "Accessibility",
+        "Animation",
+        "ComboBox",
+        "Control",
+        "Embedded",
+        "Foundation",
+        "Grid",
+        "Menu",
+        "MenuAccessibility",
+        "MenuExitLifetime",
+        "MultilineText",
+        "NativeTextInput",
+        "NewControls",
+        "ReadOnly",
+        "Rendering",
+        "TextField",
+        "Theme",
+        "Tooltip",
+        "Tree",
+        "WindowHost"
+      ],
+      "performance_reports": [
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        },
+        {
+          "file": "Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+          "machine": "runnervm99s1a",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "configuration": "ASan Debug",
+          "platform": "x64",
+          "nativeArchitecture": "X64",
+          "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+          "sourceDirty": false,
+          "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+          "executableSha256": "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02",
+          "benchmarkInputs": {
+            "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+            "Tests/Embedded/ComplexUiBenchmark.h": "B0FB136E324CE594EF6DF42137E2BDE0CDBD330ED236A967124F02660CD8328D",
+            "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+            "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+          }
+        }
+      ],
+      "binary_hashes_by_path": {
+        "D:\\a\\DxUi\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe": [
+          "74B6CC640F87883FCD73C36C3856A399AF3E9F23648466E023A6478000070CF4"
+        ],
+        "D:\\a\\DxUi\\DxUi\\.build\\x64\\ASan Debug\\DxUi.EmbeddedTests.exe": [
+          "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02"
+        ],
+        "D:\\a\\DxUi\\DxUi\\.build\\x64\\ASan Debug\\DxUi.FoundationTests.exe": [
+          "0586C82A0DBDD01CFB31741151411CF8D6E5FDF0E8841FEE14E3D2D88C01B031"
+        ]
+      },
+      "skipped_suites": [],
+      "asan_probe": {
+        "report": "AddressSanitizer-x64.json",
+        "exitCode": 1,
+        "detected": true,
+        "log": "test-AddressSanitizer-x64.log",
+        "expected": true
+      }
+    }
+  },
+  "x64SuiteReceiptCount": 62,
+  "consumerReceipts": [
+    {
+      "path": "native-x64-Debug/reports/ExternalConsumer-x64-Debug-annotationsDisabledfalse.json",
+      "configuration": "Debug",
+      "disableStlAnnotations": false,
+      "exitCode": 0,
+      "nativeModuleChecks": 12,
+      "negativeChecks": 10,
+      "librarySha256": "463FA19FA462959F1BB4D80978F1FEC50ABE201D0296D2F5AF2E4DBD957830C9",
+      "executableSha256": "91905588325D3EBFC04104586B7FF10A2A64DFC0B03F2DA514E4FD169A6AF018",
+      "buildFingerprint": "be6c777fb990158cb0630a9ecb35a335c53328a2cc91e69e94f1d9ed6f99b054"
+    },
+    {
+      "path": "native-x64-Release/reports/ExternalConsumer-x64-Release-annotationsDisabledfalse.json",
+      "configuration": "Release",
+      "disableStlAnnotations": false,
+      "exitCode": 0,
+      "nativeModuleChecks": 12,
+      "negativeChecks": 10,
+      "librarySha256": "7EACAA1A6544E03593F0C1B63CB72B57251AC175A3DD750B5245CF625EE7C403",
+      "executableSha256": "5251A45062B49A37E55E7A053F6BCF9F09735933F8C1E46438AAFD0995B758B8",
+      "buildFingerprint": "be6c777fb990158cb0630a9ecb35a335c53328a2cc91e69e94f1d9ed6f99b054"
+    },
+    {
+      "path": "native-x64-ASan Debug/reports/ExternalConsumer-x64-ASan Debug-annotationsDisabledfalse.json",
+      "configuration": "ASan Debug",
+      "disableStlAnnotations": false,
+      "exitCode": 0,
+      "nativeModuleChecks": 12,
+      "negativeChecks": 10,
+      "librarySha256": "0D07284FF68B64E3E5A80411487A099E2E5332AD38214EB80FB7F43CC32DC83D",
+      "executableSha256": "64297350D31DEFE17E33CA2E65C219F67B124C00EBF488A4A353718D6C1B2B6D",
+      "buildFingerprint": "be6c777fb990158cb0630a9ecb35a335c53328a2cc91e69e94f1d9ed6f99b054"
+    },
+    {
+      "path": "native-x64-ASan Debug/reports/ExternalConsumer-x64-ASan Debug-annotationsDisabledtrue.json",
+      "configuration": "ASan Debug",
+      "disableStlAnnotations": true,
+      "exitCode": 0,
+      "nativeModuleChecks": 12,
+      "negativeChecks": 10,
+      "librarySha256": "04665565CC34EAEEBD01B29711D82E99502EEEC2A53F1C12254E54E2313ACAC4",
+      "executableSha256": "4F7DF1280967C4037ACE1B2A5E1574B0D27A51097C71B780F80A668EEAFC319A",
+      "buildFingerprint": "615e5359f507da95e6cc21997913a5b7a2ce5d2b88acec27e84746547deffa84"
+    }
+  ],
+  "binaryHashClaimGroups": {
+    "D:\\a\\DxUi\\DxUi\\.build\\x64\\Debug\\DxUi.ControlTests.exe": [
+      "6138CE1FDAC8A70E0AC42E5ADDAB22EFA90569D8CBFA143D3DC0EA2090F24BAF"
+    ],
+    "D:\\a\\DxUi\\DxUi\\.build\\x64\\Debug\\DxUi.EmbeddedTests.exe": [
+      "27FD2C803B5C651853368DFC876AE22460BB583178DF591B3075C868C93EEE82"
+    ],
+    "D:\\a\\DxUi\\DxUi\\.build\\x64\\Debug\\DxUi.FoundationTests.exe": [
+      "98D14B3E4748BE279CE8502BD580BF3D3C6E0B2DD6516C5AF666036009461122"
+    ],
+    "D:\\a\\DxUi\\DxUi\\.build\\x64\\Release\\DxUi.ControlTests.exe": [
+      "82F252F528CEED56E488977194011D0BB356CC8DB946E7C5252BE980B4D3251B"
+    ],
+    "D:\\a\\DxUi\\DxUi\\.build\\x64\\Release\\DxUi.EmbeddedTests.exe": [
+      "72371FE4D6C88DBA690CCCD9C1F9D973DF6CE0ED3578301690E694294A3D9168"
+    ],
+    "D:\\a\\DxUi\\DxUi\\.build\\x64\\Release\\DxUi.FoundationTests.exe": [
+      "D8E6C4917A9BB512F89A58DF8395DB0CB8E231B91EAA07661A126C2CD50E24C0"
+    ],
+    "D:\\a\\DxUi\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe": [
+      "74B6CC640F87883FCD73C36C3856A399AF3E9F23648466E023A6478000070CF4"
+    ],
+    "D:\\a\\DxUi\\DxUi\\.build\\x64\\ASan Debug\\DxUi.EmbeddedTests.exe": [
+      "76EDF6CD1364A63ADBF5D467F067F09AA5151603F04F7A280976154AF442EA02"
+    ],
+    "D:\\a\\DxUi\\DxUi\\.build\\x64\\ASan Debug\\DxUi.FoundationTests.exe": [
+      "0586C82A0DBDD01CFB31741151411CF8D6E5FDF0E8841FEE14E3D2D88C01B031"
+    ]
+  },
+  "arm64": "in progress; this report does not assert full matrix completion"
+}

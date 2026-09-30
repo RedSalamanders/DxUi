@@ -1,0 +1,21 @@
+Complex UI clean round 1: 2600.95 completed offscreen FPS; p95 0.4635 ms; private 29663232 bytes
+Complex UI clean round 2: 2688.28 completed offscreen FPS; p95 0.4163 ms; private 29863936 bytes
+Complex UI clean round 3: 2573.92 completed offscreen FPS; p95 0.4257 ms; private 29954048 bytes
+Complex UI clean round 4: 2568.09 completed offscreen FPS; p95 0.4295 ms; private 29929472 bytes
+Complex UI clean round 5: 2488.66 completed offscreen FPS; p95 0.4536 ms; private 29986816 bytes
+Complex UI dirty round 1: 435.355 completed offscreen FPS; p95 2.5942 ms; private 31244288 bytes
+Complex UI dirty round 2: 381.15 completed offscreen FPS; p95 3.7777 ms; private 31404032 bytes
+Complex UI dirty round 3: 462.825 completed offscreen FPS; p95 2.3905 ms; private 31424512 bytes
+Complex UI dirty round 4: 461.281 completed offscreen FPS; p95 2.3849 ms; private 31559680 bytes
+Complex UI dirty round 5: 458.936 completed offscreen FPS; p95 2.396 ms; private 31526912 bytes
+Performance comparison: advice-required
+REGRESSION clean/workingSetBytes: 42688512.000 -> 43610112.000
+REGRESSION dirty/privatePeakBytes: 30818304.000 -> 31576064.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Exception: C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi\Tools\Invoke-Python.ps1:13
+Line |
+  13 |  … DE -ne 0) { throw "Python validation failed with exit code $LASTEXITC …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Python validation failed with exit code 1.
+
+

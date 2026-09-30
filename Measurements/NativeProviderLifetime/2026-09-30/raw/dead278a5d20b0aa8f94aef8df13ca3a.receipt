@@ -1,0 +1,62 @@
+# Native UIA lifetime: long offscreen crossover driver
+
+This is an unexecuted external diagnostic driver for a matched 1,000-frame-per-round
+x64 Debug and Release A-B-B-A run. It follows the retained short crossover in
+`../native-uia-final-perf-confirmation-20260928/crossover/`; those raw reports,
+logs, and comparison sidecars remain in place and are hashed before and after
+the long run. The new destination is
+`../native-uia-long-crossover-20260930/`, which must not already exist.
+
+After the machine is quiet, run from PowerShell 7:
+
+```powershell
+py -3 C:/RedSalamander.Perf/evidence/i26-ui/native-uia-long-driver-20260930/run_long_crossover.py
+```
+
+The driver checks the exact A/B commits, clean compiled and test inputs, matching
+original benchmark header bytes, restored x64 dependencies, Visual Studio via
+`vswhere -prerelease`, the comparator-only edit, and all original short receipts.
+It freezes the original header bytes under the new output directory, applies the
+same exact header edit to both checkouts, and rebuilds both x64 configurations
+with each checkout's original `build.ps1 -Rebuild`. The two long builds are
+completed before measurement. It then measures A1, B1, B2, A2 serially in each
+configuration through the external `performance_long.ps1`, which uses the
+original `performance.ps1` receipt metadata and the original `--benchmark`
+entry point. The header edit adjusts only the sample count, array size, FPS
+divisor and p50/p95 indices. `benchmark-1000.patch` shows the intended change.
+
+The stock 40-frame comparator remains untouched in both repositories. The
+external `compare_performance_long.py` changes only the expected frame-count
+validation to 1,000; all metric definitions and investigation bands remain
+unchanged. The driver records a narrowly checked stock-comparator
+`invalid-evidence` result against each long A1 receipt; its error must be
+exactly the expected forty-frame rejection. It compares all four A/B
+cross-pairings plus A1/A2 and B1/B2 repeats
+for each configuration. An `advice-required` result is retained as evidence and
+does not mean the driver failed; `invalid-evidence`, fixture mismatches and
+failed measurements stop the run. The short 40-frame baseline must not be
+compared to the long fixture because the workload count and fixture hash differ.
+
+The `finally` path writes back the exact frozen header bytes and runs
+`build.ps1 -Rebuild` for both configurations of every patched checkout. It
+records build and run logs, exit codes, hashes, comparison statuses, and
+restoration status in `driver-result.json`. Full compiled/test input hashes are
+checked before mutation, around builds and runs, and after restoration; the
+final receipt records rebuilt executable hashes. If a process is forcibly killed
+before `finally` completes, the original bytes are in
+`native-uia-long-crossover-20260930/original-headers/`; restore each matching
+header, verify its SHA-256 against `driver-result.json`, and rebuild both x64
+configurations in each checkout before using those binaries. Never overwrite a
+concurrent header edit; the driver detects that conflict and leaves its backup.
+
+The edited benchmark header is under `Tests`, so `benchmarkSha256` and its
+`benchmarkInputs` entry change together in A and B. The library
+`sourceFingerprint` from `performance.ps1` hashes `src`, `include` and `Build`
+inputs and therefore does not change solely from this header edit. Receipts
+still report the checkout dirty while the long fixture is installed.
+
+This fixture measures completed offscreen WARP rendering, not the WindowHost UIA
+snapshot/token path or presented FPS. Its long run can clarify the short-run
+Release clean timing direction and process resource variation, but it cannot
+qualify native UIA cost or ARM64. Interpret all individual flags and same-binary
+variation before making a regression decision.

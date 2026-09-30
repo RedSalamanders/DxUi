@@ -1,0 +1,401 @@
+"""Run a matched 1,000-frame DxUi A-B-B-A diagnostic, then restore both checkouts.
+
+This is an external, single-use driver. It deliberately does not run test.ps1.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+from datetime import datetime, timezone
+
+
+HERE = Path(__file__).resolve().parent
+OUT = HERE.parent / "native-uia-long-crossover-20260930"
+SHORT = HERE.parent / "native-uia-final-perf-confirmation-20260928" / "crossover"
+ROOTS = {
+    "A": Path(r"C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi"),
+    "B": Path(r"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi"),
+}
+COMMITS = {
+    "A": "73ba9365726cce30299290ab9ae8afa065c4fe3d",
+    "B": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+}
+HEADER = Path("Tests/Embedded/ComplexUiBenchmark.h")
+INPUT_PATHS = ("src", "include", "Tests", "Samples", "Build", "Directory.Build.props",
+               "Directory.Build.targets", "vcpkg.json", "vcpkg-tool.json")
+CONFIGS = ("Debug", "Release")
+ORDER = ("A1", "B1", "B2", "A2")
+PAIRS = (("A1", "B1"), ("A1", "B2"), ("A2", "B1"), ("A2", "B2"),
+         ("A1", "A2"), ("B1", "B2"))
+IDENTITY = ("fixture", "renderer", "width", "height", "dpi", "controls", "modelRows",
+            "framesPerRound", "roundCount", "platform", "configuration", "nativeArchitecture",
+            "machine", "cpu", "os", "compiler", "warpVersion", "powerPolicy")
+REPLACEMENTS = (
+    (b'framesPerRound\\":40', b'framesPerRound\\":1000', 1),
+    (b'std::array<double, 40>', b'std::array<double, 1000>', 1),
+    (b'40000 / totalMs', b'1000000 / totalMs', 2),
+    (b'frameMs[19]', b'frameMs[499]', 1),
+    (b'frameMs[37]', b'frameMs[949]', 2),
+    (b'prepareMs[37]', b'prepareMs[949]', 1),
+    (b'composeMs[37]', b'composeMs[949]', 1),
+)
+
+
+def digest(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest().upper()
+
+
+def file_digest(path: Path) -> str:
+    return digest(path.read_bytes())
+
+
+def input_hashes(root: Path) -> dict[str, str]:
+    result = subprocess.run(("git", "-C", str(root), "ls-files", "--cached", "--others",
+                             "--exclude-standard", "-z", "--", *INPUT_PATHS),
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if result.returncode:
+        raise RuntimeError(f"Cannot enumerate compiled/test inputs in {root}: {result.stderr!r}")
+    hashes = {}
+    for raw in sorted(set(result.stdout.split(b"\0")) - {b""}):
+        relative = os.fsdecode(raw)
+        path = root / relative
+        if not path.is_file():
+            raise RuntimeError(f"Missing compiled/test input: {path}")
+        hashes[relative.replace("\\", "/")] = file_digest(path)
+    return hashes
+
+
+def git(root: Path, *args: str) -> str:
+    result = subprocess.run(("git", "-C", str(root), *args), text=True,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if result.returncode:
+        raise RuntimeError(f"git {' '.join(args)} failed in {root}: {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
+def patch_header(original: bytes) -> bytes:
+    changed = original
+    for old, new, expected_count in REPLACEMENTS:
+        count = changed.count(old)
+        if count != expected_count:
+            raise ValueError(f"Header edit {old!r}: expected {expected_count}, found {count}")
+        changed = changed.replace(old, new)
+    return changed
+
+
+def validate_external_comparator() -> None:
+    stock_a = (ROOTS["A"] / "Tools/compare_performance.py").read_bytes()
+    stock_b = (ROOTS["B"] / "Tools/compare_performance.py").read_bytes()
+    if stock_a != stock_b:
+        raise ValueError("Stock comparators differ between A and B")
+    expected = stock_a
+    edits = (
+        (b"receipt['framesPerRound'] != 40", b"receipt['framesPerRound'] != 1000"),
+        (b"Expected five rounds of forty frames", b"Expected five rounds of one thousand frames"),
+    )
+    for old, new in edits:
+        if expected.count(old) != 1:
+            raise ValueError(f"Comparator validation edit is not unique: {old!r}")
+        expected = expected.replace(old, new)
+    if (HERE / "compare_performance_long.py").read_bytes() != expected:
+        raise ValueError("External comparator has changes beyond the frame-count validation")
+
+
+def short_receipts() -> dict[str, str]:
+    result = {}
+    for config in CONFIGS:
+        for run in ORDER:
+            for suffix in (".json", ".json.comparison.json", ".log"):
+                path = SHORT / f"{config}-{run}{suffix}"
+                if not path.is_file():
+                    raise FileNotFoundError(f"Missing retained short evidence: {path}")
+                result[path.name] = file_digest(path)
+    return result
+
+
+def discover_vs() -> str:
+    candidates = [Path(os.environ[k]) / "Microsoft Visual Studio/Installer/vswhere.exe"
+                  for k in ("ProgramFiles(x86)", "ProgramFiles") if os.environ.get(k)]
+    for path in candidates:
+        if path.is_file():
+            result = subprocess.run((str(path), "-latest", "-prerelease", "-products", "*",
+                                     "-requires", "Microsoft.Component.MSBuild", "-property", "installationPath"),
+                                    capture_output=True, text=True, check=False)
+            if result.returncode == 0 and result.stdout.strip():
+                msbuild = Path(result.stdout.strip()) / "MSBuild/Current/Bin/MSBuild.exe"
+                if msbuild.is_file():
+                    return str(msbuild)
+    raise RuntimeError("Visual Studio MSBuild discovery with -prerelease failed")
+
+
+def preflight() -> tuple[dict[str, bytes], bytes, dict]:
+    if OUT.exists():
+        raise FileExistsError(f"Refusing to reuse output directory: {OUT}")
+    if sys.platform != "win32":
+        raise RuntimeError("Windows is required")
+    if not (HERE / "performance_long.ps1").is_file():
+        raise FileNotFoundError("Missing external performance_long.ps1")
+    if not (HERE / "compare_performance_long.py").is_file():
+        raise FileNotFoundError("Missing external comparator")
+    vs = discover_vs()
+    headers = {}
+    statuses = {}
+    inputs = {}
+    binaries = {}
+    for variant, root in ROOTS.items():
+        if not root.is_dir() or git(root, "rev-parse", "HEAD") != COMMITS[variant]:
+            raise RuntimeError(f"Wrong checkout or commit for {variant}: {root}")
+        dirty_inputs = git(root, "status", "--porcelain", "--untracked-files=all", "--", *INPUT_PATHS)
+        if dirty_inputs:
+            raise RuntimeError(f"Compiled/test inputs dirty in {variant}:\n{dirty_inputs}")
+        status = git(root, "status", "--porcelain", "--untracked-files=all")
+        if variant == "A" and status:
+            raise RuntimeError(f"Baseline A is not clean:\n{status}")
+        statuses[variant] = status
+        path = root / HEADER
+        headers[variant] = path.read_bytes()
+        inputs[variant] = input_hashes(root)
+        if inputs[variant].get(HEADER.as_posix()) != digest(headers[variant]):
+            raise ValueError(f"Missing benchmark header in compiled/test inventory: {variant}")
+        binaries[variant] = {}
+        for config in CONFIGS:
+            exe = root / f".build/x64/{config}/DxUi.EmbeddedTests.exe"
+            binaries[variant][config] = file_digest(exe) if exe.is_file() else None
+        if not (root / ".build/vcpkg_installed/x64/x64-windows/include/wil/resource.h").is_file():
+            raise RuntimeError(f"Restored x64 WIL dependency missing in {variant}")
+    if headers["A"] != headers["B"]:
+        raise ValueError("The original benchmark headers differ between A and B")
+    for relative in ("Tests/Embedded/BenchmarkMain.h", HEADER.as_posix(),
+                     "Samples/ComplexUi/ComplexUiScene.h",
+                     "Samples/EmbeddedControls/GraphicsFixture.h"):
+        if inputs["A"].get(relative) != inputs["B"].get(relative):
+            raise ValueError(f"Original benchmark input differs between A and B: {relative}")
+    changed = patch_header(headers["A"])
+    validate_external_comparator()
+    short_hashes = short_receipts()
+    return headers, changed, {"msbuild": vs, "initialGitStatus": statuses,
+                              "originalInputHashes": inputs, "initialEmbeddedTestExeSha256": binaries,
+                              "shortEvidenceSha256": short_hashes}
+
+
+def run_logged(command: tuple[str, ...], log: Path, steps: list[dict], cwd: Path | None = None) -> int:
+    started = datetime.now(timezone.utc).isoformat()
+    with log.open("wb") as output:
+        result = subprocess.run(command, cwd=cwd, stdout=output, stderr=subprocess.STDOUT, check=False)
+    steps.append({"command": list(command), "cwd": str(cwd) if cwd else None,
+                  "startedUtc": started, "exitCode": result.returncode,
+                  "log": str(log), "logSha256": file_digest(log)})
+    return result.returncode
+
+
+def build(variant: str, config: str, phase: str, steps: list[dict]) -> None:
+    log = OUT / f"{phase}-build-{variant}-{config}.log"
+    command = ("pwsh", "-NoProfile", "-File", str(ROOTS[variant] / "build.ps1"),
+               "-Configuration", config, "-Platform", "x64", "-Rebuild")
+    if run_logged(command, log, steps, ROOTS[variant]):
+        raise RuntimeError(f"{phase} build failed for {variant}/{config}; see {log}")
+
+
+def verify_patched(variant: str, expected_hash: str, original_inputs: dict) -> None:
+    if git(ROOTS[variant], "rev-parse", "HEAD") != COMMITS[variant]:
+        raise RuntimeError(f"Commit moved during run in {variant}")
+    if file_digest(ROOTS[variant] / HEADER) != expected_hash:
+        raise RuntimeError(f"Benchmark header changed unexpectedly in {variant}")
+    expected_inputs = dict(original_inputs[variant])
+    expected_inputs[HEADER.as_posix()] = expected_hash
+    if input_hashes(ROOTS[variant]) != expected_inputs:
+        raise RuntimeError(f"Other compiled/test inputs changed during run in {variant}")
+
+
+def read_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def measure(config: str, run: str, patched_hash: str, original_inputs: dict, steps: list[dict]) -> dict:
+    variant = run[0]
+    verify_patched(variant, patched_hash, original_inputs)
+    receipt = OUT / f"{config}-{run}.json"
+    log = OUT / f"{config}-{run}.log"
+    command = ("pwsh", "-NoProfile", "-File", str(HERE / "performance_long.ps1"),
+               "-DxUiRoot", str(ROOTS[variant]), "-Configuration", config,
+               "-OutputPath", str(receipt))
+    if run_logged(command, log, steps, ROOTS[variant]):
+        raise RuntimeError(f"Long benchmark failed for {config}/{run}; see {log}")
+    verify_patched(variant, patched_hash, original_inputs)
+    data = read_json(receipt)
+    if data.get("sourceCommit") != COMMITS[variant] or data.get("configuration") != config:
+        raise ValueError(f"Wrong source/configuration in {receipt}")
+    if data.get("framesPerRound") != 1000 or data.get("roundCount") != 5:
+        raise ValueError(f"Wrong frame count in {receipt}")
+    if data.get("benchmarkInputs", {}).get(HEADER.as_posix()) != patched_hash:
+        raise ValueError(f"Wrong benchmark header hash in {receipt}")
+    return data
+
+
+def verify_stock_rejects_long(config: str, steps: list[dict]) -> None:
+    receipt = OUT / f"{config}-A1.json"
+    output = OUT / f"{config}-stock-40-frame-rejection.json"
+    log = OUT / f"{config}-stock-40-frame-rejection.log"
+    command = ("py", "-3", str(ROOTS["A"] / "Tools/compare_performance.py"),
+               str(receipt), "--output", str(output))
+    exit_code = run_logged(command, log, steps)
+    result = read_json(output)
+    if exit_code != 1 or result != {"status": "invalid-evidence",
+                                   "error": "Expected five rounds of forty frames", "changes": []}:
+        raise ValueError(f"Stock comparator did not reject only the frame count: {result}")
+
+
+def validate_group(config: str, reports: dict[str, dict]) -> None:
+    first = reports["A1"]
+    for run in ORDER:
+        current = reports[run]
+        for field in (*IDENTITY, "benchmarkSha256", "benchmarkInputs"):
+            if current.get(field) != first.get(field):
+                raise ValueError(f"Unmatched {config}/{run} fixture field {field}")
+        if current.get("hiddenPreparations") != 0 or current.get("hiddenComposites") != 0:
+            raise ValueError(f"Hidden work in {config}/{run}")
+    for a, b in (("A1", "A2"), ("B1", "B2")):
+        for field in ("executableSha256", "sourceFingerprint"):
+            if reports[a].get(field) != reports[b].get(field):
+                raise ValueError(f"{config} same-variant {field} changed between {a} and {b}")
+
+
+def comparisons(config: str, steps: list[dict]) -> dict[str, str]:
+    statuses = {}
+    for old, new in PAIRS:
+        label = f"{config}-{old}-to-{new}"
+        output = OUT / f"{label}.comparison.json"
+        log = OUT / f"{label}.comparison.log"
+        command = ("py", "-3", str(HERE / "compare_performance_long.py"),
+                   str(OUT / f"{config}-{new}.json"), "--baseline",
+                   str(OUT / f"{config}-{old}.json"), "--output", str(output))
+        exit_code = run_logged(command, log, steps)
+        result = read_json(output)
+        status = result.get("status")
+        if status not in ("within-noise-budget", "advice-required"):
+            raise ValueError(f"Invalid comparison evidence: {label}: {result}")
+        if exit_code != (1 if status == "advice-required" else 0):
+            raise RuntimeError(f"Comparator exit/status mismatch: {label}")
+        statuses[label] = status
+    return statuses
+
+
+def write_manifest(manifest: dict) -> None:
+    (OUT / "driver-result.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+
+def main() -> int:
+    headers, patched, preflight_info = preflight()
+    OUT.mkdir(parents=True)
+    manifest = {"method": "1,000 frames per round; x64 Debug and Release A-B-B-A",
+                "startedUtc": datetime.now(timezone.utc).isoformat(),
+                "roots": {k: str(v) for k, v in ROOTS.items()}, "expectedCommits": COMMITS,
+                "originalHeaderSha256": digest(headers["A"]), "patchedHeaderSha256": digest(patched),
+                **preflight_info, "steps": [], "comparisonStatuses": {}, "restoration": {}}
+    driver_sources = OUT / "driver-sources"
+    driver_sources.mkdir()
+    manifest["driverSourcesSha256"] = {}
+    for name in ("run_long_crossover.py", "performance_long.ps1", "compare_performance_long.py", "README.md", "benchmark-1000.patch", "comparator-only-frames-validation.patch"):
+        payload = (HERE / name).read_bytes()
+        (driver_sources / name).write_bytes(payload)
+        manifest["driverSourcesSha256"][name] = digest(payload)
+    backup_dir = OUT / "original-headers"
+    backup_dir.mkdir()
+    for variant in ROOTS:
+        (backup_dir / f"{variant}-ComplexUiBenchmark.h").write_bytes(headers[variant])
+    write_manifest(manifest)
+    failure = None
+    patched_variants = []
+    try:
+        for variant in ROOTS:
+            path = ROOTS[variant] / HEADER
+            if path.read_bytes() != headers[variant]:
+                raise RuntimeError(f"Header changed between preflight and patch in {variant}")
+            patched_variants.append(variant)
+            path.write_bytes(patched)
+            verify_patched(variant, digest(patched), preflight_info["originalInputHashes"])
+        for variant in ROOTS:
+            for config in CONFIGS:
+                verify_patched(variant, digest(patched), preflight_info["originalInputHashes"])
+                build(variant, config, "long", manifest["steps"])
+                verify_patched(variant, digest(patched), preflight_info["originalInputHashes"])
+        for config in CONFIGS:
+            reports = {}
+            for run in ORDER:
+                reports[run] = measure(config, run, digest(patched),
+                                       preflight_info["originalInputHashes"], manifest["steps"])
+                if run == "A1":
+                    verify_stock_rejects_long(config, manifest["steps"])
+            validate_group(config, reports)
+            manifest["comparisonStatuses"].update(comparisons(config, manifest["steps"]))
+        if short_receipts() != preflight_info["shortEvidenceSha256"]:
+            raise RuntimeError("Original short receipts changed during the long run")
+    except BaseException as error:
+        failure = f"{type(error).__name__}: {error}"
+        manifest["runError"] = failure
+    finally:
+        restoration = manifest["restoration"]
+        for variant in patched_variants:
+            try:
+                path = ROOTS[variant] / HEADER
+                current = path.read_bytes()
+                if current not in (headers[variant], patched):
+                    restoration[variant] = "CONFLICT: header changed externally; backup retained; no overwrite"
+                    continue
+                path.write_bytes(headers[variant])
+                restoration[variant] = ("source-restored" if path.read_bytes() == headers[variant]
+                                        else "FAILED: source restore hash mismatch")
+            except BaseException as error:
+                restoration[variant] = f"FAILED: source restore: {error}"
+        for variant in patched_variants:
+            if restoration.get(variant) != "source-restored":
+                continue
+            try:
+                if input_hashes(ROOTS[variant]) != preflight_info["originalInputHashes"][variant]:
+                    restoration[f"{variant}-inputs"] = "FAILED: other inputs changed; original rebuild skipped"
+                    continue
+            except BaseException as error:
+                restoration[f"{variant}-inputs"] = f"FAILED: cannot inspect inputs: {error}"
+                continue
+            for config in CONFIGS:
+                try:
+                    build(variant, config, "restore", manifest["steps"])
+                except BaseException as error:
+                    restoration[f"{variant}-{config}-build"] = f"FAILED: {error}"
+                else:
+                    restoration[f"{variant}-{config}-build"] = "rebuilt-original"
+        for variant in ROOTS:
+            try:
+                restoration[f"{variant}-headerSha256"] = file_digest(ROOTS[variant] / HEADER)
+                restoration[f"{variant}-compiledInputsMatchOriginal"] = (
+                    input_hashes(ROOTS[variant]) == preflight_info["originalInputHashes"][variant])
+            except BaseException as error:
+                restoration[f"{variant}-compiledInputsMatchOriginal"] = f"FAILED: {error}"
+            for config in CONFIGS:
+                exe = ROOTS[variant] / f".build/x64/{config}/DxUi.EmbeddedTests.exe"
+                try:
+                    restoration[f"{variant}-{config}-embeddedTestExeSha256"] = (
+                        file_digest(exe) if exe.is_file() else None)
+                except BaseException as error:
+                    restoration[f"{variant}-{config}-embeddedTestExeSha256"] = f"FAILED: {error}"
+        try:
+            restoration["shortEvidenceUnchanged"] = short_receipts() == preflight_info["shortEvidenceSha256"]
+        except BaseException as error:
+            restoration["shortEvidenceUnchanged"] = f"FAILED: {error}"
+        manifest["completedUtc"] = datetime.now(timezone.utc).isoformat()
+        write_manifest(manifest)
+    if (failure or any("FAILED" in str(v) or "CONFLICT" in str(v) for v in manifest["restoration"].values())
+            or any(manifest["restoration"].get(f"{v}-compiledInputsMatchOriginal") is not True for v in ROOTS)
+            or manifest["restoration"].get("shortEvidenceUnchanged") is not True):
+        print(f"Diagnostic incomplete. See {OUT / 'driver-result.json'}", file=sys.stderr)
+        return 1
+    print(f"Diagnostic receipts and restoration record: {OUT}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

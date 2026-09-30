@@ -1,0 +1,11 @@
+# ARM64 CI runtime audit
+
+Workflow `36358394952` completed successfully at `49c963f5751a6754e6b08e0362b96cfc7fc64414`. The validation and all three ARM64 native jobs (Debug, Release, ASan Debug) report completed/success. This audit counts runtime evidence from suite, consumer, and ASan probe receipts plus their matching raw logs; build success alone is not treated as a runtime pass.
+
+All 60 ARM64 suite receipts (20 per configuration) report ARM64 / Arm64 and exit code 0. The Menu suite reports exactly nine interactive-desktop skips in each configuration; these are retained explicitly, while every other suite reports no skips. The Accessibility logs in each configuration include both focus-replacement cases, same-path and replacement-root stale-provider rejection, and delayed Select/Invoke rejection without callback execution. Each log ends in the suite pass marker.
+
+Four ARM64 external-consumer receipts pass: Debug and Release with STL annotations enabled, ASan Debug with annotations enabled, and ASan Debug with annotations disabled. Each reports 12 native-module checks and 10 negative checks, with API revision 2, commit and Arm64 identity, and SHA-256 identities for consumer binaries and toolchain inputs.
+
+The ARM64 ASan runtime probe is an expected positive check: its receipt exits 1 with `detected:true`, and its matching log records `AddressSanitizer: heap-use-after-free` and `ABORTING`. This is separate from the 20 passing ASan Debug suites. Performance reports are recorded only as source/configuration/input provenance; they do not claim a performance pass.
+
+`arm64-suite-consumer-audit.json` contains normalized receipt details and cross-checks against the independent root 122-suite and eight-consumer verification manifests. `arm64-artifact-hashes.json` lists SHA-256 and byte length for every downloaded ARM64 artifact. The full workflow conclusion is success, with the nine-per-profile Menu desktop skips still a scope limitation for those specific cases.

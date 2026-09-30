@@ -1,5 +1,7 @@
 # Completed plans
 
+- [Native accessibility provider lifetime](NativeProviderLifetime_2026-09-28.md) — completed 2026-09-30 (native identity and focus-reentry guards; exact-source six-profile CI, paired resource review with retained limits, explicit consumer pin49 adoption; consumer I26/H4 remain open).
+
 - [Bounded grid text and clipping](GridTextOverflow_2026-09-21.md) — completed 2026-09-28 (full-value text, bounded cached layouts, six native profiles and accepted measured costs; qualified feature pin 73ba explicitly selected by RedSalamander).
 - [Described native menu entries](MenuDescriptions_2026-09-21.md) — completed 2026-09-28 (wrapped descriptions, ordinary/described UIA, bounded navigation snapshots and six native profiles; ARM64 desktop skips and consumer I26/H4 remain explicit).
 - [Localized adaptive layout and interaction readiness](LocalizedAdaptiveLayout_2026-09-19.md) — completed 2026-09-20 (measured actions, wrapped captions, disclosure/input/UIA and resources; six native configurations; qualified main explicitly adopted by RedSalamander, whose Full product and final UI acceptance remain in I26).

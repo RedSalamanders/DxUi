@@ -1,0 +1,2295 @@
+{
+  "scope": "Read-only numerical audit of long crossover results",
+  "reportCount": 12,
+  "reportStatusCounts": {
+    "advice-required": 8,
+    "within-noise-budget": 4
+  },
+  "reports": [
+    {
+      "file": "Debug-A1-to-A2.comparison.json",
+      "configuration": "Debug",
+      "pair": "A1-to-A2",
+      "status": "within-noise-budget",
+      "regressedCount": 0
+    },
+    {
+      "file": "Debug-A1-to-B1.comparison.json",
+      "configuration": "Debug",
+      "pair": "A1-to-B1",
+      "status": "advice-required",
+      "regressedCount": 2
+    },
+    {
+      "file": "Debug-A1-to-B2.comparison.json",
+      "configuration": "Debug",
+      "pair": "A1-to-B2",
+      "status": "advice-required",
+      "regressedCount": 2
+    },
+    {
+      "file": "Debug-A2-to-B1.comparison.json",
+      "configuration": "Debug",
+      "pair": "A2-to-B1",
+      "status": "advice-required",
+      "regressedCount": 5
+    },
+    {
+      "file": "Debug-A2-to-B2.comparison.json",
+      "configuration": "Debug",
+      "pair": "A2-to-B2",
+      "status": "within-noise-budget",
+      "regressedCount": 0
+    },
+    {
+      "file": "Debug-B1-to-B2.comparison.json",
+      "configuration": "Debug",
+      "pair": "B1-to-B2",
+      "status": "within-noise-budget",
+      "regressedCount": 0
+    },
+    {
+      "file": "Release-A1-to-A2.comparison.json",
+      "configuration": "Release",
+      "pair": "A1-to-A2",
+      "status": "advice-required",
+      "regressedCount": 2
+    },
+    {
+      "file": "Release-A1-to-B1.comparison.json",
+      "configuration": "Release",
+      "pair": "A1-to-B1",
+      "status": "within-noise-budget",
+      "regressedCount": 0
+    },
+    {
+      "file": "Release-A1-to-B2.comparison.json",
+      "configuration": "Release",
+      "pair": "A1-to-B2",
+      "status": "advice-required",
+      "regressedCount": 2
+    },
+    {
+      "file": "Release-A2-to-B1.comparison.json",
+      "configuration": "Release",
+      "pair": "A2-to-B1",
+      "status": "advice-required",
+      "regressedCount": 1
+    },
+    {
+      "file": "Release-A2-to-B2.comparison.json",
+      "configuration": "Release",
+      "pair": "A2-to-B2",
+      "status": "advice-required",
+      "regressedCount": 2
+    },
+    {
+      "file": "Release-B1-to-B2.comparison.json",
+      "configuration": "Release",
+      "pair": "B1-to-B2",
+      "status": "advice-required",
+      "regressedCount": 1
+    }
+  ],
+  "provenance": {
+    "expectedCommits": {
+      "A": "73ba9365726cce30299290ab9ae8afa065c4fe3d",
+      "B": "49c963f5751a6754e6b08e0362b96cfc7fc64414"
+    },
+    "receipts": [
+      {
+        "file": "Debug-A1.json",
+        "sourceCommit": "73ba9365726cce30299290ab9ae8afa065c4fe3d",
+        "expectedCommit": "73ba9365726cce30299290ab9ae8afa065c4fe3d",
+        "commitMatches": true,
+        "fixture": "dxui-complex-ui-v2",
+        "framesPerRound": 1000,
+        "roundCount": 5,
+        "benchmarkSha256": "CFB2554CA2C2B3AA9D589D729541F94AF8535C76AC29CEBCAE2F2ACB1F1E7BD2",
+        "sourceFingerprint": "C84B96D7C78EE62070AABB914293107AD5BD29CEC16D2CF1FC2A2F2A5DE0DCC7",
+        "sourceDirty": true,
+        "benchmarkInputs": {
+          "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+          "Tests/Embedded/ComplexUiBenchmark.h": "E5DAE4D591033E2631C0BC2CAAD18D8BF9D584E27F6CF4E222FF8A53DAC77E12",
+          "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+          "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+        }
+      },
+      {
+        "file": "Debug-A2.json",
+        "sourceCommit": "73ba9365726cce30299290ab9ae8afa065c4fe3d",
+        "expectedCommit": "73ba9365726cce30299290ab9ae8afa065c4fe3d",
+        "commitMatches": true,
+        "fixture": "dxui-complex-ui-v2",
+        "framesPerRound": 1000,
+        "roundCount": 5,
+        "benchmarkSha256": "CFB2554CA2C2B3AA9D589D729541F94AF8535C76AC29CEBCAE2F2ACB1F1E7BD2",
+        "sourceFingerprint": "C84B96D7C78EE62070AABB914293107AD5BD29CEC16D2CF1FC2A2F2A5DE0DCC7",
+        "sourceDirty": true,
+        "benchmarkInputs": {
+          "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+          "Tests/Embedded/ComplexUiBenchmark.h": "E5DAE4D591033E2631C0BC2CAAD18D8BF9D584E27F6CF4E222FF8A53DAC77E12",
+          "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+          "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+        }
+      },
+      {
+        "file": "Debug-B1.json",
+        "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+        "expectedCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+        "commitMatches": true,
+        "fixture": "dxui-complex-ui-v2",
+        "framesPerRound": 1000,
+        "roundCount": 5,
+        "benchmarkSha256": "CFB2554CA2C2B3AA9D589D729541F94AF8535C76AC29CEBCAE2F2ACB1F1E7BD2",
+        "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+        "sourceDirty": true,
+        "benchmarkInputs": {
+          "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+          "Tests/Embedded/ComplexUiBenchmark.h": "E5DAE4D591033E2631C0BC2CAAD18D8BF9D584E27F6CF4E222FF8A53DAC77E12",
+          "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+          "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+        }
+      },
+      {
+        "file": "Debug-B2.json",
+        "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+        "expectedCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+        "commitMatches": true,
+        "fixture": "dxui-complex-ui-v2",
+        "framesPerRound": 1000,
+        "roundCount": 5,
+        "benchmarkSha256": "CFB2554CA2C2B3AA9D589D729541F94AF8535C76AC29CEBCAE2F2ACB1F1E7BD2",
+        "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+        "sourceDirty": true,
+        "benchmarkInputs": {
+          "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+          "Tests/Embedded/ComplexUiBenchmark.h": "E5DAE4D591033E2631C0BC2CAAD18D8BF9D584E27F6CF4E222FF8A53DAC77E12",
+          "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+          "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+        }
+      },
+      {
+        "file": "Release-A1.json",
+        "sourceCommit": "73ba9365726cce30299290ab9ae8afa065c4fe3d",
+        "expectedCommit": "73ba9365726cce30299290ab9ae8afa065c4fe3d",
+        "commitMatches": true,
+        "fixture": "dxui-complex-ui-v2",
+        "framesPerRound": 1000,
+        "roundCount": 5,
+        "benchmarkSha256": "CFB2554CA2C2B3AA9D589D729541F94AF8535C76AC29CEBCAE2F2ACB1F1E7BD2",
+        "sourceFingerprint": "C84B96D7C78EE62070AABB914293107AD5BD29CEC16D2CF1FC2A2F2A5DE0DCC7",
+        "sourceDirty": true,
+        "benchmarkInputs": {
+          "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+          "Tests/Embedded/ComplexUiBenchmark.h": "E5DAE4D591033E2631C0BC2CAAD18D8BF9D584E27F6CF4E222FF8A53DAC77E12",
+          "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+          "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+        }
+      },
+      {
+        "file": "Release-A2.json",
+        "sourceCommit": "73ba9365726cce30299290ab9ae8afa065c4fe3d",
+        "expectedCommit": "73ba9365726cce30299290ab9ae8afa065c4fe3d",
+        "commitMatches": true,
+        "fixture": "dxui-complex-ui-v2",
+        "framesPerRound": 1000,
+        "roundCount": 5,
+        "benchmarkSha256": "CFB2554CA2C2B3AA9D589D729541F94AF8535C76AC29CEBCAE2F2ACB1F1E7BD2",
+        "sourceFingerprint": "C84B96D7C78EE62070AABB914293107AD5BD29CEC16D2CF1FC2A2F2A5DE0DCC7",
+        "sourceDirty": true,
+        "benchmarkInputs": {
+          "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+          "Tests/Embedded/ComplexUiBenchmark.h": "E5DAE4D591033E2631C0BC2CAAD18D8BF9D584E27F6CF4E222FF8A53DAC77E12",
+          "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+          "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+        }
+      },
+      {
+        "file": "Release-B1.json",
+        "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+        "expectedCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+        "commitMatches": true,
+        "fixture": "dxui-complex-ui-v2",
+        "framesPerRound": 1000,
+        "roundCount": 5,
+        "benchmarkSha256": "CFB2554CA2C2B3AA9D589D729541F94AF8535C76AC29CEBCAE2F2ACB1F1E7BD2",
+        "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+        "sourceDirty": true,
+        "benchmarkInputs": {
+          "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+          "Tests/Embedded/ComplexUiBenchmark.h": "E5DAE4D591033E2631C0BC2CAAD18D8BF9D584E27F6CF4E222FF8A53DAC77E12",
+          "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+          "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+        }
+      },
+      {
+        "file": "Release-B2.json",
+        "sourceCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+        "expectedCommit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+        "commitMatches": true,
+        "fixture": "dxui-complex-ui-v2",
+        "framesPerRound": 1000,
+        "roundCount": 5,
+        "benchmarkSha256": "CFB2554CA2C2B3AA9D589D729541F94AF8535C76AC29CEBCAE2F2ACB1F1E7BD2",
+        "sourceFingerprint": "F870ECCFABAC947E8D922DD244F79563372AFC4EC948CB439FF8E0E0FFA54F91",
+        "sourceDirty": true,
+        "benchmarkInputs": {
+          "Tests/Embedded/BenchmarkMain.h": "8594F9F9AB1C6D14AD9B8359FC5D27D9491827E28C8AC14AB5819E28C3A4C7E9",
+          "Tests/Embedded/ComplexUiBenchmark.h": "E5DAE4D591033E2631C0BC2CAAD18D8BF9D584E27F6CF4E222FF8A53DAC77E12",
+          "Samples/ComplexUi/ComplexUiScene.h": "0DBBF42DC14CD3D5867D089C728BAF60980114B4E6A4397BA74750F6783608F3",
+          "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+        }
+      }
+    ],
+    "allReceiptCommitsMatch": true,
+    "allReceiptsLongFixture": true,
+    "driverStartedUtc": "2026-09-30T10:31:45.84048+02:00",
+    "driverStepsRecorded": 0,
+    "restoration": {},
+    "restorationStatus": "pending/incomplete in currently readable driver-result.json"
+  },
+  "perConfigurationScenarioMetric": [
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "composeAllocations",
+      "unit": "count",
+      "runs": {
+        "A1": 0.0,
+        "A2": 0.0,
+        "B1": 0.0,
+        "B2": 0.0
+      },
+      "range": {
+        "min": 0.0,
+        "max": 0.0,
+        "percentOfMin": 0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": null,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": null,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "cppAllocations",
+      "unit": "count",
+      "runs": {
+        "A1": 0.0,
+        "A2": 0.0,
+        "B1": 0.0,
+        "B2": 0.0
+      },
+      "range": {
+        "min": 0.0,
+        "max": 0.0,
+        "percentOfMin": 0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": null,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": null,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "fps",
+      "unit": "fps",
+      "runs": {
+        "A1": 2372.685268,
+        "A2": 2657.45204,
+        "B1": 2584.23842,
+        "B2": 2695.970791
+      },
+      "range": {
+        "min": 2372.685268,
+        "max": 2695.970791,
+        "percentOfMin": 13.6253
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 4.3236092357143985,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        },
+        "A1-to-A2": {
+          "changePercent": 12.00187719123984,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "frameP50Ms",
+      "unit": "ms",
+      "runs": {
+        "A1": 0.4087,
+        "A2": 0.3643,
+        "B1": 0.3725,
+        "B2": 0.3578
+      },
+      "range": {
+        "min": 0.3578,
+        "max": 0.4087,
+        "percentOfMin": 14.2258
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": -3.946308724832215,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        },
+        "A1-to-A2": {
+          "changePercent": -10.863714215806208,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "frameP95Ms",
+      "unit": "ms",
+      "runs": {
+        "A1": 0.5185,
+        "A2": 0.4509,
+        "B1": 0.4573,
+        "B2": 0.4498
+      },
+      "range": {
+        "min": 0.4498,
+        "max": 0.5185,
+        "percentOfMin": 15.2735
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": -1.6400612289525496,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        },
+        "A1-to-A2": {
+          "changePercent": -13.03760848601735,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "privateBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 29122560.0,
+        "A2": 29319168.0,
+        "B1": 28622848.0,
+        "B2": 28397568.0
+      },
+      "range": {
+        "min": 28397568.0,
+        "max": 29319168.0,
+        "percentOfMin": 3.2453
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": -0.7870635374928492,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.6751054852320637,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "privatePeakBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 29196288.0,
+        "A2": 29429760.0,
+        "B1": 28782592.0,
+        "B2": 29204480.0
+      },
+      "range": {
+        "min": 28782592.0,
+        "max": 29429760.0,
+        "percentOfMin": 2.2485
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 1.4657748683648775,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.7996632996633002,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "replacementPeakBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "range": {
+        "min": 3686400.0,
+        "max": 3686400.0,
+        "percentOfMin": 0.0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "surfaceBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "range": {
+        "min": 3686400.0,
+        "max": 3686400.0,
+        "percentOfMin": 0.0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "workingSetBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 52334592.0,
+        "A2": 46022656.0,
+        "B1": 51556352.0,
+        "B2": 45408256.0
+      },
+      "range": {
+        "min": 45408256.0,
+        "max": 52334592.0,
+        "percentOfMin": 15.2535
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": -11.925001986176209,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": -12.060734131642793,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "workingSetPeakBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 52400128.0,
+        "A2": 46030848.0,
+        "B1": 51601408.0,
+        "B2": 45506560.0
+      },
+      "range": {
+        "min": 45506560.0,
+        "max": 52400128.0,
+        "percentOfMin": 15.1485
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": -11.811398634703918,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": -12.155084812006567,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "composeAllocations",
+      "unit": "count",
+      "runs": {
+        "A1": 0.0,
+        "A2": 0.0,
+        "B1": 0.0,
+        "B2": 0.0
+      },
+      "range": {
+        "min": 0.0,
+        "max": 0.0,
+        "percentOfMin": 0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": null,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": null,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "cppAllocations",
+      "unit": "count",
+      "runs": {
+        "A1": 256883.0,
+        "A2": 256883.0,
+        "B1": 256883.0,
+        "B2": 256883.0
+      },
+      "range": {
+        "min": 256883.0,
+        "max": 256883.0,
+        "percentOfMin": 0.0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "fps",
+      "unit": "fps",
+      "runs": {
+        "A1": 407.0529743,
+        "A2": 409.141665,
+        "B1": 409.84223,
+        "B2": 408.3532746
+      },
+      "range": {
+        "min": 407.0529743,
+        "max": 409.84223,
+        "percentOfMin": 0.6852
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": -0.3632996531372501,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.5131250308616053,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "frameP50Ms",
+      "unit": "ms",
+      "runs": {
+        "A1": 2.3694,
+        "A2": 2.3612,
+        "B1": 2.3599,
+        "B2": 2.3765
+      },
+      "range": {
+        "min": 2.3599,
+        "max": 2.3765,
+        "percentOfMin": 0.7034
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.7034196364252621,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        },
+        "A1-to-A2": {
+          "changePercent": -0.3460791761627391,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "frameP95Ms",
+      "unit": "ms",
+      "runs": {
+        "A1": 3.1601,
+        "A2": 3.09,
+        "B1": 3.0875,
+        "B2": 3.0997
+      },
+      "range": {
+        "min": 3.0875,
+        "max": 3.1601,
+        "percentOfMin": 2.3514
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.3951417004048663,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        },
+        "A1-to-A2": {
+          "changePercent": -2.218284231511658,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "privateBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 28286976.0,
+        "A2": 28672000.0,
+        "B1": 28872704.0,
+        "B2": 29118464.0
+      },
+      "range": {
+        "min": 28286976.0,
+        "max": 29118464.0,
+        "percentOfMin": 2.9395
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.8511845651865579,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": 1.3611352447147507,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "privatePeakBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 28487680.0,
+        "A2": 28798976.0,
+        "B1": 29077504.0,
+        "B2": 29192192.0
+      },
+      "range": {
+        "min": 28487680.0,
+        "max": 29192192.0,
+        "percentOfMin": 2.473
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.39442174954218423,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": 1.0927390366642697,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "replacementPeakBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "range": {
+        "min": 3686400.0,
+        "max": 3686400.0,
+        "percentOfMin": 0.0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "surfaceBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "range": {
+        "min": 3686400.0,
+        "max": 3686400.0,
+        "percentOfMin": 0.0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "workingSetBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 50962432.0,
+        "A2": 44572672.0,
+        "B1": 51093504.0,
+        "B2": 44789760.0
+      },
+      "range": {
+        "min": 44572672.0,
+        "max": 51093504.0,
+        "percentOfMin": 14.6297
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": -12.337662337662337,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": -12.5381771419386,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "workingSetPeakBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 51179520.0,
+        "A2": 44711936.0,
+        "B1": 51281920.0,
+        "B2": 44957696.0
+      },
+      "range": {
+        "min": 44711936.0,
+        "max": 51281920.0,
+        "percentOfMin": 14.694
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": -12.332268370607025,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": -12.637054821928773,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "composeAllocations",
+      "unit": "count",
+      "runs": {
+        "A1": 0.0,
+        "A2": 0.0,
+        "B1": 0.0,
+        "B2": 0.0
+      },
+      "range": {
+        "min": 0.0,
+        "max": 0.0,
+        "percentOfMin": 0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": null,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": null,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "cppAllocations",
+      "unit": "count",
+      "runs": {
+        "A1": 0.0,
+        "A2": 0.0,
+        "B1": 0.0,
+        "B2": 0.0
+      },
+      "range": {
+        "min": 0.0,
+        "max": 0.0,
+        "percentOfMin": 0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": null,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": null,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "fps",
+      "unit": "fps",
+      "runs": {
+        "A1": 2694.759716,
+        "A2": 2637.16627,
+        "B1": 2710.878566,
+        "B2": 2691.834965
+      },
+      "range": {
+        "min": 2637.16627,
+        "max": 2710.878566,
+        "percentOfMin": 2.7951
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": -0.7024881615445899,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        },
+        "A1-to-A2": {
+          "changePercent": -2.137238643506567,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "frameP50Ms",
+      "unit": "ms",
+      "runs": {
+        "A1": 0.3577,
+        "A2": 0.3652,
+        "B1": 0.3543,
+        "B2": 0.3572
+      },
+      "range": {
+        "min": 0.3543,
+        "max": 0.3652,
+        "percentOfMin": 3.0765
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.8185153824442626,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        },
+        "A1-to-A2": {
+          "changePercent": 2.096729102599948,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "frameP95Ms",
+      "unit": "ms",
+      "runs": {
+        "A1": 0.4443,
+        "A2": 0.4685,
+        "B1": 0.4427,
+        "B2": 0.4414
+      },
+      "range": {
+        "min": 0.4414,
+        "max": 0.4685,
+        "percentOfMin": 6.1396
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": -0.29365258640161596,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        },
+        "A1-to-A2": {
+          "changePercent": 5.446770200315121,
+          "regressed": true,
+          "thresholdPercent": 5.0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "privateBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 26886144.0,
+        "A2": 26599424.0,
+        "B1": 26140672.0,
+        "B2": 26304512.0
+      },
+      "range": {
+        "min": 26140672.0,
+        "max": 26886144.0,
+        "percentOfMin": 2.8518
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.6267627702914558,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": -1.0664229128580116,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "privatePeakBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 27078656.0,
+        "A2": 26664960.0,
+        "B1": 26304512.0,
+        "B2": 26660864.0
+      },
+      "range": {
+        "min": 26304512.0,
+        "max": 27078656.0,
+        "percentOfMin": 2.943
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 1.3547181563375865,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": -1.5277567690213267,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "replacementPeakBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "range": {
+        "min": 3686400.0,
+        "max": 3686400.0,
+        "percentOfMin": 0.0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "surfaceBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "range": {
+        "min": 3686400.0,
+        "max": 3686400.0,
+        "percentOfMin": 0.0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "workingSetBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 43380736.0,
+        "A2": 43196416.0,
+        "B1": 42696704.0,
+        "B2": 43085824.0
+      },
+      "range": {
+        "min": 42696704.0,
+        "max": 43380736.0,
+        "percentOfMin": 1.6021
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.9113584036838152,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": -0.4248890567462915,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "workingSetPeakBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 43458560.0,
+        "A2": 43220992.0,
+        "B1": 42733568.0,
+        "B2": 43110400.0
+      },
+      "range": {
+        "min": 42733568.0,
+        "max": 43458560.0,
+        "percentOfMin": 1.6965
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.8818173104572002,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": -0.5466540999057523,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "composeAllocations",
+      "unit": "count",
+      "runs": {
+        "A1": 0.0,
+        "A2": 0.0,
+        "B1": 0.0,
+        "B2": 0.0
+      },
+      "range": {
+        "min": 0.0,
+        "max": 0.0,
+        "percentOfMin": 0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": null,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": null,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "cppAllocations",
+      "unit": "count",
+      "runs": {
+        "A1": 53896.0,
+        "A2": 53896.0,
+        "B1": 53896.0,
+        "B2": 53896.0
+      },
+      "range": {
+        "min": 53896.0,
+        "max": 53896.0,
+        "percentOfMin": 0.0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "fps",
+      "unit": "fps",
+      "runs": {
+        "A1": 511.1157975,
+        "A2": 511.1136553,
+        "B1": 521.0206022,
+        "B2": 518.3519663
+      },
+      "range": {
+        "min": 511.1136553,
+        "max": 521.0206022,
+        "percentOfMin": 1.9383
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": -0.5121939302844769,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        },
+        "A1-to-A2": {
+          "changePercent": -0.00041912224401086107,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "frameP50Ms",
+      "unit": "ms",
+      "runs": {
+        "A1": 1.8715,
+        "A2": 1.871,
+        "B1": 1.8448,
+        "B2": 1.87
+      },
+      "range": {
+        "min": 1.8448,
+        "max": 1.8715,
+        "percentOfMin": 1.4473
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 1.3660017346053932,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        },
+        "A1-to-A2": {
+          "changePercent": -0.026716537536730645,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "frameP95Ms",
+      "unit": "ms",
+      "runs": {
+        "A1": 2.4904,
+        "A2": 2.516,
+        "B1": 2.4018,
+        "B2": 2.4634
+      },
+      "range": {
+        "min": 2.4018,
+        "max": 2.516,
+        "percentOfMin": 4.7548
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 2.564743109334655,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        },
+        "A1-to-A2": {
+          "changePercent": 1.027947317699951,
+          "regressed": false,
+          "thresholdPercent": 5.0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "privateBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 25833472.0,
+        "A2": 26021888.0,
+        "B1": 26202112.0,
+        "B2": 26746880.0
+      },
+      "range": {
+        "min": 25833472.0,
+        "max": 26746880.0,
+        "percentOfMin": 3.5358
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 2.079099577927157,
+          "regressed": true,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.729348343110825,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "privatePeakBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 26120192.0,
+        "A2": 26243072.0,
+        "B1": 26443776.0,
+        "B2": 26812416.0
+      },
+      "range": {
+        "min": 26120192.0,
+        "max": 26812416.0,
+        "percentOfMin": 2.6501
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 1.3940520446096727,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.47044064607182356,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "replacementPeakBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "range": {
+        "min": 3686400.0,
+        "max": 3686400.0,
+        "percentOfMin": 0.0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "surfaceBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "range": {
+        "min": 3686400.0,
+        "max": 3686400.0,
+        "percentOfMin": 0.0
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.0,
+          "regressed": false,
+          "thresholdPercent": 0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "workingSetBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 41713664.0,
+        "A2": 41824256.0,
+        "B1": 41988096.0,
+        "B2": 42172416.0
+      },
+      "range": {
+        "min": 41713664.0,
+        "max": 42172416.0,
+        "percentOfMin": 1.0998
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.4389815627743543,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.2651217596229438,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "workingSetPeakBytes",
+      "unit": "bytes",
+      "runs": {
+        "A1": 41914368.0,
+        "A2": 42016768.0,
+        "B1": 42172416.0,
+        "B2": 42373120.0
+      },
+      "range": {
+        "min": 41914368.0,
+        "max": 42373120.0,
+        "percentOfMin": 1.0945
+      },
+      "sameBinaryRepeats": {
+        "B1-to-B2": {
+          "changePercent": 0.4759129759129843,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        },
+        "A1-to-A2": {
+          "changePercent": 0.24430763217042628,
+          "regressed": false,
+          "thresholdPercent": 2.0
+        }
+      }
+    }
+  ],
+  "allocationAndSurfaceEquality": [
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "composeAllocations",
+      "values": {
+        "A1": 0.0,
+        "A2": 0.0,
+        "B1": 0.0,
+        "B2": 0.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "cppAllocations",
+      "values": {
+        "A1": 0.0,
+        "A2": 0.0,
+        "B1": 0.0,
+        "B2": 0.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "replacementPeakBytes",
+      "values": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "surfaceBytes",
+      "values": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "composeAllocations",
+      "values": {
+        "A1": 0.0,
+        "A2": 0.0,
+        "B1": 0.0,
+        "B2": 0.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "cppAllocations",
+      "values": {
+        "A1": 256883.0,
+        "A2": 256883.0,
+        "B1": 256883.0,
+        "B2": 256883.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "replacementPeakBytes",
+      "values": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "surfaceBytes",
+      "values": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "composeAllocations",
+      "values": {
+        "A1": 0.0,
+        "A2": 0.0,
+        "B1": 0.0,
+        "B2": 0.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "cppAllocations",
+      "values": {
+        "A1": 0.0,
+        "A2": 0.0,
+        "B1": 0.0,
+        "B2": 0.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "replacementPeakBytes",
+      "values": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "surfaceBytes",
+      "values": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "composeAllocations",
+      "values": {
+        "A1": 0.0,
+        "A2": 0.0,
+        "B1": 0.0,
+        "B2": 0.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "cppAllocations",
+      "values": {
+        "A1": 53896.0,
+        "A2": 53896.0,
+        "B1": 53896.0,
+        "B2": 53896.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "replacementPeakBytes",
+      "values": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "equalAcrossAll4": true
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "surfaceBytes",
+      "values": {
+        "A1": 3686400.0,
+        "A2": 3686400.0,
+        "B1": 3686400.0,
+        "B2": 3686400.0
+      },
+      "equalAcrossAll4": true
+    }
+  ],
+  "regressedMetricGroups": [
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "composeCpuP95Ms",
+      "crossPairRegressions": "1/4",
+      "directionAndThresholdConsistentAcrossAll4AB": false,
+      "crossPairs": [
+        {
+          "pair": "A1-to-B1",
+          "changePercent": -7.5187969924811915,
+          "thresholdPercent": 5.0,
+          "regressed": false
+        },
+        {
+          "pair": "A1-to-B2",
+          "changePercent": -10.526315789473673,
+          "thresholdPercent": 5.0,
+          "regressed": false
+        },
+        {
+          "pair": "A2-to-B1",
+          "changePercent": 5.128205128205132,
+          "thresholdPercent": 5.0,
+          "regressed": true
+        },
+        {
+          "pair": "A2-to-B2",
+          "changePercent": 1.7094017094017033,
+          "thresholdPercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "workingSetBytes",
+      "crossPairRegressions": "1/4",
+      "directionAndThresholdConsistentAcrossAll4AB": false,
+      "crossPairs": [
+        {
+          "pair": "A1-to-B1",
+          "changePercent": -1.4870470376457723,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        },
+        {
+          "pair": "A1-to-B2",
+          "changePercent": -13.234718635047349,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        },
+        {
+          "pair": "A2-to-B1",
+          "changePercent": 12.023851904592387,
+          "thresholdPercent": 2.0,
+          "regressed": true
+        },
+        {
+          "pair": "A2-to-B2",
+          "changePercent": -1.3349946600213602,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "workingSetPeakBytes",
+      "crossPairRegressions": "1/4",
+      "directionAndThresholdConsistentAcrossAll4AB": false,
+      "crossPairs": [
+        {
+          "pair": "A1-to-B1",
+          "changePercent": -1.5242710857500175,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        },
+        {
+          "pair": "A1-to-B2",
+          "changePercent": -13.155631986242478,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        },
+        {
+          "pair": "A2-to-B1",
+          "changePercent": 12.101797472859932,
+          "thresholdPercent": 2.0,
+          "regressed": true
+        },
+        {
+          "pair": "A2-to-B2",
+          "changePercent": -1.13899270332799,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "privateBytes",
+      "crossPairRegressions": "2/4",
+      "directionAndThresholdConsistentAcrossAll4AB": false,
+      "crossPairs": [
+        {
+          "pair": "A1-to-B1",
+          "changePercent": 2.0706631914277462,
+          "thresholdPercent": 2.0,
+          "regressed": true
+        },
+        {
+          "pair": "A1-to-B2",
+          "changePercent": 2.939472922096731,
+          "thresholdPercent": 2.0,
+          "regressed": true
+        },
+        {
+          "pair": "A2-to-B1",
+          "changePercent": 0.6999999999999895,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        },
+        {
+          "pair": "A2-to-B2",
+          "changePercent": 1.557142857142857,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "privatePeakBytes",
+      "crossPairRegressions": "2/4",
+      "directionAndThresholdConsistentAcrossAll4AB": false,
+      "crossPairs": [
+        {
+          "pair": "A1-to-B1",
+          "changePercent": 2.0704529115744164,
+          "thresholdPercent": 2.0,
+          "regressed": true
+        },
+        {
+          "pair": "A1-to-B2",
+          "changePercent": 2.4730409777138807,
+          "thresholdPercent": 2.0,
+          "regressed": true
+        },
+        {
+          "pair": "A2-to-B1",
+          "changePercent": 0.9671454985066053,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        },
+        {
+          "pair": "A2-to-B2",
+          "changePercent": 1.3653818802446205,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "workingSetBytes",
+      "crossPairRegressions": "1/4",
+      "directionAndThresholdConsistentAcrossAll4AB": false,
+      "crossPairs": [
+        {
+          "pair": "A1-to-B1",
+          "changePercent": 0.25719337727052594,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        },
+        {
+          "pair": "A1-to-B2",
+          "changePercent": -12.112200610834268,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        },
+        {
+          "pair": "A2-to-B1",
+          "changePercent": 14.6296636647675,
+          "thresholdPercent": 2.0,
+          "regressed": true
+        },
+        {
+          "pair": "A2-to-B2",
+          "changePercent": 0.4870428230104862,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "workingSetPeakBytes",
+      "crossPairRegressions": "1/4",
+      "directionAndThresholdConsistentAcrossAll4AB": false,
+      "crossPairs": [
+        {
+          "pair": "A1-to-B1",
+          "changePercent": 0.2000800320127949,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        },
+        {
+          "pair": "A1-to-B2",
+          "changePercent": -12.15686274509804,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        },
+        {
+          "pair": "A2-to-B1",
+          "changePercent": 14.69402711615977,
+          "thresholdPercent": 2.0,
+          "regressed": true
+        },
+        {
+          "pair": "A2-to-B2",
+          "changePercent": 0.5496518871381362,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "composeCpuP95Ms",
+      "crossPairRegressions": "0/4",
+      "directionAndThresholdConsistentAcrossAll4AB": false,
+      "crossPairs": [
+        {
+          "pair": "A1-to-B1",
+          "changePercent": 0.9345794392523477,
+          "thresholdPercent": 5.0,
+          "regressed": false
+        },
+        {
+          "pair": "A1-to-B2",
+          "changePercent": -1.869158878504662,
+          "thresholdPercent": 5.0,
+          "regressed": false
+        },
+        {
+          "pair": "A2-to-B1",
+          "changePercent": -4.424778761061932,
+          "thresholdPercent": 5.0,
+          "regressed": false
+        },
+        {
+          "pair": "A2-to-B2",
+          "changePercent": -7.079646017699104,
+          "thresholdPercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "frameP95Ms",
+      "crossPairRegressions": "0/4",
+      "directionAndThresholdConsistentAcrossAll4AB": false,
+      "crossPairs": [
+        {
+          "pair": "A1-to-B1",
+          "changePercent": -0.3601170380373553,
+          "thresholdPercent": 5.0,
+          "regressed": false
+        },
+        {
+          "pair": "A1-to-B2",
+          "changePercent": -0.652712131442712,
+          "thresholdPercent": 5.0,
+          "regressed": false
+        },
+        {
+          "pair": "A2-to-B1",
+          "changePercent": -5.506937033084325,
+          "thresholdPercent": 5.0,
+          "regressed": false
+        },
+        {
+          "pair": "A2-to-B2",
+          "changePercent": -5.7844183564567775,
+          "thresholdPercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "composeCpuP95Ms",
+      "crossPairRegressions": "1/4",
+      "directionAndThresholdConsistentAcrossAll4AB": false,
+      "crossPairs": [
+        {
+          "pair": "A1-to-B1",
+          "changePercent": -15.686274509803933,
+          "thresholdPercent": 5.0,
+          "regressed": false
+        },
+        {
+          "pair": "A1-to-B2",
+          "changePercent": -21.078431372549023,
+          "thresholdPercent": 5.0,
+          "regressed": false
+        },
+        {
+          "pair": "A2-to-B1",
+          "changePercent": 6.172839506172845,
+          "thresholdPercent": 5.0,
+          "regressed": true
+        },
+        {
+          "pair": "A2-to-B2",
+          "changePercent": -0.6172839506172756,
+          "thresholdPercent": 5.0,
+          "regressed": false
+        }
+      ]
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "privateBytes",
+      "crossPairRegressions": "2/4",
+      "directionAndThresholdConsistentAcrossAll4AB": false,
+      "crossPairs": [
+        {
+          "pair": "A1-to-B1",
+          "changePercent": 1.4269858886950981,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        },
+        {
+          "pair": "A1-to-B2",
+          "changePercent": 3.5357539242111935,
+          "thresholdPercent": 2.0,
+          "regressed": true
+        },
+        {
+          "pair": "A2-to-B1",
+          "changePercent": 0.6925861797576038,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        },
+        {
+          "pair": "A2-to-B2",
+          "changePercent": 2.7860853140248665,
+          "thresholdPercent": 2.0,
+          "regressed": true
+        }
+      ]
+    },
+    {
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "privatePeakBytes",
+      "crossPairRegressions": "2/4",
+      "directionAndThresholdConsistentAcrossAll4AB": false,
+      "crossPairs": [
+        {
+          "pair": "A1-to-B1",
+          "changePercent": 1.2388270346557873,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        },
+        {
+          "pair": "A1-to-B2",
+          "changePercent": 2.650148972871258,
+          "thresholdPercent": 2.0,
+          "regressed": true
+        },
+        {
+          "pair": "A2-to-B1",
+          "changePercent": 0.764788512564385,
+          "thresholdPercent": 2.0,
+          "regressed": false
+        },
+        {
+          "pair": "A2-to-B2",
+          "changePercent": 2.169502107070387,
+          "thresholdPercent": 2.0,
+          "regressed": true
+        }
+      ]
+    }
+  ],
+  "allRegressedRows": [
+    {
+      "file": "Debug-A1-to-B1.comparison.json",
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "privateBytes",
+      "before": 28286976,
+      "after": 28872704,
+      "changePercent": 2.0706631914277462,
+      "thresholdPercent": 2.0
+    },
+    {
+      "file": "Debug-A1-to-B1.comparison.json",
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "privatePeakBytes",
+      "before": 28487680,
+      "after": 29077504,
+      "changePercent": 2.0704529115744164,
+      "thresholdPercent": 2.0
+    },
+    {
+      "file": "Debug-A1-to-B2.comparison.json",
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "privateBytes",
+      "before": 28286976,
+      "after": 29118464,
+      "changePercent": 2.939472922096731,
+      "thresholdPercent": 2.0
+    },
+    {
+      "file": "Debug-A1-to-B2.comparison.json",
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "privatePeakBytes",
+      "before": 28487680,
+      "after": 29192192,
+      "changePercent": 2.4730409777138807,
+      "thresholdPercent": 2.0
+    },
+    {
+      "file": "Debug-A2-to-B1.comparison.json",
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "composeCpuP95Ms",
+      "before": 0.0117,
+      "after": 0.0123,
+      "changePercent": 5.128205128205132,
+      "thresholdPercent": 5.0
+    },
+    {
+      "file": "Debug-A2-to-B1.comparison.json",
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "workingSetBytes",
+      "before": 46022656,
+      "after": 51556352,
+      "changePercent": 12.023851904592387,
+      "thresholdPercent": 2.0
+    },
+    {
+      "file": "Debug-A2-to-B1.comparison.json",
+      "configuration": "Debug",
+      "scenario": "clean",
+      "metric": "workingSetPeakBytes",
+      "before": 46030848,
+      "after": 51601408,
+      "changePercent": 12.101797472859932,
+      "thresholdPercent": 2.0
+    },
+    {
+      "file": "Debug-A2-to-B1.comparison.json",
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "workingSetBytes",
+      "before": 44572672,
+      "after": 51093504,
+      "changePercent": 14.6296636647675,
+      "thresholdPercent": 2.0
+    },
+    {
+      "file": "Debug-A2-to-B1.comparison.json",
+      "configuration": "Debug",
+      "scenario": "dirty",
+      "metric": "workingSetPeakBytes",
+      "before": 44711936,
+      "after": 51281920,
+      "changePercent": 14.69402711615977,
+      "thresholdPercent": 2.0
+    },
+    {
+      "file": "Release-A1-to-A2.comparison.json",
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "frameP95Ms",
+      "before": 0.4443,
+      "after": 0.4685,
+      "changePercent": 5.446770200315121,
+      "thresholdPercent": 5.0
+    },
+    {
+      "file": "Release-A1-to-A2.comparison.json",
+      "configuration": "Release",
+      "scenario": "clean",
+      "metric": "composeCpuP95Ms",
+      "before": 0.0107,
+      "after": 0.0113,
+      "changePercent": 5.607476635514019,
+      "thresholdPercent": 5.0
+    },
+    {
+      "file": "Release-A1-to-B2.comparison.json",
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "privateBytes",
+      "before": 25833472,
+      "after": 26746880,
+      "changePercent": 3.5357539242111935,
+      "thresholdPercent": 2.0
+    },
+    {
+      "file": "Release-A1-to-B2.comparison.json",
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "privatePeakBytes",
+      "before": 26120192,
+      "after": 26812416,
+      "changePercent": 2.650148972871258,
+      "thresholdPercent": 2.0
+    },
+    {
+      "file": "Release-A2-to-B1.comparison.json",
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "composeCpuP95Ms",
+      "before": 0.0162,
+      "after": 0.0172,
+      "changePercent": 6.172839506172845,
+      "thresholdPercent": 5.0
+    },
+    {
+      "file": "Release-A2-to-B2.comparison.json",
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "privateBytes",
+      "before": 26021888,
+      "after": 26746880,
+      "changePercent": 2.7860853140248665,
+      "thresholdPercent": 2.0
+    },
+    {
+      "file": "Release-A2-to-B2.comparison.json",
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "privatePeakBytes",
+      "before": 26243072,
+      "after": 26812416,
+      "changePercent": 2.169502107070387,
+      "thresholdPercent": 2.0
+    },
+    {
+      "file": "Release-B1-to-B2.comparison.json",
+      "configuration": "Release",
+      "scenario": "dirty",
+      "metric": "privateBytes",
+      "before": 26202112,
+      "after": 26746880,
+      "changePercent": 2.079099577927157,
+      "thresholdPercent": 2.0
+    }
+  ],
+  "qualificationLimit": "Offscreen WARP completed frames do not qualify native UIA snapshot/token cost or presented FPS, and do not qualify ARM64; an unchanged UIA path cannot establish causal absence."
+}

@@ -1,0 +1,18 @@
+--- a/Tests/Embedded/ComplexUiBenchmark.h
++++ b/Tests/Embedded/ComplexUiBenchmark.h
+@@
+-           << "\"controls\":83,\"modelRows\":1000,\"framesPerRound\":40,\"roundCount\":5,\"dirtyAllocationCeilingPerFrame\":"
++           << "\"controls\":83,\"modelRows\":1000,\"framesPerRound\":1000,\"roundCount\":5,\"dirtyAllocationCeilingPerFrame\":"
+@@
+-            std::array<double, 40> frameMs{}, prepareMs{}, composeMs{};
++            std::array<double, 1000> frameMs{}, prepareMs{}, composeMs{};
+@@
+-            output << "{\"fps\":" << 40000 / totalMs << ",\"frameP50Ms\":" << frameMs[19] << ",\"frameP95Ms\":" << frameMs[37]
+-                   << ",\"prepareP95Ms\":" << prepareMs[37] << ",\"composeCpuP95Ms\":" << composeMs[37] << ",\"cppAllocations\":" << cppAllocations
++            output << "{\"fps\":" << 1000000 / totalMs << ",\"frameP50Ms\":" << frameMs[499] << ",\"frameP95Ms\":" << frameMs[949]
++                   << ",\"prepareP95Ms\":" << prepareMs[949] << ",\"composeCpuP95Ms\":" << composeMs[949] << ",\"cppAllocations\":" << cppAllocations
+@@
+-            std::cout << "Complex UI " << (dirty ? "dirty" : "clean") << " round " << round + 1 << ": " << 40000 / totalMs << " completed offscreen FPS; p95 "
+-                      << frameMs[37] << " ms; private " << memoryAfter.PrivateUsage << " bytes\n";
++            std::cout << "Complex UI " << (dirty ? "dirty" : "clean") << " round " << round + 1 << ": " << 1000000 / totalMs << " completed offscreen FPS; p95 "
++                      << frameMs[949] << " ms; private " << memoryAfter.PrivateUsage << " bytes\n";

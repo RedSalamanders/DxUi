@@ -1,0 +1,2 @@
+[START] MenuExitLifetime
+[EXIT] MenuExitLifetime: active menu survives stack scope until CRT teardown

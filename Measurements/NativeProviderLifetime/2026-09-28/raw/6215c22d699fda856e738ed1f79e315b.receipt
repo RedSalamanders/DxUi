@@ -1,0 +1,211 @@
+from __future__ import annotations
+import hashlib, json, shutil
+from pathlib import Path
+
+EVIDENCE = Path(r"C:\RedSalamander.Perf\evidence\i26-ui")
+REPO = Path(r"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi")
+OUT = Path(__file__).resolve().parent / "packet-v2"
+FINAL = EVIDENCE / "native-uia-final-matrix-20260928"
+OLD = EVIDENCE / "menu-plain-uia-20260927" / "profiles-navigation-final"
+BASE = EVIDENCE / "native-uia-lifetime-baseline-20260928"
+REPEATS = EVIDENCE / "native-uia-lifetime-perf-repeat-20260928"
+AUDIT = Path(__file__).resolve().parent
+PROFILES = ("Release", "Debug", "ASan-Debug")
+
+selected: dict[str, Path] = {}
+def add(logical: str, source: Path):
+    if not source.is_file():
+        raise FileNotFoundError(source)
+    if logical in selected and selected[logical] != source:
+        raise ValueError(f"duplicate logical path: {logical}")
+    selected[logical] = source
+
+def add_copy(root: Path, label: str, rel: Path):
+    add(f"{label}/{rel.as_posix()}", root / rel)
+
+def add_linked_performance(label: str, profile: str, report: Path):
+    result = json.loads(report.read_text(encoding="utf-8-sig"))
+    perf = Path(result["performanceReport"])
+    report_dir = report.parent
+    selected_report = report_dir / perf.name
+    if not selected_report.is_file():
+        # Older source packages keep the report in the profile directory.
+        selected_report = OLD / profile / perf.name
+    add(f"{label}/{profile}/reports/{perf.name}", selected_report)
+    comparison = Path(str(selected_report) + ".comparison.json")
+    if comparison.is_file():
+        add(f"{label}/{profile}/reports/{comparison.name}", comparison)
+
+# Old matching menu UIA sample: only its exact three profile rows, provenance,
+# and existing derived summary are needed; no duplicate unrelated suite logs.
+add("old-menu/source-hashes.json", OLD / "source-hashes.json")
+for profile in PROFILES:
+    cfg = profile.replace("ASan-Debug", "ASan Debug")
+    for rel in (Path("invocation.json"), Path("hashes.json"),
+                Path(f"MenuAccessibility-x64-{cfg}.json"),
+                Path(f"test-MenuAccessibility-x64-{cfg}.log")):
+        add_copy(OLD / profile, f"old-menu/{profile}", rel)
+    suite = OLD / profile / f"MenuAccessibility-x64-{cfg}.json"
+    add_linked_performance("old-menu", profile, suite)
+for rel in (Path("Analyze-Resources.py"), Path("assessment.md"),
+            Path("resource-sample-summary.json"), Path("Release.json"),
+            Path("Debug.json"), Path("ASan-Debug.json"),
+            Path("Release.console.log"), Path("Debug.console.log"),
+            Path("ASan-Debug.console.log")):
+    add_copy(EVIDENCE / "menu-plain-uia-20260927" / "profiles-navigation-comparison-20260927",
+             "old-menu-analysis", rel)
+
+# Retained baseline and repeat-control receipts, including every comparison flag.
+for file in BASE.iterdir():
+    if file.is_file():
+        add(f"common-ui-baseline/{file.name}", file)
+for file in REPEATS.iterdir():
+    if file.is_file():
+        add(f"common-ui-repeats/{file.name}", file)
+
+# The final matrix's complete 54 suite receipts, matrix/frozen-source summary,
+# selected raw lifetime logs, and the exact fresh report referenced by each
+# Accessibility and MenuAccessibility suite receipt.
+for rel in (Path("frozen-inputs.json"), Path("x64-Release.log"), Path("x64-Debug.log"),
+            Path("x64-ASan-Debug.log"), Path("validate-skills.ps1.log"),
+            Path("validate-specs.ps1.log"), Path("validate-dependencies.ps1.log"),
+            Path("format.ps1.log"), Path("diff-check.log"), Path("final-diff-check.log"),
+            Path("final-format.log"), Path("final-validate-skills.ps1.log"),
+            Path("final-validate-specs.ps1.log"), Path("final-validate-dependencies.ps1.log")):
+    p = FINAL / rel
+    if p.is_file():
+        add(f"final-matrix/{rel.as_posix()}", p)
+for profile in PROFILES:
+    cfg = profile.replace("ASan-Debug", "ASan Debug")
+    reports = FINAL / f"{profile}-reports"
+    logs = FINAL / f"{profile}-logs"
+    suite_reports = []
+    for report in reports.glob("*.json"):
+        if report.name.endswith(".comparison.json") or report.name.startswith("Performance-"):
+            continue
+        try:
+            value = json.loads(report.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if (value.get("suite") and value.get("suite") != "AddressSanitizer"
+                and value.get("configuration") == cfg):
+            suite_reports.append(report)
+    if len(suite_reports) != 18:
+        raise ValueError(f"{profile}: expected 18 suite reports, found {len(suite_reports)}")
+    for report in suite_reports:
+        add(f"final-matrix/{profile}/suite-reports/{report.name}", report)
+    for suite in ("Accessibility", "MenuAccessibility", "MenuExitLifetime"):
+        log = logs / f"test-{suite}-x64-{cfg}.log"
+        if log.is_file():
+            add(f"final-matrix/{profile}/selected-logs/{log.name}", log)
+        receipt = reports / f"{suite}-x64-{cfg}.json"
+        if receipt.is_file() and suite in ("Accessibility", "MenuAccessibility"):
+            add_linked_performance("final-matrix", profile, receipt)
+
+# Hash-verified exact current input bytes from the frozen manifest and the
+# unchanged menu test source for a portable provenance witness.
+manifest = json.loads((FINAL / "frozen-inputs.json").read_text(encoding="utf-8-sig"))
+for item in manifest:
+    rel = item["path"]
+    src = REPO / Path(rel)
+    digest = hashlib.sha256(src.read_bytes()).hexdigest()
+    if digest.lower() != item["sha256"].lower():
+        raise ValueError(f"current source differs from frozen input: {rel}")
+    add(f"source-snapshot/{rel}", src)
+menu_rel = "Tests/Controls/DxUiTests.Menu.cpp"
+menu_src = REPO / Path(menu_rel)
+menu_hash = hashlib.sha256(menu_src.read_bytes()).hexdigest()
+if menu_hash.upper() != "F95BC52DFCC0DB98C073A74E317A93DE83264E3C23AF72E2AED92E17C200312A":
+    raise ValueError("menu test source no longer matches the old receipt")
+add(f"source-snapshot/{menu_rel}", menu_src)
+
+# Audit calculations and the unchanged comparator itself.
+for name in ("README.md", "compare-menu-resources.py", "current-vs-reference.json",
+             "commonComplexUI-Release.comparison.json", "commonComplexUI-Debug.comparison.json",
+             "commonComplexUI-ASan-Debug.comparison.json", "self-check.json"):
+    p = AUDIT / name
+    if p.is_file():
+        add(f"audit/{name}", p)
+add("audit/build-packet.py", Path(__file__))
+comparison_tool = REPO / "Tools" / "compare_performance.py"
+add("source-tools/Tools/compare_performance.py", comparison_tool)
+
+# Preserve the narrow original tests-only red and focus-red evidence, without
+# importing adjacent unrelated GUI/focus experiments.
+for label, dirname in (("tests-only-red", "native-uia-lifetime-red-20260928"),
+                       ("focus-red", "native-uia-focus-red-20260928")):
+    root = EVIDENCE / dirname
+    for source in sorted(root.iterdir()):
+        if source.is_file():
+            add(f"{label}/{source.name}", source)
+
+# ARM64 restore outcome, initial blocked Debug build, and the three completed
+# restored cross-builds. These are build evidence only, not runtime support.
+for name in ("ARM64-restore.log", "ARM64-Debug.log", "ARM64-Debug-restored.log",
+             "ARM64-Release-restored.log", "ARM64-ASan-Debug-restored.log"):
+    add(f"final-matrix/{name}", FINAL / name)
+
+# Stage to a short-name, content-addressed raw tree. Preserve all original byte
+# identities and a reversible original-relative-path map.
+if OUT.exists():
+    raise FileExistsError(f"refusing to overwrite existing packet: {OUT}")
+(OUT / "raw").mkdir(parents=True)
+entries = []
+payloads = {}
+for logical, source in sorted(selected.items()):
+    data = source.read_bytes()
+    digest = hashlib.sha256(data).hexdigest()
+    staged = f"raw/{digest[:32]}.receipt"
+    target = OUT / staged
+    if digest not in payloads:
+        target.write_bytes(data)
+        payloads[digest] = staged
+    entries.append({"original_relative": logical, "staged": payloads[digest],
+                    "sha256": digest, "size_bytes": len(data)})
+file_map = {"schema": "dxui.measurement-file-map.v1",
+            "source_root_diagnostic": str(EVIDENCE),
+            "source_repo_diagnostic": str(REPO),
+            "entry_count": len(entries), "unique_payload_count": len(payloads),
+            "entries": entries}
+(OUT / "original-file-map.json").write_text(json.dumps(file_map, indent=2) + "\n", encoding="utf-8")
+# Portable verifier uses only packet contents.
+verify = r'''$ErrorActionPreference='Stop'
+$root=$PSScriptRoot
+function ShaFile([string]$p){(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()}
+function Need([bool]$ok,[string]$msg){if(-not $ok){throw $msg}}
+$map=Get-Content -LiteralPath (Join-Path $root 'original-file-map.json') -Raw|ConvertFrom-Json
+Need ($map.entry_count -eq @($map.entries).Count) 'logical count mismatch'
+$payloads=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+$logical=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+foreach($e in $map.entries){
+ Need ($logical.Add([string]$e.original_relative)) "duplicate path: $($e.original_relative)"
+ $p=Join-Path $root ([string]$e.staged)
+ Need (Test-Path -LiteralPath $p -PathType Leaf) "missing payload: $($e.staged)"
+ Need ((Get-Item -LiteralPath $p).Length -eq [long]$e.size_bytes -and (ShaFile $p) -eq ([string]$e.sha256).ToLowerInvariant()) "bad payload: $($e.original_relative)"
+ [void]$payloads.Add([string]$e.staged)
+}
+Need ($payloads.Count -eq $map.unique_payload_count) 'unique payload count mismatch'
+$actualRaw=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+foreach($f in Get-ChildItem (Join-Path $root 'raw') -File -Recurse){[void]$actualRaw.Add([IO.Path]::GetRelativePath($root,$f.FullName).Replace('\','/'))}
+Need ($actualRaw.SetEquals($payloads)) 'raw payload set mismatch'
+$lines=@(Get-Content (Join-Path $root 'SHA256SUMS'))
+$expected=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+foreach($line in $lines){Need ($line -match '^([0-9a-f]{64})  (.+)$') "bad sum line: $line"; $h=$Matches[1];$r=$Matches[2];Need ($expected.Add($r)) "duplicate sum path: $r"; $p=Join-Path $root $r;Need ((Test-Path -LiteralPath $p -PathType Leaf) -and (ShaFile $p) -eq $h) "bad file: $r"}
+$actual=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+foreach($f in Get-ChildItem $root -File -Recurse){if($f.Name -ne 'SHA256SUMS'){[void]$actual.Add([IO.Path]::GetRelativePath($root,$f.FullName).Replace('\','/'))}}
+Need ($actual.SetEquals($expected)) 'exact packet membership mismatch'
+Write-Output "PASS: $($map.entry_count) logical files, $($map.unique_payload_count) unique byte payloads, exact membership and SHA-256."
+'''
+(OUT / "Verify-Packet.ps1").write_text(verify, encoding="utf-8")
+(OUT / "README.md").write_text(
+    "# DxUi native UIA lifetime audit packet\n\n"
+    "Portable, content-addressed evidence bundle. `original-file-map.json` maps each source-relative evidence path to its exact SHA-256 payload under `raw/`; raw basenames are short hashes. The mapped audit README explains scope, fixture metrics, source attestation and comparison limits. Run `pwsh -NoProfile -File ./Verify-Packet.ps1` to verify exact membership and all hashes.\n\n"
+    "This bundle captures the completed x64 matrix, prechange/repeat controls, tests-only red/focus-red evidence, and ARM64 dependency restore plus three completed cross-build logs. ARM64 builds do not establish runtime support. Native CI is still pending for commit `49c963f5751a6754e6b08e0362b96cfc7fc64414` (workflow run `36358394952`); it is not marked done here.\n",
+    encoding="utf-8")
+# Sum every file except SHA256SUMS itself. Include the map and verifier.
+rows=[]
+for f in sorted(p for p in OUT.rglob("*") if p.is_file() and p.name != "SHA256SUMS"):
+    rel=f.relative_to(OUT).as_posix()
+    rows.append(f"{hashlib.sha256(f.read_bytes()).hexdigest()}  {rel}")
+(OUT / "SHA256SUMS").write_text("\n".join(rows)+"\n", encoding="ascii")
+print(f"packet={OUT} logical={len(entries)} unique={len(payloads)} files={len(rows)}")

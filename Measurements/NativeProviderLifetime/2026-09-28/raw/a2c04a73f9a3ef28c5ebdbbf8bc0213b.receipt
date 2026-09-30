@@ -1,0 +1,39 @@
+{
+  "head": "3022541ec86c28cfeef5e16c4c8224b5de73be5d",
+  "sourceFiles": [
+    {
+      "path": "src/Controls/DxUi.Accessibility.cpp",
+      "sha256": "1016948d8cbd3f6373973ff06e62a56c5c2387febc10150cd9cb83a06d28f3ca"
+    },
+    {
+      "path": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "sha256": "f312a9d016381d129480285eace2a93476407466659211ca0fda20f9c0f000ff"
+    }
+  ],
+  "reports": [
+    {
+      "name": "ASan-Debug.json",
+      "sha256": "dd3de46693a8a790f4b037be03750c38ebaad3b4815711555ec35c6851c7c6ff"
+    },
+    {
+      "name": "ASan-Debug.json.comparison.json",
+      "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+    },
+    {
+      "name": "Debug.json",
+      "sha256": "cb2023d4e83b735c4a1f9aa62aed8c06edd47bcbc57b5fbc37ca78e768bf033f"
+    },
+    {
+      "name": "Debug.json.comparison.json",
+      "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+    },
+    {
+      "name": "Release.json",
+      "sha256": "bcef2129b130e8da4819f2e20808f9265e5e1f00eddcbd4e2b690d41eb2f9e67"
+    },
+    {
+      "name": "Release.json.comparison.json",
+      "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6"
+    }
+  ]
+}

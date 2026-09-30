@@ -1,0 +1,163 @@
+from __future__ import annotations
+import hashlib, json, statistics
+from pathlib import Path
+
+CROSS = Path(r"C:\RedSalamander.Perf\evidence\i26-ui\native-uia-final-perf-confirmation-20260928\crossover")
+BASE = Path(r"C:\RedSalamander.Perf\evidence\i26-ui\native-uia-lifetime-baseline-20260928")
+OUT = CROSS / "audit-final"
+RUNS = ("A1", "B1", "B2", "A2")
+PAIRS = (("A1", "B1"), ("A1", "B2"), ("A2", "B1"), ("A2", "B2"))
+METRICS = ("fps", "frameP50Ms", "frameP95Ms", "prepareP95Ms", "composeCpuP95Ms", "cppAllocations",
+           "privateBytes", "privatePeakBytes", "workingSetBytes", "workingSetPeakBytes")
+RESOURCES = ("privateBytes", "privatePeakBytes", "workingSetBytes", "workingSetPeakBytes")
+IDENTITY = ("fixture", "renderer", "width", "height", "dpi", "controls", "modelRows", "framesPerRound",
+            "roundCount", "platform", "configuration", "nativeArchitecture", "machine", "cpu", "os",
+            "compiler", "warpVersion", "powerPolicy")
+
+def read(path): return json.loads(path.read_text(encoding="utf-8-sig"))
+def digest(path): return hashlib.sha256(path.read_bytes()).hexdigest().upper()
+def median(scenario, metric): return statistics.median(r[metric] for r in scenario["rounds"])
+def scenario_map(report): return {s["name"]: s for s in report["scenarios"]}
+def delta(old, new): return ((new / old) - 1.0) * 100.0 if old else None
+
+def main():
+    if not OUT.is_dir(): raise SystemExit(f"missing output directory: {OUT}")
+    if any((OUT / n).exists() for n in ("analysis.json", "assessment.md")):
+        raise SystemExit("refusing to overwrite audit outputs")
+    reports = {}
+    sidecars = {}
+    for config in ("Debug", "Release"):
+        for run in RUNS:
+            p = CROSS / f"{config}-{run}.json"
+            d = read(p)
+            if d.get("configuration") != config or d.get("roundCount") != 5 or d.get("framesPerRound") != 40:
+                raise ValueError(f"incomplete or wrong configuration: {p.name}")
+            if d.get("hiddenPreparations") != 0 or d.get("hiddenComposites") != 0:
+                raise ValueError(f"hidden work is nonzero: {p.name}")
+            reports[(config, run)] = d
+            sidecars[(config, run)] = read(CROSS / f"{p.name}.comparison.json")
+    # Validate exact common fixture/environment and input hashes within each configuration.
+    common = {}
+    for config in ("Debug", "Release"):
+        group = [reports[(config, run)] for run in RUNS]
+        first = group[0]
+        for item in group[1:]:
+            for field in IDENTITY + ("benchmarkSha256", "benchmarkInputs"):
+                if item.get(field) != first.get(field):
+                    raise ValueError(f"crossover mismatch {config}/{field}")
+        if len({x["executableSha256"] for x in group if x["sourceCommit"].startswith("73ba")}) != 1:
+            raise ValueError(f"A binary hashes differ in {config}")
+        if len({x["executableSha256"] for x in group if x["sourceCommit"].startswith("49c9")}) != 1:
+            raise ValueError(f"B binary hashes differ in {config}")
+        if {x["sourceCommit"] for x in group if x["sourceCommit"].startswith("73ba")} != {"73ba9365726cce30299290ab9ae8afa065c4fe3d"}:
+            raise ValueError(f"unexpected A source in {config}")
+        if {x["sourceCommit"] for x in group if x["sourceCommit"].startswith("49c9")} != {"49c963f5751a6754e6b08e0362b96cfc7fc64414"}:
+            raise ValueError(f"unexpected B source in {config}")
+        common[config] = {k: first[k] for k in IDENTITY + ("benchmarkSha256", "benchmarkInputs")}
+    analyses = {}
+    original_baseline = {}
+    for config in ("Debug", "Release"):
+        base = read(BASE / f"{config}.json")
+        if any(base.get(k) != common[config][k] for k in IDENTITY + ("benchmarkSha256",)):
+            raise ValueError(f"original baseline is not identity-matched for {config}")
+        base_s = scenario_map(base)
+        base_comp = read(BASE / f"{config}.json.comparison.json")
+        original_baseline[config] = {
+            "sourceCommit": base["sourceCommit"], "sourceDirty": base["sourceDirty"],
+            "executableSha256": base["executableSha256"], "comparisonStatus": base_comp.get("status"),
+            "medians": {s: {m: median(base_s[s], m) for m in METRICS} for s in ("clean", "dirty")},
+        }
+        runs = {}
+        for run in RUNS:
+            d = reports[(config, run)]
+            sm = scenario_map(d)
+            comp = sidecars[(config, run)]
+            runs[run] = {
+                "sourceCommit": d["sourceCommit"], "sourceDirty": d["sourceDirty"],
+                "executableSha256": d["executableSha256"], "sourceFingerprint": d.get("sourceFingerprint"),
+                "comparisonToOriginalStatus": comp.get("status"),
+                "flagsToOriginal": [{"scenario": x["scenario"], "metric": x["metric"],
+                                      "changePercent": x.get("changePercent"), "noisePercent": x["noisePercent"]}
+                                     for x in comp.get("changes", []) if x.get("regressed")],
+                "medians": {s: {m: median(sm[s], m) for m in METRICS} for s in ("clean", "dirty")},
+                "roundRanges": {s: {m: [min(r[m] for r in sm[s]["rounds"]), max(r[m] for r in sm[s]["rounds"])]
+                                    for m in METRICS} for s in ("clean", "dirty")},
+                "memoryPhases": d.get("memoryPhases"),
+            }
+        repeat = {}
+        for scenario in ("clean", "dirty"):
+            repeat[scenario] = {}
+            for variant, left, right in (("A", "A1", "A2"), ("B", "B1", "B2")):
+                repeat[scenario][variant] = {m: {"first": runs[left]["medians"][scenario][m],
+                    "second": runs[right]["medians"][scenario][m],
+                    "changePercent_second_vs_first": delta(runs[left]["medians"][scenario][m], runs[right]["medians"][scenario][m])}
+                    for m in METRICS}
+        pairs = []
+        for a, b in PAIRS:
+            pairs.append({"baselineRun": a, "candidateRun": b,
+                "scenarios": {scenario: {m: {"baseline": runs[a]["medians"][scenario][m],
+                    "candidate": runs[b]["medians"][scenario][m],
+                    "candidateVsBaselinePercent": delta(runs[a]["medians"][scenario][m], runs[b]["medians"][scenario][m])}
+                    for m in METRICS} for scenario in ("clean", "dirty")}})
+        resource_vs_base = {}
+        for run in RUNS:
+            resource_vs_base[run] = {}
+            for scenario in ("clean", "dirty"):
+                resource_vs_base[run][scenario] = {m: {"originalBaseline": original_baseline[config]["medians"][scenario][m],
+                    "runMedian": runs[run]["medians"][scenario][m],
+                    "changePercent": delta(original_baseline[config]["medians"][scenario][m], runs[run]["medians"][scenario][m])}
+                    for m in RESOURCES}
+        analyses[config] = {"commonIdentity": common[config], "originalBaseline": original_baseline[config],
+                            "runs": runs, "sameVariantRepeatDeltas": repeat, "allCrossVariantPairings": pairs,
+                            "resourceDeltasVsOriginalBaseline": resource_vs_base}
+    files = []
+    seen = set()
+    for p in sorted(set(CROSS.glob("*.json")) | set(CROSS.glob("*.log"))):
+        if p.name in ("Debug.json", "Release.json", "ASan-Debug.json", "baseline-index.json", "head.txt") and p.stat().st_size == 1:
+            continue
+        if p.resolve() in seen: continue
+        seen.add(p.resolve())
+        files.append({"path": f"../{p.name}", "bytes": p.stat().st_size, "sha256": digest(p)})
+    for name in ("Debug.json", "Debug.json.comparison.json", "Release.json", "Release.json.comparison.json", "baseline-index.json", "head.txt"):
+        p = BASE / name
+        if p.exists() and p.stat().st_size > 1 and p.resolve() not in seen:
+            seen.add(p.resolve())
+            files.append({"path": str(p), "bytes": p.stat().st_size, "sha256": digest(p)})
+    self_path = Path(__file__)
+    files.append({"path": self_path.name, "bytes": self_path.stat().st_size, "sha256": digest(self_path)})
+    result = {"method": "five-round medians; four A/B cross-pairings plus within-variant repeats; no run dropped",
+              "order": "A1, B1, B2, A2 per configuration", "policy": {"timingNoisePercent": 5, "resourceNoisePercent": 2,
+              "source": "DxUi Tools/compare_performance.py; comparator statuses and flags retained unchanged"},
+              "x64Crossover": analyses, "inputArtifactHashes": files,
+              "limits": ["B receipts report sourceDirty=true although sourceCommit and executable hash are stable; run-crossover preflight checked src/include/Tests/Build paths, but this audit does not reinterpret the global dirty flag.",
+                         "Five rounds per run and two repeated runs per binary remain a short fixture; timing deltas are descriptive, not a definitive causal performance qualification.",
+                         "Original baseline is an older source commit; baseline comparisons are preserved and are not mistaken for same-source A/B pairings."]}
+    (OUT / "analysis.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    assessment = """# Native UIA lifetime crossover: offline assessment
+
+## Evidence identity
+
+The retained crossover is A-B-B-A in each configuration: A1, B1, B2, A2. Every report uses the same host `SINON`, AMD Ryzen 9 9950X3D, compiler 195136260, WARP 10.0.26100.9278, x64/X64, 96 DPI, 1280×720, 83 controls, 1,000 model rows, and five rounds of 40 frames. Within each configuration, `compare_performance.py` identity fields, `benchmarkSha256`, and all four `benchmarkInputs` hashes are identical across all eight reports. A and B executable hashes are stable within their respective repeated builds. A is commit `73ba9365726cce30299290ab9ae8afa065c4fe3d`, source-clean; B is `49c963f5751a6754e6b08e0362b96cfc7fc64414`, but its receipts say `sourceDirty=true`. The launch script's diff guard covered `src`, `include`, `Tests`, and `Build`; the global dirty marker remains a qualification limitation and is retained here.
+
+The older baseline is commit `3022541ec86c28cfeef5e16c4c8224b5de73be5d`, on the same machine and exact benchmark identity/hash. It is useful as a resource context but differs from both A and B source. Its per-run comparator classifications are kept intact in `analysis.json`; all crossover reports also preserve their original `.comparison.json` flags against that baseline.
+
+## Crossover readout
+
+The comparisons show run-order and repeat variation of the same scale as several A/B deltas. In Debug clean, A FPS medians span 2,332–2,574 and B spans 2,221–2,619; the four B-vs-A pairings range from -13.7% to +12.3%. Debug dirty FPS pairings are -4.0% to +1.7%; allocation counts are identical at 10,280. In Release clean, the B FPS medians are lower than A in all four pairings (-1.7% to -11.9%), but A's own repeated FPS medians differ by 8.6%, the A1→B1→B2→A2 sequence drops then rebounds, and frame-P95 pairings range from -2.1% to +17.4%. Release dirty FPS pairings range -6.6% to -0.2%, while dirty frame-P95 changes split by A reference (-10.9% versus A1; +6.0%/+6.8% versus A2). This does not establish a stable timing regression or a clean non-regression. Flags are not waived: retain each report's `advice-required`/`within-noise-budget` status and the per-metric flags shown in `analysis.json`.
+
+Allocation and surface results are stable across A/B within each configuration: composition allocations are zero, clean C++ allocations are zero, dirty allocations match at 10,280 Debug and 2,160 Release, and surface/replacement bytes are 3,686,400. No hidden preparations/composites were recorded. Compared with the older baseline, Release candidate working-set/private readings remain near or below baseline; Debug clean candidate private memory is about 1.6–3.5% over baseline and working set about 1.9–2.3% over baseline. A already shows similar Debug working-set elevation; the crossover does not isolate a new B-specific footprint. These are process counters, not GPU peak-memory measurements.
+
+## UIA scope of this benchmark
+
+The candidate production delta in `src/Controls/DxUi.Accessibility.cpp` adds control-lifetime weak tokens and pointer identity to semantic snapshot navigation records (around `AppendAccessibilitySnapshotNavigation`, lines 1228–1237), appends identity to generated UIA runtime IDs (`BuildRuntimeId`, around 3250–3283), and validates/captures snapshots for provider calls that previously refreshed only embedded targets (`CaptureSnapshot` call sites around 3937 onward). The new tests in `Tests/Controls/DxUiTests.Accessibility.cpp` exercise stale provider identity, same-path replacement, focus-callback replacement, and concurrent root replacement. The embedded benchmark itself does not create a WindowHost UIA provider or call UIA fragment/pattern APIs: `Tests/Embedded/ComplexUiBenchmark.h` creates `GraphicsFixture` and `ComplexUiScene`, then times `view.Prepare`/`view.Composite`; there are no UIA/snapshot/token references in that fixture. Although WindowHost snapshot building walks semantic controls, this fixture uses `EmbeddedView` and never invokes the WindowHost UIA snapshot builder. These runs therefore measure the unchanged offscreen WARP rendering workload, not UIA snapshot creation/traversal/token overhead. A possible module/code-mapping effect is not separately measured.
+
+## Assessment
+
+No stable regression is confirmed by this short crossover, but the flags remain actionable evidence and the Release clean FPS direction warrants preserving the candidate-vs-baseline question until any required advice or a quieter paired repeat is resolved. This is not a blanket performance pass. The report is descriptive: five rounds per process, two repeats per variant, global dirty marker on B, and process working-set/private counters limit causal conclusions. ARM64 qualification is separate.
+
+Machine-readable run medians, all four pairings per scenario/metric, same-variant repeat deltas, exact original baseline flags, and SHA-256 inventory are in `analysis.json`.
+"""
+    (OUT / "assessment.md").write_text(assessment, encoding="utf-8")
+    print(f"PASS: wrote {OUT} (8 crossover reports; 4 pairings/config; repeats and baseline flags retained)")
+
+if __name__ == "__main__": main()

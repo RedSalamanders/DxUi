@@ -1,0 +1,88 @@
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                  ⚡  RELEASE  /  X64  /  REBUILD  ⚡                   │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Release
+  Platform:      x64
+  Target:        Rebuild
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi\.build\
+
+Compiling DxUi...
+
+  compilation header save succeeded; see C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi\.build\Intermediate\x64\Release\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi\.build\Intermediate\x64\Release\DxUi\DxUiCompositePS.cso
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  DxUi.Tree.cpp
+  Generating Code...
+  Compiling...
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+  DxUi.vcxproj -> C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi\.build\x64\Release\DxUi.lib
+  Main.cpp
+  EmbeddedTests.cpp
+  FoundationTests.cpp
+  DxUiTests.Accessibility.cpp
+  PublicHelpersTests.cpp
+  Generating Code...
+  DxUiTests.Animation.cpp
+  DxUi.FoundationTests.vcxproj -> C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi\.build\x64\Release\DxUi.FoundationTests.exe
+  DxUi.EmbeddedControls.vcxproj -> C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi\.build\x64\Release\DxUi.EmbeddedControls.exe
+  DxUi.EmbeddedTests.vcxproj -> C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi\.build\x64\Release\DxUi.EmbeddedTests.exe
+  DxUiTests.ComboBox.cpp
+  DxUiTests.Controls.cpp
+  DxUiTests.cpp
+  DxUiTests.Gallery.cpp
+  DxUiTests.Grid.cpp
+  DxUiTests.Menu.cpp
+  DxUiTests.MultilineText.cpp
+  DxUiTests.NativeTextInput.cpp
+  DxUiTests.NewControls.cpp
+  DxUiTests.ReadOnly.cpp
+  DxUiTests.Rendering.cpp
+  DxUiTests.TextField.cpp
+  DxUiTests.Theme.cpp
+  DxUiTests.Tooltip.cpp
+  DxUiTests.Tree.cpp
+  DxUiTests.WindowHost.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi\.build\x64\Release\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 01:59
+Output: C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi\.build\
+Log: C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi\.build\logs\build-x64-Release-bee5a7d2ffd8468aa345fe952e491c4d.log
+========================================

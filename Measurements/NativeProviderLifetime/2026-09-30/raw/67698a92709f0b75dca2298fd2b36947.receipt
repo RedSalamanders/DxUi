@@ -1,0 +1,11 @@
+Complex UI clean round 1: 2739.6 completed offscreen FPS; p95 0.428 ms; private 27615232 bytes
+Complex UI clean round 2: 2697.49 completed offscreen FPS; p95 0.4413 ms; private 26157056 bytes
+Complex UI clean round 3: 2562.46 completed offscreen FPS; p95 0.4646 ms; private 26140672 bytes
+Complex UI clean round 4: 2710.88 completed offscreen FPS; p95 0.4461 ms; private 26116096 bytes
+Complex UI clean round 5: 2711.75 completed offscreen FPS; p95 0.4427 ms; private 26116096 bytes
+Complex UI dirty round 1: 548.324 completed offscreen FPS; p95 2.2779 ms; private 25985024 bytes
+Complex UI dirty round 2: 525.17 completed offscreen FPS; p95 2.3676 ms; private 25919488 bytes
+Complex UI dirty round 3: 521.021 completed offscreen FPS; p95 2.4018 ms; private 26353664 bytes
+Complex UI dirty round 4: 520.577 completed offscreen FPS; p95 2.4218 ms; private 26435584 bytes
+Complex UI dirty round 5: 458.177 completed offscreen FPS; p95 2.6841 ms; private 26202112 bytes
+Long performance receipt: C:\RedSalamander.Perf\evidence\i26-ui\native-uia-long-crossover-20260930\Release-B1.json

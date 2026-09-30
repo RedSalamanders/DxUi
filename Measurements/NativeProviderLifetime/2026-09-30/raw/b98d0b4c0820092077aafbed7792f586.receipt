@@ -1,0 +1,27 @@
+Complex UI clean round 1: 2221.07 completed offscreen FPS; p95 0.5581 ms; private 29396992 bytes
+Complex UI clean round 2: 1535.68 completed offscreen FPS; p95 2.5505 ms; private 30457856 bytes
+Complex UI clean round 3: 2394.58 completed offscreen FPS; p95 0.5886 ms; private 30392320 bytes
+Complex UI clean round 4: 2055.58 completed offscreen FPS; p95 1.2544 ms; private 30527488 bytes
+Complex UI clean round 5: 2505.18 completed offscreen FPS; p95 0.4421 ms; private 31506432 bytes
+Complex UI dirty round 1: 428.064 completed offscreen FPS; p95 2.6599 ms; private 31260672 bytes
+Complex UI dirty round 2: 447.988 completed offscreen FPS; p95 2.4312 ms; private 31657984 bytes
+Complex UI dirty round 3: 479.42 completed offscreen FPS; p95 2.2405 ms; private 31662080 bytes
+Complex UI dirty round 4: 450.574 completed offscreen FPS; p95 2.42 ms; private 31682560 bytes
+Complex UI dirty round 5: 445.986 completed offscreen FPS; p95 2.4767 ms; private 31649792 bytes
+Performance comparison: advice-required
+REGRESSION clean/fps: 2473.090 -> 2221.075
+REGRESSION clean/frameP95Ms: 0.477 -> 0.589
+REGRESSION clean/prepareP95Ms: 0.001 -> 0.001
+REGRESSION clean/privateBytes: 29442048.000 -> 30457856.000
+REGRESSION clean/privatePeakBytes: 29442048.000 -> 30461952.000
+REGRESSION clean/workingSetBytes: 42688512.000 -> 43675648.000
+REGRESSION dirty/privateBytes: 30814208.000 -> 31657984.000
+REGRESSION dirty/privatePeakBytes: 30818304.000 -> 31694848.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Exception: C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\Tools\Invoke-Python.ps1:13
+Line |
+  13 |  … DE -ne 0) { throw "Python validation failed with exit code $LASTEXITC …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Python validation failed with exit code 1.
+
+

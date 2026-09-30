@@ -1,0 +1,390 @@
+"""Assemble a new portable NativeProviderLifetime supplemental evidence packet.
+
+The source evidence is read-only. No existing packet or repository file is changed.
+"""
+from __future__ import annotations
+
+from collections import Counter
+import hashlib
+import json
+from pathlib import Path
+import re
+import shutil
+import subprocess
+
+
+HERE = Path(__file__).resolve().parent
+EVIDENCE = HERE.parent
+CI = EVIDENCE / "native-uia-ci49-20260928"
+SHORT = EVIDENCE / "native-uia-final-perf-confirmation-20260928" / "crossover"
+LONG = EVIDENCE / "native-uia-long-crossover-20260930"
+LONG_DRIVER = EVIDENCE / "native-uia-long-driver-20260930"
+OUT = EVIDENCE / "native-uia-supplement-packet-20260930"
+HEAD_B = "49c963f5751a6754e6b08e0362b96cfc7fc64414"
+HEAD_A = "73ba9365726cce30299290ab9ae8afa065c4fe3d"
+RUN_ID = "36358394952"
+CONFIGS = ("Debug", "Release")
+RUNS = ("A1", "B1", "B2", "A2")
+PAIRS = (("A1", "B1"), ("A1", "B2"), ("A2", "B1"), ("A2", "B2"),
+         ("A1", "A2"), ("B1", "B2"))
+ALLOWED = {".json", ".jsonl", ".log", ".md", ".py", ".ps1",
+           ".patch", ".h", ".html", ".png"}
+EXCLUDED_CI = {"run-progress.json", "run-latest.json"}
+SHA = re.compile(r"^[0-9a-fA-F]{64}$")
+
+
+def need(condition: bool, message: str) -> None:
+    if not condition:
+        raise ValueError(message)
+
+
+def load(path: Path):
+    need(path.is_file(), f"Missing evidence: {path}")
+    return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def sha(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            h.update(block)
+    return h.hexdigest().lower()
+
+
+def safe_path(root: Path, claim: str) -> Path:
+    parts = claim.replace("\\", "/").split("/")
+    need(parts and all(p not in ("", ".", "..") for p in parts), f"Unsafe path: {claim!r}")
+    path = root.joinpath(*parts)
+    need(path.resolve().is_relative_to(root.resolve()), f"Path escapes source root: {claim!r}")
+    return path
+
+
+def matching_sha(path: Path, claimed: str) -> None:
+    need(path.is_file() and bool(SHA.fullmatch(str(claimed or ""))), f"Missing/hashless file: {path}")
+    need(sha(path) == claimed.lower(), f"Hash mismatch: {path}")
+
+
+def validate_ci() -> dict:
+    run = load(CI / "run-completed.json")
+    need(run.get("status") == "completed" and run.get("conclusion") == "success"
+         and run.get("headSha") == HEAD_B, "CI run is not a completed success at the expected commit")
+    jobs = run.get("jobs")
+    need(isinstance(jobs, list) and len(jobs) == 7, "Expected seven CI jobs")
+    names = [j.get("name") for j in jobs]
+    need(len(set(names)) == 7, "Duplicate CI job")
+    expected_jobs = {"validation"} | {
+        f"native ({platform}, {runner}, {config})"
+        for platform, runner in (("x64", "windows-2025-vs2026"),
+                                 ("ARM64", "windows-11-vs2026-arm"))
+        for config in ("Debug", "Release", "ASan Debug")
+    }
+    need(set(names) == expected_jobs, "CI job matrix differs from expected seven jobs")
+    for job in jobs:
+        need(job.get("status") == "completed" and job.get("conclusion") == "success"
+             and RUN_ID in str(job.get("url", "")), f"Incomplete CI job: {job.get('name')}")
+
+    suites = load(CI / "root-122-suite-verification.json")
+    need(isinstance(suites, list) and len(suites) == 122, "Expected 122 suite verifications")
+    suite_keys = set()
+    skip_rows = []
+    platforms = Counter()
+    for row in suites:
+        platform, config, name = row.get("platform"), row.get("configuration"), row.get("suite")
+        key = (platform, config, name)
+        need(key not in suite_keys, f"Duplicate suite: {key}")
+        suite_keys.add(key)
+        need(platform in ("x64", "ARM64") and config in ("Debug", "Release", "ASan Debug")
+             and isinstance(name, str) and name, f"Invalid suite identity: {key}")
+        path = safe_path(CI, str(row.get("path", "")))
+        matching_sha(path, row.get("sha256"))
+        receipt = load(path)
+        arch = "X64" if platform == "x64" else "Arm64"
+        need(path.name == f"{name}-{platform}-{config}.json"
+             and receipt.get("suite") == name and receipt.get("platform") == platform
+             and receipt.get("configuration") == config and receipt.get("nativeArchitecture") == arch
+             and receipt.get("exitCode") == row.get("exitCode") == 0,
+             f"Suite receipt identity/pass mismatch: {path}")
+        skips = row.get("skips")
+        need(isinstance(skips, list) and receipt.get("skips") == skips,
+             f"Suite skip claim differs from receipt: {path}")
+        log = path.parent.parent / "logs" / f"test-{name}-{platform}-{config}.log"
+        need(log.is_file(), f"Missing suite log: {log}")
+        log_skips = [line for line in log.read_text(encoding="utf-8-sig", errors="replace").splitlines()
+                     if line.startswith("SKIPPED:")]
+        need(log_skips == skips, f"Suite skip claim differs from raw log: {log}")
+        if skips:
+            need(platform == "ARM64" and name == "Menu" and len(skips) == 9
+                 and all("interactive desktop" in s for s in skips),
+                 f"Unsupported or unacknowledged skip: {key}")
+            skip_rows.append({"platform": platform, "configuration": config,
+                              "suite": name, "skipCount": len(skips)})
+        platforms[platform] += 1
+    need(platforms == {"x64": 62, "ARM64": 60} and len(skip_rows) == 3,
+         f"Suite matrix/skip coverage changed: {platforms}, {skip_rows}")
+
+    consumers = load(CI / "root-8-consumer-verification.json")
+    need(isinstance(consumers, list) and len(consumers) == 8, "Expected eight consumer verifications")
+    consumer_keys = set()
+    for row in consumers:
+        platform, config, disabled = (row.get("platform"), row.get("configuration"),
+                                      row.get("disableStlAnnotations"))
+        key = (platform, config, disabled)
+        need(key not in consumer_keys, f"Duplicate consumer variant: {key}")
+        consumer_keys.add(key)
+        need(platform in ("x64", "ARM64") and config in ("Debug", "Release", "ASan Debug")
+             and type(disabled) is bool and (not disabled or config == "ASan Debug"),
+             f"Unsupported consumer variant: {key}")
+        arch = "X64" if platform == "x64" else "Arm64"
+        need(row.get("exitCode") == 0 and row.get("commit") == HEAD_B
+             and row.get("nativeArchitecture") == arch, f"Consumer summary mismatch: {key}")
+        filename = f"ExternalConsumer-{platform}-{config}-annotationsDisabled{str(disabled).lower()}.json"
+        path = CI / platform / f"native-{platform}-{config}" / "reports" / filename
+        receipt = load(path)
+        for field in ("platform", "configuration", "disableStlAnnotations",
+                      "exitCode", "commit", "nativeArchitecture"):
+            need(receipt.get(field) == row.get(field), f"Consumer {field} mismatch: {path}")
+        need(receipt.get("nativeModuleChecks") == 12 and receipt.get("negativeChecks") == 10,
+             f"Incomplete consumer checks: {path}")
+    expected_consumer_keys = {(p, c, False) for p in ("x64", "ARM64")
+                              for c in ("Debug", "Release", "ASan Debug")}
+    expected_consumer_keys |= {(p, "ASan Debug", True) for p in ("x64", "ARM64")}
+    need(consumer_keys == expected_consumer_keys, "Consumer matrix incomplete")
+
+    for platform, arch in (("x64", "X64"), ("ARM64", "Arm64")):
+        root = CI / platform / f"native-{platform}-ASan Debug"
+        probe = load(root / "reports" / f"AddressSanitizer-{platform}.json")
+        log = root / "logs" / f"test-AddressSanitizer-{platform}.log"
+        need(probe.get("suite") == "AddressSanitizer" and probe.get("platform") == platform
+             and probe.get("configuration") == "ASan Debug"
+             and probe.get("nativeArchitecture") == arch and probe.get("exitCode") == 1
+             and probe.get("detected") is True and log.is_file(),
+             f"Missing positive ASan probe: {platform}")
+        text = log.read_text(encoding="utf-8-sig", errors="replace")
+        need("AddressSanitizer: heap-use-after-free" in text and "ABORTING" in text,
+             f"ASan raw log lacks expected diagnosis: {platform}")
+
+    x64 = load(CI / "audit-result" / "suite-audit.json")
+    arm = load(CI / "audit-result-arm64" / "arm64-suite-consumer-audit.json")
+    need(x64.get("runId") == int(RUN_ID) and x64.get("headSha") == HEAD_B
+         and x64.get("x64SuiteReceiptCount") == 62 and len(x64.get("consumerReceipts", [])) == 4,
+         "x64 audit identity/count mismatch")
+    need(arm.get("runId") == int(RUN_ID) and arm.get("headSha") == HEAD_B
+         and arm.get("workflowStatus") == "completed" and arm.get("workflowConclusion") == "success"
+         and arm.get("suiteReceiptCount") == 60 and arm.get("consumerReceiptCount") == 4
+         and arm.get("positiveAsanProbeCount") == 1,
+         "ARM64 audit identity/count mismatch")
+    required_audit = ("audit-result/assessment.md", "audit-result/source-hash-manifest.json",
+                      "audit-result/x64-artifact-hashes.json", "audit-result-arm64/assessment.md",
+                      "audit-result-arm64/arm64-artifact-hashes.json",
+                      "audit-result-arm64/arm64-audit-files.sha256.json")
+    for rel in required_audit:
+        need(safe_path(CI, rel).is_file(), f"Missing CI audit artifact: {rel}")
+    return {"workflowRun": RUN_ID, "commit": HEAD_B, "jobCount": 7,
+            "suiteReceiptCount": len(suites), "consumerReceiptCount": len(consumers),
+            "positiveAsanProbeCount": 2, "recordedDesktopSkips": skip_rows}
+
+
+def validate_short() -> dict:
+    for config in CONFIGS:
+        reports = []
+        for run in RUNS:
+            stem = f"{config}-{run}"
+            receipt = load(SHORT / f"{stem}.json")
+            sidecar = load(SHORT / f"{stem}.json.comparison.json")
+            need((SHORT / f"{stem}.log").is_file(), f"Missing short log: {stem}")
+            need(receipt.get("configuration") == config and receipt.get("framesPerRound") == 40
+                 and receipt.get("roundCount") == 5 and receipt.get("sourceCommit") ==
+                 (HEAD_A if run.startswith("A") else HEAD_B),
+                 f"Short receipt mismatch: {stem}")
+            need(sidecar.get("status") in ("within-noise-budget", "advice-required"),
+                 f"Invalid original short comparison: {stem}")
+            reports.append(receipt)
+        for field in ("benchmarkSha256", "benchmarkInputs", "fixture", "renderer", "machine", "cpu"):
+            need(all(r.get(field) == reports[0].get(field) for r in reports),
+                 f"Short crossover fixture mismatch: {config}/{field}")
+    for rel in ("audit-reviewed/analysis.json", "audit-reviewed/assessment.md",
+                "audit-reviewed/analyze_crossover.py"):
+        need(safe_path(SHORT, rel).is_file(), f"Missing reviewed short assessment: {rel}")
+    return {"runCount": 8, "framesPerRound": 40,
+            "reviewedAssessment": "audit-reviewed/assessment.md"}
+
+
+def validate_long() -> dict:
+    result = load(LONG / "driver-result.json")
+    need(result.get("runError") in (None, "") and bool(result.get("completedUtc")),
+         "Long driver is not complete")
+    need(result.get("expectedCommits") == {"A": HEAD_A, "B": HEAD_B},
+         "Long driver source commits differ")
+    original = result.get("originalHeaderSha256")
+    patched = result.get("patchedHeaderSha256")
+    need(bool(SHA.fullmatch(str(original or ""))) and bool(SHA.fullmatch(str(patched or ""))),
+         "Long driver header identity missing")
+    restoration = result.get("restoration", {})
+    need(restoration.get("shortEvidenceUnchanged") is True,
+         "Long driver did not preserve the short receipts")
+    for variant in ("A", "B"):
+        need(restoration.get(variant) == "source-restored"
+             and restoration.get(f"{variant}-headerSha256") == original
+             and restoration.get(f"{variant}-compiledInputsMatchOriginal") is True,
+             f"Long driver did not restore original source: {variant}")
+        backup = LONG / "original-headers" / f"{variant}-ComplexUiBenchmark.h"
+        matching_sha(backup, original)
+        for config in CONFIGS:
+            need(restoration.get(f"{variant}-{config}-build") == "rebuilt-original"
+                 and bool(SHA.fullmatch(str(restoration.get(
+                     f"{variant}-{config}-embeddedTestExeSha256") or ""))),
+                 f"Original binary rebuild missing: {variant}/{config}")
+    comparisons = result.get("comparisonStatuses", {})
+    need(len(comparisons) == 12, "Expected twelve long comparison statuses")
+    for config in CONFIGS:
+        reports = []
+        for run in RUNS:
+            stem = f"{config}-{run}"
+            receipt = load(LONG / f"{stem}.json")
+            need((LONG / f"{stem}.log").is_file(), f"Missing long log: {stem}")
+            need(receipt.get("configuration") == config and receipt.get("framesPerRound") == 1000
+                 and receipt.get("roundCount") == 5 and receipt.get("sourceCommit") ==
+                 (HEAD_A if run.startswith("A") else HEAD_B)
+                 and receipt.get("benchmarkInputs", {}).get("Tests/Embedded/ComplexUiBenchmark.h") == patched,
+                 f"Long receipt identity mismatch: {stem}")
+            need(receipt.get("hiddenPreparations") == 0 and receipt.get("hiddenComposites") == 0,
+                 f"Long hidden work mismatch: {stem}")
+            scenarios = receipt.get("scenarios", [])
+            need(len(scenarios) == 2 and {s.get("name") for s in scenarios} == {"clean", "dirty"}
+                 and all(len(s.get("rounds", [])) == 5 for s in scenarios),
+                 f"Long raw rounds incomplete: {stem}")
+            reports.append(receipt)
+        for field in ("benchmarkSha256", "benchmarkInputs", "fixture", "renderer", "machine", "cpu"):
+            need(all(r.get(field) == reports[0].get(field) for r in reports),
+                 f"Long crossover fixture mismatch: {config}/{field}")
+        stock = load(LONG / f"{config}-stock-40-frame-rejection.json")
+        need(stock == {"status": "invalid-evidence", "error": "Expected five rounds of forty frames",
+                       "changes": []}, f"Stock comparator rejection differs: {config}")
+        for before, after in PAIRS:
+            label = f"{config}-{before}-to-{after}"
+            path = LONG / f"{label}.comparison.json"
+            comparison = load(path)
+            need(comparison.get("status") == comparisons.get(label)
+                 and comparison.get("status") in ("within-noise-budget", "advice-required")
+                 and (LONG / f"{label}.comparison.log").is_file(),
+                 f"Missing or invalid long comparison: {label}")
+    expected_logs = {f"long-build-{v}-{c}.log" for v in ("A", "B") for c in CONFIGS}
+    expected_logs |= {f"restore-build-{v}-{c}.log" for v in ("A", "B") for c in CONFIGS}
+    expected_logs |= {f"{c}-{r}.log" for c in CONFIGS for r in RUNS}
+    expected_logs |= {f"{c}-{a}-to-{b}.comparison.log" for c in CONFIGS for a, b in PAIRS}
+    expected_logs |= {f"{c}-stock-40-frame-rejection.log" for c in CONFIGS}
+    steps = result.get("steps", [])
+    need(isinstance(steps, list) and len(steps) == len(expected_logs),
+         "Long driver step count incomplete")
+    actual_logs = set()
+    for step in steps:
+        claimed_log = Path(str(step.get("log", "")))
+        log = safe_path(LONG, claimed_log.name)
+        need(claimed_log.resolve() == log.resolve(), f"Long step log path differs: {claimed_log}")
+        name = log.name
+        need(name not in actual_logs and name in expected_logs, f"Unexpected/duplicate long step: {name}")
+        actual_logs.add(name)
+        matching_sha(log, step.get("logSha256"))
+        expected_exit = 1 if ("stock-40-frame-rejection" in name or
+                              name.endswith(".comparison.log") and comparisons.get(name.removesuffix(".comparison.log")) == "advice-required") else 0
+        need(step.get("exitCode") == expected_exit, f"Long step exit mismatch: {name}")
+    need(actual_logs == expected_logs, "Long driver logs incomplete")
+    required_driver = ("run_long_crossover.py", "performance_long.ps1", "compare_performance_long.py",
+                       "benchmark-1000.patch", "comparator-only-frames-validation.patch", "README.md")
+    for name in required_driver:
+        need((LONG_DRIVER / name).is_file(), f"Missing long source-driver record: {name}")
+    return {"runCount": 8, "framesPerRound": 1000,
+            "comparisonCount": 12, "comparisonStatuses": comparisons,
+            "sourceRestored": True, "originalBinariesRebuilt": True}
+
+
+def collect() -> list[Path]:
+    sources = []
+    for root in (CI, SHORT, LONG, LONG_DRIVER, HERE):
+        need(root.is_dir(), f"Missing source directory: {root}")
+        for path in root.rglob("*"):
+            if not path.is_file():
+                continue
+            relative = path.relative_to(root)
+            need(not any(part.lower() in ("node_modules", ".build", "deps", "dependencies", ".git", "__pycache__")
+                         for part in relative.parts), f"Disallowed dependency/build tree: {path}")
+            if root == CI and path.name in EXCLUDED_CI:
+                continue
+            need(path.suffix.lower() in ALLOWED, f"Unreviewed file type in selected evidence tree: {path}")
+            sources.append(path)
+    logical = [p.relative_to(EVIDENCE).as_posix() for p in sources]
+    need(len(logical) == len(set(logical)), "Duplicate source-relative path")
+    return sorted(sources, key=lambda p: p.relative_to(EVIDENCE).as_posix())
+
+
+def make_packet(paths: list[Path], scope: dict) -> None:
+    need(not OUT.exists(), f"Refusing to overwrite packet: {OUT}")
+    OUT.mkdir()
+    raw = OUT / "raw"
+    raw.mkdir()
+    entries = []
+    payloads = {}
+    for source in paths:
+        content_hash = sha(source)
+        staged = f"raw/{content_hash[:32]}.receipt"
+        if staged in payloads:
+            need(payloads[staged] == content_hash, f"Raw basename collision: {staged}")
+        else:
+            shutil.copyfile(source, OUT / staged)
+            need(sha(OUT / staged) == content_hash, f"Copy verification failed: {source}")
+            payloads[staged] = content_hash
+        entries.append({"original_relative": source.relative_to(EVIDENCE).as_posix(),
+                        "staged": staged, "sha256": content_hash,
+                        "size_bytes": source.stat().st_size})
+    mapping = {"schema": "dxui.measurement-file-map.v1",
+               "source_root_diagnostic": str(EVIDENCE),
+               "source_repo_diagnostic":
+                   r"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi",
+               "entry_count": len(entries), "unique_payload_count": len(payloads),
+               "entries": entries}
+    (OUT / "original-file-map.json").write_text(json.dumps(mapping, indent=2) + "\n", encoding="utf-8")
+    shutil.copyfile(HERE / "Verify-Packet.ps1", OUT / "Verify-Packet.ps1")
+    readme = ("# Native UIA lifetime supplemental evidence packet\n\n"
+              "Portable, content-addressed supplement to the earlier 2026-09-28 packet. "
+              "`original-file-map.json` maps original evidence-relative paths to exact SHA-256 "
+              "payloads under `raw/`. Run `pwsh -NoProfile -File ./Verify-Packet.ps1` "
+              "to verify every payload and exact packet membership.\n\n"
+              f"CI workflow {RUN_ID} completed successfully at `{HEAD_B}` with seven jobs, "
+              f"{scope['ci']['suiteReceiptCount']} suite receipts, "
+              f"{scope['ci']['consumerReceiptCount']} consumer receipts, and two positive ASan probes. "
+              "The ARM64 Menu suite receipts retain nine interactive-desktop skips in each "
+              "configuration; they are not claims that those cases executed. The earlier x64 "
+              "audit was produced while the workflow was in progress; `run-completed.json`, "
+              "the root verifications and the completed ARM64 audit establish the final CI state.\n\n"
+              "The short crossover retains eight 40-frame receipts with their original "
+              "comparison sidecars and reviewed assessment. The long diagnostic retains eight "
+              "1,000-frame receipts, twelve paired/repeat comparisons, all logs, the stock "
+              "comparator rejection checks, original source backups, driver sources and the "
+              "restoration/build receipt. Comparator `advice-required` flags remain visible in "
+              "the raw comparisons; packet assembly does not waive them or claim a performance "
+              "pass. The long offscreen WARP fixture does not measure WindowHost UIA provider "
+              "operations or presented FPS.\n\n"
+              "This packet contains receipts, logs, audit material and selected visual artifacts. "
+              "Binaries, archives, dependency trees and node outputs are excluded. Source "
+              "absolute paths in receipts are diagnostic provenance; the packet verifies bytes "
+              "without requiring those paths to exist.\n")
+    (OUT / "README.md").write_text(readme, encoding="utf-8")
+    files = sorted(p for p in OUT.rglob("*") if p.is_file() and p.name != "SHA256SUMS")
+    sums = "".join(f"{sha(p)}  {p.relative_to(OUT).as_posix()}\n" for p in files)
+    (OUT / "SHA256SUMS").write_text(sums, encoding="ascii")
+    verify = subprocess.run(("pwsh", "-NoProfile", "-File", str(OUT / "Verify-Packet.ps1")),
+                            cwd=OUT, text=True, capture_output=True, check=False)
+    need(verify.returncode == 0 and verify.stdout.startswith("PASS:"),
+         f"Packet verification failed: {verify.stdout}\n{verify.stderr}")
+    print(f"{verify.stdout.strip()} Packet: {OUT}")
+
+
+def main() -> None:
+    need(not OUT.exists(), f"Refusing to overwrite packet: {OUT}")
+    scope = {"ci": validate_ci(), "short": validate_short(), "long": validate_long()}
+    paths = collect()
+    make_packet(paths, scope)
+
+
+if __name__ == "__main__":
+    main()

@@ -2,7 +2,6 @@
 
 | Status | Plan | Next action |
 |---|---|---|
-| ACTIVE | [Native accessibility provider lifetime](NativeProviderLifetime_2026-09-28.md) | Confirm the retained queue-provider failure and qualify lifetime guarding across native tree replacement. |
 
 Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md` and
 `../Done/RedSalamanderMigration.md`. Further ARM64 and ASan qualification is

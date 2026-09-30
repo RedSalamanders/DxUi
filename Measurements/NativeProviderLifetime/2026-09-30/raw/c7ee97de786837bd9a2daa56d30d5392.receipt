@@ -1,0 +1,37 @@
+[
+  {
+    "path": "audit-result-arm64/arm64-artifact-hashes.json",
+    "bytes": 35415,
+    "sha256": "A3EF7622F53BFC773CBBE78AE123CE65397649993A58CEA25B18CE408FCEFE54"
+  },
+  {
+    "path": "audit-result-arm64/arm64-suite-consumer-audit.json",
+    "bytes": 62735,
+    "sha256": "424C154155E499F00DED1780F612BA7BFA02B00A3CFC264F61B0F2D8654E08E5"
+  },
+  {
+    "path": "audit-result-arm64/assessment.md",
+    "bytes": 2002,
+    "sha256": "8DB5B2E3E063E01F64D2AE0481C9D4EE79BB58D2EF413AC32F36FEFE25E880B0"
+  },
+  {
+    "path": "audit-result-arm64/audit-arm64.py",
+    "bytes": 18622,
+    "sha256": "DC93CBD99F0FFE9ACDF64A15F53A87C71034C7A7A1D95BCFF21DA07BFD7DDAE3"
+  },
+  {
+    "path": "root-122-suite-verification.json",
+    "bytes": 39037,
+    "sha256": "261FC3594EB4D808502BFF207AAE0F934289B700D57DC1D439B8C3D71EC65FAA"
+  },
+  {
+    "path": "root-8-consumer-verification.json",
+    "bytes": 1763,
+    "sha256": "DEB7D40DFD053C4A4415F9831E0E95AEC36A75D969C4FA4239EDFF8D6F792889"
+  },
+  {
+    "path": "run-completed.json",
+    "bytes": 19739,
+    "sha256": "257E91D54C8ABA9438D104984FCC507B8856F3846A8CA71B67CB9752C82CE292"
+  }
+]

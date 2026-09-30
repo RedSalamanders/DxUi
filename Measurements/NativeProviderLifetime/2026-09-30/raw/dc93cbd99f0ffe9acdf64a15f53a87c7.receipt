@@ -1,0 +1,237 @@
+from __future__ import annotations
+import hashlib, json, re
+from pathlib import Path
+
+ROOT = Path(r"C:\RedSalamander.Perf\evidence\i26-ui\native-uia-ci49-20260928")
+ARM = ROOT / "ARM64"
+OUT = ROOT / "audit-result-arm64"
+RUN = 36358394952
+HEAD = "49c963f5751a6754e6b08e0362b96cfc7fc64414"
+PROFILES = {
+    "native-ARM64-Debug": "Debug",
+    "native-ARM64-Release": "Release",
+    "native-ARM64-ASan Debug": "ASan Debug",
+}
+SHA = re.compile(r"^[0-9A-Fa-f]{64}$")
+
+def load(p): return json.loads(p.read_text(encoding="utf-8-sig"))
+def digest(p): return hashlib.sha256(p.read_bytes()).hexdigest().upper()
+def fail(message): raise RuntimeError(message)
+
+def main():
+    if any(OUT.glob("*.json")) or (OUT / "assessment.md").exists():
+        fail("refusing to overwrite audit output")
+    run = load(ROOT / "run-completed.json")
+    if run.get("headSha") != HEAD or run.get("status") != "completed" or run.get("conclusion") != "success":
+        fail("workflow completion identity is not successful at the candidate commit")
+    jobs = run.get("jobs", [])
+    if not any(str(j.get("url", "")).find(f"/runs/{RUN}/") >= 0 for j in jobs):
+        fail("workflow job URLs do not identify the requested run")
+    expected_jobs = ["validation"] + [f"native (ARM64, windows-11-vs2026-arm, {c})" for c in ("Debug", "Release", "ASan Debug")]
+    for name in expected_jobs:
+        matches = [j for j in jobs if j.get("name") == name]
+        if len(matches) != 1 or matches[0].get("status") != "completed" or matches[0].get("conclusion") != "success":
+            fail(f"required workflow job not uniquely successful: {name}")
+
+    suite_proof = load(ROOT / "root-122-suite-verification.json")
+    consumer_proof = load(ROOT / "root-8-consumer-verification.json")
+    proof_suites = {x["path"].replace("/", "\\"): x for x in suite_proof if x.get("platform") == "ARM64"}
+    proof_consumers = {(x["configuration"], bool(x["disableStlAnnotations"])): x
+                       for x in consumer_proof if x.get("platform") == "ARM64"}
+    profiles = {}
+    all_suites = []
+    consumers = []
+    perf_hashes = None
+    binary_claims = {}
+    artifact_hashes = []
+
+    def add_binary(path, sha, profile):
+        if not path or not SHA.fullmatch(str(sha or "")): fail(f"missing binary identity in {profile}")
+        binary_claims.setdefault(path, set()).add(str(sha).upper())
+
+    for p in sorted(x for x in ARM.rglob("*") if x.is_file()):
+        artifact_hashes.append({"path": p.relative_to(ARM).as_posix(), "bytes": p.stat().st_size, "sha256": digest(p)})
+
+    for dirname, config in PROFILES.items():
+        d = ARM / dirname
+        reports = d / "reports"
+        logs = d / "logs"
+        if not d.is_dir(): fail(f"missing ARM profile artifacts: {dirname}")
+        suite_files = [p for p in reports.glob("*.json") if not p.name.startswith("Performance-") and not p.name.startswith("ExternalConsumer-") and p.name != "AddressSanitizer-ARM64.json"]
+        if len(suite_files) != 20: fail(f"expected 20 suite receipts in {dirname}; found {len(suite_files)}")
+        names = set()
+        suite_rows = []
+        for report_path in sorted(suite_files):
+            obj = load(report_path)
+            suite = obj.get("suite")
+            if not suite or suite in names: fail(f"missing or duplicate suite receipt: {report_path.name}")
+            names.add(suite)
+            if (obj.get("configuration") != config or obj.get("platform") != "ARM64" or
+                    obj.get("nativeArchitecture") != "Arm64" or obj.get("exitCode") != 0):
+                fail(f"suite result/architecture mismatch: {report_path.name}")
+            skips = obj.get("skips")
+            expected_skips = 9 if suite == "Menu" else 0
+            if not isinstance(skips, list) or len(skips) != expected_skips:
+                fail(f"skip list mismatch for {report_path.name}: expected {expected_skips}, got {skips!r}")
+            if suite == "Menu" and any("interactive desktop" not in s for s in skips):
+                fail(f"unexpected non-desktop Menu skip: {report_path.name}")
+            exe, exe_hash = obj.get("executable"), obj.get("sha256")
+            add_binary(exe, exe_hash, dirname)
+            expected_log = logs / f"test-{suite}-ARM64-{config}.log"
+            if not expected_log.is_file(): fail(f"missing raw suite log: {expected_log.name}")
+            text = expected_log.read_text(encoding="utf-8-sig", errors="replace")
+            if suite == "Embedded":
+                log_pass = any(line.startswith("PASS ") for line in text.splitlines())
+            elif suite == "Foundation":
+                log_pass = "Foundation tests: PASS" in text
+            elif suite == "MenuExitLifetime":
+                log_pass = "[EXIT] MenuExitLifetime:" in text
+            else:
+                log_pass = f"[DONE] {suite}" in text and "All DxUi tests passed." in text
+            if not log_pass: fail(f"raw log lacks passing completion marker: {expected_log.name}")
+            row = {"profile": dirname, "suite": suite, "report": report_path.relative_to(ROOT).as_posix(),
+                   "reportSha256": digest(report_path), "log": expected_log.relative_to(ROOT).as_posix(),
+                   "logSha256": digest(expected_log), "platform": obj["platform"],
+                   "nativeArchitecture": obj["nativeArchitecture"], "configuration": config,
+                   "exitCode": obj["exitCode"], "skips": skips, "executable": exe,
+                   "executableSha256": str(exe_hash).upper()}
+            proof_key = row["report"].replace("/", "\\")
+            proof = proof_suites.get(proof_key)
+            if not proof or proof.get("sha256") != row["reportSha256"] or proof.get("exitCode") != 0 or proof.get("skips") != skips:
+                fail(f"independent root 122-suite manifest mismatch: {proof_key}")
+            suite_rows.append(row)
+            all_suites.append(row)
+
+        # Provider lifetime/focus witnesses are emitted by the Accessibility suite log.
+        access_log = logs / f"test-Accessibility-ARM64-{config}.log"
+        access_text = access_log.read_text(encoding="utf-8-sig", errors="replace")
+        required_markers = {
+            "focus invoke=false": r"\[UIA focus reentry\] invoke=0 result=0x80040201 replacements=1 originalActions=0 replacementActions=0",
+            "focus invoke=true": r"\[UIA focus reentry\] invoke=1 result=0x80040204 replacements=1 originalActions=0 replacementActions=0",
+            "same-path original root": r"\[UIA lifetime\] replaceRoot=0 .*replacementInvocations=0",
+            "replacement root": r"\[UIA lifetime\] replaceRoot=1 .*replacementInvocations=0",
+            "posted select expires": r"\[UIA lifetime\] posted-select result=0x80040201",
+            "posted invoke expires": r"\[UIA lifetime\] posted-invoke result=0x80040201 callbacks=0",
+        }
+        matched = {}
+        for key, pattern in required_markers.items():
+            hits = re.findall(pattern, access_text)
+            if len(hits) != 1: fail(f"Accessibility raw log missing/duplicated witness {key}: {dirname}")
+            matched[key] = hits[0]
+
+        # The one expected-positive ASan probe is runtime evidence, separate from builds and suite passes.
+        probe_row = None
+        if config == "ASan Debug":
+            probe_path = reports / "AddressSanitizer-ARM64.json"
+            probe = load(probe_path)
+            if (probe.get("configuration") != config or probe.get("platform") != "ARM64" or
+                    probe.get("nativeArchitecture") != "Arm64" or probe.get("exitCode") != 1 or probe.get("detected") is not True):
+                fail("ARM64 expected-positive ASan probe receipt mismatch")
+            probe_log = logs / "test-AddressSanitizer-ARM64.log"
+            probe_text = probe_log.read_text(encoding="utf-8-sig", errors="replace")
+            if "AddressSanitizer: heap-use-after-free" not in probe_text or "ABORTING" not in probe_text:
+                fail("ARM64 ASan probe raw log does not match expected positive detection")
+            add_binary(probe.get("executable"), probe.get("sha256"), dirname + " probe")
+            foundation = next(x for x in suite_rows if x["suite"] == "Foundation")
+            if foundation["executable"] != probe.get("executable") or foundation["executableSha256"] != str(probe["sha256"]).upper():
+                fail("ASan probe binary identity differs from Foundation test binary")
+            probe_row = {"report": probe_path.relative_to(ROOT).as_posix(), "reportSha256": digest(probe_path),
+                         "log": probe_log.relative_to(ROOT).as_posix(), "logSha256": digest(probe_log),
+                         "platform": probe["platform"], "nativeArchitecture": probe["nativeArchitecture"],
+                         "exitCode": probe["exitCode"], "detected": probe["detected"], "expectedPositive": True,
+                         "executableSha256": str(probe["sha256"]).upper()}
+
+        # Link and verify the configuration's performance report identity/source inputs; do not infer a performance pass.
+        perf_paths = [x for x in reports.glob("Performance-ARM64-*.json") if ".comparison." not in x.name]
+        if len(perf_paths) != 1: fail(f"expected one performance receipt in {dirname}")
+        perf_path = perf_paths[0]
+        perf = load(perf_path)
+        if (perf.get("configuration") != config or perf.get("platform") != "ARM64" or
+                perf.get("nativeArchitecture") != "Arm64" or perf.get("sourceCommit") != HEAD or perf.get("sourceDirty") is not False):
+            fail(f"performance source/configuration identity mismatch: {perf_path.name}")
+        inputs = {k: str(v).upper() for k,v in perf.get("benchmarkInputs", {}).items()}
+        if perf_hashes is None: perf_hashes = inputs
+        elif perf_hashes != inputs: fail("ARM64 benchmark input hashes differ across profiles")
+        perf_suites = [x for x in suite_rows if x.get("suite") in ("Embedded", "Accessibility", "Foundation")]
+        linked = [load(reports / Path(obj.get("performanceReport", "")).name)
+                  for rp in suite_files for obj in [load(rp)] if obj.get("performanceReport")]
+        if not any(x.get("executableSha256") == perf.get("executableSha256") and x.get("sourceCommit") == HEAD for x in linked):
+            fail(f"performance executable/source not linked from any suite receipt: {perf_path.name}")
+        profiles[config] = {"suiteCount": len(suite_rows), "suiteNames": sorted(names),
+                            "menuSkippedDesktopCases": len(next(x for x in suite_rows if x["suite"] == "Menu")["skips"]),
+                            "passingSuiteReceipts": len(suite_rows), "accessibilityWitnessLog": access_log.relative_to(ROOT).as_posix(),
+                            "accessibilityWitnessLogSha256": digest(access_log), "accessibilityWitnesses": sorted(matched),
+                            "asanProbe": probe_row,
+                            "performanceReport": {"path": perf_path.relative_to(ROOT).as_posix(), "sha256": digest(perf_path),
+                                "sourceCommit": perf["sourceCommit"], "sourceDirty": perf["sourceDirty"],
+                                "executableSha256": perf.get("executableSha256"), "benchmarkInputs": inputs}}
+        for rp in sorted(reports.glob("ExternalConsumer-ARM64-*.json")):
+            c = load(rp)
+            expected_annotations = c.get("disableStlAnnotations")
+            if (c.get("configuration") != config or c.get("platform") != "ARM64" or
+                    c.get("nativeArchitecture") != "Arm64" or c.get("commit") != HEAD or c.get("exitCode") != 0 or
+                    c.get("nativeModuleChecks") != 12 or c.get("negativeChecks") != 10):
+                fail(f"consumer receipt result/architecture mismatch: {rp.name}")
+            if not SHA.fullmatch(str(c.get("librarySha256", ""))) or not SHA.fullmatch(str(c.get("executableSha256", ""))):
+                fail(f"consumer executable/library hash missing: {rp.name}")
+            ident = c.get("buildIdentity", {}).get("Identity", {})
+            if (ident.get("commit") != HEAD or ident.get("apiRevision") != 2 or ident.get("platform") != "ARM64" or
+                    ident.get("disableStlAnnotations") != expected_annotations):
+                fail(f"consumer identity mismatch: {rp.name}")
+            for key in ("msbuildSha256", "compilerSha256", "linkerSha256", "windowsHeaderSha256", "kernel32Sha256", "ucrtSha256"):
+                if not SHA.fullmatch(str(ident.get(key, ""))): fail(f"consumer toolchain hash missing {key}: {rp.name}")
+            proof = proof_consumers.get((config, bool(expected_annotations)))
+            if not proof or proof.get("exitCode") != 0 or proof.get("nativeArchitecture") != "Arm64" or proof.get("commit") != HEAD:
+                fail(f"independent root consumer verification mismatch: {rp.name}")
+            consumers.append({"path": rp.relative_to(ROOT).as_posix(), "sha256": digest(rp), "configuration": config,
+                "disableStlAnnotations": expected_annotations, "exitCode": c["exitCode"], "platform": c["platform"],
+                "nativeArchitecture": c["nativeArchitecture"], "nativeModuleChecks": c["nativeModuleChecks"],
+                "negativeChecks": c["negativeChecks"], "commit": c["commit"],
+                "librarySha256": c["librarySha256"], "executableSha256": c["executableSha256"],
+                "toolchainHashes": {k: ident[k] for k in ("msbuildSha256", "compilerSha256", "linkerSha256", "windowsHeaderSha256", "kernel32Sha256", "ucrtSha256")}})
+
+    if len(all_suites) != 60 or len(consumers) != 4:
+        fail(f"unexpected ARM coverage: {len(all_suites)} suites / {len(consumers)} consumers")
+    expected_consumer_modes = {("Debug", False), ("Release", False), ("ASan Debug", False), ("ASan Debug", True)}
+    if {(c["configuration"], c["disableStlAnnotations"]) for c in consumers} != expected_consumer_modes:
+        fail("ARM consumer annotation-mode matrix incomplete")
+    if any(len(v) != 1 for v in binary_claims.values()):
+        fail("conflicting executable hash claims for a repeated ARM binary path")
+
+    x64_source_manifest = load(ROOT / "audit-result" / "source-hash-manifest.json")
+    x64_inputs = {x["path"]: str(x["sha256"]).upper() for x in x64_source_manifest.get("sourceFiles", [])}
+    if perf_hashes != x64_inputs:
+        fail("ARM64 performance input hashes differ from independently reviewed x64 source manifest")
+
+    suite_out = {"runId": RUN, "headSha": HEAD, "workflowStatus": run["status"], "workflowConclusion": run["conclusion"],
+                 "arm64Profiles": profiles, "suiteReceiptCount": len(all_suites), "suiteReceipts": all_suites,
+                 "consumerReceipts": consumers, "positiveAsanProbeCount": 1,
+                 "consumerReceiptCount": len(consumers), "binarySha256Claims": {k: sorted(v) for k,v in binary_claims.items()},
+                 "benchmarkInputHashes": perf_hashes, "benchmarkInputsMatchX64SourceManifest": True,
+                 "buildRuntimeBoundary": "Build jobs establish compilation only; runtime claims above come from suite/consumer/probe receipts and raw logs."}
+    (OUT / "arm64-suite-consumer-audit.json").write_text(json.dumps(suite_out, indent=2)+"\n", encoding="utf-8")
+    (OUT / "arm64-artifact-hashes.json").write_text(json.dumps({"root": "../ARM64", "fileCount": len(artifact_hashes), "files": artifact_hashes}, indent=2)+"\n", encoding="utf-8")
+    summary = """# ARM64 CI runtime audit
+
+Workflow `36358394952` completed successfully at `49c963f5751a6754e6b08e0362b96cfc7fc64414`. The validation and all three ARM64 native jobs (Debug, Release, ASan Debug) report completed/success. This audit counts runtime evidence from suite, consumer, and ASan probe receipts plus their matching raw logs; build success alone is not treated as a runtime pass.
+
+All 60 ARM64 suite receipts (20 per configuration) report ARM64 / Arm64 and exit code 0. The Menu suite reports exactly nine interactive-desktop skips in each configuration; these are retained explicitly, while every other suite reports no skips. The Accessibility logs in each configuration include both focus-replacement cases, same-path and replacement-root stale-provider rejection, and delayed Select/Invoke rejection without callback execution. Each log ends in the suite pass marker.
+
+Four ARM64 external-consumer receipts pass: Debug and Release with STL annotations enabled, ASan Debug with annotations enabled, and ASan Debug with annotations disabled. Each reports 12 native-module checks and 10 negative checks, with API revision 2, commit and Arm64 identity, and SHA-256 identities for consumer binaries and toolchain inputs.
+
+The ARM64 ASan runtime probe is an expected positive check: its receipt exits 1 with `detected:true`, and its matching log records `AddressSanitizer: heap-use-after-free` and `ABORTING`. This is separate from the 20 passing ASan Debug suites. Performance reports are recorded only as source/configuration/input provenance; their four benchmark-input hashes match the independently reviewed x64 source manifest, and they do not claim a performance pass.
+
+`arm64-suite-consumer-audit.json` contains normalized receipt details and cross-checks against the independent root 122-suite and eight-consumer verification manifests. `arm64-artifact-hashes.json` lists SHA-256 and byte length for every downloaded ARM64 artifact. The full workflow conclusion is success, with the nine-per-profile Menu desktop skips still a scope limitation for those specific cases.
+"""
+    (OUT / "assessment.md").write_text(summary, encoding="utf-8")
+    # Inventory this output set and the exact run metadata/proof files.
+    inv = []
+    for p in sorted(list(OUT.glob("*")) + [ROOT / "run-completed.json", ROOT / "root-122-suite-verification.json", ROOT / "root-8-consumer-verification.json"]):
+        if p.is_file() and p.name != "arm64-audit-files.sha256.json":
+            inv.append({"path": str(p.relative_to(ROOT)).replace("\\", "/"), "bytes": p.stat().st_size, "sha256": digest(p)})
+    (OUT / "arm64-audit-files.sha256.json").write_text(json.dumps(inv, indent=2)+"\n", encoding="utf-8")
+    print(f"PASS ARM64 audit: {len(all_suites)} suite receipts, {len(consumers)} consumer receipts, 1 expected-positive ASan probe, {len(artifact_hashes)} artifact files hashed; Menu skips preserved (9/config).")
+
+if __name__ == "__main__": main()
+
+

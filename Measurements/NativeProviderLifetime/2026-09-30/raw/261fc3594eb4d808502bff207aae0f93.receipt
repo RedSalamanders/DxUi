@@ -1,0 +1,1130 @@
+[
+  {
+    "suite": "Accessibility",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\Accessibility-x64-ASan Debug.json",
+    "sha256": "9DD8535AF9A440048B01689AE5D81C8C294E45BFF665834FE73FAD58F04235CE"
+  },
+  {
+    "suite": "Animation",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\Animation-x64-ASan Debug.json",
+    "sha256": "CF5A2401BA8A0AD51C0D67FB92B115D16C70611E36821CD4E29624ECA3679009"
+  },
+  {
+    "suite": "ComboBox",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\ComboBox-x64-ASan Debug.json",
+    "sha256": "0D538BC9E81D674C5C656300B26C8DC87948B11238C692708A6A4B98C7FE31CD"
+  },
+  {
+    "suite": "Control",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\Control-x64-ASan Debug.json",
+    "sha256": "E5F84A1457EAC3D228BD378FD205B73977912940037DE5CFE110BF5AB3A6B826"
+  },
+  {
+    "suite": "Embedded",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\Embedded-x64-ASan Debug.json",
+    "sha256": "F7CCD6309AC9EC3AD4E2635DB5854DE772CF58FAA22D1456374305E84753D163"
+  },
+  {
+    "suite": "Foundation",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\Foundation-x64-ASan Debug.json",
+    "sha256": "5140BF7249DFAC2CC5FD6BABC5FDE25935DCAE60C47675AD845A56394FDD00C4"
+  },
+  {
+    "suite": "Grid",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\Grid-x64-ASan Debug.json",
+    "sha256": "0B62A9C7AC2D235F1EB3CA77573092EAD1A3153214AB1FE23F646B6552CB567D"
+  },
+  {
+    "suite": "Menu",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\Menu-x64-ASan Debug.json",
+    "sha256": "89127799E29F7D27250B6199977C0B126F375329A30008E27F57BCB5D602F1AE"
+  },
+  {
+    "suite": "MenuAccessibility",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\MenuAccessibility-x64-ASan Debug.json",
+    "sha256": "DD3504EEE46DF15BE0C7F6E647F54153AA35EBFD66F668EDB5EA55CF49E03362"
+  },
+  {
+    "suite": "MenuExitLifetime",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\MenuExitLifetime-x64-ASan Debug.json",
+    "sha256": "BF339B64CF39C703A913057D6A99C0F3DF0A8BD2728361D8F3DFAC5D71C2D613"
+  },
+  {
+    "suite": "MultilineText",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\MultilineText-x64-ASan Debug.json",
+    "sha256": "F269E8E0029BD4C22695F048C61FD44513768992B8CCBD8148EE2E60FCB84579"
+  },
+  {
+    "suite": "NativeTextInput",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\NativeTextInput-x64-ASan Debug.json",
+    "sha256": "0A20BF83C48438F7B27169C25CF34EC158C5E65AC851FA0F181D4E9784E54A74"
+  },
+  {
+    "suite": "NewControls",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\NewControls-x64-ASan Debug.json",
+    "sha256": "AB33D3C165E5D257D14FA98E0CF3565DB27F60D3B4584020E168A09A7937886E"
+  },
+  {
+    "suite": "ReadOnly",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\ReadOnly-x64-ASan Debug.json",
+    "sha256": "0848F150C27A4F2580308D65642B46338272DACF2B9882FB1E2065FDACF9332A"
+  },
+  {
+    "suite": "Rendering",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\Rendering-x64-ASan Debug.json",
+    "sha256": "FE6881A67E4E709E0D4866FAF58DD68584B3708A4853527C990C26FB222D5A1A"
+  },
+  {
+    "suite": "TextField",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\TextField-x64-ASan Debug.json",
+    "sha256": "5F035FB8E70536A5A97878294F9D4F0C42FAE743E6A050DED0E78CA2999C8EC2"
+  },
+  {
+    "suite": "Theme",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\Theme-x64-ASan Debug.json",
+    "sha256": "56AE4D41F8DAA1E92D0F67CBD6B223CF08390AEEF9359C3E7B84A85BD2CB8834"
+  },
+  {
+    "suite": "Tooltip",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\Tooltip-x64-ASan Debug.json",
+    "sha256": "2C76D23716BB5C840B28D60D0844C88B8DC8C3DCB1C1A880F53BFADB66629D9A"
+  },
+  {
+    "suite": "Tree",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\Tree-x64-ASan Debug.json",
+    "sha256": "E1BABB3D44F703711CAA26E27B488E64609C4E2779A2C4182B5C85D1C908C6DE"
+  },
+  {
+    "suite": "WindowHost",
+    "platform": "x64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-ASan Debug\\reports\\WindowHost-x64-ASan Debug.json",
+    "sha256": "54785C742FF23694AD0A2B87BE4D8360B883FA385314F89F3486059C8B7884A5"
+  },
+  {
+    "suite": "Accessibility",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\Accessibility-x64-Debug.json",
+    "sha256": "3402083FD48EB4D8F6781DD4660093C1BDC067608D6510B22D31CECAEC40EF3F"
+  },
+  {
+    "suite": "Animation",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\Animation-x64-Debug.json",
+    "sha256": "B49F9CF59F9EC9DC8A3185FE356800114DA141F36ABCDE4570D8ACF177812DD7"
+  },
+  {
+    "suite": "ComboBox",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\ComboBox-x64-Debug.json",
+    "sha256": "8A7799D3521258DCB62D872AFA1B3A527251E4E6C9B55EE8E46A305B52070710"
+  },
+  {
+    "suite": "Control",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\Control-x64-Debug.json",
+    "sha256": "6869B68EED14CAEF2E2AEEC501485CFEA369E75793C0E8D82A4DCF5C257FCBC7"
+  },
+  {
+    "suite": "Embedded",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\Embedded-x64-Debug.json",
+    "sha256": "0B11259BF08F45BE5F90AC7FDB0B390E72F0451E5A5A0F28B26EFA3D3787E804"
+  },
+  {
+    "suite": "Foundation",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\Foundation-x64-Debug.json",
+    "sha256": "D7DED8F287F7C13273189F686B91AA2C03740F51B73F347F7378F7403E738F36"
+  },
+  {
+    "suite": "Grid",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\Grid-x64-Debug.json",
+    "sha256": "70057FACA4BD9691D60EF640588AB0DCE633E9F8EB58021BCF22751C6CCAFA39"
+  },
+  {
+    "suite": "Menu",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\Menu-x64-Debug.json",
+    "sha256": "2D109CB82A80619D6CDAC6114770BCAC03B35A878E1982CC90B2BBEE02B491D5"
+  },
+  {
+    "suite": "MenuAccessibility",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\MenuAccessibility-x64-Debug.json",
+    "sha256": "FBC8089CCEA789310CA3FCB62ADCEC503F8C3EF9FD0023398AE822A08CF332CC"
+  },
+  {
+    "suite": "MenuExitLifetime",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\MenuExitLifetime-x64-Debug.json",
+    "sha256": "ACC57E9080C5A5E8B96E36BE3FB4D679F73231C05155D8C1DCBE286D4334B52D"
+  },
+  {
+    "suite": "MultilineText",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\MultilineText-x64-Debug.json",
+    "sha256": "40B7FF1D00493B4403609EDBFFAD0DFFFBF288E86639CF43DE28C14EFC2FD938"
+  },
+  {
+    "suite": "NativeTextInput",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\NativeTextInput-x64-Debug.json",
+    "sha256": "BA0AAA231CD10EDB986604A567E9AE3527EC126A9AF994ED24333140F8ECF275"
+  },
+  {
+    "suite": "NewControls",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\NewControls-x64-Debug.json",
+    "sha256": "A3131216ACA6B62AA3D1716CC999AF9B4716D404CCC159E2A34BB2CCF3CC42EC"
+  },
+  {
+    "suite": "ReadOnly",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\ReadOnly-x64-Debug.json",
+    "sha256": "E75B8E975B4416040D696E7BFAB972153AFE0E3601BADEE63D0C8F7BB32B9917"
+  },
+  {
+    "suite": "Rendering",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\Rendering-x64-Debug.json",
+    "sha256": "59743F2B0CBE07121757D853084A3AD37E031DACAA1B47A8717AA3CA0FA269EF"
+  },
+  {
+    "suite": "TextField",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\TextField-x64-Debug.json",
+    "sha256": "0C1CAADA48E70918FE7F3EFC9086D3CB28B16F69FBB319FCE16EFC29E5BDF9B3"
+  },
+  {
+    "suite": "Theme",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\Theme-x64-Debug.json",
+    "sha256": "1739607C4E09C4B055B43EFE51F938F76692903F727FB20506F73153E3AE9718"
+  },
+  {
+    "suite": "Tooltip",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\Tooltip-x64-Debug.json",
+    "sha256": "7CBD9A2401FCBEF2D5817F7F435B24C985A75C7801455CDD8080217CD2CA1F14"
+  },
+  {
+    "suite": "Tree",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\Tree-x64-Debug.json",
+    "sha256": "138DF3D9DD4FAD24EA708876B003E1A283073AB4FCFDBEA18C25975823EF1405"
+  },
+  {
+    "suite": "WindowHost",
+    "platform": "x64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Debug\\reports\\WindowHost-x64-Debug.json",
+    "sha256": "9CDDC4074E90B9E77C87FBCAB1F27ECBADBFB4257660963918E2C7E67FFC2E7F"
+  },
+  {
+    "suite": "Accessibility",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\Accessibility-x64-Release.json",
+    "sha256": "D7294C98BF27ADC33184C361D842B8822527E3793D9DEC8B71A81EF3ACD27AF5"
+  },
+  {
+    "suite": "Animation",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\Animation-x64-Release.json",
+    "sha256": "EF770DB4B814A804CFA38CA3B7744C4C71805A33B38538D6E6C724CE2B1A5A69"
+  },
+  {
+    "suite": "ComboBox",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\ComboBox-x64-Release.json",
+    "sha256": "06F7A5092C7EC1B881DD2E478C53BB02D96071C9E1148964326F7BF9AD4BAE5F"
+  },
+  {
+    "suite": "Control",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\Control-x64-Release.json",
+    "sha256": "90676160E0E80E39A25E2239CF691C287E018BA20C233322B7A099EFB1C0B8E3"
+  },
+  {
+    "suite": "Embedded",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\Embedded-x64-Release.json",
+    "sha256": "03FACC8D482751C989946950039057DA8EC3D66A45AED7B2BA17938957AC3197"
+  },
+  {
+    "suite": "Foundation",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\Foundation-x64-Release.json",
+    "sha256": "D75EA461CF9F72B1398F945A014C4BD9511D4E4EC5AC033995A87E57DCBE27E0"
+  },
+  {
+    "suite": "Grid",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\Grid-x64-Release.json",
+    "sha256": "1DA19912535EE5F60485AE2BA08A54D42F8FA8F778B78952783D18D3C14A34FF"
+  },
+  {
+    "suite": "Menu",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\Menu-x64-Release.json",
+    "sha256": "1FDB38D57B18947295ACBB292AF37C0136B034CAA043FF9F1FF9206FAB7BB992"
+  },
+  {
+    "suite": "MenuAccessibility",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\MenuAccessibility-x64-Release.json",
+    "sha256": "47C132BE62ED8D43629E6781DC2CF8E115DD0073F96902364D4D8B4F25CDEDB1"
+  },
+  {
+    "suite": "MenuExitLifetime",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\MenuExitLifetime-x64-Release.json",
+    "sha256": "25A76AF3D7B261552BF4830BAE7A552531B45BB4C6377FAD4B193C6863235B20"
+  },
+  {
+    "suite": "MenuResourceScaling",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\MenuResourceScaling-x64-Release.json",
+    "sha256": "E39D7BF5C37B2760C8B8AB91513F538354BA2427398688DA09620922B15E778A"
+  },
+  {
+    "suite": "MenuTextLayoutResources",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\MenuTextLayoutResources-x64-Release.json",
+    "sha256": "BEBC58B65886969CCB00C729F87D9F7A00385944C28C5A026E6078DF78216802"
+  },
+  {
+    "suite": "MultilineText",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\MultilineText-x64-Release.json",
+    "sha256": "2F06C7D4459F6D3E973021B71775A53A21132A65A650B571255EE25AA142C49B"
+  },
+  {
+    "suite": "NativeTextInput",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\NativeTextInput-x64-Release.json",
+    "sha256": "CF41C2199245B468732A3A2700EB54DD0411683898E3200FEBC512AF998EEE84"
+  },
+  {
+    "suite": "NewControls",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\NewControls-x64-Release.json",
+    "sha256": "7377F7B2EB1128C0F62BD0B7C2AB7239C96AAD29B9A92B527DFC2FDE3B9F9CED"
+  },
+  {
+    "suite": "ReadOnly",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\ReadOnly-x64-Release.json",
+    "sha256": "EC4272863819383C9BCE640D00913BA0B8E348BF78BFB0E2CFF4502441DD7830"
+  },
+  {
+    "suite": "Rendering",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\Rendering-x64-Release.json",
+    "sha256": "85786FCC8D27B38E4E32FBBE036D7493579962F50AA1D84ED6663322F10203CC"
+  },
+  {
+    "suite": "TextField",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\TextField-x64-Release.json",
+    "sha256": "EA8819D275B23FAAE58B8FDBF484A3BBDC69BD9B5618B0E66D3A91F65087D93A"
+  },
+  {
+    "suite": "Theme",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\Theme-x64-Release.json",
+    "sha256": "B03E6527D2CC4F514DD1ECAD79EA168B82A02DC84102171F4D41E827ED3DBC48"
+  },
+  {
+    "suite": "Tooltip",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\Tooltip-x64-Release.json",
+    "sha256": "C4FE0D92B4BBE953687881A42AE4D0296D89067F59049B48181FFF72695E6B70"
+  },
+  {
+    "suite": "Tree",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\Tree-x64-Release.json",
+    "sha256": "FCAF4B232B0D5854BF66D849980458848B2E4FE77CFE9D1CDA96AA537A21C516"
+  },
+  {
+    "suite": "WindowHost",
+    "platform": "x64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "x64\\native-x64-Release\\reports\\WindowHost-x64-Release.json",
+    "sha256": "5E42FFB49CBCB7483194047E6A2F352577CDF45092AE3CE48602C71819D1D024"
+  },
+  {
+    "suite": "Accessibility",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\Accessibility-ARM64-ASan Debug.json",
+    "sha256": "202A991E5F1CB41FB3EA369B213BA95D63B8E47CAAE73CB1E06489D32473D521"
+  },
+  {
+    "suite": "Animation",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\Animation-ARM64-ASan Debug.json",
+    "sha256": "2FD16306A41714BDAE3893218B33AFD6F061C4D100C16312F0821F3E0B50B34D"
+  },
+  {
+    "suite": "ComboBox",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\ComboBox-ARM64-ASan Debug.json",
+    "sha256": "C35D01E8E388EA361267DE607F5E443D6CE60D526A10CE681854BB9985D677F5"
+  },
+  {
+    "suite": "Control",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\Control-ARM64-ASan Debug.json",
+    "sha256": "5A8FFE8FB0683EFD5A2BB2996583A18DC78162415BB972A92E543D6F34BC3BB9"
+  },
+  {
+    "suite": "Embedded",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\Embedded-ARM64-ASan Debug.json",
+    "sha256": "A49F133BF6C92E2D2CD46FC9800249A26B884CA377324C576373B63D5F61EFEB"
+  },
+  {
+    "suite": "Foundation",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\Foundation-ARM64-ASan Debug.json",
+    "sha256": "1DB90E7432D54DA5406D71C292C374D17687E79497AE9555E2E028CA694E13A5"
+  },
+  {
+    "suite": "Grid",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\Grid-ARM64-ASan Debug.json",
+    "sha256": "3D6F71CE19B304C2F0C492F02321245A7A03FEE757FA20F4127536834B8C2768"
+  },
+  {
+    "suite": "Menu",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [
+      "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+      "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+    ],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\Menu-ARM64-ASan Debug.json",
+    "sha256": "2411479812378CEA68D6A1DA85450583BD99D0833D447673BE59D1C5A9991D37"
+  },
+  {
+    "suite": "MenuAccessibility",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\MenuAccessibility-ARM64-ASan Debug.json",
+    "sha256": "DC4D9EFF8C370CFBF73CE7322D9036398C971A9D55FBC7F9E52E3BD81E8B57E9"
+  },
+  {
+    "suite": "MenuExitLifetime",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\MenuExitLifetime-ARM64-ASan Debug.json",
+    "sha256": "542FA03DC7C129ECB610C8E6F67DF1857EA54602604E0E854D4306F6E942E79E"
+  },
+  {
+    "suite": "MultilineText",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\MultilineText-ARM64-ASan Debug.json",
+    "sha256": "BD74C3B81D0BAC4904404A93DEA956F41415BE870A1AEB82314A1B9BA3B289C0"
+  },
+  {
+    "suite": "NativeTextInput",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\NativeTextInput-ARM64-ASan Debug.json",
+    "sha256": "7DD6EA54FF78433A8E119D02A3F4FA12B28F6C16911844A42B34D8B727FDE279"
+  },
+  {
+    "suite": "NewControls",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\NewControls-ARM64-ASan Debug.json",
+    "sha256": "E69EC09F78DDFFD20CEF42D1B23151F12F06746FEBF09B9479662DB145C08697"
+  },
+  {
+    "suite": "ReadOnly",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\ReadOnly-ARM64-ASan Debug.json",
+    "sha256": "311FE5D7CE923977C3317CEEEA211CA423746974E380E14A6FBC133967976624"
+  },
+  {
+    "suite": "Rendering",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\Rendering-ARM64-ASan Debug.json",
+    "sha256": "2653BFAF4EF8B3AB813F50E697F741413CD9B45D63054A34572395DDC734AF6B"
+  },
+  {
+    "suite": "TextField",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\TextField-ARM64-ASan Debug.json",
+    "sha256": "FBA2E929ED44B8B2E70AE28544DCCC555E1F31981BF19D862F4CFD7549DCD521"
+  },
+  {
+    "suite": "Theme",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\Theme-ARM64-ASan Debug.json",
+    "sha256": "588081D0889A95CB921A66F51E8E35A02B0C23C06AD5034A3B0A60539FDCD4F3"
+  },
+  {
+    "suite": "Tooltip",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\Tooltip-ARM64-ASan Debug.json",
+    "sha256": "3AA835795F13813892184FABFDD524387D693623F0948DC0B49000F569E0F19A"
+  },
+  {
+    "suite": "Tree",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\Tree-ARM64-ASan Debug.json",
+    "sha256": "C8E3370EC152857628F70347604B48384420F8FFF209731D26ECB424996F6E34"
+  },
+  {
+    "suite": "WindowHost",
+    "platform": "ARM64",
+    "configuration": "ASan Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-ASan Debug\\reports\\WindowHost-ARM64-ASan Debug.json",
+    "sha256": "C89D21844E6A3C0EF760541373859547B403A6FFCAB72E246C7B3A3E076C4200"
+  },
+  {
+    "suite": "Accessibility",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\Accessibility-ARM64-Debug.json",
+    "sha256": "C2363AAAB03E14477F36B32B2DFFBDAE7B77EE41EDE4523C7C15CA79E8A4F32D"
+  },
+  {
+    "suite": "Animation",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\Animation-ARM64-Debug.json",
+    "sha256": "9274517D294D135C23374AD11A8A5D738E1E848B10390EEFE0172FEC1AD250EC"
+  },
+  {
+    "suite": "ComboBox",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\ComboBox-ARM64-Debug.json",
+    "sha256": "9A25581371D2DE1CFB66F1D514012E4474BFDE3D1D2734043248869F565810B0"
+  },
+  {
+    "suite": "Control",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\Control-ARM64-Debug.json",
+    "sha256": "D172AF36E40517B52C1521D98BF0E5A528BF432B069910E96C23CA4F05E4BEA1"
+  },
+  {
+    "suite": "Embedded",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\Embedded-ARM64-Debug.json",
+    "sha256": "E05B174401142862855CCBE7DAF521059D819EA02BCCC93BB3A5CBC0A34FC2B4"
+  },
+  {
+    "suite": "Foundation",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\Foundation-ARM64-Debug.json",
+    "sha256": "6D1575927B5772332D5EE6329523D5D70A4D19B2EB89095B49AD71B145F98818"
+  },
+  {
+    "suite": "Grid",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\Grid-ARM64-Debug.json",
+    "sha256": "8FD1003E61A566C98AA0B3C0C50484131B0CDB1E0DDFBAF67B1C5A812CF6C695"
+  },
+  {
+    "suite": "Menu",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [
+      "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+      "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+    ],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\Menu-ARM64-Debug.json",
+    "sha256": "412C5369D3697CD5B24CFEA7E2FA1A35AB3811350ACF92749BC681634BDB4CD9"
+  },
+  {
+    "suite": "MenuAccessibility",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\MenuAccessibility-ARM64-Debug.json",
+    "sha256": "08EC3E7A2FEB99EC989044568BDE9920377313521A6C36AA078B52D39B2A1D56"
+  },
+  {
+    "suite": "MenuExitLifetime",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\MenuExitLifetime-ARM64-Debug.json",
+    "sha256": "F87E80AAD43F04CEC3AF00E26ACF6203DEB63340F343B934A48D0A605C3E49EA"
+  },
+  {
+    "suite": "MultilineText",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\MultilineText-ARM64-Debug.json",
+    "sha256": "A0960257BAFC0F1F7890A365925B6C3233C436C7B2BC3B4BD9111CAC29327FD0"
+  },
+  {
+    "suite": "NativeTextInput",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\NativeTextInput-ARM64-Debug.json",
+    "sha256": "830416F4B0166A04B434FC3F8C23BE568F27A7B589E70D11B3CB4BDCE17A3078"
+  },
+  {
+    "suite": "NewControls",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\NewControls-ARM64-Debug.json",
+    "sha256": "6719077B798562EDFAA9B531CDB63FC83A98D4F748D58BCA57AB049294021685"
+  },
+  {
+    "suite": "ReadOnly",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\ReadOnly-ARM64-Debug.json",
+    "sha256": "9C177F16A426B7B38149C5D9B84BE35ECF9117A5042A69E9B3D4809B00531992"
+  },
+  {
+    "suite": "Rendering",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\Rendering-ARM64-Debug.json",
+    "sha256": "A19AB433CE89ED29A92E008DCBAEF82B799FAA7879BFD8BE4CAE3ADC9C80A696"
+  },
+  {
+    "suite": "TextField",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\TextField-ARM64-Debug.json",
+    "sha256": "EC19599E12D30F7DE51866AB8A1BDE4C6496FEA69A738FC558791BF3AB461167"
+  },
+  {
+    "suite": "Theme",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\Theme-ARM64-Debug.json",
+    "sha256": "5C19D4276BEF65393B22252FA260FF0969D8578E3CF2104E5F0753CAAF597D3B"
+  },
+  {
+    "suite": "Tooltip",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\Tooltip-ARM64-Debug.json",
+    "sha256": "3C4F0AE5289EBB6236C087E7856B94D354B0E0EEC188B0BAFD49BCC684242374"
+  },
+  {
+    "suite": "Tree",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\Tree-ARM64-Debug.json",
+    "sha256": "5018BB1541CF67DD09EE12E8BAB2D0308BE5C702F13736EBDACFFA6D9B6C47BA"
+  },
+  {
+    "suite": "WindowHost",
+    "platform": "ARM64",
+    "configuration": "Debug",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Debug\\reports\\WindowHost-ARM64-Debug.json",
+    "sha256": "3FF4AACED25D3ABD713C8EF8BFB6A92082FCA3FB404D4E085241DD17516358C9"
+  },
+  {
+    "suite": "Accessibility",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\Accessibility-ARM64-Release.json",
+    "sha256": "B92FDD25537F39C2D5A793C04E144EEF6EA0EBAF3771FFECBEB8F8EA0D95F5E0"
+  },
+  {
+    "suite": "Animation",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\Animation-ARM64-Release.json",
+    "sha256": "A92809A6614BBF321928385F2B9D348BEDC23DDF4959D5FAEFE4E03EEB409076"
+  },
+  {
+    "suite": "ComboBox",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\ComboBox-ARM64-Release.json",
+    "sha256": "DABE854FE2E87B6644DB6C1D2BA93ABCCBD22FB25C5C8A13D9F72BFE4E2727EB"
+  },
+  {
+    "suite": "Control",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\Control-ARM64-Release.json",
+    "sha256": "4EC83C8D382079BE52FB38C5A4167F21AA4D5DAA47F4B80F25D6B80D5080B415"
+  },
+  {
+    "suite": "Embedded",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\Embedded-ARM64-Release.json",
+    "sha256": "65F5DD54DA42F2A508B4F965D6D795D1F94F4A4089E5893CF70077C80BECA071"
+  },
+  {
+    "suite": "Foundation",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\Foundation-ARM64-Release.json",
+    "sha256": "2FD57132D3C770872452A9055727F40F4C21C09A65C8374577888538A9FD8CDB"
+  },
+  {
+    "suite": "Grid",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\Grid-ARM64-Release.json",
+    "sha256": "84A96F27062FDEE6D07618FC779C833000D9611EA318E9FE61588097671E7C46"
+  },
+  {
+    "suite": "Menu",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [
+      "SKIPPED: DxUi menu debug-state timeout requires an interactive desktop",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for split-button invoke routing",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for owner-message-flood routing",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus dismissal",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for native menu-bar focus restoration",
+      "SKIPPED: DxUi native menu destruction proof requires an interactive desktop",
+      "SKIPPED: DxUi menu popup requires an interactive desktop for split-button outside-dismiss routing"
+    ],
+    "path": "ARM64\\native-ARM64-Release\\reports\\Menu-ARM64-Release.json",
+    "sha256": "D7EF78E7B181B2E009DBEF49EB374D334BCE97036A196089A8D98E74A4AD01D5"
+  },
+  {
+    "suite": "MenuAccessibility",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\MenuAccessibility-ARM64-Release.json",
+    "sha256": "2FD286AB72173099F2FDD659FAF338246FAB9A406AE519EBB846965B0B860E1E"
+  },
+  {
+    "suite": "MenuExitLifetime",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\MenuExitLifetime-ARM64-Release.json",
+    "sha256": "1EDDCC8993B92292259501D229C2753B6F4D3603117E02A0A42F97D7E2A4E70A"
+  },
+  {
+    "suite": "MultilineText",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\MultilineText-ARM64-Release.json",
+    "sha256": "E23480D28F171062D2AE7152B4499464286F387B8C239706C552A96131D2A8D8"
+  },
+  {
+    "suite": "NativeTextInput",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\NativeTextInput-ARM64-Release.json",
+    "sha256": "02EF0B2A118FECBB618618FC06594F3B8D54CF51F29FB6BEB8F5EC37C2E59B69"
+  },
+  {
+    "suite": "NewControls",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\NewControls-ARM64-Release.json",
+    "sha256": "99F779ED997D96AD6ED764BDFBEBAEEDA337493DE3A7CD09ACB36F67C67F4872"
+  },
+  {
+    "suite": "ReadOnly",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\ReadOnly-ARM64-Release.json",
+    "sha256": "6AB9A2FE4A59770991C65FC2D09363F3071401B05FD55996508B83451B3A90B5"
+  },
+  {
+    "suite": "Rendering",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\Rendering-ARM64-Release.json",
+    "sha256": "F69BAAEA1681302F0BCD0BB87DF7BD2E7ACDA270FF7010859577EAAAE19A52AF"
+  },
+  {
+    "suite": "TextField",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\TextField-ARM64-Release.json",
+    "sha256": "4719965433A2669299917B1AA2888C295027D8ACB2DEC7687B1859E74A732198"
+  },
+  {
+    "suite": "Theme",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\Theme-ARM64-Release.json",
+    "sha256": "623A38D4C2C078D131B19136CD950C5D8C3859BE15150CA7BC47DF9A6B79535A"
+  },
+  {
+    "suite": "Tooltip",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\Tooltip-ARM64-Release.json",
+    "sha256": "95883A503AC20EA4AF46344814121AF5EB6D618255C534B402F4250612E9FA5C"
+  },
+  {
+    "suite": "Tree",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\Tree-ARM64-Release.json",
+    "sha256": "72985E9CD01B89486CF22348ABA8DE063F700304C609D940AA5660261B8124CF"
+  },
+  {
+    "suite": "WindowHost",
+    "platform": "ARM64",
+    "configuration": "Release",
+    "exitCode": 0,
+    "skips": [],
+    "path": "ARM64\\native-ARM64-Release\\reports\\WindowHost-ARM64-Release.json",
+    "sha256": "08160F9C001513C5CF3555400F08F9B7D5FFB6F9CAD976CF2AEAC4399F85B2F8"
+  }
+]

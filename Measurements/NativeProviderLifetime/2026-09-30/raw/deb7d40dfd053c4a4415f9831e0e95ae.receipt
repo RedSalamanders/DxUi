@@ -1,0 +1,66 @@
+[
+  {
+    "configuration": "ASan Debug",
+    "platform": "x64",
+    "disableStlAnnotations": false,
+    "exitCode": 0,
+    "commit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+    "nativeArchitecture": "X64"
+  },
+  {
+    "configuration": "ASan Debug",
+    "platform": "x64",
+    "disableStlAnnotations": true,
+    "exitCode": 0,
+    "commit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+    "nativeArchitecture": "X64"
+  },
+  {
+    "configuration": "Debug",
+    "platform": "x64",
+    "disableStlAnnotations": false,
+    "exitCode": 0,
+    "commit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+    "nativeArchitecture": "X64"
+  },
+  {
+    "configuration": "Release",
+    "platform": "x64",
+    "disableStlAnnotations": false,
+    "exitCode": 0,
+    "commit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+    "nativeArchitecture": "X64"
+  },
+  {
+    "configuration": "ASan Debug",
+    "platform": "ARM64",
+    "disableStlAnnotations": false,
+    "exitCode": 0,
+    "commit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+    "nativeArchitecture": "Arm64"
+  },
+  {
+    "configuration": "ASan Debug",
+    "platform": "ARM64",
+    "disableStlAnnotations": true,
+    "exitCode": 0,
+    "commit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+    "nativeArchitecture": "Arm64"
+  },
+  {
+    "configuration": "Debug",
+    "platform": "ARM64",
+    "disableStlAnnotations": false,
+    "exitCode": 0,
+    "commit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+    "nativeArchitecture": "Arm64"
+  },
+  {
+    "configuration": "Release",
+    "platform": "ARM64",
+    "disableStlAnnotations": false,
+    "exitCode": 0,
+    "commit": "49c963f5751a6754e6b08e0362b96cfc7fc64414",
+    "nativeArchitecture": "Arm64"
+  }
+]

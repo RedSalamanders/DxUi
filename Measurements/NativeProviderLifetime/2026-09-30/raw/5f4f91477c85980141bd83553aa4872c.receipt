@@ -1,0 +1,32 @@
+# Supplemental native UIA evidence packet assembler
+
+This external draft creates a new `../native-uia-supplement-packet-20260930/`
+after the long A-B-B-A driver has finished and restored both checkouts. It
+refuses to overwrite any existing packet. Run after reviewing the completed
+long evidence:
+
+```powershell
+py -3 C:/RedSalamander.Perf/evidence/i26-ui/native-uia-supplement-driver-20260930/build_packet.py
+```
+
+The assembler verifies the CI49 completed run, all 122 suite receipts against
+their root hashes and raw logs, all eight consumer receipts, both positive ASan
+probes and the x64/ARM64 audits. It requires the three ARM64 Menu receipts to
+retain their nine interactive-desktop skips and does not describe those cases
+as executed. It also requires all eight short crossover receipts and their
+original comparison sidecars, the reviewed short assessment, and a completed
+long driver result with all receipts, pair comparisons, stock comparator
+rejections, source restoration and original-binary rebuild records.
+
+It packages every selected evidence file using the earlier packet's
+`original-file-map.json` and short content-hash `raw/*.receipt` layout, then
+copies the same `Verify-Packet.ps1` and writes `SHA256SUMS` for exact membership.
+CI `run-progress.json` and `run-latest.json` are excluded because the completed
+run record supersedes them. Binaries, archives, dependency trees and node
+outputs are excluded; CI gallery PNG/HTML files remain as visual evidence.
+
+The packet preserves performance flags; it does not declare a performance
+pass. The long fixture measures offscreen WARP frames, not WindowHost UIA
+operations or presented FPS. The x64 audit was recorded before the overall CI
+workflow completed, so its earlier in-progress marker remains as provenance
+alongside the final run and ARM64 audit. The packet has no repository writes.

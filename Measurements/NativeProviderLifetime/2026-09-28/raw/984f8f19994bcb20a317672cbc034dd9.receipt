@@ -1,0 +1,102 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                  ⚡  ASAN DEBUG  /  X64  /  BUILD  ⚡                  │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: ASan Debug
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.Accessibility.cpp
+  DxUi.Controls.cpp
+  Generating Code...
+  DxUi.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\ASan Debug\DxUi.lib
+  DxUiTests.Accessibility.cpp
+  DxUi.FoundationTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\ASan Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedControls.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\ASan Debug\DxUi.EmbeddedControls.exe
+  DxUi.EmbeddedTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\ASan Debug\DxUi.EmbeddedTests.exe
+  DxUiTests.Tooltip.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:13
+Output: C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\
+Log: C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\logs\build-x64-ASan Debug-d2490939d6ae4701bfa8446ce21413c7.log
+========================================
+Complex UI clean round 1: 2387.35 completed offscreen FPS; p95 0.5725 ms; private 212570112 bytes
+Complex UI clean round 2: 2448.36 completed offscreen FPS; p95 0.4706 ms; private 216764416 bytes
+Complex UI clean round 3: 2416.23 completed offscreen FPS; p95 0.4628 ms; private 219312128 bytes
+Complex UI clean round 4: 2401.05 completed offscreen FPS; p95 0.4784 ms; private 222142464 bytes
+Complex UI clean round 5: 2161.03 completed offscreen FPS; p95 0.5379 ms; private 224972800 bytes
+Complex UI dirty round 1: 98.4437 completed offscreen FPS; p95 10.9515 ms; private 367095808 bytes
+Complex UI dirty round 2: 95.037 completed offscreen FPS; p95 11.94 ms; private 502546432 bytes
+Complex UI dirty round 3: 100.795 completed offscreen FPS; p95 11.7467 ms; private 534007808 bytes
+Complex UI dirty round 4: 95.5778 completed offscreen FPS; p95 12.2232 ms; private 535191552 bytes
+Complex UI dirty round 5: 98.8266 completed offscreen FPS; p95 12.6494 ms; private 537436160 bytes
+Performance comparison: unpaired
+Performance receipt: C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\reports\Performance-x64-ASan Debug-e1eed8162e6f457084d172c7a2a36462.json
+PASS AddressSanitizer detection probe (isolated expected failure)
+Running Foundation (x64 ASan Debug)
+PASS Foundation (0 capability skips recorded)
+Running Embedded (x64 ASan Debug)
+PASS Embedded (0 capability skips recorded)
+Running Grid (x64 ASan Debug)
+PASS Grid (0 capability skips recorded)
+Running Theme (x64 ASan Debug)
+PASS Theme (0 capability skips recorded)
+Running Control (x64 ASan Debug)
+PASS Control (0 capability skips recorded)
+Running MenuAccessibility (x64 ASan Debug)
+PASS MenuAccessibility (0 capability skips recorded)
+Running MenuExitLifetime (x64 ASan Debug)
+PASS MenuExitLifetime (0 capability skips recorded)
+Running NewControls (x64 ASan Debug)
+PASS NewControls (0 capability skips recorded)
+Running TextField (x64 ASan Debug)
+PASS TextField (0 capability skips recorded)
+Running MultilineText (x64 ASan Debug)
+PASS MultilineText (0 capability skips recorded)
+Running ReadOnly (x64 ASan Debug)
+PASS ReadOnly (0 capability skips recorded)
+Running ComboBox (x64 ASan Debug)
+PASS ComboBox (0 capability skips recorded)
+Running Tree (x64 ASan Debug)
+PASS Tree (0 capability skips recorded)
+Running Tooltip (x64 ASan Debug)
+PASS Tooltip (0 capability skips recorded)
+Running Rendering (x64 ASan Debug)
+PASS Rendering (0 capability skips recorded)
+Running Animation (x64 ASan Debug)
+PASS Animation (0 capability skips recorded)
+Running Accessibility (x64 ASan Debug)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 ASan Debug)
+PASS WindowHost (0 capability skips recorded)
+All 18 requested suites passed.

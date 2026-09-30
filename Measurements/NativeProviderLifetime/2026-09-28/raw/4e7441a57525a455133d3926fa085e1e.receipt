@@ -1,0 +1,38 @@
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                    ⚡  DEBUG  /  X64  /  BUILD  ⚡                     │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Debug
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Debug\DxUi.lib
+  DxUi.FoundationTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Debug\DxUi.EmbeddedTests.exe
+  DxUi.EmbeddedControls.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Debug\DxUi.EmbeddedControls.exe
+  DxUiTests.Accessibility.cpp
+  DxUiTests.Tooltip.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:06
+Output: C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\
+Log: C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\logs\build-x64-Debug-db1c3b2a43fd4a2a9ca0dd4607a777a6.log
+========================================

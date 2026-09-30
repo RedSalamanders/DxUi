@@ -1,0 +1,819 @@
+{
+  "fixture": "dxui-plain-menu-uia-resources-v1",
+  "reference": {
+    "Release": {
+      "log": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-plain-uia-20260927\\profiles-navigation-final\\Release\\test-MenuAccessibility-x64-Release.log",
+      "observations": 24,
+      "open_geometry": [
+        [
+          476,
+          322,
+          96
+        ]
+      ],
+      "runs": [
+        {
+          "rows": 12,
+          "visited_open": [
+            12,
+            12,
+            12
+          ],
+          "open_heap_delta_bytes": [
+            171393,
+            340859,
+            307366
+          ],
+          "closed_heap_delta_bytes": [
+            -134592,
+            38114,
+            1245
+          ],
+          "open_private_delta_bytes": [
+            1646592,
+            385024,
+            217088
+          ],
+          "closed_private_delta_bytes": [
+            1449984,
+            200704,
+            28672
+          ],
+          "open_working_set_delta_bytes": [
+            1703936,
+            380928,
+            204800
+          ],
+          "closed_working_set_delta_bytes": [
+            1536000,
+            212992,
+            40960
+          ],
+          "open_handle_delta": [
+            6,
+            6,
+            6
+          ],
+          "closed_handle_delta": [
+            0,
+            0,
+            0
+          ],
+          "open_heap_mean_bytes": 273206,
+          "open_private_mean_bytes": 749568,
+          "closed_heap_mean_bytes": -31744.333333333332,
+          "closed_private_mean_bytes": 559786.6666666666
+        },
+        {
+          "rows": 128,
+          "visited_open": [
+            128,
+            128,
+            128
+          ],
+          "open_heap_delta_bytes": [
+            605554,
+            604779,
+            648018
+          ],
+          "closed_heap_delta_bytes": [
+            26524,
+            25749,
+            72228
+          ],
+          "open_private_delta_bytes": [
+            1110016,
+            1179648,
+            1126400
+          ],
+          "closed_private_delta_bytes": [
+            221184,
+            73728,
+            929792
+          ],
+          "open_working_set_delta_bytes": [
+            1097728,
+            1290240,
+            659456
+          ],
+          "closed_working_set_delta_bytes": [
+            131072,
+            122880,
+            487424
+          ],
+          "open_handle_delta": [
+            6,
+            6,
+            11
+          ],
+          "closed_handle_delta": [
+            0,
+            0,
+            5
+          ],
+          "open_heap_mean_bytes": 619450.3333333334,
+          "open_private_mean_bytes": 1138688,
+          "closed_heap_mean_bytes": 41500.333333333336,
+          "closed_private_mean_bytes": 408234.6666666667
+        }
+      ]
+    },
+    "Debug": {
+      "log": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-plain-uia-20260927\\profiles-navigation-final\\Debug\\test-MenuAccessibility-x64-Debug.log",
+      "observations": 24,
+      "open_geometry": [
+        [
+          476,
+          322,
+          96
+        ]
+      ],
+      "runs": [
+        {
+          "rows": 12,
+          "visited_open": [
+            12,
+            12,
+            12
+          ],
+          "open_heap_delta_bytes": [
+            218647,
+            392027,
+            358342
+          ],
+          "closed_heap_delta_bytes": [
+            -131690,
+            44930,
+            7869
+          ],
+          "open_private_delta_bytes": [
+            1589248,
+            339968,
+            212992
+          ],
+          "closed_private_delta_bytes": [
+            1413120,
+            151552,
+            4096
+          ],
+          "open_working_set_delta_bytes": [
+            1589248,
+            360448,
+            217088
+          ],
+          "closed_working_set_delta_bytes": [
+            1409024,
+            176128,
+            36864
+          ],
+          "open_handle_delta": [
+            6,
+            6,
+            6
+          ],
+          "closed_handle_delta": [
+            0,
+            0,
+            0
+          ],
+          "open_heap_mean_bytes": 323005.3333333333,
+          "open_private_mean_bytes": 714069.3333333334,
+          "closed_heap_mean_bytes": -26297,
+          "closed_private_mean_bytes": 522922.6666666667
+        },
+        {
+          "rows": 128,
+          "visited_open": [
+            128,
+            128,
+            128
+          ],
+          "open_heap_delta_bytes": [
+            1072369,
+            1104625,
+            1087533
+          ],
+          "closed_heap_delta_bytes": [
+            74515,
+            106771,
+            89679
+          ],
+          "open_private_delta_bytes": [
+            991232,
+            1720320,
+            1126400
+          ],
+          "closed_private_delta_bytes": [
+            -135168,
+            614400,
+            -385024
+          ],
+          "open_working_set_delta_bytes": [
+            1167360,
+            1585152,
+            1122304
+          ],
+          "closed_working_set_delta_bytes": [
+            77824,
+            294912,
+            -53248
+          ],
+          "open_handle_delta": [
+            6,
+            6,
+            11
+          ],
+          "closed_handle_delta": [
+            0,
+            0,
+            5
+          ],
+          "open_heap_mean_bytes": 1088175.6666666667,
+          "open_private_mean_bytes": 1279317.3333333333,
+          "closed_heap_mean_bytes": 90321.66666666667,
+          "closed_private_mean_bytes": 31402.666666666668
+        }
+      ]
+    },
+    "ASan-Debug": {
+      "log": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\menu-plain-uia-20260927\\profiles-navigation-final\\ASan-Debug\\test-MenuAccessibility-x64-ASan Debug.log",
+      "observations": 24,
+      "open_geometry": [
+        [
+          476,
+          322,
+          96
+        ]
+      ],
+      "runs": [
+        {
+          "rows": 12,
+          "visited_open": [
+            12,
+            12,
+            12
+          ],
+          "open_heap_delta_bytes": [
+            0,
+            0,
+            0
+          ],
+          "closed_heap_delta_bytes": [
+            0,
+            0,
+            0
+          ],
+          "open_private_delta_bytes": [
+            17784832,
+            10674176,
+            11202560
+          ],
+          "closed_private_delta_bytes": [
+            17780736,
+            10670080,
+            11198464
+          ],
+          "open_working_set_delta_bytes": [
+            8744960,
+            7127040,
+            6762496
+          ],
+          "closed_working_set_delta_bytes": [
+            8777728,
+            7159808,
+            6864896
+          ],
+          "open_handle_delta": [
+            6,
+            6,
+            6
+          ],
+          "closed_handle_delta": [
+            0,
+            0,
+            0
+          ],
+          "open_heap_mean_bytes": 0,
+          "open_private_mean_bytes": 13220522.666666666,
+          "closed_heap_mean_bytes": 0,
+          "closed_private_mean_bytes": 13216426.666666666
+        },
+        {
+          "rows": 128,
+          "visited_open": [
+            128,
+            128,
+            128
+          ],
+          "open_heap_delta_bytes": [
+            0,
+            0,
+            0
+          ],
+          "closed_heap_delta_bytes": [
+            0,
+            0,
+            0
+          ],
+          "open_private_delta_bytes": [
+            16805888,
+            13754368,
+            11657216
+          ],
+          "closed_private_delta_bytes": [
+            16801792,
+            13750272,
+            11653120
+          ],
+          "open_working_set_delta_bytes": [
+            9998336,
+            9469952,
+            9220096
+          ],
+          "closed_working_set_delta_bytes": [
+            10076160,
+            9547776,
+            9306112
+          ],
+          "open_handle_delta": [
+            6,
+            6,
+            11
+          ],
+          "closed_handle_delta": [
+            0,
+            0,
+            5
+          ],
+          "open_heap_mean_bytes": 0,
+          "open_private_mean_bytes": 14072490.666666666,
+          "closed_heap_mean_bytes": 0,
+          "closed_private_mean_bytes": 14068394.666666666
+        }
+      ]
+    }
+  },
+  "current": {
+    "Release": {
+      "log": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\native-uia-final-matrix-20260928\\Release-logs\\test-MenuAccessibility-x64-Release.log",
+      "observations": 24,
+      "open_geometry": [
+        [
+          476,
+          322,
+          96
+        ]
+      ],
+      "runs": [
+        {
+          "rows": 12,
+          "visited_open": [
+            12,
+            12,
+            12
+          ],
+          "open_heap_delta_bytes": [
+            170537,
+            339403,
+            304220
+          ],
+          "closed_heap_delta_bytes": [
+            -134640,
+            37466,
+            2283
+          ],
+          "open_private_delta_bytes": [
+            1916928,
+            229376,
+            225280
+          ],
+          "closed_private_delta_bytes": [
+            1720320,
+            45056,
+            36864
+          ],
+          "open_working_set_delta_bytes": [
+            1728512,
+            258048,
+            253952
+          ],
+          "closed_working_set_delta_bytes": [
+            1564672,
+            90112,
+            90112
+          ],
+          "open_handle_delta": [
+            6,
+            6,
+            6
+          ],
+          "closed_handle_delta": [
+            0,
+            1,
+            1
+          ],
+          "open_heap_mean_bytes": 271386.6666666667,
+          "open_private_mean_bytes": 790528,
+          "closed_heap_mean_bytes": -31630.333333333332,
+          "closed_private_mean_bytes": 600746.6666666666
+        },
+        {
+          "rows": 128,
+          "visited_open": [
+            128,
+            128,
+            128
+          ],
+          "open_heap_delta_bytes": [
+            600987,
+            600731,
+            646691
+          ],
+          "closed_heap_delta_bytes": [
+            26005,
+            25749,
+            71709
+          ],
+          "open_private_delta_bytes": [
+            536576,
+            208896,
+            249856
+          ],
+          "closed_private_delta_bytes": [
+            356352,
+            24576,
+            53248
+          ],
+          "open_working_set_delta_bytes": [
+            958464,
+            217088,
+            274432
+          ],
+          "closed_working_set_delta_bytes": [
+            794624,
+            49152,
+            102400
+          ],
+          "open_handle_delta": [
+            6,
+            6,
+            11
+          ],
+          "closed_handle_delta": [
+            0,
+            1,
+            5
+          ],
+          "open_heap_mean_bytes": 616136.3333333334,
+          "open_private_mean_bytes": 331776,
+          "closed_heap_mean_bytes": 41154.333333333336,
+          "closed_private_mean_bytes": 144725.33333333334
+        }
+      ]
+    },
+    "Debug": {
+      "log": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\native-uia-final-matrix-20260928\\Debug-logs\\test-MenuAccessibility-x64-Debug.log",
+      "observations": 24,
+      "open_geometry": [
+        [
+          476,
+          322,
+          96
+        ]
+      ],
+      "runs": [
+        {
+          "rows": 12,
+          "visited_open": [
+            12,
+            12,
+            12
+          ],
+          "open_heap_delta_bytes": [
+            221689,
+            390571,
+            355196
+          ],
+          "closed_heap_delta_bytes": [
+            -127840,
+            44282,
+            8907
+          ],
+          "open_private_delta_bytes": [
+            1159168,
+            765952,
+            229376
+          ],
+          "closed_private_delta_bytes": [
+            978944,
+            577536,
+            49152
+          ],
+          "open_working_set_delta_bytes": [
+            1282048,
+            659456,
+            241664
+          ],
+          "closed_working_set_delta_bytes": [
+            1118208,
+            491520,
+            86016
+          ],
+          "open_handle_delta": [
+            6,
+            6,
+            6
+          ],
+          "closed_handle_delta": [
+            0,
+            0,
+            1
+          ],
+          "open_heap_mean_bytes": 322485.3333333333,
+          "open_private_mean_bytes": 718165.3333333334,
+          "closed_heap_mean_bytes": -24883.666666666668,
+          "closed_private_mean_bytes": 535210.6666666666
+        },
+        {
+          "rows": 128,
+          "visited_open": [
+            128,
+            128,
+            128
+          ],
+          "open_heap_delta_bytes": [
+            1070523,
+            1103817,
+            1087029
+          ],
+          "closed_heap_delta_bytes": [
+            73477,
+            106771,
+            89983
+          ],
+          "open_private_delta_bytes": [
+            1282048,
+            1056768,
+            1355776
+          ],
+          "closed_private_delta_bytes": [
+            233472,
+            -114688,
+            389120
+          ],
+          "open_working_set_delta_bytes": [
+            1380352,
+            1069056,
+            1282048
+          ],
+          "closed_working_set_delta_bytes": [
+            323584,
+            -36864,
+            233472
+          ],
+          "open_handle_delta": [
+            6,
+            6,
+            11
+          ],
+          "closed_handle_delta": [
+            0,
+            0,
+            5
+          ],
+          "open_heap_mean_bytes": 1087123,
+          "open_private_mean_bytes": 1231530.6666666667,
+          "closed_heap_mean_bytes": 90077,
+          "closed_private_mean_bytes": 169301.33333333334
+        }
+      ]
+    },
+    "ASan-Debug": {
+      "log": "C:\\RedSalamander.Perf\\evidence\\i26-ui\\native-uia-final-matrix-20260928\\ASan-Debug-logs\\test-MenuAccessibility-x64-ASan Debug.log",
+      "observations": 24,
+      "open_geometry": [
+        [
+          476,
+          322,
+          96
+        ]
+      ],
+      "runs": [
+        {
+          "rows": 12,
+          "visited_open": [
+            12,
+            12,
+            12
+          ],
+          "open_heap_delta_bytes": [
+            0,
+            0,
+            0
+          ],
+          "closed_heap_delta_bytes": [
+            0,
+            0,
+            0
+          ],
+          "open_private_delta_bytes": [
+            16904192,
+            10244096,
+            8466432
+          ],
+          "closed_private_delta_bytes": [
+            16900096,
+            10240000,
+            8462336
+          ],
+          "open_working_set_delta_bytes": [
+            8458240,
+            6946816,
+            6295552
+          ],
+          "closed_working_set_delta_bytes": [
+            8495104,
+            6987776,
+            6393856
+          ],
+          "open_handle_delta": [
+            6,
+            6,
+            6
+          ],
+          "closed_handle_delta": [
+            0,
+            0,
+            0
+          ],
+          "open_heap_mean_bytes": 0,
+          "open_private_mean_bytes": 11871573.333333334,
+          "closed_heap_mean_bytes": 0,
+          "closed_private_mean_bytes": 11867477.333333334
+        },
+        {
+          "rows": 128,
+          "visited_open": [
+            128,
+            128,
+            128
+          ],
+          "open_heap_delta_bytes": [
+            0,
+            0,
+            0
+          ],
+          "closed_heap_delta_bytes": [
+            0,
+            0,
+            0
+          ],
+          "open_private_delta_bytes": [
+            13684736,
+            11255808,
+            13565952
+          ],
+          "closed_private_delta_bytes": [
+            13680640,
+            11251712,
+            13561856
+          ],
+          "open_working_set_delta_bytes": [
+            9355264,
+            9011200,
+            9342976
+          ],
+          "closed_working_set_delta_bytes": [
+            9449472,
+            9080832,
+            9416704
+          ],
+          "open_handle_delta": [
+            6,
+            6,
+            11
+          ],
+          "closed_handle_delta": [
+            0,
+            0,
+            5
+          ],
+          "open_heap_mean_bytes": 0,
+          "open_private_mean_bytes": 12835498.666666666,
+          "closed_heap_mean_bytes": 0,
+          "closed_private_mean_bytes": 12831402.666666666
+        }
+      ]
+    }
+  },
+  "deltas": {
+    "Release": [
+      {
+        "rows": 12,
+        "open_heap_mean_delta_bytes": -1819.333333333314,
+        "open_private_mean_delta_bytes": 40960,
+        "closed_heap_mean_delta_bytes": 114.0,
+        "closed_private_mean_delta_bytes": 40960.0,
+        "reference_open_heap_cycles": [
+          171393,
+          340859,
+          307366
+        ],
+        "current_open_heap_cycles": [
+          170537,
+          339403,
+          304220
+        ]
+      },
+      {
+        "rows": 128,
+        "open_heap_mean_delta_bytes": -3314.0,
+        "open_private_mean_delta_bytes": -806912,
+        "closed_heap_mean_delta_bytes": -346.0,
+        "closed_private_mean_delta_bytes": -263509.3333333334,
+        "reference_open_heap_cycles": [
+          605554,
+          604779,
+          648018
+        ],
+        "current_open_heap_cycles": [
+          600987,
+          600731,
+          646691
+        ]
+      }
+    ],
+    "Debug": [
+      {
+        "rows": 12,
+        "open_heap_mean_delta_bytes": -520.0,
+        "open_private_mean_delta_bytes": 4096.0,
+        "closed_heap_mean_delta_bytes": 1413.3333333333321,
+        "closed_private_mean_delta_bytes": 12287.999999999942,
+        "reference_open_heap_cycles": [
+          218647,
+          392027,
+          358342
+        ],
+        "current_open_heap_cycles": [
+          221689,
+          390571,
+          355196
+        ]
+      },
+      {
+        "rows": 128,
+        "open_heap_mean_delta_bytes": -1052.6666666667443,
+        "open_private_mean_delta_bytes": -47786.66666666651,
+        "closed_heap_mean_delta_bytes": -244.66666666667152,
+        "closed_private_mean_delta_bytes": 137898.6666666667,
+        "reference_open_heap_cycles": [
+          1072369,
+          1104625,
+          1087533
+        ],
+        "current_open_heap_cycles": [
+          1070523,
+          1103817,
+          1087029
+        ]
+      }
+    ],
+    "ASan-Debug": [
+      {
+        "rows": 12,
+        "open_heap_mean_delta_bytes": 0,
+        "open_private_mean_delta_bytes": -1348949.333333332,
+        "closed_heap_mean_delta_bytes": 0,
+        "closed_private_mean_delta_bytes": -1348949.333333332,
+        "reference_open_heap_cycles": [
+          0,
+          0,
+          0
+        ],
+        "current_open_heap_cycles": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "rows": 128,
+        "open_heap_mean_delta_bytes": 0,
+        "open_private_mean_delta_bytes": -1236992.0,
+        "closed_heap_mean_delta_bytes": 0,
+        "closed_private_mean_delta_bytes": -1236992.0,
+        "reference_open_heap_cycles": [
+          0,
+          0,
+          0
+        ],
+        "current_open_heap_cycles": [
+          0,
+          0,
+          0
+        ]
+      }
+    ]
+  }
+}

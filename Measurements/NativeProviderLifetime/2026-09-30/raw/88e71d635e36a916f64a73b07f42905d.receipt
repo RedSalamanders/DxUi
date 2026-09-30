@@ -1,0 +1,28 @@
+Complex UI clean round 1: 2063.64 completed offscreen FPS; p95 0.5404 ms; private 29769728 bytes
+Complex UI clean round 2: 2210.1 completed offscreen FPS; p95 0.4946 ms; private 29732864 bytes
+Complex UI clean round 3: 2335.67 completed offscreen FPS; p95 0.4675 ms; private 29728768 bytes
+Complex UI clean round 4: 2331.67 completed offscreen FPS; p95 0.4759 ms; private 29769728 bytes
+Complex UI clean round 5: 2534.42 completed offscreen FPS; p95 0.4348 ms; private 29732864 bytes
+Complex UI dirty round 1: 452.773 completed offscreen FPS; p95 2.3533 ms; private 31752192 bytes
+Complex UI dirty round 2: 460.043 completed offscreen FPS; p95 2.3164 ms; private 32010240 bytes
+Complex UI dirty round 3: 419.565 completed offscreen FPS; p95 3.7175 ms; private 32014336 bytes
+Complex UI dirty round 4: 440.667 completed offscreen FPS; p95 3.0711 ms; private 32026624 bytes
+Complex UI dirty round 5: 424.366 completed offscreen FPS; p95 2.617 ms; private 32018432 bytes
+Performance comparison: advice-required
+REGRESSION clean/fps: 2473.090 -> 2331.668
+REGRESSION clean/frameP50Ms: 0.388 -> 0.425
+REGRESSION clean/workingSetBytes: 42688512.000 -> 44425216.000
+REGRESSION clean/workingSetPeakBytes: 43024384.000 -> 44466176.000
+REGRESSION dirty/frameP95Ms: 2.441 -> 2.617
+REGRESSION dirty/privateBytes: 30814208.000 -> 32014336.000
+REGRESSION dirty/privatePeakBytes: 30818304.000 -> 32026624.000
+REGRESSION dirty/workingSetBytes: 44273664.000 -> 52707328.000
+REGRESSION dirty/workingSetPeakBytes: 44285952.000 -> 52707328.000
+Repeat on the same quiet fixture to confirm. Ask the developer for advice before accepting a confirmed regression. Options: optimize the affected work/cache, reduce optional scope, or defer/revert the change. Do not replace the baseline to pass.
+Exception: C:\Users\eric\.codex\worktrees\native-uia-baseline\DxUi\Tools\Invoke-Python.ps1:13
+Line |
+  13 |  … DE -ne 0) { throw "Python validation failed with exit code $LASTEXITC …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Python validation failed with exit code 1.
+
+

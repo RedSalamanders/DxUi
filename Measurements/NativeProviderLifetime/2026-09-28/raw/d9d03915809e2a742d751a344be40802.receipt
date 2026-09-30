@@ -1,0 +1,54 @@
+import json
+from pathlib import Path
+from statistics import mean
+
+BASE = Path(r"C:\RedSalamander.Perf\evidence\i26-ui\menu-plain-uia-20260927")
+OUT = BASE / "profiles-navigation-comparison-20260927"
+
+
+def samples(group, configuration):
+    log = next((BASE / group / configuration).glob("test-MenuAccessibility-*.log"))
+    rows = [json.loads(line) for line in log.read_text(encoding="utf-8", errors="replace").splitlines()
+            if line.startswith('{"fixture":"dxui-plain-menu-uia-resources-v1"')]
+    by_key = {(r["rows"], r["cycle"], r["phase"]): r for r in rows}
+    if len(rows) != 24 or len(by_key) != 24:
+        raise RuntimeError(f"Expected 24 unique observations: {group}/{configuration}, got {len(rows)}")
+    summary = {"group": group, "configuration": configuration, "observations": len(rows), "row_counts": [12, 128],
+               "cycles": [0, 1, 2, 3], "geometry": sorted({f"{r['widthPx']}x{r['heightPx']}@{r['dpi']}" for r in rows if r["phase"] != "before"}),
+               "resource_runs": []}
+    for row_count in (12, 128):
+        open_heap = []
+        closed_heap = []
+        open_private = []
+        child_counts = []
+        for cycle in (1, 2, 3):
+            before = by_key[row_count, cycle, "before"]
+            opened = by_key[row_count, cycle, "open"]
+            closed = by_key[row_count, cycle, "closed"]
+            if any(h["error"] for r in (before, opened, closed) for h in r["heaps"]):
+                raise RuntimeError(f"Partial heap walk: {group}/{configuration}/{row_count}/{cycle}")
+            busy = lambda r: sum(h["busyBytes"] for h in r["heaps"])
+            open_heap.append(busy(opened) - busy(before))
+            closed_heap.append(busy(closed) - busy(before))
+            open_private.append(opened["privateBytes"] - before["privateBytes"])
+            child_counts.append(opened["uiaChildrenVisited"])
+        summary["resource_runs"].append({"rows": row_count, "warm_open_heap_delta_mean_bytes": mean(open_heap),
+                                         "warm_closed_heap_delta_mean_bytes": mean(closed_heap),
+                                         "warm_open_private_delta_mean_bytes": mean(open_private),
+                                         "warm_open_heap_deltas": open_heap, "warm_closed_heap_deltas": closed_heap,
+                                         "uia_children": child_counts})
+    return summary
+
+
+def main():
+    data = [samples(group, configuration) for group in ("profiles-d45", "profiles-navigation-final")
+            for configuration in ("Release", "Debug", "ASan-Debug")]
+    (OUT / "resource-sample-summary.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    for row in data:
+        print(row["group"], row["configuration"], row["geometry"],
+              [(r["rows"], round(r["warm_open_heap_delta_mean_bytes"]), round(r["warm_closed_heap_delta_mean_bytes"]), r["uia_children"])
+               for r in row["resource_runs"]])
+
+
+if __name__ == "__main__":
+    main()

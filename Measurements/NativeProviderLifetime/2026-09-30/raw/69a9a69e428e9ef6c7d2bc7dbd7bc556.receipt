@@ -1,0 +1,12 @@
+# CI x64 audit for DxUi native UIA lifetime candidate
+
+Workflow run `36358394952` targets `49c963f5751a6754e6b08e0362b96cfc7fc64414`. The validation job and the x64 Debug, Release, and ASan Debug native jobs are complete and successful.
+
+The downloaded x64 artifacts contain 62 successful suite receipts. Each is x64/X64, exit code 0, and has an empty skip list. Raw matching logs corroborate completion using each suite harness format: most end with `[DONE]` and `All DxUi tests passed.`, while Embedded, Foundation, and MenuExitLifetime use their suite-specific PASS/EXIT markers. Test executable SHA claims are internally consistent by executable path. Artifact downloads do not contain those executable files, so executable SHA values are cross-checked across receipts and linked performance reports, not recomputed from binaries.
+
+External consumer receipts pass in Debug and Release with STL annotations enabled, and in ASan Debug with both annotation modes. Each reports 12 native-module checks and 10 negative checks. The ASan runtime probe deliberately exits 1, reports `detected:true`, and the corresponding log contains the expected heap-use-after-free diagnostic and `ABORTING`; it is an expected-detection check, not a suite failure.
+
+The linked performance receipts identify the exact CI commit and report a clean source tree. Every reported benchmark-input SHA-256 matches the bytes in a clean checkout of that commit. The checkout is CRLF-normalized on Windows, so the check uses the exact consumer-visible checkout bytes rather than raw Git blob bytes. Source and binary inventories are in `source-hash-manifest.json` and `suite-audit.json`; every downloaded x64 artifact hash is in `x64-artifact-hashes.json`.
+
+The workflow remains `in_progress` because ARM64 jobs have not completed. This audit therefore makes no full-matrix pass claim.
+

@@ -1,0 +1,17 @@
+[
+  {
+    "Algorithm": "SHA256",
+    "Hash": "3EF4805B44AE62DCCB0FD040ACC0D6B0A2C40E36F45DE8EEFA0A0A2B5D861B47",
+    "Path": "C:\\Users\\eric\\.codex\\worktrees\\fileops-ui-qualified\\DxUi\\.build\\x64\\ASan Debug\\DxUi.ControlTests.exe"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "593827EBB3984E3F442476E30EA576C43EACB1CA9990E9D0D76EF986CC176225",
+    "Path": "C:\\Users\\eric\\.codex\\worktrees\\fileops-ui-qualified\\DxUi\\.build\\x64\\ASan Debug\\DxUi.EmbeddedTests.exe"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "14F794C075F035DF510556FFC8A1CEBDFDF4321BB608040C1E9F65E5231A6CA2",
+    "Path": "C:\\Users\\eric\\.codex\\worktrees\\fileops-ui-qualified\\DxUi\\.build\\x64\\ASan Debug\\DxUi.lib"
+  }
+]

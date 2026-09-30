@@ -1,0 +1,3 @@
+[START] Accessibility
+    [UIA focus reentry] invoke=0 result=0x0 replacements=1 originalActions=0 replacementActions=0
+FAILED: focus-triggered tree replacement stops original UIA focus/action without invoking a replacement

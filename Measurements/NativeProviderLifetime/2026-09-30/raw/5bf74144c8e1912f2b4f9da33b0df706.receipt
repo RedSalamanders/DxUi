@@ -1,0 +1,15 @@
+diff --git a/C:/Users/eric/.codex/worktrees/fileops-ui-qualified/DxUi/Tools/compare_performance.py "b/C:\\RedSalamander.Perf\\evidence\\i26-ui\\native-uia-long-driver-20260930\\compare_performance_long.py"
+index 2a37fa2..6d5331b 100644
+--- a/C:/Users/eric/.codex/worktrees/fileops-ui-qualified/DxUi/Tools/compare_performance.py
++++ "b/C:\\RedSalamander.Perf\\evidence\\i26-ui\\native-uia-long-driver-20260930\\compare_performance_long.py"
+@@ -19,8 +19,8 @@ def validate(receipt):
+     for key in IDENTITY + ('sourceCommit', 'sourceFingerprint', 'executableSha256', 'benchmarkSha256'):
+         if key not in receipt or receipt[key] is None or receipt[key] == '':
+             raise ValueError(f'Missing identity/evidence: {key}')
+-    if receipt['roundCount'] != 5 or receipt['framesPerRound'] != 40:
+-        raise ValueError('Expected five rounds of forty frames')
++    if receipt['roundCount'] != 5 or receipt['framesPerRound'] != 1000:
++        raise ValueError('Expected five rounds of one thousand frames')
+     scenarios = receipt.get('scenarios', [])
+     if len(scenarios) != 2 or {s['name'] for s in scenarios} != {'clean', 'dirty'}:
+         raise ValueError('Exactly clean and dirty scenarios are required')

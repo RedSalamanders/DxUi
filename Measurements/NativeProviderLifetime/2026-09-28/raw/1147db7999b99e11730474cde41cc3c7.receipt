@@ -1,0 +1,18 @@
+[
+  {
+    "path": "src/Controls/DxUi.Accessibility.cpp",
+    "sha256": "09b57c9d8d5952ea23c9ebf1d22f3e1d0133ee4d674d3b1c3e02d38c47674e77"
+  },
+  {
+    "path": "src/Controls/DxUi.Controls.cpp",
+    "sha256": "456fad2f8fabc9911436a4343919ab25d0187ddd2ce75dd502637f346006ecd1"
+  },
+  {
+    "path": "Tests/Controls/DxUiTests.Accessibility.cpp",
+    "sha256": "3ba0c00a4d3d773bdf4629db2f275ce43dd3dfa1c1d4f557bd2c9970622be3fd"
+  },
+  {
+    "path": "Tests/Controls/DxUiTests.Tooltip.cpp",
+    "sha256": "cf8013575b92b7dfab7881393c986307214ba6d0a5168cfc1d441482dc578759"
+  }
+]

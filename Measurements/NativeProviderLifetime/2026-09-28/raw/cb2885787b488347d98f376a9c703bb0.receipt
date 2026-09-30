@@ -1,0 +1,31 @@
+Installing DxUi dependencies (arm64-windows)
+Detecting compiler hash for triplet x64-windows...
+Compiler found: C:/Program Files/Microsoft Visual Studio/18/Insiders/VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/cl.exe
+Detecting compiler hash for triplet arm64-windows...
+Compiler found: C:/Program Files/Microsoft Visual Studio/18/Insiders/VC/Tools/MSVC/14.51.36231/bin/Hostx64/arm64/cl.exe
+The following packages will be built and installed:
+  * vcpkg-cmake:x64-windows@2024-04-23
+  * vcpkg-cmake-config:x64-windows@2026-07-21
+    wil:arm64-windows@1.0.260126.7
+Additional packages (*) will be modified to complete this operation.
+Restored 3 package(s) from C:\Users\eric\AppData\Local\vcpkg\archives in 82.4 ms. Use --debug to see more details.
+Installing 1/3 vcpkg-cmake-config:x64-windows@2026-07-21...
+vcpkg-cmake-config:x64-windows@2026-07-21 package ABI: 2308621bd98f7b115fbd8d9b8627acaf6a30aadd5a58426d9d2bfe92e6412ce3
+Elapsed time to handle vcpkg-cmake-config:x64-windows: 72.7 ms
+Installing 2/3 vcpkg-cmake:x64-windows@2024-04-23...
+vcpkg-cmake:x64-windows@2024-04-23 package ABI: ae7ffca35a543a0721da37609b1ea111789e562f68d930471baa1a66388e98ae
+Elapsed time to handle vcpkg-cmake:x64-windows: 94.2 ms
+Installing 3/3 wil:arm64-windows@1.0.260126.7...
+wil:arm64-windows@1.0.260126.7 package ABI: f3f9343a7d5d5a89c7d15e8e33c6037c17250ee0ca213e5c51392c93964a8dd8
+Elapsed time to handle wil:arm64-windows: 156 ms
+Installed contents are licensed to you by owners. Microsoft is not responsible for, nor does it grant any licenses to, third-party packages.
+Packages installed in this vcpkg installation declare the following licenses:
+MIT
+wil provides CMake targets:
+
+  # this is heuristically generated, and may not be correct
+  find_package(wil CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE WIL::WIL)
+
+All requested installations completed successfully in: 328 ms
+vcpkg dependencies are ready.

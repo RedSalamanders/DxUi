@@ -1,0 +1,119 @@
+# Native menu UIA resource audit (offline)
+
+This folder contains an offline parser/comparator for the 24-row fixture
+`dxui-plain-menu-uia-resources-v1`. It does not launch tests, build, access a
+repository, or edit source. Run it only after the current `native-uia-final-matrix`
+reports have completed and been copied/frozen:
+
+```powershell
+py -3 .\compare-menu-resources.py `
+  --reference C:\RedSalamander.Perf\evidence\i26-ui\menu-plain-uia-20260927\profiles-navigation-final `
+  --current <completed-profile-root> `
+  --out .\menu-resource-comparison.json
+```
+
+The parser requires exactly one MenuAccessibility log per Release, Debug and
+ASan-Debug profile; all 24 unique `(rows, cycle, phase)` keys; no heap-walk
+errors; exact open geometry 476x322@96; and the expected visited children
+(12 or 128). It reports warm cycles 1–3 as raw deltas and means, retaining
+all per-cycle observations. It does not convert private/working-set deltas to
+heap allocation claims. ASan heap-walker zero deltas are retained as recorded,
+not interpreted as zero native allocation.
+
+The old matching profile tree passed the parser's self-check. It has 24
+observations/profile, 476x322@96 open geometry, and exact child counts. Derived
+warm-open heap / process-private means (bytes) were:
+
+| Profile | 12 rows: heap / private | 128 rows: heap / private |
+|---|---:|---:|
+| Release | 273,206 / 749,568 | 619,450 / 1,138,688 |
+| Debug | 323,005 / 714,069 | 1,088,176 / 1,279,317 |
+| ASan-Debug | 0 / 13,220,523 | 0 / 14,072,491 |
+
+The ASan heap walk is not a usable allocation counter in this fixture; its
+reported zero is preserved only as raw behavior. Old profile source hashes are
+in the referenced tree's `source-hashes.json`; the menu test source hash there
+is `F95BC52DFCC0DB98C073A74E317A93DE83264E3C23AF72E2AED92E17C200312A`.
+
+## Separate commonComplexUI repeat context
+
+The completed Release baseline and two repeat receipts are in
+`native-uia-lifetime-baseline-20260928` and
+`native-uia-lifetime-perf-repeat-20260928`. They share machine SINON, Ryzen 9
+9950X3D, 96 DPI, fixture `dxui-complex-ui-v2`, WARP, 83 controls, 1,000 rows,
+40 frames × 5 rounds. The repeat-1 comparison is `advice-required`; repeat-2
+is `within-noise-budget`. Both repeats use the same candidate fingerprint and
+executable; the baseline fingerprint/executable differs. This is meaningful
+repeat-variation context, not a causal estimate for native UIA: the benchmark
+runs offscreen and never attaches an Automation provider. Keep the original
+reports and both repeats; do not replace the baseline or infer FPS from UIA
+resource rows. The full-suite comparison is unpaired and remains a separate
+gate.
+
+## Current frozen-input attestation
+
+The final native UIA matrix has completed. Its four changed source inputs are `src/Controls/DxUi.Accessibility.cpp`, `src/Controls/DxUi.Controls.cpp`, `Tests/Controls/DxUiTests.Accessibility.cpp`, and `Tests/Controls/DxUiTests.Tooltip.cpp`; each live qualified-checkout byte hash matches `frozen-inputs.json`. `Tests/Controls/DxUiTests.Menu.cpp` is not in that changed-input list, is clean in `git diff`, and its SHA-256 matches the old source receipt. The current performance receipts report source commit `3022541ec86c28cfeef5e16c4c8224b5de73be5d` with `sourceDirty:true`. Thus the menu fixture source is unchanged across the two measurements, but the run remains a dirty-source local qualification rather than exact-head CI.
+## Completed final-matrix comparison (2026-09-28)
+
+The completed native matrix reports all 18 x64 suites passing in Release,
+Debug, and ASan Debug. Each selected MenuAccessibility log has the exact 24
+observations. The menu test source was not modified in the qualified checkout:
+`git diff -- Tests/Controls/DxUiTests.Menu.cpp` was empty and the file SHA-256
+was `F95BC52DFCC0DB98C073A74E317A93DE83264E3C23AF72E2AED92E17C200312A`,
+matching the old source receipt. The recorded run commit was
+`3022541ec86c28cfeef5e16c4c8224b5de73be5d`; changed frozen inputs were Accessibility and Controls production code plus the Accessibility and Tooltip test files. The selected
+old and current MenuAccessibility test reports point to fresh performance
+receipts reporting the same `SINON` / Ryzen 9 9950X3D host at 96 DPI. Both
+fixtures retain 476x322 open geometry and exactly 12/128 visited children for
+all three warm cycles.
+
+Open heap busy-byte mean deltas (old → current) were Release 12 rows
+273,206→271,387 (-1,819 B) and 128 rows 619,450→616,136 (-3,314 B); Debug
+323,005→322,485 (-520 B) and 1,088,176→1,087,123 (-1,053 B). These are small
+negative shifts (about 0.1–0.7%). ASan heap busy deltas are zero in both
+fixtures and remain uninterpretable. Open process-private mean deltas were
+Release +40,960 B at 12 rows and -806,912 B at 128; Debug +4,096 B and
+-47,787 B; ASan -1,348,949 B and -1,236,992 B. These three warm samples show
+no consistent direction; they are not a performance qualification.
+
+A small process-handle observation is retained rather than averaged away:
+after close, the 12-row current samples were +0,+1,+1 handles in Release and
++0,+0,+1 in Debug, versus all zero in the old run. At 128 rows both runs had
++0,+0,+5 in Release and +0,+0,+5 in Debug; ASan also matched (0,0,0 for 12;
+0,0,5 for 128). This is an aggregate process counter, not an object count or
+proof of a UIA provider leak; only three cycles were measured. Keep the rows
+and review whether a repeated targeted observation is warranted.
+
+The offline `Tools/compare_performance.py` comparisons use the exact fresh
+performance report named by each selected `Accessibility-x64-<profile>.json`
+receipt, against the retained native lifetime baseline. They preserve the
+comparator's exit/status:
+
+| Profile | Status | Specific flags |
+|---|---|---|
+| Release | advice-required | dirty private peak +2.50%; dirty working set and peak +2.55% |
+| Debug | advice-required | clean FPS -8.88%, frame P50 +11.59%, preparation/compose tails and process memory over their thresholds; dirty memory also exceeds 2% |
+| ASan-Debug | within-noise-budget | no flagged metric |
+
+The Release/Debug advice flags remain open for the full commonComplexUI gate;
+they are not attributed to UIA lifetime code. This benchmark is the offscreen
+WARP complex-UI fixture and does not attach an Automation provider. Separately,
+the same-binary Release repeats against their own baseline ranged from
+advice-required on repeat 1 to within-noise-budget on repeat 2, reinforcing
+that those full-suite flags require confirmation and causal investigation,
+not automatic acceptance or dismissal. They remain unpaired to this UIA
+resource microfixture.
+
+Run-provenance limit: current profile receipts report `sourceDirty:true` at
+`3022541ec86c28cfeef5e16c4c8224b5de73be5d`. The frozen four-file source
+manifest and independently rechecked bytes establish the tested modified
+inputs; the unchanged menu test file is tracked and matches the old receipt.
+This remains a dirty-source local run, not exact-head CI.
+
+The same-binary Release repeat-1 comparison's flags were clean private bytes
+(+5.15%), private peak (+5.55%), working set (+2.05%) and dirty working-set
+peak (+2.02%); repeat 2 had none. Both reuse the same candidate executable
+and source fingerprint, while the retained baseline fingerprint differs.
+
+
+

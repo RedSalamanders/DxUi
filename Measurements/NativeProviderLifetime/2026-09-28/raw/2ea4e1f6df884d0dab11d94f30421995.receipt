@@ -1,0 +1,3 @@
+[START] Accessibility
+    [UIA lifetime] replaceRoot=0 property=0x0 invoke=0x0 focus=0x0 value=0x0 rangeText=0x0 select=0x0 clone=0x0 runtimeId=0x0 replacementInvocations=1
+FAILED: retained native providers and text ranges reject same-path child/root replacements

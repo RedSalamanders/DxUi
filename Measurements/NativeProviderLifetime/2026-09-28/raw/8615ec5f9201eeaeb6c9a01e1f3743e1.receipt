@@ -1,0 +1,95 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                    ⚡  DEBUG  /  X64  /  BUILD  ⚡                     │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Debug
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Debug\DxUi.lib
+  DxUi.EmbeddedTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Debug\DxUi.EmbeddedTests.exe
+  DxUi.EmbeddedControls.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Debug\DxUi.EmbeddedControls.exe
+  DxUi.ControlTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Debug\DxUi.ControlTests.exe
+  DxUi.FoundationTests.vcxproj -> C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\x64\Debug\DxUi.FoundationTests.exe
+
+========================================
+DxUi build passed in 00:00
+Output: C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\
+Log: C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\logs\build-x64-Debug-caf972a1576e489a9022e98a4ac82497.log
+========================================
+Complex UI clean round 1: 2256.57 completed offscreen FPS; p95 0.5222 ms; private 29298688 bytes
+Complex UI clean round 2: 2238.43 completed offscreen FPS; p95 0.4767 ms; private 29290496 bytes
+Complex UI clean round 3: 2230.71 completed offscreen FPS; p95 0.4918 ms; private 30892032 bytes
+Complex UI clean round 4: 2253.47 completed offscreen FPS; p95 0.5335 ms; private 30896128 bytes
+Complex UI clean round 5: 2422.16 completed offscreen FPS; p95 0.4458 ms; private 30937088 bytes
+Complex UI dirty round 1: 430.649 completed offscreen FPS; p95 2.6605 ms; private 31440896 bytes
+Complex UI dirty round 2: 468.712 completed offscreen FPS; p95 2.4552 ms; private 31535104 bytes
+Complex UI dirty round 3: 465.636 completed offscreen FPS; p95 2.3242 ms; private 31645696 bytes
+Complex UI dirty round 4: 478.384 completed offscreen FPS; p95 2.285 ms; private 31698944 bytes
+Complex UI dirty round 5: 412.338 completed offscreen FPS; p95 3.6521 ms; private 31608832 bytes
+Performance comparison: unpaired
+Performance receipt: C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi\.build\reports\Performance-x64-Debug-1da76b5d0e3f4d0a824ce79d8277f0fc.json
+Running Foundation (x64 Debug)
+PASS Foundation (0 capability skips recorded)
+Running Embedded (x64 Debug)
+PASS Embedded (0 capability skips recorded)
+Running Grid (x64 Debug)
+PASS Grid (0 capability skips recorded)
+Running Theme (x64 Debug)
+PASS Theme (0 capability skips recorded)
+Running Control (x64 Debug)
+PASS Control (0 capability skips recorded)
+Running MenuAccessibility (x64 Debug)
+PASS MenuAccessibility (0 capability skips recorded)
+Running MenuExitLifetime (x64 Debug)
+PASS MenuExitLifetime (0 capability skips recorded)
+Running NewControls (x64 Debug)
+PASS NewControls (0 capability skips recorded)
+Running TextField (x64 Debug)
+PASS TextField (0 capability skips recorded)
+Running MultilineText (x64 Debug)
+PASS MultilineText (0 capability skips recorded)
+Running ReadOnly (x64 Debug)
+PASS ReadOnly (0 capability skips recorded)
+Running ComboBox (x64 Debug)
+PASS ComboBox (0 capability skips recorded)
+Running Tree (x64 Debug)
+PASS Tree (0 capability skips recorded)
+Running Tooltip (x64 Debug)
+PASS Tooltip (0 capability skips recorded)
+Running Rendering (x64 Debug)
+PASS Rendering (0 capability skips recorded)
+Running Animation (x64 Debug)
+PASS Animation (0 capability skips recorded)
+Running Accessibility (x64 Debug)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 Debug)
+PASS WindowHost (0 capability skips recorded)
+All 18 requested suites passed.

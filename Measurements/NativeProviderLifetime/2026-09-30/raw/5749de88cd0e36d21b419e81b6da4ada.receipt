@@ -1,0 +1,12 @@
+{
+  "suite": "AddressSanitizer",
+  "configuration": "ASan Debug",
+  "platform": "x64",
+  "nativeArchitecture": "X64",
+  "completedUtc": "2026-09-27T23:25:43.5255085Z",
+  "executable": "D:\\a\\DxUi\\DxUi\\.build\\x64\\ASan Debug\\DxUi.FoundationTests.exe",
+  "sha256": "0586C82A0DBDD01CFB31741151411CF8D6E5FDF0E8841FEE14E3D2D88C01B031",
+  "exitCode": 1,
+  "detected": true,
+  "log": "D:\\a\\DxUi\\DxUi\\.build\\logs\\test-AddressSanitizer-x64.log"
+}

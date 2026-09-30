@@ -1,0 +1,18 @@
+[
+  {
+    "path": "src/Controls/DxUi.Accessibility.cpp",
+    "sha256": "1016948d8cbd3f6373973ff06e62a56c5c2387febc10150cd9cb83a06d28f3ca"
+  },
+  {
+    "path": "Tests/Controls/DxUiTests.Accessibility.cpp",
+    "sha256": "ffc71c1c67b1b415d10078eca546771807b85fc476c26a27735cdaf583ccd7e6"
+  },
+  {
+    "path": ".build/x64/Release/DxUi.ControlTests.exe",
+    "sha256": "46dd1821211644a22ac506d9115e6280cc692ed5c52f5db2a1c29ae67fd5016f"
+  },
+  {
+    "path": ".build/x64/Release/DxUi.lib",
+    "sha256": "99d04bedf949e77f3a30eb574960605db37f40add118c77ed3bd0b4fae7621ab"
+  }
+]

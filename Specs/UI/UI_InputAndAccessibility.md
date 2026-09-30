@@ -30,7 +30,7 @@ control preserves identity. Host-container discovery remains usable across tree 
 a collapsed semantic-root provider retires with that control and fresh acquisition discovers
 the replacement. Focus and invocation callbacks may replace the tree, so mutation paths must
 revalidate lifetime before further control access. The native correction's implementation and
-qualification are tracked in [Native provider lifetime](../Plans/WIP/NativeProviderLifetime_2026-09-28.md).
+qualification are tracked in [Native provider lifetime](../Plans/Done/NativeProviderLifetime_2026-09-28.md).
 
 Native menus, including menus with no secondary descriptions, expose full per-entry names and MenuItem roles, exact command invocation
 and acknowledged checked state. Modal menu tracking retains owner focus; an asynchronous menu

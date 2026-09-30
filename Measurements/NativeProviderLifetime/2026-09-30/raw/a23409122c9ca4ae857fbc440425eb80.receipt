@@ -1,0 +1,225 @@
+from __future__ import annotations
+import hashlib, json, re, subprocess
+from collections import defaultdict
+from pathlib import Path
+
+ROOT = Path(r"C:\RedSalamander.Perf\evidence\i26-ui\native-uia-ci49-20260928")
+ART = ROOT / "x64"
+PROGRESS = ROOT / "run-progress.json"
+REPO = Path(r"C:\Users\eric\.codex\worktrees\fileops-ui-qualified\DxUi")
+OUT = ROOT / "audit-result"
+RUN_ID = 36358394952
+HEAD = "49c963f5751a6754e6b08e0362b96cfc7fc64414"
+EXPECTED_CONFIGS = {"native-x64-Debug": "Debug", "native-x64-Release": "Release",
+                    "native-x64-ASan Debug": "ASan Debug"}
+SHA = re.compile(r"^[0-9a-fA-F]{64}$")
+
+def load(path): return json.loads(path.read_text(encoding="utf-8-sig"))
+def sha(data): return hashlib.sha256(data).hexdigest().upper()
+def fail(msg): raise RuntimeError(msg)
+
+if OUT.exists():
+    fail(f"refusing to overwrite: {OUT}")
+progress = load(PROGRESS)
+if progress.get("databaseId") != RUN_ID or progress.get("headSha") != HEAD:
+    fail("run metadata identity does not match requested workflow/commit")
+if progress.get("status") != "in_progress" or progress.get("conclusion") not in (None, ""):
+    fail("run global status changed; reassess before using this script")
+job_by_name = {j["name"]: j for j in progress["jobs"]}
+validation = job_by_name.get("validation")
+if not validation or validation.get("conclusion") != "success": fail("validation job is not successful")
+for name in EXPECTED_CONFIGS:
+    wanted = f"native (x64, windows-2025-vs2026, {EXPECTED_CONFIGS[name]})"
+    matches = [j for j in progress["jobs"] if j.get("name") == wanted]
+    if len(matches) != 1 or matches[0].get("status") != "completed" or matches[0].get("conclusion") != "success":
+        fail(f"x64 workflow job is not a unique successful completion: {name}")
+
+source_hashes = {}
+profile_data = {}
+consumer_rows = []
+probe = None
+binary_groups = defaultdict(set)
+report_count = 0
+artifact_hashes = []
+for f in sorted(p for p in ART.rglob("*") if p.is_file()):
+    rel = f.relative_to(ART).as_posix()
+    artifact_hashes.append({"path": rel, "size_bytes": f.stat().st_size, "sha256": sha(f.read_bytes())})
+
+for dir_name, config in EXPECTED_CONFIGS.items():
+    d = ART / dir_name
+    reports = d / "reports"
+    logs = d / "logs"
+    if not d.is_dir(): fail(f"missing profile directory: {dir_name}")
+    suite_reports = []
+    performance_reports = []
+    for file in sorted(reports.glob("*.json")):
+        if file.name.endswith(".comparison.json"): continue
+        obj = load(file)
+        if obj.get("suite") == "ExternalConsumer":
+            consumer_rows.append((dir_name, file, obj))
+            continue
+        if obj.get("suite") == "AddressSanitizer":
+            probe = (file, obj)
+            continue
+        if obj.get("suite"):
+            suite_reports.append((file, obj))
+        elif obj.get("fixture") == "dxui-complex-ui-v2":
+            performance_reports.append((file, obj))
+    if not suite_reports: fail(f"no suite reports: {dir_name}")
+    report_names = set()
+    for file, obj in suite_reports:
+        suite = obj["suite"]
+        if suite in report_names: fail(f"duplicate suite report: {dir_name}/{suite}")
+        report_names.add(suite)
+        report_count += 1
+        if obj.get("configuration") != config or obj.get("platform") != "x64" or obj.get("nativeArchitecture") != "X64":
+            fail(f"configuration/architecture mismatch: {file.name}")
+        if obj.get("exitCode") != 0: fail(f"suite did not pass: {file.name}")
+        skips = obj.get("skips")
+        if skips != []: fail(f"suite has missing/nonempty skip receipt: {file.name}: {skips!r}")
+        exe_path, exe_hash = obj.get("executable"), obj.get("sha256")
+        if not exe_path or not SHA.match(str(exe_hash or "")): fail(f"missing binary identity: {file.name}")
+        binary_groups[exe_path].add(str(exe_hash).upper())
+        expected_log = logs / f"test-{suite}-x64-{config}.log"
+        if not expected_log.is_file(): fail(f"missing matching raw test log: {expected_log}")
+        log_text = expected_log.read_text(encoding="utf-8-sig", errors="replace")
+        if suite == "MenuExitLifetime":
+            log_passes = "[EXIT] MenuExitLifetime:" in log_text
+        elif suite == "Embedded":
+            log_passes = any(line.startswith("PASS ") for line in log_text.splitlines())
+        elif suite == "Foundation":
+            log_passes = "Foundation tests: PASS" in log_text
+        else:
+            log_passes = "All DxUi tests passed." in log_text and "[DONE] " + suite in log_text
+        if not log_passes:
+            fail(f"raw suite log does not show a passing completion: {expected_log.name}")
+        perf_path = obj.get("performanceReport")
+        perf_hash = obj.get("performanceExecutableSha256")
+        if perf_path:
+            perf_file = reports / Path(perf_path).name
+            if not perf_file.is_file(): fail(f"missing linked performance report: {perf_file.name}")
+            perf = load(perf_file)
+            if perf.get("configuration") != config or perf.get("platform") != "x64" or perf.get("nativeArchitecture") != "X64":
+                fail(f"performance identity mismatch: {perf_file.name}")
+            if perf.get("sourceCommit") != HEAD or perf.get("sourceDirty") is not False:
+                fail(f"performance source identity mismatch: {perf_file.name}")
+            if perf.get("executableSha256") != perf_hash:
+                fail(f"suite/performance executable hash mismatch: {file.name}")
+            inputs = perf.get("benchmarkInputs", {})
+            for path, digest in inputs.items():
+                if not SHA.match(str(digest)): fail(f"invalid benchmark input hash: {path}")
+                previous = source_hashes.setdefault(path, str(digest).upper())
+                if previous != str(digest).upper(): fail(f"inconsistent source input hash: {path}")
+            performance_reports.append((perf_file, perf))
+    # Every report referring to one executable must agree on its exact hash.
+    profile_data[config] = {
+        "suite_count": len(suite_reports), "suites": sorted(report_names),
+        "performance_reports": [],
+        "binary_hashes_by_path": {k: sorted(v) for k, v in binary_groups.items() if any(x[1].get("executable") == k for x in suite_reports)},
+        "skipped_suites": [],
+    }
+    for file, perf in performance_reports:
+        if perf.get("sourceCommit") != HEAD or perf.get("sourceDirty") is not False:
+            fail(f"performance report source identity mismatch: {file.name}")
+        profile_data[config]["performance_reports"].append({
+            "file": file.name, "machine": perf.get("machine"), "cpu": perf.get("cpu"),
+            "configuration": perf.get("configuration"), "platform": perf.get("platform"),
+            "nativeArchitecture": perf.get("nativeArchitecture"),
+            "sourceCommit": perf.get("sourceCommit"), "sourceDirty": perf.get("sourceDirty"),
+            "sourceFingerprint": perf.get("sourceFingerprint"),
+            "executableSha256": perf.get("executableSha256"),
+            "benchmarkInputs": perf.get("benchmarkInputs", {}),
+        })
+    if config == "ASan Debug":
+        if probe is None: fail("missing ASan runtime-detection probe receipt")
+        pfile, pobj = probe
+        if (pobj.get("configuration") != config or pobj.get("platform") != "x64"
+                or pobj.get("nativeArchitecture") != "X64" or pobj.get("exitCode") != 1 or pobj.get("detected") is not True):
+            fail("ASan probe was not the documented expected-detection result")
+        probe_log = d / "logs" / Path(pobj["log"]).name
+        if not probe_log.is_file(): fail("ASan probe raw log missing")
+        text = probe_log.read_text(encoding="utf-8-sig", errors="replace")
+        if "AddressSanitizer: heap-use-after-free" not in text or "ABORTING" not in text:
+            fail("ASan probe log does not corroborate expected detection")
+        profile_data[config]["asan_probe"] = {"report": pfile.name, "exitCode": 1, "detected": True,
+                                               "log": probe_log.name, "expected": True}
+
+# All external consumer receipts are direct test outputs with explicit ABI/toolchain identity.
+for dname, file, obj in consumer_rows:
+    config = obj.get("configuration")
+    if obj.get("exitCode") != 0 or obj.get("platform") != "x64" or obj.get("nativeArchitecture") != "X64" or obj.get("commit") != HEAD:
+        fail(f"consumer receipt identity/result mismatch: {file.name}")
+    if obj.get("nativeModuleChecks") != 12 or obj.get("negativeChecks") != 10:
+        fail(f"consumer compatibility checks incomplete: {file.name}")
+    if not SHA.match(str(obj.get("librarySha256", ""))) or not SHA.match(str(obj.get("executableSha256", ""))):
+        fail(f"consumer binary hashes missing: {file.name}")
+    ident = obj.get("buildIdentity", {}).get("Identity", {})
+    if (ident.get("commit") != HEAD or ident.get("apiRevision") != 2 or ident.get("platform") != "x64"
+            or ident.get("disableStlAnnotations") != obj.get("disableStlAnnotations")):
+        fail(f"consumer build identity mismatch: {file.name}")
+    for key in ("msbuildSha256", "compilerSha256", "linkerSha256", "windowsHeaderSha256", "kernel32Sha256", "ucrtSha256"):
+        if not SHA.match(str(ident.get(key, ""))): fail(f"missing toolchain hash {key}: {file.name}")
+consumer_flags = defaultdict(set)
+for _, _, obj in consumer_rows: consumer_flags[obj["configuration"]].add(bool(obj["disableStlAnnotations"]))
+if consumer_flags != {"Debug": {False}, "Release": {False}, "ASan Debug": {False, True}}:
+    fail(f"unexpected consumer variant coverage: {dict(consumer_flags)}")
+
+# CI benchmark-input hashes are computed over the checked-out bytes. On Windows,
+# Git may normalize CRLF on checkout, so compare those exact bytes and separately
+# attest the clean checkout is at the exact CI commit.
+head_result = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+actual_head = head_result.stdout.strip()
+if actual_head != HEAD: fail(f"source checkout HEAD mismatch: {actual_head}")
+source_paths = sorted(source_hashes)
+diff_result = subprocess.run(["git", "-C", str(REPO), "diff", "--exit-code", "--", *source_paths],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+if diff_result.returncode != 0: fail("benchmark source inputs have tracked working-tree changes")
+source_manifest = []
+for rel, claimed in sorted(source_hashes.items()):
+    source_file = REPO / Path(rel)
+    if not source_file.is_file(): fail(f"benchmark input is missing from checkout: {rel}")
+    actual = sha(source_file.read_bytes())
+    if actual != claimed:
+        fail(f"CI source hash differs from clean checkout bytes: {rel}: {claimed} != {actual}")
+    source_manifest.append({"path": rel, "sha256": claimed, "checkout_bytes_sha256": actual, "matches": True})
+
+# Cross-check executable SHA claims for every path are single-valued.
+for exe, hashes in binary_groups.items():
+    if len(hashes) != 1: fail(f"conflicting executable hashes: {exe}: {sorted(hashes)}")
+
+suite_output = {"runId": RUN_ID, "headSha": HEAD, "workflowStatus": progress["status"],
+                "validationJob": validation["conclusion"], "x64Profiles": profile_data,
+                "x64SuiteReceiptCount": report_count,
+                "consumerReceipts": [{"path": p.relative_to(ART).as_posix(),
+                                      "configuration": o["configuration"],
+                                      "disableStlAnnotations": o["disableStlAnnotations"],
+                                      "exitCode": o["exitCode"], "nativeModuleChecks": o["nativeModuleChecks"],
+                                      "negativeChecks": o["negativeChecks"], "librarySha256": o["librarySha256"],
+                                      "executableSha256": o["executableSha256"],
+                                      "buildFingerprint": o["buildIdentity"]["Fingerprint"]}
+                                     for _, p, o in consumer_rows],
+                "binaryHashClaimGroups": {k: sorted(v) for k, v in binary_groups.items()},
+                "arm64": "in progress; this report does not assert full matrix completion"}
+OUT.mkdir(parents=True)
+(OUT / "suite-audit.json").write_text(json.dumps(suite_output, indent=2) + "\n", encoding="utf-8")
+(OUT / "source-hash-manifest.json").write_text(json.dumps({"runId": RUN_ID, "headSha": HEAD,
+    "sourceDirty": False, "sourceFiles": source_manifest}, indent=2) + "\n", encoding="utf-8")
+(OUT / "x64-artifact-hashes.json").write_text(json.dumps({"root": "../x64", "fileCount": len(artifact_hashes),
+    "files": artifact_hashes}, indent=2) + "\n", encoding="utf-8")
+summary = [
+    "# CI x64 audit for DxUi native UIA lifetime candidate",
+    "",
+    f"Workflow run `{RUN_ID}` targets `{HEAD}`. The validation job and the x64 Debug, Release, and ASan Debug native jobs are complete and successful.",
+    "",
+    f"The downloaded x64 artifacts contain {report_count} successful suite receipts. Each is x64/X64, exit code 0, and has an empty skip list. Raw matching logs corroborate completion using each suite harness format: most end with `[DONE]` and `All DxUi tests passed.`, while Embedded, Foundation, and MenuExitLifetime use their suite-specific PASS/EXIT markers. Test executable SHA claims are internally consistent by executable path. Artifact downloads do not contain those executable files, so executable SHA values are cross-checked across receipts and linked performance reports, not recomputed from binaries.",
+    "",
+    "External consumer receipts pass in Debug and Release with STL annotations enabled, and in ASan Debug with both annotation modes. Each reports 12 native-module checks and 10 negative checks. The ASan runtime probe deliberately exits 1, reports `detected:true`, and the corresponding log contains the expected heap-use-after-free diagnostic and `ABORTING`; it is an expected-detection check, not a suite failure.",
+    "",
+    "The linked performance receipts identify the exact CI commit and report a clean source tree. Every reported benchmark-input SHA-256 matches the bytes in a clean checkout of that commit. The checkout is CRLF-normalized on Windows, so the check uses the exact consumer-visible checkout bytes rather than raw Git blob bytes. Source and binary inventories are in `source-hash-manifest.json` and `suite-audit.json`; every downloaded x64 artifact hash is in `x64-artifact-hashes.json`.",
+    "",
+    "The workflow remains `in_progress` because ARM64 jobs have not completed. This audit therefore makes no full-matrix pass claim."
+]
+(OUT / "assessment.md").write_text("\n".join(summary) + "\n", encoding="utf-8")
+print(f"PASS x64 audit: {report_count} suite receipts, {len(consumer_rows)} consumer receipts, {len(source_manifest)} source hashes matched, {len(artifact_hashes)} artifact files hashed; ARM64 pending.")
+

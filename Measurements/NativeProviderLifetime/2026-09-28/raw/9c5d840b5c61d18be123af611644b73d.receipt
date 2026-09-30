@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+"""Offline comparator for dxui-plain-menu-uia-resources-v1 logs.
+
+No process launching, repository reads, or mutation. Each --root is an immutable
+profile evidence directory; recursive discovery requires exactly one log per
+configuration. The script derives metrics only from fixture observations.
+"""
+import argparse
+import json
+import statistics
+from pathlib import Path
+
+FIXTURE = "dxui-plain-menu-uia-resources-v1"
+CONFIGS = ("Release", "Debug", "ASan-Debug")
+EXPECTED_KEYS = {
+    (rows, cycle, phase)
+    for rows in (12, 128)
+    for cycle in range(4)
+    for phase in ("before", "open", "closed")
+}
+
+
+def read_profile(root: Path, config: str):
+    filename_config = config.replace("ASan-Debug", "ASan Debug")
+    # Current matrix is organized as <profile>-logs while the older package
+    # used a <profile> directory. Restrict discovery to the intended profile;
+    # matrix roots intentionally contain duplicate logs from all profiles.
+    profile = root / config
+    if not profile.is_dir():
+        profile = root / f"{config}-logs"
+    if not profile.is_dir():
+        profile = root
+    logs = sorted(profile.rglob(f"test-MenuAccessibility-*-{filename_config}.log"))
+    if len(logs) != 1:
+        raise ValueError(f"{root}: expected one {config} MenuAccessibility log, found {len(logs)}")
+    rows = []
+    for line_no, line in enumerate(logs[0].read_text(encoding="utf-8-sig", errors="strict").splitlines(), 1):
+        if not line.startswith('{"fixture":"' + FIXTURE + '"'):
+            continue
+        item = json.loads(line)
+        if item.get("fixture") != FIXTURE:
+            raise ValueError(f"{logs[0]}:{line_no}: fixture mismatch")
+        rows.append(item)
+    by_key = {(r["rows"], r["cycle"], r["phase"]): r for r in rows}
+    if len(rows) != 24 or len(by_key) != 24 or set(by_key) != EXPECTED_KEYS:
+        raise ValueError(f"{logs[0]}: expected exact 24-key matrix; got {len(rows)} rows/{len(by_key)} keys")
+    for key, row in by_key.items():
+        if any(h.get("error", 1) != 0 for h in row.get("heaps", [])):
+            raise ValueError(f"{logs[0]}: partial heap walk at {key}")
+        if row.get("privateBytes") is None or row.get("workingSetBytes") is None:
+            raise ValueError(f"{logs[0]}: missing process-memory observation at {key}")
+        if key[2] != "before":
+            if not all(row.get(k, 0) > 0 for k in ("widthPx", "heightPx", "dpi")):
+                raise ValueError(f"{logs[0]}: invalid host geometry at {key}")
+            if key[2] == "open" and row.get("uiaChildrenVisited") != key[0]:
+                raise ValueError(f"{logs[0]}: visited count does not match requested rows at {key}")
+    return logs[0], by_key
+
+
+def busy(row):
+    heaps = row.get("heaps", [])
+    if not heaps:
+        raise ValueError("missing heap rows")
+    return sum(h["busyBytes"] for h in heaps)
+
+
+def summarize(root: Path):
+    result = {}
+    for config in CONFIGS:
+        path, rows = read_profile(root, config)
+        geometry = sorted({(r["widthPx"], r["heightPx"], r["dpi"])
+                           for r in rows.values() if r["phase"] == "open"})
+        if geometry != [(476, 322, 96)]:
+            raise ValueError(f"{path}: unexpected open geometry: {geometry}")
+        runs = []
+        for count in (12, 128):
+            heap_open, heap_closed = [], []
+            private_open, private_closed, ws_open, ws_closed = [], [], [], []
+            handles_open, handles_closed = [], []
+            for cycle in (1, 2, 3):
+                before = rows[count, cycle, "before"]
+                opened = rows[count, cycle, "open"]
+                closed = rows[count, cycle, "closed"]
+                heap_open.append(busy(opened) - busy(before))
+                heap_closed.append(busy(closed) - busy(before))
+                private_open.append(opened["privateBytes"] - before["privateBytes"])
+                private_closed.append(closed["privateBytes"] - before["privateBytes"])
+                ws_open.append(opened["workingSetBytes"] - before["workingSetBytes"])
+                ws_closed.append(closed["workingSetBytes"] - before["workingSetBytes"])
+                handles_open.append(opened["handles"] - before["handles"])
+                handles_closed.append(closed["handles"] - before["handles"])
+            runs.append({
+                "rows": count,
+                "visited_open": [rows[count, c, "open"]["uiaChildrenVisited"] for c in (1, 2, 3)],
+                "open_heap_delta_bytes": heap_open,
+                "closed_heap_delta_bytes": heap_closed,
+                "open_private_delta_bytes": private_open,
+                "closed_private_delta_bytes": private_closed,
+                "open_working_set_delta_bytes": ws_open,
+                "closed_working_set_delta_bytes": ws_closed,
+                "open_handle_delta": handles_open,
+                "closed_handle_delta": handles_closed,
+                "open_heap_mean_bytes": statistics.mean(heap_open),
+                "open_private_mean_bytes": statistics.mean(private_open),
+                "closed_heap_mean_bytes": statistics.mean(heap_closed),
+                "closed_private_mean_bytes": statistics.mean(private_closed),
+            })
+        result[config] = {"log": str(path), "observations": 24, "open_geometry": geometry, "runs": runs}
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--reference", type=Path, required=True, help="Old same-fixture root, e.g. profiles-navigation-final")
+    parser.add_argument("--current", type=Path, required=True, help="Completed current immutable profile evidence root")
+    parser.add_argument("--out", type=Path, required=True, help="New output JSON path")
+    args = parser.parse_args()
+    ref, cur = summarize(args.reference), summarize(args.current)
+    comparison = {"fixture": FIXTURE, "reference": ref, "current": cur, "deltas": {}}
+    for config in CONFIGS:
+        comparison["deltas"][config] = []
+        for old, new in zip(ref[config]["runs"], cur[config]["runs"], strict=True):
+            if old["rows"] != new["rows"] or old["visited_open"] != new["visited_open"]:
+                raise ValueError(f"{config}/{old['rows']}: row count or UIA child count changed")
+            comparison["deltas"][config].append({
+                "rows": old["rows"],
+                "open_heap_mean_delta_bytes": new["open_heap_mean_bytes"] - old["open_heap_mean_bytes"],
+                "open_private_mean_delta_bytes": new["open_private_mean_bytes"] - old["open_private_mean_bytes"],
+                "closed_heap_mean_delta_bytes": new["closed_heap_mean_bytes"] - old["closed_heap_mean_bytes"],
+                "closed_private_mean_delta_bytes": new["closed_private_mean_bytes"] - old["closed_private_mean_bytes"],
+                "reference_open_heap_cycles": old["open_heap_delta_bytes"],
+                "current_open_heap_cycles": new["open_heap_delta_bytes"],
+            })
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(comparison, indent=2) + "\n", encoding="utf-8")
+    print(args.out)
+
+if __name__ == "__main__":
+    main()

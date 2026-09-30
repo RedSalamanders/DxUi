@@ -1,0 +1,2859 @@
+{
+  "schema": "dxui.measurement-file-map.v1",
+  "source_root_diagnostic": "C:\\RedSalamander.Perf\\evidence\\i26-ui",
+  "source_repo_diagnostic": "C:\\Users\\eric\\.codex\\worktrees\\fileops-ui-qualified\\DxUi",
+  "entry_count": 475,
+  "unique_payload_count": 348,
+  "entries": [
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/gallery/ARM64/ASan Debug/embedded-controls.png",
+      "staged": "raw/566e96606c40388f2b6795deefd0c590.receipt",
+      "sha256": "566e96606c40388f2b6795deefd0c590515cb6f65a0ed3c723d12df063d3e4ec",
+      "size_bytes": 6375
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/gallery/ARM64/ASan Debug/generation.log",
+      "staged": "raw/2b82b887515410271c856a561f1ed3ca.receipt",
+      "sha256": "2b82b887515410271c856a561f1ed3caaf4a792b7f557e204129e4b5146b9e9b",
+      "size_bytes": 5956
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/gallery/ARM64/ASan Debug/index.html",
+      "staged": "raw/453d28c8385d5e5fb7d39440f06b56ab.receipt",
+      "sha256": "453d28c8385d5e5fb7d39440f06b56ab9d633e5d2db7682b1e6b6cf356431a2b",
+      "size_bytes": 1410
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/gallery/ARM64/ASan Debug/theme-controls-dark.png",
+      "staged": "raw/f00ff2383b49cee50fb911d8b9ede278.receipt",
+      "sha256": "f00ff2383b49cee50fb911d8b9ede278691a8ff9442aa64a315593463c791947",
+      "size_bytes": 88202
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/gallery/ARM64/ASan Debug/theme-controls-high-contrast.png",
+      "staged": "raw/7ce0fc44a7e7f434dedde1a3eb736b79.receipt",
+      "sha256": "7ce0fc44a7e7f434dedde1a3eb736b7982925c2bba54a8347690de35cd75fbf6",
+      "size_bytes": 86726
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/gallery/ARM64/ASan Debug/theme-controls-light.png",
+      "staged": "raw/22eac3d8ba430de62792db525fa76521.receipt",
+      "sha256": "22eac3d8ba430de62792db525fa76521c9d39274f6f3c7927affd737b494f7ed",
+      "size_bytes": 87172
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/gallery/ARM64/ASan Debug/theme-controls-rainbow-dark.png",
+      "staged": "raw/c2084b281075ca2b902b61bf27e2d8eb.receipt",
+      "sha256": "c2084b281075ca2b902b61bf27e2d8ebfb18591440e7bb9a6be432ccf7bc72fe",
+      "size_bytes": 89337
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/gallery/ARM64/ASan Debug/theme-controls-rainbow-light.png",
+      "staged": "raw/efb214b1997be8e98650be9692683259.receipt",
+      "sha256": "efb214b1997be8e98650be96926832595aed0495083fea87cefac674dd1be79d",
+      "size_bytes": 88359
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/build-ARM64-ASan Debug-5f72591c68e542e8830524547f507c3d.log",
+      "staged": "raw/3958cca023472dc72ce4d3929b675f6f.receipt",
+      "sha256": "3958cca023472dc72ce4d3929b675f6f7ee696bd013a9170e34d3fa78ee22be2",
+      "size_bytes": 27935
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-Accessibility-ARM64-ASan Debug.log",
+      "staged": "raw/f87ebe294b6cdb7db46fc3aab7147bcb.receipt",
+      "sha256": "f87ebe294b6cdb7db46fc3aab7147bcba62d624c6a724a1758c77dc97eff951e",
+      "size_bytes": 9115
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-AddressSanitizer-ARM64.log",
+      "staged": "raw/7f2a4ac8d6747e9d4a0392ad7b4e0637.receipt",
+      "sha256": "7f2a4ac8d6747e9d4a0392ad7b4e06373dfd33a3d7994c955ec4a71960c31e46",
+      "size_bytes": 5509
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-Animation-ARM64-ASan Debug.log",
+      "staged": "raw/181ccfb07a7c3c67ae25db3125f5b635.receipt",
+      "sha256": "181ccfb07a7c3c67ae25db3125f5b63513438c19e074cc963d6c7a27b7a80d62",
+      "size_bytes": 191
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-ComboBox-ARM64-ASan Debug.log",
+      "staged": "raw/b29f09887d351c74847f6cecc4f116cb.receipt",
+      "sha256": "b29f09887d351c74847f6cecc4f116cb2c9a7eb685c9131b1ce8c641785eeca4",
+      "size_bytes": 4014
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-Control-ARM64-ASan Debug.log",
+      "staged": "raw/a7decb1c1343a4054968920dad37d43c.receipt",
+      "sha256": "a7decb1c1343a4054968920dad37d43c74f01ed352074e501209648865a8af5c",
+      "size_bytes": 407
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-Embedded-ARM64-ASan Debug.log",
+      "staged": "raw/283d6fa1abec1a27df9389782a44a44e.receipt",
+      "sha256": "283d6fa1abec1a27df9389782a44a44e26ea9124bbc813cecaa1280e457dc335",
+      "size_bytes": 98
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-Foundation-ARM64-ASan Debug.log",
+      "staged": "raw/01007c353f70730873e78034fb6cf5f6.receipt",
+      "sha256": "01007c353f70730873e78034fb6cf5f6bcd702b01e52553f03d8bb4ba32e8372",
+      "size_bytes": 24
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-Grid-ARM64-ASan Debug.log",
+      "staged": "raw/56be34ba7534f443eda10c157a3c019b.receipt",
+      "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-Menu-ARM64-ASan Debug.log",
+      "staged": "raw/f6ec6830c41ff659af688d1a7875415d.receipt",
+      "sha256": "f6ec6830c41ff659af688d1a7875415da6970110d4fa3dbf3528bd4347c67821",
+      "size_bytes": 16223
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-MenuAccessibility-ARM64-ASan Debug.log",
+      "staged": "raw/d04cd0174fea8f6073cd310dc6c01d74.receipt",
+      "sha256": "d04cd0174fea8f6073cd310dc6c01d74d7c96476d09ebc43826c3b518edc4575",
+      "size_bytes": 22166
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-MenuExitLifetime-ARM64-ASan Debug.log",
+      "staged": "raw/72e21f8ad25ffde0f78c65b1f5211ebe.receipt",
+      "sha256": "72e21f8ad25ffde0f78c65b1f5211ebe6707968d9954eb6cc6079993a0786199",
+      "size_bytes": 104
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-MultilineText-ARM64-ASan Debug.log",
+      "staged": "raw/115e90d3665aaca20f5630f5487fbc74.receipt",
+      "sha256": "115e90d3665aaca20f5630f5487fbc7498595492191ee0e55187cf02a7f82791",
+      "size_bytes": 15287
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-NativeTextInput-ARM64-ASan Debug.log",
+      "staged": "raw/7a19be952873834af347b514903186f5.receipt",
+      "sha256": "7a19be952873834af347b514903186f58f3539eb2077a0f6d4a224d8656d3112",
+      "size_bytes": 21843
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-NewControls-ARM64-ASan Debug.log",
+      "staged": "raw/a6d0a0ec8e3c938528aced0eb7d143c5.receipt",
+      "sha256": "a6d0a0ec8e3c938528aced0eb7d143c5ebd74fb7ce51cb71078e29c22f5c67ce",
+      "size_bytes": 1540
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-ReadOnly-ARM64-ASan Debug.log",
+      "staged": "raw/abcb9b85165fb68b19a0e70c815fe567.receipt",
+      "sha256": "abcb9b85165fb68b19a0e70c815fe5676201cfd3999818f38d8e036ae0d0b07e",
+      "size_bytes": 2659
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-Rendering-ARM64-ASan Debug.log",
+      "staged": "raw/b171b1c081dea995b577f9db929e9f45.receipt",
+      "sha256": "b171b1c081dea995b577f9db929e9f45f4ff3389690861834c64bd04423609a4",
+      "size_bytes": 8240
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-TextField-ARM64-ASan Debug.log",
+      "staged": "raw/b1d3bb0d6930b5f596013377af2ce45f.receipt",
+      "sha256": "b1d3bb0d6930b5f596013377af2ce45ffa53a97d822ff2f094301d7ba2a60493",
+      "size_bytes": 10883
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-Theme-ARM64-ASan Debug.log",
+      "staged": "raw/1d502c308bc9845ab1f08d2a89ac946a.receipt",
+      "sha256": "1d502c308bc9845ab1f08d2a89ac946a81537be36e28bf9fcf8fc5a12007ceb7",
+      "size_bytes": 53
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-Tooltip-ARM64-ASan Debug.log",
+      "staged": "raw/619183b9e8a66d7089a4217f84d02494.receipt",
+      "sha256": "619183b9e8a66d7089a4217f84d02494048118730f5c207d8eeff7d837829002",
+      "size_bytes": 577
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-Tree-ARM64-ASan Debug.log",
+      "staged": "raw/a1594223b505dc7ef35c9c890ed80f14.receipt",
+      "sha256": "a1594223b505dc7ef35c9c890ed80f1428f8b8ceeea909653689929b7f56d288",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/logs/test-WindowHost-ARM64-ASan Debug.log",
+      "staged": "raw/f5bbaa513436b63ad12dfc4fcf58c4fb.receipt",
+      "sha256": "f5bbaa513436b63ad12dfc4fcf58c4fb473d56fde2643b8150bedcb5761be612",
+      "size_bytes": 11612
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/Accessibility-ARM64-ASan Debug.json",
+      "staged": "raw/202a991e5f1cb41fb3ea369b213ba95d.receipt",
+      "sha256": "202a991e5f1cb41fb3ea369b213ba95d63b8e47caae73cb1e06489d32473d521",
+      "size_bytes": 6335
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/AddressSanitizer-ARM64.json",
+      "staged": "raw/047c9541072f7bd872944acb16a895a0.receipt",
+      "sha256": "047c9541072f7bd872944acb16a895a020ffb6a40cda1c53b98d6595126becdf",
+      "size_bytes": 469
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/Animation-ARM64-ASan Debug.json",
+      "staged": "raw/2fd16306a41714bdae3893218b33afd6.receipt",
+      "sha256": "2fd16306a41714bdae3893218b33afd6f061c4d100c16312f0821f3e0b50b34d",
+      "size_bytes": 6331
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/ComboBox-ARM64-ASan Debug.json",
+      "staged": "raw/c35d01e8e388ea361267de607f5e443d.receipt",
+      "sha256": "c35d01e8e388ea361267de607f5e443d6ce60d526a10ce681854bb9985d677f5",
+      "size_bytes": 6330
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/Control-ARM64-ASan Debug.json",
+      "staged": "raw/5a8ffe8fb0683efd5a2bb2996583a18d.receipt",
+      "sha256": "5a8ffe8fb0683efd5a2bb2996583a18dc78162415bb972a92e543d6f34bc3bb9",
+      "size_bytes": 6329
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/Embedded-ARM64-ASan Debug.json",
+      "staged": "raw/a49f133bf6c92e2d2cd46fc9800249a2.receipt",
+      "sha256": "a49f133bf6c92e2d2cd46fc9800249a26b884ca377324c576373b63d5f61efeb",
+      "size_bytes": 6331
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/ExternalConsumer-ARM64-ASan Debug-annotationsDisabledfalse.json",
+      "staged": "raw/51c064d27f31e24089101b428eb99b32.receipt",
+      "sha256": "51c064d27f31e24089101b428eb99b32a759c6561a9b108e8774eb2dc042c054",
+      "size_bytes": 1624
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/ExternalConsumer-ARM64-ASan Debug-annotationsDisabledtrue.json",
+      "staged": "raw/62c717af286053083fe68aa50d1c2104.receipt",
+      "sha256": "62c717af286053083fe68aa50d1c210400a99947ac3779e8e23f6c85c679cc6d",
+      "size_bytes": 1622
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/Foundation-ARM64-ASan Debug.json",
+      "staged": "raw/1db90e7432d54da5406d71c292c374d1.receipt",
+      "sha256": "1db90e7432d54da5406d71c292c374d17687e79497ae9555e2e028ca694e13a5",
+      "size_bytes": 6335
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/Grid-ARM64-ASan Debug.json",
+      "staged": "raw/3d6f71ce19b304c2f0c492f02321245a.receipt",
+      "sha256": "3d6f71ce19b304c2f0c492f02321245a7a03fee757fa20f4127536834b8c2768",
+      "size_bytes": 6326
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/Menu-ARM64-ASan Debug.json",
+      "staged": "raw/2411479812378cea68d6a1da85450583.receipt",
+      "sha256": "2411479812378cea68d6a1da85450583bd99d0833d447673be59d1c5a9991d37",
+      "size_bytes": 7198
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/MenuAccessibility-ARM64-ASan Debug.json",
+      "staged": "raw/dc4d9eff8c370cfbf73ce7322d903639.receipt",
+      "sha256": "dc4d9eff8c370cfbf73ce7322d9036398c971a9d55fbc7f9e52e3bd81e8b57e9",
+      "size_bytes": 6339
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/MenuExitLifetime-ARM64-ASan Debug.json",
+      "staged": "raw/542fa03dc7c129ecb610c8e6f67df185.receipt",
+      "sha256": "542fa03dc7c129ecb610c8e6f67df1857ea54602604e0e854d4306f6e942e79e",
+      "size_bytes": 6338
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/MultilineText-ARM64-ASan Debug.json",
+      "staged": "raw/bd74c3b81d0bac4904404a93dea956f4.receipt",
+      "sha256": "bd74c3b81d0bac4904404a93dea956f41415be870a1aeb82314a1b9ba3b289c0",
+      "size_bytes": 6335
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/NativeTextInput-ARM64-ASan Debug.json",
+      "staged": "raw/7dd6ea54ff78433a8e119d02a3f4fa12.receipt",
+      "sha256": "7dd6ea54ff78433a8e119d02a3f4fa12b28f6c16911844a42b34d8b727fde279",
+      "size_bytes": 6337
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/NewControls-ARM64-ASan Debug.json",
+      "staged": "raw/e69ec09f78ddffd20cef42d1b23151f1.receipt",
+      "sha256": "e69ec09f78ddffd20cef42d1b23151f12f06746febf09b9479662db145c08697",
+      "size_bytes": 6333
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/Performance-ARM64-ASan Debug-fc5c2d30cf7c4d9882fe8b4e9d894028.json",
+      "staged": "raw/7a0e7f52ae2ee4022fcc83b2565c3f9d.receipt",
+      "sha256": "7a0e7f52ae2ee4022fcc83b2565c3f9d93aa0b84f6f3d0bc7a35a57616dbf7ae",
+      "size_bytes": 8098
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/Performance-ARM64-ASan Debug-fc5c2d30cf7c4d9882fe8b4e9d894028.json.comparison.json",
+      "staged": "raw/14fc8def36f2813db7d2787166f7bd0e.receipt",
+      "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+      "size_bytes": 48
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/ReadOnly-ARM64-ASan Debug.json",
+      "staged": "raw/311fe5d7ce923977c3317ceeea211ca4.receipt",
+      "sha256": "311fe5d7ce923977c3317ceeea211ca423746974e380e14a6fbc133967976624",
+      "size_bytes": 6330
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/Rendering-ARM64-ASan Debug.json",
+      "staged": "raw/2653bfaf4ef8b3ab813f50e697f74141.receipt",
+      "sha256": "2653bfaf4ef8b3ab813f50e697f741413cd9b45d63054a34572395ddc734af6b",
+      "size_bytes": 6331
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/TextField-ARM64-ASan Debug.json",
+      "staged": "raw/fba2e929ed44b8b2e70ae28544dccc55.receipt",
+      "sha256": "fba2e929ed44b8b2e70ae28544dccc555e1f31981bf19d862f4cfd7549dcd521",
+      "size_bytes": 6331
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/Theme-ARM64-ASan Debug.json",
+      "staged": "raw/588081d0889a95cb921a66f51e8e35a0.receipt",
+      "sha256": "588081d0889a95cb921a66f51e8e35a02b0c23c06ad5034a3b0a60539fdcd4f3",
+      "size_bytes": 6327
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/Tooltip-ARM64-ASan Debug.json",
+      "staged": "raw/3aa835795f13813892184fabfdd52438.receipt",
+      "sha256": "3aa835795f13813892184fabfdd524387d693623f0948dc0b49000f569e0f19a",
+      "size_bytes": 6329
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/Tree-ARM64-ASan Debug.json",
+      "staged": "raw/c8e3370ec152857628f70347604b4838.receipt",
+      "sha256": "c8e3370ec152857628f70347604b48384420f8fff209731d26ecb424996f6e34",
+      "size_bytes": 6326
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/reports/WindowHost-ARM64-ASan Debug.json",
+      "staged": "raw/c89d21844e6a3c0ef760541373859547.receipt",
+      "sha256": "c89d21844e6a3c0ef760541373859547b403a6ffcab72e246c7b3a3e076c4200",
+      "size_bytes": 6332
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/test-artifacts/10968/dxui_animation_scheduler_testlocal.jsonl",
+      "staged": "raw/5839da519cf97e31b03358b1bc2c84fe.receipt",
+      "sha256": "5839da519cf97e31b03358b1bc2c84febdb4c3b4e196167b87cedb8b663c94e9",
+      "size_bytes": 25598
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/test-artifacts/6180/dxui_windowhost_stage_metrics_testlocal.jsonl",
+      "staged": "raw/aed02a51fc47abf841fc48a13785bc33.receipt",
+      "sha256": "aed02a51fc47abf841fc48a13785bc33a0d04291241d9ed9324f3c7af27ab4dd",
+      "size_bytes": 2430
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/test-artifacts/complex-ui.png",
+      "staged": "raw/4714347f867870d8d190b4553e4aecb1.receipt",
+      "sha256": "4714347f867870d8d190b4553e4aecb1734b8dd43a878de0aa8be01501fe492a",
+      "size_bytes": 52547
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/test-artifacts/embedded-controls.png",
+      "staged": "raw/9a6fb6cc3607627655a7dbc257e644d1.receipt",
+      "sha256": "9a6fb6cc3607627655a7dbc257e644d172523457cc154bda1d9eb31014e73236",
+      "size_bytes": 6430
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-ASan Debug/test-artifacts/embedded-text-composition.png",
+      "staged": "raw/fd109188e82c0a65d0ba985edc4380b9.receipt",
+      "sha256": "fd109188e82c0a65d0ba985edc4380b9e8e49db70150c434ecc52944f88b207c",
+      "size_bytes": 2837
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/gallery/ARM64/Debug/embedded-controls.png",
+      "staged": "raw/566e96606c40388f2b6795deefd0c590.receipt",
+      "sha256": "566e96606c40388f2b6795deefd0c590515cb6f65a0ed3c723d12df063d3e4ec",
+      "size_bytes": 6375
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/gallery/ARM64/Debug/generation.log",
+      "staged": "raw/9ac893ff82d298c082517634e4a8857e.receipt",
+      "sha256": "9ac893ff82d298c082517634e4a8857e6351c8361d2d184a7a53f8d91ad5d660",
+      "size_bytes": 5931
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/gallery/ARM64/Debug/index.html",
+      "staged": "raw/453d28c8385d5e5fb7d39440f06b56ab.receipt",
+      "sha256": "453d28c8385d5e5fb7d39440f06b56ab9d633e5d2db7682b1e6b6cf356431a2b",
+      "size_bytes": 1410
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/gallery/ARM64/Debug/theme-controls-dark.png",
+      "staged": "raw/f00ff2383b49cee50fb911d8b9ede278.receipt",
+      "sha256": "f00ff2383b49cee50fb911d8b9ede278691a8ff9442aa64a315593463c791947",
+      "size_bytes": 88202
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/gallery/ARM64/Debug/theme-controls-high-contrast.png",
+      "staged": "raw/7ce0fc44a7e7f434dedde1a3eb736b79.receipt",
+      "sha256": "7ce0fc44a7e7f434dedde1a3eb736b7982925c2bba54a8347690de35cd75fbf6",
+      "size_bytes": 86726
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/gallery/ARM64/Debug/theme-controls-light.png",
+      "staged": "raw/22eac3d8ba430de62792db525fa76521.receipt",
+      "sha256": "22eac3d8ba430de62792db525fa76521c9d39274f6f3c7927affd737b494f7ed",
+      "size_bytes": 87172
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/gallery/ARM64/Debug/theme-controls-rainbow-dark.png",
+      "staged": "raw/c2084b281075ca2b902b61bf27e2d8eb.receipt",
+      "sha256": "c2084b281075ca2b902b61bf27e2d8ebfb18591440e7bb9a6be432ccf7bc72fe",
+      "size_bytes": 89337
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/gallery/ARM64/Debug/theme-controls-rainbow-light.png",
+      "staged": "raw/efb214b1997be8e98650be9692683259.receipt",
+      "sha256": "efb214b1997be8e98650be96926832595aed0495083fea87cefac674dd1be79d",
+      "size_bytes": 88359
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/build-ARM64-Debug-32ed268e7f614d63a3ddfd416f021816.log",
+      "staged": "raw/2c3e2e3a179b10d6b500f5b65b18433f.receipt",
+      "sha256": "2c3e2e3a179b10d6b500f5b65b18433f6cffc947ef227809a0ac33a738940716",
+      "size_bytes": 27197
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-Accessibility-ARM64-Debug.log",
+      "staged": "raw/20f43df6e636498964ff3c89128ca702.receipt",
+      "sha256": "20f43df6e636498964ff3c89128ca7029d3a89dbc7645b5dd4509e9c1e9da173",
+      "size_bytes": 9115
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-Animation-ARM64-Debug.log",
+      "staged": "raw/181ccfb07a7c3c67ae25db3125f5b635.receipt",
+      "sha256": "181ccfb07a7c3c67ae25db3125f5b63513438c19e074cc963d6c7a27b7a80d62",
+      "size_bytes": 191
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-ComboBox-ARM64-Debug.log",
+      "staged": "raw/b29f09887d351c74847f6cecc4f116cb.receipt",
+      "sha256": "b29f09887d351c74847f6cecc4f116cb2c9a7eb685c9131b1ce8c641785eeca4",
+      "size_bytes": 4014
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-Control-ARM64-Debug.log",
+      "staged": "raw/951e5074405a59ef0bbe0d3cc9956cd1.receipt",
+      "sha256": "951e5074405a59ef0bbe0d3cc9956cd13a82671a59ccaa41e07f230d2d0e8616",
+      "size_bytes": 407
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-Embedded-ARM64-Debug.log",
+      "staged": "raw/c1a89ef4b764534ea6df8a25dc874a4e.receipt",
+      "sha256": "c1a89ef4b764534ea6df8a25dc874a4ea8158ef42bba4d85d9cc5a2dfa7c3bcd",
+      "size_bytes": 96
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-Foundation-ARM64-Debug.log",
+      "staged": "raw/01007c353f70730873e78034fb6cf5f6.receipt",
+      "sha256": "01007c353f70730873e78034fb6cf5f6bcd702b01e52553f03d8bb4ba32e8372",
+      "size_bytes": 24
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-Grid-ARM64-Debug.log",
+      "staged": "raw/56be34ba7534f443eda10c157a3c019b.receipt",
+      "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-Menu-ARM64-Debug.log",
+      "staged": "raw/2008e4488a7f3005816c4ba0f9b69922.receipt",
+      "sha256": "2008e4488a7f3005816c4ba0f9b699224355fe4db10aa904303430596f8a733e",
+      "size_bytes": 16221
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-MenuAccessibility-ARM64-Debug.log",
+      "staged": "raw/2c630d297f4b13ced2bd990b3b0f2d4b.receipt",
+      "sha256": "2c630d297f4b13ced2bd990b3b0f2d4b24c3492c71f88e658e7139109c7737f5",
+      "size_bytes": 22488
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-MenuExitLifetime-ARM64-Debug.log",
+      "staged": "raw/72e21f8ad25ffde0f78c65b1f5211ebe.receipt",
+      "sha256": "72e21f8ad25ffde0f78c65b1f5211ebe6707968d9954eb6cc6079993a0786199",
+      "size_bytes": 104
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-MultilineText-ARM64-Debug.log",
+      "staged": "raw/115e90d3665aaca20f5630f5487fbc74.receipt",
+      "sha256": "115e90d3665aaca20f5630f5487fbc7498595492191ee0e55187cf02a7f82791",
+      "size_bytes": 15287
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-NativeTextInput-ARM64-Debug.log",
+      "staged": "raw/74b8d22e24734342f1035214e895ae2e.receipt",
+      "sha256": "74b8d22e24734342f1035214e895ae2e2bf4c839420b55b913600c2a030beb62",
+      "size_bytes": 21843
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-NewControls-ARM64-Debug.log",
+      "staged": "raw/a6d0a0ec8e3c938528aced0eb7d143c5.receipt",
+      "sha256": "a6d0a0ec8e3c938528aced0eb7d143c5ebd74fb7ce51cb71078e29c22f5c67ce",
+      "size_bytes": 1540
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-ReadOnly-ARM64-Debug.log",
+      "staged": "raw/abcb9b85165fb68b19a0e70c815fe567.receipt",
+      "sha256": "abcb9b85165fb68b19a0e70c815fe5676201cfd3999818f38d8e036ae0d0b07e",
+      "size_bytes": 2659
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-Rendering-ARM64-Debug.log",
+      "staged": "raw/200be63d38eff482ad940fa7aefdef09.receipt",
+      "sha256": "200be63d38eff482ad940fa7aefdef09dbeb83481062c56b50118bffa0b6fcda",
+      "size_bytes": 8240
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-TextField-ARM64-Debug.log",
+      "staged": "raw/b1d3bb0d6930b5f596013377af2ce45f.receipt",
+      "sha256": "b1d3bb0d6930b5f596013377af2ce45ffa53a97d822ff2f094301d7ba2a60493",
+      "size_bytes": 10883
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-Theme-ARM64-Debug.log",
+      "staged": "raw/1d502c308bc9845ab1f08d2a89ac946a.receipt",
+      "sha256": "1d502c308bc9845ab1f08d2a89ac946a81537be36e28bf9fcf8fc5a12007ceb7",
+      "size_bytes": 53
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-Tooltip-ARM64-Debug.log",
+      "staged": "raw/619183b9e8a66d7089a4217f84d02494.receipt",
+      "sha256": "619183b9e8a66d7089a4217f84d02494048118730f5c207d8eeff7d837829002",
+      "size_bytes": 577
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-Tree-ARM64-Debug.log",
+      "staged": "raw/a1594223b505dc7ef35c9c890ed80f14.receipt",
+      "sha256": "a1594223b505dc7ef35c9c890ed80f1428f8b8ceeea909653689929b7f56d288",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/logs/test-WindowHost-ARM64-Debug.log",
+      "staged": "raw/f5bbaa513436b63ad12dfc4fcf58c4fb.receipt",
+      "sha256": "f5bbaa513436b63ad12dfc4fcf58c4fb473d56fde2643b8150bedcb5761be612",
+      "size_bytes": 11612
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/Accessibility-ARM64-Debug.json",
+      "staged": "raw/c2363aaab03e14477f36b32b2dffbdae.receipt",
+      "sha256": "c2363aaab03e14477f36b32b2dffbdae7b77ee41ede4523c7c15ca79e8a4f32d",
+      "size_bytes": 6236
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/Animation-ARM64-Debug.json",
+      "staged": "raw/9274517d294d135c23374ad11a8a5d73.receipt",
+      "sha256": "9274517d294d135c23374ad11a8a5d738e1e848b10390eefe0172fec1ad250ec",
+      "size_bytes": 6232
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/ComboBox-ARM64-Debug.json",
+      "staged": "raw/9a25581371d2de1cfb66f1d514012e44.receipt",
+      "sha256": "9a25581371d2de1cfb66f1d514012e4474bfde3d1d2734043248869f565810b0",
+      "size_bytes": 6231
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/Control-ARM64-Debug.json",
+      "staged": "raw/d172af36e40517b52c1521d98bf0e5a5.receipt",
+      "sha256": "d172af36e40517b52c1521d98bf0e5a528bf432b069910e96c23ca4f05e4bea1",
+      "size_bytes": 6230
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/Embedded-ARM64-Debug.json",
+      "staged": "raw/e05b174401142862855ccbe7daf52105.receipt",
+      "sha256": "e05b174401142862855ccbe7daf521059d819ea02bccc93bb3a5cbc0a34fc2b4",
+      "size_bytes": 6232
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/ExternalConsumer-ARM64-Debug-annotationsDisabledfalse.json",
+      "staged": "raw/0186cc7e00bb2629ba8d6b7fda9ad1cc.receipt",
+      "sha256": "0186cc7e00bb2629ba8d6b7fda9ad1cc5c79346df84dc73c94a9f2c6b0809b1c",
+      "size_bytes": 1619
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/Foundation-ARM64-Debug.json",
+      "staged": "raw/6d1575927b5772332d5ee6329523d5d7.receipt",
+      "sha256": "6d1575927b5772332d5ee6329523d5d70a4d19b2eb89095b49ad71b145f98818",
+      "size_bytes": 6236
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/Grid-ARM64-Debug.json",
+      "staged": "raw/8fd1003e61a566c98aa0b3c0c5048413.receipt",
+      "sha256": "8fd1003e61a566c98aa0b3c0c50484131b0cdb1e0ddfbaf67b1c5a812cf6c695",
+      "size_bytes": 6227
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/Menu-ARM64-Debug.json",
+      "staged": "raw/412c5369d3697cd5b24cfea7e2fa1a35.receipt",
+      "sha256": "412c5369d3697cd5b24cfea7e2fa1a35ab3811350acf92749bc681634bdb4cd9",
+      "size_bytes": 7099
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/MenuAccessibility-ARM64-Debug.json",
+      "staged": "raw/08ec3e7a2feb99ec989044568bde9920.receipt",
+      "sha256": "08ec3e7a2feb99ec989044568bde9920377313521a6c36aa078b52d39b2a1d56",
+      "size_bytes": 6240
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/MenuExitLifetime-ARM64-Debug.json",
+      "staged": "raw/f87e80aad43f04cec3af00e26acf6203.receipt",
+      "sha256": "f87e80aad43f04cec3af00e26acf6203deb63340f343b934a48d0a605c3e49ea",
+      "size_bytes": 6239
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/MultilineText-ARM64-Debug.json",
+      "staged": "raw/a0960257bafc0f1f7890a365925b6c32.receipt",
+      "sha256": "a0960257bafc0f1f7890a365925b6c3233c436c7b2bc3b4bd9111cac29327fd0",
+      "size_bytes": 6236
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/NativeTextInput-ARM64-Debug.json",
+      "staged": "raw/830416f4b0166a04b434fc3f8c23be56.receipt",
+      "sha256": "830416f4b0166a04b434fc3f8c23be568f27a7b589e70d11b3cb4bdce17a3078",
+      "size_bytes": 6238
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/NewControls-ARM64-Debug.json",
+      "staged": "raw/6719077b798562edfaa9b531cdb63fc8.receipt",
+      "sha256": "6719077b798562edfaa9b531cdb63fc83a98d4f748d58bca57ab049294021685",
+      "size_bytes": 6234
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/Performance-ARM64-Debug-a8d16eebc10341d4935dc9c366a14522.json",
+      "staged": "raw/554471295ff6e49ddef6ecbce8734d08.receipt",
+      "sha256": "554471295ff6e49ddef6ecbce8734d08b74d2ecc42711f1564460a932e56287a",
+      "size_bytes": 8002
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/Performance-ARM64-Debug-a8d16eebc10341d4935dc9c366a14522.json.comparison.json",
+      "staged": "raw/14fc8def36f2813db7d2787166f7bd0e.receipt",
+      "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+      "size_bytes": 48
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/ReadOnly-ARM64-Debug.json",
+      "staged": "raw/9c177f16a426b7b38149c5d9b84be35e.receipt",
+      "sha256": "9c177f16a426b7b38149c5d9b84be35ecf9117a5042a69e9b3d4809b00531992",
+      "size_bytes": 6231
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/Rendering-ARM64-Debug.json",
+      "staged": "raw/a19ab433ce89ed29a92e008dcbaef82b.receipt",
+      "sha256": "a19ab433ce89ed29a92e008dcbaef82b799faa7879bfd8be4cae3adc9c80a696",
+      "size_bytes": 6232
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/TextField-ARM64-Debug.json",
+      "staged": "raw/ec19599e12d30f7de51866ab8a1bde4c.receipt",
+      "sha256": "ec19599e12d30f7de51866ab8a1bde4c6496fea69a738fc558791bf3ab461167",
+      "size_bytes": 6232
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/Theme-ARM64-Debug.json",
+      "staged": "raw/5c19d4276bef65393b22252fa260ff09.receipt",
+      "sha256": "5c19d4276bef65393b22252fa260ff0969d8578e3cf2104e5f0753caaf597d3b",
+      "size_bytes": 6228
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/Tooltip-ARM64-Debug.json",
+      "staged": "raw/3c4f0ae5289ebb6236c087e7856b94d3.receipt",
+      "sha256": "3c4f0ae5289ebb6236c087e7856b94d354b0e0eec188b0bafd49bcc684242374",
+      "size_bytes": 6230
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/Tree-ARM64-Debug.json",
+      "staged": "raw/5018bb1541cf67dd09ee12e8bab2d030.receipt",
+      "sha256": "5018bb1541cf67dd09ee12e8bab2d0308be5c702f13736ebdacffa6d9b6c47ba",
+      "size_bytes": 6227
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/reports/WindowHost-ARM64-Debug.json",
+      "staged": "raw/3ff4aaced25d3abd713c8ef8bfb6a920.receipt",
+      "sha256": "3ff4aaced25d3abd713c8ef8bfb6a92082fca3fb404d4e085241dd17516358c9",
+      "size_bytes": 6233
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/test-artifacts/5736/dxui_windowhost_stage_metrics_testlocal.jsonl",
+      "staged": "raw/b14c8a52f37f22735915e504455186f0.receipt",
+      "sha256": "b14c8a52f37f22735915e504455186f02bcb70dd05ec2eb3c13c67b813ddbdf7",
+      "size_bytes": 2424
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/test-artifacts/7504/dxui_animation_scheduler_testlocal.jsonl",
+      "staged": "raw/4dc34c173f2a4344ff174c116d8e7653.receipt",
+      "sha256": "4dc34c173f2a4344ff174c116d8e7653e3d90c8db0fe78be9ab6ca0a3d9d02a2",
+      "size_bytes": 21167
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/test-artifacts/complex-ui.png",
+      "staged": "raw/4714347f867870d8d190b4553e4aecb1.receipt",
+      "sha256": "4714347f867870d8d190b4553e4aecb1734b8dd43a878de0aa8be01501fe492a",
+      "size_bytes": 52547
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/test-artifacts/embedded-controls.png",
+      "staged": "raw/9a6fb6cc3607627655a7dbc257e644d1.receipt",
+      "sha256": "9a6fb6cc3607627655a7dbc257e644d172523457cc154bda1d9eb31014e73236",
+      "size_bytes": 6430
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Debug/test-artifacts/embedded-text-composition.png",
+      "staged": "raw/fd109188e82c0a65d0ba985edc4380b9.receipt",
+      "sha256": "fd109188e82c0a65d0ba985edc4380b9e8e49db70150c434ecc52944f88b207c",
+      "size_bytes": 2837
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/gallery/ARM64/Release/embedded-controls.png",
+      "staged": "raw/566e96606c40388f2b6795deefd0c590.receipt",
+      "sha256": "566e96606c40388f2b6795deefd0c590515cb6f65a0ed3c723d12df063d3e4ec",
+      "size_bytes": 6375
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/gallery/ARM64/Release/generation.log",
+      "staged": "raw/f748d69d07652c7f4ef13b45653728c0.receipt",
+      "sha256": "f748d69d07652c7f4ef13b45653728c08461f8fe1f00599ecd96c4ec496789d5",
+      "size_bytes": 5941
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/gallery/ARM64/Release/index.html",
+      "staged": "raw/453d28c8385d5e5fb7d39440f06b56ab.receipt",
+      "sha256": "453d28c8385d5e5fb7d39440f06b56ab9d633e5d2db7682b1e6b6cf356431a2b",
+      "size_bytes": 1410
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/gallery/ARM64/Release/theme-controls-dark.png",
+      "staged": "raw/f00ff2383b49cee50fb911d8b9ede278.receipt",
+      "sha256": "f00ff2383b49cee50fb911d8b9ede278691a8ff9442aa64a315593463c791947",
+      "size_bytes": 88202
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/gallery/ARM64/Release/theme-controls-high-contrast.png",
+      "staged": "raw/7ce0fc44a7e7f434dedde1a3eb736b79.receipt",
+      "sha256": "7ce0fc44a7e7f434dedde1a3eb736b7982925c2bba54a8347690de35cd75fbf6",
+      "size_bytes": 86726
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/gallery/ARM64/Release/theme-controls-light.png",
+      "staged": "raw/22eac3d8ba430de62792db525fa76521.receipt",
+      "sha256": "22eac3d8ba430de62792db525fa76521c9d39274f6f3c7927affd737b494f7ed",
+      "size_bytes": 87172
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/gallery/ARM64/Release/theme-controls-rainbow-dark.png",
+      "staged": "raw/c2084b281075ca2b902b61bf27e2d8eb.receipt",
+      "sha256": "c2084b281075ca2b902b61bf27e2d8ebfb18591440e7bb9a6be432ccf7bc72fe",
+      "size_bytes": 89337
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/gallery/ARM64/Release/theme-controls-rainbow-light.png",
+      "staged": "raw/efb214b1997be8e98650be9692683259.receipt",
+      "sha256": "efb214b1997be8e98650be96926832595aed0495083fea87cefac674dd1be79d",
+      "size_bytes": 88359
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/build-ARM64-Release-112ff39c4bd8494bbe370ba6835fef11.log",
+      "staged": "raw/ca212074ed85c75c50c335cda9437932.receipt",
+      "sha256": "ca212074ed85c75c50c335cda943793253758d2592be53a78f34bd44395a67c7",
+      "size_bytes": 26796
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-Accessibility-ARM64-Release.log",
+      "staged": "raw/6c34feb53f5b0f8e1bcb0d46e5fe211b.receipt",
+      "sha256": "6c34feb53f5b0f8e1bcb0d46e5fe211b4cabde31906449e979773f68bb88330e",
+      "size_bytes": 9115
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-Animation-ARM64-Release.log",
+      "staged": "raw/181ccfb07a7c3c67ae25db3125f5b635.receipt",
+      "sha256": "181ccfb07a7c3c67ae25db3125f5b63513438c19e074cc963d6c7a27b7a80d62",
+      "size_bytes": 191
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-ComboBox-ARM64-Release.log",
+      "staged": "raw/b29f09887d351c74847f6cecc4f116cb.receipt",
+      "sha256": "b29f09887d351c74847f6cecc4f116cb2c9a7eb685c9131b1ce8c641785eeca4",
+      "size_bytes": 4014
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-Control-ARM64-Release.log",
+      "staged": "raw/91463e16f3bfda74597417db31022c9b.receipt",
+      "sha256": "91463e16f3bfda74597417db31022c9b1036d79f69b63f117334a3d5865bc8df",
+      "size_bytes": 402
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-Embedded-ARM64-Release.log",
+      "staged": "raw/eb90e7d91f3abd1a65fc7034f0c64a48.receipt",
+      "sha256": "eb90e7d91f3abd1a65fc7034f0c64a483e154d4bb6779940321af2268849d80c",
+      "size_bytes": 96
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-Foundation-ARM64-Release.log",
+      "staged": "raw/01007c353f70730873e78034fb6cf5f6.receipt",
+      "sha256": "01007c353f70730873e78034fb6cf5f6bcd702b01e52553f03d8bb4ba32e8372",
+      "size_bytes": 24
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-Grid-ARM64-Release.log",
+      "staged": "raw/56be34ba7534f443eda10c157a3c019b.receipt",
+      "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-Menu-ARM64-Release.log",
+      "staged": "raw/5b6ea1ed4d19e8f299d86debd0653ca6.receipt",
+      "sha256": "5b6ea1ed4d19e8f299d86debd0653ca65e180efed59c9f79831b268bc58dd769",
+      "size_bytes": 16216
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-MenuAccessibility-ARM64-Release.log",
+      "staged": "raw/6a2c8c25c8204efd2b4507ecb2416ca2.receipt",
+      "sha256": "6a2c8c25c8204efd2b4507ecb2416ca233c0ea620ccb29a1750f0ee99d424701",
+      "size_bytes": 22488
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-MenuExitLifetime-ARM64-Release.log",
+      "staged": "raw/72e21f8ad25ffde0f78c65b1f5211ebe.receipt",
+      "sha256": "72e21f8ad25ffde0f78c65b1f5211ebe6707968d9954eb6cc6079993a0786199",
+      "size_bytes": 104
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-MultilineText-ARM64-Release.log",
+      "staged": "raw/115e90d3665aaca20f5630f5487fbc74.receipt",
+      "sha256": "115e90d3665aaca20f5630f5487fbc7498595492191ee0e55187cf02a7f82791",
+      "size_bytes": 15287
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-NativeTextInput-ARM64-Release.log",
+      "staged": "raw/c22883f13093fd96787fba3d767f848a.receipt",
+      "sha256": "c22883f13093fd96787fba3d767f848a97460f0f567d1b965250492057f971b5",
+      "size_bytes": 21838
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-NewControls-ARM64-Release.log",
+      "staged": "raw/a6d0a0ec8e3c938528aced0eb7d143c5.receipt",
+      "sha256": "a6d0a0ec8e3c938528aced0eb7d143c5ebd74fb7ce51cb71078e29c22f5c67ce",
+      "size_bytes": 1540
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-ReadOnly-ARM64-Release.log",
+      "staged": "raw/abcb9b85165fb68b19a0e70c815fe567.receipt",
+      "sha256": "abcb9b85165fb68b19a0e70c815fe5676201cfd3999818f38d8e036ae0d0b07e",
+      "size_bytes": 2659
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-Rendering-ARM64-Release.log",
+      "staged": "raw/49ee2beaefe9d43c9d1fd1f063c58042.receipt",
+      "sha256": "49ee2beaefe9d43c9d1fd1f063c58042b3a52470ef248d20002b474a6cd22c82",
+      "size_bytes": 8240
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-TextField-ARM64-Release.log",
+      "staged": "raw/b1d3bb0d6930b5f596013377af2ce45f.receipt",
+      "sha256": "b1d3bb0d6930b5f596013377af2ce45ffa53a97d822ff2f094301d7ba2a60493",
+      "size_bytes": 10883
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-Theme-ARM64-Release.log",
+      "staged": "raw/1d502c308bc9845ab1f08d2a89ac946a.receipt",
+      "sha256": "1d502c308bc9845ab1f08d2a89ac946a81537be36e28bf9fcf8fc5a12007ceb7",
+      "size_bytes": 53
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-Tooltip-ARM64-Release.log",
+      "staged": "raw/619183b9e8a66d7089a4217f84d02494.receipt",
+      "sha256": "619183b9e8a66d7089a4217f84d02494048118730f5c207d8eeff7d837829002",
+      "size_bytes": 577
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-Tree-ARM64-Release.log",
+      "staged": "raw/a1594223b505dc7ef35c9c890ed80f14.receipt",
+      "sha256": "a1594223b505dc7ef35c9c890ed80f1428f8b8ceeea909653689929b7f56d288",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/logs/test-WindowHost-ARM64-Release.log",
+      "staged": "raw/f5bbaa513436b63ad12dfc4fcf58c4fb.receipt",
+      "sha256": "f5bbaa513436b63ad12dfc4fcf58c4fb473d56fde2643b8150bedcb5761be612",
+      "size_bytes": 11612
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/Accessibility-ARM64-Release.json",
+      "staged": "raw/b92fdd25537f39c2d5a793c04e144eef.receipt",
+      "sha256": "b92fdd25537f39c2d5a793c04e144eef6ea0ebaf3771ffecbeb8f8ea0d95f5e0",
+      "size_bytes": 6236
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/Animation-ARM64-Release.json",
+      "staged": "raw/a92809a6614bbf321928385f2b9d348b.receipt",
+      "sha256": "a92809a6614bbf321928385f2b9d348bedc23ddf4959d5faefe4e03eeb409076",
+      "size_bytes": 6232
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/ComboBox-ARM64-Release.json",
+      "staged": "raw/dabe854fe2e87b6644db6c1d2ba93abc.receipt",
+      "sha256": "dabe854fe2e87b6644db6c1d2ba93abccbd22fb25c5c8a13d9f72bfe4e2727eb",
+      "size_bytes": 6231
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/Control-ARM64-Release.json",
+      "staged": "raw/4ec83c8d382079be52fb38c5a4167f21.receipt",
+      "sha256": "4ec83c8d382079be52fb38c5a4167f21aa4d5daa47f4b80f25d6b80d5080b415",
+      "size_bytes": 6230
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/Embedded-ARM64-Release.json",
+      "staged": "raw/65f5dd54da42f2a508b4f965d6d795d1.receipt",
+      "sha256": "65f5dd54da42f2a508b4f965d6d795d1f94f4a4089e5893cf70077c80beca071",
+      "size_bytes": 6232
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/ExternalConsumer-ARM64-Release-annotationsDisabledfalse.json",
+      "staged": "raw/e32bb7e5d194c78279fc01d46067a318.receipt",
+      "sha256": "e32bb7e5d194c78279fc01d46067a318370baee846d20ebd27e6b341adb4a50d",
+      "size_bytes": 1621
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/Foundation-ARM64-Release.json",
+      "staged": "raw/2fd57132d3c770872452a9055727f40f.receipt",
+      "sha256": "2fd57132d3c770872452a9055727f40f4c21c09a65c8374577888538a9fd8cdb",
+      "size_bytes": 6236
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/Grid-ARM64-Release.json",
+      "staged": "raw/84a96f27062fdee6d07618fc779c8330.receipt",
+      "sha256": "84a96f27062fdee6d07618fc779c833000d9611ea318e9fe61588097671e7c46",
+      "size_bytes": 6227
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/Menu-ARM64-Release.json",
+      "staged": "raw/d7ef78e7b181b2e009dbef49eb374d33.receipt",
+      "sha256": "d7ef78e7b181b2e009dbef49eb374d334bce97036a196089a8d98e74a4ad01d5",
+      "size_bytes": 7099
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/MenuAccessibility-ARM64-Release.json",
+      "staged": "raw/2fd286ab72173099f2fdd659faf33824.receipt",
+      "sha256": "2fd286ab72173099f2fdd659faf338246fab9a406ae519ebb846965b0b860e1e",
+      "size_bytes": 6240
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/MenuExitLifetime-ARM64-Release.json",
+      "staged": "raw/1eddcc8993b92292259501d229c2753b.receipt",
+      "sha256": "1eddcc8993b92292259501d229c2753b6f4d3603117e02a0a42f97d7e2a4e70a",
+      "size_bytes": 6239
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/MultilineText-ARM64-Release.json",
+      "staged": "raw/e23480d28f171062d2ae7152b4499464.receipt",
+      "sha256": "e23480d28f171062d2ae7152b4499464286f387b8c239706c552a96131d2a8d8",
+      "size_bytes": 6236
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/NativeTextInput-ARM64-Release.json",
+      "staged": "raw/02ef0b2a118fecbb618618fc06594f3b.receipt",
+      "sha256": "02ef0b2a118fecbb618618fc06594f3b8d54cf51f29fb6beb8f5ec37c2e59b69",
+      "size_bytes": 6238
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/NewControls-ARM64-Release.json",
+      "staged": "raw/99f779ed997d96ad6ed764bdfbebaeed.receipt",
+      "sha256": "99f779ed997d96ad6ed764bdfbebaeeda337493de3a7cd09acb36f67c67f4872",
+      "size_bytes": 6234
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/Performance-ARM64-Release-9e87e63b566c422a93e079f79aba7108.json",
+      "staged": "raw/8d20321e619ff39f544b5434f980beef.receipt",
+      "sha256": "8d20321e619ff39f544b5434f980beefea4517dc19360fefac61b53889100ab0",
+      "size_bytes": 7996
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/Performance-ARM64-Release-9e87e63b566c422a93e079f79aba7108.json.comparison.json",
+      "staged": "raw/14fc8def36f2813db7d2787166f7bd0e.receipt",
+      "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+      "size_bytes": 48
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/ReadOnly-ARM64-Release.json",
+      "staged": "raw/6ab9a2fe4a59770991c65fc2d09363f3.receipt",
+      "sha256": "6ab9a2fe4a59770991c65fc2d09363f3071401b05fd55996508b83451b3a90b5",
+      "size_bytes": 6231
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/Rendering-ARM64-Release.json",
+      "staged": "raw/f69baaea1681302f0bcd0bb87df7bd2e.receipt",
+      "sha256": "f69baaea1681302f0bcd0bb87df7bd2e7acda270ff7010859577eaaae19a52af",
+      "size_bytes": 6232
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/TextField-ARM64-Release.json",
+      "staged": "raw/4719965433a2669299917b1aa2888c29.receipt",
+      "sha256": "4719965433a2669299917b1aa2888c295027d8acb2dec7687b1859e74a732198",
+      "size_bytes": 6232
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/Theme-ARM64-Release.json",
+      "staged": "raw/623a38d4c2c078d131b19136cd950c5d.receipt",
+      "sha256": "623a38d4c2c078d131b19136cd950c5d8c3859be15150ca7bc47df9a6b79535a",
+      "size_bytes": 6228
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/Tooltip-ARM64-Release.json",
+      "staged": "raw/95883a503ac20ea4af46344814121af5.receipt",
+      "sha256": "95883a503ac20ea4af46344814121af5eb6d618255c534b402f4250612e9fa5c",
+      "size_bytes": 6230
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/Tree-ARM64-Release.json",
+      "staged": "raw/72985e9cd01b89486cf22348aba8de06.receipt",
+      "sha256": "72985e9cd01b89486cf22348aba8de063f700304c609d940aa5660261b8124cf",
+      "size_bytes": 6227
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/reports/WindowHost-ARM64-Release.json",
+      "staged": "raw/08160f9c001513c5cf3555400f08f9b7.receipt",
+      "sha256": "08160f9c001513c5cf3555400f08f9b7d5ffb6f9cad976cf2aeac4399f85b2f8",
+      "size_bytes": 6233
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/test-artifacts/3372/dxui_animation_scheduler_testlocal.jsonl",
+      "staged": "raw/8dfced149943ee142332b10425e405d7.receipt",
+      "sha256": "8dfced149943ee142332b10425e405d7423ee0ed84ce99e5648e7581c3fe3fb9",
+      "size_bytes": 24931
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/test-artifacts/5720/dxui_windowhost_stage_metrics_testlocal.jsonl",
+      "staged": "raw/ecf5e47adb0826c40ceb8460c5688019.receipt",
+      "sha256": "ecf5e47adb0826c40ceb8460c568801980618eadb4ef48761d47a47b5cb057a7",
+      "size_bytes": 2424
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/test-artifacts/complex-ui.png",
+      "staged": "raw/4714347f867870d8d190b4553e4aecb1.receipt",
+      "sha256": "4714347f867870d8d190b4553e4aecb1734b8dd43a878de0aa8be01501fe492a",
+      "size_bytes": 52547
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/test-artifacts/embedded-controls.png",
+      "staged": "raw/9a6fb6cc3607627655a7dbc257e644d1.receipt",
+      "sha256": "9a6fb6cc3607627655a7dbc257e644d172523457cc154bda1d9eb31014e73236",
+      "size_bytes": 6430
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/ARM64/native-ARM64-Release/test-artifacts/embedded-text-composition.png",
+      "staged": "raw/fd109188e82c0a65d0ba985edc4380b9.receipt",
+      "sha256": "fd109188e82c0a65d0ba985edc4380b9e8e49db70150c434ecc52944f88b207c",
+      "size_bytes": 2837
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/audit-ci-artifacts.py",
+      "staged": "raw/a23409122c9ca4ae857fbc440425eb80.receipt",
+      "sha256": "a23409122c9ca4ae857fbc440425eb802b0175fd4fb2184bd48c911bf424e3ba",
+      "size_bytes": 15193
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/audit-result-arm64/arm64-artifact-hashes.json",
+      "staged": "raw/a3ef7622f53bfc773cbbe78ae123ce65.receipt",
+      "sha256": "a3ef7622f53bfc773cbbe78ae123ce65397649993a58cea25b18ce408fcefe54",
+      "size_bytes": 35415
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/audit-result-arm64/arm64-audit-files.sha256.json",
+      "staged": "raw/c7ee97de786837bd9a2daa56d30d5392.receipt",
+      "sha256": "c7ee97de786837bd9a2daa56d30d5392628345c7e1deb96713f382e47a563bfe",
+      "size_bytes": 1163
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/audit-result-arm64/arm64-suite-consumer-audit.json",
+      "staged": "raw/424c154155e499f00ded1780f612ba7b.receipt",
+      "sha256": "424c154155e499f00ded1780f612ba7bfa02b00a3cfc264f61b0f2d8654e08e5",
+      "size_bytes": 62735
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/audit-result-arm64/assessment.md",
+      "staged": "raw/8db5b2e3e063e01f64d2ae0481c9d4ee.receipt",
+      "sha256": "8db5b2e3e063e01f64d2ae0481c9d4ee79bb58d2ef413ac32f36fefe25e880b0",
+      "size_bytes": 2002
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/audit-result-arm64/audit-arm64.py",
+      "staged": "raw/dc93cbd99f0ffe9acdf64a15f53a87c7.receipt",
+      "sha256": "dc93cbd99f0ffe9acdf64a15f53a87c71034c7a7a1d95bcff21da07bfd7ddae3",
+      "size_bytes": 18622
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/audit-result/assessment.md",
+      "staged": "raw/69a9a69e428e9ef6c7d2bc7dbd7bc556.receipt",
+      "sha256": "69a9a69e428e9ef6c7d2bc7dbd7bc55643d1fe48d6a0d32fcb1ddd76eef1195b",
+      "size_bytes": 1870
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/audit-result/source-hash-manifest.json",
+      "staged": "raw/f15990c300e31745e8e4e621c13f0997.receipt",
+      "sha256": "f15990c300e31745e8e4e621c13f099715ccafc25408646e3ecb4a233534f9f3",
+      "size_bytes": 1247
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/audit-result/suite-audit.json",
+      "staged": "raw/5fe699cc04dfe2187869a1cf96e3f91c.receipt",
+      "sha256": "5fe699cc04dfe2187869a1cf96e3f91cb0ae06d1a897ae89167be6970827b242",
+      "size_bytes": 82736
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/audit-result/x64-artifact-hashes.json",
+      "staged": "raw/8985d36793232cd6c84ea62c7990da6e.receipt",
+      "sha256": "8985d36793232cd6c84ea62c7990da6ec9fb790da408368c447978dcff8fe3f2",
+      "size_bytes": 36943
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/root-122-suite-verification.json",
+      "staged": "raw/261fc3594eb4d808502bff207aae0f93.receipt",
+      "sha256": "261fc3594eb4d808502bff207aae0f934289b700d57dc1d439b8c3d71ec65faa",
+      "size_bytes": 39037
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/root-8-consumer-verification.json",
+      "staged": "raw/deb7d40dfd053c4a4415f9831e0e95ae.receipt",
+      "sha256": "deb7d40dfd053c4a4415f9831e0e95aec36a75d969c4fa4239edff8d6f792889",
+      "size_bytes": 1763
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/run-completed.json",
+      "staged": "raw/257e91d54c8aba9438d104984fcc507b.receipt",
+      "sha256": "257e91d54c8aba9438d104984fcc507b8856f3846a8ca71b67cb9752c82ce292",
+      "size_bytes": 19739
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/gallery/x64/ASan Debug/embedded-controls.png",
+      "staged": "raw/566e96606c40388f2b6795deefd0c590.receipt",
+      "sha256": "566e96606c40388f2b6795deefd0c590515cb6f65a0ed3c723d12df063d3e4ec",
+      "size_bytes": 6375
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/gallery/x64/ASan Debug/generation.log",
+      "staged": "raw/4cb1ff9e7cf7f2b8e21132d599905787.receipt",
+      "sha256": "4cb1ff9e7cf7f2b8e21132d59990578721bcaa92706bf58216d332d624bad4c8",
+      "size_bytes": 5946
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/gallery/x64/ASan Debug/index.html",
+      "staged": "raw/453d28c8385d5e5fb7d39440f06b56ab.receipt",
+      "sha256": "453d28c8385d5e5fb7d39440f06b56ab9d633e5d2db7682b1e6b6cf356431a2b",
+      "size_bytes": 1410
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/gallery/x64/ASan Debug/theme-controls-dark.png",
+      "staged": "raw/3f8b5b2974aa9e75ae0f0e9264497a91.receipt",
+      "sha256": "3f8b5b2974aa9e75ae0f0e9264497a91730cf0fe6d2276f718f92375230d1099",
+      "size_bytes": 88141
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/gallery/x64/ASan Debug/theme-controls-high-contrast.png",
+      "staged": "raw/250b06b606c3ace0324c8a0b5523b23d.receipt",
+      "sha256": "250b06b606c3ace0324c8a0b5523b23db7cb87337b8dff6c6804caf866232d59",
+      "size_bytes": 86659
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/gallery/x64/ASan Debug/theme-controls-light.png",
+      "staged": "raw/079303e2db1bd01a1d8b45e58cd9535a.receipt",
+      "sha256": "079303e2db1bd01a1d8b45e58cd9535af2d7e2738daad765ff229f693fef9f47",
+      "size_bytes": 87116
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/gallery/x64/ASan Debug/theme-controls-rainbow-dark.png",
+      "staged": "raw/6bee6942d7d32967bc41ac60a3a8d664.receipt",
+      "sha256": "6bee6942d7d32967bc41ac60a3a8d6647a14b5cc522f788f098c972d6d22ab95",
+      "size_bytes": 89283
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/gallery/x64/ASan Debug/theme-controls-rainbow-light.png",
+      "staged": "raw/41de5232d0dea61fe30285fc8808fc1d.receipt",
+      "sha256": "41de5232d0dea61fe30285fc8808fc1d7a99022605983560888017b4da1ab216",
+      "size_bytes": 88304
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/build-x64-ASan Debug-8ae5289b2ffa439aab9be1b729978e06.log",
+      "staged": "raw/25b4aaaf8d1f7c007ebfa1230675820b.receipt",
+      "sha256": "25b4aaaf8d1f7c007ebfa1230675820b4f73d6d79e30db571f5c7bf3166acdcb",
+      "size_bytes": 27317
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-Accessibility-x64-ASan Debug.log",
+      "staged": "raw/079aa974d6963d73ad87a20193c5355f.receipt",
+      "sha256": "079aa974d6963d73ad87a20193c5355f6d29c3418a55fd7821e9bb8a34e82cf3",
+      "size_bytes": 9115
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-AddressSanitizer-x64.log",
+      "staged": "raw/55f672169065ebc59ce4f5dd9f4abfee.receipt",
+      "sha256": "55f672169065ebc59ce4f5dd9f4abfee7c7135fbd390e64b28eb6032c0126988",
+      "size_bytes": 5507
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-Animation-x64-ASan Debug.log",
+      "staged": "raw/181ccfb07a7c3c67ae25db3125f5b635.receipt",
+      "sha256": "181ccfb07a7c3c67ae25db3125f5b63513438c19e074cc963d6c7a27b7a80d62",
+      "size_bytes": 191
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-ComboBox-x64-ASan Debug.log",
+      "staged": "raw/b29f09887d351c74847f6cecc4f116cb.receipt",
+      "sha256": "b29f09887d351c74847f6cecc4f116cb2c9a7eb685c9131b1ce8c641785eeca4",
+      "size_bytes": 4014
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-Control-x64-ASan Debug.log",
+      "staged": "raw/a76a81f5b950178682fbe5a56b84e9d8.receipt",
+      "sha256": "a76a81f5b950178682fbe5a56b84e9d8e7b823b6317b7ebbd2bc810cde09495f",
+      "size_bytes": 407
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-Embedded-x64-ASan Debug.log",
+      "staged": "raw/6037c12d909159e6edcd7da2d0d91fdf.receipt",
+      "sha256": "6037c12d909159e6edcd7da2d0d91fdfe1285731cb86c9cf20a9f11dc12de794",
+      "size_bytes": 97
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-Foundation-x64-ASan Debug.log",
+      "staged": "raw/01007c353f70730873e78034fb6cf5f6.receipt",
+      "sha256": "01007c353f70730873e78034fb6cf5f6bcd702b01e52553f03d8bb4ba32e8372",
+      "size_bytes": 24
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-Grid-x64-ASan Debug.log",
+      "staged": "raw/56be34ba7534f443eda10c157a3c019b.receipt",
+      "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-Menu-x64-ASan Debug.log",
+      "staged": "raw/bdf7945f8dcbfbb6aa8d1e195347752c.receipt",
+      "sha256": "bdf7945f8dcbfbb6aa8d1e195347752cdb2bfff5a25f2fa577328de557b8704c",
+      "size_bytes": 15557
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-MenuAccessibility-x64-ASan Debug.log",
+      "staged": "raw/fdf723a391d6318a743f5d08c47807c2.receipt",
+      "sha256": "fdf723a391d6318a743f5d08c47807c279f189f1ba20c2e1eb5c9948d8eceda5",
+      "size_bytes": 29778
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-MenuExitLifetime-x64-ASan Debug.log",
+      "staged": "raw/72e21f8ad25ffde0f78c65b1f5211ebe.receipt",
+      "sha256": "72e21f8ad25ffde0f78c65b1f5211ebe6707968d9954eb6cc6079993a0786199",
+      "size_bytes": 104
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-MultilineText-x64-ASan Debug.log",
+      "staged": "raw/115e90d3665aaca20f5630f5487fbc74.receipt",
+      "sha256": "115e90d3665aaca20f5630f5487fbc7498595492191ee0e55187cf02a7f82791",
+      "size_bytes": 15287
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-NativeTextInput-x64-ASan Debug.log",
+      "staged": "raw/996b0b242be890e9d7e2c540571a3b65.receipt",
+      "sha256": "996b0b242be890e9d7e2c540571a3b6514e8e075c39bfd34bf0042fad46f0eaa",
+      "size_bytes": 21843
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-NewControls-x64-ASan Debug.log",
+      "staged": "raw/a6d0a0ec8e3c938528aced0eb7d143c5.receipt",
+      "sha256": "a6d0a0ec8e3c938528aced0eb7d143c5ebd74fb7ce51cb71078e29c22f5c67ce",
+      "size_bytes": 1540
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-ReadOnly-x64-ASan Debug.log",
+      "staged": "raw/abcb9b85165fb68b19a0e70c815fe567.receipt",
+      "sha256": "abcb9b85165fb68b19a0e70c815fe5676201cfd3999818f38d8e036ae0d0b07e",
+      "size_bytes": 2659
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-Rendering-x64-ASan Debug.log",
+      "staged": "raw/39b1396ddadbe86ba1e91cfb834f260f.receipt",
+      "sha256": "39b1396ddadbe86ba1e91cfb834f260fa8cfdc7315d7d3d57f20b597da5438fc",
+      "size_bytes": 8240
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-TextField-x64-ASan Debug.log",
+      "staged": "raw/b1d3bb0d6930b5f596013377af2ce45f.receipt",
+      "sha256": "b1d3bb0d6930b5f596013377af2ce45ffa53a97d822ff2f094301d7ba2a60493",
+      "size_bytes": 10883
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-Theme-x64-ASan Debug.log",
+      "staged": "raw/1d502c308bc9845ab1f08d2a89ac946a.receipt",
+      "sha256": "1d502c308bc9845ab1f08d2a89ac946a81537be36e28bf9fcf8fc5a12007ceb7",
+      "size_bytes": 53
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-Tooltip-x64-ASan Debug.log",
+      "staged": "raw/619183b9e8a66d7089a4217f84d02494.receipt",
+      "sha256": "619183b9e8a66d7089a4217f84d02494048118730f5c207d8eeff7d837829002",
+      "size_bytes": 577
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-Tree-x64-ASan Debug.log",
+      "staged": "raw/a1594223b505dc7ef35c9c890ed80f14.receipt",
+      "sha256": "a1594223b505dc7ef35c9c890ed80f1428f8b8ceeea909653689929b7f56d288",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/logs/test-WindowHost-x64-ASan Debug.log",
+      "staged": "raw/6bb94961429d5625cc382694356cfcc9.receipt",
+      "sha256": "6bb94961429d5625cc382694356cfcc911e579ac5faad205237da539c6d0e773",
+      "size_bytes": 11605
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/Accessibility-x64-ASan Debug.json",
+      "staged": "raw/9dd8535af9a440048b01689ae5d81c8c.receipt",
+      "sha256": "9dd8535af9a440048b01689ae5d81c8c294e45bff665834fe73fad58f04235ce",
+      "size_bytes": 6330
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/AddressSanitizer-x64.json",
+      "staged": "raw/5749de88cd0e36d21b419e81b6da4ada.receipt",
+      "sha256": "5749de88cd0e36d21b419e81b6da4ada4232afc907ec42a05746bf8b6b7a95c6",
+      "size_bytes": 461
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/Animation-x64-ASan Debug.json",
+      "staged": "raw/cf5a2401ba8a0ad51c0d67fb92b115d1.receipt",
+      "sha256": "cf5a2401ba8a0ad51c0d67fb92b115d16c70611e36821cd4e29624eca3679009",
+      "size_bytes": 6326
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/ComboBox-x64-ASan Debug.json",
+      "staged": "raw/0d538bc9e81d674c5c656300b26c8dc8.receipt",
+      "sha256": "0d538bc9e81d674c5c656300b26c8dc87948b11238c692708a6a4b98c7fe31cd",
+      "size_bytes": 6325
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/Control-x64-ASan Debug.json",
+      "staged": "raw/e5f84a1457eac3d228bd378fd205b739.receipt",
+      "sha256": "e5f84a1457eac3d228bd378fd205b73977912940037de5cfe110bf5ab3a6b826",
+      "size_bytes": 6324
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/Embedded-x64-ASan Debug.json",
+      "staged": "raw/f7ccd6309ac9ec3ad4e2635db5854de7.receipt",
+      "sha256": "f7ccd6309ac9ec3ad4e2635db5854de772cf58faa22d1456374305e84753d163",
+      "size_bytes": 6326
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/ExternalConsumer-x64-ASan Debug-annotationsDisabledfalse.json",
+      "staged": "raw/c905870442e09775172c9dcfcf63970a.receipt",
+      "sha256": "c905870442e09775172c9dcfcf63970acd83289a2b4041b380b4fa0c063d1bed",
+      "size_bytes": 1618
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/ExternalConsumer-x64-ASan Debug-annotationsDisabledtrue.json",
+      "staged": "raw/2b8d28a38afc0e25de1b3c344f7ae8da.receipt",
+      "sha256": "2b8d28a38afc0e25de1b3c344f7ae8da0075848a5942b2240c825c267d6a2209",
+      "size_bytes": 1616
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/Foundation-x64-ASan Debug.json",
+      "staged": "raw/5140bf7249dfac2cc5fd6babc5fde259.receipt",
+      "sha256": "5140bf7249dfac2cc5fd6babc5fde25935dcae60c47675ad845a56394fdd00c4",
+      "size_bytes": 6330
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/Grid-x64-ASan Debug.json",
+      "staged": "raw/0b62a9c7ac2d235f1eb3ca77573092ea.receipt",
+      "sha256": "0b62a9c7ac2d235f1eb3ca77573092ead1a3153214ab1fe23f646b6552cb567d",
+      "size_bytes": 6321
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/Menu-x64-ASan Debug.json",
+      "staged": "raw/89127799e29f7d27250b6199977c0b12.receipt",
+      "sha256": "89127799e29f7d27250b6199977c0b126f375329a30008e27f57bcb5d602f1ae",
+      "size_bytes": 6321
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/MenuAccessibility-x64-ASan Debug.json",
+      "staged": "raw/dd3504eee46df15be0c7f6e647f54153.receipt",
+      "sha256": "dd3504eee46df15be0c7f6e647f54153aa35ebfd66f668edb5ea55cf49e03362",
+      "size_bytes": 6334
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/MenuExitLifetime-x64-ASan Debug.json",
+      "staged": "raw/bf339b64cf39c703a913057d6a99c0f3.receipt",
+      "sha256": "bf339b64cf39c703a913057d6a99c0f3df0a8bd2728361d8f3dfac5d71c2d613",
+      "size_bytes": 6333
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/MultilineText-x64-ASan Debug.json",
+      "staged": "raw/f269e8e0029bd4c22695f048c61fd445.receipt",
+      "sha256": "f269e8e0029bd4c22695f048c61fd44513768992b8ccbd8148ee2e60fcb84579",
+      "size_bytes": 6330
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/NativeTextInput-x64-ASan Debug.json",
+      "staged": "raw/0a20bf83c48438f7b27169c25cf34ec1.receipt",
+      "sha256": "0a20bf83c48438f7b27169c25cf34ec158c5e65ac851fa0f181d4e9784e54a74",
+      "size_bytes": 6332
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/NewControls-x64-ASan Debug.json",
+      "staged": "raw/ab33d3c165e5d257d14fa98e0cf3565d.receipt",
+      "sha256": "ab33d3c165e5d257d14fa98e0cf3565db27f60d3b4584020e168a09a7937886e",
+      "size_bytes": 6328
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json",
+      "staged": "raw/5bbd010e46500ebeb579cf42df9b46fa.receipt",
+      "sha256": "5bbd010e46500ebeb579cf42df9b46fa7663c9cda32d36753298a8d3498ddabf",
+      "size_bytes": 8120
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/Performance-x64-ASan Debug-4d5ff49bcda34fe1ba3fa53666b54c6b.json.comparison.json",
+      "staged": "raw/14fc8def36f2813db7d2787166f7bd0e.receipt",
+      "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+      "size_bytes": 48
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/ReadOnly-x64-ASan Debug.json",
+      "staged": "raw/0848f150c27a4f2580308d65642b4633.receipt",
+      "sha256": "0848f150c27a4f2580308d65642b46338272dacf2b9882fb1e2065fdacf9332a",
+      "size_bytes": 6325
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/Rendering-x64-ASan Debug.json",
+      "staged": "raw/fe6881a67e4e709e0d4866faf58dd685.receipt",
+      "sha256": "fe6881a67e4e709e0d4866faf58dd68584b3708a4853527c990c26fb222d5a1a",
+      "size_bytes": 6326
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/TextField-x64-ASan Debug.json",
+      "staged": "raw/5f035fb8e70536a5a97878294f9d4f0c.receipt",
+      "sha256": "5f035fb8e70536a5a97878294f9d4f0c42fae743e6a050ded0e78ca2999c8ec2",
+      "size_bytes": 6326
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/Theme-x64-ASan Debug.json",
+      "staged": "raw/56ae4d41f8daa1e92d0f67cbd6b223cf.receipt",
+      "sha256": "56ae4d41f8daa1e92d0f67cbd6b223cf08390aeef9359c3e7b84a85bd2cb8834",
+      "size_bytes": 6322
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/Tooltip-x64-ASan Debug.json",
+      "staged": "raw/2c76d23716bb5c840b28d60d0844c88b.receipt",
+      "sha256": "2c76d23716bb5c840b28d60d0844c88b8dc8c3dcb1c1a880f53bfadb66629d9a",
+      "size_bytes": 6324
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/Tree-x64-ASan Debug.json",
+      "staged": "raw/e1babb3d44f703711caa26e27b488e64.receipt",
+      "sha256": "e1babb3d44f703711caa26e27b488e64609c4e2779a2c4182b5c85d1c908c6de",
+      "size_bytes": 6321
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/reports/WindowHost-x64-ASan Debug.json",
+      "staged": "raw/54785c742ff23694ad0a2b87be4d8360.receipt",
+      "sha256": "54785c742ff23694ad0a2b87be4d8360b883fa385314f89f3486059c8b7884a5",
+      "size_bytes": 6327
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/test-artifacts/6056/dxui_animation_scheduler_testlocal.jsonl",
+      "staged": "raw/36fe821d11ee195ca11a0319354634d4.receipt",
+      "sha256": "36fe821d11ee195ca11a0319354634d4a34fd9b5367b0058961b2e8f41a9fac8",
+      "size_bytes": 22955
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/test-artifacts/8088/dxui_windowhost_stage_metrics_testlocal.jsonl",
+      "staged": "raw/a9d9990571f16394d06e07f262c73e3d.receipt",
+      "sha256": "a9d9990571f16394d06e07f262c73e3dc8f1a1c446475205b3c5893fa9e266de",
+      "size_bytes": 2428
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/test-artifacts/complex-ui.png",
+      "staged": "raw/4714347f867870d8d190b4553e4aecb1.receipt",
+      "sha256": "4714347f867870d8d190b4553e4aecb1734b8dd43a878de0aa8be01501fe492a",
+      "size_bytes": 52547
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/test-artifacts/embedded-controls.png",
+      "staged": "raw/9a6fb6cc3607627655a7dbc257e644d1.receipt",
+      "sha256": "9a6fb6cc3607627655a7dbc257e644d172523457cc154bda1d9eb31014e73236",
+      "size_bytes": 6430
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-ASan Debug/test-artifacts/embedded-text-composition.png",
+      "staged": "raw/fd109188e82c0a65d0ba985edc4380b9.receipt",
+      "sha256": "fd109188e82c0a65d0ba985edc4380b9e8e49db70150c434ecc52944f88b207c",
+      "size_bytes": 2837
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/gallery/x64/Debug/embedded-controls.png",
+      "staged": "raw/566e96606c40388f2b6795deefd0c590.receipt",
+      "sha256": "566e96606c40388f2b6795deefd0c590515cb6f65a0ed3c723d12df063d3e4ec",
+      "size_bytes": 6375
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/gallery/x64/Debug/generation.log",
+      "staged": "raw/b31ec0ea6dbc3913dd58819bf0cea831.receipt",
+      "sha256": "b31ec0ea6dbc3913dd58819bf0cea831c216b26f8f6ae3025022e4a87dc18f53",
+      "size_bytes": 5921
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/gallery/x64/Debug/index.html",
+      "staged": "raw/453d28c8385d5e5fb7d39440f06b56ab.receipt",
+      "sha256": "453d28c8385d5e5fb7d39440f06b56ab9d633e5d2db7682b1e6b6cf356431a2b",
+      "size_bytes": 1410
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/gallery/x64/Debug/theme-controls-dark.png",
+      "staged": "raw/dd1cf84c97b3ccd1ad089cfdc14f2a56.receipt",
+      "sha256": "dd1cf84c97b3ccd1ad089cfdc14f2a565a6c14101ffe8adc1b1600e81aa36eee",
+      "size_bytes": 88151
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/gallery/x64/Debug/theme-controls-high-contrast.png",
+      "staged": "raw/250b06b606c3ace0324c8a0b5523b23d.receipt",
+      "sha256": "250b06b606c3ace0324c8a0b5523b23db7cb87337b8dff6c6804caf866232d59",
+      "size_bytes": 86659
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/gallery/x64/Debug/theme-controls-light.png",
+      "staged": "raw/079303e2db1bd01a1d8b45e58cd9535a.receipt",
+      "sha256": "079303e2db1bd01a1d8b45e58cd9535af2d7e2738daad765ff229f693fef9f47",
+      "size_bytes": 87116
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/gallery/x64/Debug/theme-controls-rainbow-dark.png",
+      "staged": "raw/6bee6942d7d32967bc41ac60a3a8d664.receipt",
+      "sha256": "6bee6942d7d32967bc41ac60a3a8d6647a14b5cc522f788f098c972d6d22ab95",
+      "size_bytes": 89283
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/gallery/x64/Debug/theme-controls-rainbow-light.png",
+      "staged": "raw/41de5232d0dea61fe30285fc8808fc1d.receipt",
+      "sha256": "41de5232d0dea61fe30285fc8808fc1d7a99022605983560888017b4da1ab216",
+      "size_bytes": 88304
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/build-x64-Debug-45ded8012cab490ea774153e5599cf3e.log",
+      "staged": "raw/f913aa9e58f4cb9a3fba8b56072c006e.receipt",
+      "sha256": "f913aa9e58f4cb9a3fba8b56072c006e14a54963934329ae5ff927c920812f8a",
+      "size_bytes": 26440
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-Accessibility-x64-Debug.log",
+      "staged": "raw/1027b7eca110766f80dfbe91beac1492.receipt",
+      "sha256": "1027b7eca110766f80dfbe91beac14922417945dde6becad30ad1a21d05cadf9",
+      "size_bytes": 9114
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-Animation-x64-Debug.log",
+      "staged": "raw/181ccfb07a7c3c67ae25db3125f5b635.receipt",
+      "sha256": "181ccfb07a7c3c67ae25db3125f5b63513438c19e074cc963d6c7a27b7a80d62",
+      "size_bytes": 191
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-ComboBox-x64-Debug.log",
+      "staged": "raw/b29f09887d351c74847f6cecc4f116cb.receipt",
+      "sha256": "b29f09887d351c74847f6cecc4f116cb2c9a7eb685c9131b1ce8c641785eeca4",
+      "size_bytes": 4014
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-Control-x64-Debug.log",
+      "staged": "raw/14ac901f7f17ea343ea7d3aeec4b7953.receipt",
+      "sha256": "14ac901f7f17ea343ea7d3aeec4b79532e77cf2c1fea0d069840bf8514089cdb",
+      "size_bytes": 407
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-Embedded-x64-Debug.log",
+      "staged": "raw/f9cc65036d4213a889935559395f9f03.receipt",
+      "sha256": "f9cc65036d4213a889935559395f9f03c37099c227d76391e884ee02fc538d95",
+      "size_bytes": 97
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-Foundation-x64-Debug.log",
+      "staged": "raw/01007c353f70730873e78034fb6cf5f6.receipt",
+      "sha256": "01007c353f70730873e78034fb6cf5f6bcd702b01e52553f03d8bb4ba32e8372",
+      "size_bytes": 24
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-Grid-x64-Debug.log",
+      "staged": "raw/56be34ba7534f443eda10c157a3c019b.receipt",
+      "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-Menu-x64-Debug.log",
+      "staged": "raw/299257a743d095ea29d13e1cbdc7b111.receipt",
+      "sha256": "299257a743d095ea29d13e1cbdc7b111e0b56e832dbf2af602e6f75d34912f79",
+      "size_bytes": 15554
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-MenuAccessibility-x64-Debug.log",
+      "staged": "raw/acacbd344bdf41e5e78f2c14d319aba5.receipt",
+      "sha256": "acacbd344bdf41e5e78f2c14d319aba50bed7413c03ab49611d2fd59cf68e7b7",
+      "size_bytes": 30218
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-MenuExitLifetime-x64-Debug.log",
+      "staged": "raw/72e21f8ad25ffde0f78c65b1f5211ebe.receipt",
+      "sha256": "72e21f8ad25ffde0f78c65b1f5211ebe6707968d9954eb6cc6079993a0786199",
+      "size_bytes": 104
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-MultilineText-x64-Debug.log",
+      "staged": "raw/115e90d3665aaca20f5630f5487fbc74.receipt",
+      "sha256": "115e90d3665aaca20f5630f5487fbc7498595492191ee0e55187cf02a7f82791",
+      "size_bytes": 15287
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-NativeTextInput-x64-Debug.log",
+      "staged": "raw/f051a35b4dbed2524f5d7f74c6b9e3a8.receipt",
+      "sha256": "f051a35b4dbed2524f5d7f74c6b9e3a8203b4c70eaa6de74f5d88039e26a3003",
+      "size_bytes": 21838
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-NewControls-x64-Debug.log",
+      "staged": "raw/a6d0a0ec8e3c938528aced0eb7d143c5.receipt",
+      "sha256": "a6d0a0ec8e3c938528aced0eb7d143c5ebd74fb7ce51cb71078e29c22f5c67ce",
+      "size_bytes": 1540
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-ReadOnly-x64-Debug.log",
+      "staged": "raw/abcb9b85165fb68b19a0e70c815fe567.receipt",
+      "sha256": "abcb9b85165fb68b19a0e70c815fe5676201cfd3999818f38d8e036ae0d0b07e",
+      "size_bytes": 2659
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-Rendering-x64-Debug.log",
+      "staged": "raw/c7ea6d94d477eef42a5cea2c974f2f12.receipt",
+      "sha256": "c7ea6d94d477eef42a5cea2c974f2f12f765e283a36308dc8c08d37e3041c1ae",
+      "size_bytes": 8240
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-TextField-x64-Debug.log",
+      "staged": "raw/b1d3bb0d6930b5f596013377af2ce45f.receipt",
+      "sha256": "b1d3bb0d6930b5f596013377af2ce45ffa53a97d822ff2f094301d7ba2a60493",
+      "size_bytes": 10883
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-Theme-x64-Debug.log",
+      "staged": "raw/1d502c308bc9845ab1f08d2a89ac946a.receipt",
+      "sha256": "1d502c308bc9845ab1f08d2a89ac946a81537be36e28bf9fcf8fc5a12007ceb7",
+      "size_bytes": 53
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-Tooltip-x64-Debug.log",
+      "staged": "raw/619183b9e8a66d7089a4217f84d02494.receipt",
+      "sha256": "619183b9e8a66d7089a4217f84d02494048118730f5c207d8eeff7d837829002",
+      "size_bytes": 577
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-Tree-x64-Debug.log",
+      "staged": "raw/a1594223b505dc7ef35c9c890ed80f14.receipt",
+      "sha256": "a1594223b505dc7ef35c9c890ed80f1428f8b8ceeea909653689929b7f56d288",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/logs/test-WindowHost-x64-Debug.log",
+      "staged": "raw/6bb94961429d5625cc382694356cfcc9.receipt",
+      "sha256": "6bb94961429d5625cc382694356cfcc911e579ac5faad205237da539c6d0e773",
+      "size_bytes": 11605
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/Accessibility-x64-Debug.json",
+      "staged": "raw/3402083fd48eb4d8f6781dd4660093c1.receipt",
+      "sha256": "3402083fd48eb4d8f6781dd4660093c1bdc067608d6510b22d31cecaec40ef3f",
+      "size_bytes": 6226
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/Animation-x64-Debug.json",
+      "staged": "raw/b49f9cf59f9ec9dc8a3185fe35680011.receipt",
+      "sha256": "b49f9cf59f9ec9dc8a3185fe356800114da141f36abcde4570d8acf177812dd7",
+      "size_bytes": 6222
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/ComboBox-x64-Debug.json",
+      "staged": "raw/8a7799d3521258dcb62d872afa1b3a52.receipt",
+      "sha256": "8a7799d3521258dcb62d872afa1b3a527251e4e6c9b55ee8e46a305b52070710",
+      "size_bytes": 6221
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/Control-x64-Debug.json",
+      "staged": "raw/6869b68eed14caef2e2aeec501485cfe.receipt",
+      "sha256": "6869b68eed14caef2e2aeec501485cfea369e75793c0e8d82a4dcf5c257fcbc7",
+      "size_bytes": 6220
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/Embedded-x64-Debug.json",
+      "staged": "raw/0b11259bf08f45be5f90ac7fdb0b390e.receipt",
+      "sha256": "0b11259bf08f45be5f90ac7fdb0b390e72f0451e5a5a0f28b26efa3d3787e804",
+      "size_bytes": 6222
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/ExternalConsumer-x64-Debug-annotationsDisabledfalse.json",
+      "staged": "raw/5a88ede0a50cb3fb65b7cc10647d7ddb.receipt",
+      "sha256": "5a88ede0a50cb3fb65b7cc10647d7ddbb28b87405aec038a8eb86827bdc14341",
+      "size_bytes": 1613
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/Foundation-x64-Debug.json",
+      "staged": "raw/d7ded8f287f7c13273189f686b91aa2c.receipt",
+      "sha256": "d7ded8f287f7c13273189f686b91aa2c03740f51b73f347f7378f7403e738f36",
+      "size_bytes": 6226
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/Grid-x64-Debug.json",
+      "staged": "raw/70057faca4bd9691d60ef640588ab0dc.receipt",
+      "sha256": "70057faca4bd9691d60ef640588ab0dce633e9f8eb58021bcf22751c6ccafa39",
+      "size_bytes": 6217
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/Menu-x64-Debug.json",
+      "staged": "raw/2d109cb82a80619d6cdac6114770bcac.receipt",
+      "sha256": "2d109cb82a80619d6cdac6114770bcac03b35a878e1982cc90b2bbee02b491d5",
+      "size_bytes": 6217
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/MenuAccessibility-x64-Debug.json",
+      "staged": "raw/fbc8089ccea789310ca3fcb62adcec50.receipt",
+      "sha256": "fbc8089ccea789310ca3fcb62adcec503f8c3ef9fd0023398ae822a08cf332cc",
+      "size_bytes": 6230
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/MenuExitLifetime-x64-Debug.json",
+      "staged": "raw/acc57e9080c5a5e8b96e36be3fb4d679.receipt",
+      "sha256": "acc57e9080c5a5e8b96e36be3fb4d679f73231c05155d8c1dcbe286d4334b52d",
+      "size_bytes": 6229
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/MultilineText-x64-Debug.json",
+      "staged": "raw/40b7ff1d00493b4403609edbffad0dff.receipt",
+      "sha256": "40b7ff1d00493b4403609edbffad0dfffbf288e86639cf43de28c14efc2fd938",
+      "size_bytes": 6226
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/NativeTextInput-x64-Debug.json",
+      "staged": "raw/ba0aaa231cd10edb986604a567e9ae35.receipt",
+      "sha256": "ba0aaa231cd10edb986604a567e9ae3527ec126a9af994ed24333140f8ecf275",
+      "size_bytes": 6228
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/NewControls-x64-Debug.json",
+      "staged": "raw/a3131216aca6b62aa3d1716cc999af9b.receipt",
+      "sha256": "a3131216aca6b62aa3d1716cc999af9b4716d404ccc159e2a34bb2ccf3cc42ec",
+      "size_bytes": 6224
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json",
+      "staged": "raw/3d80e3917a319591f4e6a9a24004ccfa.receipt",
+      "sha256": "3d80e3917a319591f4e6a9a24004ccfacf4c9d6ad14f47f57d04f594090f5366",
+      "size_bytes": 8018
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/Performance-x64-Debug-0562320f39a44a4497ebaf235daa774e.json.comparison.json",
+      "staged": "raw/14fc8def36f2813db7d2787166f7bd0e.receipt",
+      "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+      "size_bytes": 48
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/ReadOnly-x64-Debug.json",
+      "staged": "raw/e75b8e975b4416040d696e7bfab97215.receipt",
+      "sha256": "e75b8e975b4416040d696e7bfab972153afe0e3601badee63d0c8f7bb32b9917",
+      "size_bytes": 6221
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/Rendering-x64-Debug.json",
+      "staged": "raw/59743f2b0cbe07121757d853084a3ad3.receipt",
+      "sha256": "59743f2b0cbe07121757d853084a3ad37e031dacaa1b47a8717aa3ca0fa269ef",
+      "size_bytes": 6222
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/TextField-x64-Debug.json",
+      "staged": "raw/0c1caada48e70918fe7f3efc9086d3cb.receipt",
+      "sha256": "0c1caada48e70918fe7f3efc9086d3cb28b16f69fbb319fce16efc29e5bdf9b3",
+      "size_bytes": 6222
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/Theme-x64-Debug.json",
+      "staged": "raw/1739607c4e09c4b055b43efe51f938f7.receipt",
+      "sha256": "1739607c4e09c4b055b43efe51f938f76692903f727fb20506f73153e3ae9718",
+      "size_bytes": 6218
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/Tooltip-x64-Debug.json",
+      "staged": "raw/7cbd9a2401fcbef2d5817f7f435b24c9.receipt",
+      "sha256": "7cbd9a2401fcbef2d5817f7f435b24c985a75c7801455cdd8080217cd2ca1f14",
+      "size_bytes": 6220
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/Tree-x64-Debug.json",
+      "staged": "raw/138df3d9dd4fad24ea708876b003e1a2.receipt",
+      "sha256": "138df3d9dd4fad24ea708876b003e1a283073ab4fcfdbea18c25975823ef1405",
+      "size_bytes": 6217
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/reports/WindowHost-x64-Debug.json",
+      "staged": "raw/9cddc4074e90b9e77c87fbcab1f27ecb.receipt",
+      "sha256": "9cddc4074e90b9e77c87fbcab1f27ecbadbfb4257660963918e2c7e67ffc2e7f",
+      "size_bytes": 6223
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/test-artifacts/7592/dxui_animation_scheduler_testlocal.jsonl",
+      "staged": "raw/8322a68f4f97c901c6a29b34e1eaa8d4.receipt",
+      "sha256": "8322a68f4f97c901c6a29b34e1eaa8d48c131a80ce41a34adbb71485ee21bccb",
+      "size_bytes": 24234
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/test-artifacts/9972/dxui_windowhost_stage_metrics_testlocal.jsonl",
+      "staged": "raw/73394c4146257fdb267b724a12b4b7ae.receipt",
+      "sha256": "73394c4146257fdb267b724a12b4b7ae359a410d65a575c938ecafc208ae5cdc",
+      "size_bytes": 2418
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/test-artifacts/complex-ui.png",
+      "staged": "raw/4714347f867870d8d190b4553e4aecb1.receipt",
+      "sha256": "4714347f867870d8d190b4553e4aecb1734b8dd43a878de0aa8be01501fe492a",
+      "size_bytes": 52547
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/test-artifacts/embedded-controls.png",
+      "staged": "raw/9a6fb6cc3607627655a7dbc257e644d1.receipt",
+      "sha256": "9a6fb6cc3607627655a7dbc257e644d172523457cc154bda1d9eb31014e73236",
+      "size_bytes": 6430
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Debug/test-artifacts/embedded-text-composition.png",
+      "staged": "raw/fd109188e82c0a65d0ba985edc4380b9.receipt",
+      "sha256": "fd109188e82c0a65d0ba985edc4380b9e8e49db70150c434ecc52944f88b207c",
+      "size_bytes": 2837
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/gallery/x64/Release/embedded-controls.png",
+      "staged": "raw/566e96606c40388f2b6795deefd0c590.receipt",
+      "sha256": "566e96606c40388f2b6795deefd0c590515cb6f65a0ed3c723d12df063d3e4ec",
+      "size_bytes": 6375
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/gallery/x64/Release/generation.log",
+      "staged": "raw/1422a88ca383a3780158008b5465e518.receipt",
+      "sha256": "1422a88ca383a3780158008b5465e5185cb80cf177ae1c871976672ed2719f30",
+      "size_bytes": 5931
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/gallery/x64/Release/index.html",
+      "staged": "raw/453d28c8385d5e5fb7d39440f06b56ab.receipt",
+      "sha256": "453d28c8385d5e5fb7d39440f06b56ab9d633e5d2db7682b1e6b6cf356431a2b",
+      "size_bytes": 1410
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/gallery/x64/Release/theme-controls-dark.png",
+      "staged": "raw/dd1cf84c97b3ccd1ad089cfdc14f2a56.receipt",
+      "sha256": "dd1cf84c97b3ccd1ad089cfdc14f2a565a6c14101ffe8adc1b1600e81aa36eee",
+      "size_bytes": 88151
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/gallery/x64/Release/theme-controls-high-contrast.png",
+      "staged": "raw/250b06b606c3ace0324c8a0b5523b23d.receipt",
+      "sha256": "250b06b606c3ace0324c8a0b5523b23db7cb87337b8dff6c6804caf866232d59",
+      "size_bytes": 86659
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/gallery/x64/Release/theme-controls-light.png",
+      "staged": "raw/079303e2db1bd01a1d8b45e58cd9535a.receipt",
+      "sha256": "079303e2db1bd01a1d8b45e58cd9535af2d7e2738daad765ff229f693fef9f47",
+      "size_bytes": 87116
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/gallery/x64/Release/theme-controls-rainbow-dark.png",
+      "staged": "raw/6bee6942d7d32967bc41ac60a3a8d664.receipt",
+      "sha256": "6bee6942d7d32967bc41ac60a3a8d6647a14b5cc522f788f098c972d6d22ab95",
+      "size_bytes": 89283
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/gallery/x64/Release/theme-controls-rainbow-light.png",
+      "staged": "raw/41de5232d0dea61fe30285fc8808fc1d.receipt",
+      "sha256": "41de5232d0dea61fe30285fc8808fc1d7a99022605983560888017b4da1ab216",
+      "size_bytes": 88304
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/build-x64-Release-0a69819f14a24fb6ba9bfdcc461619d8.log",
+      "staged": "raw/8c4f948bdbbf4813cea25ecbb33fb924.receipt",
+      "sha256": "8c4f948bdbbf4813cea25ecbb33fb9247999aba18a8700888940f6b6b3e4bfa2",
+      "size_bytes": 26058
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-Accessibility-x64-Release.log",
+      "staged": "raw/e80c9b43b0840730e48e3f1d4a5cec33.receipt",
+      "sha256": "e80c9b43b0840730e48e3f1d4a5cec334a8cb0ac14544556c7dcfe398d43e1fd",
+      "size_bytes": 9116
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-Animation-x64-Release.log",
+      "staged": "raw/181ccfb07a7c3c67ae25db3125f5b635.receipt",
+      "sha256": "181ccfb07a7c3c67ae25db3125f5b63513438c19e074cc963d6c7a27b7a80d62",
+      "size_bytes": 191
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-ComboBox-x64-Release.log",
+      "staged": "raw/b29f09887d351c74847f6cecc4f116cb.receipt",
+      "sha256": "b29f09887d351c74847f6cecc4f116cb2c9a7eb685c9131b1ce8c641785eeca4",
+      "size_bytes": 4014
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-Control-x64-Release.log",
+      "staged": "raw/140de625e0255a8b645c65eeae68ec83.receipt",
+      "sha256": "140de625e0255a8b645c65eeae68ec83659c60a3f4524a27d403adbccd7a76bf",
+      "size_bytes": 397
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-Embedded-x64-Release.log",
+      "staged": "raw/bf3f93fee951fc07e70581bc049c201c.receipt",
+      "sha256": "bf3f93fee951fc07e70581bc049c201c61ebf506ebadb62c673d17418960794e",
+      "size_bytes": 97
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-Foundation-x64-Release.log",
+      "staged": "raw/01007c353f70730873e78034fb6cf5f6.receipt",
+      "sha256": "01007c353f70730873e78034fb6cf5f6bcd702b01e52553f03d8bb4ba32e8372",
+      "size_bytes": 24
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-Grid-x64-Release.log",
+      "staged": "raw/56be34ba7534f443eda10c157a3c019b.receipt",
+      "sha256": "56be34ba7534f443eda10c157a3c019b403ddd6abd6727cd481cf9bb95b66a28",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-Menu-x64-Release.log",
+      "staged": "raw/1da5cccd7e82022ffb4e3afdca80dd57.receipt",
+      "sha256": "1da5cccd7e82022ffb4e3afdca80dd57d1036e406812c14c050bf9ff83d1ea47",
+      "size_bytes": 15550
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-MenuAccessibility-x64-Release.log",
+      "staged": "raw/83e226396f10be5433953d033952acf5.receipt",
+      "sha256": "83e226396f10be5433953d033952acf5141b0783c56ef090a1c2a0ba432bdb16",
+      "size_bytes": 30210
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-MenuExitLifetime-x64-Release.log",
+      "staged": "raw/72e21f8ad25ffde0f78c65b1f5211ebe.receipt",
+      "sha256": "72e21f8ad25ffde0f78c65b1f5211ebe6707968d9954eb6cc6079993a0786199",
+      "size_bytes": 104
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-MenuResourceScaling-x64-Release.log",
+      "staged": "raw/aa6969cff064922db89bd254e4363e8c.receipt",
+      "sha256": "aa6969cff064922db89bd254e4363e8cdaf289cec888fd6d81c6189f045d81d4",
+      "size_bytes": 1125329
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-MenuTextLayoutResources-x64-Release.log",
+      "staged": "raw/02259b2c0b90d80eb4d4b34b098c1bf9.receipt",
+      "sha256": "02259b2c0b90d80eb4d4b34b098c1bf9e86cd632edbd61bcf37412bdd0c26dbf",
+      "size_bytes": 426915
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-MultilineText-x64-Release.log",
+      "staged": "raw/115e90d3665aaca20f5630f5487fbc74.receipt",
+      "sha256": "115e90d3665aaca20f5630f5487fbc7498595492191ee0e55187cf02a7f82791",
+      "size_bytes": 15287
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-NativeTextInput-x64-Release.log",
+      "staged": "raw/69c60848eb3f6a267d5bfc016570e1a5.receipt",
+      "sha256": "69c60848eb3f6a267d5bfc016570e1a57596e97b52aec3c99ec7e8b9a1d525de",
+      "size_bytes": 21838
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-NewControls-x64-Release.log",
+      "staged": "raw/a6d0a0ec8e3c938528aced0eb7d143c5.receipt",
+      "sha256": "a6d0a0ec8e3c938528aced0eb7d143c5ebd74fb7ce51cb71078e29c22f5c67ce",
+      "size_bytes": 1540
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-ReadOnly-x64-Release.log",
+      "staged": "raw/abcb9b85165fb68b19a0e70c815fe567.receipt",
+      "sha256": "abcb9b85165fb68b19a0e70c815fe5676201cfd3999818f38d8e036ae0d0b07e",
+      "size_bytes": 2659
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-Rendering-x64-Release.log",
+      "staged": "raw/9e7d57e3c08f01eaa20724120da6f4a5.receipt",
+      "sha256": "9e7d57e3c08f01eaa20724120da6f4a585572a72b9ffe19f85cbe0efc3f04cea",
+      "size_bytes": 8240
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-TextField-x64-Release.log",
+      "staged": "raw/b1d3bb0d6930b5f596013377af2ce45f.receipt",
+      "sha256": "b1d3bb0d6930b5f596013377af2ce45ffa53a97d822ff2f094301d7ba2a60493",
+      "size_bytes": 10883
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-Theme-x64-Release.log",
+      "staged": "raw/1d502c308bc9845ab1f08d2a89ac946a.receipt",
+      "sha256": "1d502c308bc9845ab1f08d2a89ac946a81537be36e28bf9fcf8fc5a12007ceb7",
+      "size_bytes": 53
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-Tooltip-x64-Release.log",
+      "staged": "raw/619183b9e8a66d7089a4217f84d02494.receipt",
+      "sha256": "619183b9e8a66d7089a4217f84d02494048118730f5c207d8eeff7d837829002",
+      "size_bytes": 577
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-Tree-x64-Release.log",
+      "staged": "raw/a1594223b505dc7ef35c9c890ed80f14.receipt",
+      "sha256": "a1594223b505dc7ef35c9c890ed80f1428f8b8ceeea909653689929b7f56d288",
+      "size_bytes": 181
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/logs/test-WindowHost-x64-Release.log",
+      "staged": "raw/6bb94961429d5625cc382694356cfcc9.receipt",
+      "sha256": "6bb94961429d5625cc382694356cfcc911e579ac5faad205237da539c6d0e773",
+      "size_bytes": 11605
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Accessibility-x64-Release.json",
+      "staged": "raw/d7294c98bf27adc33184c361d842b882.receipt",
+      "sha256": "d7294c98bf27adc33184c361d842b8822527e3793d9dec8b71a81ef3acd27af5",
+      "size_bytes": 6240
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Animation-x64-Release.json",
+      "staged": "raw/ef770db4b814a804cfa38ca3b7744c4c.receipt",
+      "sha256": "ef770db4b814a804cfa38ca3b7744c4c71805a33b38538d6e6c724ce2b1a5a69",
+      "size_bytes": 6236
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/ComboBox-x64-Release.json",
+      "staged": "raw/06f7a5092c7ec1b881dd2e478c53bb02.receipt",
+      "sha256": "06f7a5092c7ec1b881dd2e478c53bb02d96071c9e1148964326f7bf9ad4bae5f",
+      "size_bytes": 6235
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Control-x64-Release.json",
+      "staged": "raw/90676160e0e80e39a25e2239cf691c28.receipt",
+      "sha256": "90676160e0e80e39a25e2239cf691c287e018ba20c233322b7a099efb1c0b8e3",
+      "size_bytes": 6234
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Embedded-x64-Release.json",
+      "staged": "raw/03facc8d482751c989946950039057da.receipt",
+      "sha256": "03facc8d482751c989946950039057da8ec3d66a45aed7b2ba17938957ac3197",
+      "size_bytes": 6236
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/ExternalConsumer-x64-Release-annotationsDisabledfalse.json",
+      "staged": "raw/6b8a2c373408913f28d3745ca498e17d.receipt",
+      "sha256": "6b8a2c373408913f28d3745ca498e17dfcdbd858697c546a7ac4f89041c32fd7",
+      "size_bytes": 1615
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Foundation-x64-Release.json",
+      "staged": "raw/d75ea461cf9f72b1398f945a014c4bd9.receipt",
+      "sha256": "d75ea461cf9f72b1398f945a014c4bd9511d4e4ec5ac033995a87e57dcbe27e0",
+      "size_bytes": 6240
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Grid-x64-Release.json",
+      "staged": "raw/1da19912535ee5f60485ae2ba08a54d4.receipt",
+      "sha256": "1da19912535ee5f60485ae2ba08a54d42f8fa8f778b78952783d18d3c14a34ff",
+      "size_bytes": 6231
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Menu-x64-Release.json",
+      "staged": "raw/1fdb38d57b18947295acbb292af37c01.receipt",
+      "sha256": "1fdb38d57b18947295acbb292af37c0136b034caa043ff9f1ff9206fab7bb992",
+      "size_bytes": 6231
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/MenuAccessibility-x64-Release.json",
+      "staged": "raw/47c132be62ed8d43629e6781dc2cf8e1.receipt",
+      "sha256": "47c132be62ed8d43629e6781dc2cf8e115dd0073f96902364d4d8b4f25cdedb1",
+      "size_bytes": 6244
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/MenuExitLifetime-x64-Release.json",
+      "staged": "raw/25a76af3d7b261552bf4830bae7a5525.receipt",
+      "sha256": "25a76af3d7b261552bf4830bae7a552531b45bb4c6377fad4b193c6863235b20",
+      "size_bytes": 6243
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/MenuResourceScaling-x64-Release.json",
+      "staged": "raw/e39d7bf5c37b2760c8b8ab91513f5383.receipt",
+      "sha256": "e39d7bf5c37b2760c8b8ab91513f538354ba2427398688da09620922b15e778a",
+      "size_bytes": 6239
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/MenuTextLayoutResources-x64-Release.json",
+      "staged": "raw/bebc58b65886969ccb00c729f87d9f7a.receipt",
+      "sha256": "bebc58b65886969ccb00c729f87d9f7a00385944c28c5a026e6078df78216802",
+      "size_bytes": 6243
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/MultilineText-x64-Release.json",
+      "staged": "raw/2f06c7d4459f6d3e973021b71775a53a.receipt",
+      "sha256": "2f06c7d4459f6d3e973021b71775a53a21132a65a650b571255ee25aa142c49b",
+      "size_bytes": 6240
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/NativeTextInput-x64-Release.json",
+      "staged": "raw/cf41c2199245b468732a3a2700eb54dd.receipt",
+      "sha256": "cf41c2199245b468732a3a2700eb54dd0411683898e3200febc512af998eee84",
+      "size_bytes": 6242
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/NewControls-x64-Release.json",
+      "staged": "raw/7377f7b2eb1128c0f62bd0b7c2ab7239.receipt",
+      "sha256": "7377f7b2eb1128c0f62bd0b7c2ab7239c96aad29b9a92b527dfc2fde3b9f9ced",
+      "size_bytes": 6238
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json",
+      "staged": "raw/5a37506e7d9feefc83203234ea1021da.receipt",
+      "sha256": "5a37506e7d9feefc83203234ea1021da8de340d53fe769487f48043cd489560c",
+      "size_bytes": 8026
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Performance-x64-Release-6945a12f9bbb40a6919e089f52ba1df0.json.comparison.json",
+      "staged": "raw/14fc8def36f2813db7d2787166f7bd0e.receipt",
+      "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+      "size_bytes": 48
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Performance-x64-Release-e9153e7228f74d3b82642b21fb1a046b.json",
+      "staged": "raw/72aae722ef1c2e61482b0c01aa3979cc.receipt",
+      "sha256": "72aae722ef1c2e61482b0c01aa3979cc1466357d373bdb18e48188308868cffa",
+      "size_bytes": 8018
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Performance-x64-Release-e9153e7228f74d3b82642b21fb1a046b.json.comparison.json",
+      "staged": "raw/14fc8def36f2813db7d2787166f7bd0e.receipt",
+      "sha256": "14fc8def36f2813db7d2787166f7bd0e738679426a334768741aa17e620a7df6",
+      "size_bytes": 48
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/ReadOnly-x64-Release.json",
+      "staged": "raw/ec4272863819383c9bce640d00913ba0.receipt",
+      "sha256": "ec4272863819383c9bce640d00913ba0b8e348bf78bfb0e2cff4502441dd7830",
+      "size_bytes": 6235
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Rendering-x64-Release.json",
+      "staged": "raw/85786fcc8d27b38e4e32fbbe036d7493.receipt",
+      "sha256": "85786fcc8d27b38e4e32fbbe036d7493579962f50aa1d84ed6663322f10203cc",
+      "size_bytes": 6236
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/TextField-x64-Release.json",
+      "staged": "raw/ea8819d275b23faae58b8fdbf484a3bb.receipt",
+      "sha256": "ea8819d275b23faae58b8fdbf484a3bbdc69bd9b5618b0e66d3a91f65087d93a",
+      "size_bytes": 6236
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Theme-x64-Release.json",
+      "staged": "raw/b03e6527d2cc4f514dd1ecad79ea168b.receipt",
+      "sha256": "b03e6527d2cc4f514dd1ecad79ea168b82a02dc84102171f4d41e827ed3dbc48",
+      "size_bytes": 6232
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Tooltip-x64-Release.json",
+      "staged": "raw/c4fe0d92b4bbe953687881a42ae4d029.receipt",
+      "sha256": "c4fe0d92b4bbe953687881a42ae4d0296d89067f59049b48181fff72695e6b70",
+      "size_bytes": 6234
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/Tree-x64-Release.json",
+      "staged": "raw/fcaf4b232b0d5854bf66d84998045884.receipt",
+      "sha256": "fcaf4b232b0d5854bf66d849980458848b2e4fe77cfe9d1cda96aa537a21c516",
+      "size_bytes": 6231
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/reports/WindowHost-x64-Release.json",
+      "staged": "raw/5e42ffb49cbcb7483194047e6a2f3525.receipt",
+      "sha256": "5e42ffb49cbcb7483194047e6a2f352577cdf45092ae3ce48602c71819d1d024",
+      "size_bytes": 6237
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/test-artifacts/6528/dxui_windowhost_stage_metrics_testlocal.jsonl",
+      "staged": "raw/0542bc90ded6262efbe6fd3a8899198e.receipt",
+      "sha256": "0542bc90ded6262efbe6fd3a8899198e099c84e503e3e9079b55349f8398ffb2",
+      "size_bytes": 2418
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/test-artifacts/7976/dxui_animation_scheduler_testlocal.jsonl",
+      "staged": "raw/fc64df06fa12e52e15df0d4d271acb57.receipt",
+      "sha256": "fc64df06fa12e52e15df0d4d271acb57e57eeda83c45b009e7b9bac9398dd841",
+      "size_bytes": 23888
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/test-artifacts/complex-ui.png",
+      "staged": "raw/4714347f867870d8d190b4553e4aecb1.receipt",
+      "sha256": "4714347f867870d8d190b4553e4aecb1734b8dd43a878de0aa8be01501fe492a",
+      "size_bytes": 52547
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/test-artifacts/embedded-controls.png",
+      "staged": "raw/9a6fb6cc3607627655a7dbc257e644d1.receipt",
+      "sha256": "9a6fb6cc3607627655a7dbc257e644d172523457cc154bda1d9eb31014e73236",
+      "size_bytes": 6430
+    },
+    {
+      "original_relative": "native-uia-ci49-20260928/x64/native-x64-Release/test-artifacts/embedded-text-composition.png",
+      "staged": "raw/fd109188e82c0a65d0ba985edc4380b9.receipt",
+      "sha256": "fd109188e82c0a65d0ba985edc4380b9e8e49db70150c434ecc52944f88b207c",
+      "size_bytes": 2837
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Debug-A1.json",
+      "staged": "raw/4eade333caf998d831fad4e5d2474913.receipt",
+      "sha256": "4eade333caf998d831fad4e5d2474913fb06bd78c628b6d0aeea797ffffd3d70",
+      "size_bytes": 8017
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Debug-A1.json.comparison.json",
+      "staged": "raw/a71eb906dbb29d738e000ccaeff4210c.receipt",
+      "sha256": "a71eb906dbb29d738e000ccaeff4210cb866f061505536a990a6a4e7519c4544",
+      "size_bytes": 5763
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Debug-A1.log",
+      "staged": "raw/88e71d635e36a916f64a73b07f42905d.receipt",
+      "sha256": "88e71d635e36a916f64a73b07f42905d05e8455986a107877fb2c3d5ef094cff",
+      "size_bytes": 2116
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Debug-A2.json",
+      "staged": "raw/4f1c24251535e9b8d089a4f4b7138628.receipt",
+      "sha256": "4f1c24251535e9b8d089a4f4b713862828100219a625d737205147e5ecccf91c",
+      "size_bytes": 8021
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Debug-A2.json.comparison.json",
+      "staged": "raw/92b517b822716c826589e824ffcdedf5.receipt",
+      "sha256": "92b517b822716c826589e824ffcdedf5478a62e5da10c652590e2e4397251b1d",
+      "size_bytes": 5775
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Debug-A2.log",
+      "staged": "raw/aeb6ac32f54f222248069df07b91fe89.receipt",
+      "sha256": "aeb6ac32f54f222248069df07b91fe8970f228a0bf987c8a4acd74273c9d9a5a",
+      "size_bytes": 1721
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Debug-B1.json",
+      "staged": "raw/e65ed8fedc2ec9160dde25bc05ebef55.receipt",
+      "sha256": "e65ed8fedc2ec9160dde25bc05ebef55d21d3304574adc60afdb027f4d2b4de7",
+      "size_bytes": 8015
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Debug-B1.json.comparison.json",
+      "staged": "raw/bc3f93e2a1cb98af0e050beeb177f710.receipt",
+      "sha256": "bc3f93e2a1cb98af0e050beeb177f710177cab35838d2a5fbaa48e491581d72e",
+      "size_bytes": 5776
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Debug-B1.log",
+      "staged": "raw/4084bd4a83b5acfb8be2a887cbd26738.receipt",
+      "sha256": "4084bd4a83b5acfb8be2a887cbd267381ce2fde42bb4bdca73a4ce666bd8e2b6",
+      "size_bytes": 1704
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Debug-B2.json",
+      "staged": "raw/d68ee9b37c46588321ae8add9c4b1524.receipt",
+      "sha256": "d68ee9b37c46588321ae8add9c4b1524e85f99eddd600c977ca04b601c36a72c",
+      "size_bytes": 8018
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Debug-B2.json.comparison.json",
+      "staged": "raw/c385607e423064928f6a307c59af8f3f.receipt",
+      "sha256": "c385607e423064928f6a307c59af8f3f56c138ebd0419f7906b90e8e47147ce6",
+      "size_bytes": 5786
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Debug-B2.log",
+      "staged": "raw/b98d0b4c0820092077aafbed7792f586.receipt",
+      "sha256": "b98d0b4c0820092077aafbed7792f58601028cb2cc65ec28c5e63f6e34fc7464",
+      "size_bytes": 2044
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Release-A1.json",
+      "staged": "raw/208d26504e2a4262694309bb2d44e718.receipt",
+      "sha256": "208d26504e2a4262694309bb2d44e718c04f47d12c1a50e4835956891dbd0e09",
+      "size_bytes": 8015
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Release-A1.json.comparison.json",
+      "staged": "raw/f2f7551daa5b9f13111520c82522c844.receipt",
+      "sha256": "f2f7551daa5b9f13111520c82522c844b923cbed8d611a2f2f661b8657fddbfe",
+      "size_bytes": 5753
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Release-A1.log",
+      "staged": "raw/d80bde48ea45ef9c0621276e5ddd3707.receipt",
+      "sha256": "d80bde48ea45ef9c0621276e5ddd3707418e7cfbd820b5d5463ceaf06c2f214d",
+      "size_bytes": 2158
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Release-A2.json",
+      "staged": "raw/b28ef052839afb7c04b0deb52f149e9c.receipt",
+      "sha256": "b28ef052839afb7c04b0deb52f149e9caf555f2ef82ac5aef0905f81b0efb8cb",
+      "size_bytes": 8017
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Release-A2.json.comparison.json",
+      "staged": "raw/567cffa631a0db19021e3dd16e76e9c6.receipt",
+      "sha256": "567cffa631a0db19021e3dd16e76e9c6e66f52bae6b73a297b513e9437ca4849",
+      "size_bytes": 5760
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Release-A2.log",
+      "staged": "raw/a918c620c5d47cc51a3619c3a1d28266.receipt",
+      "sha256": "a918c620c5d47cc51a3619c3a1d282666d10c5e845f77c56e82eaa10fb3a5201",
+      "size_bytes": 1967
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Release-B1.json",
+      "staged": "raw/2f3465891748f1298825a605088b726a.receipt",
+      "sha256": "2f3465891748f1298825a605088b726a723df9f00e3dd515a9dcac062f13b321",
+      "size_bytes": 8019
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Release-B1.json.comparison.json",
+      "staged": "raw/6d76b7e3b97e6a3f7e9563e6d6fdf66f.receipt",
+      "sha256": "6d76b7e3b97e6a3f7e9563e6d6fdf66ffb4b1b3c1e1cc0cd9dd8b6c9f9b20918",
+      "size_bytes": 5765
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Release-B1.log",
+      "staged": "raw/272b4e03c64c2b4d629e4299355322c4.receipt",
+      "sha256": "272b4e03c64c2b4d629e4299355322c489aab6e2c758fec141d7ce7c110e085d",
+      "size_bytes": 1150
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Release-B2.json",
+      "staged": "raw/b53b427b6c2a2ae19f8f8b369becd0ef.receipt",
+      "sha256": "b53b427b6c2a2ae19f8f8b369becd0ef4755e92c3318e182c5ad9c6f11501d5d",
+      "size_bytes": 8009
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Release-B2.json.comparison.json",
+      "staged": "raw/57c9997783b82c35eedc0712429b7862.receipt",
+      "sha256": "57c9997783b82c35eedc0712429b78628fb7f98025d38131616230ec2dbb2162",
+      "size_bytes": 5774
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/Release-B2.log",
+      "staged": "raw/31c6dc848f2bdf59ee65cc468ca916b6.receipt",
+      "sha256": "31c6dc848f2bdf59ee65cc468ca916b6153dfe649ba91227458e366df5c2c01c",
+      "size_bytes": 1725
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/audit-final/analysis.json",
+      "staged": "raw/724cf1cc20eaaa0fbeb402d8633a0824.receipt",
+      "sha256": "724cf1cc20eaaa0fbeb402d8633a0824ad01429ec7b651904a86125abcacc46b",
+      "size_bytes": 114581
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/audit-final/analyze_crossover.py",
+      "staged": "raw/8db1e8da26bdd24b7d442c9e139582d7.receipt",
+      "sha256": "8db1e8da26bdd24b7d442c9e139582d7b3f50e32f074b72ae1f12369f3514241",
+      "size_bytes": 14540
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/audit-final/assessment.md",
+      "staged": "raw/84637a61965923197f964af851381b69.receipt",
+      "sha256": "84637a61965923197f964af851381b69ed3997e820b5e030ea07154fca6860e8",
+      "size_bytes": 4971
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/audit-reviewed/analysis.json",
+      "staged": "raw/4233c7165e37d59b4df0944c139eb187.receipt",
+      "sha256": "4233c7165e37d59b4df0944c139eb187bf8de5feeb84e6d6339a7e6e7e5207a3",
+      "size_bytes": 114743
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/audit-reviewed/analyze_crossover.py",
+      "staged": "raw/e74656fc2a60f1152c78911b237f6579.receipt",
+      "sha256": "e74656fc2a60f1152c78911b237f6579c8541c7338d3714ad3bc082fcf4df746",
+      "size_bytes": 15378
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/audit-reviewed/assessment.md",
+      "staged": "raw/095db138022dba5f972063cab3b1b409.receipt",
+      "sha256": "095db138022dba5f972063cab3b1b409199ac4a19f9034237ecb0d1d78e7ca57",
+      "size_bytes": 5644
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/audit-v2/analysis.json",
+      "staged": "raw/30222cf441fa95daa00155961552c1d3.receipt",
+      "sha256": "30222cf441fa95daa00155961552c1d308b116249f4d63fdb46114cb3a37a94e",
+      "size_bytes": 114581
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/audit-v2/assessment.md",
+      "staged": "raw/84637a61965923197f964af851381b69.receipt",
+      "sha256": "84637a61965923197f964af851381b69ed3997e820b5e030ea07154fca6860e8",
+      "size_bytes": 4971
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/audit/analysis.json",
+      "staged": "raw/1cf1209d7dbdc0be8e1b5de95550de20.receipt",
+      "sha256": "1cf1209d7dbdc0be8e1b5de95550de20fd1e096d6d9e5327c2b04519db6d6a6d",
+      "size_bytes": 115804
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/audit/analyze_crossover.py",
+      "staged": "raw/1b88c1b6ae24011bb742dc87eaf959ac.receipt",
+      "sha256": "1b88c1b6ae24011bb742dc87eaf959ac533843bc1ba8a7a95583a5d45cbaed76",
+      "size_bytes": 14534
+    },
+    {
+      "original_relative": "native-uia-final-perf-confirmation-20260928/crossover/audit/assessment.md",
+      "staged": "raw/375537f7583b49531552d622a0babd00.receipt",
+      "sha256": "375537f7583b49531552d622a0babd001724ab310e1da301371f88a560f210b8",
+      "size_bytes": 4601
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-A1-to-A2.comparison.json",
+      "staged": "raw/7d7fa1e0624e5fcbf4bdedaac09325b4.receipt",
+      "sha256": "7d7fa1e0624e5fcbf4bdedaac09325b406b67dcdd9c9d300929b6209a2eafcf1",
+      "size_bytes": 5783
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-A1-to-A2.comparison.log",
+      "staged": "raw/a01b6e908c5a8c8d484de875d33df634.receipt",
+      "sha256": "a01b6e908c5a8c8d484de875d33df634e829203d1f14e0aa37a0fb89e7885284",
+      "size_bytes": 45
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-A1-to-B1.comparison.json",
+      "staged": "raw/4ee8316bcbb69e9f3767760f46914272.receipt",
+      "sha256": "4ee8316bcbb69e9f3767760f469142729cf4681197c4043fdb0530f6ded88109",
+      "size_bytes": 5779
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-A1-to-B1.comparison.log",
+      "staged": "raw/43ac5aa1e7a72f42d7ad61721d83fac8.receipt",
+      "sha256": "43ac5aa1e7a72f42d7ad61721d83fac86edf4497f382a42cf98fd9862f294f5c",
+      "size_bytes": 414
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-A1-to-B2.comparison.json",
+      "staged": "raw/dcaada9bf03330de404bbdf6157e1762.receipt",
+      "sha256": "dcaada9bf03330de404bbdf6157e1762a083d2a7842629bc5ff6ca84f254eff1",
+      "size_bytes": 5783
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-A1-to-B2.comparison.log",
+      "staged": "raw/addf677cbf8c8b2d817e247dbffb0dce.receipt",
+      "sha256": "addf677cbf8c8b2d817e247dbffb0dce2d09f952843ae5214624fa571037049a",
+      "size_bytes": 414
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-A1.json",
+      "staged": "raw/8729795f145432fa9b9aa29123f648e2.receipt",
+      "sha256": "8729795f145432fa9b9aa29123f648e22afdcdd4fa0d9cbf6a4346391d68fc5e",
+      "size_bytes": 8025
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-A1.log",
+      "staged": "raw/4887a932c920375f99b58ab83faab822.receipt",
+      "sha256": "4887a932c920375f99b58ab83faab8229c60443e57ee374bb0c9388c201e73da",
+      "size_bytes": 1093
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-A2-to-B1.comparison.json",
+      "staged": "raw/2a669020919c7107a9608cbe2e9601a6.receipt",
+      "sha256": "2a669020919c7107a9608cbe2e9601a6864ea1e9fe218387677b2cc89a39cd80",
+      "size_bytes": 5767
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-A2-to-B1.comparison.log",
+      "staged": "raw/543778a74a495d55022f373613f3652c.receipt",
+      "sha256": "543778a74a495d55022f373613f3652c0b1d7e9c4808613079af9b7965d09149",
+      "size_bytes": 602
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-A2-to-B2.comparison.json",
+      "staged": "raw/eceb2ee3c4a4a2e3f29d54eb1c59ecfc.receipt",
+      "sha256": "eceb2ee3c4a4a2e3f29d54eb1c59ecfc0582e5f48c004d5401b9f8a971d5f945",
+      "size_bytes": 5784
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-A2-to-B2.comparison.log",
+      "staged": "raw/a01b6e908c5a8c8d484de875d33df634.receipt",
+      "sha256": "a01b6e908c5a8c8d484de875d33df634e829203d1f14e0aa37a0fb89e7885284",
+      "size_bytes": 45
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-A2.json",
+      "staged": "raw/033639ba83c750f3ce2dff9a2e6f2f67.receipt",
+      "sha256": "033639ba83c750f3ce2dff9a2e6f2f678292ce95561fa6bb3c02a6b67e25196b",
+      "size_bytes": 8029
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-A2.log",
+      "staged": "raw/c3eeac899d385300451757688a3eac53.receipt",
+      "sha256": "c3eeac899d385300451757688a3eac538c8ef4353c84d0802f824cffeaebbd88",
+      "size_bytes": 1088
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-B1-to-B2.comparison.json",
+      "staged": "raw/e686360416aa8a2fc6562634cfe08cf8.receipt",
+      "sha256": "e686360416aa8a2fc6562634cfe08cf83d92d8598d149b8270b73b6e1d3c6e34",
+      "size_bytes": 5786
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-B1-to-B2.comparison.log",
+      "staged": "raw/a01b6e908c5a8c8d484de875d33df634.receipt",
+      "sha256": "a01b6e908c5a8c8d484de875d33df634e829203d1f14e0aa37a0fb89e7885284",
+      "size_bytes": 45
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-B1.json",
+      "staged": "raw/aaa880b5f1a928d9e1881d5c84b3ae3c.receipt",
+      "sha256": "aaa880b5f1a928d9e1881d5c84b3ae3cf5177381d0e32b321a98829e0e21af2d",
+      "size_bytes": 8023
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-B1.log",
+      "staged": "raw/e123dadad76583f0c9a63c23882a673c.receipt",
+      "sha256": "e123dadad76583f0c9a63c23882a673cca73e127132a497fd05ebdb91f0771d8",
+      "size_bytes": 1091
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-B2.json",
+      "staged": "raw/569b0c081e6fcad22937e94add81b6ea.receipt",
+      "sha256": "569b0c081e6fcad22937e94add81b6ea5902a8e415053db9959bd33d2e3b50a0",
+      "size_bytes": 8018
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-B2.log",
+      "staged": "raw/bf53add0435d96d48597dcbf08f126bd.receipt",
+      "sha256": "bf53add0435d96d48597dcbf08f126bd452c37479a8788df74e56c164eea4acf",
+      "size_bytes": 1090
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-stock-40-frame-rejection.json",
+      "staged": "raw/7e29d39d34896df29c0bc02aa1527103.receipt",
+      "sha256": "7e29d39d34896df29c0bc02aa1527103da907fdea554ae99ccd0324ee9bf008b",
+      "size_bytes": 108
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Debug-stock-40-frame-rejection.log",
+      "staged": "raw/360623a1edc1c0003ac1184ceba2fab0.receipt",
+      "sha256": "360623a1edc1c0003ac1184ceba2fab0e8881454690a664c964e92fbc6408143",
+      "size_bytes": 42
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-A1-to-A2.comparison.json",
+      "staged": "raw/ada4a8d32730169f5b8ec3133cd9f184.receipt",
+      "sha256": "ada4a8d32730169f5b8ec3133cd9f184f8f075e7c8951197c4169c19dae48fde",
+      "size_bytes": 5783
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-A1-to-A2.comparison.log",
+      "staged": "raw/c609159d31a73f516133f310e6cc95f4.receipt",
+      "sha256": "c609159d31a73f516133f310e6cc95f41cf75ae50e7869919c10e807abe18511",
+      "size_bytes": 383
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-A1-to-B1.comparison.json",
+      "staged": "raw/5911d4b2d6fc67586817135e4ad4582d.receipt",
+      "sha256": "5911d4b2d6fc67586817135e4ad4582d55c485b3fcfb0ad4ebff65c0777487a8",
+      "size_bytes": 5786
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-A1-to-B1.comparison.log",
+      "staged": "raw/a01b6e908c5a8c8d484de875d33df634.receipt",
+      "sha256": "a01b6e908c5a8c8d484de875d33df634e829203d1f14e0aa37a0fb89e7885284",
+      "size_bytes": 45
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-A1-to-B2.comparison.json",
+      "staged": "raw/2ecb965b14e93182c84727d4136d9523.receipt",
+      "sha256": "2ecb965b14e93182c84727d4136d95231314d96c60c086af9d023c7d698270df",
+      "size_bytes": 5781
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-A1-to-B2.comparison.log",
+      "staged": "raw/d9f9b124d50833118da0c4d6320f2f4f.receipt",
+      "sha256": "d9f9b124d50833118da0c4d6320f2f4fed4584625657df6047e5d51c2dd21bbe",
+      "size_bytes": 414
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-A1.json",
+      "staged": "raw/3746efe449e39e5518e88c77525698a4.receipt",
+      "sha256": "3746efe449e39e5518e88c77525698a4cfdba148dbde0ba3a1f9450d963956d0",
+      "size_bytes": 8018
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-A1.log",
+      "staged": "raw/8a242efa9d2dcb3ebef5775ef0ef29ae.receipt",
+      "sha256": "8a242efa9d2dcb3ebef5775ef0ef29ae3b56994bf57b344dd1674d39305dc66e",
+      "size_bytes": 1095
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-A2-to-B1.comparison.json",
+      "staged": "raw/f943b55c928e60a8a866f5d5fc455a33.receipt",
+      "sha256": "f943b55c928e60a8a866f5d5fc455a33246fcfde87af216477b849e9e7d212ff",
+      "size_bytes": 5778
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-A2-to-B1.comparison.log",
+      "staged": "raw/04d1d3f12ab5b6eb02971ba890eea59a.receipt",
+      "sha256": "04d1d3f12ab5b6eb02971ba890eea59a09f270624297c7cb0575373084e432e6",
+      "size_bytes": 338
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-A2-to-B2.comparison.json",
+      "staged": "raw/b6e39f792ed842436d743bc8289294d4.receipt",
+      "sha256": "b6e39f792ed842436d743bc8289294d40a3bfb48d48eadd5898e8b6ae6d1cedb",
+      "size_bytes": 5778
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-A2-to-B2.comparison.log",
+      "staged": "raw/9daa7b2c46dddedfce157226b36cb6ac.receipt",
+      "sha256": "9daa7b2c46dddedfce157226b36cb6acfb6f66d5d1013cf561670e6f587108fc",
+      "size_bytes": 414
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-A2.json",
+      "staged": "raw/9ad01cf92685f85023b84c1490371b57.receipt",
+      "sha256": "9ad01cf92685f85023b84c1490371b5709e5c2f5db8615d155d731c8984be116",
+      "size_bytes": 8007
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-A2.log",
+      "staged": "raw/3b56d8cbdc1bafc796f6ed3d887f0c07.receipt",
+      "sha256": "3b56d8cbdc1bafc796f6ed3d887f0c073cd686069d07fec0833fbe5da690f527",
+      "size_bytes": 1091
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-B1-to-B2.comparison.json",
+      "staged": "raw/a49417ba7a16ca6f67f3e2273e9a0c66.receipt",
+      "sha256": "a49417ba7a16ca6f67f3e2273e9a0c66b90fa5d32016d0ad892ff88cd2a2ebb3",
+      "size_bytes": 5775
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-B1-to-B2.comparison.log",
+      "staged": "raw/ab67f313be35b7316a40685403371a08.receipt",
+      "sha256": "ab67f313be35b7316a40685403371a083de4c7010049bbe6d8b147293d7b5627",
+      "size_bytes": 349
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-B1.json",
+      "staged": "raw/2a1ffa51769f1500a621dcb8cf5909b9.receipt",
+      "sha256": "2a1ffa51769f1500a621dcb8cf5909b9eeed39499e85f313b13c8ee608c65c04",
+      "size_bytes": 8020
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-B1.log",
+      "staged": "raw/67698a92709f0b75dca2298fd2b36947.receipt",
+      "sha256": "67698a92709f0b75dca2298fd2b369476bdc22e23381489333bdc32b51d4a5cc",
+      "size_bytes": 1093
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-B2.json",
+      "staged": "raw/fd94d6cbad5906c6042f391f68b7042c.receipt",
+      "sha256": "fd94d6cbad5906c6042f391f68b7042c15acc6ba924b35e51e20c0dd7ca3ec46",
+      "size_bytes": 8024
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-B2.log",
+      "staged": "raw/b8ff92adca778f3669ddd6878e56baa8.receipt",
+      "sha256": "b8ff92adca778f3669ddd6878e56baa83b44fed7ea585ddd6281f6d84bad7858",
+      "size_bytes": 1091
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-stock-40-frame-rejection.json",
+      "staged": "raw/7e29d39d34896df29c0bc02aa1527103.receipt",
+      "sha256": "7e29d39d34896df29c0bc02aa1527103da907fdea554ae99ccd0324ee9bf008b",
+      "size_bytes": 108
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/Release-stock-40-frame-rejection.log",
+      "staged": "raw/360623a1edc1c0003ac1184ceba2fab0.receipt",
+      "sha256": "360623a1edc1c0003ac1184ceba2fab0e8881454690a664c964e92fbc6408143",
+      "size_bytes": 42
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/driver-result.json",
+      "staged": "raw/ed9b7d2f265a7cd7ab318143ff512a37.receipt",
+      "sha256": "ed9b7d2f265a7cd7ab318143ff512a379bc20ae1ba9e945b75cb54574b9530c8",
+      "size_bytes": 70342
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/driver-sources/README.md",
+      "staged": "raw/dead278a5d20b0aa8f94aef8df13ca3a.receipt",
+      "sha256": "dead278a5d20b0aa8f94aef8df13ca3a93048edb9bea76d549d89a19a07c3f7f",
+      "size_bytes": 3861
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/driver-sources/benchmark-1000.patch",
+      "staged": "raw/c2824c9d95ebb0fdc163c9adf83f353f.receipt",
+      "sha256": "c2824c9d95ebb0fdc163c9adf83f353fed66c2d9f53671c809a2b948bf80eae6",
+      "size_bytes": 1583
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/driver-sources/comparator-only-frames-validation.patch",
+      "staged": "raw/5bf74144c8e1912f2b4f9da33b0df706.receipt",
+      "sha256": "5bf74144c8e1912f2b4f9da33b0df706c88bb6ecba49ba8c99622dd388919947",
+      "size_bytes": 1235
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/driver-sources/compare_performance_long.py",
+      "staged": "raw/fa3c5df3d9cabf9c7bf52d214ccf846c.receipt",
+      "sha256": "fa3c5df3d9cabf9c7bf52d214ccf846ce5cac9f688e213d82d6b35c63aeb2011",
+      "size_bytes": 4967
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/driver-sources/performance_long.ps1",
+      "staged": "raw/2f06fdc8f74fda46064572f27da97087.receipt",
+      "sha256": "2f06fdc8f74fda46064572f27da97087a1621bfece0c66f735e10bb8f21b8f7e",
+      "size_bytes": 4134
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/driver-sources/run_long_crossover.py",
+      "staged": "raw/a0963c9267e04ddacb94ac22978e0119.receipt",
+      "sha256": "a0963c9267e04ddacb94ac22978e01195b2521713ad06e3f56c857275e4793db",
+      "size_bytes": 19976
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/long-build-A-Debug.log",
+      "staged": "raw/b05049ce914908bb9b629fd120d93e19.receipt",
+      "sha256": "b05049ce914908bb9b629fd120d93e19b9bf8ccdce769189a2d4d230e9fa44e7",
+      "size_bytes": 4606
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/long-build-A-Release.log",
+      "staged": "raw/b2b2be9789e956a121e381eca8223bac.receipt",
+      "sha256": "b2b2be9789e956a121e381eca8223bacd2421cd0af473144a56f88012ee46151",
+      "size_bytes": 4628
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/long-build-B-Debug.log",
+      "staged": "raw/f8badcf75dcfa25a66c30f923180d157.receipt",
+      "sha256": "f8badcf75dcfa25a66c30f923180d157ba4920e31a23dad7bf244bcb8e6f1bab",
+      "size_bytes": 4618
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/long-build-B-Release.log",
+      "staged": "raw/e4d0af6f4a6b8e6a22a667fe6b952971.receipt",
+      "sha256": "e4d0af6f4a6b8e6a22a667fe6b952971ff18410108a4bbd637f077c2d1be6431",
+      "size_bytes": 4640
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/long-result-audit-20260930.json",
+      "staged": "raw/dfb53639015fceed18db5a8fc4d4a8bf.receipt",
+      "sha256": "dfb53639015fceed18db5a8fc4d4a8bff2f89f11c606ee175288c11ef4262f8c",
+      "size_bytes": 62617
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/long-result-audit-20260930.md",
+      "staged": "raw/4c0e638f0205c1e15a9020c40298eba5.receipt",
+      "sha256": "4c0e638f0205c1e15a9020c40298eba5d2ed1334b2058f5996944289f3b1648a",
+      "size_bytes": 12533
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/original-headers/A-ComplexUiBenchmark.h",
+      "staged": "raw/b0fb136e324ce594ef6df42137e2bde0.receipt",
+      "sha256": "b0fb136e324ce594ef6df42137e2bde0cdbd330ed236a967124f02660cd8328d",
+      "size_bytes": 15453
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/original-headers/B-ComplexUiBenchmark.h",
+      "staged": "raw/b0fb136e324ce594ef6df42137e2bde0.receipt",
+      "sha256": "b0fb136e324ce594ef6df42137e2bde0cdbd330ed236a967124f02660cd8328d",
+      "size_bytes": 15453
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/restore-build-A-Debug.log",
+      "staged": "raw/4db22f06246bba3a2b0e01b6ae2243ee.receipt",
+      "sha256": "4db22f06246bba3a2b0e01b6ae2243ee99e65285a675bff22b304da2cf16b75d",
+      "size_bytes": 4606
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/restore-build-A-Release.log",
+      "staged": "raw/d89ab284e9488521e91ec90187ca80b5.receipt",
+      "sha256": "d89ab284e9488521e91ec90187ca80b5822b5a237b3b8f61f76906f7ebd9d0af",
+      "size_bytes": 4628
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/restore-build-B-Debug.log",
+      "staged": "raw/c91862de613b3fc0e0f3dafd3ee15814.receipt",
+      "sha256": "c91862de613b3fc0e0f3dafd3ee158141cbf6329e17c7811fb832336af6102a5",
+      "size_bytes": 4618
+    },
+    {
+      "original_relative": "native-uia-long-crossover-20260930/restore-build-B-Release.log",
+      "staged": "raw/1820af977e931f40b91fca99c8c232fe.receipt",
+      "sha256": "1820af977e931f40b91fca99c8c232fe401fa3fa8513389b054ae44ebef9f06d",
+      "size_bytes": 4640
+    },
+    {
+      "original_relative": "native-uia-long-driver-20260930/README.md",
+      "staged": "raw/dead278a5d20b0aa8f94aef8df13ca3a.receipt",
+      "sha256": "dead278a5d20b0aa8f94aef8df13ca3a93048edb9bea76d549d89a19a07c3f7f",
+      "size_bytes": 3861
+    },
+    {
+      "original_relative": "native-uia-long-driver-20260930/benchmark-1000.patch",
+      "staged": "raw/c2824c9d95ebb0fdc163c9adf83f353f.receipt",
+      "sha256": "c2824c9d95ebb0fdc163c9adf83f353fed66c2d9f53671c809a2b948bf80eae6",
+      "size_bytes": 1583
+    },
+    {
+      "original_relative": "native-uia-long-driver-20260930/comparator-only-frames-validation.patch",
+      "staged": "raw/5bf74144c8e1912f2b4f9da33b0df706.receipt",
+      "sha256": "5bf74144c8e1912f2b4f9da33b0df706c88bb6ecba49ba8c99622dd388919947",
+      "size_bytes": 1235
+    },
+    {
+      "original_relative": "native-uia-long-driver-20260930/compare_performance_long.py",
+      "staged": "raw/fa3c5df3d9cabf9c7bf52d214ccf846c.receipt",
+      "sha256": "fa3c5df3d9cabf9c7bf52d214ccf846ce5cac9f688e213d82d6b35c63aeb2011",
+      "size_bytes": 4967
+    },
+    {
+      "original_relative": "native-uia-long-driver-20260930/performance_long.ps1",
+      "staged": "raw/2f06fdc8f74fda46064572f27da97087.receipt",
+      "sha256": "2f06fdc8f74fda46064572f27da97087a1621bfece0c66f735e10bb8f21b8f7e",
+      "size_bytes": 4134
+    },
+    {
+      "original_relative": "native-uia-long-driver-20260930/root-run.log",
+      "staged": "raw/91a406820c4d085d7dd058d1d1722322.receipt",
+      "sha256": "91a406820c4d085d7dd058d1d17223225c34e742d587e40ad085f5808eb7f7c9",
+      "size_bytes": 118
+    },
+    {
+      "original_relative": "native-uia-long-driver-20260930/run_long_crossover.py",
+      "staged": "raw/a0963c9267e04ddacb94ac22978e0119.receipt",
+      "sha256": "a0963c9267e04ddacb94ac22978e01195b2521713ad06e3f56c857275e4793db",
+      "size_bytes": 19976
+    },
+    {
+      "original_relative": "native-uia-supplement-driver-20260930/README.md",
+      "staged": "raw/5f4f91477c85980141bd83553aa4872c.receipt",
+      "sha256": "5f4f91477c85980141bd83553aa4872c9707ee9bcdb3da95929080bfbcd1724b",
+      "size_bytes": 1860
+    },
+    {
+      "original_relative": "native-uia-supplement-driver-20260930/Verify-Packet.ps1",
+      "staged": "raw/c3accdec292ef0dcc41dea033d1d6c1a.receipt",
+      "sha256": "c3accdec292ef0dcc41dea033d1d6c1a90860902431344742a133d3a6b881100",
+      "size_bytes": 2278
+    },
+    {
+      "original_relative": "native-uia-supplement-driver-20260930/build_packet.py",
+      "staged": "raw/c3b4340a74e08c77ea7892bbd45b1143.receipt",
+      "sha256": "c3b4340a74e08c77ea7892bbd45b11434ff7229c6004b8472ffbf1054b707a61",
+      "size_bytes": 22161
+    }
+  ]
+}

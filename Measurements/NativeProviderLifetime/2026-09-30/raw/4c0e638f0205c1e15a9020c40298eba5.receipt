@@ -1,0 +1,129 @@
+# Long-result numerical audit — 2026-09-30
+
+Read-only audit of the 12 comparison JSONs plus the eight original performance receipts, driver-result.json, and driver README. No builds, benchmark runs, binary inspection, or driver mutation were performed.
+
+## Report status and provenance
+
+- Comparison statuses: advice-required: 8; within-noise-budget: 4.
+- Regressed rows: 17 across 12 configuration/scenario/metric groups. All source `advice-required` flags are preserved.
+- All eight receipts match the driver expected commits (A `73ba9365726cce30299290ab9ae8afa065c4fe3d`; B `49c963f5751a6754e6b08e0362b96cfc7fc64414`), fixture `dxui-complex-ui-v2`, 1,000 frames/round, and 5 rounds, with one shared benchmark-header SHA-256. `sourceDirty=true` is expected for the temporary 1,000-frame header edit; the driver README says it hashes/restores that header.
+- Driver result is still incomplete: `steps` is empty, `comparisonStatuses` is empty, and `restoration` is empty. Restoration/build-back status is pending, so no completion or final restoration claim is made.
+
+Receipt provenance per run is recorded in the JSON sidecar.
+
+## Same-binary variation and four-run ranges
+
+A/B range uses (max−min)/min over A1, A2, B1, B2. Repeat percentages are the comparator values A1→A2 and B1→B2; `n/a` means the percentage is undefined for a zero-to-zero metric.
+
+| Config | Scenario | Metric | A1→A2 Δ% | B1→B2 Δ% | Four-run min–max | Range % |
+|---|---|---|---:|---:|---:|---:|
+| Debug | clean | composeAllocations | n/a | n/a | 0–0 count | 0% |
+| Debug | clean | cppAllocations | n/a | n/a | 0–0 count | 0% |
+| Debug | clean | fps | 12.0018771912398 | 4.3236092357144 | 2372.685268–2695.970791 fps | 13.6253% |
+| Debug | clean | frameP50Ms | -10.8637142158062 | -3.94630872483221 | 0.3578–0.4087 ms | 14.2258% |
+| Debug | clean | frameP95Ms | -13.0376084860173 | -1.64006122895255 | 0.4498–0.5185 ms | 15.2735% |
+| Debug | clean | privateBytes | 0.675105485232064 | -0.787063537492849 | 28397568–29319168 bytes | 3.2453% |
+| Debug | clean | privatePeakBytes | 0.7996632996633 | 1.46577486836488 | 28782592–29429760 bytes | 2.2485% |
+| Debug | clean | replacementPeakBytes | 0 | 0 | 3686400–3686400 bytes | 0% |
+| Debug | clean | surfaceBytes | 0 | 0 | 3686400–3686400 bytes | 0% |
+| Debug | clean | workingSetBytes | -12.0607341316428 | -11.9250019861762 | 45408256–52334592 bytes | 15.2535% |
+| Debug | clean | workingSetPeakBytes | -12.1550848120066 | -11.8113986347039 | 45506560–52400128 bytes | 15.1485% |
+| Debug | dirty | composeAllocations | n/a | n/a | 0–0 count | 0% |
+| Debug | dirty | cppAllocations | 0 | 0 | 256883–256883 count | 0% |
+| Debug | dirty | fps | 0.513125030861605 | -0.36329965313725 | 407.0529743–409.84223 fps | 0.6852% |
+| Debug | dirty | frameP50Ms | -0.346079176162739 | 0.703419636425262 | 2.3599–2.3765 ms | 0.7034% |
+| Debug | dirty | frameP95Ms | -2.21828423151166 | 0.395141700404866 | 3.0875–3.1601 ms | 2.3514% |
+| Debug | dirty | privateBytes | 1.36113524471475 | 0.851184565186558 | 28286976–29118464 bytes | 2.9395% |
+| Debug | dirty | privatePeakBytes | 1.09273903666427 | 0.394421749542184 | 28487680–29192192 bytes | 2.473% |
+| Debug | dirty | replacementPeakBytes | 0 | 0 | 3686400–3686400 bytes | 0% |
+| Debug | dirty | surfaceBytes | 0 | 0 | 3686400–3686400 bytes | 0% |
+| Debug | dirty | workingSetBytes | -12.5381771419386 | -12.3376623376623 | 44572672–51093504 bytes | 14.6297% |
+| Debug | dirty | workingSetPeakBytes | -12.6370548219288 | -12.332268370607 | 44711936–51281920 bytes | 14.694% |
+| Release | clean | composeAllocations | n/a | n/a | 0–0 count | 0% |
+| Release | clean | cppAllocations | n/a | n/a | 0–0 count | 0% |
+| Release | clean | fps | -2.13723864350657 | -0.70248816154459 | 2637.16627–2710.878566 fps | 2.7951% |
+| Release | clean | frameP50Ms | 2.09672910259995 | 0.818515382444263 | 0.3543–0.3652 ms | 3.0765% |
+| Release | clean | frameP95Ms | 5.44677020031512 | -0.293652586401616 | 0.4414–0.4685 ms | 6.1396% |
+| Release | clean | privateBytes | -1.06642291285801 | 0.626762770291456 | 26140672–26886144 bytes | 2.8518% |
+| Release | clean | privatePeakBytes | -1.52775676902133 | 1.35471815633759 | 26304512–27078656 bytes | 2.943% |
+| Release | clean | replacementPeakBytes | 0 | 0 | 3686400–3686400 bytes | 0% |
+| Release | clean | surfaceBytes | 0 | 0 | 3686400–3686400 bytes | 0% |
+| Release | clean | workingSetBytes | -0.424889056746292 | 0.911358403683815 | 42696704–43380736 bytes | 1.6021% |
+| Release | clean | workingSetPeakBytes | -0.546654099905752 | 0.8818173104572 | 42733568–43458560 bytes | 1.6965% |
+| Release | dirty | composeAllocations | n/a | n/a | 0–0 count | 0% |
+| Release | dirty | cppAllocations | 0 | 0 | 53896–53896 count | 0% |
+| Release | dirty | fps | -0.000419122244010861 | -0.512193930284477 | 511.1136553–521.0206022 fps | 1.9383% |
+| Release | dirty | frameP50Ms | -0.0267165375367306 | 1.36600173460539 | 1.8448–1.8715 ms | 1.4473% |
+| Release | dirty | frameP95Ms | 1.02794731769995 | 2.56474310933466 | 2.4018–2.516 ms | 4.7548% |
+| Release | dirty | privateBytes | 0.729348343110825 | 2.07909957792716 | 25833472–26746880 bytes | 3.5358% |
+| Release | dirty | privatePeakBytes | 0.470440646071824 | 1.39405204460967 | 26120192–26812416 bytes | 2.6501% |
+| Release | dirty | replacementPeakBytes | 0 | 0 | 3686400–3686400 bytes | 0% |
+| Release | dirty | surfaceBytes | 0 | 0 | 3686400–3686400 bytes | 0% |
+| Release | dirty | workingSetBytes | 0.265121759622944 | 0.438981562774354 | 41713664–42172416 bytes | 1.0998% |
+| Release | dirty | workingSetPeakBytes | 0.244307632170426 | 0.475912975912984 | 41914368–42373120 bytes | 1.0945% |
+
+## Regressed metric groups
+
+The following table checks the four cross-pairings A1→B1, A1→B2, A2→B1, A2→B2. “Consistent” means all four cross-pair comparisons flag the group above its adverse threshold.
+
+| Config | Scenario | Metric | Flagged cross pairs | Per-pair changes (band) | Consistent across all 4? |
+|---|---|---|---:|---|---|
+| Debug | clean | composeCpuP95Ms | 1/4 | A1-to-B1: -7.519% / 5% band, flag=False; A1-to-B2: -10.526% / 5% band, flag=False; A2-to-B1: 5.128% / 5% band, flag=True; A2-to-B2: 1.709% / 5% band, flag=False | False |
+| Debug | clean | workingSetBytes | 1/4 | A1-to-B1: -1.487% / 2% band, flag=False; A1-to-B2: -13.235% / 2% band, flag=False; A2-to-B1: 12.024% / 2% band, flag=True; A2-to-B2: -1.335% / 2% band, flag=False | False |
+| Debug | clean | workingSetPeakBytes | 1/4 | A1-to-B1: -1.524% / 2% band, flag=False; A1-to-B2: -13.156% / 2% band, flag=False; A2-to-B1: 12.102% / 2% band, flag=True; A2-to-B2: -1.139% / 2% band, flag=False | False |
+| Debug | dirty | privateBytes | 2/4 | A1-to-B1: 2.071% / 2% band, flag=True; A1-to-B2: 2.939% / 2% band, flag=True; A2-to-B1: 0.7% / 2% band, flag=False; A2-to-B2: 1.557% / 2% band, flag=False | False |
+| Debug | dirty | privatePeakBytes | 2/4 | A1-to-B1: 2.07% / 2% band, flag=True; A1-to-B2: 2.473% / 2% band, flag=True; A2-to-B1: 0.967% / 2% band, flag=False; A2-to-B2: 1.365% / 2% band, flag=False | False |
+| Debug | dirty | workingSetBytes | 1/4 | A1-to-B1: 0.257% / 2% band, flag=False; A1-to-B2: -12.112% / 2% band, flag=False; A2-to-B1: 14.63% / 2% band, flag=True; A2-to-B2: 0.487% / 2% band, flag=False | False |
+| Debug | dirty | workingSetPeakBytes | 1/4 | A1-to-B1: 0.2% / 2% band, flag=False; A1-to-B2: -12.157% / 2% band, flag=False; A2-to-B1: 14.694% / 2% band, flag=True; A2-to-B2: 0.55% / 2% band, flag=False | False |
+| Release | clean | composeCpuP95Ms | 0/4 | A1-to-B1: 0.935% / 5% band, flag=False; A1-to-B2: -1.869% / 5% band, flag=False; A2-to-B1: -4.425% / 5% band, flag=False; A2-to-B2: -7.08% / 5% band, flag=False | False |
+| Release | clean | frameP95Ms | 0/4 | A1-to-B1: -0.36% / 5% band, flag=False; A1-to-B2: -0.653% / 5% band, flag=False; A2-to-B1: -5.507% / 5% band, flag=False; A2-to-B2: -5.784% / 5% band, flag=False | False |
+| Release | dirty | composeCpuP95Ms | 1/4 | A1-to-B1: -15.686% / 5% band, flag=False; A1-to-B2: -21.078% / 5% band, flag=False; A2-to-B1: 6.173% / 5% band, flag=True; A2-to-B2: -0.617% / 5% band, flag=False | False |
+| Release | dirty | privateBytes | 2/4 | A1-to-B1: 1.427% / 2% band, flag=False; A1-to-B2: 3.536% / 2% band, flag=True; A2-to-B1: 0.693% / 2% band, flag=False; A2-to-B2: 2.786% / 2% band, flag=True | False |
+| Release | dirty | privatePeakBytes | 2/4 | A1-to-B1: 1.239% / 2% band, flag=False; A1-to-B2: 2.65% / 2% band, flag=True; A2-to-B1: 0.765% / 2% band, flag=False; A2-to-B2: 2.17% / 2% band, flag=True | False |
+
+All comparator-flagged rows, including same-binary repeats, are listed below.
+
+- Debug-A1-to-B1.comparison.json: dirty / privateBytes, 2.071% against 2% band (28286976 → 28872704).
+- Debug-A1-to-B1.comparison.json: dirty / privatePeakBytes, 2.07% against 2% band (28487680 → 29077504).
+- Debug-A1-to-B2.comparison.json: dirty / privateBytes, 2.939% against 2% band (28286976 → 29118464).
+- Debug-A1-to-B2.comparison.json: dirty / privatePeakBytes, 2.473% against 2% band (28487680 → 29192192).
+- Debug-A2-to-B1.comparison.json: clean / composeCpuP95Ms, 5.128% against 5% band (0.0117 → 0.0123).
+- Debug-A2-to-B1.comparison.json: clean / workingSetBytes, 12.024% against 2% band (46022656 → 51556352).
+- Debug-A2-to-B1.comparison.json: clean / workingSetPeakBytes, 12.102% against 2% band (46030848 → 51601408).
+- Debug-A2-to-B1.comparison.json: dirty / workingSetBytes, 14.63% against 2% band (44572672 → 51093504).
+- Debug-A2-to-B1.comparison.json: dirty / workingSetPeakBytes, 14.694% against 2% band (44711936 → 51281920).
+- Release-A1-to-A2.comparison.json: clean / frameP95Ms, 5.447% against 5% band (0.4443 → 0.4685).
+- Release-A1-to-A2.comparison.json: clean / composeCpuP95Ms, 5.607% against 5% band (0.0107 → 0.0113).
+- Release-A1-to-B2.comparison.json: dirty / privateBytes, 3.536% against 2% band (25833472 → 26746880).
+- Release-A1-to-B2.comparison.json: dirty / privatePeakBytes, 2.65% against 2% band (26120192 → 26812416).
+- Release-A2-to-B1.comparison.json: dirty / composeCpuP95Ms, 6.173% against 5% band (0.0162 → 0.0172).
+- Release-A2-to-B2.comparison.json: dirty / privateBytes, 2.786% against 2% band (26021888 → 26746880).
+- Release-A2-to-B2.comparison.json: dirty / privatePeakBytes, 2.17% against 2% band (26243072 → 26812416).
+- Release-B1-to-B2.comparison.json: dirty / privateBytes, 2.079% against 2% band (26202112 → 26746880).
+
+## Allocation and surface equality
+
+| Config | Scenario | Metric | A1 / A2 / B1 / B2 | Equal? |
+|---|---|---|---|---|
+| Debug | clean | composeAllocations | 0 / 0 / 0 / 0 | True |
+| Debug | clean | cppAllocations | 0 / 0 / 0 / 0 | True |
+| Debug | clean | replacementPeakBytes | 3686400 / 3686400 / 3686400 / 3686400 | True |
+| Debug | clean | surfaceBytes | 3686400 / 3686400 / 3686400 / 3686400 | True |
+| Debug | dirty | composeAllocations | 0 / 0 / 0 / 0 | True |
+| Debug | dirty | cppAllocations | 256883 / 256883 / 256883 / 256883 | True |
+| Debug | dirty | replacementPeakBytes | 3686400 / 3686400 / 3686400 / 3686400 | True |
+| Debug | dirty | surfaceBytes | 3686400 / 3686400 / 3686400 / 3686400 | True |
+| Release | clean | composeAllocations | 0 / 0 / 0 / 0 | True |
+| Release | clean | cppAllocations | 0 / 0 / 0 / 0 | True |
+| Release | clean | replacementPeakBytes | 3686400 / 3686400 / 3686400 / 3686400 | True |
+| Release | clean | surfaceBytes | 3686400 / 3686400 / 3686400 / 3686400 | True |
+| Release | dirty | composeAllocations | 0 / 0 / 0 / 0 | True |
+| Release | dirty | cppAllocations | 53896 / 53896 / 53896 / 53896 | True |
+| Release | dirty | replacementPeakBytes | 3686400 / 3686400 / 3686400 / 3686400 | True |
+| Release | dirty | surfaceBytes | 3686400 / 3686400 / 3686400 / 3686400 | True |
+
+Allocation counts and surface/replacement-peak byte metrics match across all four runs in both scenarios and configurations.
+
+## Qualification boundary
+
+The README defines this as completed offscreen WARP rendering with no swap-chain presentation or vsync. It does not measure the WindowHost UIA snapshot/token path or presented FPS, and it does not qualify ARM64. Do not use unchanged UIA-path behavior to claim causal absence of UIA cost. The present sidecars support numeric comparison only while driver restoration remains pending.
