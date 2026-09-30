@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- The Menu suite's real-client focus fixtures (the click that activates a window UI Automation has or has not seen, and
+  the reactivation of a seen window) no longer fail when another application takes the foreground (plan
+  `SeenWindowReactivation_2026-09-30`, item 3). One failed a local Debug run while the desktop application and the Start
+  menu took it. They now play each attempt with windows of their own through `RunUntilForegroundHeld`
+  (`Tests/Controls/DxUiTestHelpers.h`), the multi-window form of `RunWhileForegroundHeld`, which is now written on top of
+  it. A failed expectation records the first failure, with the names the client heard, instead of ending the test, and
+  an attempt that another application took the foreground from, from any of its windows, is played again, five times at
+  most. The attempt that kept the foreground decides the test, and one that never did records a skip naming the thief.
+  Under `--foreground-thief` all three record that skip after five attempts, and never fail. Item 7's first version,
+  announcing every move of a gain's turn, and removing the reactivation announcement each still fail their test.
 - Activating a window UI Automation has seen announces its focused control (plan `SeenWindowReactivation_2026-09-30`).
   UI Automation answers the first focus event of a window with a call of the fragment root's `GetFocus`, and its later
   ones from whether the window's root element has the keyboard focus, which it does not while the focus is inside a

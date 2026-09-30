@@ -1,6 +1,6 @@
 # Announcing the reactivation of a window UI Automation has seen, and focus tests that survive foreground theft
 
-Status: ACTIVE (2026-09-30). Library and tests; no consumer pin changes.
+Status: DONE (2026-09-30). Library and tests; no consumer pin changes.
 Base: the reliability follow-ups (PR 31, `1d6650e`).
 Owning contracts: [input and accessibility](../../UI/UI_InputAndAccessibility.md) and
 [testing and validation](../../Testing/Testing_Validation.md).
@@ -36,15 +36,27 @@ nothing, and a screen reader did not say which control had the focus. That plan 
   loop turned, arrives during a later turn and ends nothing; a desktop-free test dispatches it on its own.
   Outcome: the message carries the turn's number in `wParam`, and a message whose number is not the running turn's, or
   that arrives with no turn running, ends nothing. Letting any message end the turn fails the test.
-- [ ] 3. The real-client focus tests never fail because another application took the foreground. The Menu suite's click
+- [x] 3. The real-client focus tests never fail because another application took the foreground. The Menu suite's click
   and reactivation tests use two windows and a UI Automation client; one failed a local Debug run while the desktop app
   and the Start menu took the foreground. Accept: each attempt builds its windows afresh and records the first
   expectation that failed. An attempt that another application took the foreground from, from any of its windows, is
   played again, at most five times, and a test whose every attempt lost it records a skip naming the thief. The
   expectations of the attempt that kept the foreground decide the test, so a regression still fails.
   `--foreground-thief` never produces a failure, and the tests still fail against the mutants above and item 7's.
+  Outcome: `RunUntilForegroundHeld` in `Tests/Controls/DxUiTestHelpers.h` repeats an attempt that reports its own
+  foreground, and `RunWhileForegroundHeld` is now its one-window form: NativeTextInput's 131 tests pass unchanged,
+  quiet and under the thief. `PlayActivatingClickTest` plays each of the three tests as attempts, each on a new
+  `ActivatingClickScenario`, the not-seen test's reference window included. The scenario's `Expect` records the first
+  failure instead of exiting, and `Hears` returns at once in an attempt that failed or lost the foreground. Quiet, all
+  three pass three runs in a row. Under `--foreground-thief` every attempt is stolen, and each records the skip naming
+  the thief after five attempts, in 11 to 17 s, twice in a row. Item 7's first version (the turn alone decides) still
+  fails the seen-window click test, announcing every move of the turn still fails the not-seen test, and removing the
+  end-of-turn announcement still fails the reactivation test, each as a failure, not a skip.
 
 ### Close-out
 
-- [ ] `test.ps1` in x64 Debug, Release and ASan Debug, the three ARM64 builds, `validate.ps1` and `format.ps1 -Check`;
+- [x] `test.ps1` in x64 Debug, Release and ASan Debug, the three ARM64 builds, `validate.ps1` and `format.ps1 -Check`;
   the input and accessibility contract, the hosting guide and CHANGELOG; this plan moved to Done.
+  Outcome: the matrix passed after items 1 and 2 and again with item 3, and the input and accessibility contract no
+  longer lists the gap. The testing contract describes `RunUntilForegroundHeld`, and the hosting guide says what a
+  window procedure that holds back the turn's message loses.

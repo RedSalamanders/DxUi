@@ -972,35 +972,59 @@ struct ForegroundRunResult
     }
 };
 
-// Runs `sequence`, the steps that move focus and pump messages, until one run ends without another application having
-// taken the foreground from `window`, at most `maximumRuns` times. Such a takeover makes the host release its native text
-// session, TSF document included, as designed; a desktop application retaking the foreground a few tens of milliseconds
-// after a test window activated did so mid-test and failed assertions that it says nothing about. The caller asserts on
-// the state the run that kept the foreground left, so its assertions are exactly those of a run without a thief, and a
-// regression still fails: a run nobody took the foreground from is never repeated. After a lost run the window is
-// activated again through the harness's activation helper (best effort). `sequence` must be safe to run again. When
-// another application takes the foreground in every run, the result says who, and ForegroundHeldOrSkip records the skip.
-template <typename Sequence> [[nodiscard]] ForegroundRunResult RunWhileForegroundHeld(AttachedHostWindow& window, Sequence&& sequence, int maximumRuns = 5)
+// What one run of a sequence found about the foreground: whether another application took it from one of the run's
+// windows, and the thread of the window that did.
+struct ForegroundAttempt
+{
+    bool lost           = false;
+    DWORD thiefThreadId = 0u;
+};
+
+// Runs `attempt` until a run reports that no other application took the foreground from its windows, at most
+// `maximumRuns` times. A takeover makes Windows deactivate a test window mid-sequence, and the host reacts as designed
+// (it releases its native text session, stops announcing focus changes), so a desktop application retaking the
+// foreground a few tens of milliseconds after a test window activated failed assertions that it says nothing about. The
+// caller asserts on what the run that kept the foreground recorded, so its assertions are exactly those of a run without
+// a thief, and a regression still fails: a run nobody took the foreground from is never repeated. `attempt` plays the
+// whole sequence, with windows of its own when a later run must not inherit what an earlier one did to them, records
+// what the caller asserts on, and returns what it found about the foreground. When another application takes the
+// foreground in every run, the result says who, and ForegroundHeldOrSkip records the skip.
+template <typename Attempt> [[nodiscard]] ForegroundRunResult RunUntilForegroundHeld(Attempt&& attempt, int maximumRuns = 5)
 {
     ForegroundRunResult result{};
     while (result.runs < maximumRuns)
     {
-        const uint32_t lossesBefore = window.ForegroundLossCount();
         ++result.runs;
-        sequence();
-        if (window.ForegroundLossCount() == lossesBefore)
+        const ForegroundAttempt run = attempt();
+        if (! run.lost)
         {
             result.held = true;
             return result;
         }
-        result.thiefThreadId = window.LastForegroundThiefThreadId();
+        result.thiefThreadId = run.thiefThreadId;
         std::cerr << "    [FOREGROUND] " << DescribeThreadProcessForTest(result.thiefThreadId) << " took the foreground in run " << result.runs << " of "
                   << maximumRuns << '\n'
                   << std::flush;
-        if (result.runs < maximumRuns)
-            static_cast<void>(TryActivateDxUiTestWindow(window.Hwnd()));
     }
     return result;
+}
+
+// RunUntilForegroundHeld for `sequence`, the steps that move focus and pump messages in `window`: a run is lost when
+// another application took the foreground from `window` during it, and after a lost run the window is activated again
+// through the harness's activation helper (best effort). `sequence` must be safe to run again.
+template <typename Sequence> [[nodiscard]] ForegroundRunResult RunWhileForegroundHeld(AttachedHostWindow& window, Sequence&& sequence, int maximumRuns = 5)
+{
+    int runs = 0;
+    return RunUntilForegroundHeld(
+        [&]
+    {
+        if (runs++ > 0)
+            static_cast<void>(TryActivateDxUiTestWindow(window.Hwnd()));
+        const uint32_t lossesBefore = window.ForegroundLossCount();
+        sequence();
+        return ForegroundAttempt{window.ForegroundLossCount() != lossesBefore, window.LastForegroundThiefThreadId()};
+    },
+        maximumRuns);
 }
 
 // True when a run kept the foreground; otherwise records the capability skip naming who took it and returns false.
