@@ -6304,6 +6304,28 @@ public:
     return busy;
 }
 
+// Whether window hosts here render in software: WARP, or the Basic Render Driver of a machine without a GPU such as a
+// CI runner. Its surfaces and caches then live in the process heap, where the live-heap walk counts them too. Asks the
+// device helper the window hosts use, with the same hardware-first choice.
+[[nodiscard, maybe_unused]] bool WindowHostsRenderInSoftware()
+{
+    const std::array<D3D_FEATURE_LEVEL, 3> levels{D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1};
+    wil::com_ptr_nothrow<ID3D11Device> device;
+    wil::com_ptr_nothrow<ID3D11DeviceContext> context;
+    D3D_FEATURE_LEVEL level    = D3D_FEATURE_LEVEL_11_0;
+    D3D_DRIVER_TYPE driverType = D3D_DRIVER_TYPE_UNKNOWN;
+    RequireSucceeded(DxUi::CreateD3D11DeviceWithWarpFallback(D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, false, device.put(), &level, context.put(), &driverType),
+                     "create the device window hosts would use");
+    if (driverType == D3D_DRIVER_TYPE_WARP)
+        return true;
+    const auto dxgiDevice = device.try_query<IDXGIDevice>();
+    wil::com_ptr_nothrow<IDXGIAdapter> adapter;
+    DXGI_ADAPTER_DESC description{};
+    Require(dxgiDevice && SUCCEEDED(dxgiDevice->GetAdapter(adapter.put())) && SUCCEEDED(adapter->GetDesc(&description)), "identify the window-host adapter");
+    constexpr UINT kMicrosoftVendorId = 0x1414u; // WARP and the Basic Render Driver
+    return description.VendorId == kMicrosoftVendorId;
+}
+
 // A described menu retains shaped layouts and accessibility proxies for every row while it is open; closing it must
 // return them, even while a UI Automation client still holds one of its elements.
 void TestDescribedMenuReleasesItsMemoryWhenItCloses()
@@ -6363,10 +6385,16 @@ void TestDescribedMenuReleasesItsMemoryWhenItCloses()
     uint64_t open         = 0u;
     const auto heldRows   = openAndClose(true, &open);
     const uint64_t closed = MeasureLiveHeapBytesForMenuSuite();
+    const bool software   = WindowHostsRenderInSoftware();
     std::cout << "Described menu live heap: before " << before << ", open " << open << ", closed " << closed << " bytes (row elements still held "
-              << heldRows.size() << ")\n";
+              << heldRows.size() << (software ? "; software renderer" : "") << ")\n";
     Require(open > before + 1024u * 1024u, "a 200-row described menu holds its layouts while open");
-    Require(closed < before + 64u * 1024u, "closing the described menu returns its memory, although a client still holds row elements");
+    // A menu the held elements pinned would keep nearly all it held while open. With a GPU the walk sees only this
+    // process's own allocations, so the menu must return to within 64 KiB. A software renderer's surfaces and caches
+    // share the heap and swing by up to about 3 MB between identical open/close cycles, with or without held
+    // elements, so there at least half of the menu's memory must come back.
+    const uint64_t allowance = software ? (open - before) / 2u : 64u * 1024u;
+    Require(closed < before + allowance, "closing the described menu returns its memory, although a client still holds row elements");
 #endif
 }
 

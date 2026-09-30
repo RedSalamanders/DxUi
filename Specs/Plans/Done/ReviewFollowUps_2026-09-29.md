@@ -56,7 +56,11 @@ with 1,558), omitted tails are shared through
   `UIA_E_ELEMENTNOTAVAILABLE` once their control is gone or replaced; StructureChanged for such a republish; a
   collapsed root reports only its own control's events; a focus callback that removes its control leaves no focus.
 - [x] Menus: described-menu memory is returned on close even while a client holds eight row elements (live heap
-  within 6.6 KB of before; 8.3 MB while open); arrow cursor over popups, the same-thread window's own cursor outside,
+  within 6.6 KB of before on a GPU; 8.3 MB while open). The PR's first CI run failed that bound on its GPU-less
+  runners: a software renderer's surfaces and caches share the process heap and swing by up to about 3 MB between
+  identical cycles, held elements or not (reproduced here by forcing WARP; releasing the elements changed nothing), so
+  with a software renderer the test requires at least half of the open memory back. Arrow cursor over popups, the
+  same-thread window's own cursor outside,
   chosen when the menu opens and again when it closes, forwarded from a posted message so a window closing the menu
   from its `WM_SETCURSOR` handling frees nothing the menu still uses.
 - [x] Chevron (starts at its first tick, a gap pauses it), alert tones (a derived partner is black or white by
