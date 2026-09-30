@@ -31,6 +31,17 @@ identity distinguishes it from older fixtures; changed fixtures cannot establish
 Each reviewed run must retain raw rounds, environment/source/fixture hashes, comparisons and a README explaining
 limitations and noisy results. Temporary output remains in `.build`; docs link here instead of containing archives.
 
+Consumers check out this directory with the rest of their pinned tree, so its paths count against the repository's
+150-character budget ([contract](../Specs/Build/Build_ToolchainAndConsumption.md)), and `validate-dependencies.ps1`
+rejects a longer one. Keep packet directories shallow and names short. On 1 October 2026, 767 files were renamed to
+fit:
+- CI artifact directories dropped `native-`.
+- `Performance-*` receipts keep the first 8 of their 32 run-id digits.
+- `GridTextOverflow/2026-09-23/associative-cache-rejected` became `assoc-cache-rejected`.
+
+File bytes are unchanged, each packet's hash list or manifest names the new paths, and paths quoted inside retained
+evidence are the original ones.
+
 Run and compare using [the performance guide](../docs/performance.md). Do not replace an earlier baseline to hide
 a regression or claim application-level acceptance from these library measurements.
 

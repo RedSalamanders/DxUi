@@ -9,6 +9,13 @@ complex-UI measurements, workflow status and downloaded artifact identities.
 the `.json.receipt.txt` suffix to distinguish native evidence from independent
 performance-comparison inputs; their contents are unchanged.
 
+On 1 October 2026 the raw tree was shortened to DxUi's 150-character path budget
+([contract](../../../../Specs/Build/Build_ToolchainAndConsumption.md)): a consumer's pinned restore could not
+check out its longest paths. Each artifact directory dropped its `native-` prefix (`raw/x64-Debug` holds the
+artifact `native-x64-Debug`), and the `Performance-*` receipts keep the first 8 of their 32 run-id digits. File
+bytes are unchanged, and `raw/sha256.receipt.txt` lists the new paths with the original hashes. Paths quoted
+inside the retained logs and receipts are the original ones.
+
 | Native profile | Final regular suites | Explicit skipped cases | External consumer |
 | --- | --- | --- | --- |
 | x64 Debug, attempt 2 | 18 passed | 0 | passed |
@@ -36,8 +43,8 @@ After the workflow completed, one classification retry of job 106475898821 ran
 as job 106486198229 against the same source. Setup completed in 78 ms and the
 full x64 Debug job passed. No timeout, test or production code was changed.
 This is an intermittent setup failure, not a claimed code repair or established
-environmental cause. `native-x64-Debug` preserves the failure;
-`native-x64-Debug-attempt2` contains the successful retry.
+environmental cause. `raw/x64-Debug` preserves the failure;
+`raw/x64-Debug-attempt2` contains the successful retry.
 
 ## Limits and remaining gates
 

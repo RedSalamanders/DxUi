@@ -29,6 +29,12 @@ out, cleans or overwrites the developer's existing sibling checkout. A missing r
 with an actionable message. An explicit development override may use edited source, but must record its fingerprint
 and mark the result non-release; clean release validation requires the lock match.
 
+Consumers restore the pinned tree under `<root>\.build\dependencies\DxUi\source\<commit>\`, which is 74 characters
+after the consumer's root. Git without long paths cannot create a file whose full path exceeds 259 characters, and the
+restore then fails as a dirty checkout. Every tracked path in this repository is therefore at most 150 characters, so
+any consumer root of up to 35 characters restores without Git long paths. `validate-dependencies.ps1` rejects a longer
+path, tracked or about to be, before it can reach a pin.
+
 Consumers import `Build/DxUi.Consumer.props` / `.targets` and reference `src/DxUi.vcxproj`. They do
 not maintain a second list of library `.cpp` files. Public header paths and output paths resolve from the imported
 file/project, never an assumed application `SolutionDir`. Standalone `.build` outputs and consumer dependency outputs
