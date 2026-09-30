@@ -38,14 +38,42 @@ struct EmbeddedAccessibilityAccess
         return host._embeddedAccessibilityTarget;
     }
 
-    [[nodiscard]] static bool GainingWindowFocus(const ControlHost& host) noexcept
+    // Who reports the focus move a window host just published; focusResolutions is how many calls of the fragment
+    // root's GetFocus had begun once the snapshot was stored.
+    //
+    // The system raises a focus event when the window gains focus, and UI Automation answers it in one of two ways. It
+    // asks a window it has not reported before with a call of GetFocus, on whatever thread, which reads the snapshot
+    // published when the call runs. A window it has reported it answers without GetFocus: it asks the window's root
+    // element whether it has the keyboard focus, and reports that element when it does and nothing when the focus is
+    // inside a control. The click that activates a window moves focus in the same turn as the gain, before UI Automation
+    // has acted on the event, so in a window UI Automation has asked before, the moved-to control is the host's to
+    // announce: nothing else reports it. In a window it has never asked, the GetFocus call that answers the event comes
+    // after the move and reports the moved-to element, so the host leaves the move to it.
+    enum class FocusMoveReporter : uint8_t
     {
-        return host._gainingWindowFocus || host.IsInFocusGainTurn();
+        Host,            // The host raises the focus change.
+        SystemAtGain,    // Made inside OnSetFocus: the system's focus event for the gain reports it.
+        SystemUnanswered // Made later in the gain's turn in a window no GetFocus call has begun on: the call that answers
+                         // the system's focus event reads the moved-to element.
+    };
+
+    [[nodiscard]] static FocusMoveReporter ReporterOfFocusMove(const ControlHost& host, uint64_t focusResolutions) noexcept
+    {
+        if (host._gainingWindowFocus)
+            return FocusMoveReporter::SystemAtGain;
+        if (host.IsInFocusGainTurn() && focusResolutions == 0u)
+            return FocusMoveReporter::SystemUnanswered;
+        return FocusMoveReporter::Host;
     }
 
     static void CountFocusAnnouncement(ControlHost& host) noexcept
     {
         ++host._debugFocusAnnouncementCount;
+    }
+
+    static void CountFocusMoveLeftToSystem(ControlHost& host) noexcept
+    {
+        ++host._debugFocusMovesLeftToSystemCount;
     }
 };
 
@@ -169,6 +197,36 @@ std::atomic<size_t> g_accessibilityOffscreenSelectedRowMaterializationLimitOverr
 thread_local bool g_accessibilityResolutionCounting       = false;
 thread_local uint64_t g_accessibilityResolutionVisitCount = 0u;
 
+// The window whose GetFocus calls a test holds, and the events it uses. The window is stored last when arming and first
+// when clearing, so a call never meets events the test has not armed; the holders are the calls that met the gate.
+std::atomic<HWND> g_accessibilityFocusResolutionGateWindow{nullptr};
+std::atomic<HANDLE> g_accessibilityFocusResolutionGateEnteredEvent{nullptr};
+std::atomic<HANDLE> g_accessibilityFocusResolutionGateReleaseEvent{nullptr};
+std::atomic<uint32_t> g_accessibilityFocusResolutionGateHolders{0u};
+constexpr DWORD kAccessibilityFocusResolutionGateTimeoutMs = 5000u;
+
+// Holds a call of `hwnd`'s GetFocus while a test has gated that window: sets the test's entered event and waits, bounded,
+// for its release event. Dormant (two loads) otherwise.
+void HoldFocusResolutionForTest(HWND hwnd) noexcept
+{
+    if (! hwnd || g_accessibilityFocusResolutionGateWindow.load(std::memory_order_seq_cst) != hwnd)
+        return;
+    // Registered before the window is read again and the events are used: clearing the gate stores the window first and
+    // then waits for the calls registered, so the test's events outlive every use of them here.
+    g_accessibilityFocusResolutionGateHolders.fetch_add(1u, std::memory_order_seq_cst);
+    const auto leave = wil::scope_exit([]() noexcept
+    {
+        g_accessibilityFocusResolutionGateHolders.fetch_sub(1u, std::memory_order_seq_cst);
+        g_accessibilityFocusResolutionGateHolders.notify_all();
+    });
+    if (g_accessibilityFocusResolutionGateWindow.load(std::memory_order_seq_cst) != hwnd)
+        return;
+    if (const HANDLE enteredEvent = g_accessibilityFocusResolutionGateEnteredEvent.load(std::memory_order_acquire))
+        static_cast<void>(::SetEvent(enteredEvent));
+    if (const HANDLE releaseEvent = g_accessibilityFocusResolutionGateReleaseEvent.load(std::memory_order_acquire))
+        static_cast<void>(::WaitForSingleObject(releaseEvent, kAccessibilityFocusResolutionGateTimeoutMs));
+}
+
 // The records, slots and tree nodes that resolving a control examined on this thread. Dormant unless a test enables
 // it, and per thread so that other threads' UI Automation calls neither add to it nor contend on it.
 void CountAccessibilityResolutionVisits(size_t visited) noexcept
@@ -249,6 +307,10 @@ void MaybeStallTakenAccessibilityUiActionHandlerForTest() noexcept
 }
 
 constexpr void CountAccessibilityResolutionVisits(size_t) noexcept
+{
+}
+
+constexpr void HoldFocusResolutionForTest(HWND) noexcept
 {
 }
 #endif
@@ -654,6 +716,11 @@ struct WindowHostAccessibilityTarget final
     EmbeddedAccessibilityPlacement placement{};
     std::atomic<ControlHost*> host{nullptr};
     std::atomic<std::shared_ptr<const AccessibilitySnapshot>> snapshot;
+    // Calls of a provider's GetFocus (the fragment root's, for the system's focus event) that have begun. Each counts
+    // itself, then reads the snapshot; a publish stores the snapshot, then reads the count, so a call the count does
+    // not include reads the snapshot after the store: see RefreshWindowHostAccessibilitySnapshot. All four operations are
+    // sequentially consistent.
+    std::atomic<uint64_t> focusResolutions{0u};
     // The last live snapshot while an empty one stands in during a root swap, so the publish after the swap reports
     // what it changed. Set and consumed under the accessibility mutex; never held past that publish.
     std::shared_ptr<const AccessibilitySnapshot> diffBaseline;
@@ -689,7 +756,9 @@ struct WindowHostAccessibilityTarget final
 
 void PublishAccessibilitySnapshot(WindowHostAccessibilityTarget& target, std::shared_ptr<const AccessibilitySnapshot> snapshot) noexcept
 {
-    target.snapshot.store(std::move(snapshot), std::memory_order_release);
+    // Sequentially consistent: the publisher's read of the GetFocus count that follows this store is ordered with the
+    // count GetFocus makes before it loads the snapshot (RefreshWindowHostAccessibilitySnapshot).
+    target.snapshot.store(std::move(snapshot), std::memory_order_seq_cst);
 }
 
 void PublishEmptyAccessibilitySnapshot(WindowHostAccessibilityTarget& target) noexcept
@@ -835,7 +904,8 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
         return nullptr;
     }
 
-    if (auto snapshot = target->snapshot.load(std::memory_order_acquire))
+    // Sequentially consistent, for a GetFocus that counted itself just before: see PublishAccessibilitySnapshot.
+    if (auto snapshot = target->snapshot.load(std::memory_order_seq_cst))
     {
         return snapshot;
     }
@@ -6276,6 +6346,14 @@ HRESULT AccessibilityProvider::GetFocus(IRawElementProviderFragment** outProvide
     if (outProvider)
         *outProvider = nullptr;
 
+    // UI Automation calls this on any thread, to answer the system's focus event for a window it has not reported before
+    // among other things, and the answer comes from the published snapshot, not from the window's thread. The call counts
+    // itself before it reads the snapshot so a window host that publishes a focus move can tell, from the count it reads
+    // after storing the snapshot, whether this read can still come before the move (ReporterOfFocusMove).
+    HoldFocusResolutionForTest(_hwnd);
+    if (_target)
+        static_cast<void>(_target->focusResolutions.fetch_add(1u, std::memory_order_seq_cst));
+
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     if (! outProvider)
@@ -8891,6 +8969,7 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexce
         return; // EmbeddedHost::UpdateAccessibility publishes after coherent preparation.
 
     WindowHostSnapshotChanges changes{};
+    uint64_t focusResolutions = 0u;
     {
         const std::scoped_lock lock(GetAccessibilityTargetMutex());
         auto* target = static_cast<WindowHostAccessibilityTarget*>(GetPropW(hwnd, kWindowHostPropName));
@@ -8900,12 +8979,30 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexce
         }
 
         changes = PublishWindowHostAccessibilitySnapshot(*target, *host);
+        // Read after the publish stored the snapshot. A call of GetFocus counts itself before it loads the snapshot, all
+        // four operations sequentially consistent, so a call this read does not count loads the snapshot after the
+        // store and reports the element the host just focused, while one it counts may have loaded the snapshot before.
+        if (changes.focusMoved)
+            focusResolutions = target->focusResolutions.load(std::memory_order_seq_cst);
     }
     // Raised outside the publish lock: clients may call back into these providers from other threads.
     if (changes.structureChanged)
         RaiseWindowHostStructureInvalidated(hwnd);
-    if (changes.focusMoved && ! EmbeddedAccessibilityAccess::GainingWindowFocus(*host) && AnnounceWindowHostFocus(hwnd))
-        EmbeddedAccessibilityAccess::CountFocusAnnouncement(*host);
+    if (! changes.focusMoved)
+        return;
+    // What the gain itself focuses is left to the system's focus event, and a move later in its turn is too while no
+    // GetFocus call has begun on the window (see ReporterOfFocusMove): every call that begins later loads the snapshot
+    // after the store above and reports the moved-to element. Otherwise the host announces the move, at worst as a
+    // duplicate of a call that answered the event before it.
+    switch (EmbeddedAccessibilityAccess::ReporterOfFocusMove(*host, focusResolutions))
+    {
+        case EmbeddedAccessibilityAccess::FocusMoveReporter::Host:
+            if (AnnounceWindowHostFocus(hwnd))
+                EmbeddedAccessibilityAccess::CountFocusAnnouncement(*host);
+            break;
+        case EmbeddedAccessibilityAccess::FocusMoveReporter::SystemUnanswered: EmbeddedAccessibilityAccess::CountFocusMoveLeftToSystem(*host); break;
+        case EmbeddedAccessibilityAccess::FocusMoveReporter::SystemAtGain: break;
+    }
 }
 
 void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept
@@ -9364,6 +9461,37 @@ uint32_t DebugGetAccessibilityUiActionExecutionCountForTest() noexcept
 void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t limit) noexcept
 {
     g_accessibilityOffscreenSelectedRowMaterializationLimitOverride.store(limit, std::memory_order_release);
+}
+
+uint64_t DebugGetAccessibilityFocusResolutionCountForTest(HWND hwnd) noexcept
+{
+    if (! hwnd)
+        return (std::numeric_limits<uint64_t>::max)();
+    const std::scoped_lock lock(GetAccessibilityTargetMutex());
+    const auto* target = static_cast<const WindowHostAccessibilityTarget*>(GetPropW(hwnd, kWindowHostPropName));
+    return target ? target->focusResolutions.load(std::memory_order_seq_cst) : (std::numeric_limits<uint64_t>::max)();
+}
+
+void DebugSetAccessibilityFocusResolutionGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent) noexcept
+{
+    if (hwnd && (enteredEvent || releaseEvent))
+    {
+        g_accessibilityFocusResolutionGateEnteredEvent.store(enteredEvent, std::memory_order_release);
+        g_accessibilityFocusResolutionGateReleaseEvent.store(releaseEvent, std::memory_order_release);
+        g_accessibilityFocusResolutionGateWindow.store(hwnd, std::memory_order_seq_cst);
+        return;
+    }
+
+    // Clearing: no call meets the gate from here on, and the ones that met it leave (each waits at most five seconds for
+    // its release event) before the test gets to close its events.
+    g_accessibilityFocusResolutionGateWindow.store(nullptr, std::memory_order_seq_cst);
+    for (uint32_t holders = g_accessibilityFocusResolutionGateHolders.load(std::memory_order_seq_cst); holders != 0u;
+         holders          = g_accessibilityFocusResolutionGateHolders.load(std::memory_order_seq_cst))
+    {
+        g_accessibilityFocusResolutionGateHolders.wait(holders);
+    }
+    g_accessibilityFocusResolutionGateEnteredEvent.store(nullptr, std::memory_order_release);
+    g_accessibilityFocusResolutionGateReleaseEvent.store(nullptr, std::memory_order_release);
 }
 
 void DebugSetAccessibilityResolutionCountingForTest(bool enabled) noexcept

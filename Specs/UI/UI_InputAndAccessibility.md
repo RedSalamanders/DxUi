@@ -60,25 +60,37 @@ focus pointer alone is insufficient. Consumers qualify both visible focus and ra
 Win32 focus stays on a window host's HWND while focus moves between its controls (Tab, arrows, pointer,
 `SetFocusControl`), so the host raises the UIA focus-changed event itself, from the difference between two published
 snapshots, for the element GetFocus reports: a tree's focused item, a grid's focused row, a control, or the window
-itself once no control has focus. It raises it only while its window holds the foreground's keyboard focus and a
-client listens: a window that has just lost the foreground (a queued message moving focus after the user switched
-away) announces nothing. When the window itself gains focus, Windows raises the focus event and UI Automation asks the
-fragment root's GetFocus for the element, so whatever that activation focuses or restores is published but not
-announced a second time. UI Automation resolves that event only once the window's message loop turns, so the focus
-moves the rest of that turn makes are left to it too: a click that activates the window sets its control after the
-window's WM_SETFOCUS, in the same turn, and the event reports the clicked control once (never the control the
-activation focused on the way), where the host's own announcement used to report it a second time. The turn ends when
-a message the host posts to its window at the gain is dispatched, or when the window loses focus; should a window
-procedure never hand the host that message, it ends after 500 ms, so focus moves are never left unannounced. A move in
-a later turn, such as a click in the window that is already active, is announced by the host. An element's SetFocus
-moves the host's logical focus before it takes Win32 focus, so the activation never first focuses (and reports) the
-window's first control; a UIA client's SetFocus first has UI Automation focus the hosting window, which reports the
-window's current focus the way a dialog's activation does, and the requested element is the last one reported. Native
-menu popups raise theirs once a keyboard transition completes, and embedded hosts raise theirs from the snapshot diff.
-A focus-changed callback that removes the control it was told about leaves no control focused. A control disabled,
-hidden or removed while it has focus loses it at the host's next message, which publishes the change, so a client hears
-the window. Replacing the whole tree (`SetRoot`) is compared with the tree before it, not with the empty snapshot
-standing in during the swap.
+itself once no control has focus. It raises it only while its window holds the foreground's keyboard focus and a client
+listens: a window that has just lost the foreground (a queued message moving focus after the user switched away)
+announces nothing. When the window itself gains focus, Windows raises the focus event and UI Automation answers it. The
+first focus event of a window it has not reported before is answered with a call of the fragment root's GetFocus, on
+whatever thread, which reads the published snapshot when it runs (window-host providers are not marshaled to the
+window's thread). Its later focus events for the window are answered without GetFocus: it asks the window's root element
+whether it has the keyboard focus, and reports that element when it does and nothing when the focus is inside a control
+(observed with an in-process client on Windows 11 build 26200: the activation of a seen window whose focus is in a
+control was reported by nothing, and a click in that turn by nothing but the host). Whatever the activation itself
+focuses or restores is published but not announced by the host, so a window's first activation is reported by that call,
+and a later one by nothing while its focus is inside a control (a gap this leaves open). A click that activates the
+window sets its control after the window's WM_SETFOCUS, in the same turn of the loop and before UI Automation has acted
+on the event, so the host decides who reports that move. In a window no GetFocus call has ever begun on, the call that
+answers the first focus event comes after the move and reports the clicked control, so the host leaves the move to it
+and a client hears the control once, as it hears the control an activation focuses. Each call counts itself in the
+window's provider target before it loads the snapshot, and the host reads the count right after it stores the snapshot
+of the move, all four operations sequentially consistent, so a call the count does not include loads the snapshot after
+the store, and one it does include may have answered the event with the control the activation focused, which the host
+follows with its own announcement (at worst a duplicate). In a window UI Automation has asked before nothing else
+reports the clicked control, so the host announces it itself and a client hears it once. The turn ends when a message
+the host posts to its window at the gain is dispatched, or when the window loses focus; should a window procedure never
+hand the host that message, it ends after 500 ms, so a move is never left to the system's event for long. A move in a
+later turn, such as a click in the window that is already active, is announced by the host. An element's SetFocus moves
+the host's logical focus before it takes Win32 focus, so the activation never first focuses (and reports) the window's
+first control; a UIA client's SetFocus first has UI Automation focus the hosting window, which reports the window's
+current focus the way a dialog's activation does, and the requested element is the last one reported. Native menu popups
+raise theirs once a keyboard transition completes, and embedded hosts raise theirs from the snapshot diff. A
+focus-changed callback that removes the control it was told about leaves no control focused. A control disabled, hidden
+or removed while it has focus loses it at the host's next message, which publishes the change, so a client hears the
+window. Replacing the whole tree (`SetRoot`) is compared with the tree before it, not with the empty snapshot standing
+in during the swap.
 
 A window-host element keeps the identity of the control it was created for, as an embedded element does. Once that
 control is removed, or another control takes its tree path (a rebuilt list or tree), every call on the old element,

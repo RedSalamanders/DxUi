@@ -687,6 +687,19 @@ inline D2D1_COLOR_F ChooseContrastingTextColorForTest(const D2D1_COLOR_F& backgr
     return value.lVal;
 }
 
+// The name of the element a fragment root's GetFocus reports (the call that answers the system's focus event for a window
+// host), or an empty string when it reports none. The call counts like any other UI Automation makes.
+[[nodiscard]] inline std::wstring ReadFocusedElementName(IRawElementProviderFragmentRoot& root)
+{
+    wil::com_ptr_nothrow<IRawElementProviderFragment> focused;
+    RequireSucceeded(root.GetFocus(focused.put()), "the fragment root reports its focused element");
+    if (! focused)
+        return {};
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(focused.query_to(simple.put()), "the focused element is a UI Automation provider");
+    return ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "the focused element has a name");
+}
+
 [[nodiscard]] inline bool ReadProviderBoolProperty(IRawElementProviderSimple& provider, PROPERTYID propertyId, const char* context)
 {
     VARIANT value{};

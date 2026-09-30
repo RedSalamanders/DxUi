@@ -2198,6 +2198,11 @@ uint64_t ControlHost::DebugGetFocusAnnouncementCount() const noexcept
     return _debugFocusAnnouncementCount;
 }
 
+uint64_t ControlHost::DebugGetFocusMovesLeftToSystemCount() const noexcept
+{
+    return _debugFocusMovesLeftToSystemCount;
+}
+
 bool ControlHost::DebugIsInFocusGainTurn() const noexcept
 {
     return IsInFocusGainTurn();
@@ -3912,12 +3917,13 @@ void ControlHost::OnSize(UINT widthPx, UINT heightPx) noexcept
 
 void ControlHost::OnSetFocus() noexcept
 {
-    // Windows reports the window's new focus itself, and UI Automation asks the fragment root's GetFocus for the
-    // element: whatever this activation focuses or restores is published, never announced a second time.
+    // Windows reports the window's new focus itself, and UI Automation answers that event (see BeginFocusGainTurn):
+    // whatever this activation focuses or restores is published, never announced a second time.
     const bool wasGainingWindowFocus = std::exchange(_gainingWindowFocus, true);
     const auto endGainingWindowFocus = wil::scope_exit([this, wasGainingWindowFocus]() noexcept { _gainingWindowFocus = wasGainingWindowFocus; });
-    // UI Automation resolves that event only once the message loop turns, so what the rest of this turn moves is
-    // reported by it too: the click that activates the window sets its control after WM_SETFOCUS, in the same turn.
+    // What the rest of this turn of the message loop moves, such as the click that activates the window (it sets its
+    // control after WM_SETFOCUS, in the same turn), is the system's event to report in a window UI Automation has never
+    // asked for its focus (see BeginFocusGainTurn).
     const auto beginFocusGainTurn = wil::scope_exit([this]() noexcept { BeginFocusGainTurn(); });
     PruneStaleInteractionState();
     if (IsInteractionDiagnosticsEnabled(_hwnd))
@@ -3961,9 +3967,14 @@ void ControlHost::OnSetFocus() noexcept
     }
 }
 
-// The turn ends when the message posted here is dispatched. A click's button-down comes from the same retrieval of the
-// loop as the WM_SETFOCUS its activation sends, so it is handled before this message, and UI Automation cannot resolve
-// the system's event before the loop turns.
+// The turn lasts until the message posted here is dispatched. A click's button-down comes from the same retrieval of
+// the loop as the WM_SETFOCUS its activation sends, so it is handled first, before UI Automation has acted on the system's
+// focus event for the gain. What that event reports depends on what UI Automation already knows of the window: its first
+// focus event is answered by a call of the fragment root's GetFocus, which reads the snapshot published at that moment
+// (the click's move, unless the call came first), while later ones are answered from the keyboard-focus property of the
+// window's root element, which reports nothing while the focus is inside a control. A move in the turn is therefore the
+// event's to report only while no GetFocus call has ever begun on the window, and the host announces it itself
+// otherwise (ReporterOfFocusMove).
 void ControlHost::BeginFocusGainTurn() noexcept
 {
     if (_focusGainTurnStartedMs != 0u || ! _hwnd || PostMessageW(_hwnd, WndMsg::kWindowHostFocusGainTurnEnd, 0, 0) == FALSE)
@@ -3976,7 +3987,7 @@ void ControlHost::BeginFocusGainTurn() noexcept
 
 bool ControlHost::IsInFocusGainTurn() const noexcept
 {
-    // A window procedure that never hands the host that message would keep its focus moves unannounced for good.
+    // A window procedure that never hands the host that message would keep leaving its focus moves to the system for good.
     constexpr ULONGLONG kFocusGainTurnLimitMs = 500u;
     return _focusGainTurnStartedMs != 0u && GetTickCount64() - _focusGainTurnStartedMs < kFocusGainTurnLimitMs;
 }

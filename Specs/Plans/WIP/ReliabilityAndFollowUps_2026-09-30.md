@@ -87,8 +87,23 @@ reviewed before it merges here, until this plan can move to Done.
   lookup 17 nodes instead of 1,002 (2,001), the same per call in a tree of 245 buttons; a table hit is confirmed
   against the live tree and a miss searches it, so behavior is unchanged, while what lives inside one control (a tree's
   items by id, a grid's rows and cells) and hit testing a point still scan.
-- [ ] 7. A click that activates the window announces the clicked control once. Today the system's activation focus
-  event and the host's own focus change can both report it. Accept: a UI Automation client test counts one event.
+- [ ] 7. A click that activates the window announces the clicked control once. Today the system's activation focus event
+  and the host's own focus change can both report it. Accept: a UI Automation client test counts one event. Design,
+  second attempt: the first left every move of the gain's turn to the system's event, on the premise that UI Automation
+  answers it only once the loop turns, and failed x64 CI. What UI Automation does, traced with an in-process client on
+  Windows 11 build 26200: the first focus event of a window it has not seen is answered with a call of the fragment
+  root's `GetFocus`, on another thread, from the snapshot published when it runs; for a window it has seen, later events
+  are answered without `GetFocus` (only `WM_GETOBJECT` and a read of the root element's keyboard-focus property follow
+  the event, false while the focus is inside a control), so a click that moved focus first is reported by nothing, and
+  so is the activation itself. So the host announces the click itself in a window UI Automation has asked before, and
+  leaves the move to the first `GetFocus` call only in a window none has ever begun on: each call counts itself before
+  it loads the snapshot and the host reads the count after it stores the snapshot, all sequentially consistent, so with
+  the count at zero every later call reports the moved-to control. Comparing the count with its value at the gain
+  instead leaves the click unannounced in a window seen before, which the Menu test for that case shows. Tests: the
+  WindowHost suite decides each case without a desktop (including a call that a test gate holds before it counts itself)
+  and the Menu suite runs an in-process UI Automation client through a window seen before and a first activation. Left
+  open: the activation of a seen window whose focus is in a control is reported by nothing either (the host adds no
+  announcement for what a gain focuses or restores). Leave unticked until those tests pass on x64 CI.
 - [x] 8. A reparented ColorPicker is current. The review recorded a stale arrangement after reparenting; its cached
   brushes may belong to the old host's device too. Accept: after moving between hosts or metrics, the picker matches one
   created in the new place. Done: a move announced no flow direction or density, so a picker, stepper, tab header or
