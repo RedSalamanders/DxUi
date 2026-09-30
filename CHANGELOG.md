@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Repository tooling is PowerShell only (plan `PowerShellTooling_2026-09-30`): the spec, skill, dependency,
+  inherited-test and build-matrix validators, the performance comparator and their tests are PowerShell modules and
+  scripts, so `test.ps1`, the validators and CI need no Python, pip or PyYAML. The comparator reproduces every stored
+  paired comparison under `Measurements` exactly. New root entry points `validate-test-port.ps1` and
+  `validate-build-matrix.ps1` join the other validators, `Tools/tests/Invoke-ToolingTests.ps1` runs the tooling tests,
+  and `Tools/Install-ClangFormat.ps1` installs the checksum-pinned formatter that `format.ps1` now finds first.
 - Follow up the review's reported items as decided (plan `ReviewFollowUps_2026-09-29`):
   - Multiline `Grid` cells keep their shaped layouts in 32-way set-associative tables keyed by a library-owned mixed
     hash of the value and layout box, growing (to 16,384) while the values of the current and the previous paint crowd
