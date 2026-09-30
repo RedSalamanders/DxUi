@@ -6,6 +6,7 @@
 | HOLD | [TreeReorder_2026-09-21.md](TreeReorder_2026-09-21.md) | Drag-reorder is in `Tree`. Multi-select remains. Not a second tree in the app. |
 | ACTIVE | [Described native menu entries](MenuDescriptions_2026-09-21.md) | Merged to main (#24); memory waiver recorded 2026-09-27 with an optimization plan. Directed input restoration and consumer handoff remain. |
 | ACTIVE | [Described-menu memory optimization](MenuDescriptionMemory_2026-09-27.md) | The first hosted paired set does not reproduce the waived increase; run the quiet local sets and the placebo control, then optimize it or present the attribution. |
+| ACTIVE | [Reliability and follow-ups](ReliabilityAndFollowUps_2026-09-30.md) | Eleven improvements in two agent waves: tests, grid, picker and tooling first, then accessibility; review, merge, measure and close. |
 | ACTIVE | [PowerShell tooling](PowerShellTooling_2026-09-30.md) | Ported, Python removed and validated locally; the pull request's CI (Ubuntu `pwsh` validation, first pinned formatter install) closes it. |
 
 Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md`,
