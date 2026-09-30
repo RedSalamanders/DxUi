@@ -1,4 +1,5 @@
 #include "../Support/Diagnostics.h"
+#include "../Support/LiveResourceCount.h"
 #include "../Support/WindowMessages.h"
 #include "DxUi.AccessibilityTextUnits.h"
 #include "DxUi.Internal.h"
@@ -435,6 +436,8 @@ struct AccessibilitySnapshot
     std::vector<AccessibilityPointHitSnapshot> pointHitRecords;
     std::vector<ControlPath> semanticControlOrder;
     std::vector<AccessibilityControlNavigationSnapshot> controlNavigationRecords;
+    // What DebugGetContextMenuResources reports for a snapshot of a menu popup while anything still holds it.
+    Detail::LiveResourceCount liveMenuRecords;
 };
 
 [[nodiscard]] bool IsSemanticAccessibilityControl(const Control* control) noexcept;
@@ -709,6 +712,8 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
         for (auto& record : snapshot->controlNavigationRecords)
             record.controlHasFocus = false;
     }
+    if (IsNativeMenuPopupWindow(target.hwnd))
+        snapshot->liveMenuRecords = Detail::LiveResourceCount(Detail::LiveResource::MenuAccessibilityRecord, snapshot->controlNavigationRecords.size());
     WindowHostSnapshotChanges changes{};
     std::shared_ptr<const AccessibilitySnapshot> previous = target.snapshot.load(std::memory_order_acquire);
     if (! previous || ! previous->alive)

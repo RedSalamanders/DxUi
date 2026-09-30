@@ -134,6 +134,14 @@ The default `MenuExitLifetime` process suite leaves an asynchronous menu open wi
 `std::exit(0)`, so CRT thread-local teardown destroys the live controller. Returning normally fails the suite;
 ASan profiles catch reentrant destruction. It needs no foreground input.
 
+The described-menu release fixture (`TestDescribedMenuReleasesItsMemoryWhenItCloses`) opens a 200-row menu twice, holds
+eight of its UI Automation row elements past the close and asserts on `DebugGetContextMenuResources`, the library's own
+exact counts of live menu popups, row text layouts and menu-popup accessibility records: they rise while the menu is open
+and return to their value before it opened once it closed. The count is independent of the renderer and the allocator,
+so it holds on a software renderer (WARP, or the Basic Render Driver of a GPU-less runner) and under AddressSanitizer.
+The process heap is printed beside it for diagnosis only: a software renderer's surfaces and caches share it and swing by
+up to about 3 MB between identical open/close cycles.
+
 Fixtures that take real focus can lose it to another application: the desktop application hosting a developer's
 session took the foreground back 30-95 ms after each test window activated. Windows then sends the window
 `WM_ACTIVATEAPP` (FALSE), `WM_ACTIVATE` (inactive) and `WM_KILLFOCUS`, and the host releases its native text session,

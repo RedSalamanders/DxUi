@@ -449,9 +449,21 @@ struct ContextMenuPopupItemPaintDebugState
     D2D1_COLOR_F chevronColor       = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
 };
 
+// What the process's context menus hold alive, counted exactly whatever the renderer and the allocator keep, so a test can
+// assert that a closed menu returned everything it held, even while a UI Automation client still holds one of its rows.
+struct ContextMenuResourceDebugState
+{
+    size_t popups               = 0; // Menu popups alive: the root of each open menu and every open submenu.
+    size_t rowLayouts           = 0; // Text layouts the rows of those popups hold (a described row holds a primary and a secondary one).
+    size_t accessibilityRecords = 0; // Control records of the UI Automation snapshots published for menu popups that are still alive, wherever held.
+
+    [[nodiscard]] bool operator==(const ContextMenuResourceDebugState&) const noexcept = default;
+};
+
 struct WindowHostBitmapCapture;
 
 [[nodiscard]] bool DebugGetContextMenuPopupState(HWND hwnd, ContextMenuPopupDebugState& outState) noexcept;
+[[nodiscard]] ContextMenuResourceDebugState DebugGetContextMenuResources() noexcept;
 void DebugSetContextMenuStateProbeStallForTest(HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
 [[nodiscard]] bool DebugGetContextMenuPopupItemRect(HWND hwnd, size_t itemIndex, D2D1_RECT_F& outRectDip) noexcept;
 [[nodiscard]] bool DebugGetContextMenuItemDisplayText(const MenuFlyoutItem& item, std::wstring& outText);

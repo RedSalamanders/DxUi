@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- The described-menu memory check is deterministic. `DebugGetContextMenuResources` (a test-only diagnostics hook) counts
+  the live menu popups, the text layouts their described rows hold and the accessibility records of menu-popup
+  snapshots, exactly and whatever the renderer and the allocator keep; the fixture asserts that all three return to
+  their value before the menu opened after it closes while a client holds eight row elements. It no longer bounds the
+  process heap, which a software renderer's surfaces and caches (WARP, or the Basic Render Driver of a GPU-less
+  runner) swing by up to about 3 MB, and it now runs under AddressSanitizer too. A window-host provider that pins a
+  snapshot, a target that keeps its last snapshot after the window closes and a popup that is never freed each fail it.
 - NativeTextInput's focus fixtures survive another application taking the foreground. Windows then deactivates the
   window and the host releases its native text session, TSF document included, as designed; the desktop application
   hosting a session did so 30-95 ms after each test window activated and failed the TSF document fixture in three of

@@ -27,10 +27,15 @@ reviewed before it merges here, until this plan can move to Done.
   before. Ten consecutive `test.ps1 -Suites NativeTextInput` runs passed, three of them after a real takeover the
   fixtures repeated (`claude.exe` twice in the TSF test, `PowerToys.MouseWithoutBordersHelper.exe` once in the
   host-focus test).
-- [ ] 2. A deterministic described-menu memory check. The test walks the process heap, so on a software renderer (the
+- [x] 2. A deterministic described-menu memory check. The test walks the process heap, so on a software renderer (the
   GPU-less CI runners) it can only require half of the open memory back: the renderer's surfaces and caches swing by up
   to about 3 MB per cycle. Accept: a test-only counter of DxUi's own live described-menu resources returns to its
   pre-open value after close while a client holds row elements, on every renderer; pinning the rows fails the test.
+  Done: `DebugGetContextMenuResources` counts the live menu popups, the text layouts their described rows hold and the
+  accessibility records of menu-popup snapshots; a 200-row menu raises them from 0 to 1, 400 and 200 while open, and
+  with eight row elements held they are 0, 0 and 0 again after close, on any renderer and allocator (the heap is only
+  printed, and the test no longer skips under AddressSanitizer). It fails when providers pin a snapshot or a closed
+  window's target keeps its last one (200 records stay), and when a popup is never freed (popup and layouts stay).
 - [x] 3. The control-test runner runs single tests. Only whole suites run today, which takes minutes. Accept:
   `--test=<Name>[,<Name>]` (and `test.ps1 -Tests`) runs only the named tests; an unknown name fails the run; unfiltered
   suites still run every test. Done: every suite runner registers its tests as `DXUI_RUN_TEST(TestName);`, which checks the
