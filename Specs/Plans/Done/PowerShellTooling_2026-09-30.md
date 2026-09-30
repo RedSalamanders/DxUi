@@ -1,7 +1,7 @@
 # PowerShell tooling: one scripting language for every repository tool
 
-Status: ACTIVE (2026-09-30). Tooling only; no library, consumer or public API change.
-Base: `review/last-15-days-fixes` (the review work), then `main` once it merges.
+Status: COMPLETE (2026-09-30). Tooling only; no library, consumer or public API change.
+Base: the review work, merged to `main` as `5561b61`.
 Owning contracts: [testing and validation](../../Testing/Testing_Validation.md),
 [build and consumption](../../Build/Build_ToolchainAndConsumption.md) and
 [performance](../../Core/Core_PerformanceAndResources.md).
@@ -36,5 +36,6 @@ setup steps, and every `test.ps1` run depends on it through the performance comp
   with a same-binary baseline the laptop's noise is flagged `advice-required` and fails the run, as before; a paired run
   against the pre-port `d6eab14` measured all four runs, the baseline worktree comparing with the copied PowerShell
   comparator; `format.ps1 -Check` passes; the installer rejects a wheel that does not match its pin.
-- [ ] CI on the pull request: the validation job under `pwsh` on Ubuntu, and the formatting workflow's first real
-  install of the pinned formatter.
+- [x] CI on the pull request (PR 30): the validation job passes under `pwsh` on Ubuntu (validators and tooling
+  tests), and the formatting workflow's check job installed the pinned clang-format 22.1.3 with
+  `Tools/Install-ClangFormat.ps1` (fetched by its SHA-256, verified, extracted) and passed.
