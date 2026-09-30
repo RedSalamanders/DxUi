@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- `performance-paired.ps1` compares two trees (plan `ReliabilityAndFollowUps_2026-09-30`, item 5): `-BaselinePath` and
+  `-CandidatePath` measure existing DxUi working trees as they are, uncommitted work included, with this checkout's
+  harness written into them for the run and their files put back afterwards. A pair with a named tree is refused when
+  the two library source fingerprints are identical instead of when the commits are; revisions keep the commit rule.
+  `summary.json` records each side's revision or path, commit and fingerprint. The receipt's source fingerprint and
+  benchmark input list moved unchanged into `Tools/PerformanceComparison.psm1`, and `Tools/PairedRun.psm1` with its
+  tests owns tree selection, the refusal rules, named-tree validation and the harness overlay.
 - Repository tooling is PowerShell only (plan `PowerShellTooling_2026-09-30`): the spec, skill, dependency,
   inherited-test and build-matrix validators, the performance comparator and their tests are PowerShell modules and
   scripts, so `test.ps1`, the validators and CI need no Python, pip or PyYAML. The comparator reproduces every stored

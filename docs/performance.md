@@ -30,13 +30,26 @@ When the benchmark itself changed, or the baseline predates it, measure both rev
 .\performance-paired.ps1 -BaselineRevision <commit> -Scenario Default,MultilineGrid,MultilineGridDistinct
 ```
 
-It creates a detached baseline worktree under `.build/paired`, copies this checkout's `performance.ps1` and
-benchmark inputs into it, builds both trees and runs A1, B1, B2, A2 serially (A is the baseline). B1/A1 and
+It creates a detached baseline worktree under `.build/paired`, copies this checkout's `performance.ps1`, comparator
+and benchmark inputs into it, builds both trees and runs A1, B1, B2, A2 serially (A is the baseline). B1/A1 and
 B2/A2 cross the change; A2/A1 and B2/B1 are same-source controls. A control is judged two-sided: drift beyond a
 band in either direction reports `unstable-control` (with the drifting metrics), and that set's crossings are not
-evidence until a quieter repeat is stable. `-SkipBuild` reuses this checkout's build only; detached worktrees
-always build. `-CandidateRevision` measures a second
-historical revision instead of this checkout, still with this checkout's harness. Every receipt, comparison and
+evidence until a quieter repeat is stable. `-SkipBuild` reuses the existing build of this checkout and of named
+trees (below); detached worktrees always build. `-CandidateRevision` measures a second
+historical revision instead of this checkout, still with this checkout's harness.
+
+To measure work that is not a commit, name the tree instead: `-BaselinePath` and `-CandidatePath` take the top of an
+existing DxUi working tree with its dependencies restored (`vcpkg-install.ps1`), such as one feature worktree against
+another, or a revision against this checkout's uncommitted edits
+(`-BaselineRevision <commit> -CandidatePath .`). A named tree is measured as it is. The harness files that differ
+from this checkout's are written into it for the run, with the originals saved under the run directory, and put back
+when the run ends; its build output stays, and its receipts report `sourceDirty` when the overlay changed anything. Two
+revisions, or a revision and this checkout, are refused when both name one commit. A pair with a named tree is
+refused when both trees have the same library source fingerprint (`src`, `include`, `Build`, the build props and the
+vcpkg manifests), because nothing differs to measure; that is how uncommitted work on a revision's own commit is
+compared with it. `-SkipBuild` on a named tree needs its existing build, and refuses a tree whose overlay changed a
+compiled benchmark input, since that build predates the harness its receipts would name. `summary.json` records each
+side's revision or path, commit and source fingerprint. Every receipt, comparison and
 `summary.json` is retained; flagged comparisons still need developer advice. A manual run of the
 [validation workflow](../.github/workflows/ci.yml) with `benchmark_baseline` (and optionally `benchmark_candidate`
 and `benchmark_scenarios`) does the same on one hosted x64 runner and uploads `paired-benchmark-x64-Release`.

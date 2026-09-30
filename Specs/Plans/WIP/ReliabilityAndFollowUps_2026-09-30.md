@@ -34,9 +34,13 @@ reviewed before it merges here, until this plan can move to Done.
   2026-09-30 all 14 same-binary controls on the developer laptop drifted beyond their bands. Accept: repeated
   interleaved passes and a per-metric verdict from an exact rank test together with the investigation band; exact
   budgets stay exact; the performance contract states the rule.
-- [ ] 5. Paired runs compare two trees. `performance-paired.ps1` refuses two uncommitted states on one commit, so the
+- [x] 5. Paired runs compare two trees. `performance-paired.ps1` refuses two uncommitted states on one commit, so the
   review follow-up sets were run by hand. Accept: `-BaselinePath` and `-CandidatePath` measure existing trees with the
   same harness overlay; identical sources are refused instead of identical commits.
+  Outcome: `-BaselinePath` and `-CandidatePath` measure named working trees as they are, overlaying the harness and
+  restoring their files afterwards, and a pair with a named tree is refused on an identical library source fingerprint
+  instead of an identical commit; the selection, refusal, overlay and fingerprint logic sits in the tested
+  `Tools/PairedRun.psm1`, and a real paired run on hardware remains for the close-out.
 
 ### Library follow-ups
 

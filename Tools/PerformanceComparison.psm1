@@ -14,10 +14,31 @@ $script:Metrics = [ordered]@{
     cppAllocations = @('lower', 0); composeAllocations = @('lower', 0)
 }
 $script:Invariant = [Globalization.CultureInfo]::InvariantCulture
+# The compiled inputs performance.ps1 hashes into a receipt's benchmarkSha256, in that hash's order. A paired run copies
+# them, with the driver and this comparator, onto both trees.
+$script:BenchmarkInputs = @('Tests/Embedded/BenchmarkMain.h', 'Tests/Embedded/ComplexUiBenchmark.h', 'Tests/Support/HeapDiagnostic.h',
+    'Samples/ComplexUi/ComplexUiScene.h', 'Samples/EmbeddedControls/GraphicsFixture.h')
+# The library inputs a receipt's sourceFingerprint covers.
+$script:FingerprintPaths = @('src', 'include', 'Build', 'Directory.Build.props', 'Directory.Build.targets', 'vcpkg.json', 'vcpkg-tool.json')
 
 function Get-PerformanceMetricNames { return @($script:Metrics.Keys) }
 
 function Get-PerformanceIdentityKeys { return @($script:Identity) }
+
+function Get-BenchmarkInputPaths { return @($script:BenchmarkInputs) }
+
+function Get-SourceFingerprint {
+    <# The receipt's sourceFingerprint of one tree: SHA-256 over the "path hash" lines of its tracked and unignored library
+       inputs, one file hash per line. The lines are ordered by Sort-Object, as receipts have always been, so a fingerprint
+       stays comparable with every stored one. #>
+    param([Parameter(Mandatory)][string] $Root)
+    $sources = @(& git -C $Root ls-files --cached --others --exclude-standard -- @($script:FingerprintPaths))
+    if ($LASTEXITCODE -ne 0) { throw "Cannot enumerate library inputs under $Root" }
+    $hashes = foreach ($source in ($sources | Sort-Object -Unique)) { "$source $((Get-FileHash -LiteralPath (Join-Path $Root $source) -Algorithm SHA256).Hash)" }
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($hashes -join "`n")))) }
+    finally { $sha.Dispose() }
+}
 
 function Test-JsonNumber([object] $Value) {
     return $Value -is [int] -or $Value -is [long] -or $Value -is [double] -or $Value -is [decimal] -or $Value -is [bigint]
@@ -150,5 +171,6 @@ function Invoke-PerformanceComparison {
     return [int]($result['status'] -in @('advice-required', 'invalid-evidence'))
 }
 
-Export-ModuleMember -Function Get-PerformanceMetricNames, Get-PerformanceIdentityKeys, Read-PerformanceReceipt, Assert-PerformanceReceipt,
-    Compare-PerformanceReceipt, ConvertTo-PerformanceComparisonJson, Invoke-PerformanceComparison
+Export-ModuleMember -Function Get-PerformanceMetricNames, Get-PerformanceIdentityKeys, Get-BenchmarkInputPaths, Get-SourceFingerprint,
+    Read-PerformanceReceipt, Assert-PerformanceReceipt, Compare-PerformanceReceipt, ConvertTo-PerformanceComparisonJson,
+    Invoke-PerformanceComparison
