@@ -1,4 +1,5 @@
 #include "../../src/Controls/DxUi.Typography.h"
+#include "../../src/Support/WindowMessages.h"
 #include "../Support/PerformanceCapture.h"
 #include "DxUiFocusEventClient.h"
 #include "DxUiTestHelpers.h"
@@ -3244,9 +3245,10 @@ void TestWindowHostFocusMoveAfterAGetFocusCallHasBegunIsAnnouncedByTheHost()
     Require(ReadFocusedElementName(*test.root) == L"Second bouton", "the next call reports the moved-to control");
 }
 
-// UI Automation answers a window it has asked about before from the element it last reported for it, and reports nothing
-// once that element has lost focus: the click that activates such a window is the host's to announce, whichever way the
-// earlier call fell. The count the decision reads is the window's whole history, not what happened since the gain.
+// UI Automation answers a window it has asked about before from its root element's keyboard-focus property, which reports
+// nothing while the focus is inside a control: the click that activates such a window is the host's to announce,
+// whichever way the earlier call fell. The count the decision reads is the window's whole history, not what happened
+// since the gain.
 void TestWindowHostFocusMoveInTheGainTurnOfAWindowGetFocusHasBegunOnBeforeIsAnnouncedByTheHost()
 {
     using namespace DxUi;
@@ -3355,6 +3357,103 @@ void TestWindowHostGetFocusHeldBeforeItCountsReportsTheMoveTheHostLeftToTheSyste
     Require(DebugGetAccessibilityFocusResolutionCountForTest(test.window.Hwnd()) == 1u, "the released call counts itself once");
 }
 
+// UI Automation answers the focus event of a window it has asked for its focus before from the root element's
+// keyboard-focus property, which reports nothing while the focus is inside a control, so a window activated again (Alt+Tab
+// back to it) is reported by nothing: the host announces what the gain restored or focused once the gain's turn ends. For
+// a window's first gain UI Automation asks the fragment root, and the host adds nothing. The window never holds the
+// foreground here, so the decision is read from a count; the Menu suite plays it with a real UI Automation client.
+void TestWindowHostGainOfAWindowAskedBeforeIsAnnouncedWhenItsTurnEnds()
+{
+    using namespace DxUi;
+    FocusGainTestWindow test;
+    ControlHost& host              = test.window.Host();
+    const uint64_t announcedBefore = host.DebugGetReactivationAnnouncementCount();
+
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(host.GetFocusControl() == test.first, "the window's first gain focuses the first button");
+    Require(ReadFocusedElementName(*test.root) == L"Premier bouton", "UI Automation asks the fragment root for the focus of the window's first gain");
+    test.window.PumpMessages();
+    Require(! host.DebugIsInFocusGainTurn(), "the first gain's turn ended");
+    Require(host.DebugGetReactivationAnnouncementCount() == announcedBefore, "the host adds nothing to the answer to a window's first gain");
+
+    host.SetFocusControl(test.second);
+    SendMessageW(test.window.Hwnd(), WM_KILLFOCUS, 0, 0);
+    Require(host.GetFocusControl() == test.second, "the second button keeps its logical focus while the window has none");
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(host.GetFocusControl() == test.second, "the gain restores the second button");
+    Require(host.DebugGetReactivationAnnouncementCount() == announcedBefore, "nothing is announced before the gain's turn ends");
+    test.window.PumpMessages();
+    Require(host.DebugGetReactivationAnnouncementCount() == announcedBefore + 1u, "the host announces the restored control when the turn ends");
+
+    SendMessageW(test.window.Hwnd(), WM_KILLFOCUS, 0, 0);
+    host.SetFocusControl(nullptr);
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(host.GetFocusControl() == test.first, "a gain with no control to restore focuses the first button on the way");
+    test.window.PumpMessages();
+    Require(host.DebugGetReactivationAnnouncementCount() == announcedBefore + 2u, "the host announces the control the gain focused when the turn ends");
+}
+
+// The end of a gain's turn reports only what nothing else does: after the host announced a move of the turn itself (the
+// click that activates a window UI Automation asked before), and for a root that stands for its focused control, which
+// UI Automation reports itself because the root says it has the keyboard focus, it announces nothing more.
+void TestWindowHostEndOfAGainTurnAnnouncesOnlyWhatNothingElseReports()
+{
+    using namespace DxUi;
+    FocusGainTestWindow test;
+    ControlHost& host = test.window.Host();
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(ReadFocusedElementName(*test.root) == L"Premier bouton", "UI Automation asked the fragment root for the focus of the window's first gain");
+    test.window.PumpMessages();
+    SendMessageW(test.window.Hwnd(), WM_KILLFOCUS, 0, 0);
+
+    const uint64_t announcedBefore = host.DebugGetReactivationAnnouncementCount();
+    const uint64_t leftBefore      = host.DebugGetFocusMovesLeftToSystemCount();
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    host.SetFocusControl(test.second);
+    Require(host.GetFocusControl() == test.second && host.DebugGetFocusMovesLeftToSystemCount() == leftBefore,
+            "the host announces the click that activates a window UI Automation asked before");
+    test.window.PumpMessages();
+    Require(host.DebugGetReactivationAnnouncementCount() == announcedBefore, "the end of the turn adds nothing to the click the host announced");
+
+    AttachedHostWindow single;
+    single.Host().SetRoot(std::make_unique<Button>(L"Seul bouton"));
+    single.PumpMessages();
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> singleRoot;
+    singleRoot.attach(CreateWindowHostAccessibilityProvider(single.Hwnd()));
+    Require(singleRoot != nullptr, "the single-control window exposes its fragment root");
+    SendMessageW(single.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(single.Host().GetFocusControl() != nullptr, "the gain focuses the window's only control");
+    Require(ReadFocusedElementName(*singleRoot) == L"Seul bouton", "UI Automation asked the fragment root for the focus of that window's first gain");
+    single.PumpMessages();
+    SendMessageW(single.Hwnd(), WM_KILLFOCUS, 0, 0);
+    const uint64_t singleBefore = single.Host().DebugGetReactivationAnnouncementCount();
+    SendMessageW(single.Hwnd(), WM_SETFOCUS, 0, 0);
+    single.PumpMessages();
+    Require(single.Host().DebugGetReactivationAnnouncementCount() == singleBefore, "a root that stands for its focused control is UI Automation's to report");
+}
+
+// Only the message a gain posted ends its turn. The message of an earlier gain, which the window lost before the loop
+// turned, arrives while the later gain's turn runs and ends nothing: that turn still leaves its moves to the system and
+// reports its gain when its own message comes.
+void TestWindowHostEarlierGainsTurnEndMessageDoesNotEndALaterTurn()
+{
+    using namespace DxUi;
+    FocusGainTestWindow test;
+    ControlHost& host = test.window.Host();
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    SendMessageW(test.window.Hwnd(), WM_KILLFOCUS, 0, 0);
+    SendMessageW(test.window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(host.DebugIsInFocusGainTurn(), "the later gain starts a turn");
+
+    MSG earlier{};
+    Require(PeekMessageW(&earlier, test.window.Hwnd(), WndMsg::kWindowHostFocusGainTurnEnd, WndMsg::kWindowHostFocusGainTurnEnd, PM_REMOVE) != FALSE,
+            "the earlier gain's message is queued first");
+    static_cast<void>(DispatchQueuedMessageForTest(earlier));
+    Require(host.DebugIsInFocusGainTurn(), "the earlier gain's message does not end the later turn");
+    test.window.PumpMessages();
+    Require(! host.DebugIsInFocusGainTurn(), "the later gain's own message ends it");
+}
+
 } // namespace
 
 void TestWindowHostWorksWithoutOptionalSdkDebugLayer()
@@ -3401,6 +3500,9 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostFocusMoveInTheGainTurnOfAWindowGetFocusHasBegunOnBeforeIsAnnouncedByTheHost);
     DXUI_RUN_TEST(TestWindowHostFocusMovesOutsideTheGainTurnAreTheHosts);
     DXUI_RUN_TEST(TestWindowHostGetFocusHeldBeforeItCountsReportsTheMoveTheHostLeftToTheSystem);
+    DXUI_RUN_TEST(TestWindowHostGainOfAWindowAskedBeforeIsAnnouncedWhenItsTurnEnds);
+    DXUI_RUN_TEST(TestWindowHostEndOfAGainTurnAnnouncesOnlyWhatNothingElseReports);
+    DXUI_RUN_TEST(TestWindowHostEarlierGainsTurnEndMessageDoesNotEndALaterTurn);
     DXUI_RUN_TEST(TestWindowHostReturnInvokesDefaultButtonWhenFocusedControlDoesNotOwnEnter);
     DXUI_RUN_TEST(TestWindowHostReturnInvokesDefaultButtonWhenNoControlIsFocused);
     DXUI_RUN_TEST(TestWindowHostReturnDoesNotInvokeDefaultButtonWhenFocusedControlOwnsEnter);

@@ -2208,6 +2208,11 @@ bool ControlHost::DebugIsInFocusGainTurn() const noexcept
     return IsInFocusGainTurn();
 }
 
+uint64_t ControlHost::DebugGetReactivationAnnouncementCount() const noexcept
+{
+    return _debugReactivationAnnouncementCount;
+}
+
 UINT ControlHost::DebugGetModifierState() const noexcept
 {
     return _modifierState;
@@ -2392,8 +2397,14 @@ LRESULT ControlHost::HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bo
     }
     if (msg == WndMsg::kWindowHostFocusGainTurnEnd)
     {
-        handled                 = true;
-        _focusGainTurnStartedMs = 0u;
+        handled = true;
+        // Only the message of the turn still running ends it: one posted at an earlier gain, which the window lost before
+        // the loop turned, arrives while a later turn runs or none does.
+        if (wp == _focusGainTurnId && _focusGainTurnStartedMs != 0u)
+        {
+            _focusGainTurnStartedMs = 0u;
+            EndWindowHostFocusGainTurn(hwnd, this);
+        }
         return 0;
     }
 
@@ -3918,13 +3929,18 @@ void ControlHost::OnSize(UINT widthPx, UINT heightPx) noexcept
 void ControlHost::OnSetFocus() noexcept
 {
     // Windows reports the window's new focus itself, and UI Automation answers that event (see BeginFocusGainTurn):
-    // whatever this activation focuses or restores is published, never announced a second time.
+    // whatever this activation focuses or restores is published here and never announced on the way. In a window UI
+    // Automation answers without asking for the focus, the host announces it once the turn of the gain ends.
     const bool wasGainingWindowFocus = std::exchange(_gainingWindowFocus, true);
     const auto endGainingWindowFocus = wil::scope_exit([this, wasGainingWindowFocus]() noexcept { _gainingWindowFocus = wasGainingWindowFocus; });
     // What the rest of this turn of the message loop moves, such as the click that activates the window (it sets its
     // control after WM_SETFOCUS, in the same turn), is the system's event to report in a window UI Automation has never
     // asked for its focus (see BeginFocusGainTurn).
     const auto beginFocusGainTurn = wil::scope_exit([this]() noexcept { BeginFocusGainTurn(); });
+    // Before anything is published: whether UI Automation will ask for what this gain focuses or restores, or answer
+    // without asking and leave it to the host at the end of the turn (a repeated WM_SETFOCUS keeps the turn it is in).
+    if (_focusGainTurnStartedMs == 0u)
+        BeginWindowHostFocusGain(_hwnd, this);
     PruneStaleInteractionState();
     if (IsInteractionDiagnosticsEnabled(_hwnd))
     {
@@ -3974,14 +3990,23 @@ void ControlHost::OnSetFocus() noexcept
 // (the click's move, unless the call came first), while later ones are answered from the keyboard-focus property of the
 // window's root element, which reports nothing while the focus is inside a control. A move in the turn is therefore the
 // event's to report only while no GetFocus call has ever begun on the window, and the host announces it itself
-// otherwise (ReporterOfFocusMove).
+// otherwise (ReporterOfFocusMove). For the same reason nothing reports what the gain itself focused or restored in a window
+// a GetFocus call had begun on before, so the host announces that element when the turn ends, unless it already
+// announced a move of the turn (EndWindowHostFocusGainTurn).
 void ControlHost::BeginFocusGainTurn() noexcept
 {
-    if (_focusGainTurnStartedMs != 0u || ! _hwnd || PostMessageW(_hwnd, WndMsg::kWindowHostFocusGainTurnEnd, 0, 0) == FALSE)
+    if (_focusGainTurnStartedMs != 0u || ! _hwnd)
     {
         return;
     }
 
+    const WPARAM turn = _focusGainTurnId == (std::numeric_limits<WPARAM>::max)() ? WPARAM{1u} : _focusGainTurnId + 1u;
+    if (PostMessageW(_hwnd, WndMsg::kWindowHostFocusGainTurnEnd, turn, 0) == FALSE)
+    {
+        return;
+    }
+
+    _focusGainTurnId        = turn;
     _focusGainTurnStartedMs = (std::max)(GetTickCount64(), ULONGLONG{1u});
 }
 

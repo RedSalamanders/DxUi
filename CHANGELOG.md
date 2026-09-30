@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Activating a window UI Automation has seen announces its focused control (plan `SeenWindowReactivation_2026-09-30`).
+  UI Automation answers the first focus event of a window with a call of the fragment root's `GetFocus`, and its later
+  ones from whether the window's root element has the keyboard focus, which it does not while the focus is inside a
+  control. The host announced nothing for what a gain focuses or restores, so switching back to such a window (Alt+Tab)
+  was reported by nothing, and a screen reader did not say which control had the focus. The host now reads, as a gain
+  begins and before it publishes anything, how many `GetFocus` calls have begun on the window. When any had, it
+  announces the focused element once the gain's message-loop turn ends: the restored control, the one the activation
+  focused, or the window when no control has focus. It does not when it already announced a move of that turn (the
+  click that activates the window) or when the root element stands for its single focused control, which UI
+  Automation reports itself. A window's first activation stays the answer of its first `GetFocus` call, with no
+  duplicate. The message the host posts at a gain now names its turn, so the message of an earlier gain, which the
+  window lost before the loop turned, no longer ends a later turn. The WindowHost suite tests the decision without a
+  desktop, including a stale turn message and a single-control root. The Menu suite reactivates a seen window with an
+  in-process UI Automation client, once restoring a control and once focusing the first, and requires the client to
+  hear that control once. Five mutants each fail a test. API revision stays 2 (additive diagnostics accessor
+  `ControlHost::DebugGetReactivationAnnouncementCount`; private members changed).
 - Window-host UI Automation providers resolve their control without scanning the tree (plan
   `ReliabilityAndFollowUps_2026-09-30`, item 6): every provider call searched the published records for its control's
   path (several times per call, so a client walking every element of a window paid for the whole tree on each one), and

@@ -63,10 +63,13 @@ the system's focus event, which UI Automation answers from the fragment root's `
 window and afterwards from whether the window's root element has the keyboard focus, reporting nothing while the focus
 is inside a control. The host therefore announces the control a click that activated the window focused (it is set
 after the window's `WM_SETFOCUS`, in the same message-loop turn), except in a window `GetFocus` has never been called
-on, where it leaves that move to the call that answers the first event, which reports the clicked control. Forward
+on, where it leaves that move to the call that answers the first event, which reports the clicked control. For the same
+reason, when a window UI Automation has seen is activated again (Alt+Tab back to it), the host announces the control
+that activation restored or focused once that turn ends, unless it announced a click of the turn already. Forward
 every message, not only input, to `HandleMessage`: the host posts private `WM_APP`-range messages to its window
-(accessibility actions, and the one that ends that turn), and a window procedure that never passes the second on
-leaves that move to the system's event for up to 500 ms after the window gains focus. An element whose control was
+(accessibility actions, and the one that ends that turn). A window procedure that never passes the second on leaves a
+click to the system's event for up to 500 ms after the window gains focus, and its activations are never announced
+when UI Automation has seen the window. An element whose control was
 removed, or replaced at the same place in the tree, reports `UIA_E_ELEMENTNOTAVAILABLE`, and the replacement's
 elements get new runtime ids; after adding or removing children, call `RefreshAccessibilitySnapshot` (or let the next
 focus, size, pointer or state change do it) so clients see the new tree, which also tells them to navigate again

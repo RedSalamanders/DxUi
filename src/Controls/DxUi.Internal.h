@@ -372,6 +372,14 @@ void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept;
 // later in the turn of the gain is left to that event only in a window whose fragment-root GetFocus no call has ever
 // begun on, because the first such call reports the moved-to element (see ReporterOfFocusMove).
 void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
+// A window host begins to gain focus, before it publishes anything: records how many fragment-root GetFocus calls had
+// begun, which says whether UI Automation will ask for what the gain focuses or restores (none had) or answer without
+// asking (see EndWindowHostFocusGainTurn), and starts the gain with no announcement made.
+void BeginWindowHostFocusGain(HWND hwnd, ControlHost* host) noexcept;
+// The turn of a window host's gain ended with the window still focused. UI Automation answers the gain of a window it has
+// asked for its focus before from the root element's keyboard-focus property, which reports nothing unless the root stands
+// for the focused control, so the host announces the focused element then, unless it announced a move of the turn itself.
+void EndWindowHostFocusGainTurn(HWND hwnd, ControlHost* host) noexcept;
 void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
 // True for a native menu popup window. Explicit UIA focus of a row in such a popup tracks
 // logical row focus only; the menu session keeps its own Win32 focus target.

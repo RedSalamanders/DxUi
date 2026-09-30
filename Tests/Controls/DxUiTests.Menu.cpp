@@ -6911,6 +6911,67 @@ void TestWindowHostClickThatActivatesAWindowUiAutomationHasAskedBeforeAnnouncesT
     scenario.Expect(scenario.client.LastName() == L"Second bouton", "the clicked button is the last control the client hears");
 }
 
+// A window UI Automation has seen answers its later focus events from the root element's keyboard-focus property, which
+// reports nothing while the focus is inside a control, so activating such a window again (Alt+Tab back to it) is reported
+// by nothing but the host: it announces the control the activation restored, or the one it focused, once the turn of the
+// gain ends, and a client hears that control once, as it hears any control the host announces.
+void TestWindowHostReactivatingAWindowUiAutomationHasSeenAnnouncesItsFocusedControlOnce()
+{
+    using namespace DxUi;
+    ActivatingClickScenario scenario;
+    if (! scenario.ActivateForTheFirstTime())
+    {
+        SkipDxUiTest("DxUi reactivation announcements require an interactive desktop");
+        return;
+    }
+    ControlHost& host = scenario.window.Host();
+    static_cast<void>(scenario.HearAnActivation());
+    scenario.Expect(DebugGetAccessibilityFocusResolutionCountForTest(scenario.window.Hwnd()) >= 1u,
+                    "UI Automation asked the window's fragment root for its focus");
+
+    // How often a client hears a focus event the host raises, from a move in the active window.
+    const size_t secondHeardBefore = scenario.client.Count(L"Second bouton");
+    host.SetFocusControl(scenario.second);
+    scenario.Expect(
+        scenario.client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return scenario.client.Count(L"Second bouton") > secondHeardBefore; }),
+        "a UIA client hears a control the host announces");
+    scenario.client.Settle();
+    const size_t heardPerHostEvent = scenario.client.Count(L"Second bouton") - secondHeardBefore;
+
+    // Another window takes the foreground while the second button keeps its logical focus, and the window comes back.
+    scenario.Expect(TryActivateDxUiTestWindow(scenario.elsewhere.Hwnd()), "another window takes the foreground");
+    scenario.client.Settle();
+    const size_t secondHeardAtReturn = scenario.client.Count(L"Second bouton");
+    const size_t firstHeardAtReturn  = scenario.client.Count(L"Premier bouton");
+    const uint64_t announcedBefore   = host.DebugGetFocusAnnouncementCount();
+    scenario.Expect(TryActivateDxUiTestWindow(scenario.window.Hwnd()) && GetFocus() == scenario.window.Hwnd(), "the window is activated again");
+    scenario.Expect(host.GetFocusControl() == scenario.second, "the activation restores the second button");
+    scenario.window.PumpMessages();
+    scenario.Expect(host.DebugGetFocusAnnouncementCount() == announcedBefore + 1u, "the host announces the restored button once the gain's turn ends");
+    scenario.Expect(
+        scenario.client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return scenario.client.Count(L"Second bouton") > secondHeardAtReturn; }),
+        "a UIA client hears the restored button");
+    scenario.client.Settle();
+    scenario.Expect(scenario.client.Count(L"Second bouton") - secondHeardAtReturn == heardPerHostEvent,
+                    "a client hears the restored button once, as it hears any control the host announces");
+    scenario.Expect(scenario.client.Count(L"Premier bouton") == firstHeardAtReturn, "and no other control of the window");
+    scenario.Expect(scenario.client.LastName() == L"Second bouton", "the restored button is the last control the client hears");
+
+    // A window whose focus was cleared: the activation focuses the first button on the way, announced the same way.
+    scenario.TakeTheForegroundAway();
+    const size_t firstHeardBefore = scenario.client.Count(L"Premier bouton");
+    const uint64_t announcedAgain = host.DebugGetFocusAnnouncementCount();
+    scenario.Expect(TryActivateDxUiTestWindow(scenario.window.Hwnd()) && GetFocus() == scenario.window.Hwnd(), "the window is activated once more");
+    scenario.Expect(host.GetFocusControl() == scenario.first, "the activation focuses the first button");
+    scenario.window.PumpMessages();
+    scenario.Expect(host.DebugGetFocusAnnouncementCount() == announcedAgain + 1u, "the host announces the button the activation focused");
+    scenario.Expect(
+        scenario.client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return scenario.client.Count(L"Premier bouton") > firstHeardBefore; }),
+        "a UIA client hears the button the activation focused");
+    scenario.client.Settle();
+    scenario.Expect(scenario.client.Count(L"Premier bouton") - firstHeardBefore == heardPerHostEvent, "a client hears the button the activation focused once");
+}
+
 // For a window UI Automation has not seen, the call of the fragment root's GetFocus that answers the first focus event
 // reads the snapshot when it runs. When it has not got as far as counting itself by the time the click moves focus, it reads
 // the clicked control: the host adds no announcement, and the client hears the clicked control once, as it hears the control
@@ -7367,6 +7428,7 @@ void RunMenuDescriptionTests()
     DXUI_RUN_TEST(TestWindowHostElementSetFocusAnnouncesOnlyThatElement);
     DXUI_RUN_TEST(TestWindowHostClickThatActivatesAWindowUiAutomationHasAskedBeforeAnnouncesTheClickedControlOnce);
     DXUI_RUN_TEST(TestWindowHostClickThatActivatesAWindowUiAutomationHasNotSeenLeavesTheClickedControlToItsFirstGetFocus);
+    DXUI_RUN_TEST(TestWindowHostReactivatingAWindowUiAutomationHasSeenAnnouncesItsFocusedControlOnce);
     DXUI_RUN_TEST(TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange);
     DXUI_RUN_TEST(TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside);
     DXUI_RUN_TEST(TestMenuChoosesTheCursorWhenItOpensAndCloses);
