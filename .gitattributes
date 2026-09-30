@@ -13,3 +13,6 @@ Measurements/GridTextOverflow/2026-09-21/native-isolation/raw/** -text -whitespa
 Measurements/GridTextOverflow/2026-09-21/native-ci/raw/** -text -whitespace
 Measurements/MenuDescriptions/2026-09-21/scaling-v1/raw/** -text -whitespace
 Measurements/MenuDescriptions/2026-09-21/native-ci/raw/** -text -whitespace
+# These complete packets hash both wrappers and raw payloads; preserve every original byte.
+Measurements/NativeProviderLifetime/2026-09-28/** -text -whitespace
+Measurements/NativeProviderLifetime/2026-09-30/** -text -whitespace
