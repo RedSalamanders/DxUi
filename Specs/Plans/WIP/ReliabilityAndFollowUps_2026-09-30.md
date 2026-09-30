@@ -14,12 +14,19 @@ reviewed before it merges here, until this plan can move to Done.
 
 ### Test reliability
 
-- [ ] 1. NativeTextInput survives a foreground thief. `TestNativeTextInputBackendActivatesTsfDocumentOnFocus` fails when
+- [x] 1. NativeTextInput survives a foreground thief. `TestNativeTextInputBackendActivatesTsfDocumentOnFocus` fails when
   another window takes the foreground back right after the test window activates: activation is attempted and succeeds,
   then the document is gone. A foreground log showed the desktop app retaking it 30-95 ms after each test window; three
   of six local x64 Debug runs failed, and the unchanged baseline failed the same way. Accept: ten consecutive local runs
   end in a pass or an explicit environment skip naming the foreground process, never the false failure; a genuine TSF
-  activation regression still fails.
+  activation regression still fails. Done: the harness window counts the `WM_ACTIVATEAPP` (FALSE) a takeover sends, and
+  `RunWhileForegroundHeld` repeats a focus-and-pump sequence (five runs at most) until none arrives, so the assertions
+  are the former ones on a run that kept the foreground; when another application takes it every run, the test records a
+  skip naming its executable. Only four of the 129 tests pump after taking focus (host focus, the TSF document, the
+  system caret, the key-to-paint scenario); an emulated thief (`--foreground-thief=1,3`) failed exactly those four
+  before. Ten consecutive `test.ps1 -Suites NativeTextInput` runs passed, three of them after a real takeover the
+  fixtures repeated (`claude.exe` twice in the TSF test, `PowerToys.MouseWithoutBordersHelper.exe` once in the
+  host-focus test).
 - [ ] 2. A deterministic described-menu memory check. The test walks the process heap, so on a software renderer (the
   GPU-less CI runners) it can only require half of the open memory back: the renderer's surfaces and caches swing by up
   to about 3 MB per cycle. Accept: a test-only counter of DxUi's own live described-menu resources returns to its

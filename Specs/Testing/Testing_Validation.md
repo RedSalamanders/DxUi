@@ -134,6 +134,25 @@ The default `MenuExitLifetime` process suite leaves an asynchronous menu open wi
 `std::exit(0)`, so CRT thread-local teardown destroys the live controller. Returning normally fails the suite;
 ASan profiles catch reentrant destruction. It needs no foreground input.
 
+Fixtures that take real focus can lose it to another application: the desktop application hosting a developer's
+session took the foreground back 30-95 ms after each test window activated. Windows then sends the window
+`WM_ACTIVATEAPP` (FALSE), `WM_ACTIVATE` (inactive) and `WM_KILLFOCUS`, and the host releases its native text session,
+TSF document included, as designed, so a fixture that asserts state which only holds while the window keeps the
+foreground failed on a takeover it says nothing about. Such a fixture runs its focus-and-pump sequence through
+`RunWhileForegroundHeld` (`Tests/Controls/DxUiTestHelpers.h`): the harness window counts the `WM_ACTIVATEAPP` (FALSE)
+deliveries, the sequence repeats after a takeover (the window re-activates through `TryActivateDxUiTestWindow`; five runs
+at most) and the assertions are made on the run that kept the foreground, so they are exactly those of a run without a
+thief. A run in which no application took the foreground is never repeated, so a regression still fails. When another
+application takes the foreground in every run, the fixture records a capability skip naming its executable and process
+id. The NativeTextInput fixtures that pump after taking focus (host focus, the TSF document, the system caret, the
+key-to-paint scenario) use it, and two deterministic fixtures deliver the takeover as Windows sends it to a window nobody
+can activate: the sequence repeats once, and stops after the maximum with the application named.
+`DxUi.ControlTests.exe --foreground-thief[=<minMs>,<maxMs>]` (default 30,95) reproduces the desktop application: a worker
+thread takes the foreground for its own window that long after a window of the process became the foreground window. It
+reports how often it did, and says so when no window of the process ever held the foreground (Windows keeps it with the
+application the user is working in, so there was nothing to take and no takeover was exercised). It needs real focus, so
+`--no-activate` rejects it, and it is an opt-in check that a suite survives a thief, not part of `test.ps1`.
+
 Native menu input fixtures wait for a visible popup: the hidden measurement HWND is not ready for input.
 Cold creation has a separate five-second setup allowance; owner-message-flood hover and invocation checks
 retain their 800 ms deadlines after setup. Capture readiness similarly waits for the final visible surface.

@@ -2,6 +2,7 @@
 #include "../../src/Support/AnimationDispatcher.h"
 #include "DxUiTestHelpers.h"
 
+#include "../Support/ForegroundThief.h"
 #include "../Support/PerformanceCapture.h"
 #include <optional>
 #include <string>
@@ -72,6 +73,7 @@ int wmain(int argc, wchar_t** argv)
 
     std::optional<std::wstring> suiteFilter;
     std::vector<std::string> testNames;
+    std::optional<std::pair<DWORD, DWORD>> foregroundThiefDelayMs;
     std::optional<std::filesystem::path> perfJsonlPath;
     std::optional<std::filesystem::path> galleryOutputPath;
     std::optional<std::filesystem::path> galleryOutputDirectory;
@@ -83,6 +85,8 @@ int wmain(int argc, wchar_t** argv)
         const std::wstring_view arg                         = argv[argIndex] ? std::wstring_view(argv[argIndex]) : std::wstring_view{};
         constexpr std::wstring_view kSuitePrefix            = L"--suite=";
         constexpr std::wstring_view kTestPrefix             = L"--test=";
+        constexpr std::wstring_view kForegroundThiefFlag    = L"--foreground-thief";
+        constexpr std::wstring_view kForegroundThiefPrefix  = L"--foreground-thief=";
         constexpr std::wstring_view kPerfJsonlPrefix        = L"--perf-jsonl=";
         constexpr std::wstring_view kGalleryPrefix          = L"--gallery-output=";
         constexpr std::wstring_view kGalleryDirectoryPrefix = L"--gallery-output-directory=";
@@ -119,6 +123,36 @@ int wmain(int argc, wchar_t** argv)
                 more = comma != std::wstring_view::npos;
                 if (more)
                     list.remove_prefix(comma + 1u);
+            }
+            continue;
+        }
+        if (arg == kForegroundThiefFlag || arg.rfind(kForegroundThiefPrefix, 0) == 0)
+        {
+            // The delay range in milliseconds between a window of this process becoming the foreground window and the thief
+            // taking the foreground; the bare flag reproduces the 30-95 ms of the desktop application that did so.
+            foregroundThiefDelayMs = std::pair<DWORD, DWORD>{30u, 95u};
+            if (arg != kForegroundThiefFlag)
+            {
+                const auto parseMilliseconds = [](std::wstring_view digits) -> std::optional<DWORD>
+                {
+                    if (digits.empty() || digits.size() > 5u ||
+                        ! std::all_of(digits.begin(), digits.end(), [](wchar_t ch) noexcept { return ch >= L'0' && ch <= L'9'; }))
+                        return std::nullopt;
+                    DWORD value = 0u;
+                    for (const wchar_t ch : digits)
+                        value = value * 10u + static_cast<DWORD>(ch - L'0');
+                    return value;
+                };
+                const std::wstring_view range    = arg.substr(kForegroundThiefPrefix.size());
+                const size_t comma               = range.find(L',');
+                const std::optional<DWORD> first = parseMilliseconds(range.substr(0, comma));
+                const std::optional<DWORD> last  = comma == std::wstring_view::npos ? std::nullopt : parseMilliseconds(range.substr(comma + 1u));
+                if (! first || ! last || first.value() > last.value())
+                {
+                    std::wcerr << L"Expected --foreground-thief[=<minMs>,<maxMs>] with minMs <= maxMs.\n";
+                    return 2;
+                }
+                foregroundThiefDelayMs = std::pair<DWORD, DWORD>{first.value(), last.value()};
             }
             continue;
         }
@@ -243,12 +277,35 @@ int wmain(int argc, wchar_t** argv)
         return 2;
     }
 
+    if (blockActivation && foregroundThiefDelayMs.has_value())
+    {
+        // The thief takes the foreground itself, which --no-activate promises no run does.
+        std::wcerr << L"--foreground-thief cannot combine with --no-activate.\n";
+        return 2;
+    }
+
     DxUi::TestSupport::ScopedWindowActivationBlocker activationBlocker;
     if (blockActivation && ! activationBlocker.Start())
     {
         std::wcerr << L"Failed to install the DxUi no-activation guard.\n";
         return 2;
     }
+
+    std::optional<DxUi::TestSupport::ForegroundThief> foregroundThief;
+    if (foregroundThiefDelayMs.has_value())
+    {
+        foregroundThief.emplace(foregroundThiefDelayMs->first, foregroundThiefDelayMs->second);
+    }
+    const auto reportForegroundThefts = wil::scope_exit([&]
+    {
+        if (foregroundThief.has_value())
+        {
+            std::cerr << "[THIEF] foreground taken " << foregroundThief->TheftCount() << " times";
+            if (! foregroundThief->OwnForegroundSeen())
+                std::cerr << " (no window of this process ever held the foreground, so no takeover was exercised)";
+            std::cerr << '\n' << std::flush;
+        }
+    });
 
     auto runSuite = [&](const char* name, void (*fn)())
     {

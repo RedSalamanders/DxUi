@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- NativeTextInput's focus fixtures survive another application taking the foreground. Windows then deactivates the
+  window and the host releases its native text session, TSF document included, as designed; the desktop application
+  hosting a session did so 30-95 ms after each test window activated and failed the TSF document fixture in three of
+  six local runs. The four fixtures that pump after taking focus repeat their sequence (`RunWhileForegroundHeld`, five
+  runs at most) until no application takes the foreground and then make exactly their former assertions; when one takes
+  it every time they record a capability skip naming its executable, and a regression with the foreground held still
+  fails. Two deterministic fixtures deliver the takeover as Windows sends it, and `DxUi.ControlTests.exe
+  --foreground-thief[=<minMs>,<maxMs>]` reproduces the desktop application on demand.
 - The control-test runner runs single tests: `DxUi.ControlTests.exe --suite=<Suite> --test=<Name>[,<Name>...]` and
   `test.ps1 -Suites <Suite> -Tests <Name>[,<Name>]` run only the named test functions of the suite. Every suite runner
   registers its tests as `DXUI_RUN_TEST(TestName);`, which checks the filter and prints the test's `[START]`/`[DONE]`

@@ -408,8 +408,14 @@ void TestNativeTextInputBackendFocusesHostWithoutBridgeChild()
         SkipDxUiTest("native text input requires an interactive desktop for host focus assertions");
         return;
     }
-    window.Host().SetFocusControl(field);
-    window.PumpMessages();
+    // Another application taking the foreground while the window pumps releases the native session: repeat until none does.
+    const auto focusField = [&]
+    {
+        window.Host().SetFocusControl(field);
+        window.PumpMessages();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, focusField), "native text input host focus assertions"))
+        return;
 
     Require(window.Host().GetTextInputBackend() == TextInputBackend::Native, "window host keeps the native backend after text focus");
     Require(window.Host().GetFocusControl() == field, "native text input keeps retained focus on the text field");
@@ -426,17 +432,26 @@ void TestNativeTextInputBackendActivatesTsfDocumentOnFocus()
     AttachedHostWindow window;
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
-    const NativeTextInputEventCounters beforeCounters = window.Host().DebugGetNativeTextInputEventCounters();
-
     auto root   = std::make_unique<Panel>();
     auto* field = root->AddChild<TextField>(L"alpha beta");
     field->SetBounds(D2D1::RectF(12.0f, 16.0f, 260.0f, 44.0f));
 
     window.Host().SetRoot(std::move(root));
-    window.Host().SetFocusControl(field);
-    window.PumpMessages();
+    // Another application taking the foreground while the window pumps releases the TSF document, as designed: repeat the
+    // focus until a run keeps the foreground, then make the assertions on that run.
+    NativeTextInputEventCounters beforeCounters{};
+    NativeTextInputEventCounters counters{};
+    const auto focusField = [&]
+    {
+        window.Host().SetFocusControl(nullptr);
+        beforeCounters = window.Host().DebugGetNativeTextInputEventCounters();
+        window.Host().SetFocusControl(field);
+        window.PumpMessages();
+        counters = window.Host().DebugGetNativeTextInputEventCounters();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, focusField), "native text input TSF document assertions"))
+        return;
 
-    const NativeTextInputEventCounters counters = window.Host().DebugGetNativeTextInputEventCounters();
     Require(counters.tsfActivationAttemptCount > beforeCounters.tsfActivationAttemptCount,
             "native text input attempts TSF document activation when a text field gains focus");
     Require(counters.tsfActivationSuccessCount > beforeCounters.tsfActivationSuccessCount,
@@ -447,6 +462,74 @@ void TestNativeTextInputBackendActivatesTsfDocumentOnFocus()
     Require(! window.Host().DebugHasActiveNativeTextInputTsfDocument(), "native text input releases the TSF document/context when focus leaves the field");
     Require(window.Host().DebugGetNativeTextInputEventCounters().tsfDeactivationCount > counters.tsfDeactivationCount,
             "native text input counts TSF document deactivation when focus leaves the field");
+}
+
+// A desktop application retaking the foreground makes the host release its native session, TSF document included. The
+// takeover is delivered as Windows sends it; the sequence then repeats, so the TSF assertions of the test above keep their
+// meaning on a run that kept the foreground and never fail because of a thief.
+void TestNativeTextInputTsfSequenceRepeatsAfterTheForegroundIsTaken()
+{
+    using namespace DxUi;
+
+    const ScopedNonActivatingTestWindows nonActivatingWindows; // The takeover is simulated: nothing real may add to it.
+    AttachedHostWindow window;
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"alpha beta");
+    field->SetBounds(D2D1::RectF(12.0f, 16.0f, 260.0f, 44.0f));
+    window.Host().SetRoot(std::move(root));
+
+    int runs                                = 0;
+    bool documentAliveAfterTheFirstTakeover = true;
+    const auto focusField                   = [&]
+    {
+        ++runs;
+        window.Host().SetFocusControl(nullptr);
+        window.Host().SetFocusControl(field);
+        if (runs == 1)
+        {
+            SimulateForegroundTheftForTest(window.Hwnd(), GetCurrentThreadId());
+            documentAliveAfterTheFirstTakeover = window.Host().DebugHasActiveNativeTextInputTsfDocument();
+        }
+        window.PumpMessages();
+    };
+    const ForegroundRunResult run = RunWhileForegroundHeld(window, focusField);
+
+    Require(! documentAliveAfterTheFirstTakeover, "a foreground taken from the window releases its TSF document");
+    Require(run.held && run.runs == 2 && runs == 2, "a foreground taken in the first run repeats the sequence once");
+    Require(window.Host().DebugHasActiveNativeTextInputTsfDocument(), "the run that kept the foreground left the TSF document active");
+}
+
+void TestForegroundHoldGivesUpAfterTheMaximumRunsAndNamesWhoTookIt()
+{
+    using namespace DxUi;
+
+    const ScopedNonActivatingTestWindows nonActivatingWindows; // The takeover is simulated: nothing real may add to it.
+    AttachedHostWindow window;
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"alpha");
+    field->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
+    window.Host().SetRoot(std::move(root));
+
+    int runs              = 0;
+    const auto focusField = [&]
+    {
+        ++runs;
+        window.Host().SetFocusControl(field);
+        SimulateForegroundTheftForTest(window.Hwnd(), GetCurrentThreadId());
+        window.PumpMessages();
+    };
+    const ForegroundRunResult run = RunWhileForegroundHeld(window, focusField, 3);
+
+    Require(! run.held && run.runs == 3 && runs == 3, "a foreground taken in every run stops after the maximum number of runs");
+    Require(run.thiefThreadId == GetCurrentThreadId(), "the result keeps the thread of the window that took the foreground");
+    const std::string thief  = DescribeThreadProcessForTest(run.thiefThreadId);
+    const std::string reason = run.SkipReason("the TSF document assertions");
+    Require(thief.find(".exe (process ") != std::string::npos, "the thief's process is named by its executable");
+    Require(reason.find(thief) != std::string::npos && reason.find("3 runs") != std::string::npos, "the skip reason names the application and the runs");
 }
 
 void TestNativeTextInputBackendOwnsSystemCaretOnHostHwnd()
@@ -466,8 +549,14 @@ void TestNativeTextInputBackendOwnsSystemCaretOnHostHwnd()
         SkipDxUiTest("native text input requires an interactive desktop for system caret assertions");
         return;
     }
-    window.Host().SetFocusControl(field);
-    window.PumpMessages();
+    // Another application taking the foreground while the window pumps destroys the caret: repeat until none does.
+    const auto focusField = [&]
+    {
+        window.Host().SetFocusControl(field);
+        window.PumpMessages();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, focusField), "native text input system caret assertions"))
+        return;
 
     D2D1_RECT_F caretRectDip{};
     RECT caretRectScreenPx{};
@@ -6310,14 +6399,25 @@ void TestNativeTextInputBackendKeyToPaintMetricScenario()
     field->SetBounds(D2D1::RectF(12.0f, 16.0f, 240.0f, 44.0f));
 
     window.Host().SetRoot(std::move(root));
-    window.Host().SetFocusControl(field);
-    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
-    window.PumpMessages();
-
-    static_cast<void>(SendMessageW(window.Hwnd(), WM_CHAR, L'Z', 0));
-
+    // Another application taking the foreground while the window pumps releases the native session the key needs: repeat
+    // until none does, each repeat from the text the field began with.
     NativeTextInputState state;
-    Require(window.Host().TryReadNativeTextInputState(field, state), "native key-to-paint scenario reads focused native state after key input");
+    bool stateRead     = false;
+    auto typeIntoField = [&, repeated = false]() mutable
+    {
+        if (std::exchange(repeated, true))
+            field->SetText(L"alpha");
+        window.Host().SetFocusControl(field);
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        window.PumpMessages();
+
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_CHAR, L'Z', 0));
+        stateRead = window.Host().TryReadNativeTextInputState(field, state);
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, typeIntoField), "native key-to-paint scenario"))
+        return;
+
+    Require(stateRead, "native key-to-paint scenario reads focused native state after key input");
     Require(state.text == L"alphaZ", "native key-to-paint scenario mutates retained text before paint");
 
     RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
@@ -6347,6 +6447,8 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestWindowHostDefaultsToNativeTextInputBackend);
     DXUI_RUN_TEST(TestNativeTextInputBackendFocusesHostWithoutBridgeChild);
     DXUI_RUN_TEST(TestNativeTextInputBackendActivatesTsfDocumentOnFocus);
+    DXUI_RUN_TEST(TestNativeTextInputTsfSequenceRepeatsAfterTheForegroundIsTaken);
+    DXUI_RUN_TEST(TestForegroundHoldGivesUpAfterTheMaximumRunsAndNamesWhoTookIt);
     DXUI_RUN_TEST(TestNativeTextInputBackendOwnsSystemCaretOnHostHwnd);
     DXUI_RUN_TEST(TestNativeTextInputBackendMovesSystemCaretAfterKeyInput);
     DXUI_RUN_TEST(TestNativeTextInputBackendClearsSessionWhenRootResets);
