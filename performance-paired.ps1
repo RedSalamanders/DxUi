@@ -6,8 +6,9 @@ BaselinePath. The candidate (B) is this checkout, another revision, or an existi
 checkout's measurement driver, comparator and benchmark inputs (the harness list) are copied onto both trees, so one
 harness measures them and a comparison rejects any fixture difference; a revision older than the PowerShell comparator
 still gets one. A named tree is measured as it is, uncommitted work included: the harness files that differ are written
-into it, with the originals saved under the run directory, and restored when the run ends. Both trees are restored and
-built, then each scenario runs serially as A1, B1, B2, A2 (A = baseline, B = candidate), and that interleaved pass
+into it, with the originals saved under the run directory, and restored when the run ends. A tree made for the run has
+its dependencies restored (a named tree, like this checkout, must already have them), and every tree is built unless
+SkipBuild reuses its build. Then each scenario runs serially as A1, B1, B2, A2 (A = baseline, B = candidate), and that interleaved pass
 repeats Repetitions times (A3, B3, B4, A4, and so on), so each side ends with 2 x Repetitions runs. Within a pass, B1/A1
 and B2/A2 cross the change and A2/A1 and B2/B1 are same-source controls; those per-pass comparisons are kept for
 continuity, and a control that drifts beyond a band in either direction is listed as unstable-control, as context.
@@ -26,7 +27,7 @@ library sources (nothing to compare), which is how uncommitted work on a revisio
 .PARAMETER CandidateRevision Optional commit, branch or tag measured as B in a detached worktree instead of this checkout.
 .PARAMETER CandidatePath Optional existing DxUi working tree measured as B as it is instead of this checkout.
 .PARAMETER Scenario One or more performance.ps1 scenarios.
-.PARAMETER Repetitions How many times the A, B, B, A pass repeats, 1 to 10 (default 3). Three give each side six runs, whose complete separation reaches p = 0.0022; one or two runs per side cannot reach p < 0.05.
+.PARAMETER Repetitions How many times the A, B, B, A pass repeats, 1 to 10 (default 3), giving each side twice as many runs. Complete separation reaches p = 0.0022 with three (six runs against six) and 0.029 with two; one repetition (two runs against two) cannot reach p < 0.05.
 .PARAMETER OutputDirectory Parent of the run directory; defaults to .build/paired.
 .PARAMETER SkipBuild Reuses the existing build of this checkout and of named trees; a named tree's harness overlay must not have changed a compiled input, and it needs its build. Worktrees made for the run are new and always build.
 #>
