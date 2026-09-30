@@ -237,10 +237,13 @@ tests beside its native suites). No validator scan enters a nested git checkout,
 Measurements exactly. Run x64 Debug/Release suites and build ARM64 Debug/Release for code
 changes; native ARM64 CI must also pass. Use `gallery.ps1 -PublishDocs` after visual/control changes and review all
 generated sheets. CI's x64 Release job runs the same command and uploads its `docs/gallery` output as
-`docs-gallery-x64-Release`; review those sheets before committing them. Full IME, touch and screen-reader adoption
-checks remain explicit manual gates.
+`docs-gallery-x64-Release` for review. To publish it after a merge, run the manual
+[Publish docs gallery workflow](../.github/workflows/gallery.yml) on the branch with its `publish_docs` input enabled:
+it regenerates the gallery on a native x64 Release build and commits it with an ordinary push, never forced, only when
+a sheet, the index or the README changed, so nothing is copied by hand. Review the sheets in that commit's diff. Full
+IME, touch and screen-reader adoption checks remain explicit manual gates.
 
 [Formatting CI](../.github/workflows/format.yml) checks pushes/PRs and uploads a ready-to-apply patch. To reformat a
 branch remotely, run its manual workflow with `apply_changes` enabled. It commits formatting on the selected
 branch without a force push; branch protection still applies. GitHub-token commits do not trigger another push
-workflow, so validation must run again explicitly or on the next user push.
+workflow, so validation must run again explicitly or on the next user push. The gallery workflow works the same way.

@@ -1,7 +1,7 @@
 # Documentation and generated gallery
 
 Status: normative current contract
-Last reviewed: 2026-09-23
+Last reviewed: 2026-09-30
 
 `docs/README.md` is the user entrypoint and MUST be linked from the root README. Documentation covers prerequisites,
 exact-pin consumption, both hosting modes, ownership, input, layout/DPI, themes, recovery, every public control,
@@ -29,6 +29,19 @@ receipt in `docs/gallery`. The harness sizes its offscreen capture window from t
 a small display cannot crop it. CI's x64 Release job uploads the same output as `docs-gallery-x64-Release`.
 Native tests/baselines remain distinct; never rebaseline tests merely to match a changed
 documentation screenshot.
+
+Publishing the gallery after a merge is not a manual copy of that artifact. The manual `Publish docs gallery` workflow
+(`.github/workflows/gallery.yml`) restores dependencies, regenerates `docs/gallery` from a native x64 Release build with
+`gallery.ps1 -PublishDocs`, validates the specifications and gallery, and commits the result to the branch it was run
+on. It runs only on `workflow_dispatch` with an explicit boolean input and only for a branch ref, never on a push or
+`pull_request_target`; it holds `contents: write` for that one job alone; it pushes with an ordinary push, never
+forced, so a branch that moved since the checkout fails the run to be repeated; and it commits nothing when the
+gallery is current. `generation.json` records the commit the sheets were generated from and so changes with every
+commit: it is not itself a change, and a run commits only when a sheet, the HTML index or the README differs
+(`Tools/Commit-Gallery.ps1`, tested against fixture repositories). A commit pushed with the workflow token starts no
+other workflow, so validation runs again on the next user push. The generated sheets are reviewed in that commit's
+diff like any generated change, and the review above (every sheet, for clipping, overlap and missing content) still
+applies.
 
 Intermediate outputs/logs stay in `.build`. Published gallery assets and explicitly reviewed independent receipts
 under `Measurements/` are the deliberate exceptions. Validate all local links, catalog documentation coverage and image hashes with

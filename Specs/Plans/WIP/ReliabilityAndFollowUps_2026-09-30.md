@@ -70,8 +70,12 @@ reviewed before it merges here, until this plan can move to Done.
   Outcome: `validate.ps1` runs the five validators and the tooling tests, each in its own process, and reports every
   failure before it fails; CI's validation job runs it and `test.ps1` runs the tooling tests. The validators' file scans
   also skip nested git checkouts (worktrees), which had multiplied the Markdown count in a main checkout.
-- [ ] 11. Publishing `docs/gallery` after a merge is not manual. Accept: a manual-dispatch workflow regenerates and
+- [x] 11. Publishing `docs/gallery` after a merge is not manual. Accept: a manual-dispatch workflow regenerates and
   commits it on a chosen branch, with the same safeguards as the formatting workflow's apply mode.
+  Outcome: the manual `Publish docs gallery` workflow regenerates the gallery natively and commits it through the
+  tested `Tools/Commit-Gallery.ps1` with the formatting workflow's safeguards (dispatch only, an explicit boolean input,
+  `contents: write` for that job, an ordinary push, a no-op when only `generation.json` changed); its first real run on
+  hosted runners remains for the close-out.
 
 ### Close-out
 

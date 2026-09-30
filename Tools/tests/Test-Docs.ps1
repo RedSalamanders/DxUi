@@ -161,4 +161,163 @@ Invoke-FixtureCase 'measurement receipts of a nested checkout are not this tree'
     Assert-Equal 0 (Test-DxUiMeasurements $root).Failures.Count 'the same receipt in a nested checkout is not this tree''s'
 }
 
+# --- Publishing docs/gallery from a manual workflow ------------------------------------------------------------------------
+
+$repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+$commitGallery = Join-Path $repository 'Tools/Commit-Gallery.ps1'
+
+function Invoke-FixtureGit([string] $Root, [string[]] $Arguments) {
+    & git -C $Root -c core.autocrlf=false @Arguments 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "git $($Arguments -join ' ') failed in $Root" }
+}
+
+function Get-FixtureGit([string] $Root, [string[]] $Arguments) {
+    $output = & git -C $Root @Arguments 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "git $($Arguments -join ' ') failed in $Root" }
+    # The comma keeps a one-line answer an array: a bare scalar string would be indexed by character.
+    return , @($output | ForEach-Object { "$_" })
+}
+
+# Built once and copied for each test, because a git process costs far more than a copy: a working copy holding a committed
+# gallery and an unrelated source file, beside the bare origin it has pushed to. The remote is a relative path, so a copy of
+# both stays a working pair.
+$galleryBase = New-FixtureRoot
+$baseWork = Join-Path $galleryBase 'work'
+$baseOrigin = Join-Path $galleryBase 'origin.git'
+New-Item -ItemType Directory -Path $baseOrigin, $baseWork | Out-Null
+Invoke-FixtureGit $baseOrigin @('init', '--bare', '-q', '-b', 'main')
+Invoke-FixtureGit $baseWork @('init', '-q', '-b', 'main')
+Invoke-FixtureGit $baseWork @('config', 'user.name', 'fixture')
+Invoke-FixtureGit $baseWork @('config', 'user.email', 'fixture@example.invalid')
+Set-FixtureBytes $baseWork 'docs/gallery/light.png' ([byte[]](0x89, 0x50, 1, 2, 3))
+Set-FixtureBytes $baseWork 'docs/gallery/dark.png' ([byte[]](0x89, 0x50, 4, 5, 6))
+Set-FixtureFile $baseWork 'docs/gallery/README.md' "# Generated control gallery`n"
+Set-FixtureFile $baseWork 'docs/gallery/index.html' "<!doctype html>`n"
+Set-FixtureFile $baseWork 'docs/gallery/generation.json' "{ `"sourceCommit`": `"aaa`" }`n"
+Set-FixtureFile $baseWork 'src/Code.cpp' "int a;`n"
+Invoke-FixtureGit $baseWork @('add', '-A')
+Invoke-FixtureGit $baseWork @('commit', '-q', '-m', 'base')
+Invoke-FixtureGit $baseWork @('remote', 'add', 'origin', '../origin.git')
+Invoke-FixtureGit $baseWork @('push', '-q', 'origin', 'main')
+
+function Copy-GalleryRepository([string] $Root) {
+    Copy-Item -LiteralPath $baseWork -Destination (Join-Path $Root 'work') -Recurse
+    Copy-Item -LiteralPath $baseOrigin -Destination (Join-Path $Root 'origin.git') -Recurse
+    return [pscustomobject]@{ Work = (Join-Path $Root 'work'); Origin = (Join-Path $Root 'origin.git') }
+}
+
+function Invoke-CommitGallery([string] $Root, [switch] $NoPush) {
+    # The workflow step's script, in this process. A run that fails throws, as it fails the step.
+    $arguments = @{ Root = $Root; NoPush = [bool]$NoPush }
+    try {
+        $output = & $commitGallery @arguments 6>&1 2>&1
+        return [pscustomobject]@{ Failed = $false; Output = (@($output | ForEach-Object { "$_" }) -join "`n") }
+    } catch {
+        return [pscustomobject]@{ Failed = $true; Output = $_.Exception.Message }
+    }
+}
+
+function Get-Head([string] $Root, [string] $Branch = 'HEAD') { return (Get-FixtureGit $Root @('rev-parse', $Branch))[0] }
+
+Invoke-FixtureCase 'a regenerated sheet is committed and pushed with the gallery only' {
+    param($root)
+    $repo = Copy-GalleryRepository $root
+    $before = Get-Head $repo.Work
+    # A new sheet and a new generation receipt, and a source file the build touched, which must not be published.
+    Set-FixtureBytes $repo.Work 'docs/gallery/light.png' ([byte[]](0x89, 0x50, 9, 9, 9))
+    Set-FixtureFile $repo.Work 'docs/gallery/generation.json' "{ `"sourceCommit`": `"bbb`" }`n"
+    Set-FixtureFile $repo.Work 'src/Code.cpp' "int b;`n"
+    $result = Invoke-CommitGallery $repo.Work
+    Assert-True (-not $result.Failed) "the run passes: $($result.Output)"
+    $shown = Get-FixtureGit $repo.Work @('show', '--name-only', '--format=%s', 'HEAD')
+    Assert-Equal 'docs: regenerate the control gallery' $shown[0] 'commit message'
+    Assert-Equal 'docs/gallery/generation.json docs/gallery/light.png' (($shown | Select-Object -Skip 1 | Where-Object { $_ } | Sort-Object) -join ' ') 'the commit holds the gallery files that changed and nothing else'
+    Assert-Equal ' M src/Code.cpp' (Get-FixtureGit $repo.Work @('status', '--porcelain'))[0] 'the source edit stays uncommitted'
+    Assert-Equal (Get-Head $repo.Work) (Get-Head $repo.Origin 'main') 'the branch was pushed'
+    Assert-True ($before -cne (Get-Head $repo.Origin 'main')) 'and moved'
+}
+
+Invoke-FixtureCase 'a new generation receipt or an identical rewrite alone is not a change' {
+    param($root)
+    $repo = Copy-GalleryRepository $root
+    $before = Get-Head $repo.Work
+    # The receipt records the commit the sheets came from, so it differs after every commit even when every sheet is the same;
+    # a regeneration also rewrites each sheet with the bytes it already has.
+    Set-FixtureFile $repo.Work 'docs/gallery/generation.json' "{ `"sourceCommit`": `"ccc`" }`n"
+    Set-FixtureBytes $repo.Work 'docs/gallery/light.png' ([byte[]](0x89, 0x50, 1, 2, 3))
+    Set-FixtureFile $repo.Work 'docs/gallery/README.md' "# Generated control gallery`n"
+    $result = Invoke-CommitGallery $repo.Work
+    Assert-True (-not $result.Failed) "the run passes: $($result.Output)"
+    Assert-True $result.Output.Contains('already current') "reported as a no-op: $($result.Output)"
+    Assert-Equal $before (Get-Head $repo.Work) 'no commit'
+    Assert-Equal $before (Get-Head $repo.Origin 'main') 'nothing pushed'
+}
+
+Invoke-FixtureCase 'a changed index or README is committed even when no sheet changed' {
+    param($root)
+    $repo = Copy-GalleryRepository $root
+    $before = Get-Head $repo.Work
+    Set-FixtureFile $repo.Work 'docs/gallery/README.md' "# Generated control gallery`n`nA new sentence.`n"
+    Assert-True (-not (Invoke-CommitGallery $repo.Work).Failed) 'the README run passes'
+    $afterReadme = Get-Head $repo.Work
+    Assert-True ($afterReadme -cne $before) 'the README is committed'
+    Set-FixtureFile $repo.Work 'docs/gallery/index.html' "<!doctype html><title>x</title>`n"
+    Assert-True (-not (Invoke-CommitGallery $repo.Work).Failed) 'the index run passes'
+    Assert-True ((Get-Head $repo.Work) -cne $afterReadme) 'the index is committed'
+}
+
+Invoke-FixtureCase 'the push is never forced' {
+    param($root)
+    $repo = Copy-GalleryRepository $root
+    # Someone else's commit lands on the branch after this checkout was made: push one, then take this checkout back.
+    Invoke-FixtureGit $repo.Work @('commit', '-q', '--allow-empty', '-m', 'meanwhile')
+    Invoke-FixtureGit $repo.Work @('push', '-q', 'origin', 'main')
+    $theirs = Get-Head $repo.Origin 'main'
+    Invoke-FixtureGit $repo.Work @('reset', '-q', '--hard', 'HEAD~1')
+    Set-FixtureBytes $repo.Work 'docs/gallery/light.png' ([byte[]](0x89, 0x50, 7, 7, 7))
+    $result = Invoke-CommitGallery $repo.Work
+    Assert-True $result.Failed 'the run fails'
+    Assert-True $result.Output.Contains('no force push was attempted') "and says so: $($result.Output)"
+    Assert-Equal $theirs (Get-Head $repo.Origin 'main') 'the other commit is intact on the remote'
+}
+
+Invoke-FixtureCase 'nothing is pushed when asked not to' {
+    param($root)
+    $repo = Copy-GalleryRepository $root
+    $before = Get-Head $repo.Origin 'main'
+    Set-FixtureBytes $repo.Work 'docs/gallery/dark.png' ([byte[]](0x89, 0x50, 8, 8, 8))
+    $result = Invoke-CommitGallery $repo.Work -NoPush
+    Assert-True (-not $result.Failed) "the run passes: $($result.Output)"
+    Assert-True ((Get-Head $repo.Work) -cne $before) 'committed locally'
+    Assert-Equal $before (Get-Head $repo.Origin 'main') 'and not pushed'
+}
+
+Invoke-TestCase 'the gallery workflow publishes only on manual dispatch, with the safeguards of the formatting workflow' {
+    $workflow = [IO.File]::ReadAllText((Join-Path $repository '.github/workflows/gallery.yml'))
+    $lines = $workflow -split "`r?`n"
+    # The events under on:, at the first level of indentation.
+    $inside = $false
+    $events = foreach ($line in $lines) {
+        if ($line -cmatch '^on:\s*$') { $inside = $true; continue }
+        if ($inside -and $line -cmatch '^\S') { break }
+        if ($inside -and $line -cmatch '^  (\S+):') { $Matches[1] }
+    }
+    Assert-Equal 'workflow_dispatch' (@($events) -join ',') 'the only trigger is a manual dispatch'
+    Assert-True ($workflow -cmatch '(?s)inputs:\s+publish_docs:.*?type: boolean\s+default: false') 'an explicit boolean input that defaults to false'
+    Assert-True (-not $workflow.Contains('pull_request_target')) 'never pull_request_target'
+    Assert-True ($workflow -cmatch '(?m)^permissions:\s*\r?\n\s+contents: read\s*$') 'read-only by default'
+    $writes = @([regex]::Matches($workflow, '(?m)^\s*contents:\s*write\s*$'))
+    Assert-Equal 1 $writes.Count 'exactly one write permission'
+    Assert-True ($writes[0].Index -gt $workflow.IndexOf("`njobs:")) 'and it belongs to the job, not the workflow'
+    Assert-True ($workflow.Contains("if: github.event_name == 'workflow_dispatch' && inputs.publish_docs && startsWith(github.ref, 'refs/heads/')")) 'the job needs the input, and a branch to push to'
+    Assert-True ($workflow.Contains('ref: ${{ github.ref }}')) 'the selected branch is checked out'
+    Assert-True ($workflow.Contains('./vcpkg-install.ps1 -Platform x64')) 'dependencies are restored'
+    Assert-True ($workflow.Contains('./gallery.ps1 -Configuration Release -Platform x64 -PublishDocs')) 'a native x64 Release gallery is generated and published'
+    Assert-True ($workflow.Contains('./Tools/Commit-Gallery.ps1')) 'and committed by the tested script'
+    $script = [IO.File]::ReadAllText($commitGallery)
+    Assert-True ($script.Contains('push origin HEAD')) 'an ordinary push of the checked-out branch'
+    Assert-True ($script -cnotmatch '--force|--force-with-lease|push\s+(-\w*f|\+)') 'never a force push'
+}
+
+Remove-FixtureRoot $galleryBase
 Complete-TestRun 'Docs'

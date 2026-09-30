@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Publishing `docs/gallery` after a merge is no longer a manual copy (plan `ReliabilityAndFollowUps_2026-09-30`, item
+  11): the manual `Publish docs gallery` workflow (`.github/workflows/gallery.yml`) regenerates the gallery from a native
+  x64 Release build with `gallery.ps1 -PublishDocs`, validates the specifications and commits it to the branch it runs
+  on. Like the formatting workflow's apply mode it runs only on `workflow_dispatch` with an explicit boolean input, holds
+  `contents: write` for that one job, pushes normally and never forces, and never runs on `pull_request_target`. It
+  commits only when a sheet, the HTML index or the README changed (`generation.json` records the source commit and so
+  differs after every commit); `Tools/Commit-Gallery.ps1` makes that decision and is tested against fixture repositories.
 - One validation entry point (plan `ReliabilityAndFollowUps_2026-09-30`, item 10): `validate.ps1` runs the five
   validators and the tooling tests, each in its own process, reports every failure before it fails, and is what CI's
   validation job runs; `test.ps1` now also runs the tooling tests. The validators' file scans no longer enter a nested
