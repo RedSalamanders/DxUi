@@ -21,12 +21,14 @@ and the `validate-*.ps1` scripts) are the stable developer interface.
 | tests/TestSupport.psm1 | Assertions and fixture trees under `.build/tooling-fixtures` for those tests |
 | tests/Test-ConsumerUpdate.ps1 | Same/new/pending/failed/divergent/offline advisory decisions and immutable-pin checks, without network access |
 | tests/Test-AsanRuntime.ps1 | Actual MSBuild ARM64 runtime staging and fail-closed missing-runtime regression |
+| tests/Test-TestFilter.ps1 | The built `DxUi.ControlTests.exe` runs only the tests `--test=` names, in suite order, fails an unknown or malformed name and a fixture suite, and runs every registered test without it; `test.ps1` runs it after the build |
 
 `test-consumer.ps1` restores and builds a relocated exact-pin public consumer in an isolated output directory,
 renders the supplied-device example, and rejects five invalid-pin/dirty-source cases. `gallery.ps1` generates the
 five-theme control catalog, supplied-device image and HTML index from compiled native code.
 Add `-PublishDocs` to publish reviewed gallery snapshots to docs. `performance.ps1` captures completed offscreen
-complex-UI FPS/memory and optionally compares a baseline; `test.ps1` includes that report even for filtered suites.
+complex-UI FPS/memory and optionally compares a baseline; `test.ps1` includes that report even for filtered suites and,
+with `-Tests`, runs only the named tests of a control suite (`--test=` of `DxUi.ControlTests.exe`).
 `performance-paired.ps1` measures a baseline revision and this checkout serially with one copied harness, which
 includes the comparator, so a revision from before the PowerShell tools is measured the same way.
 

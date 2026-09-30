@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The control-test runner runs single tests: `DxUi.ControlTests.exe --suite=<Suite> --test=<Name>[,<Name>...]` and
+  `test.ps1 -Suites <Suite> -Tests <Name>[,<Name>]` run only the named test functions of the suite. Every suite runner
+  registers its tests as `DXUI_RUN_TEST(TestName);`, which checks the filter and prints the test's `[START]`/`[DONE]`
+  markers. A name no selected suite registers, a malformed list or a fixture suite without named tests fails the run
+  (exit code 2) instead of passing with nothing run, and a filtered `test.ps1` run keeps its own log and receipt
+  (`*.filtered`), so it never replaces the receipt of the whole suite.
 - Repository tooling is PowerShell only (plan `PowerShellTooling_2026-09-30`): the spec, skill, dependency,
   inherited-test and build-matrix validators, the performance comparator and their tests are PowerShell modules and
   scripts, so `test.ps1`, the validators and CI need no Python, pip or PyYAML. The comparator reproduces every stored

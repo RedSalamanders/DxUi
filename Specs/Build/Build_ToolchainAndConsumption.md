@@ -67,7 +67,8 @@ fixed in Configuration.h and must not be overridden by consumers.
 preserving plain redirected output and a complete file log. It rejects only running executables in the selected
 output directory and never terminates them.
 `test.ps1` runs all three test executables, splitting inherited control suites into independent runs with exit-code,
-SHA256, native architecture and capability-skip receipts. `gallery.ps1` generates five themed control sheets, a
+SHA256, native architecture and capability-skip receipts; `-Tests <Name>[,<Name>]` narrows each control-suite run to the
+named tests (see the [validation contract](../Testing/Testing_Validation.md)). `gallery.ps1` generates five themed control sheets, a
 supplied-device example image and an HTML index. `DxUi.EmbeddedControls.exe` opens the live toggle/slider example;
 `--output image.png` renders it headlessly through a sample-created WARP device. `--complex-ui` selects the independent
 83-control/1,000-row scene shared with the benchmark. External-consumer validation copies both sample directories

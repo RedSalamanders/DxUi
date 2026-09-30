@@ -44,6 +44,17 @@ scenarios and the performance receipt path in each suite receipt. `-PerformanceB
 comparison and fails for a suspected regression or invalid evidence; no baseline is explicitly `unpaired`.
 Use the [performance contract](../Core/Core_PerformanceAndResources.md) for before/after acceptance and regression advice.
 The short WARP benchmark reports completed offscreen throughput, not display refresh or hardware acceptance.
+`DxUi.ControlTests.exe --suite=<Suite> --test=<Name>[,<Name>...]` (`test.ps1 -Suites <Suite> -Tests <Name>[,<Name>]`) runs
+only the named test functions of the selected suite, so one test iterates in seconds instead of a whole suite in minutes.
+Names are exact, case-sensitive function names, and every suite runner registers each of its tests as
+`DXUI_RUN_TEST(TestName);`, which checks the filter and prints the test's `[START]`/`[DONE]` markers; a test is never
+called directly from a runner. A name that no selected suite registers fails the run (exit code 2, naming it) instead of
+passing with nothing run, and the fixture suites without named tests (`MenuResources`, `MenuResourceScaling`,
+`MenuTextLayoutResources`, `MenuExitLifetime`, `Gallery`, `ButtonContrast`) reject `--test`. Without the option every
+test of a suite runs, in its order. A filtered `test.ps1` run is partial evidence: it still runs the benchmark, but its log
+and receipt take a `.filtered` suffix and record the names, so they never replace the receipt of the whole suite.
+`Tools/tests/Test-TestFilter.ps1` checks this contract against the built executable in every `test.ps1` run that includes a
+control suite.
 The foundation suite covers timing edge cases, nested stage restoration, reduced motion and injected diagnostics.
 
 Repository tools are PowerShell 7 scripts with no other runtime; the validators live in `Tools/Validation.psm1` and

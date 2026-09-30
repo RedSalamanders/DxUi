@@ -24,9 +24,13 @@ reviewed before it merges here, until this plan can move to Done.
   GPU-less CI runners) it can only require half of the open memory back: the renderer's surfaces and caches swing by up
   to about 3 MB per cycle. Accept: a test-only counter of DxUi's own live described-menu resources returns to its
   pre-open value after close while a client holds row elements, on every renderer; pinning the rows fails the test.
-- [ ] 3. The control-test runner runs single tests. Only whole suites run today, which takes minutes. Accept:
+- [x] 3. The control-test runner runs single tests. Only whole suites run today, which takes minutes. Accept:
   `--test=<Name>[,<Name>]` (and `test.ps1 -Tests`) runs only the named tests; an unknown name fails the run; unfiltered
-  suites still run every test.
+  suites still run every test. Done: every suite runner registers its tests as `DXUI_RUN_TEST(TestName);`, which checks the
+  filter and prints the `[START]`/`[DONE]` markers; a name no selected suite registers, a malformed list or a fixture
+  suite exits 2. `test.ps1 -Suites Menu -Tests TestDescribedMenuReleasesItsMemoryWhenItCloses` ran that test alone in
+  4.3 s including its benchmark, and the 17 unfiltered suites start the same 1,006 tests in the same order as their
+  runners did at `cf6722f`.
 
 ### Performance evidence
 

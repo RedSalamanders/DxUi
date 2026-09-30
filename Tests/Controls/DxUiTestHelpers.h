@@ -60,6 +60,69 @@ inline void SkipDxUiTest(const char* reason)
     std::cerr << "SKIPPED: " << reason << '\n';
 }
 
+// --test=<Name>[,<Name>...] limits a run to the named test functions of the selected suites. Suite runners start every test
+// through DXUI_RUN_TEST, so a run without the option executes all of them in order, and a name that no selected suite
+// registers is reported when the suites end instead of passing with nothing run. Names are exact and case-sensitive.
+struct DxUiTestFilter
+{
+    bool active = false;
+    std::vector<std::string> names;
+    std::vector<bool> matched;
+};
+
+inline DxUiTestFilter& GetDxUiTestFilter() noexcept
+{
+    static DxUiTestFilter filter;
+    return filter;
+}
+
+inline void SetDxUiTestFilter(std::vector<std::string> names)
+{
+    DxUiTestFilter& filter = GetDxUiTestFilter();
+    filter.active          = true;
+    filter.matched.assign(names.size(), false);
+    filter.names = std::move(names);
+}
+
+// The requested test names that no suite registered a test for.
+[[nodiscard]] inline std::vector<std::string> UnmatchedDxUiTestNames()
+{
+    const DxUiTestFilter& filter = GetDxUiTestFilter();
+    std::vector<std::string> unmatched;
+    for (size_t index = 0u; index < filter.names.size(); ++index)
+    {
+        if (! filter.matched[index])
+            unmatched.push_back(filter.names[index]);
+    }
+    return unmatched;
+}
+
+// Runs one test with its [START]/[DONE] markers unless --test= leaves it out. Returns whether it ran.
+inline bool RunDxUiTest(const char* name, void (*test)())
+{
+    DxUiTestFilter& filter = GetDxUiTestFilter();
+    if (filter.active)
+    {
+        bool selected = false;
+        for (size_t index = 0u; index < filter.names.size(); ++index)
+        {
+            if (filter.names[index] == name)
+            {
+                filter.matched[index] = true;
+                selected              = true;
+            }
+        }
+        if (! selected)
+            return false;
+    }
+    std::cerr << "  [START] " << name << '\n' << std::flush;
+    test();
+    std::cerr << "  [DONE] " << name << '\n' << std::flush;
+    return true;
+}
+
+#define DXUI_RUN_TEST(test) RunDxUiTest(#test, test)
+
 [[nodiscard]] inline bool WaitForDxUiThreadFocus(HWND hwnd, DWORD timeoutMs = 800u) noexcept
 {
     const ULONGLONG deadline = GetTickCount64() + timeoutMs;

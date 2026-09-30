@@ -7202,38 +7202,26 @@ void TestDescribedMenuFractionalDpiKeepsLaneAndWidths()
 
 void RunMenuDescriptionTests()
 {
-    std::cerr << "  [START] TestDescribedInfoRowPaintsItsDescription\n" << std::flush;
-    TestDescribedInfoRowPaintsItsDescription();
-    std::cerr << "  [START] TestDescribedMenuRaisesFocusChangesForKeyboardRows\n" << std::flush;
-    TestDescribedMenuRaisesFocusChangesForKeyboardRows();
-    TestDescribedMenuReleasesItsMemoryWhenItCloses();
-    TestWindowHostTabRaisesAutomationFocusChanges();
-    TestWindowHostTreeArrowAnnouncesTheFocusedItem();
-    TestWindowHostElementSetFocusAnnouncesOnlyThatElement();
-    TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange();
-    TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside();
-    TestMenuChoosesTheCursorWhenItOpensAndCloses();
-    TestMenuSurvivesAWindowClosingItFromSetCursor();
-    std::cerr << "  [START] TestDescribedAsyncMenuRestoresFocusedOwnerChild\n" << std::flush;
-    TestDescribedAsyncMenuRestoresFocusedOwnerChild();
-    std::cerr << "  [START] TestDescribedMenuWrapsFrenchTextAndPreservesIdentity\n" << std::flush;
-    TestDescribedMenuWrapsFrenchTextAndPreservesIdentity();
-    std::cerr << "  [START] TestDescribedMenuAccessibilityInvokesAndDisconnects\n" << std::flush;
-    TestDescribedMenuAccessibilityInvokesAndDisconnects();
-    std::cerr << "  [START] TestDescribedMenuPointerAndCancelledQueuedInvoke\n" << std::flush;
-    TestDescribedMenuPointerAndCancelledQueuedInvoke();
-    std::cerr << "  [START] TestDescribedMenuSubmenuKeepsSessionAndIdentity\n" << std::flush;
-    TestDescribedMenuSubmenuKeepsSessionAndIdentity();
-    std::cerr << "  [START] TestDescribedPointerMenuActivationSelectsNoRow\n" << std::flush;
-    TestDescribedPointerMenuActivationSelectsNoRow();
-    std::cerr << "  [START] TestDescribedMenuScrollRepublishesAccessibleGeometry\n" << std::flush;
-    TestDescribedMenuScrollRepublishesAccessibleGeometry();
-    std::cerr << "  [START] TestDescribedSubmenuSliderFocusKeepsSessionFocus\n" << std::flush;
-    TestDescribedSubmenuSliderFocusKeepsSessionFocus();
-    std::cerr << "  [START] TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus\n" << std::flush;
-    TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus();
-    std::cerr << "  [START] TestDescribedMenuFractionalDpiKeepsLaneAndWidths\n" << std::flush;
-    TestDescribedMenuFractionalDpiKeepsLaneAndWidths();
+    DXUI_RUN_TEST(TestDescribedInfoRowPaintsItsDescription);
+    DXUI_RUN_TEST(TestDescribedMenuRaisesFocusChangesForKeyboardRows);
+    DXUI_RUN_TEST(TestDescribedMenuReleasesItsMemoryWhenItCloses);
+    DXUI_RUN_TEST(TestWindowHostTabRaisesAutomationFocusChanges);
+    DXUI_RUN_TEST(TestWindowHostTreeArrowAnnouncesTheFocusedItem);
+    DXUI_RUN_TEST(TestWindowHostElementSetFocusAnnouncesOnlyThatElement);
+    DXUI_RUN_TEST(TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange);
+    DXUI_RUN_TEST(TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside);
+    DXUI_RUN_TEST(TestMenuChoosesTheCursorWhenItOpensAndCloses);
+    DXUI_RUN_TEST(TestMenuSurvivesAWindowClosingItFromSetCursor);
+    DXUI_RUN_TEST(TestDescribedAsyncMenuRestoresFocusedOwnerChild);
+    DXUI_RUN_TEST(TestDescribedMenuWrapsFrenchTextAndPreservesIdentity);
+    DXUI_RUN_TEST(TestDescribedMenuAccessibilityInvokesAndDisconnects);
+    DXUI_RUN_TEST(TestDescribedMenuPointerAndCancelledQueuedInvoke);
+    DXUI_RUN_TEST(TestDescribedMenuSubmenuKeepsSessionAndIdentity);
+    DXUI_RUN_TEST(TestDescribedPointerMenuActivationSelectsNoRow);
+    DXUI_RUN_TEST(TestDescribedMenuScrollRepublishesAccessibleGeometry);
+    DXUI_RUN_TEST(TestDescribedSubmenuSliderFocusKeepsSessionFocus);
+    DXUI_RUN_TEST(TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus);
+    DXUI_RUN_TEST(TestDescribedMenuFractionalDpiKeepsLaneAndWidths);
 }
 
 #include "DxUiTests.MenuResources.h"
@@ -7243,12 +7231,11 @@ void RunMenuTests()
     // Also exercise described rows with real native focus; the nonactivating
     // NewControls lane cannot alone detect a popup stealing Win32 focus.
     RunMenuDescriptionTests();
-    auto runTest = [](const char* name, void (*fn)())
+    // Every menu test starts with a stopped animation dispatcher.
+    const auto runTest = [](const char* name, void (*fn)())
     {
-        std::cerr << "  [START] " << name << '\n' << std::flush;
-        fn();
-        DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
-        std::cerr << "  [DONE] " << name << '\n' << std::flush;
+        if (RunDxUiTest(name, fn))
+            DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
     };
 
     runTest("TestPointerInputEventMouseMoveUsesDeliveredPoint", TestPointerInputEventMouseMoveUsesDeliveredPoint);

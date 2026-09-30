@@ -400,17 +400,17 @@ void TestPassiveSupplementalTooltipUsesHostHitTestingDelayLifetimeAndClickThroug
 
 void RunTooltipTests()
 {
-    TestTooltipLayerTrackingUpdateReusesVisibleTooltip();
-    TestTooltipLayerPrefersBelowRightWhenSpaceAllows();
-    TestTooltipLayerFlipsAboveNearBottomEdge();
-    TestTooltipLayerFlipsLeftNearRightEdge();
-    TestTooltipLayerWrapsLongTextAndStaysClamped();
-    TestTooltipLayerHideDelayExpiresAfterTimerTicks();
-    TestTooltipDeadlinesUseCurrentDispatcherClockAfterIdleHostTick();
-    TestTooltipLayerTrackingMoveCancelsPendingHideDelay();
-    TestGridTooltipTracksPointerWithinSameCell();
-    TestInteractiveTooltipSurvivesEmptySupplementalTargetPass();
-    TestTreeTooltipTracksPointerWithinSameRow();
-    TestTreeTooltipFallsBackToClippedItemText();
-    TestPassiveSupplementalTooltipUsesHostHitTestingDelayLifetimeAndClickThrough();
+    DXUI_RUN_TEST(TestTooltipLayerTrackingUpdateReusesVisibleTooltip);
+    DXUI_RUN_TEST(TestTooltipLayerPrefersBelowRightWhenSpaceAllows);
+    DXUI_RUN_TEST(TestTooltipLayerFlipsAboveNearBottomEdge);
+    DXUI_RUN_TEST(TestTooltipLayerFlipsLeftNearRightEdge);
+    DXUI_RUN_TEST(TestTooltipLayerWrapsLongTextAndStaysClamped);
+    DXUI_RUN_TEST(TestTooltipLayerHideDelayExpiresAfterTimerTicks);
+    DXUI_RUN_TEST(TestTooltipDeadlinesUseCurrentDispatcherClockAfterIdleHostTick);
+    DXUI_RUN_TEST(TestTooltipLayerTrackingMoveCancelsPendingHideDelay);
+    DXUI_RUN_TEST(TestGridTooltipTracksPointerWithinSameCell);
+    DXUI_RUN_TEST(TestInteractiveTooltipSurvivesEmptySupplementalTargetPass);
+    DXUI_RUN_TEST(TestTreeTooltipTracksPointerWithinSameRow);
+    DXUI_RUN_TEST(TestTreeTooltipFallsBackToClippedItemText);
+    DXUI_RUN_TEST(TestPassiveSupplementalTooltipUsesHostHitTestingDelayLifetimeAndClickThrough);
 }

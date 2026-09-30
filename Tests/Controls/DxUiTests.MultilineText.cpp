@@ -3383,138 +3383,110 @@ void TestWrappedMultilineTextFieldMixedDialogFlowKeepsReturnEscapeAndTabRoutingC
 
 void RunMultilineTextTests()
 {
-    const auto runTest = [](const char* name, void (*fn)())
-    {
-        std::cerr << "  [START] " << name << '\n' << std::flush;
-        fn();
-        std::cerr << "  [DONE] " << name << '\n' << std::flush;
-    };
-
-    runTest("TestMultilineTextFieldCtrlASelectionReplacesAllText", TestMultilineTextFieldCtrlASelectionReplacesAllText);
-    runTest("TestWrappedMultilineTextFieldCtrlASelectionReplacesAllText", TestWrappedMultilineTextFieldCtrlASelectionReplacesAllText);
-    runTest("TestMultilineTextFieldSelectAllReplacesAllText", TestMultilineTextFieldSelectAllReplacesAllText);
-    runTest("TestWrappedMultilineTextFieldSelectAllReplacesAllText", TestWrappedMultilineTextFieldSelectAllReplacesAllText);
-    runTest("TestMultilineTextFieldBackspaceDeleteRemoveSelectedRange", TestMultilineTextFieldBackspaceDeleteRemoveSelectedRange);
-    runTest("TestWrappedMultilineTextFieldBackspaceDeleteRemoveSelectedRange", TestWrappedMultilineTextFieldBackspaceDeleteRemoveSelectedRange);
-    runTest("TestMultilineTextFieldBackspaceDeleteRemovesSelectionAcrossLogicalNewline",
-            TestMultilineTextFieldBackspaceDeleteRemovesSelectionAcrossLogicalNewline);
-    runTest("TestMultilineTextFieldBackspaceDeleteAtBoundariesLeaveTextUnchanged", TestMultilineTextFieldBackspaceDeleteAtBoundariesLeaveTextUnchanged);
-    runTest("TestWrappedMultilineTextFieldBackspaceDeleteAtBoundariesLeaveTextUnchanged",
-            TestWrappedMultilineTextFieldBackspaceDeleteAtBoundariesLeaveTextUnchanged);
-    runTest("TestMultilineTextFieldBackspaceDeleteAtCollapsedCaretRemovesSingleCharacter",
-            TestMultilineTextFieldBackspaceDeleteAtCollapsedCaretRemovesSingleCharacter);
-    runTest("TestMultilineTextFieldBackspaceDeleteAtLogicalNewlineMergesLines", TestMultilineTextFieldBackspaceDeleteAtLogicalNewlineMergesLines);
-    runTest("TestWrappedMultilineTextFieldBackspaceDeleteAtCollapsedCaretRemovesSingleCharacter",
-            TestWrappedMultilineTextFieldBackspaceDeleteAtCollapsedCaretRemovesSingleCharacter);
-    runTest("TestMultilineTextFieldCtrlInsertCopiesSelection", TestMultilineTextFieldCtrlInsertCopiesSelection);
-    runTest("TestMultilineTextFieldCtrlCCopiesSelection", TestMultilineTextFieldCtrlCCopiesSelection);
-    runTest("TestMultilineTextFieldCtrlInsertWithoutSelectionLeavesClipboardUnchanged",
-            TestMultilineTextFieldCtrlInsertWithoutSelectionLeavesClipboardUnchanged);
-    runTest("TestMultilineTextFieldCtrlCWithoutSelectionLeavesClipboardUnchanged", TestMultilineTextFieldCtrlCWithoutSelectionLeavesClipboardUnchanged);
-    runTest("TestMultilineTextFieldCtrlXCutsSelection", TestMultilineTextFieldCtrlXCutsSelection);
-    runTest("TestMultilineTextFieldCtrlInsertCopiesSelectionAcrossLogicalNewline", TestMultilineTextFieldCtrlInsertCopiesSelectionAcrossLogicalNewline);
-    runTest("TestMultilineTextFieldCtrlCCopiesSelectionAcrossLogicalNewline", TestMultilineTextFieldCtrlCCopiesSelectionAcrossLogicalNewline);
-    runTest("TestMultilineTextFieldCtrlXCutsSelectionAcrossLogicalNewline", TestMultilineTextFieldCtrlXCutsSelectionAcrossLogicalNewline);
-    runTest("TestMultilineTextFieldCtrlXWithoutSelectionLeavesClipboardUnchanged", TestMultilineTextFieldCtrlXWithoutSelectionLeavesClipboardUnchanged);
-    runTest("TestMultilineTextFieldShiftDeleteCutsSelection", TestMultilineTextFieldShiftDeleteCutsSelection);
-    runTest("TestMultilineTextFieldShiftDeleteCutsSelectionAcrossLogicalNewline", TestMultilineTextFieldShiftDeleteCutsSelectionAcrossLogicalNewline);
-    runTest("TestMultilineTextFieldShiftDeleteWithoutSelectionLeavesClipboardUnchanged",
-            TestMultilineTextFieldShiftDeleteWithoutSelectionLeavesClipboardUnchanged);
-    runTest("TestWrappedMultilineTextFieldCtrlInsertCopiesSelection", TestWrappedMultilineTextFieldCtrlInsertCopiesSelection);
-    runTest("TestWrappedMultilineTextFieldCtrlCCopiesSelection", TestWrappedMultilineTextFieldCtrlCCopiesSelection);
-    runTest("TestWrappedMultilineTextFieldCtrlInsertWithoutSelectionLeavesClipboardUnchanged",
-            TestWrappedMultilineTextFieldCtrlInsertWithoutSelectionLeavesClipboardUnchanged);
-    runTest("TestWrappedMultilineTextFieldCtrlCWithoutSelectionLeavesClipboardUnchanged",
-            TestWrappedMultilineTextFieldCtrlCWithoutSelectionLeavesClipboardUnchanged);
-    runTest("TestWrappedMultilineTextFieldCtrlXCutsSelection", TestWrappedMultilineTextFieldCtrlXCutsSelection);
-    runTest("TestWrappedMultilineTextFieldCtrlInsertCopiesPartialSelection", TestWrappedMultilineTextFieldCtrlInsertCopiesPartialSelection);
-    runTest("TestWrappedMultilineTextFieldCtrlCCopiesPartialSelection", TestWrappedMultilineTextFieldCtrlCCopiesPartialSelection);
-    runTest("TestWrappedMultilineTextFieldCtrlXCutsPartialSelection", TestWrappedMultilineTextFieldCtrlXCutsPartialSelection);
-    runTest("TestWrappedMultilineTextFieldCtrlXWithoutSelectionLeavesClipboardUnchanged",
-            TestWrappedMultilineTextFieldCtrlXWithoutSelectionLeavesClipboardUnchanged);
-    runTest("TestWrappedMultilineTextFieldShiftDeleteCutsSelection", TestWrappedMultilineTextFieldShiftDeleteCutsSelection);
-    runTest("TestWrappedMultilineTextFieldShiftDeleteCutsPartialSelection", TestWrappedMultilineTextFieldShiftDeleteCutsPartialSelection);
-    runTest("TestWrappedMultilineTextFieldShiftDeleteWithoutSelectionLeavesClipboardUnchanged",
-            TestWrappedMultilineTextFieldShiftDeleteWithoutSelectionLeavesClipboardUnchanged);
-    runTest("TestMultilineTextFieldShiftInsertPastesClipboard", TestMultilineTextFieldShiftInsertPastesClipboard);
-    runTest("TestWrappedMultilineTextFieldShiftInsertPastesClipboard", TestWrappedMultilineTextFieldShiftInsertPastesClipboard);
-    runTest("TestMultilineTextFieldCtrlVPastesClipboard", TestMultilineTextFieldCtrlVPastesClipboard);
-    runTest("TestWrappedMultilineTextFieldCtrlVPastesClipboard", TestWrappedMultilineTextFieldCtrlVPastesClipboard);
-    runTest("TestMultilineTextFieldShiftInsertReplacesPartialSelectionAcrossLogicalNewline",
-            TestMultilineTextFieldShiftInsertReplacesPartialSelectionAcrossLogicalNewline);
-    runTest("TestMultilineTextFieldCtrlVReplacesPartialSelectionAcrossLogicalNewline", TestMultilineTextFieldCtrlVReplacesPartialSelectionAcrossLogicalNewline);
-    runTest("TestWrappedMultilineTextFieldShiftInsertReplacesPartialSelection", TestWrappedMultilineTextFieldShiftInsertReplacesPartialSelection);
-    runTest("TestWrappedMultilineTextFieldCtrlVReplacesPartialSelection", TestWrappedMultilineTextFieldCtrlVReplacesPartialSelection);
-    runTest("TestMultilineTextFieldUndoRedoRestoresCollapsedCaretInsertion", TestMultilineTextFieldUndoRedoRestoresCollapsedCaretInsertion);
-    runTest("TestWrappedMultilineTextFieldUndoRedoRestoresCollapsedCaretInsertion", TestWrappedMultilineTextFieldUndoRedoRestoresCollapsedCaretInsertion);
-    runTest("TestMultilineTextFieldUndoRedoRestoresSelectAllReplacement", TestMultilineTextFieldUndoRedoRestoresSelectAllReplacement);
-    runTest("TestWrappedMultilineTextFieldUndoRedoRestoresSelectAllReplacement", TestWrappedMultilineTextFieldUndoRedoRestoresSelectAllReplacement);
-    runTest("TestMultilineTextFieldUndoRedoRestoresPartialSelectionReplacement", TestMultilineTextFieldUndoRedoRestoresPartialSelectionReplacement);
-    runTest("TestWrappedMultilineTextFieldUndoRedoRestoresPartialSelectionReplacement",
-            TestWrappedMultilineTextFieldUndoRedoRestoresPartialSelectionReplacement);
-    runTest("TestMultilineTextFieldUndoRedoWithoutHistoryLeavesTextAndCaretUnchanged", TestMultilineTextFieldUndoRedoWithoutHistoryLeavesTextAndCaretUnchanged);
-    runTest("TestWrappedMultilineTextFieldUndoRedoWithoutHistoryLeavesTextAndCaretUnchanged",
-            TestWrappedMultilineTextFieldUndoRedoWithoutHistoryLeavesTextAndCaretUnchanged);
-    runTest("TestMultilineTextFieldRedoClearsAfterNewEdit", TestMultilineTextFieldRedoClearsAfterNewEdit);
-    runTest("TestWrappedMultilineTextFieldRedoClearsAfterNewEdit", TestWrappedMultilineTextFieldRedoClearsAfterNewEdit);
-    runTest("TestMultilineTextFieldMouseClickPlacesCaretByPointAndTypesAtCaret", TestMultilineTextFieldMouseClickPlacesCaretByPointAndTypesAtCaret);
-    runTest("TestMultilineTextFieldDragSelectionReplacesDraggedRange", TestMultilineTextFieldDragSelectionReplacesDraggedRange);
-    runTest("TestMultilineTextFieldShiftClickExtendsSelectionAndReplacesRange", TestMultilineTextFieldShiftClickExtendsSelectionAndReplacesRange);
-    runTest("TestMultilineTextFieldDoubleClickSelectsWordByPointAndReplacesRange", TestMultilineTextFieldDoubleClickSelectsWordByPointAndReplacesRange);
-    runTest("TestMultilineTextFieldArrowKeysMoveCaretByCodeUnit", TestMultilineTextFieldArrowKeysMoveCaretByCodeUnit);
-    runTest("TestMultilineTextFieldShiftArrowExtendsSelection", TestMultilineTextFieldShiftArrowExtendsSelection);
-    runTest("TestMultilineTextFieldHomeEndUseLineBoundaries", TestMultilineTextFieldHomeEndUseLineBoundaries);
-    runTest("TestMultilineTextFieldShiftHomeEndExtendSelection", TestMultilineTextFieldShiftHomeEndExtendSelection);
-    runTest("TestMultilineTextFieldCtrlShiftHomeEndExtendSelection", TestMultilineTextFieldCtrlShiftHomeEndExtendSelection);
-    runTest("TestMultilineTextFieldCtrlBackspaceDeletesPreviousWord", TestMultilineTextFieldCtrlBackspaceDeletesPreviousWord);
-    runTest("TestMultilineTextFieldCtrlDeleteDeletesNextWord", TestMultilineTextFieldCtrlDeleteDeletesNextWord);
-    runTest("TestMultilineTextFieldCtrlArrowMovesByWordBoundary", TestMultilineTextFieldCtrlArrowMovesByWordBoundary);
-    runTest("TestMultilineTextFieldCtrlShiftArrowExtendsSelectionByWord", TestMultilineTextFieldCtrlShiftArrowExtendsSelectionByWord);
-    runTest("TestMultilineTextFieldUpDownPreservePreferredColumn", TestMultilineTextFieldUpDownPreservePreferredColumn);
-    runTest("TestMultilineTextFieldShiftUpDownExtendSelection", TestMultilineTextFieldShiftUpDownExtendSelection);
-    runTest("TestMultilineTextFieldPageUpDownUseViewportLines", TestMultilineTextFieldPageUpDownUseViewportLines);
-    runTest("TestWrappedMultilineTextFieldArrowKeysUseVisualLines", TestWrappedMultilineTextFieldArrowKeysUseVisualLines);
-    runTest("TestWrappedMultilineTextFieldCtrlArrowUsesWordBoundaries", TestWrappedMultilineTextFieldCtrlArrowUsesWordBoundaries);
-    runTest("TestWrappedMultilineTextFieldCtrlShiftArrowExtendsSelectionByWord", TestWrappedMultilineTextFieldCtrlShiftArrowExtendsSelectionByWord);
-    runTest("TestWrappedMultilineTextFieldShiftArrowExtendsSelectionAndReplacesRange", TestWrappedMultilineTextFieldShiftArrowExtendsSelectionAndReplacesRange);
-    runTest("TestWrappedMultilineTextFieldShiftHomeEndExtendSelectionAndReplaceRange", TestWrappedMultilineTextFieldShiftHomeEndExtendSelectionAndReplaceRange);
-    runTest("TestWrappedMultilineTextFieldCtrlShiftHomeEndExtendSelectionAndReplaceRange",
-            TestWrappedMultilineTextFieldCtrlShiftHomeEndExtendSelectionAndReplaceRange);
-    runTest("TestWrappedMultilineTextFieldShiftUpDownExtendSelectionAndReplaceRange", TestWrappedMultilineTextFieldShiftUpDownExtendSelectionAndReplaceRange);
-    runTest("TestWrappedMultilineTextFieldCtrlBackspaceDeleteUsesWordBoundaries", TestWrappedMultilineTextFieldCtrlBackspaceDeleteUsesWordBoundaries);
-    runTest("TestWrappedMultilineTextFieldMouseClickPlacesCaretByPointAndTypesAtCaret",
-            TestWrappedMultilineTextFieldMouseClickPlacesCaretByPointAndTypesAtCaret);
-    runTest("TestWrappedMultilineTextFieldDoubleClickSelectsWordByPointAndReplacesRange",
-            TestWrappedMultilineTextFieldDoubleClickSelectsWordByPointAndReplacesRange);
-    runTest("TestWrappedMultilineTextFieldDragSelectionReplacesDraggedRange", TestWrappedMultilineTextFieldDragSelectionReplacesDraggedRange);
-    runTest("TestWrappedMultilineTextFieldShiftClickExtendsSelectionAndReplacesRange", TestWrappedMultilineTextFieldShiftClickExtendsSelectionAndReplacesRange);
-    runTest("TestWrappedMultilineTextFieldPageKeysUseVisualLines", TestWrappedMultilineTextFieldPageKeysUseVisualLines);
-    runTest("TestWrappedMultilineTextFieldShiftPageDownExtendsSelectionAndReplacesRange",
-            TestWrappedMultilineTextFieldShiftPageDownExtendsSelectionAndReplacesRange);
-    runTest("TestWrappedMultilineTextFieldShiftPageUpExtendsSelectionAndReplacesRange",
-            TestWrappedMultilineTextFieldShiftPageUpExtendsSelectionAndReplacesRange);
-    runTest("TestWrappedMultilineTextFieldHomeEndUseVisualLineBoundaries", TestWrappedMultilineTextFieldHomeEndUseVisualLineBoundaries);
-    runTest("TestWrappedMultilineTextFieldCtrlHomeEndUseDocumentBoundaries", TestWrappedMultilineTextFieldCtrlHomeEndUseDocumentBoundaries);
-    runTest("TestMultilineTextFieldShiftPageDownExtendsSelection", TestMultilineTextFieldShiftPageDownExtendsSelection);
-    runTest("TestMultilineTextFieldShiftPageUpExtendsSelection", TestMultilineTextFieldShiftPageUpExtendsSelection);
-    runTest("TestMultilineTextFieldImportKeepsLaterCaretVisible", TestMultilineTextFieldImportKeepsLaterCaretVisible);
-    runTest("TestMultilineTextFieldMouseWheelScrollsViewport", TestMultilineTextFieldMouseWheelScrollsViewport);
-    runTest("TestMultilineTextFieldLargeWheelDeltaUsesFullMagnitude", TestMultilineTextFieldLargeWheelDeltaUsesFullMagnitude);
-    runTest("TestMultilineTextFieldAccumulatesPartialWheelDelta", TestMultilineTextFieldAccumulatesPartialWheelDelta);
-    runTest("TestWrappedMultilineTextFieldMouseWheelUsesLineMetrics", TestWrappedMultilineTextFieldMouseWheelUsesLineMetrics);
-    runTest("TestWrappedMultilineTextFieldCtrlWordNavigationUsesWrappedBoundaries", TestWrappedMultilineTextFieldCtrlWordNavigationUsesWrappedBoundaries);
-    runTest("TestWrappedMultilineTextFieldCtrlShiftWordSelectionUsesWrappedBoundaries",
-            TestWrappedMultilineTextFieldCtrlShiftWordSelectionUsesWrappedBoundaries);
-    runTest("TestMultilineTextFieldReturnInsertsNewlineAndCollapsesSelection", TestMultilineTextFieldReturnInsertsNewlineAndCollapsesSelection);
-    runTest("TestMultilineTextFieldReturnReplacesSelectionWithNewline", TestMultilineTextFieldReturnReplacesSelectionWithNewline);
-    runTest("TestWrappedMultilineTextFieldReturnInsertsNewlineAndCollapsesSelection", TestWrappedMultilineTextFieldReturnInsertsNewlineAndCollapsesSelection);
-    runTest("TestWrappedMultilineTextFieldReturnReplacesSelectionWithNewline", TestWrappedMultilineTextFieldReturnReplacesSelectionWithNewline);
-    runTest("TestMultilineTextFieldMenuKeyInvokesContextMenu", TestMultilineTextFieldMenuKeyInvokesContextMenu);
-    runTest("TestWrappedMultilineTextFieldMenuKeyInvokesContextMenu", TestWrappedMultilineTextFieldMenuKeyInvokesContextMenu);
-    runTest("TestMultilineTextFieldShiftF10InvokesContextMenu", TestMultilineTextFieldShiftF10InvokesContextMenu);
-    runTest("TestWrappedMultilineTextFieldShiftF10InvokesContextMenu", TestWrappedMultilineTextFieldShiftF10InvokesContextMenu);
-    runTest("TestMultilineTextFieldMixedDialogFlowKeepsReturnEscapeAndTabRoutingCorrect",
-            TestMultilineTextFieldMixedDialogFlowKeepsReturnEscapeAndTabRoutingCorrect);
-    runTest("TestWrappedMultilineTextFieldMixedDialogFlowKeepsReturnEscapeAndTabRoutingCorrect",
-            TestWrappedMultilineTextFieldMixedDialogFlowKeepsReturnEscapeAndTabRoutingCorrect);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlASelectionReplacesAllText);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlASelectionReplacesAllText);
+    DXUI_RUN_TEST(TestMultilineTextFieldSelectAllReplacesAllText);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldSelectAllReplacesAllText);
+    DXUI_RUN_TEST(TestMultilineTextFieldBackspaceDeleteRemoveSelectedRange);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldBackspaceDeleteRemoveSelectedRange);
+    DXUI_RUN_TEST(TestMultilineTextFieldBackspaceDeleteRemovesSelectionAcrossLogicalNewline);
+    DXUI_RUN_TEST(TestMultilineTextFieldBackspaceDeleteAtBoundariesLeaveTextUnchanged);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldBackspaceDeleteAtBoundariesLeaveTextUnchanged);
+    DXUI_RUN_TEST(TestMultilineTextFieldBackspaceDeleteAtCollapsedCaretRemovesSingleCharacter);
+    DXUI_RUN_TEST(TestMultilineTextFieldBackspaceDeleteAtLogicalNewlineMergesLines);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldBackspaceDeleteAtCollapsedCaretRemovesSingleCharacter);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlInsertCopiesSelection);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlCCopiesSelection);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlInsertWithoutSelectionLeavesClipboardUnchanged);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlCWithoutSelectionLeavesClipboardUnchanged);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlXCutsSelection);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlInsertCopiesSelectionAcrossLogicalNewline);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlCCopiesSelectionAcrossLogicalNewline);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlXCutsSelectionAcrossLogicalNewline);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlXWithoutSelectionLeavesClipboardUnchanged);
+    DXUI_RUN_TEST(TestMultilineTextFieldShiftDeleteCutsSelection);
+    DXUI_RUN_TEST(TestMultilineTextFieldShiftDeleteCutsSelectionAcrossLogicalNewline);
+    DXUI_RUN_TEST(TestMultilineTextFieldShiftDeleteWithoutSelectionLeavesClipboardUnchanged);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlInsertCopiesSelection);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlCCopiesSelection);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlInsertWithoutSelectionLeavesClipboardUnchanged);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlCWithoutSelectionLeavesClipboardUnchanged);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlXCutsSelection);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlInsertCopiesPartialSelection);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlCCopiesPartialSelection);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlXCutsPartialSelection);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlXWithoutSelectionLeavesClipboardUnchanged);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldShiftDeleteCutsSelection);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldShiftDeleteCutsPartialSelection);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldShiftDeleteWithoutSelectionLeavesClipboardUnchanged);
+    DXUI_RUN_TEST(TestMultilineTextFieldShiftInsertPastesClipboard);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldShiftInsertPastesClipboard);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlVPastesClipboard);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlVPastesClipboard);
+    DXUI_RUN_TEST(TestMultilineTextFieldShiftInsertReplacesPartialSelectionAcrossLogicalNewline);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlVReplacesPartialSelectionAcrossLogicalNewline);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldShiftInsertReplacesPartialSelection);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlVReplacesPartialSelection);
+    DXUI_RUN_TEST(TestMultilineTextFieldUndoRedoRestoresCollapsedCaretInsertion);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldUndoRedoRestoresCollapsedCaretInsertion);
+    DXUI_RUN_TEST(TestMultilineTextFieldUndoRedoRestoresSelectAllReplacement);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldUndoRedoRestoresSelectAllReplacement);
+    DXUI_RUN_TEST(TestMultilineTextFieldUndoRedoRestoresPartialSelectionReplacement);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldUndoRedoRestoresPartialSelectionReplacement);
+    DXUI_RUN_TEST(TestMultilineTextFieldUndoRedoWithoutHistoryLeavesTextAndCaretUnchanged);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldUndoRedoWithoutHistoryLeavesTextAndCaretUnchanged);
+    DXUI_RUN_TEST(TestMultilineTextFieldRedoClearsAfterNewEdit);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldRedoClearsAfterNewEdit);
+    DXUI_RUN_TEST(TestMultilineTextFieldMouseClickPlacesCaretByPointAndTypesAtCaret);
+    DXUI_RUN_TEST(TestMultilineTextFieldDragSelectionReplacesDraggedRange);
+    DXUI_RUN_TEST(TestMultilineTextFieldShiftClickExtendsSelectionAndReplacesRange);
+    DXUI_RUN_TEST(TestMultilineTextFieldDoubleClickSelectsWordByPointAndReplacesRange);
+    DXUI_RUN_TEST(TestMultilineTextFieldArrowKeysMoveCaretByCodeUnit);
+    DXUI_RUN_TEST(TestMultilineTextFieldShiftArrowExtendsSelection);
+    DXUI_RUN_TEST(TestMultilineTextFieldHomeEndUseLineBoundaries);
+    DXUI_RUN_TEST(TestMultilineTextFieldShiftHomeEndExtendSelection);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlShiftHomeEndExtendSelection);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlBackspaceDeletesPreviousWord);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlDeleteDeletesNextWord);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlArrowMovesByWordBoundary);
+    DXUI_RUN_TEST(TestMultilineTextFieldCtrlShiftArrowExtendsSelectionByWord);
+    DXUI_RUN_TEST(TestMultilineTextFieldUpDownPreservePreferredColumn);
+    DXUI_RUN_TEST(TestMultilineTextFieldShiftUpDownExtendSelection);
+    DXUI_RUN_TEST(TestMultilineTextFieldPageUpDownUseViewportLines);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldArrowKeysUseVisualLines);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlArrowUsesWordBoundaries);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlShiftArrowExtendsSelectionByWord);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldShiftArrowExtendsSelectionAndReplacesRange);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldShiftHomeEndExtendSelectionAndReplaceRange);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlShiftHomeEndExtendSelectionAndReplaceRange);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldShiftUpDownExtendSelectionAndReplaceRange);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlBackspaceDeleteUsesWordBoundaries);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldMouseClickPlacesCaretByPointAndTypesAtCaret);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldDoubleClickSelectsWordByPointAndReplacesRange);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldDragSelectionReplacesDraggedRange);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldShiftClickExtendsSelectionAndReplacesRange);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldPageKeysUseVisualLines);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldShiftPageDownExtendsSelectionAndReplacesRange);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldShiftPageUpExtendsSelectionAndReplacesRange);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldHomeEndUseVisualLineBoundaries);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlHomeEndUseDocumentBoundaries);
+    DXUI_RUN_TEST(TestMultilineTextFieldShiftPageDownExtendsSelection);
+    DXUI_RUN_TEST(TestMultilineTextFieldShiftPageUpExtendsSelection);
+    DXUI_RUN_TEST(TestMultilineTextFieldImportKeepsLaterCaretVisible);
+    DXUI_RUN_TEST(TestMultilineTextFieldMouseWheelScrollsViewport);
+    DXUI_RUN_TEST(TestMultilineTextFieldLargeWheelDeltaUsesFullMagnitude);
+    DXUI_RUN_TEST(TestMultilineTextFieldAccumulatesPartialWheelDelta);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldMouseWheelUsesLineMetrics);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlWordNavigationUsesWrappedBoundaries);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlShiftWordSelectionUsesWrappedBoundaries);
+    DXUI_RUN_TEST(TestMultilineTextFieldReturnInsertsNewlineAndCollapsesSelection);
+    DXUI_RUN_TEST(TestMultilineTextFieldReturnReplacesSelectionWithNewline);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldReturnInsertsNewlineAndCollapsesSelection);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldReturnReplacesSelectionWithNewline);
+    DXUI_RUN_TEST(TestMultilineTextFieldMenuKeyInvokesContextMenu);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldMenuKeyInvokesContextMenu);
+    DXUI_RUN_TEST(TestMultilineTextFieldShiftF10InvokesContextMenu);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldShiftF10InvokesContextMenu);
+    DXUI_RUN_TEST(TestMultilineTextFieldMixedDialogFlowKeepsReturnEscapeAndTabRoutingCorrect);
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldMixedDialogFlowKeepsReturnEscapeAndTabRoutingCorrect);
 }

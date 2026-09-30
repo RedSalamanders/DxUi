@@ -71,6 +71,7 @@ int wmain(int argc, wchar_t** argv)
     const auto restoreClipboard = wil::scope_exit([]() noexcept { DxUi::testTextClipboard = nullptr; });
 
     std::optional<std::wstring> suiteFilter;
+    std::vector<std::string> testNames;
     std::optional<std::filesystem::path> perfJsonlPath;
     std::optional<std::filesystem::path> galleryOutputPath;
     std::optional<std::filesystem::path> galleryOutputDirectory;
@@ -81,6 +82,7 @@ int wmain(int argc, wchar_t** argv)
     {
         const std::wstring_view arg                         = argv[argIndex] ? std::wstring_view(argv[argIndex]) : std::wstring_view{};
         constexpr std::wstring_view kSuitePrefix            = L"--suite=";
+        constexpr std::wstring_view kTestPrefix             = L"--test=";
         constexpr std::wstring_view kPerfJsonlPrefix        = L"--perf-jsonl=";
         constexpr std::wstring_view kGalleryPrefix          = L"--gallery-output=";
         constexpr std::wstring_view kGalleryDirectoryPrefix = L"--gallery-output-directory=";
@@ -93,6 +95,31 @@ int wmain(int argc, wchar_t** argv)
                 return 2;
             }
             suiteFilter = std::wstring(arg.substr(kSuitePrefix.size()));
+            continue;
+        }
+        if (arg.rfind(kTestPrefix, 0) == 0)
+        {
+            // A comma-separated list of test function names, each a C++ identifier. Repeating the option adds to the list.
+            const auto isIdentifierChar = [](wchar_t ch) noexcept
+            { return ch == L'_' || (ch >= L'0' && ch <= L'9') || (ch >= L'A' && ch <= L'Z') || (ch >= L'a' && ch <= L'z'); };
+            std::wstring_view list = arg.substr(kTestPrefix.size());
+            for (bool more = true; more;)
+            {
+                const size_t comma           = list.find(L',');
+                const std::wstring_view name = list.substr(0, comma);
+                if (name.empty() || ! std::all_of(name.begin(), name.end(), isIdentifierChar))
+                {
+                    std::wcerr << L"Expected --test=<Name>[,<Name>...] with test function names.\n";
+                    return 2;
+                }
+                std::string narrowName;
+                for (const wchar_t ch : name)
+                    narrowName.push_back(static_cast<char>(ch));
+                testNames.push_back(std::move(narrowName));
+                more = comma != std::wstring_view::npos;
+                if (more)
+                    list.remove_prefix(comma + 1u);
+            }
             continue;
         }
         if (arg == L"--write-baselines")
@@ -158,6 +185,10 @@ int wmain(int argc, wchar_t** argv)
     }
 
     SetDxUiWriteBaselines(writeBaselines);
+    if (! testNames.empty())
+    {
+        SetDxUiTestFilter(testNames);
+    }
     if (perfJsonlPath.has_value())
     {
 #if defined(NDEBUG)
@@ -184,6 +215,19 @@ int wmain(int argc, wchar_t** argv)
         }
         return _wcsicmp(wideName.c_str(), suiteFilter->c_str()) == 0;
     };
+
+    // These suites are one fixture each, with no test functions a name could select.
+    if (! testNames.empty() && suiteFilter.has_value())
+    {
+        for (const char* fixtureSuite : {"MenuTextLayoutResources", "MenuResourceScaling", "MenuResources", "Gallery", "ButtonContrast", "MenuExitLifetime"})
+        {
+            if (shouldRunSuite(fixtureSuite))
+            {
+                std::wcerr << L"--test cannot select tests within the " << *suiteFilter << L" suite: it has no individually named tests.\n";
+                return 2;
+            }
+        }
+    }
 
     const auto suiteCanActivate = [](const char* name) noexcept
     {
@@ -350,6 +394,15 @@ int wmain(int argc, wchar_t** argv)
     if (! ranAnySuite)
     {
         std::wcerr << L"Unknown suite filter: " << suiteFilter.value_or(L"<empty>") << L'\n';
+        return 2;
+    }
+    if (const std::vector<std::string> unknownTests = UnmatchedDxUiTestNames(); ! unknownTests.empty())
+    {
+        // A name no selected suite registers would otherwise pass with nothing run.
+        std::cerr << "Unknown test name for the selected suites:";
+        for (const std::string& name : unknownTests)
+            std::cerr << ' ' << name;
+        std::cerr << "\nNames are exact, case-sensitive test function names.\n";
         return 2;
     }
 
