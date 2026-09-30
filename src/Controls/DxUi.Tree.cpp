@@ -629,6 +629,14 @@ void Tree::Paint(ControlHost& host) const
     TreeItemData item;
     const VisibleSpan span = ComputeVisibleSpan(
         static_cast<uint64_t>(_model->GetVisibleItemCount()), _rowHeightDip, _verticalScrollDip, (std::max)(1.0f, contentRect.bottom - contentRect.top));
+    // Rows sit at whole-row positions offset by the scroll, so after a thumb drag the first and last visible rows straddle
+    // the viewport's edges: the rows, and those an expansion moves, are clipped to it so none paints over the frame or
+    // outside the tree. A wholly visible row, focus ring included, lies inside the viewport and is unchanged.
+    auto* const dc = host.GetDeviceContext();
+    if (dc)
+    {
+        dc->PushAxisAlignedClip(contentRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+    }
     for (uint64_t visibleIndex = span.beginIndex; visibleIndex < span.endIndex; ++visibleIndex)
     {
         _model->GetVisibleItem(static_cast<size_t>(visibleIndex), item);
@@ -702,13 +710,20 @@ void Tree::Paint(ControlHost& host) const
             }
         }
     }
+    if (dc)
+    {
+        dc->PopAxisAlignedClip();
+    }
 
-    if (_reorderDrop.has_value())
+    if (_reorderDrop.has_value() && dc)
     {
         // The drop is resolved with its row index and cleared whenever the model changes, so no id scan per paint.
         const std::optional<D2D1_RECT_F> rect = GetVisibleItemHitRect(_reorderDropIndex);
         if (rect.has_value())
         {
+            // The marker of a row that straddles an edge stops there too. The clip reaches 1 DIP past the viewport, inside
+            // the frame's inset, so a Before or After line on the edge keeps its full 2 DIP.
+            dc->PushAxisAlignedClip(InflateRect(contentRect, 0.0f, 1.0f), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
             if (_reorderDrop->place == TreeDropPlace::Inside)
             {
                 D2D1_COLOR_F fill = theme.accent;
@@ -722,6 +737,7 @@ void Tree::Paint(ControlHost& host) const
                     D2D1::RectF(contentRect.left + 4.0f, y - 1.0f, (std::max)(contentRect.left + 8.0f, contentRect.right - 4.0f), y + 1.0f);
                 DrawRoundedRect(host, line, theme.accent, theme.accent, 1.0f);
             }
+            dc->PopAxisAlignedClip();
         }
     }
 

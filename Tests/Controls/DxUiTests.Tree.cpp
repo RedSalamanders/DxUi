@@ -713,6 +713,147 @@ void TestTreeAccumulatesPartialWheelDelta()
             "two half tree wheel deltas accumulate to the same row movement as one full step");
 }
 
+// Rows sit at whole-row positions offset by the scroll, so after a scrollbar drag the first and last visible rows straddle
+// the viewport's edges. Nothing such a row paints, nor the reorder marker on it, may reach past the tree's frame: outside
+// the frame the window looks as it does with an empty tree, while inside the viewport the rows' visible parts still paint.
+void TestTreeRowsStraddlingTheViewportEdgesPaintOnlyInsideIt()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(16.0f, 40.0f, 240.0f, 136.0f));
+    tree->SetReorderEnabled(true);
+    MutableTreeModel model;
+    std::vector<TreeItemData> items;
+    for (uint64_t id = 1u; id <= 20u; ++id)
+    {
+        // Every row is a parent, so the middle of the row that straddles the bottom edge is an inside drop.
+        items.push_back(TreeItemData{.id = id, .text = L"Item " + std::to_wstring(id), .hasChildren = true});
+    }
+    model.SetVisibleItems(std::move(items));
+    tree->SetModel(&model);
+    // Selected before the scroll: selecting later would scroll the row wholly into view.
+    tree->SetSelectedItemId(2u);
+    window.Host().SetRoot(std::move(root));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.PumpMessages();
+    ControlHost& host = window.Host();
+
+    // The row height follows the host's fonts, and the viewport is inset from the frame by the same amount on every side,
+    // which the first row's top gives before any scroll. A viewport of 2.9 rows scrolled by 1.5 rows shows half of the
+    // second row at its top and four tenths of the fifth at its bottom, and the window has room above and below the frame.
+    const std::optional<D2D1_RECT_F> firstRow = tree->GetVisibleItemHitRect(0u);
+    Require(firstRow.has_value() && firstRow->bottom > firstRow->top, "the first row has a rectangle");
+    const float rowHeight = firstRow->bottom - firstRow->top;
+    const float inset     = firstRow->top - tree->GetBounds().top;
+    tree->SetBounds(D2D1::RectF(16.0f, 40.0f, 240.0f, 40.0f + (2.0f * inset) + (2.9f * rowHeight)));
+    const D2D1_RECT_F frame    = tree->GetBounds();
+    const float viewportTop    = frame.top + inset;
+    const float viewportBottom = frame.bottom - inset;
+
+    // Only a thumb drag leaves a fraction of a row: the wheel and the keys scroll by whole rows.
+    const TreeScrollbarVisualState scrollbar = tree->DebugGetScrollbarVisualState(host.GetTheme());
+    Require(scrollbar.hasVerticalScrollbar, "the tree scrolls");
+    const D2D1_RECT_F track = scrollbar.verticalTrackRect;
+    const D2D1_RECT_F thumb = scrollbar.verticalThumbRect;
+    const float available   = (track.bottom - track.top) - (thumb.bottom - thumb.top);
+    const float extent      = (20.0f * rowHeight) - (viewportBottom - viewportTop);
+    Require(available > 0.0f && extent > 0.0f, "the thumb has room to move");
+    const D2D1_POINT_2F grab   = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
+    const D2D1_POINT_2F dragTo = D2D1::Point2F(grab.x, grab.y + (1.5f * rowHeight * available / extent));
+    Require(tree->OnMouseDown(host, grab, false, 0u) && tree->OnMouseMove(host, dragTo, 0u), "the thumb drag scrolls");
+    static_cast<void>(tree->OnMouseUp(host, dragTo, false, 0u));
+
+    std::optional<size_t> topRow;
+    std::optional<size_t> bottomRow;
+    for (size_t index = 0u; index < 20u; ++index)
+    {
+        if (const std::optional<D2D1_RECT_F> rect = tree->GetVisibleItemHitRect(index))
+        {
+            if (rect->top < viewportTop && rect->bottom > viewportTop)
+            {
+                topRow = index;
+            }
+            if (rect->top < viewportBottom && rect->bottom > viewportBottom)
+            {
+                bottomRow = index;
+            }
+        }
+    }
+    Require(topRow == 1u && bottomRow.has_value(), "the selected row straddles the top edge and another row the bottom edge");
+    const D2D1_RECT_F top    = tree->GetVisibleItemHitRect(topRow.value()).value();
+    const D2D1_RECT_F bottom = tree->GetVisibleItemHitRect(bottomRow.value()).value();
+    const float bottomShown  = (viewportBottom - bottom.top) / rowHeight;
+    Require(viewportTop - top.top > 0.2f * rowHeight && top.bottom - viewportTop > 0.2f * rowHeight && bottomShown > 0.3f && bottomShown < 0.8f,
+            "each row straddles its edge by a good part of a row");
+    // In the visible part of the bottom row and in its middle half, where a drop goes inside it.
+    const D2D1_POINT_2F inBottomRow = D2D1::Point2F((bottom.left + bottom.right) * 0.5f, bottom.top + (0.5f * (0.25f + bottomShown) * rowHeight));
+    Require(tree->OnMouseMove(host, inBottomRow, 0u), "the pointer hovers the row that straddles the bottom edge");
+    WindowHostBitmapCapture straddling;
+    Require(host.DebugCaptureBitmap(straddling), "capture the rows that straddle both edges");
+
+    // A row drag over the bottom row shows the reorder marker on it. The pressed row is wholly visible, so the press
+    // scrolls nothing.
+    const float scrollDip                    = tree->DebugGetVerticalScrollDip();
+    const std::optional<D2D1_RECT_F> pressed = tree->GetVisibleItemHitRect(topRow.value() + 1u);
+    Require(pressed.has_value() && pressed->top >= viewportTop && pressed->bottom <= viewportBottom, "a wholly visible row to drag");
+    const D2D1_POINT_2F press = D2D1::Point2F((pressed->left + pressed->right) * 0.5f, (pressed->top + pressed->bottom) * 0.5f);
+    Require(tree->OnMouseDown(host, press, false, 0u) && tree->OnMouseMove(host, inBottomRow, 0u), "the row drag reaches the bottom row");
+    Require(tree->DebugGetVerticalScrollDip() == scrollDip, "the row drag scrolled nothing");
+    WindowHostBitmapCapture marker;
+    Require(host.DebugCaptureBitmap(marker), "capture the reorder marker on the bottom row");
+    Require(tree->OnKeyDown(host, VK_ESCAPE, 0u), "escape cancels the row drag");
+    static_cast<void>(tree->OnMouseUp(host, inBottomRow, false, 0u));
+
+    // The same window with an empty tree: the frame alone.
+    MutableTreeModel empty;
+    tree->SetModel(&empty);
+    WindowHostBitmapCapture frameOnly;
+    Require(host.DebugCaptureBitmap(frameOnly), "capture the empty tree");
+    Require(straddling.widthPx == frameOnly.widthPx && straddling.heightPx == frameOnly.heightPx && marker.widthPx == frameOnly.widthPx &&
+                marker.heightPx == frameOnly.heightPx,
+            "the captures have one size");
+
+    // Pixel rows kept two pixels clear of the frame's antialiased border and of the clip's edge.
+    const float scale          = host.GetDpi() / 96.0f;
+    const auto pixelRow        = [scale](float dip) noexcept { return static_cast<UINT>((std::max)(0.0f, std::floor(dip * scale))); };
+    const UINT aboveFrameEnd   = pixelRow(frame.top) - 2u;
+    const UINT belowFrameBegin = (std::min)(frameOnly.heightPx, pixelRow(frame.bottom) + 3u);
+    const auto differingInRows = [](const WindowHostBitmapCapture& actual, const WindowHostBitmapCapture& expected, UINT begin, UINT end) noexcept
+    {
+        size_t differing = 0u;
+        for (UINT y = begin; y < end && y < actual.heightPx; ++y)
+        {
+            for (UINT x = 0u; x < actual.widthPx; ++x)
+            {
+                const size_t base = ((static_cast<size_t>(y) * actual.widthPx) + x) * 4u;
+                for (size_t channel = 0u; channel < 4u; ++channel)
+                {
+                    const int delta = static_cast<int>(actual.bgraPixels[base + channel]) - static_cast<int>(expected.bgraPixels[base + channel]);
+                    if (delta > 8 || delta < -8)
+                    {
+                        ++differing;
+                        break;
+                    }
+                }
+            }
+        }
+        return differing;
+    };
+
+    Require(differingInRows(straddling, frameOnly, 0u, aboveFrameEnd) == 0u, "nothing of the selected row that straddles the top edge paints above the frame");
+    Require(differingInRows(straddling, frameOnly, belowFrameBegin, frameOnly.heightPx) == 0u,
+            "nothing of the hovered row that straddles the bottom edge paints below the frame");
+    Require(differingInRows(marker, frameOnly, belowFrameBegin, frameOnly.heightPx) == 0u,
+            "nothing of the reorder marker on the row that straddles the bottom edge paints below the frame");
+    Require(differingInRows(straddling, frameOnly, pixelRow(viewportTop) + 2u, pixelRow(top.bottom) - 1u) > 0u, "the visible part of the selected row paints");
+    Require(differingInRows(straddling, frameOnly, pixelRow(bottom.top) + 2u, pixelRow(viewportBottom) - 1u) > 0u,
+            "the visible part of the hovered row paints");
+    Require(differingInRows(marker, frameOnly, pixelRow(bottom.top) + 2u, pixelRow(viewportBottom) - 1u) > 0u,
+            "the reorder marker paints on the visible part of its row");
+}
 void TestTreeScrollbarFeedbackFollowsHoverAndDragState()
 {
     using namespace DxUi;
@@ -1386,6 +1527,7 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeLargeWheelDeltaUsesFullMagnitude);
     DXUI_RUN_TEST(TestTreeAccumulatesPartialWheelDelta);
     DXUI_RUN_TEST(TestTreeScrollbarFeedbackFollowsHoverAndDragState);
+    DXUI_RUN_TEST(TestTreeRowsStraddlingTheViewportEdgesPaintOnlyInsideIt);
     DXUI_RUN_TEST(TestTreeFocusVisualsRespectKeyboardFocusVisibilityAndHighContrast);
     DXUI_RUN_TEST(TestTreeSelectedRowUsesRainbowOnlyInRainbowMode);
     DXUI_RUN_TEST(TestTreeNotifyDataChangedClearsMissingSelection);
