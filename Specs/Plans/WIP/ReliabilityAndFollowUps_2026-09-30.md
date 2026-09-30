@@ -30,10 +30,14 @@ reviewed before it merges here, until this plan can move to Done.
 
 ### Performance evidence
 
-- [ ] 4. Paired sets can establish a result on a noisy machine. One A1/B1/B2/A2 pass gives each side two runs, and on
+- [x] 4. Paired sets can establish a result on a noisy machine. One A1/B1/B2/A2 pass gives each side two runs, and on
   2026-09-30 all 14 same-binary controls on the developer laptop drifted beyond their bands. Accept: repeated
   interleaved passes and a per-metric verdict from an exact rank test together with the investigation band; exact
   budgets stay exact; the performance contract states the rule.
+  Outcome: `-Repetitions` (default 3) repeats the interleaved pass and `Compare-PerformanceSet` gives each metric a
+  verdict from an exact Mann-Whitney U test with the investigation band, exact budgets staying exact and same-binary
+  spread only reported; the contract's paired-sets rule states it, six against six reaches p = 0.0022, and a real
+  quiet-machine set remains for the close-out.
 - [x] 5. Paired runs compare two trees. `performance-paired.ps1` refuses two uncommitted states on one commit, so the
   review follow-up sets were run by hand. Accept: `-BaselinePath` and `-CandidatePath` measure existing trees with the
   same harness overlay; identical sources are refused instead of identical commits.

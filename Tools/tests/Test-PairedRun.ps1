@@ -163,6 +163,44 @@ Invoke-FixtureCase 'a failed overlay leaves the tree as it was found' {
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $target 'Tests'))) 'the created file is gone'
 }
 
+Invoke-TestCase 'one repetition is the single pass a set has always been' {
+    $schedule = Get-PairedRunSchedule -Repetitions 1
+    Assert-Equal 'A1 B1 B2 A2' (($schedule.Steps | ForEach-Object { $_.Name }) -join ' ') 'run names'
+    Assert-Equal 'baseline candidate candidate baseline' (($schedule.Steps | ForEach-Object { $_.Side }) -join ' ') 'trees measured'
+    Assert-Equal 'A1, B1, B2, A2' $schedule.Order 'order text'
+    Assert-Equal 'B1-vs-A1 B2-vs-A2 A2-vs-A1-control B2-vs-B1-control' (($schedule.Comparisons | ForEach-Object { $_.Name }) -join ' ') 'comparison files'
+    Assert-Equal 'B1/A1 B2/A2 A2/A1 B2/B1' (($schedule.Comparisons | ForEach-Object { "$($_.Candidate)/$($_.Baseline)" }) -join ' ') 'candidate against baseline'
+    Assert-Equal 'False False True True' (($schedule.Comparisons | ForEach-Object { $_.Control }) -join ' ') 'controls'
+}
+
+Invoke-TestCase 'repetitions repeat the interleaved pass and keep every pass its own comparisons' {
+    $schedule = Get-PairedRunSchedule
+    $names = @($schedule.Steps | ForEach-Object { $_.Name })
+    Assert-Equal 'A1 B1 B2 A2 A3 B3 B4 A4 A5 B5 B6 A6' ($names -join ' ') 'three repetitions by default'
+    Assert-Equal 'A1, B1, B2, A2, A3, B3, B4, A4, A5, B5, B6, A6' $schedule.Order 'order text'
+    Assert-Equal 6 @($schedule.Steps | Where-Object { $_.Side -eq 'baseline' }).Count 'runs of the baseline'
+    Assert-Equal 6 @($schedule.Steps | Where-Object { $_.Side -eq 'candidate' }).Count 'runs of the candidate'
+    Assert-Equal 12 @($schedule.Comparisons).Count 'two crossings and two controls per pass'
+    Assert-Equal 12 @($schedule.Comparisons | ForEach-Object { $_.Name } | Select-Object -Unique).Count 'no comparison file is written twice'
+    $first = @((Get-PairedRunSchedule -Repetitions 1).Comparisons | ForEach-Object { $_.Name })
+    Assert-Equal ($first -join ' ') (@($schedule.Comparisons | Select-Object -First 4 | ForEach-Object { $_.Name }) -join ' ') 'the first pass keeps its names'
+    foreach ($comparison in $schedule.Comparisons) {
+        Assert-Contains $names $comparison.Candidate "a run measured for $($comparison.Name)"
+        Assert-Contains $names $comparison.Baseline "a run measured for $($comparison.Name)"
+    }
+    # A linear drift cancels within every pass: the baseline's two run positions sum to the candidate's.
+    for ($pass = 0; $pass -lt 3; $pass++) {
+        $steps = @($schedule.Steps | Select-Object -Skip (4 * $pass) -First 4)
+        $baselineSum = 0
+        $candidateSum = 0
+        for ($position = 0; $position -lt 4; $position++) { if ($steps[$position].Side -eq 'baseline') { $baselineSum += $position } else { $candidateSum += $position } }
+        Assert-Equal $baselineSum $candidateSum "pass $($pass + 1) is balanced against linear drift"
+    }
+    Assert-Equal 40 @((Get-PairedRunSchedule -Repetitions 10).Steps).Count 'ten repetitions'
+    Assert-Throws { Get-PairedRunSchedule -Repetitions 0 } 'no repetitions'
+    Assert-Throws { Get-PairedRunSchedule -Repetitions 11 } 'more than ten repetitions'
+}
+
 Invoke-TestCase 'only an overlay that changed a compiled input forbids reusing a build' {
     $records = @(
         [ordered]@{ path = 'performance.ps1'; action = 'replaced' }

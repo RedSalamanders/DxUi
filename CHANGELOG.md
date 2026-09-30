@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Paired sets can establish a result on a noisy machine (plan `ReliabilityAndFollowUps_2026-09-30`, item 4):
+  `performance-paired.ps1 -Repetitions N` (default 3, at most 10) repeats the interleaved A, B, B, A pass, so each side
+  has 2N runs, and judges every phase and metric on all runs at once: an exact two-sided Mann-Whitney U test (counted
+  over the observed ranks, ties included, no approximation) of the baseline run medians against the candidate's, with
+  the median shift and the metric's band (5% timing and FPS, 2% process memory). A metric is `regressed` or `improved`
+  only when p < 0.05 and the shift exceeds the band, and any rise in an exact budget (surface bytes, replacement peak,
+  allocations) in any candidate run is `regressed`; a set with a regressed metric is `advice-required`. Same-binary
+  spread is reported, not a veto. Six runs against six reach p = 0.0022 when completely separated; two against two
+  cannot reach 0.05. The first pass keeps its receipt and comparison names, and `Compare-PerformanceSet` in
+  `Tools/PerformanceComparison.psm1` is tested on synthetic receipts. The performance contract and guide state the rule.
 - `performance-paired.ps1` compares two trees (plan `ReliabilityAndFollowUps_2026-09-30`, item 5): `-BaselinePath` and
   `-CandidatePath` measure existing DxUi working trees as they are, uncommitted work included, with this checkout's
   harness written into them for the run and their files put back afterwards. A pair with a named tree is refused when

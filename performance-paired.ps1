@@ -7,13 +7,18 @@ checkout's measurement driver, comparator and benchmark inputs (the harness list
 harness measures them and a comparison rejects any fixture difference; a revision older than the PowerShell comparator
 still gets one. A named tree is measured as it is, uncommitted work included: the harness files that differ are written
 into it, with the originals saved under the run directory, and restored when the run ends. Both trees are restored and
-built, then each scenario runs serially as A1, B1, B2, A2 (A = baseline, B = candidate). B1/A1 and B2/A2 cross the
-change; A2/A1 and B2/B1 are same-source controls, judged two-sided: drift beyond a band in either direction marks the
-control unstable-control, because a set whose unchanged binary swings cannot support its crossings. Every receipt and
-comparison is retained under the run's reports directory with summary.json, which records each side's revision or
-path, commit and library source fingerprint. Flagged comparisons are findings that need developer advice, not script
-failures; invalid evidence fails. Worktrees made for the run are left in place for inspection; the harness overlay
-dirties them, so remove them with git worktree remove --force.
+built, then each scenario runs serially as A1, B1, B2, A2 (A = baseline, B = candidate), and that interleaved pass
+repeats Repetitions times (A3, B3, B4, A4, and so on), so each side ends with 2 x Repetitions runs. Within a pass, B1/A1
+and B2/A2 cross the change and A2/A1 and B2/B1 are same-source controls; those per-pass comparisons are kept for
+continuity, and a control that drifts beyond a band in either direction is listed as unstable-control, as context.
+The verdict is the set's: for every phase and metric, an exact two-sided Mann-Whitney U test of the baseline run
+medians against the candidate run medians, with the investigation band. A metric is regressed or improved only when
+p < 0.05 and the median shift exceeds the band, and any rise in an exact budget (surface bytes, replacement peak,
+allocations) is regressed; a set with a regressed metric is advice-required. Every receipt and comparison is retained
+under the run's reports directory with summary.json, which records each side's revision or path, commit and library
+source fingerprint and each scenario's set verdict. A set that is advice-required is a finding that needs developer
+advice, not a script failure; invalid evidence fails. Worktrees made for the run are left in place for inspection; the
+harness overlay dirties them, so remove them with git worktree remove --force.
 Revisions are refused when both name one commit. A pair with a named tree is refused when the two trees have identical
 library sources (nothing to compare), which is how uncommitted work on a revision's own commit is measured against it.
 .PARAMETER BaselineRevision Commit, branch or tag measured as A in a detached worktree. Give this or BaselinePath.
@@ -21,6 +26,7 @@ library sources (nothing to compare), which is how uncommitted work on a revisio
 .PARAMETER CandidateRevision Optional commit, branch or tag measured as B in a detached worktree instead of this checkout.
 .PARAMETER CandidatePath Optional existing DxUi working tree measured as B as it is instead of this checkout.
 .PARAMETER Scenario One or more performance.ps1 scenarios.
+.PARAMETER Repetitions How many times the A, B, B, A pass repeats, 1 to 10 (default 3). Three give each side six runs, whose complete separation reaches p = 0.0022; one or two runs per side cannot reach p < 0.05.
 .PARAMETER OutputDirectory Parent of the run directory; defaults to .build/paired.
 .PARAMETER SkipBuild Reuses the existing build of this checkout and of named trees; a named tree's harness overlay must not have changed a compiled input, and it needs its build. Worktrees made for the run are new and always build.
 #>
@@ -33,6 +39,7 @@ param(
     [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Release',
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
     [ValidateSet('Default','MultilineGrid','MultilineGridDistinct','MultilineGridRetention','MultilineGridHeap','MultilineGridHeapPaced')][string[]] $Scenario = @('Default'),
+    [ValidateRange(1, 10)][int] $Repetitions = 3,
     [string] $OutputDirectory = '',
     [switch] $SkipBuild
 )
@@ -184,20 +191,26 @@ try {
         & (Join-Path $side.Root 'build.ps1') -Configuration $Configuration -Platform $Platform
     }
 
+    $schedule = Get-PairedRunSchedule -Repetitions $Repetitions
+    $roots = @{ baseline = $baseline.Root; candidate = $candidate.Root }
     foreach ($scenarioName in $Scenario) {
         $runs = [ordered]@{}
-        foreach ($step in @(@('A1', $baseline.Root), @('B1', $candidate.Root), @('B2', $candidate.Root), @('A2', $baseline.Root))) {
-            $runs[$step[0]] = Invoke-Measurement -Root $step[1] -Name $step[0] -ScenarioName $scenarioName
+        foreach ($step in $schedule.Steps) {
+            $runs[$step.Name] = Invoke-Measurement -Root $roots[$step.Side] -Name $step.Name -ScenarioName $scenarioName
         }
-        $comparisons = @(
-            Compare-Measurement -Candidate $runs.B1 -Baseline $runs.A1 -Name "$scenarioName-B1-vs-A1"
-            Compare-Measurement -Candidate $runs.B2 -Baseline $runs.A2 -Name "$scenarioName-B2-vs-A2"
-            Compare-Measurement -Candidate $runs.A2 -Baseline $runs.A1 -Name "$scenarioName-A2-vs-A1-control" -Control
-            Compare-Measurement -Candidate $runs.B2 -Baseline $runs.B1 -Name "$scenarioName-B2-vs-B1-control" -Control
-        )
+        $comparisons = @(foreach ($pair in $schedule.Comparisons) {
+                Compare-Measurement -Candidate $runs[$pair.Candidate] -Baseline $runs[$pair.Baseline] -Name "$scenarioName-$($pair.Name)" -Control:$pair.Control
+            })
         $reportsByRun = [ordered]@{}
         foreach ($name in $runs.Keys) { $reportsByRun[$name] = Get-ReportMedians -Path $runs[$name] }
-        $results += [ordered]@{ scenario = $scenarioName; runs = $reportsByRun; comparisons = $comparisons }
+        # The verdict weighs every run of a side at once, from the full receipts, not the pass-by-pass comparisons above.
+        $set = try {
+            Compare-PerformanceSet -Baseline @($schedule.Steps | Where-Object { $_.Side -eq 'baseline' } | ForEach-Object { Read-PerformanceReceipt $runs[$_.Name] }) `
+                -Candidate @($schedule.Steps | Where-Object { $_.Side -eq 'candidate' } | ForEach-Object { Read-PerformanceReceipt $runs[$_.Name] })
+        } catch {
+            [ordered]@{ status = 'invalid-evidence'; error = $_.Exception.Message; metrics = @() }
+        }
+        $results += [ordered]@{ scenario = $scenarioName; runs = $reportsByRun; comparisons = $comparisons; set = $set }
     }
 
     $summary = [ordered]@{
@@ -208,7 +221,7 @@ try {
         candidateRevision = $(if ($candidate.Kind -eq 'path') { $null } else { $candidate.Spec }); candidateCommit = $candidate.Commit
         harnessCommit = (& git -C $harnessRoot rev-parse HEAD).Trim(); harnessDirty = $harnessDirty
         configuration = $Configuration; platform = $Platform
-        machine = [Environment]::MachineName; completedUtc = [DateTime]::UtcNow.ToString('o'); order = 'A1, B1, B2, A2'
+        machine = [Environment]::MachineName; completedUtc = [DateTime]::UtcNow.ToString('o'); repetitions = $Repetitions; order = $schedule.Order
         harness = $harnessHashes; scenarios = $results
     }
     $summary | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $reports 'summary.json') -Encoding utf8
@@ -221,17 +234,24 @@ try {
                 Write-Host ('  {0} {1,-5} fps {2,9:N3}  private {3,12:N0}  working set {4,12:N0}' -f $name, $phase, $m.fps, $m.privateBytes, $m.workingSetBytes)
             }
         }
+        # Each pass's crossings and controls, kept for continuity; the set's verdict below is the result.
         foreach ($comparison in $result.comparisons) {
             Write-Host "  $($comparison.name): $($comparison.status)"
             foreach ($entry in $comparison.drift) { Write-Host "    drift $entry" }
         }
+        if ($result.set.status -eq 'invalid-evidence') { Write-Host "  Set: invalid-evidence: $($result.set.error)" }
+        else { foreach ($line in Format-PerformanceSetVerdict $result.set -Label '  Set') { Write-Host $line } }
     }
     Write-Host "Paired reports: $reports"
     $invalid = @($results | ForEach-Object { $_.comparisons } | Where-Object { $_.status -eq 'invalid-evidence' })
-    if ($invalid.Count -gt 0) { throw "Invalid paired evidence: $(($invalid | ForEach-Object { $_.name }) -join ', ')" }
-    $findings = @($results | ForEach-Object { $_.comparisons } | Where-Object { $_.status -in @('advice-required', 'unstable-control') })
+    $invalidSets = @($results | Where-Object { $_.set.status -eq 'invalid-evidence' } | ForEach-Object { "$($_.scenario) set" })
+    if ($invalid.Count -gt 0 -or $invalidSets.Count -gt 0) { throw "Invalid paired evidence: $((@($invalid | ForEach-Object { $_.name }) + $invalidSets) -join ', ')" }
+    # The set decides; the passes' own flags and same-binary drift are context, listed above.
+    $findings = @($results | Where-Object { $_.set.status -eq 'advice-required' } | ForEach-Object {
+            '{0} ({1})' -f $_.scenario, ((@($_.set.metrics | Where-Object { $_.verdict -eq 'regressed' } | ForEach-Object { '{0}/{1}' -f $_.phase, $_.metric })) -join ', ')
+        })
     if ($findings.Count -gt 0) {
-        $message = "Paired findings need developer advice: $(($findings | ForEach-Object { '{0}={1}' -f $_.name, $_.status }) -join ', ')"
+        $message = "Paired findings need developer advice; regressed metrics by scenario: $($findings -join '; ')"
         # A hosted job stays green for findings; the annotation keeps them visible on the run.
         if ($env:GITHUB_ACTIONS -eq 'true') { Write-Host "::warning::$message" } else { Write-Warning $message }
     }

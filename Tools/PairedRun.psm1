@@ -133,6 +133,28 @@ function Restore-HarnessOverlay {
     }
 }
 
+function Get-PairedRunSchedule {
+    <# The order the runs go in: the interleaved pass A, B, B, A repeated Repetitions times, so a machine that drifts
+       either way lands on both sides. Runs are numbered per side as they run (A1 B1 B2 A2 A3 B3 B4 A4 ...), which keeps
+       the first pass's names, and every pass keeps its own two crossings and two same-binary controls under the names a
+       single pass has always used. Steps name the tree each run measures; comparisons name a candidate and a baseline run. #>
+    param([ValidateRange(1, 10)][int] $Repetitions = 3)
+    $steps = [Collections.Generic.List[object]]::new()
+    $comparisons = [Collections.Generic.List[object]]::new()
+    for ($pass = 1; $pass -le $Repetitions; $pass++) {
+        $first = 2 * $pass - 1
+        $second = 2 * $pass
+        foreach ($run in @(@('A', $first), @('B', $first), @('B', $second), @('A', $second))) {
+            $steps.Add([ordered]@{ Name = "$($run[0])$($run[1])"; Side = $(if ($run[0] -ceq 'A') { 'baseline' } else { 'candidate' }) })
+        }
+        $comparisons.Add([ordered]@{ Name = "B$first-vs-A$first"; Candidate = "B$first"; Baseline = "A$first"; Control = $false })
+        $comparisons.Add([ordered]@{ Name = "B$second-vs-A$second"; Candidate = "B$second"; Baseline = "A$second"; Control = $false })
+        $comparisons.Add([ordered]@{ Name = "A$second-vs-A$first-control"; Candidate = "A$second"; Baseline = "A$first"; Control = $true })
+        $comparisons.Add([ordered]@{ Name = "B$second-vs-B$first-control"; Candidate = "B$second"; Baseline = "B$first"; Control = $true })
+    }
+    return [ordered]@{ Steps = $steps.ToArray(); Comparisons = $comparisons.ToArray(); Order = (($steps | ForEach-Object { $_['Name'] }) -join ', ') }
+}
+
 function Get-OverlayCompiledChanges {
     <# The compiled benchmark inputs an overlay changed. A tree whose existing build predates them was not built from the
        harness its receipts will name, so it must be rebuilt rather than reused. #>
@@ -142,4 +164,4 @@ function Get-OverlayCompiledChanges {
 }
 
 Export-ModuleMember -Function Get-PairedHarness, Get-PairedSelection, Assert-PairedSidesDiffer, Assert-PairedTree, Copy-HarnessOverlay,
-    Restore-HarnessOverlay, Get-OverlayCompiledChanges
+    Restore-HarnessOverlay, Get-PairedRunSchedule, Get-OverlayCompiledChanges

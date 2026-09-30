@@ -31,12 +31,38 @@ When the benchmark itself changed, or the baseline predates it, measure both rev
 ```
 
 It creates a detached baseline worktree under `.build/paired`, copies this checkout's `performance.ps1`, comparator
-and benchmark inputs into it, builds both trees and runs A1, B1, B2, A2 serially (A is the baseline). B1/A1 and
-B2/A2 cross the change; A2/A1 and B2/B1 are same-source controls. A control is judged two-sided: drift beyond a
-band in either direction reports `unstable-control` (with the drifting metrics), and that set's crossings are not
-evidence until a quieter repeat is stable. `-SkipBuild` reuses the existing build of this checkout and of named
+and benchmark inputs into it, builds both trees and runs the interleaved pass A1, B1, B2, A2 serially (A is the
+baseline). `-Repetitions` (default 3, at most 10) repeats that pass as A3, B3, B4, A4 and so on, so each side ends
+with six runs per scenario by default. `-SkipBuild` reuses the existing build of this checkout and of named
 trees (below); detached worktrees always build. `-CandidateRevision` measures a second
 historical revision instead of this checkout, still with this checkout's harness.
+
+What a set establishes. A single pass gave each side two runs, and on 2026-09-30 all 14 same-binary controls on the
+developer laptop drifted beyond their bands, so no set there established anything. The verdict is now the set's, not a
+pass's. For every phase (clean, dirty) and metric, an exact two-sided Mann-Whitney U test compares the baseline's run
+medians with the candidate's (each run's median over its five rounds; six against six by default), and the
+candidate's median shift is compared with the metric's investigation band:
+
+- A metric is `regressed` (or `improved`) only when p < 0.05 and the candidate's median lies beyond its band, 5%
+  for timing and FPS and 2% for process memory, on the worse (better) side. Anything else is `within-noise`: a
+  significant shift inside the band, and a shift beyond it that the runs cannot separate from noise, are both
+  reported with their values and neither is a verdict.
+- Exact budgets (surface bytes, replacement peak, C++ allocations) stay exact: any candidate run above the
+  baseline runs' median is `regressed`, whatever the test says.
+- The set is `advice-required` when any metric is `regressed`, otherwise `within-noise-budget`, which says that no
+  change was established, not that none exists. Advice-required needs the developer's advice as before (optimize,
+  reduce scope or defer, never a silent rebaseline), once the same set repeats on a quiet fixture: about 26 metric
+  tests run per scenario, so a chance verdict is possible.
+- The runs a set can separate limit what it can establish. Complete separation of six runs against six reaches
+  p = 2/924 = 0.0022, four against four 0.029, and two against two only 0.33, which can never reach 0.05: a single
+  pass (`-Repetitions 1`) can establish only a rise in an exact budget. Each set records this smallest attainable p.
+- Each side's own spread across its runs is printed with every verdict as context and never vetoes one. The
+  per-pass comparisons (B1/A1 and B2/A2 cross the change; A2/A1 and B2/B1 are same-source controls, marked
+  `unstable-control` when they drift beyond a band in either direction) are kept for continuity and are context too.
+
+`summary.json` keeps every run's medians and, for each scenario, the set's per-metric run values, medians, shift,
+spread, p-value and verdict; `Compare-PerformanceSet` in `Tools/PerformanceComparison.psm1` judges a set again from its
+retained receipts.
 
 To measure work that is not a commit, name the tree instead: `-BaselinePath` and `-CandidatePath` take the top of an
 existing DxUi working tree with its dependencies restored (`vcpkg-install.ps1`), such as one feature worktree against
@@ -50,9 +76,10 @@ vcpkg manifests), because nothing differs to measure; that is how uncommitted wo
 compared with it. `-SkipBuild` on a named tree needs its existing build, and refuses a tree whose overlay changed a
 compiled benchmark input, since that build predates the harness its receipts would name. `summary.json` records each
 side's revision or path, commit and source fingerprint. Every receipt, comparison and
-`summary.json` is retained; flagged comparisons still need developer advice. A manual run of the
+`summary.json` is retained; an `advice-required` set still needs developer advice. A manual run of the
 [validation workflow](../.github/workflows/ci.yml) with `benchmark_baseline` (and optionally `benchmark_candidate`
-and `benchmark_scenarios`) does the same on one hosted x64 runner and uploads `paired-benchmark-x64-Release`.
+and `benchmark_scenarios`) does the same, with three repetitions, on one hosted x64 runner and uploads
+`paired-benchmark-x64-Release`.
 Hosted runs are serial on one machine but not a controlled quiet desktop; record that limitation.
 `-Scenario MultilineGridRetention` extends the French multiline fixture with six complete passes through
 its 1,000 rows. It records process memory, handles and retained surface bytes every 200 frames, after
