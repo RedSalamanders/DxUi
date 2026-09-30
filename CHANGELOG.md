@@ -69,7 +69,9 @@
   validation job runs; `test.ps1` now also runs the tooling tests. The validators' file scans no longer enter a nested
   git checkout (a directory other than the scanned root holding a `.git` file or directory, such as an agent's worktree
   under `.claude/worktrees`): validating a main checkout counted every worktree's copy of the Markdown (1,069 files
-  instead of about 214), so a half-edited worktree could fail it.
+  instead of about 214), so a half-edited worktree could fail it. Every tooling test script now sets strict mode itself,
+  which a tooling test requires: `test.ps1` is strict and the scripts it calls inherit it, so the new watchdog test passed
+  11 of 11 cases alone and failed 6 under `test.ps1` (`.Count` on a function's output unrolled to one line or none).
 - Paired sets can establish a result on a noisy machine (plan `ReliabilityAndFollowUps_2026-09-30`, item 4):
   `performance-paired.ps1 -Repetitions N` (default 3, at most 10) repeats the interleaved A, B, B, A pass, so each side
   has 2N runs, and judges every phase and metric on all runs at once: an exact two-sided Mann-Whitney U test (counted

@@ -98,9 +98,12 @@ Repository tools are PowerShell 7 scripts with no other runtime; the validators 
 the performance comparator in `Tools/PerformanceComparison.psm1`, and `Tools/tests/Invoke-ToolingTests.ps1` runs their
 tests. `validate.ps1` is the one validation entry point: it runs the five validators below and the tooling tests, each
 in its own process, and reports every failure before it fails. CI's validation job runs it, and `test.ps1` runs the
-tooling tests beside its native suites. The validators' file scans do not enter a nested git checkout, a directory other
-than the scanned root that holds a `.git` file or directory (such as an agent's worktree under `.claude/worktrees`):
-another checkout's files are not this tree's, and a half-edited copy cannot fail it.
+tooling tests beside its native suites. Every script under `Tools/tests` sets `Set-StrictMode -Version Latest` itself,
+as `test.ps1` and `Invoke-ToolingTests.ps1` do, because the scripts they call inherit it: a script that is not strict
+itself can pass when run alone and fail under them, and a tooling test requires it. The validators' file scans do not
+enter a nested git checkout, a directory other than the scanned root that holds a `.git` file or directory (such as an
+agent's worktree under `.claude/worktrees`): another checkout's files are not this tree's, and a half-edited copy
+cannot fail it.
 `validate-skills.ps1` checks all repository skills, reading front matter as a strict `key: value` subset of YAML
 that any YAML parser reads the same way; `validate-specs.ps1`
 checks local links, normative documents and plan indexes; `validate-dependencies.ps1` verifies historical origin

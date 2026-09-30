@@ -147,6 +147,13 @@ Invoke-FixtureCase 'every validation step runs and every failure is reported' {
     Assert-Equal 5 $results.Count 'stray step output is not a result'
 }
 
+Invoke-TestCase 'every tooling test script is strict itself, so a direct run fails as its run under test.ps1 does' {
+    # test.ps1 and Invoke-ToolingTests.ps1 are strict and the scripts they call inherit it: a script that is not strict itself
+    # can pass when run directly and fail under them, as .Count on a function's unrolled output did in Test-TestWatchdog.ps1.
+    $lax = @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.ps1' | Where-Object { [IO.File]::ReadAllText($_.FullName) -notmatch '(?m)^Set-StrictMode -Version Latest\r?$' } | ForEach-Object Name)
+    Assert-Equal 0 $lax.Count "tooling tests without Set-StrictMode -Version Latest: $($lax -join ', ')"
+}
+
 Invoke-TestCase 'the validation entry point covers every validator and is what CI and test.ps1 run' {
     $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
     $steps = @(Get-DxUiValidationSteps)

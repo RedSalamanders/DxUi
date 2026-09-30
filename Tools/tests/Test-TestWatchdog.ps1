@@ -6,6 +6,7 @@
     [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Debug',
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64'
 )
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../SuiteFailure.psm1') -Force
@@ -38,7 +39,7 @@ function Invoke-Bounded([string[]] $Arguments, [int] $BoundSeconds, [string] $Fi
         }
     } finally { $process.Dispose() }
 }
-function Get-Lines($Run, [string] $Pattern) { @($Run.Output | Where-Object { $_ -match $Pattern }) }
+function Get-Lines($Run, [string] $Pattern) { return , @($Run.Output | Where-Object { $_ -match $Pattern }) }
 
 # The CPU seconds a hanging run spends in two seconds once its test has started (its marker is the last line it prints before it
 # hangs): a thread that polled would spend about two of them, one that waits on an event or a condition variable spends none. The

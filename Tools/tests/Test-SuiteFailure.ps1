@@ -1,6 +1,7 @@
 # What test.ps1 tells the developer about a control suite that exits nonzero (Tools/SuiteFailure.psm1), on fixture logs. The same
 # report on a log written by the built executable is in Test-TestWatchdog.ps1.
 [CmdletBinding()] param()
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../SuiteFailure.psm1') -Force
