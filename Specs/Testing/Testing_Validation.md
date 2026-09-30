@@ -150,7 +150,8 @@ foreground failed on a takeover it says nothing about. Such a fixture runs its f
 `RunWhileForegroundHeld` (`Tests/Controls/DxUiTestHelpers.h`): the harness window counts the `WM_ACTIVATEAPP` (FALSE)
 deliveries, the sequence repeats after a takeover (the window re-activates through `TryActivateDxUiTestWindow`; five runs
 at most) and the assertions are made on the run that kept the foreground, so they are exactly those of a run without a
-thief. A run in which no application took the foreground is never repeated, so a regression still fails. When another
+thief. A run in which no application took the foreground is never repeated, so a regression still fails, and each
+repeat is logged as `[FOREGROUND] <executable> (process <id>) took the foreground in run <n> of <max>`. When another
 application takes the foreground in every run, the fixture records a capability skip naming its executable and process
 id. The NativeTextInput fixtures that pump after taking focus (host focus, the TSF document, the system caret, the
 key-to-paint scenario) use it, and two deterministic fixtures deliver the takeover as Windows sends it to a window nobody

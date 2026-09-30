@@ -19,30 +19,25 @@ reviewed before it merges here, until this plan can move to Done.
   then the document is gone. A foreground log showed the desktop app retaking it 30-95 ms after each test window; three
   of six local x64 Debug runs failed, and the unchanged baseline failed the same way. Accept: ten consecutive local runs
   end in a pass or an explicit environment skip naming the foreground process, never the false failure; a genuine TSF
-  activation regression still fails. Done: the harness window counts the `WM_ACTIVATEAPP` (FALSE) a takeover sends, and
-  `RunWhileForegroundHeld` repeats a focus-and-pump sequence (five runs at most) until none arrives, so the assertions
-  are the former ones on a run that kept the foreground; when another application takes it every run, the test records a
-  skip naming its executable. Only four of the 129 tests pump after taking focus (host focus, the TSF document, the
-  system caret, the key-to-paint scenario); an emulated thief (`--foreground-thief=1,3`) failed exactly those four
-  before. Ten consecutive `test.ps1 -Suites NativeTextInput` runs passed, three of them after a real takeover the
-  fixtures repeated (`claude.exe` twice in the TSF test, `PowerToys.MouseWithoutBordersHelper.exe` once in the
-  host-focus test).
+  activation regression still fails. Done: the harness counts the `WM_ACTIVATEAPP` (FALSE) a takeover sends and
+  `RunWhileForegroundHeld` repeats a focus-and-pump sequence (five runs at most) until none arrives, so the four tests
+  that pump after taking focus (of 129; an emulated thief failed exactly those) make their former assertions on a run
+  that kept the foreground and skip naming the thief when none does; ten consecutive `test.ps1 -Suites NativeTextInput`
+  runs passed, three of them after a real takeover it repeated (`claude.exe` twice in the TSF test, PowerToys' Mouse
+  Without Borders helper once in the host-focus test).
 - [x] 2. A deterministic described-menu memory check. The test walks the process heap, so on a software renderer (the
   GPU-less CI runners) it can only require half of the open memory back: the renderer's surfaces and caches swing by up
   to about 3 MB per cycle. Accept: a test-only counter of DxUi's own live described-menu resources returns to its
   pre-open value after close while a client holds row elements, on every renderer; pinning the rows fails the test.
-  Done: `DebugGetContextMenuResources` counts the live menu popups, the text layouts their described rows hold and the
-  accessibility records of menu-popup snapshots; a 200-row menu raises them from 0 to 1, 400 and 200 while open, and
-  with eight row elements held they are 0, 0 and 0 again after close, on any renderer and allocator (the heap is only
-  printed, and the test no longer skips under AddressSanitizer). It fails when providers pin a snapshot or a closed
-  window's target keeps its last one (200 records stay), and when a popup is never freed (popup and layouts stay).
+  Done: `DebugGetContextMenuResources` counts live menu popups, described-row text layouts and menu-popup accessibility
+  records, which a 200-row menu raises from 0 to 1, 400 and 200 and, with eight row elements held, closing returns to
+  0, 0 and 0 on any renderer (the heap is only printed); pinning a snapshot, keeping one after close or never freeing
+  a popup fails the test.
 - [x] 3. The control-test runner runs single tests. Only whole suites run today, which takes minutes. Accept:
   `--test=<Name>[,<Name>]` (and `test.ps1 -Tests`) runs only the named tests; an unknown name fails the run; unfiltered
-  suites still run every test. Done: every suite runner registers its tests as `DXUI_RUN_TEST(TestName);`, which checks the
-  filter and prints the `[START]`/`[DONE]` markers; a name no selected suite registers, a malformed list or a fixture
-  suite exits 2. `test.ps1 -Suites Menu -Tests TestDescribedMenuReleasesItsMemoryWhenItCloses` ran that test alone in
-  4.3 s including its benchmark, and the 17 unfiltered suites start the same 1,006 tests in the same order as their
-  runners did at `cf6722f`.
+  suites still run every test. Done: every runner registers its tests as `DXUI_RUN_TEST(TestName);` and `--test=` /
+  `-Tests` runs only the named ones (one Menu test in 4.3 s inside `test.ps1`), an unknown name exits 2, and the 17
+  unfiltered suites start the same 1,006 tests in the same order as their runners did at `cf6722f`.
 
 ### Performance evidence
 
