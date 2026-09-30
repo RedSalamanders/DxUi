@@ -118,8 +118,12 @@ reviewed before it merges here, until this plan can move to Done.
   commits it on a chosen branch, with the same safeguards as the formatting workflow's apply mode.
   Outcome: the manual `Publish docs gallery` workflow regenerates the gallery natively and commits it through the
   tested `Tools/Commit-Gallery.ps1` with the formatting workflow's safeguards (dispatch only, an explicit boolean input,
-  `contents: write` for that job, an ordinary push, a no-op when only `generation.json` changed); its first real run on
-  hosted runners remains for the close-out.
+  `contents: write` for that job, an ordinary push, a no-op when only `generation.json` changed). Its first real run
+  follows the merge, because GitHub dispatches a workflow only once it is on the default branch, and it commits, so it
+  waits for the developer's go-ahead. The published sheets are a hosted runner's output from `ed1dea9`, before PR 29's
+  visual changes. Sheets rendered on another machine differ from them byte for byte whatever the source, so they
+  cannot show whether this plan changed any visuals; the close-out compares `main` with this branch on one machine
+  instead.
 
 ### Close-out
 
