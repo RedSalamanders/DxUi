@@ -4947,7 +4947,9 @@ void TestWindowHostRebuildRaisesStructureInvalidation()
     const auto stopClient = wil::scope_exit([&]() noexcept
     {
         SetEvent(stop.get());
-        static_cast<void>(waitUntil(kNotificationDeadlineMs, [&] { return finished.load(); }));
+        // The jthread joins after this without pumping, and the client's teardown may need this thread's providers to answer:
+        // wait for it here, pumping, as long as its setup was allowed, and fail instead of hanging in the join.
+        Require(waitUntil(kClientSetupAllowanceMs, [&] { return finished.load(); }), "the UIA client thread ends");
     });
     Require(waitUntil(kClientSetupAllowanceMs, [&] { return ready.load(); }) && SUCCEEDED(setup.load()), "subscribe UIA structure changes");
 
@@ -5081,7 +5083,9 @@ void TestCollapsedStatusRootChildEventComesFromTheChild()
     const auto stopClient = wil::scope_exit([&]() noexcept
     {
         SetEvent(stop.get());
-        static_cast<void>(waitUntil(kNotificationDeadlineMs, [&] { return finished.load(); }));
+        // The jthread joins after this without pumping, and the client's teardown may need this thread's providers to answer:
+        // wait for it here, pumping, as long as its setup was allowed, and fail instead of hanging in the join.
+        Require(waitUntil(kClientSetupAllowanceMs, [&] { return finished.load(); }), "the UIA client thread ends");
     });
     Require(waitUntil(kClientSetupAllowanceMs, [&] { return ready.load(); }) && SUCCEEDED(setup.load()), "subscribe disclosure changes below the status root");
 

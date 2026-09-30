@@ -33,6 +33,61 @@ void RunGalleryGenerator(const std::filesystem::path& outputPath);
 void RunGalleryGeneratorPerTheme(const std::filesystem::path& outputDirectory);
 void RunButtonContrastAuditGenerator(const std::filesystem::path& outputPath);
 
+namespace
+{
+// Suites that are one fixture each, with no test functions a name could select: --test cannot select within them, and the
+// watchdog bounds each as one unit (the resource fixtures report every cycle with NoteDxUiTestProgress). The last two belong
+// to the watchdog's self-test.
+constexpr std::array<const char*, 8> kFixtureSuites{"MenuTextLayoutResources",
+                                                    "MenuResourceScaling",
+                                                    "MenuResources",
+                                                    "Gallery",
+                                                    "ButtonContrast",
+                                                    "MenuExitLifetime",
+                                                    "WatchdogSelfTestFixture",
+                                                    "WatchdogSelfTestProgress"};
+
+// The watchdog's self-test, reachable only through --watchdog-self-test[=test|fixture|progress], which
+// Tools/tests/Test-TestWatchdog.ps1 runs with a two-second deadline: without the watchdog the first two never return.
+[[nodiscard]] wil::unique_event_nothrow MakeEventNobodySets()
+{
+    wil::unique_event_nothrow never(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(static_cast<bool>(never), "the watchdog self-test creates its event");
+    return never;
+}
+
+// A test that never returns, as the hung Menu test did.
+void TestWatchdogSelfTestBlocksForever()
+{
+    const wil::unique_event_nothrow never = MakeEventNobodySets();
+    static_cast<void>(WaitForSingleObject(never.get(), INFINITE));
+}
+
+void RunWatchdogSelfTest()
+{
+    DXUI_RUN_TEST(TestWatchdogSelfTestBlocksForever);
+}
+
+// A fixture suite that never returns. It has no named test for DXUI_RUN_TEST to arm, so the runner arms the suite.
+void RunWatchdogSelfTestFixture()
+{
+    const wil::unique_event_nothrow never = MakeEventNobodySets();
+    static_cast<void>(WaitForSingleObject(never.get(), INFINITE));
+}
+
+// A fixture whose run outlives the deadline as a whole but whose cycles do not: each waits a second on an event nobody
+// sets, then reports its progress, so the deadline starts over and the run ends by itself.
+void RunWatchdogSelfTestProgress()
+{
+    const wil::unique_event_nothrow never = MakeEventNobodySets();
+    for (int cycle = 0; cycle < 4; ++cycle)
+    {
+        Require(WaitForSingleObject(never.get(), 1000u) == WAIT_TIMEOUT, "the watchdog self-test's event is never set");
+        NoteDxUiTestProgress();
+    }
+}
+} // namespace
+
 int wmain(int argc, wchar_t** argv)
 {
     class TestClipboard final : public DxUi::TextClipboard
@@ -78,13 +133,29 @@ int wmain(int argc, wchar_t** argv)
     std::optional<std::filesystem::path> galleryOutputPath;
     std::optional<std::filesystem::path> galleryOutputDirectory;
     std::optional<std::filesystem::path> buttonAuditOutputPath;
-    bool writeBaselines  = false;
-    bool blockActivation = false;
+    std::optional<std::wstring> watchdogSelfTest;
+    unsigned testTimeoutSeconds = DxUi::TestSupport::kDefaultTestTimeoutSeconds;
+    bool writeBaselines         = false;
+    bool blockActivation        = false;
+    // A whole number of at most `maximumDigits` decimal digits.
+    const auto parseWholeNumber = [](std::wstring_view digits, size_t maximumDigits) -> std::optional<DWORD>
+    {
+        if (digits.empty() || digits.size() > maximumDigits ||
+            ! std::all_of(digits.begin(), digits.end(), [](wchar_t ch) noexcept { return ch >= L'0' && ch <= L'9'; }))
+            return std::nullopt;
+        DWORD value = 0u;
+        for (const wchar_t ch : digits)
+            value = value * 10u + static_cast<DWORD>(ch - L'0');
+        return value;
+    };
     for (int argIndex = 1; argIndex < argc; ++argIndex)
     {
         const std::wstring_view arg                         = argv[argIndex] ? std::wstring_view(argv[argIndex]) : std::wstring_view{};
         constexpr std::wstring_view kSuitePrefix            = L"--suite=";
         constexpr std::wstring_view kTestPrefix             = L"--test=";
+        constexpr std::wstring_view kTestTimeoutPrefix      = L"--test-timeout=";
+        constexpr std::wstring_view kWatchdogSelfTestFlag   = L"--watchdog-self-test";
+        constexpr std::wstring_view kWatchdogSelfTestPrefix = L"--watchdog-self-test=";
         constexpr std::wstring_view kForegroundThiefFlag    = L"--foreground-thief";
         constexpr std::wstring_view kForegroundThiefPrefix  = L"--foreground-thief=";
         constexpr std::wstring_view kPerfJsonlPrefix        = L"--perf-jsonl=";
@@ -126,6 +197,31 @@ int wmain(int argc, wchar_t** argv)
             }
             continue;
         }
+        if (arg.rfind(kTestTimeoutPrefix, 0) == 0)
+        {
+            // The seconds each test may run before the watchdog ends the run; 0 turns the watchdog off.
+            const std::optional<DWORD> seconds = parseWholeNumber(arg.substr(kTestTimeoutPrefix.size()), 6u);
+            if (! seconds)
+            {
+                std::wcerr << L"Expected --test-timeout=<seconds> with a whole number of seconds (0 turns the watchdog off).\n";
+                return 2;
+            }
+            testTimeoutSeconds = seconds.value();
+            continue;
+        }
+        if (arg == kWatchdogSelfTestFlag || arg.rfind(kWatchdogSelfTestPrefix, 0) == 0)
+        {
+            // Hidden: one test (or fixture suite) that never returns, for Tools/tests/Test-TestWatchdog.ps1 to prove the
+            // watchdog ends it. It is in no suite and no run reaches it without this switch.
+            const std::wstring_view mode = arg == kWatchdogSelfTestFlag ? std::wstring_view(L"test") : arg.substr(kWatchdogSelfTestPrefix.size());
+            if (mode != L"test" && mode != L"fixture" && mode != L"progress")
+            {
+                std::wcerr << L"Expected --watchdog-self-test[=test|fixture|progress].\n";
+                return 2;
+            }
+            watchdogSelfTest = std::wstring(mode);
+            continue;
+        }
         if (arg == kForegroundThiefFlag || arg.rfind(kForegroundThiefPrefix, 0) == 0)
         {
             // The delay range in milliseconds between a window of this process becoming the foreground window and the thief
@@ -133,20 +229,10 @@ int wmain(int argc, wchar_t** argv)
             foregroundThiefDelayMs = std::pair<DWORD, DWORD>{30u, 95u};
             if (arg != kForegroundThiefFlag)
             {
-                const auto parseMilliseconds = [](std::wstring_view digits) -> std::optional<DWORD>
-                {
-                    if (digits.empty() || digits.size() > 5u ||
-                        ! std::all_of(digits.begin(), digits.end(), [](wchar_t ch) noexcept { return ch >= L'0' && ch <= L'9'; }))
-                        return std::nullopt;
-                    DWORD value = 0u;
-                    for (const wchar_t ch : digits)
-                        value = value * 10u + static_cast<DWORD>(ch - L'0');
-                    return value;
-                };
                 const std::wstring_view range    = arg.substr(kForegroundThiefPrefix.size());
                 const size_t comma               = range.find(L',');
-                const std::optional<DWORD> first = parseMilliseconds(range.substr(0, comma));
-                const std::optional<DWORD> last  = comma == std::wstring_view::npos ? std::nullopt : parseMilliseconds(range.substr(comma + 1u));
+                const std::optional<DWORD> first = parseWholeNumber(range.substr(0, comma), 5u);
+                const std::optional<DWORD> last  = comma == std::wstring_view::npos ? std::nullopt : parseWholeNumber(range.substr(comma + 1u), 5u);
                 if (! first || ! last || first.value() > last.value())
                 {
                     std::wcerr << L"Expected --foreground-thief[=<minMs>,<maxMs>] with minMs <= maxMs.\n";
@@ -253,7 +339,7 @@ int wmain(int argc, wchar_t** argv)
     // These suites are one fixture each, with no test functions a name could select.
     if (! testNames.empty() && suiteFilter.has_value())
     {
-        for (const char* fixtureSuite : {"MenuTextLayoutResources", "MenuResourceScaling", "MenuResources", "Gallery", "ButtonContrast", "MenuExitLifetime"})
+        for (const char* fixtureSuite : kFixtureSuites)
         {
             if (shouldRunSuite(fixtureSuite))
             {
@@ -261,6 +347,11 @@ int wmain(int argc, wchar_t** argv)
                 return 2;
             }
         }
+    }
+    if (watchdogSelfTest.has_value() && (suiteFilter.has_value() || ! testNames.empty()))
+    {
+        std::wcerr << L"--watchdog-self-test cannot combine with --suite or --test.\n";
+        return 2;
     }
 
     const auto suiteCanActivate = [](const char* name) noexcept
@@ -307,14 +398,50 @@ int wmain(int argc, wchar_t** argv)
         }
     });
 
-    auto runSuite = [&](const char* name, void (*fn)())
+    // Every test runs under the watchdog's deadline, and so does a fixture suite, which has no named tests to arm it (see
+    // Tests/Support/TestWatchdog.h). The line says what a run allows, so a log shows the deadline that ended it.
+    DxUi::TestSupport::TestWatchdog::Instance().SetTimeout(std::chrono::seconds(testTimeoutSeconds));
+    if (testTimeoutSeconds != 0u)
+        std::cerr << "[WATCHDOG] each test may run " << testTimeoutSeconds << " s; a test that outlives it ends the run with exit code "
+                  << DxUi::TestSupport::kTestTimeoutExitCode << '\n'
+                  << std::flush;
+    else
+        std::cerr << "[WATCHDOG] off (--test-timeout=0)\n" << std::flush;
+
+    const auto isFixtureSuite = [](const char* name) noexcept
+    { return std::any_of(kFixtureSuites.begin(), kFixtureSuites.end(), [name](const char* fixture) noexcept { return _stricmp(name, fixture) == 0; }); };
+    auto runSuite = [&](const char* name, auto&& suite)
     {
         SetDxUiTestWindowsCanActivate(suiteCanActivate(name));
         std::cerr << "[START] " << name << '\n' << std::flush;
-        fn();
+        const auto started = std::chrono::steady_clock::now();
+        {
+            std::optional<DxUi::TestSupport::ScopedTestDeadline> fixtureDeadline;
+            if (isFixtureSuite(name))
+                fixtureDeadline.emplace(name);
+            suite();
+        }
         DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
-        std::cerr << "[DONE] " << name << '\n' << std::flush;
+        std::cerr << std::format("[DONE] {} ({:.3f} s)\n", name, std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count())
+                  << std::flush;
     };
+
+    if (watchdogSelfTest.has_value())
+    {
+        // Two of the three never return, so with the watchdog on the run ends inside them; returning from either is the failure.
+        if (watchdogSelfTest.value() == L"progress")
+        {
+            runSuite("WatchdogSelfTestProgress", RunWatchdogSelfTestProgress);
+            std::cout << "The watchdog self-test ended by itself.\n";
+            return 0;
+        }
+        if (watchdogSelfTest.value() == L"fixture")
+            runSuite("WatchdogSelfTestFixture", RunWatchdogSelfTestFixture);
+        else
+            runSuite("WatchdogSelfTest", RunWatchdogSelfTest);
+        std::cerr << "FAILED: the watchdog self-test returned, so nothing ended it.\n";
+        return 1;
+    }
 
     bool ranAnySuite = false;
     if (suiteFilter.has_value() && shouldRunSuite("MenuTextLayoutResources"))
@@ -335,26 +462,24 @@ int wmain(int argc, wchar_t** argv)
     if (suiteFilter.has_value() && shouldRunSuite("Gallery"))
     {
         const std::filesystem::path outputPath = galleryOutputPath.value_or(GetDxUiTestArtifactPath(L"DxUiControlGallery.png"));
-        std::cerr << "[START] Gallery\n" << std::flush;
-        if (galleryOutputDirectory.has_value())
+        runSuite("Gallery",
+                 [&]
         {
-            RunGalleryGeneratorPerTheme(galleryOutputDirectory.value());
-        }
-        else
-        {
-            RunGalleryGenerator(outputPath);
-        }
-        DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
-        std::cerr << "[DONE] Gallery\n" << std::flush;
+            if (galleryOutputDirectory.has_value())
+            {
+                RunGalleryGeneratorPerTheme(galleryOutputDirectory.value());
+            }
+            else
+            {
+                RunGalleryGenerator(outputPath);
+            }
+        });
         ranAnySuite = true;
     }
     if (suiteFilter.has_value() && shouldRunSuite("ButtonContrast"))
     {
         const std::filesystem::path outputPath = buttonAuditOutputPath.value_or(GetDxUiTestArtifactPath(L"DxUiButtonContrast.png"));
-        std::cerr << "[START] ButtonContrast\n" << std::flush;
-        RunButtonContrastAuditGenerator(outputPath);
-        DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
-        std::cerr << "[DONE] ButtonContrast\n" << std::flush;
+        runSuite("ButtonContrast", [&] { RunButtonContrastAuditGenerator(outputPath); });
         ranAnySuite = true;
     }
     if (suiteFilter.has_value() && shouldRunSuite("MenuExitLifetime"))

@@ -239,6 +239,11 @@ changes; native ARM64 CI must also pass. To iterate on one control test instead 
 `./test.ps1 -Configuration Debug -Platform x64 -SkipBuild -Suites Menu -Tests TestDescribedMenuReleasesItsMemoryWhenItCloses`
 (or `DxUi.ControlTests.exe --suite=Menu --test=<Name>[,<Name>]`): only the named tests run, an unknown name fails the run,
 and the receipt is a separate `*.filtered.json` file. It supports development; a change is validated by the whole suites.
+A test that never returns must not hold a CI job: the runner gives every control test (and every fixture suite without named
+tests) a deadline, 300 s by default, and a test that outlives it ends the run with `TIMEOUT: <TestName> after <N> s` and exit
+code 124. `DxUi.ControlTests.exe --test-timeout=<seconds>` (`test.ps1 -TestTimeout <seconds>`) changes it and 0 turns it off,
+which debugging a test needs; every run prints its deadline on a `[WATCHDOG]` line and every `[DONE]` marker carries the
+test's duration. `test.ps1` prints a failing suite's exit code, its `TIMEOUT:` line and the last lines of its log.
 Use `gallery.ps1 -PublishDocs` after visual/control changes and review all
 generated sheets. CI's x64 Release job runs the same command and uploads its `docs/gallery` output as
 `docs-gallery-x64-Release` for review. To publish it after a merge, run the manual

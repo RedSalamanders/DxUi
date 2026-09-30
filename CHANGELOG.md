@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- A hung control test ends the run with its name instead of holding a CI job (plan `ReliabilityAndFollowUps_2026-09-30`,
+  item 12). On the pull-request run of PR 30 the x64 ASan Debug job printed nothing for the 35 minutes between starting the
+  Menu suite and the job's 40-minute limit, and its log named no test. Every control test a suite runner starts through
+  `DXUI_RUN_TEST`, and every fixture suite without named tests, now runs under a watchdog: one thread waits for the deadline
+  on a condition variable (it never polls) and, when a test outlives it, writes `TIMEOUT: <TestName> after <N> s` and
+  terminates the process with exit code 124, since a stuck test cannot be unwound. The deadline is 300 s, forty times the
+  slowest of the 816 non-foreground tests under AddressSanitizer (7.5 s); `DxUi.ControlTests.exe --test-timeout=<seconds>` and
+  `test.ps1 -TestTimeout <seconds>` set it and 0 turns it off. Every run prints its deadline, every `[DONE]` marker carries the
+  test's duration, and `test.ps1` reports a failing suite's exit code and `TIMEOUT:` line beside the last lines of its log
+  (`Tools/SuiteFailure.psm1`). The three resource fixtures report each sample, so their deadline bounds a cycle. A hidden
+  `--watchdog-self-test` switch runs a test that never returns, and `Tools/tests/Test-TestWatchdog.ps1` asserts the exit code,
+  the line and the time, and that with the watchdog off the same test still hangs. The audit of the Menu, NativeTextInput and
+  resource suites found no unbounded polling loop, `INFINITE` wait or UI Automation wait without a deadline, but two ways a
+  test could still hang: a driver thread that gave up before it found its popup left the owner thread in `ContextMenu::Show`'s
+  modal loop for good (every driver now starts with `DismissMenusIfDriverFails`, which a new test with a driver that fails
+  at once requires to close the menu, and a source scan requires in every driver), and a UI Automation client thread was
+  joined after a pumped wait of 3 s although its teardown may need the pumping thread (the Menu and Accessibility tests
+  that join one now wait as long as its setup was allowed, 20 s, and fail the test). Tests and tooling only: no library code
+  changed, and the five gallery sheets are byte-identical, so `docs/gallery` needs no update.
 - A `Grid` that stops painting returns its retained text layouts (plan `ReliabilityAndFollowUps_2026-09-30`, item 9):
   hidden itself or under a hidden ancestor (an unselected tab page, a collapsed panel or page host), in a hidden
   embedded view, detached from its host or given another model, it releases its layouts, their key strings, its tables

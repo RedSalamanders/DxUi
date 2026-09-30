@@ -2,7 +2,7 @@
 [CmdletBinding()] param()
 $ErrorActionPreference = 'Stop'
 $failed = [Collections.Generic.List[string]]::new()
-foreach ($name in @('Test-Validation.ps1', 'Test-Docs.ps1', 'Test-TestPort.ps1', 'Test-BuildMatrix.ps1', 'Test-PerformanceComparison.ps1', 'Test-PairedRun.ps1')) {
+foreach ($name in @('Test-Validation.ps1', 'Test-Docs.ps1', 'Test-TestPort.ps1', 'Test-BuildMatrix.ps1', 'Test-PerformanceComparison.ps1', 'Test-PairedRun.ps1', 'Test-SuiteFailure.ps1')) {
     Write-Host "== $name"
     try { & (Join-Path $PSScriptRoot $name) } catch { $failed.Add($name); Write-Host $_.Exception.Message }
 }
