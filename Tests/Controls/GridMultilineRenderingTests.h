@@ -179,6 +179,17 @@ void TestGridMultilineShapedPrefixCutInsideAClusterPaintsLikeItsShortTwin()
     };
     const std::array<ClampCase, 3> clampCases{{{1u, 70u, 100u}, {2u, 160u, 300u}, {3u, 210u, 400u}}};
     const std::wstring plain = RepeatToUnits(L"mot suivant très long ", 400u);
+    // What each alignment shaped, checked once every paint has been compared: the pixels say the cut is invisible, the units that
+    // the guard stepped back.
+    struct Observation
+    {
+        uint32_t clamp;
+        const char* tail;
+        bool surrogates;
+        uint64_t least;
+        uint64_t most;
+    };
+    std::vector<Observation> observations;
     for (const ClampCase& clampCase : clampCases)
     {
         bed.grid->SetLineClamp(clampCase.clamp);
@@ -209,11 +220,17 @@ void TestGridMultilineShapedPrefixCutInsideAClusterPaintsLikeItsShortTwin()
             }
             const auto [least, most] = std::ranges::minmax(shaped);
             std::cout << "Grid shaped prefix cut, clamp " << clampCase.clamp << ", " << tail.name << ": shaped units " << least << ".." << most << '\n';
-            // Unwrapped, the omitted line is shaped again (the visible layout holds the whole measured line), so a step back counts twice.
-            Require(most - least <= 2u, "the alignments of a tail shape at most a step back (one unit, or two where the line is shaped twice) apart");
-            if (tail.surrogates)
-                Require(most > least, "in some alignment the cut falls inside a surrogate pair, and shaping steps back from it");
+            observations.push_back({clampCase.clamp, tail.name, tail.surrogates, least, most});
         }
+    }
+    for (const Observation& observation : observations)
+    {
+        const std::string what = std::format("clamp {}, {}", observation.clamp, observation.tail);
+        // Unwrapped, the omitted line is shaped again (the visible layout holds the whole measured line), so a step back counts twice.
+        Require(observation.most - observation.least <= 2u,
+                (what + ": the alignments of a tail shape at most a step back (one unit, or two where the line is shaped twice) apart").c_str());
+        if (observation.surrogates)
+            Require(observation.most > observation.least, (what + ": in some alignment the cut falls inside a surrogate pair, and shaping steps back from it").c_str());
     }
 }
 
