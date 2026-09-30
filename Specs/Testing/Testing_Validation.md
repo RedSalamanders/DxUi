@@ -177,6 +177,21 @@ benchmark additionally fails a clean round with any C++ allocation and a dirty r
 per-frame allocation ceiling recorded in its receipt. Readback and PNG generation are fixture-only operations. The
 public standalone consumer must compile without private headers.
 
+The Grid's bounded multiline cells are verified by 16 tests that never compare stored pixels. Each paints a scenario and a
+fresh twin on one device (the same cells in a new grid, a short twin of a long value, the unscrolled capture shifted, a
+value with a literal ellipsis) and requires them equal, so a difference is a defect whatever the machine's rasterization.
+They are `TestGridCopyOfTrimmedMultilineCellsIsExact` and
+`TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves` (Grid), eleven `TestGridMultiline...` tests in
+`Tests/Controls/GridMultilineRenderingTests.h` (Rendering), two multiline-cell tests (Accessibility) and
+`TestEmbeddedMultilineGridFrenchCells` (Embedded, read back from a WARP device). `Grid::DebugSetTextLayoutEntryLimit`
+lowers the layout tables' 16,384-entry ceiling so a window can reach it; the Grid test drives the real tables at the
+production ceiling. Fixtures that move a control between hosts are shared in `Tests/Controls/DxUiTestMovedControls.h`. Each
+test was also run against a temporary mutation of the library (a switch compiled into a scratch build and never committed) and
+fails at the assertion that names the defect. The reviewed table of 33 pairs of a mutant and a test, the x64 Debug, Release
+and ASan Debug logs and receipts, and the limits (a pixel test cannot see a cache eviction order or the surrogate guard;
+native ARM64 execution awaits CI) are in
+[the verification packet](../../Measurements/GridTextOverflow/2026-09-30/verification/README.md).
+
 `validate-test-port.ps1` enforces the original case count, unique origins, explicit exclusion reasons and retained/renamed entrypoints. Tooling regression tests verify that deleting a retained case or its disposition fails.
 `test.ps1` also runs the deterministic advisory fixture in `Tools/tests/Test-ConsumerUpdate.ps1`.
 It verifies same-pin silence, newer green main, pending/failed/missing/wrong-SHA validation,

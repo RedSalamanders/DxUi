@@ -1,0 +1,54 @@
+[CmdletBinding()]
+param([string[]] $Only = @(), [string] $Configuration = 'Debug')
+$repo = 'D:\DxUi\.claude\worktrees\agent-a371b42370bad7067'
+Set-Location $repo
+$control = ".\.build\x64\$Configuration\DxUi.ControlTests.exe"
+$embedded = ".\.build\x64\$Configuration\DxUi.EmbeddedTests.exe"
+$plan = @(
+    @('copy4096', 'Grid', 'TestGridCopyOfTrimmedMultilineCellsIsExact'),
+    @('copyNfc', 'Grid', 'TestGridCopyOfTrimmedMultilineCellsIsExact'),
+    @('uiaNfc', 'Accessibility', 'TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues'),
+    @('uiaTruncate', 'Accessibility', 'TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues'),
+    @('uiaTruncate', 'Accessibility', 'TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport'),
+    @('uiaUnclipped', 'Accessibility', 'TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport'),
+    @('dropLastUnit', 'Rendering', 'TestGridMultilineDecomposedAccentsPaintLikePrecomposed'),
+    @('noSurrogateGuard', 'Rendering', 'TestGridMultilineShapedPrefixCutInsideAClusterPaintsLikeItsShortTwin'),
+    @('shortPrefix', 'Rendering', 'TestGridMultilineShapedPrefixCutInsideAClusterPaintsLikeItsShortTwin'),
+    @('noMarkDirection', 'Rendering', 'TestGridMultilineRightToLeftFlowKeepsMarkerSideAndClipping'),
+    @('noTrimSign', 'Rendering', 'TestGridMultilineCellNarrowerThanItsWordKeepsInkInsideAndOffersTheValue'),
+    @('reflowClipped', 'Rendering', 'TestGridMultilineCellCutByTheViewportPaintsAShiftedCropOfItsWholeSelf'),
+    @('dpiStale', 'Rendering', 'TestGridMultilineRepaintsAtANewDpiLikeAFreshGrid'),
+    @('dpiStale', 'Embedded', ''),
+    @('themeColorCache', 'Rendering', 'TestGridMultilineRepaintsAfterThemeFontAndDensityChangesLikeAFreshAttach'),
+    @('noFormatKey', 'Rendering', 'TestGridMultilineRepaintsAfterThemeFontAndDensityChangesLikeAFreshAttach'),
+    @('noBreakShape', 'Rendering', 'TestGridMultilinePrefixSharingNeverCrossesTextThatLaysOutDifferently'),
+    @('hashOnlyPrefix', 'Rendering', 'TestGridMultilinePrefixSharingNeverCrossesTextThatLaysOutDifferently'),
+    @('noCeiling', 'Rendering', 'TestGridMultilineLayoutTablesStayAtALoweredCeilingAndPaintRightAfterEviction'),
+    @('noCeiling', 'Grid', 'TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves'),
+    @('noHalving', 'Rendering', 'TestGridMultilineLayoutTablesStayAtALoweredCeilingAndPaintRightAfterEviction'),
+    @('noHalving', 'Grid', 'TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves'),
+    @('evictNewest', 'Rendering', 'TestGridMultilineLayoutTablesStayAtALoweredCeilingAndPaintRightAfterEviction'),
+    @('evictNewest', 'Grid', 'TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves'),
+    @('noTooltip', 'Rendering', 'TestGridMultilineCellNarrowerThanItsWordKeepsInkInsideAndOffersTheValue'),
+    @('noTooltip', 'Grid', 'TestGridCopyOfTrimmedMultilineCellsIsExact'),
+    @('noMarker', 'Embedded', ''),
+    @('hideCorrupts', 'Embedded', ''),
+    @('replaceAliased', 'Embedded', ''),
+    @('replaceHiddenAliased', 'Embedded', ''),
+    @('lossAliased', 'Rendering', 'TestGridMultilineTrimmedCellsPaintTheSameAfterDeviceLoss'),
+    @('lossClearsFormats', 'Rendering', 'TestGridMultilineTrimmedCellsPaintTheSameAfterDeviceLoss'),
+    @('noMoveAnnouncement', 'Rendering', 'TestGridMultilineMovedBetweenHostsMatchesAFreshOne')
+)
+foreach ($row in $plan) {
+    $mutant, $suite, $test = $row
+    if ($Only.Count -and $mutant -notin $Only) { continue }
+    $env:DXUI_MUTANT = $mutant
+    try {
+        if ($suite -eq 'Embedded') { $env:DXUI_ONLY_FRENCH = '1'; $out = & $embedded 2>&1 }
+        else { $out = & $control --suite=$suite --test=$test --no-activate 2>&1 }
+        $code = $LASTEXITCODE
+    } finally { Remove-Item Env:DXUI_MUTANT -ErrorAction SilentlyContinue; Remove-Item Env:DXUI_ONLY_FRENCH -ErrorAction SilentlyContinue }
+    $failure = @($out | Where-Object { $_ -match '^FAILED:|^FAIL:|TIMEOUT|HRESULT' }) | Select-Object -First 2
+    $label = if ($test) { $test } else { '(embedded suite)' }
+    '{0,-18} {1,-14} exit {2,-3} {3}  ->  {4}' -f $mutant, $suite, $code, $label, ($failure -join ' | ')
+}

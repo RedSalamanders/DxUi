@@ -124,8 +124,9 @@ quiet-fixture repeat.
 On 2026-09-29 the developer set the priority for Grid text layouts: the best frame rate first, then the least memory
 for it. That replaces the memory-first rejection of the associative-cache experiment for the Grid. The
 [review follow-ups](../Plans/Done/ReviewFollowUps_2026-09-29.md) keep cell layouts in 32-way set-associative tables
-(at most 16,384 entries; an entry the current or previous paint used is never evicted) and keep single-line captions'
-layouts as well. Two local paired sets against the review fixes
+(at most 16,384 entries; a table grows instead of evicting an entry the current or previous paint used, and at the ceiling a
+full set gives up its least recently used way) and keep single-line captions' layouts as well. Two local paired sets against
+the review fixes
 ([receipts](../../Measurements/ReviewFollowUps/2026-09-29/paired-local/README.md)) record equal or fewer dirty-round
 allocations and no clean-round allocation in all three scenes, and a higher `Default` dirty rate in all four crossings
 (+5.1% to +14.5%). B's median private bytes averaged -0.08 to +0.52 MB from A's per scene and phase. Every

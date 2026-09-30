@@ -9,6 +9,10 @@ Application adoption measurements belong in their application's repository.
   acceptance and native platform/consumer handoff remain open.
 - [Grid native CI, 2026-09-21](GridTextOverflow/2026-09-21/native-ci/README.md): six native profiles,
   retained accessibility classification retry and explicit ARM64 Menu capability skips; resource approval remains open.
+- [Grid multiline verification, 2026-09-30](GridTextOverflow/2026-09-30/verification/README.md): x64 Debug, Release and
+  ASan Debug logs and receipts of the Grid, Rendering, Accessibility, Embedded and MultilineText suites with 16 new tests of
+  bounded multiline cells, and the temporary mutations each failed under; its benchmark lines are unpaired, and native ARM64
+  execution, resource acceptance and consumer adoption remain open.
 - [Hosted paired grid benchmark, 2026-09-27](GridTextOverflow/2026-09-27/paired-hosted/README.md): one serial
   A1/B1/B2/A2 set per scenario on a hosted x64 runner; the merged grid stays within the accepted V11 envelope.
 - [Hosted paired described-menu benchmark, 2026-09-27](MenuDescriptions/2026-09-27/paired-hosted/README.md): one
