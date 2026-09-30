@@ -1251,6 +1251,18 @@ void Panel::OnDensityChanged() noexcept
     }
 }
 
+void Panel::OnHidden() noexcept
+{
+    Control::OnHidden();
+    for (auto& child : _children)
+    {
+        if (child)
+        {
+            child->OnHidden();
+        }
+    }
+}
+
 void Panel::OnHostDpiChanged(ControlHost& host) noexcept
 {
     Control::OnHostDpiChanged(host);
@@ -1790,6 +1802,19 @@ void PageHost::OnDensityChanged() noexcept
     if (_outgoingPage && ! _outgoingPage->HasExplicitDensity())
     {
         _outgoingPage->OnDensityChanged();
+    }
+}
+
+void PageHost::OnHidden() noexcept
+{
+    Control::OnHidden();
+    if (_currentPage)
+    {
+        _currentPage->OnHidden();
+    }
+    if (_outgoingPage)
+    {
+        _outgoingPage->OnHidden();
     }
 }
 

@@ -851,11 +851,7 @@ void Grid::SetModel(IGridModel* model) noexcept
 {
     // Non-owning pointer assignment. Caller responsible for model lifetime.
     const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
-    std::vector<CellTextLayoutCache>().swap(_cellTextLayouts); // Also returns tables the old model grew.
-    std::vector<CellDisplayLayoutCache>().swap(_cellDisplayLayouts);
-    std::wstring().swap(_cellVisibleText);
-    _cellEllipsis.reset();
-    _cellEllipsisFormat.reset();
+    ReleaseCellTextResources(); // Also returns tables the old model grew.
     _model                            = model;
     _lastPaintHadAnimatedVisibleCells = false;
     _animatedVisibleCellStateValid    = false;
@@ -890,6 +886,32 @@ void Grid::SetModel(IGridModel* model) noexcept
         _delegate->OnGridSelectionChanged(*this);
     }
     RefreshAccessibilitySnapshot();
+}
+
+void Grid::ReleaseCellTextResources() noexcept
+{
+    std::vector<CellTextLayoutCache>().swap(_cellTextLayouts);
+    std::vector<CellDisplayLayoutCache>().swap(_cellDisplayLayouts);
+    std::wstring().swap(_cellVisibleText);
+    _cellEllipsis.reset();
+    _cellEllipsisFormat.reset();
+}
+
+void Grid::PropagateHost(ControlHost* host) noexcept
+{
+    // The layouts and the ellipsis belong to the host whose text formats built them: a grid removed from it, or moved to
+    // another host, keeps none, and a next paint (if there is one) rebuilds what it shows.
+    if (GetHost() != host)
+        ReleaseCellTextResources();
+    Control::PropagateHost(host);
+}
+
+void Grid::OnHidden() noexcept
+{
+    // A painting grid keeps the layouts of its visible cells so that repaints and scrolling shape nothing. A grid that is
+    // not painted has no next paint to release the ones it used last, so it returns them all until it is shown again.
+    ReleaseCellTextResources();
+    Control::OnHidden();
 }
 
 void Grid::SetDelegate(IGridDelegate* delegate) noexcept
@@ -2876,6 +2898,17 @@ Grid::GridDebugTextLayoutStatistics Grid::DebugGetTextLayoutStatistics() const n
     statistics.retainedLayouts =
         static_cast<size_t>(std::ranges::count_if(_cellTextLayouts, [](const CellTextLayoutCache& entry) { return entry.layout != nullptr; }));
     statistics.capacity = _cellTextLayouts.size();
+    statistics.displayLayouts =
+        static_cast<size_t>(std::ranges::count_if(_cellDisplayLayouts, [](const CellDisplayLayoutCache& entry) { return entry.layout != nullptr; }));
+    statistics.displayCapacity = _cellDisplayLayouts.size();
+    const auto heapUnits       = [](const std::wstring& text) noexcept { return HoldsTextStorage(text) ? text.capacity() : size_t{0u}; };
+    for (const CellTextLayoutCache& entry : _cellTextLayouts)
+        statistics.textUnits += heapUnits(entry.text);
+    for (const CellDisplayLayoutCache& entry : _cellDisplayLayouts)
+        statistics.textUnits += heapUnits(entry.text);
+    statistics.textUnits += heapUnits(_cellVisibleText);
+    statistics.tableBytes = (_cellTextLayouts.capacity() * sizeof(CellTextLayoutCache)) + (_cellDisplayLayouts.capacity() * sizeof(CellDisplayLayoutCache));
+    statistics.ellipsis   = _cellEllipsis != nullptr || _cellEllipsisFormat != nullptr;
     return statistics;
 }
 

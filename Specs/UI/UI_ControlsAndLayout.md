@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-09-29
+Last reviewed: 2026-09-30
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -106,6 +106,14 @@ physical application DPI presentation and real assistive-technology journeys req
   vertically centred and clipped to the text rectangle. A leading-aligned caption on one paragraph shapes only the
   prefix that overflows its cell, when that prefix holds no right-to-left or directional-control text; centred and
   trailing captions overflow by their whole line, so they shape all of it. The hover check reads the painted layout.
+- A painting Grid keeps the layouts of what it drew last (its visible cells and those of a partly visible row, however
+  far it has scrolled) and the string storage of the entries it released, so that later keys allocate nothing. A Grid
+  that stops painting returns all of it, since no later paint will release what its last paint used: hidden itself or
+  under a hidden ancestor (a tab page that is not selected, a collapsed panel or page host), in a hidden embedded view,
+  removed from its host or given another model, it releases its layouts, their key strings and its tables at once, and
+  showing it shapes only what it then shows, as its first paint did. `Control::OnHidden` carries the notice and panels
+  and page hosts forward it; the painting path, its allocations and its layouts' lifetime while painting are unchanged.
+  A hidden or minimized native window keeps its controls' layouts, as it keeps its swap chain for a quick show.
 - In right-to-left flow a control's text format reads right to left, so captions and titles use leading alignment
   (their start side, beside a mirrored indicator or at a tab's right edge), never trailing.
 

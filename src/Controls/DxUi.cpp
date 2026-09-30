@@ -393,6 +393,8 @@ void Control::SetVisible(bool visible) noexcept
         if (_host && _host->_embedded)
             ++_host->_interactionRevision;
         _visible = visible;
+        if (! visible)
+            OnHidden();
         RequestInvalidate();
         if (ControlHost* const host = GetHost())
         {
@@ -924,6 +926,10 @@ void Control::OnDensityChanged() noexcept
 }
 
 void Control::OnEnabledChanged(bool /*enabled*/) noexcept
+{
+}
+
+void Control::OnHidden() noexcept
 {
 }
 

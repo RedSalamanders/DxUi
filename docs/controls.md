@@ -160,6 +160,9 @@ exception: its order depends on all of it), and is retained by that part, so rep
 The omission marker ends right-to-left text at its left end, an emoji at the end included, and trailing lines of other
 spaces or invisible characters add nothing. Single-line cells keep their layouts the same way (a repaint shapes
 nothing, a scroll shapes the entering row), and a long leading-aligned caption shapes only what its cell can show.
+A grid keeps its layouts only while it paints: hidden (itself, under a hidden panel or tab page, or in a hidden
+embedded view), removed from its host or given another model, it returns them all, and showing it shapes only the cells
+it then shows.
 See [the benchmark model](../Samples/ComplexUi/ComplexUiScene.h),
 [grid tests](../Tests/Controls/DxUiTests.Grid.cpp), [tree tests](../Tests/Controls/DxUiTests.Tree.cpp), and
 [gallery construction](../Tests/Controls/DxUiTests.Gallery.cpp) for concrete configurations and variants.
