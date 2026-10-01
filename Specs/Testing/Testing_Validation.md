@@ -247,6 +247,19 @@ reports how often it did, and says so when no window of the process ever held th
 application the user is working in, so there was nothing to take and no takeover was exercised). It needs real focus, so
 `--no-activate` rejects it, and it is an opt-in check that a suite survives a thief, not part of `test.ps1`.
 
+Tooltip timer fixtures decide nothing by wall-clock time. A native tooltip's show and hide deadlines are on the UI thread's
+animation dispatcher clock. A tick moves that clock by the time since the previous tick, but by no more than the dispatcher's
+50 ms hitch clamp, so a runner that stalls moves it little. An idle dispatcher instead reads the wall clock and restarts
+from it at its first tick. So the hide-delay fixtures keep the dispatcher ticking with a subscription of their own, take
+the deadline from its clock, and dispatch one message at a time, so each tick is observed with the state it left. A delay of twice the clamp is certain to have ticks before its deadline, and the tooltip must be
+visible after every one of them and hidden after the first tick at or after the deadline. A pointer move one tick into the
+delay must keep the tooltip past the old deadline. A ten-second limit only ends a run whose ticks never come.
+
+The passive-tooltip fixture shows its window without activating it, because a host ticks its tooltip only while its window
+is visible. It checks the display lifetime before its click, because the click hides the tooltip: mouse-up releases capture,
+and losing capture clears the tooltip. It shows the tooltip with a tick past the longest show delay a mouse hover time allows
+(2.5 s). The five-second lifetime runs from that tick, so the tooltip must be visible 4,999 ms after it and hidden at 5,000 ms.
+
 Native menu input fixtures wait for a visible popup: the hidden measurement HWND is not ready for input.
 Cold creation has a separate five-second setup allowance; owner-message-flood hover and invocation checks
 retain their 800 ms deadlines after setup. Capture readiness similarly waits for the final visible surface.
