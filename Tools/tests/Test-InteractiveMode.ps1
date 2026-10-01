@@ -35,6 +35,10 @@ function Get-CommandCalls([string[]] $Names) {
 }
 
 # Runs test.ps1 in a child process of its own under an environment that says CI, bounded, and reports how it ended.
+# The text of a run as one line: PowerShell's error view wraps a message at the console's width behind a "|" gutter, which on
+# a narrow CI console splits a phrase across lines.
+function Get-FlatText([string] $Text) { return ($Text -replace '(?m)^\s*\|\s?', '' -replace '\s+', ' ') }
+
 function Invoke-TestScript([string[]] $Arguments, [hashtable] $Environment) {
     $info = [Diagnostics.ProcessStartInfo]::new((Get-Process -Id $PID).Path)
     foreach ($argument in @('-NoProfile', '-NonInteractive', '-File', $testScript) + $Arguments) { $info.ArgumentList.Add($argument) }
@@ -230,10 +234,13 @@ Invoke-TestCase 'a suite that needs real focus is never given --no-activate, and
     $default = ($testAst.ParamBlock.Parameters | Where-Object { $_.Name.VariablePath.UserPath -eq 'Suites' }).DefaultValue.Extent.Text
     $suites = Get-NamesIn $default "'(\w+)'"
     Assert-True ($suites.Count -gt 15 -and $suites -contains 'InteractiveLease') 'the default list is read from the parameter'
+    # Fake roots under the temp directory, which exists on every system the tooling tests run on (CI's validation job is Ubuntu,
+    # where a C: path names no drive). Nothing is created there: only the names are compared.
+    $fakeRoot = Join-Path ([IO.Path]::GetTempPath()) 'dxui-interactive-fake'
     $runOf = {
         param([string] $Suite, [bool] $Interactive, [string[]] $Tests, $TestTimeout)
-        $Platform = 'x64'; $Configuration = 'Debug'; $logs = 'C:\logs'
-        . ([scriptblock]::Create($function.Extent.Text.Replace('$PSScriptRoot', "'C:\repo'"))) # A dynamic scriptblock has no $PSScriptRoot.
+        $Platform = 'x64'; $Configuration = 'Debug'; $logs = Join-Path $fakeRoot 'logs'
+        . ([scriptblock]::Create($function.Extent.Text.Replace('$PSScriptRoot', "'$fakeRoot'"))) # A dynamic scriptblock has no $PSScriptRoot.
         Get-SuiteRun $Suite
     }
     foreach ($suite in @($suites + @('MenuResources', 'MenuResourceScaling'))) {
@@ -259,7 +266,7 @@ Invoke-TestCase 'test.ps1 -Interactive names a suite that does not need the desk
     $run = Invoke-TestScript @('-Interactive', '-Suites', 'Grid') @{ CI = 'true' }
     Assert-True $run.Exited 'the refusal ended the run'
     Assert-True ($run.Exit -ne 0) 'with a failing exit code'
-    Assert-True ($run.Output.Contains('not interactive: Grid')) "naming the suite: $($run.Output)"
+    Assert-True ((Get-FlatText $run.Output).Contains('not interactive: Grid')) "naming the suite: $($run.Output)"
     Assert-True (-not $run.Output.Contains('Interactive run:') -and -not $run.Output.Contains('Running ')) 'and nothing ran'
     Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles)) -join "`n") 'no log or receipt was written'
 }
@@ -273,7 +280,7 @@ Invoke-TestCase 'test.ps1 -Interactive refuses in a CI job before it builds or r
     Assert-True ($run.Exit -ne 0) 'with a failing exit code'
     # On Windows the CI variable is the reason; where this runs on another system (CI's validation job is Ubuntu) there is no desktop at all.
     $reason = if ($IsWindows) { 'CI is set' } else { 'this is not Windows' }
-    Assert-True ($run.Output.Contains('Interactive tests need an interactive desktop, and there is none') -and $run.Output.Contains($reason)) "saying why: $($run.Output)"
+    Assert-True ((Get-FlatText $run.Output).Contains('Interactive tests need an interactive desktop, and there is none') -and (Get-FlatText $run.Output).Contains($reason)) "saying why: $($run.Output)"
     Assert-True (-not $run.Output.Contains('Interactive run:') -and -not $run.Output.Contains('Running ') -and -not $run.Output.Contains('== ')) 'and nothing ran: no tooling test, no build, no suite'
     Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles)) -join "`n") 'no log or receipt was written'
 }
