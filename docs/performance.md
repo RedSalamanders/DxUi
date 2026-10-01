@@ -87,14 +87,16 @@ the set on one hosted x64 Release runner (10 to 15 minutes). Its
 
 - **Pull requests.** Every pull request to `main` that changes something the benchmark measures (library sources and
   headers, the build props and vcpkg manifests, the sources of the benchmark executable, its fixtures and samples, the
-  build and measurement scripts and the workflow; never Markdown) runs the `paired-benchmark` job. It compares the pull
-  request's merge ref with that merge commit's first parent, the base as the merge ref was made, in `Default`,
-  `MultilineGrid` and `MultilineGridDistinct`, three repetitions each: six runs per side. The `benchmark-scope` job decides
-  on Linux and its summary names the files that did; a pull request that changes none of them skips the Windows job. A
-  skipped job satisfies a required check, so the check `paired-benchmark (pull request)` (named apart from the push and
-  manual runs of the same job, so that a required check names one check run) can be made required in branch protection
-  without holding documentation changes. A scope job that fails does not skip it: the job fails the check instead of
-  passing a pull request unmeasured.
+  build and measurement scripts and the workflow; never Markdown) is measured by the `paired-benchmark` job. It compares
+  the pull request's merge ref with that merge commit's first parent, the base as the merge ref was made, in `Default`,
+  `MultilineGrid` and `MultilineGridDistinct`, three repetitions each: six runs per side. The job starts for every pull
+  request to `main`: its first step decides from the changed paths and its summary names the files that did, and a pull
+  request that changes none of them ends the job within a couple of minutes, passed, without restoring or measuring
+  anything. The job is not skipped for such a pull request because GitHub names a skipped job by its unevaluated name
+  expression, which a required check would never see. The check `paired-benchmark (pull request)` (named apart from the
+  push and manual runs of the same job, so that a required check names one check run) can therefore be made required in
+  branch protection without holding documentation changes. A step that cannot decide fails the job: nothing passes
+  unmeasured because its scope could not be read.
 - **Manual runs.** A manual run with `benchmark_baseline` (and optionally `benchmark_candidate` and `benchmark_scenarios`)
   measures the revisions it names, with three repetitions. It publishes the verdict the same way and stays green for a
   finding; only a pull request is gated. A manual run is its own concurrency group, so a later push does not cancel it,

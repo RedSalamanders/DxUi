@@ -1,11 +1,12 @@
 <#
 .SYNOPSIS Decides whether a pull request can change what the paired benchmark measures, and which two commits it compares.
 .DESCRIPTION
-Run in the checkout of a pull request's merge ref by the benchmark-scope job of the validation workflow. The candidate is the
-checkout, the baseline is the merge commit's first parent (the base branch as the merge ref was made), and the paths between
-them are matched against the rules of Get-BenchmarkScopeRules (Tools/BenchmarkGate.psm1). Writes the step outputs relevant
-(true or false), baseline, candidate and method for the paired-benchmark job, and a job summary that names the files that
-decided. Exits 0 either way: skipping is a decision, not a failure.
+Run in the checkout of a pull request's merge ref by the first step of the paired-benchmark job of the validation workflow. The
+candidate is the checkout, the baseline is the merge commit's first parent (the base branch as the merge ref was made), and
+the paths between them are matched against the rules of Get-BenchmarkScopeRules (Tools/BenchmarkGate.psm1). Writes the step
+outputs relevant (true or false), baseline, candidate and method for the steps after it, and a job summary that names the
+files that decided. Exits 0 either way: nothing measured having changed is a decision, not a failure. A pull request whose
+scope cannot be decided throws, which fails the job.
 .PARAMETER BaseRef The pull request's base branch; defaults to GITHUB_BASE_REF.
 .PARAMETER Repository The checkout; defaults to the current directory.
 .PARAMETER Candidate The commit measured; defaults to HEAD.
@@ -39,7 +40,7 @@ if ($scope.Relevant) {
 } else {
     $lines.Add('## Paired benchmark scope: skipped')
     $lines.Add('')
-    $lines.Add("This pull request changes $($scope.Total) path(s) and none of them can change what the paired benchmark measures (the library, its build, the benchmark executable and fixtures, the measurement tooling and this workflow), so the hosted run is skipped. The rules are in ``Get-BenchmarkScopeRules`` (``Tools/BenchmarkGate.psm1``); a run can still be started by hand with the ``benchmark_baseline`` input.")
+    $lines.Add("This pull request changes $($scope.Total) path(s) and none of them can change what the paired benchmark measures (the library, its build, the benchmark executable and fixtures, the measurement tooling and this workflow), so the paired benchmark does not run for it and this check passes. The rules are in ``Get-BenchmarkScopeRules`` (``Tools/BenchmarkGate.psm1``); a run can still be started by hand with the ``benchmark_baseline`` input.")
 }
 Add-WorkflowSummary (($lines -join "`n") + "`n")
 Add-WorkflowOutput 'relevant' $(if ($scope.Relevant) { 'true' } else { 'false' })

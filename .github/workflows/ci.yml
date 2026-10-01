@@ -98,71 +98,60 @@ jobs:
           name: docs-gallery-x64-Release
           path: docs/gallery/
           retention-days: 14
-  # Pull requests to main only. A cheap Linux job decides from the changed paths whether anything the paired benchmark
-  # measures changed (Tools/BenchmarkGate.psm1), so a documentation-only pull request never takes a Windows runner for it.
-  benchmark-scope:
-    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    outputs:
-      relevant: ${{ steps.scope.outputs.relevant }}
-      baseline: ${{ steps.scope.outputs.baseline }}
-      method: ${{ steps.scope.outputs.method }}
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0
-      - id: scope
-        shell: pwsh
-        run: ./Tools/Get-BenchmarkScope.ps1
   # One runner measures the baseline and the candidate serially with one harness, three repetitions of the interleaved pass A,
   # B, B, A (six runs per side, the contract's paired set). A pull request that changes something measured is compared with
   # the base its merge ref was made on (the candidate is that merge ref) and fails this job on a confirmed degradation or an
   # inconclusive run; a manual dispatch with benchmark_baseline names its own revisions, reports the same verdict in the job
   # summary and stays green for a finding. permissions stay contents: read; the summary and artifacts need nothing more.
+  #
+  # A pull request to main always starts this job, whatever it changes: its scope step decides from the changed paths whether
+  # anything the paired benchmark measures changed (Tools/BenchmarkGate.psm1), and the steps after it run only when it did, so a
+  # documentation-only pull request ends this job within a couple of minutes. The job is not skipped instead because GitHub
+  # reports a skipped job under its unevaluated name expression, which a required check of the same name would never see.
   paired-benchmark:
     # A pull request's check is named apart from the push and manual runs of this job (which report it skipped, or by hand),
     # so that a required check names exactly one check run whatever order they complete in.
     name: ${{ github.event_name == 'pull_request' && 'paired-benchmark (pull request)' || 'paired-benchmark' }}
-    needs: benchmark-scope
-    if: ${{ !cancelled() && (needs.benchmark-scope.result == 'failure' || needs.benchmark-scope.outputs.relevant == 'true' || (github.event_name == 'workflow_dispatch' && inputs.benchmark_baseline != '')) }}
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'workflow_dispatch' && inputs.benchmark_baseline != '') }}
     runs-on: windows-2025-vs2026
     # A pull request's run takes 10 to 15 minutes: the restore (under a minute), then the paired run, which builds both trees
     # and measures 36 runs. Its limit is three times that, so a hang ends while the job still has time to report and upload.
     # A manual run keeps the 90 minutes it always had, for the diagnostic scenarios that run much longer.
     timeout-minutes: ${{ github.event_name == 'pull_request' && 45 || 90 }}
     steps:
-      # A skipped job passes a required check, so a scope decision that failed must not skip this one: the check fails here,
-      # and no pull request passes the gate unmeasured because its scope could not be read.
-      - if: ${{ needs.benchmark-scope.result == 'failure' }}
-        shell: pwsh
-        run: |
-          Write-Host '::error title=Paired benchmark scope undecided::The benchmark-scope job failed, so it is not known whether this pull request changes what the benchmark measures. The check fails rather than pass unmeasured; the log of benchmark-scope says why.'
-          exit 1
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - shell: pwsh
+      # Whether this pull request changes anything the benchmark measures, and the two commits to compare. A step that cannot
+      # decide fails the job, so nothing passes unmeasured because its scope could not be read.
+      - id: scope
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: pwsh
+        timeout-minutes: 3
+        run: ./Tools/Get-BenchmarkScope.ps1
+      # What follows runs for a manual dispatch and for a pull request whose scope is measured.
+      - if: ${{ github.event_name == 'workflow_dispatch' || steps.scope.outputs.relevant == 'true' }}
+        shell: pwsh
         timeout-minutes: ${{ github.event_name == 'pull_request' && 10 || 15 }}
         run: ./vcpkg-install.ps1 -Platform x64
       - id: measure
+        if: ${{ github.event_name == 'workflow_dispatch' || steps.scope.outputs.relevant == 'true' }}
         shell: pwsh
         timeout-minutes: ${{ github.event_name == 'pull_request' && 30 || 70 }}
         env:
-          BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline || needs.benchmark-scope.outputs.baseline }}
+          BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline || steps.scope.outputs.baseline }}
           BENCHMARK_CANDIDATE: ${{ inputs.benchmark_candidate }}
           BENCHMARK_SCENARIOS: ${{ inputs.benchmark_scenarios || 'Default,MultilineGrid,MultilineGridDistinct' }}
         run: ./performance-paired.ps1 -BaselineRevision $env:BENCHMARK_BASELINE -CandidateRevision $env:BENCHMARK_CANDIDATE -Scenario @($env:BENCHMARK_SCENARIOS -split ',' | ForEach-Object { $_.Trim() }) -Repetitions 3
-      # Also after a failed measurement, to say why there is no verdict. Not after a cancellation (a newer push superseded
-      # it), and not when the scope job failed: nothing was measured, and the first step said so.
+      # Also after a failed measurement, to say why there is no verdict. Not after a cancellation: a newer push superseded it.
       - id: verdict
-        if: ${{ !cancelled() && needs.benchmark-scope.result != 'failure' }}
+        if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || steps.scope.outputs.relevant == 'true') }}
         shell: pwsh
         env:
-          BENCHMARK_PAIR: ${{ needs.benchmark-scope.outputs.method }}
+          BENCHMARK_PAIR: ${{ steps.scope.outputs.method }}
         run: ./Tools/Publish-BenchmarkVerdict.ps1 -Gate:($env:GITHUB_EVENT_NAME -eq 'pull_request')
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
+        if: ${{ always() && (github.event_name == 'workflow_dispatch' || steps.scope.outputs.relevant == 'true') }}
         with:
           name: paired-benchmark-x64-Release
           path: |

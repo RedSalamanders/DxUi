@@ -822,27 +822,42 @@ Invoke-TestCase 'the workflow runs the benchmark for measured pull requests to m
     }
     Assert-Equal 'push pull_request workflow_dispatch' ($events -join ' ') 'the events are those it always had'
     Assert-True (-not $workflow.Contains('pull_request_target')) 'never pull_request_target: untrusted code gets no write token'
-    $scope = Get-WorkflowJob 'benchmark-scope'
-    Assert-True $scope.Contains("if: `${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}") 'the scope job decides for pull requests to main only'
-    Assert-True $scope.Contains('./Tools/Get-BenchmarkScope.ps1') 'with the tested script'
-    foreach ($output in @('relevant', 'baseline', 'method')) { Assert-True $scope.Contains("${output}: `${{ steps.scope.outputs.$output }}") "the scope job outputs $output" }
-    Assert-True $scope.Contains('runs-on: ubuntu-24.04') 'on a cheap runner'
-    Assert-True $scope.Contains('fetch-depth: 0') 'with the history the merge ref''s parents need'
+    Assert-True (-not $workflow.Contains('benchmark-scope')) 'no job before the benchmark decides its scope: a failed one would skip it'
     $job = Get-WorkflowJob 'paired-benchmark'
-    Assert-True $job.Contains('needs: benchmark-scope') 'the benchmark waits for the decision'
+    Assert-True (-not ($job -cmatch '(?m)^    needs:')) 'the benchmark job needs no other job, so no other job can skip it'
     Assert-True $job.Contains("name: `${{ github.event_name == 'pull_request' && 'paired-benchmark (pull request)' || 'paired-benchmark' }}") 'a pull request''s check has a name of its own, so a required check names one check run'
+    # A skipped job is reported under its unevaluated name expression, which a required check would never see: the job always
+    # starts for a pull request to main, whatever the pull request changes, and ends early when nothing measured changed.
+    Assert-True $job.Contains("if: `${{ (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'workflow_dispatch' && inputs.benchmark_baseline != '') }}") 'it starts for every pull request to main, whatever it changes, and for a dispatch with a baseline'
     Assert-True (-not $workflow.Contains('continue-on-error')) 'no job or step turns a failing verdict green'
-    $order = @('./performance-paired.ps1', './Tools/Publish-BenchmarkVerdict.ps1', 'upload-artifact@') | ForEach-Object { $job.IndexOf($_, [StringComparison]::Ordinal) }
-    Assert-True ($order[0] -ge 0 -and $order[0] -lt $order[1] -and $order[1] -lt $order[2]) 'the verdict follows the measurement and precedes the upload that keeps verdict.json'
-    Assert-True $job.Contains("if: `${{ !cancelled() && (needs.benchmark-scope.result == 'failure' || needs.benchmark-scope.outputs.relevant == 'true' || (github.event_name == 'workflow_dispatch' && inputs.benchmark_baseline != '')) }}") 'it runs for a measured pull request or a dispatch with a baseline, and not for a superseded run; and for a scope decision that failed, which must not pass as a skipped job'
-    Assert-True ($job -cmatch "(?m)^    steps:\r?\n(?:      #[^\r\n]*\r?\n)*      - if: \`$\{\{ needs\.benchmark-scope\.result == 'failure' \}\}\r?\n        shell: pwsh\r?\n        run: \|\r?\n(?:          [^\r\n]*\r?\n)*?          exit 1\r?\n      - uses: actions/checkout@") 'its first step fails the check when the scope job failed, before anything is restored or measured'
-    Assert-True ($job -cmatch "(?m)^      - id: verdict\r?\n        if: \`$\{\{ !cancelled\(\) && needs\.benchmark-scope\.result != 'failure' \}\}") 'and the verdict does not judge a run that never happened'
     Assert-True $job.Contains('runs-on: windows-2025-vs2026') 'on the hosted x64 runner'
-    Assert-True $job.Contains('BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline || needs.benchmark-scope.outputs.baseline }}') 'a dispatch names its baseline, a pull request gets the base of its merge ref'
-    Assert-True $job.Contains('BENCHMARK_CANDIDATE: ${{ inputs.benchmark_candidate }}') 'the candidate is the dispatch input, else this checkout: the merge ref'
-    Assert-True $job.Contains('./performance-paired.ps1 -BaselineRevision $env:BENCHMARK_BASELINE -CandidateRevision $env:BENCHMARK_CANDIDATE') 'one paired run with this harness'
-    Assert-True $job.Contains('./Tools/Publish-BenchmarkVerdict.ps1 -Gate:($env:GITHUB_EVENT_NAME -eq ''pull_request'')') 'only a pull request is gated'
-    Assert-True $job.Contains('fetch-depth: 0') 'the baseline revision is fetchable'
+    # Its steps, in order: the scope decides, and every step after it runs only for a dispatch or a measured scope.
+    $blocks = @([regex]::Matches($job, '(?ms)^      - .*?(?=^      - |\z)') | ForEach-Object { $_.Value })
+    $parts = [ordered]@{ checkout = 'actions/checkout@'; scope = './Tools/Get-BenchmarkScope.ps1'; restore = './vcpkg-install.ps1'; measure = './performance-paired.ps1'; verdict = './Tools/Publish-BenchmarkVerdict.ps1'; upload = 'actions/upload-artifact@' }
+    Assert-Equal $parts.Count $blocks.Count 'checkout, scope, restore, measurement, verdict and upload'
+    $step = @{}
+    $position = 0
+    foreach ($key in $parts.Keys) {
+        $hit = @($blocks | Where-Object { $_.Contains($parts[$key]) })
+        Assert-Equal 1 $hit.Count "one $key step"
+        Assert-Equal $position ([Array]::IndexOf($blocks, $hit[0])) "the $key step comes in its place"
+        $step[$key] = $hit[0]
+        $position++
+    }
+    $go = "github.event_name == 'workflow_dispatch' || steps.scope.outputs.relevant == 'true'"
+    Assert-True (-not $step['checkout'].Contains('if:')) 'the checkout always runs'
+    Assert-True $step['checkout'].Contains('fetch-depth: 0') 'with the history the merge ref''s parents and a baseline revision need'
+    Assert-True ($step['scope'] -cmatch "(?m)^      - id: scope\r?\n        if: \`$\{\{ github\.event_name == 'pull_request' \}\}\r?\n") 'the scope step decides for a pull request, and for a dispatch there is nothing to decide'
+    Assert-True ($step['scope'] -cmatch '(?m)^        timeout-minutes: \d+\s*$') 'and cannot hang the job'
+    Assert-True $step['restore'].Contains("if: `${{ $go }}") 'the restore waits for a measured scope'
+    Assert-True $step['measure'].Contains("if: `${{ $go }}") 'so does the measurement'
+    Assert-True $step['verdict'].Contains("if: `${{ !cancelled() && ($go) }}") 'and the verdict, which also follows a failed measurement but not a superseded run'
+    Assert-True $step['upload'].Contains("if: `${{ always() && ($go) }}") 'and the upload, which keeps the receipts even when the run fails'
+    Assert-True $step['measure'].Contains('BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline || steps.scope.outputs.baseline }}') 'a dispatch names its baseline, a pull request gets the base of its merge ref'
+    Assert-True $step['verdict'].Contains('BENCHMARK_PAIR: ${{ steps.scope.outputs.method }}') 'and the verdict says how it was chosen'
+    Assert-True $step['measure'].Contains('BENCHMARK_CANDIDATE: ${{ inputs.benchmark_candidate }}') 'the candidate is the dispatch input, else this checkout: the merge ref'
+    Assert-True $step['measure'].Contains('./performance-paired.ps1 -BaselineRevision $env:BENCHMARK_BASELINE -CandidateRevision $env:BENCHMARK_CANDIDATE') 'one paired run with this harness'
+    Assert-True $step['verdict'].Contains('./Tools/Publish-BenchmarkVerdict.ps1 -Gate:($env:GITHUB_EVENT_NAME -eq ''pull_request'')') 'only a pull request is gated'
 }
 
 Invoke-TestCase 'the benchmark job runs the contract''s scenarios and repetitions, and a dispatch keeps its inputs' {
@@ -859,13 +874,12 @@ Invoke-TestCase 'the benchmark job runs the contract''s scenarios and repetition
     foreach ($name in @('benchmark_baseline', 'benchmark_candidate', 'benchmark_scenarios')) { Assert-True ($workflow -cmatch "(?m)^      ${name}:\r?\n") "the dispatch input $name is kept" }
     Assert-True ($workflow -cmatch "(?s)benchmark_baseline:.*?default: ''") 'an empty baseline still skips the benchmark'
     Assert-True $job.Contains('name: paired-benchmark-x64-Release') 'the artifact keeps its name'
-    Assert-True ($job -cmatch '(?s)upload-artifact@\S+ # v4\s+if: always\(\)') 'and is uploaded even when the run fails'
+    Assert-True ($job -cmatch '(?s)upload-artifact@\S+ # v4\s+if: \$\{\{ always\(\) && ') 'and is uploaded even when the run fails'
     Assert-True $job.Contains('.build/paired/*/reports/**') 'with every receipt, comparison, summary and verdict'
 }
 
 Invoke-TestCase 'the workflow cancels what a push supersedes, bounds its runtime and pins what it runs' {
     Assert-True ($workflow -cmatch '(?m)^concurrency:\r?\n(?:  #.*\r?\n)*  group: dxui-\$\{\{ github\.workflow \}\}-\$\{\{ github\.event_name == ''workflow_dispatch'' && github\.run_id \|\| github\.ref \}\}\r?\n  cancel-in-progress: true') 'a push cancels the older run of its ref, and so of its pull request (refs/pull/n/merge); a dispatch is its own group'
-    Assert-True ((Get-WorkflowJob 'benchmark-scope') -cmatch '(?m)^    timeout-minutes: 10\s*$') 'the scope decision is bounded at ten minutes'
     # A pull request's limits (a run takes 10 to 15 minutes) and a manual run's (the 90 minutes it always had, for diagnostic scenarios).
     $limit = "\`$\{\{ github\.event_name == 'pull_request' && (\d+) \|\| (\d+) \}\}"
     $job = Get-WorkflowJob 'paired-benchmark'
@@ -874,9 +888,11 @@ Invoke-TestCase 'the workflow cancels what a push supersedes, bounds its runtime
     Assert-True ([int]$jobLimit.Groups[1].Value -le 45) "a pull request's run is bounded to 45 minutes: $($jobLimit.Groups[1].Value)"
     Assert-Equal 90 ([int]$jobLimit.Groups[2].Value) 'a manual run keeps its 90 minutes'
     $steps = @([regex]::Matches($job, "(?m)^        timeout-minutes: $limit\s*`$"))
+    $fixed = @([regex]::Matches($job, '(?m)^        timeout-minutes: (\d+)\s*$') | ForEach-Object { [int]$_.Groups[1].Value })
     Assert-True ($steps.Count -ge 2) 'the restore and the measurement have step limits shorter than the job, so the verdict and artifacts still run'
+    Assert-True ($fixed.Count -ge 1) 'and so has the scope step'
     foreach ($column in @(1, 2)) {
-        $sum = ($steps | ForEach-Object { [int]$_.Groups[$column].Value } | Measure-Object -Sum).Sum
+        $sum = ($steps | ForEach-Object { [int]$_.Groups[$column].Value } | Measure-Object -Sum).Sum + ($fixed | Measure-Object -Sum).Sum
         Assert-True ($sum -lt [int]$jobLimit.Groups[$column].Value) "the step limits together leave the job time to report (column $column)"
     }
     Assert-True ($workflow -cmatch '(?m)^permissions:\r?\n  contents: read\s*$') 'the token is read-only'

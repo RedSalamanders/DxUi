@@ -82,14 +82,16 @@ and `Tools/tests/Test-BenchmarkGate.ps1` covers it.
   `sourceFingerprint` covers (`src`, `include`, `Build`, the build props and vcpkg manifests), the harness and its
   benchmark inputs, the sources of the benchmark executable (`Tests/Embedded`, `Tests/Support`) and the fixtures and samples
   compiled into it (`Samples`), the build and restore scripts, the paired measurement and gate tooling and the workflow.
-  Markdown never counts, and neither do the control and foundation tests, the validators, the gallery and the formatter. A
-  cheap Linux job (`benchmark-scope`) matches the changed paths against those rules and names the files that decided; a
-  pull request that changes none of them skips the Windows job, and a skipped job passes a required check; a scope job
-  that fails does not skip it, the Windows job fails the check instead, so nothing passes unmeasured because its scope
-  could not be read. A manual dispatch with `benchmark_baseline` measures the revisions it names. A newer push to a pull
-  request cancels its older run, and its job is bounded at 45 minutes (a run takes 10 to 15); a manual run keeps its 90,
-  for the diagnostic scenarios. A pull request's check is named `paired-benchmark (pull request)`, apart from the push and
-  manual runs of the same job, so that a required check names exactly one check run.
+  Markdown never counts, and neither do the control and foundation tests, the validators, the gallery and the formatter. The
+  job always starts for a pull request to `main`: its first step matches the changed paths against those rules and names
+  the files that decided, and the steps after it run only when one matched, so a pull request that changes none of them
+  ends the job within a couple of minutes with the check passed. A step that cannot decide fails the job, so nothing passes
+  unmeasured because its scope could not be read. The job is not skipped for such a pull request, because GitHub reports a
+  skipped job under its unevaluated name expression and a required check of the same name would wait forever. A manual
+  dispatch with `benchmark_baseline` measures the revisions it names. A newer push to a pull request cancels its older run,
+  and its job is bounded at 45 minutes (a run takes 10 to 15); a manual run keeps its 90, for the diagnostic scenarios. A
+  pull request's check is named `paired-benchmark (pull request)`, apart from the push and manual runs of the same job, so
+  that a required check names exactly one check run.
 - **What is compared.** The candidate is the pull request's merge ref. The baseline is that merge commit's first parent, the
   base as the merge ref was made, so the two differ by exactly this pull request. The merge base with the branch would
   also hold whatever `main` gained since the branch was cut and would blame a regression it brought on this pull
