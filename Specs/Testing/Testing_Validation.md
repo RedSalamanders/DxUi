@@ -26,8 +26,9 @@ results do not waive that failure or establish before/after source non-regressio
 Fixture v4 places a visible, owned parent on one native monitor and records the
 actual pixel extent and DPI for every opening. `MenuResources` and
 `MenuResourceScaling` require normal foreground menu interaction; `--no-activate`
-is rejected. Locally use the authorized warning/desktop-lease harness and verify
-focus and physical cursor restoration. A blocked activation path can leave a
+is rejected. Locally run them with `test.ps1 -Interactive -Suites <Suite>`, which
+holds the desktop lease and verifies focus and physical cursor restoration (see
+Interactive tests below). A blocked activation path can leave a
 temporary 1-by-1 HWND despite correct internal layout, invalidating the measurement.
 Do not change the general activation guard or count failed v2/v3 samples as passes.
 `MenuTextLayoutResources` separately measures creation, metric computation and
@@ -42,6 +43,8 @@ architecture, configuration, time and executable path under `.build/reports`. Fa
 Every invocation also runs the populated complex-UI benchmark through `performance.ps1` and includes FPS/memory
 scenarios and the performance receipt path in each suite receipt. `-PerformanceBaseline` requires a matched
 comparison and fails for a suspected regression or invalid evidence; no baseline is explicitly `unpaired`.
+`-Interactive` selects the control suites that need the real desktop and runs them under the desktop lease after all of this
+(see Interactive tests below); no other option or run reaches the lease.
 Use the [performance contract](../Core/Core_PerformanceAndResources.md) for before/after acceptance and regression advice.
 A pull request to `main` that changes something the benchmark measures also runs the paired benchmark on a hosted runner
 (the contract's [hosted paired gate](../Core/Core_PerformanceAndResources.md#hosted-paired-gate)), and
@@ -132,7 +135,9 @@ human movement. Failed hover assertions must report a failure, including outside
 Cursor fixtures retain the original and actual aligned positions in physical coordinates,
 and restore only while the cursor still has that aligned position. Popup-context alignment
 must not apply a second DPI conversion. An outer harness verifies restoration and must not
-force the saved cursor position over unexpected movement merely to make the check pass.
+force the saved cursor position over unexpected movement merely to make the check pass: the
+desktop lease of `test.ps1 -Interactive` is that harness, and it reports the position the run left (`cursor.atExit`) beside
+the one it restored, so a pointer the fixtures did not put back is shown, never counted as theirs.
 A blocking `ContextMenu::Show` runs its modal loop on the owner thread and returns only when the menu closes, and the driver
 thread is what closes it, so a driver that fails before it has a popup to dismiss (the popup can come up later than the driver's
 wait on a slow runner) once left the owner thread there for good: the test hung where it should have reported the failure the
@@ -174,7 +179,8 @@ must update the owning runtime contract and its tests; helper names and statemen
 Tests/Controls retains eight original visual baselines. Native suites cover control state/layout, theme, grids/trees,
 animation (including slider hover/press easing and keyboard thumb travel), native text and IME events, UIA lifetime and menus. Capability skips are emitted in logs and copied into
 receipts, and `test.ps1` prints each under its suite with the test it belongs to (`skipped <Test>: <reason>`), so a CI log
-shows which tests a missing capability left unrun; a skip is not proof of that capability. CI defines all six native jobs;
+shows which tests a missing capability left unrun; a skip is not proof of that capability, and an interactive run
+(`test.ps1 -Interactive`, see below) fails on one. CI defines all six native jobs;
 their fresh receipts establish execution results.
 Physical touch, a human IME session and screen-reader interaction are manual adoption checks, not implied by synthetic
 messages or a green foundation suite.
@@ -308,6 +314,81 @@ allowance, because hosted x64 runners have exceeded the former 3000 ms bound. Ac
 and unsubscribe keep their 3000 ms deadlines. Every run logs the setup stage, HRESULT, stage durations and
 longest owner-thread pump, which separates a stalled provider thread from slow UIA client initialization.
 This is a bounded setup allowance, not a root-cause fix.
+
+## Interactive tests
+
+The control suites whose contract needs real focus (`Menu`, `NativeTextInput` and the `MenuResources` and `MenuResourceScaling`
+fixtures) take the person's foreground window, keyboard focus and pointer, and record a capability skip where a run cannot get them.
+`DxUi.ControlTests.exe` rejects `--no-activate` for exactly these four, and `Tools/tests/Test-InteractiveMode.ps1` keeps the list in
+`Tools/InteractiveRun.psm1` equal to the runner's. `test.ps1 -Interactive` runs them, with the person's agreement, under the
+interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`; its logic is `Tests/Support/DesktopLease.h` and
+`Tests/Support/InteractiveLease.h`, which the control tests exercise without a desktop).
+
+- **Selection.** Without `-Suites` the run is `Menu` and `NativeTextInput`; the two fixtures run when they are named. Any other name
+  is refused, by name, before anything is built, so the lease holds only what needs the desktop. `-Tests` and `-TestTimeout` work as
+  for any run. Every other control suite keeps `--no-activate`, and the lease is reached only through `-Interactive`. A run without
+  it is unchanged: it passes these four suites no `--no-activate`, which the runner rejects, so on a desktop someone is working at it
+  can take focus; leave them out of `-Suites` there, and ask for them through `-Interactive`.
+- **Refusal.** A run refuses, before anything is built, in a CI job (`CI`, `GITHUB_ACTIONS`, `TF_BUILD` and the like are set) and in
+  a process without an interactive window station (a service, a scheduled task, a remote shell). After the build the lease checks the
+  session natively (`DxUi.InteractiveLease.exe --check`, which shows and takes nothing) and checks again when it is about to ask: the
+  window station is the visible one, the session is not 0 and is active, the input desktop can be opened and is this process's (a
+  locked screen, a secure desktop and a disconnected session fail here), no screen saver runs and the pointer position can be read.
+  The reason is printed, the run produces no receipt and nothing was shown or taken.
+- **After everything else.** The run does what every `test.ps1` run does before its suites (consumer advisory, tooling tests, runtime
+  staging, build, the filter, watchdog and lease self-tests, the benchmark), then takes the desktop for the suites alone, so the
+  watchdog contract, which bounds a hung test while the suites hold the desktop, has been proved against this executable first.
+  The development machine spends about a minute and a half on that, then about a minute and a half on the lease in x64 Debug
+  (`Menu` 43 s and `NativeTextInput` 16 s on 2026-09-30; 54 s and 22 s in ASan Debug), and the person's confirmation in between.
+- **Asking.** The lease records the desktop, then shows a dialog that says what will happen, for about how long, and that the
+  person's window, focus and pointer are restored afterwards. Its default button is Cancel, so a key pressed by accident as the dialog
+  appears cannot start a takeover; Start needs a click or Alt+S. If nobody answers within two minutes the answer is Cancel: nothing
+  was taken and the run exits with code 21. Ctrl+C while it asks ends the run as well.
+- **During the run.** A banner at the top of the primary monitor, above every window and click-through, says that the tests are
+  running and to keep hands off the keyboard and mouse; it also holds the foreground that the child is granted. The session-wide lease
+  `Local\DxUi.InteractiveTestRun.v1` makes a second run refuse (exit code 22) instead of queueing behind the first, and the system and
+  the display stay awake. Each suite is a child of its own, in a kill-on-close job, with its output in its log. The foreground is
+  granted to that child alone and never to any process, and the lease ends only a process it started: a child that outlives its bound
+  (15 minutes, or three times `-TestTimeout` when that is longer; none with `-TestTimeout 0`) ends with the watchdog's exit code, 124.
+- **Restoring.** The foreground window, then its keyboard focus, then the pointer in physical coordinates, last because activating a
+  window can move it. Each is verified by reading the desktop again, never by trusting a call's result (the foreground is asked for
+  three times and read back for up to a second each time), and the pointer must land exactly. This happens on every exit path: passing
+  suites, a failing suite, the watchdog's 124, a hung child, a child that cannot start, a cancelled or unanswered confirmation, a
+  warning that cannot be shown, and Ctrl+C or a closing console. It cannot happen if the lease process itself is killed; its job then
+  ends the child. Windows may refuse to restore a window of a process with higher integrity than the lease (an elevated terminal
+  while the lease is not elevated); the report then says `failed`, and the person's window stays where Windows left it.
+- **Reporting.** The line `Restoration: foreground=... focus=... cursor=...` names what became of each part: `unchanged` (the run
+  left it as the person had it), `restored`, `gone` (the window closed during the run), `failed`, `skipped` (the focus of a window
+  that could not be made the foreground) or `none` (nothing was recorded). The result also keeps the pointer positions, the one the
+  person had (`cursor.saved`) and the one the run left (`cursor.atExit`), and whether the run had moved anything
+  (`runMovedSomething`): restoring is an action, not a check, so a pointer the fixtures did not put back is shown and never counted
+  as theirs.
+- **Passing.** Every suite exits 0, none records a capability skip (an interactive run exists to run what other runs skip, so a skip
+  means the desktop did not provide it) and no part is `failed`. Logs and receipts carry the suffix `.interactive`
+  (`.interactive.filtered` with `-Tests`), so they never replace those of the run that records the suite's skips; a receipt records the
+  lease: its state, the confirmation, what became of each part, the pointer positions and the window the person had.
+
+`DxUi.InteractiveLease.exe` exits 0 when every suite passed and the desktop is as it was, 1 when a suite failed, 2 for a malformed
+command line, 20 when there is no interactive desktop, 21 when the confirmation was cancelled or unanswered, 22 when another run holds
+the lease, 23 when the warning could not be shown (the desktop was not taken), 24 when a suite could not be started, 25 when the
+suites passed but the desktop could not be given back and 26 when the run was stopped; `Tools/tests/Test-InteractiveMode.ps1` keeps
+`Tools/InteractiveRun.psm1`'s table equal to `LeaseExit` in `Tests/Support/InteractiveLease.h`.
+
+The `InteractiveLease` control suite (in every `test.ps1` run, with `--no-activate`) restores a desktop built of fake windows, a fake
+pointer and a fake foreground, so no window is activated and no pointer moves: untouched, moved, refused, never-sticking and
+closed-window foregrounds, a focus a window resets, a pointer an activation moves, and each refusal the desktop check names; and it
+runs the whole lease against fake services on every path (declined, unanswered, stopped, a warning that cannot be shown, a child
+that cannot start, fails or is ended by the watchdog, a desktop that cannot be restored) and requires the restoration, the release
+of the session's lease and of the display after each. Its few tests of the Windows backend only read the desktop, or read a window
+the test created and never showed. `DxUi.InteractiveLease.exe --self-test` proves the Windows services without anyone's desktop:
+children with their logs, exit codes, bound and stop, the session's lease, and the dialog (every answer, the unanswered one included)
+and the warning, which open on a private desktop that is never the input desktop. `Tools/tests/Test-InteractiveLease.ps1` runs it
+with `--check` and the usage errors (`test.ps1` runs it after the build in a run that includes the `InteractiveLease` suite, and
+before an interactive run takes the desktop), and `Tools/tests/Test-InteractiveMode.ps1` covers the selection, the refusals (two runs of
+`test.ps1`, under a CI environment and bounded, end before anything is built), the plan and result files and that `test.ps1` reaches
+the lease only through `-Interactive`. What none of them proves is the foreground hand-off on a real desktop: only an interactive run
+does, and its receipts are that evidence. The six runs of 2026-09-30 ran under RedSalamander's harness and are evidence for what they
+ran, not for this lease.
 
 ## Independent library workloads
 

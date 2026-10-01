@@ -30,6 +30,7 @@ void RunMenuTextLayoutResourceTests();
 void RunMenuExitLifetimeTests();
 void RunNewControlTests();
 void RunEditorControlTests();
+void RunInteractiveLeaseTests();
 void RunGalleryGenerator(const std::filesystem::path& outputPath);
 void RunGalleryGeneratorPerTheme(const std::filesystem::path& outputDirectory);
 void RunButtonContrastAuditGenerator(const std::filesystem::path& outputPath);
@@ -586,6 +587,11 @@ int wmain(int argc, wchar_t** argv)
     if (shouldRunSuite("Accessibility"))
     {
         runSuite("Accessibility", RunAccessibilityTests);
+        ranAnySuite = true;
+    }
+    if (shouldRunSuite("InteractiveLease"))
+    {
+        runSuite("InteractiveLease", RunInteractiveLeaseTests);
         ranAnySuite = true;
     }
 

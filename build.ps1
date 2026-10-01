@@ -120,7 +120,7 @@ $msbuild = Join-Path $installation 'MSBuild/Current/Bin/MSBuild.exe'
 if (-not (Test-Path -LiteralPath $msbuild)) { throw "MSBuild is missing: $msbuild" }
 if (-not $OutputRoot) { $OutputRoot = Join-Path $PSScriptRoot '.build' }
 $output = [IO.Path]::GetFullPath($OutputRoot).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
-$executables = @('DxUi.FoundationTests.exe','DxUi.ControlTests.exe','DxUi.EmbeddedTests.exe','DxUi.EmbeddedControls.exe')
+$executables = @('DxUi.FoundationTests.exe','DxUi.ControlTests.exe','DxUi.EmbeddedTests.exe','DxUi.EmbeddedControls.exe','DxUi.InteractiveLease.exe')
 foreach ($name in $executables) {
     $expected = [IO.Path]::GetFullPath((Join-Path $output "$Platform/$Configuration/$name"))
     foreach ($process in (Get-CimInstance Win32_Process -Filter "Name = '$name'")) {
