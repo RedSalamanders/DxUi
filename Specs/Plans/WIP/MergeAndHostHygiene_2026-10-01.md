@@ -42,6 +42,14 @@ Each consumer tracks three items in its own WIP plan:
 - Its own vcpkg restore uses the discovered default toolset.
 - It restores the DxUi pin with Git long paths, or as a sparse checkout without `Measurements/`.
 
+The plans, each in review as a documentation-only pull request:
+
+- RedSalamander: `DxUi_HostMessagesToolsetAndRestore_2026-10-01` (I27),
+  [DualTail/RedSalamander#109](https://github.com/DualTail/RedSalamander/pull/109).
+- RedXe: `DxUiFollowUps_2026-10-01`, [RedSalamanders/RedXe#29](https://github.com/RedSalamanders/RedXe/pull/29).
+- RedPrism: `DxUiFollowUps_2026-10-01`, which also covers its DxUi pin `c403052` (125 commits behind) and Tree
+  multi-select, [RedSalamanders/RedPrism#2](https://github.com/RedSalamanders/RedPrism/pull/2).
+
 ## Rules
 
 Each library item is its own branch and pull request. It needs the full `test.ps1` matrix and the three ARM64 builds,
