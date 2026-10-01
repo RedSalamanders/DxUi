@@ -27,6 +27,8 @@ function Get-PerformanceIdentityKeys { return @($script:Identity) }
 
 function Get-BenchmarkInputPaths { return @($script:BenchmarkInputs) }
 
+function Get-LibraryInputPaths { return @($script:FingerprintPaths) }
+
 function Get-SourceFingerprint {
     <# The receipt's sourceFingerprint of one tree: SHA-256 over the "path hash" lines of its tracked and unignored library
        inputs, one file hash per line. The lines are ordered by Sort-Object, as receipts have always been, so a fingerprint
@@ -371,7 +373,7 @@ function Invoke-PerformanceComparison {
     return [int]($result['status'] -in @('advice-required', 'invalid-evidence'))
 }
 
-Export-ModuleMember -Function Get-PerformanceMetricNames, Get-PerformanceIdentityKeys, Get-BenchmarkInputPaths, Get-SourceFingerprint,
+Export-ModuleMember -Function Get-PerformanceMetricNames, Get-PerformanceIdentityKeys, Get-BenchmarkInputPaths, Get-LibraryInputPaths, Get-SourceFingerprint,
     Read-PerformanceReceipt, Assert-PerformanceReceipt, Compare-PerformanceReceipt, ConvertTo-PerformanceComparisonJson,
     Invoke-PerformanceComparison, Get-MannWhitneyTest, Get-MinimumAttainableP, Get-MetricVerdict, Compare-PerformanceSet,
     Format-PerformanceSetVerdict
