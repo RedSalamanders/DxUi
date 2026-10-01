@@ -10,13 +10,18 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <malloc.h>
 #include <new>
 
 // Counts library C++ heap calls within the deliberately isolated composition loop, not driver allocations. The bytes they ask
-// for are counted beside them, for the opt-in measurement of GridSelectionBenchmark.h.
+// for are counted beside them, for the opt-in measurement of GridSelectionBenchmark.h. That measurement also asks what this
+// thread's heap holds at a moment: while countLiveBytes is set, liveBytes is the sizes of the blocks this thread has allocated
+// less those it has freed (the plain forms only, which every standard container uses), read as a difference between two points.
 static thread_local bool countAllocations  = false;
 static thread_local size_t allocations     = 0;
 static thread_local size_t allocationBytes = 0;
+static thread_local bool countLiveBytes    = false;
+static thread_local ptrdiff_t liveBytes    = 0;
 void* operator new(size_t bytes)
 {
     if (countAllocations)
@@ -25,28 +30,38 @@ void* operator new(size_t bytes)
         allocationBytes += bytes;
     }
     if (auto* p = malloc(bytes ? bytes : 1))
+    {
+        if (countLiveBytes)
+            liveBytes += static_cast<ptrdiff_t>(_msize(p));
         return p;
+    }
     throw std::bad_alloc();
 }
 void* operator new[](size_t bytes)
 {
     return ::operator new(bytes);
 }
+static void FreeBlock(void* p) noexcept
+{
+    if (p && countLiveBytes)
+        liveBytes -= static_cast<ptrdiff_t>(_msize(p));
+    free(p);
+}
 void operator delete(void* p) noexcept
 {
-    free(p);
+    FreeBlock(p);
 }
 void operator delete[](void* p) noexcept
 {
-    free(p);
+    FreeBlock(p);
 }
 void operator delete(void* p, size_t) noexcept
 {
-    free(p);
+    FreeBlock(p);
 }
 void operator delete[](void* p, size_t) noexcept
 {
-    free(p);
+    FreeBlock(p);
 }
 void* operator new(size_t bytes, std::align_val_t alignment)
 {
@@ -297,9 +312,9 @@ __declspec(noinline) static void TestCacheBounds(GraphicsFixture& gpu)
 __declspec(noinline) static int RunFunctionalTests()
 {
     // The opt-in grid selection measurement is dispatched here, not in BenchmarkMain.h, whose hash identifies the complex-UI fixture.
-    if (__argc == 3 && std::wstring_view(__wargv[1]) == L"--benchmark-grid-selection")
+    if ((__argc == 3 || __argc == 4) && std::wstring_view(__wargv[1]) == L"--benchmark-grid-selection")
     {
-        GridSelectionBenchmark::Run(__wargv[2]);
+        GridSelectionBenchmark::Run(__wargv[2], __argc == 4 ? std::wstring_view(__wargv[3]) : std::wstring_view());
         return 0;
     }
     static size_t diagnosticCalls = 0;
