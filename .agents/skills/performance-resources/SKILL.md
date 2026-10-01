@@ -9,6 +9,10 @@ Read [the owning contract](../../../Specs/Core/Core_PerformanceAndResources.md) 
 
 Measure dirty preparation separately from composition. Share immutable resources per device generation. Bound queue/cache/surface growth and replacement peaks. Clean/hidden states add no periodic work. Use source/configuration/fixture receipts; do not substitute draw counts for total cost.
 
+A pull request that changes what the benchmark measures also runs the hosted paired gate (the contract's Hosted paired
+gate); its check fails for a confirmed degradation or an inconclusive run, so repeat it or measure on a quiet machine
+before asking for advice, and never rebaseline.
+
 Validate changed guidance with `validate-skills.ps1` and `validate-specs.ps1`. For source/build work run the affected
 `test.ps1` configurations and the additional validation named by the contract. Supported capabilities are recorded
 in `capabilities.json`; library tests do not replace consumer product qualification or deferred native-platform/IME/AT coverage.

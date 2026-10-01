@@ -33,3 +33,5 @@ Measurements/GridSelection/2026-10-01/*.json -text -whitespace
 Measurements/GridSelection/2026-10-01/*.txt -text -whitespace
 Measurements/GridSelection/2026-10-01/SHA256SUMS -text -whitespace
 Measurements/GridSelection/2026-10-01/refine-SHA256SUMS -text -whitespace
+Measurements/HostedPairedGate/**/reports.zip binary
+Measurements/HostedPairedGate/**/SHA256SUMS -text -whitespace
