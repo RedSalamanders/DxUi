@@ -39,7 +39,7 @@ layout; controls contain no AV device operations or application settings. Native
 Win32 text/accessibility and presentation support inside the same archive.
 
 Consumers import [Build/DxUi.Consumer.props](Build/DxUi.Consumer.props) and
-[Build/DxUi.Consumer.targets](Build/DxUi.Consumer.targets), pin an exact commit/API revision 2 with target `["DxUi"]`,
+[Build/DxUi.Consumer.targets](Build/DxUi.Consumer.targets), pin an exact commit/API revision 3 with target `["DxUi"]`,
 and use an isolated restore/build output root. See [the consumption contract](Specs/Build/Build_ToolchainAndConsumption.md).
 No DxUi DLL or copied/enumerated library sources are required.
 

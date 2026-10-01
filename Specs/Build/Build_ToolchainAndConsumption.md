@@ -57,7 +57,7 @@ simultaneous releases of the two applications.
 `src/DxUi.vcxproj` produces the only archive, `DxUi.lib`. FoundationTests, ControlTests, EmbeddedTests and the
 standalone EmbeddedControls executable all consume it. The test-only `DxUi.InteractiveLease.exe` (the desktop lease behind
 `test.ps1 -Interactive`) is built beside them in every configuration and does not link it. The supported lock target is
-`["DxUi"]`, API revision 2.
+`["DxUi"]`, API revision 3.
 
 Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the vcpkg tool revision are pinned.
 `-OutputRoot` isolates restore and build work in a consumer-owned directory. The same absolute directory, including
@@ -166,6 +166,50 @@ ASAN outputs stage the selected MSVC toolset's architecture-matching runtime bes
 copy target and fails if that runtime is missing. The standalone archive stages once for its common
 output directory; external consumers stage for their own output. Synthetic MSBuild staging tests
 do not replace the required native sanitizer detection probe and regression suite.
+
+## Compatibility and the consumer interface
+
+`apiRevision` in `capabilities.json` is the compatibility number a consumer lock pins, and `validate_consumer.ps1`
+rejects a lock that names another, so a consumer adopts a new revision in the reviewed change that moves its pin.
+
+The revision increments when a consumer built against the previous one could stop compiling, linking or behaving as before
+without a change of its own:
+- a public header, declaration, MSBuild property or file is removed or renamed;
+- a public function, control or message whose meaning a consumer relies on changes, including a private value a consumer had
+  copied;
+- a consumer interface entry, or one of its parameters, is removed or renamed;
+- a behavior now needs a call it did not need before.
+
+Additions do not increment it. Instead of incrementing, a change may keep the old form working for one revision: an alias for
+a renamed declaration, or a script or function that forwards to its replacement. The next increment removes it. Such an
+alias carries no `[[deprecated]]` attribute, since consumers compile with warnings as errors; the changelog names it and its
+replacement. The changelog fragment of a change that increments the revision says so and lists what each consumer must
+change.
+
+The consumer interface is what a consumer may call or import from its pinned checkout. `capabilities.json` lists it under
+`consumerInterface`:
+- **Scripts**, with the parameters consumers pass: `vcpkg-install.ps1`, `validate-build-matrix.ps1` and
+  `Tools/validate_consumer.ps1`.
+- **Module functions**, with their parameters: `Get-DxUiConsumerBuildIdentity`, `Show-DxUiUpdateNotice`,
+  `Get-DxUiVisualStudioInstallation`, `Get-DxUiDefaultToolset` and `Update-DxUiVcpkgOverlayTriplet`.
+- **MSBuild files**: `Build/DxUi.Consumer.props` and `.targets`, `Build/DxUi.AddressSanitizer.targets` and `src/DxUi.vcxproj`.
+- **Public headers**: the `include/DxUi` root.
+
+`validate-dependencies.ps1` fails if any of the following holds:
+- a listed script or module is missing;
+- a listed module no longer exports a listed function;
+- a listed script or function lost a listed parameter;
+- a listed MSBuild file or the header root is missing;
+- the revision is not a positive integer.
+
+It reads scripts and modules from their parse trees and runs nothing. Names compare as PowerShell binds them, ignoring case,
+and a new parameter is an addition. Every other repository tool, such as `build.ps1`, `test.ps1`, `Tools/Validation.psm1` and
+the other validators, may change without a revision.
+
+Revision 3 covers three changes made at revision 2:
+- the model and delegate interfaces were renamed to `IGridModel`, `IGridDelegate`, `ITreeModel` and `ITreeDelegate`;
+- the Python tools were removed, including the build-matrix validator that `validate-build-matrix.ps1` replaces;
+- DxUi's private window messages are now registered by name, with `ContextMenu::PostMenuBarHover` for the menu-bar hover.
 
 ## Advisory updates
 

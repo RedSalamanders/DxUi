@@ -2,6 +2,7 @@
 #include "../../src/Support/AnimationDispatcher.h"
 #include "DxUiTestHelpers.h"
 
+#include "../Support/FailureReports.h"
 #include "../Support/ForegroundThief.h"
 #include "../Support/PerformanceCapture.h"
 #include <optional>
@@ -91,6 +92,21 @@ void RunWatchdogSelfTestProgress()
 
 int wmain(int argc, wchar_t** argv)
 {
+    DxUiTestFailureReports::RouteAwayFromDialogs();
+    // The failure-report self-test, reachable only through --failure-report-self-test, which Tools/tests/Test-TestWatchdog.ps1
+    // runs: a failed runtime check must end the run with its report and exit code 3, never wait on a dialog.
+    if (argc == 2 && std::wstring_view(argv[1]) == L"--failure-report-self-test")
+    {
+#if defined(_DEBUG)
+        _ASSERTE(! L"the failure-report self-test fails this check on purpose");
+        std::fputs("The failed check returned instead of ending the run.\n", stderr);
+        return 1;
+#else
+        std::fputs("A Release build has no runtime checks to report.\n", stdout);
+        return 0;
+#endif
+    }
+
     class TestClipboard final : public DxUi::TextClipboard
     {
         std::optional<std::wstring> _text;
