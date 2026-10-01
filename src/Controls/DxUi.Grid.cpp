@@ -6,6 +6,7 @@
 #include "DxUi.Internal.h"
 
 #include <algorithm>
+#include <bit>
 #include <chrono>
 #include <cmath>
 #include <exception>
@@ -794,6 +795,43 @@ void GiveBackWastedRoom(std::vector<uint64_t>& ids, size_t needed) noexcept
         std::vector<uint64_t>().swap(ids);
     }
 }
+
+// A table of bits for the ids of a selection, 16 to 32 to an id (a power of two in all), in which an id's bit is the top bits of its
+// product with the golden ratio. An id whose bit is clear is not selected, for certain; one whose bit is set may be, and one id in
+// 16 to 32 that is not selected is let through. PreserveOrdered asks about every row of a model, and nearly every row of a long
+// list is not selected: the table answers those with one load where a binary search of hashed ids mispredicts about every other
+// comparison, and only the rows it lets through pay for the exact answer. The table lives for as long as PreserveOrdered runs.
+class SelectedIdFilter
+{
+public:
+    explicit SelectedIdFilter(std::span<const uint64_t> ids)
+        : _bitCount(std::bit_ceil((std::max)(size_t{64}, ids.size() * 16u))),
+          _words(_bitCount / 64u, uint64_t{0}),
+          _shift(64u - static_cast<unsigned>(std::countr_zero(_bitCount)))
+    {
+        for (const uint64_t id : ids)
+        {
+            const size_t bit = BitOf(id);
+            _words[bit >> 6u] |= uint64_t{1} << (bit & 63u);
+        }
+    }
+
+    [[nodiscard]] bool MayContain(uint64_t id) const noexcept
+    {
+        const size_t bit = BitOf(id);
+        return ((_words[bit >> 6u] >> (bit & 63u)) & 1u) != 0u;
+    }
+
+private:
+    [[nodiscard]] size_t BitOf(uint64_t id) const noexcept
+    {
+        return static_cast<size_t>((id * 0x9E3779B97F4A7C15ull) >> _shift);
+    }
+
+    size_t _bitCount;
+    std::vector<uint64_t> _words;
+    unsigned _shift;
+};
 } // namespace
 
 // Every mutator below leaves _sortedRowIds holding exactly the ids of _selectedRowIds, ascending (and as many times as
@@ -885,11 +923,13 @@ void GridSelectionModel::PreserveOrdered(const std::vector<uint64_t>& orderedRow
     // ids and moved in at the end, so a failed allocation leaves the selection as it was.
     std::vector<uint64_t> kept;
     kept.reserve((std::min)(orderedRowIds.size(), _selectedRowIds.size()));
+    // One question for every row of the model. A scan of kScanIds ids would cost each row up to a hundred times a search, and the
+    // search mispredicts about every other comparison over ids in no order, so the filter answers the rows that are not selected, and
+    // the search the others, which keeps the cost of a long list at about that of reading it.
+    const SelectedIdFilter filter(_sortedRowIds);
     for (const uint64_t rowId : orderedRowIds)
     {
-        // One question for every row of the model: a search keeps that O(rows log n) however many ids are selected, where a scan
-        // of kScanIds ids would cost each row up to a hundred times the search.
-        if (std::ranges::binary_search(_sortedRowIds, rowId))
+        if (filter.MayContain(rowId) && std::ranges::binary_search(_sortedRowIds, rowId))
         {
             kept.push_back(rowId);
         }

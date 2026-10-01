@@ -914,6 +914,89 @@ void TestSelectionModelCopiesAnswerMembershipIndependently()
     return rows;
 }
 
+// A data change over a long list, which asks about every row of it: whatever the selection holds, exactly its rows are kept, in the
+// order of the list. The ids are hashes of the rows (the finalizer of MurmurHash3), so that nothing about them helps a search or the
+// table that PreserveOrdered consults first, and rows that are not selected are let through it now and then.
+void TestSelectionModelPreserveOrderedOverALongListKeepsExactlyTheSelectedRows()
+{
+    using DxUi::GridSelectionModel;
+
+    constexpr size_t kRows = 60'000u;
+    std::vector<uint64_t> rows;
+    for (uint32_t row = 0u; row < kRows; ++row)
+    {
+        uint32_t id = row;
+        id ^= id >> 16u;
+        id *= 0x85EBCA6Bu;
+        id ^= id >> 13u;
+        id *= 0xC2B2AE35u;
+        id ^= id >> 16u;
+        rows.push_back(id);
+    }
+    // The same rows backwards, without every third: what a descending sort that also dropped rows would leave.
+    std::vector<uint64_t> reorderedRows;
+    for (size_t index = rows.size(); index-- > 0u;)
+    {
+        if (index % 3u != 0u)
+        {
+            reorderedRows.push_back(rows[index]);
+        }
+    }
+
+    // Selections of 1 id to every row: clicked one by one in an order unlike the rows' (up to 1,100 ids, which is more than the
+    // model scans) or made as a range (30,000 rows and all 60,000).
+    for (const size_t clicks : {size_t{1}, size_t{2}, size_t{9}, size_t{70}, size_t{1100}, size_t{30'000}, size_t{60'000}})
+    {
+        GridSelectionModel model;
+        std::unordered_set<uint64_t> selected;
+        if (clicks <= 1100u)
+        {
+            for (size_t click = 0u; click < clicks; ++click)
+            {
+                const uint64_t id = rows[(click * 7'919u) % kRows];
+                if (click == 0u)
+                {
+                    model.SetSingle(id);
+                }
+                else
+                {
+                    model.Toggle(id);
+                }
+                selected.insert(id);
+            }
+        }
+        else
+        {
+            model.SetRange(rows, rows.front(), rows[clicks - 1u]);
+            selected.insert(rows.begin(), rows.begin() + static_cast<std::ptrdiff_t>(clicks));
+        }
+        Require(model.GetCount() == clicks && selected.size() == clicks, "the selection of a long list holds the rows that were selected");
+
+        for (const std::vector<uint64_t>* list : {&rows, &reorderedRows})
+        {
+            std::vector<uint64_t> expected;
+            for (const uint64_t id : *list)
+            {
+                if (selected.contains(id))
+                {
+                    expected.push_back(id);
+                }
+            }
+            model.PreserveOrdered(*list);
+            const std::string label = std::format("PreserveOrdered over {} rows of a selection of {} ids", list->size(), clicks);
+            Require(std::ranges::equal(model.GetOrderedSelection(), expected),
+                    (label + " keeps exactly the rows that were selected, in the list's order").c_str());
+            size_t wrong = 0u;
+            selected     = std::unordered_set<uint64_t>(expected.begin(), expected.end());
+            for (const uint64_t id : rows)
+            {
+                wrong += model.IsSelected(id) == selected.contains(id) ? 0u : 1u;
+            }
+            Require(wrong == 0u, (label + " answers membership for every row of the list").c_str());
+        }
+    }
+}
+
 // A selection that grows by one id at a time past the size at which the model stops scanning and starts to search, and shrinks back
 // across it, answers membership correctly at every size: for every id around the limit, and for ids at the two ends of the selection
 // order (the first and the newest) and a spread of others at every other size.
@@ -3056,6 +3139,7 @@ void RunGridTests()
     DXUI_RUN_TEST(TestSelectionModelMembershipFollowsEveryMutator);
     DXUI_RUN_TEST(TestSelectionModelKeepsSelectionOrderForAScatteredLargeSelection);
     DXUI_RUN_TEST(TestSelectionModelCopiesAnswerMembershipIndependently);
+    DXUI_RUN_TEST(TestSelectionModelPreserveOrderedOverALongListKeepsExactlyTheSelectedRows);
     DXUI_RUN_TEST(TestSelectionModelAnswersMembershipAtEverySizeAroundItsScanLimit);
     DXUI_RUN_TEST(TestSelectionModelGivesBackTheRoomOfALargeSelection);
     DXUI_RUN_TEST(TestGridSelectionOfALargeListFollowsGesturesAndDataChanges);
