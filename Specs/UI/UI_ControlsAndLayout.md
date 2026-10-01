@@ -306,6 +306,14 @@ dilute that pair. Disabled primary buttons use the button surface and disabled t
 hide focus. Enabled focus remains visible for pointer and keyboard and uses the undiluted palette focus color.
 The normal light/dark appearance keeps its existing visual treatment.
 
+### Tree rows at the viewport edge
+
+A tree paints its rows only inside its viewport, the frame's interior within its 2 DIP inset. A row can straddle the
+viewport's top or bottom edge: the viewport need not hold a whole number of rows, and a thumb drag can leave a fraction of
+one. Such a row shows only its part inside: its fill, focus ring, text, badge and expander are clipped at the edge. The
+same applies to rows an expansion or collapse animates. The reorder marker is clipped 1 DIP past the viewport, inside
+the inset, so an insertion line on the edge keeps its full 2 DIP.
+
 ### Tree row drag
 
 `Tree::SetReorderEnabled` arms a pointer drag on a row (not the expander or the scrollbar). After the pointer moves
