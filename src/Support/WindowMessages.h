@@ -143,6 +143,12 @@ struct RegisteredMessage final
     return message;
 }
 
+[[nodiscard]] inline RegisteredMessage MenuPopupDebugGetItemLayout() noexcept
+{
+    static const RegisteredMessage message = Register(L"RedSalamanders.DxUi.MenuPopup.DebugGetItemLayout.v1");
+    return message;
+}
+
 // Posted by TextInputServices to the application window it is attached to, to grant its coalesced deferred TSF lock;
 // wParam is the service's dispatch cookie.
 [[nodiscard]] inline RegisteredMessage TextInputServicesDeferredLock() noexcept
