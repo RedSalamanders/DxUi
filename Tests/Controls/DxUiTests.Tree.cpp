@@ -713,6 +713,147 @@ void TestTreeAccumulatesPartialWheelDelta()
             "two half tree wheel deltas accumulate to the same row movement as one full step");
 }
 
+// Rows sit at whole-row positions offset by the scroll, so after a scrollbar drag the first and last visible rows straddle
+// the viewport's edges. Nothing such a row paints, nor the reorder marker on it, may reach past the tree's frame: outside
+// the frame the window looks as it does with an empty tree, while inside the viewport the rows' visible parts still paint.
+void TestTreeRowsStraddlingTheViewportEdgesPaintOnlyInsideIt()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(16.0f, 40.0f, 240.0f, 136.0f));
+    tree->SetReorderEnabled(true);
+    MutableTreeModel model;
+    std::vector<TreeItemData> items;
+    for (uint64_t id = 1u; id <= 20u; ++id)
+    {
+        // Every row is a parent, so the middle of the row that straddles the bottom edge is an inside drop.
+        items.push_back(TreeItemData{.id = id, .text = L"Item " + std::to_wstring(id), .hasChildren = true});
+    }
+    model.SetVisibleItems(std::move(items));
+    tree->SetModel(&model);
+    // Selected before the scroll: selecting later would scroll the row wholly into view.
+    tree->SetSelectedItemId(2u);
+    window.Host().SetRoot(std::move(root));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.PumpMessages();
+    ControlHost& host = window.Host();
+
+    // The row height follows the host's fonts, and the viewport is inset from the frame by the same amount on every side,
+    // which the first row's top gives before any scroll. A viewport of 2.9 rows scrolled by 1.5 rows shows half of the
+    // second row at its top and four tenths of the fifth at its bottom, and the window has room above and below the frame.
+    const std::optional<D2D1_RECT_F> firstRow = tree->GetVisibleItemHitRect(0u);
+    Require(firstRow.has_value() && firstRow->bottom > firstRow->top, "the first row has a rectangle");
+    const float rowHeight = firstRow->bottom - firstRow->top;
+    const float inset     = firstRow->top - tree->GetBounds().top;
+    tree->SetBounds(D2D1::RectF(16.0f, 40.0f, 240.0f, 40.0f + (2.0f * inset) + (2.9f * rowHeight)));
+    const D2D1_RECT_F frame    = tree->GetBounds();
+    const float viewportTop    = frame.top + inset;
+    const float viewportBottom = frame.bottom - inset;
+
+    // Only a thumb drag leaves a fraction of a row: the wheel and the keys scroll by whole rows.
+    const TreeScrollbarVisualState scrollbar = tree->DebugGetScrollbarVisualState(host.GetTheme());
+    Require(scrollbar.hasVerticalScrollbar, "the tree scrolls");
+    const D2D1_RECT_F track = scrollbar.verticalTrackRect;
+    const D2D1_RECT_F thumb = scrollbar.verticalThumbRect;
+    const float available   = (track.bottom - track.top) - (thumb.bottom - thumb.top);
+    const float extent      = (20.0f * rowHeight) - (viewportBottom - viewportTop);
+    Require(available > 0.0f && extent > 0.0f, "the thumb has room to move");
+    const D2D1_POINT_2F grab   = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
+    const D2D1_POINT_2F dragTo = D2D1::Point2F(grab.x, grab.y + (1.5f * rowHeight * available / extent));
+    Require(tree->OnMouseDown(host, grab, false, 0u) && tree->OnMouseMove(host, dragTo, 0u), "the thumb drag scrolls");
+    static_cast<void>(tree->OnMouseUp(host, dragTo, false, 0u));
+
+    std::optional<size_t> topRow;
+    std::optional<size_t> bottomRow;
+    for (size_t index = 0u; index < 20u; ++index)
+    {
+        if (const std::optional<D2D1_RECT_F> rect = tree->GetVisibleItemHitRect(index))
+        {
+            if (rect->top < viewportTop && rect->bottom > viewportTop)
+            {
+                topRow = index;
+            }
+            if (rect->top < viewportBottom && rect->bottom > viewportBottom)
+            {
+                bottomRow = index;
+            }
+        }
+    }
+    Require(topRow == 1u && bottomRow.has_value(), "the selected row straddles the top edge and another row the bottom edge");
+    const D2D1_RECT_F top    = tree->GetVisibleItemHitRect(topRow.value()).value();
+    const D2D1_RECT_F bottom = tree->GetVisibleItemHitRect(bottomRow.value()).value();
+    const float bottomShown  = (viewportBottom - bottom.top) / rowHeight;
+    Require(viewportTop - top.top > 0.2f * rowHeight && top.bottom - viewportTop > 0.2f * rowHeight && bottomShown > 0.3f && bottomShown < 0.8f,
+            "each row straddles its edge by a good part of a row");
+    // In the visible part of the bottom row and in its middle half, where a drop goes inside it.
+    const D2D1_POINT_2F inBottomRow = D2D1::Point2F((bottom.left + bottom.right) * 0.5f, bottom.top + (0.5f * (0.25f + bottomShown) * rowHeight));
+    Require(tree->OnMouseMove(host, inBottomRow, 0u), "the pointer hovers the row that straddles the bottom edge");
+    WindowHostBitmapCapture straddling;
+    Require(host.DebugCaptureBitmap(straddling), "capture the rows that straddle both edges");
+
+    // A row drag over the bottom row shows the reorder marker on it. The pressed row is wholly visible, so the press
+    // scrolls nothing.
+    const float scrollDip                    = tree->DebugGetVerticalScrollDip();
+    const std::optional<D2D1_RECT_F> pressed = tree->GetVisibleItemHitRect(topRow.value() + 1u);
+    Require(pressed.has_value() && pressed->top >= viewportTop && pressed->bottom <= viewportBottom, "a wholly visible row to drag");
+    const D2D1_POINT_2F press = D2D1::Point2F((pressed->left + pressed->right) * 0.5f, (pressed->top + pressed->bottom) * 0.5f);
+    Require(tree->OnMouseDown(host, press, false, 0u) && tree->OnMouseMove(host, inBottomRow, 0u), "the row drag reaches the bottom row");
+    Require(tree->DebugGetVerticalScrollDip() == scrollDip, "the row drag scrolled nothing");
+    WindowHostBitmapCapture marker;
+    Require(host.DebugCaptureBitmap(marker), "capture the reorder marker on the bottom row");
+    Require(tree->OnKeyDown(host, VK_ESCAPE, 0u), "escape cancels the row drag");
+    static_cast<void>(tree->OnMouseUp(host, inBottomRow, false, 0u));
+
+    // The same window with an empty tree: the frame alone.
+    MutableTreeModel empty;
+    tree->SetModel(&empty);
+    WindowHostBitmapCapture frameOnly;
+    Require(host.DebugCaptureBitmap(frameOnly), "capture the empty tree");
+    Require(straddling.widthPx == frameOnly.widthPx && straddling.heightPx == frameOnly.heightPx && marker.widthPx == frameOnly.widthPx &&
+                marker.heightPx == frameOnly.heightPx,
+            "the captures have one size");
+
+    // Pixel rows kept two pixels clear of the frame's antialiased border and of the clip's edge.
+    const float scale          = host.GetDpi() / 96.0f;
+    const auto pixelRow        = [scale](float dip) noexcept { return static_cast<UINT>((std::max)(0.0f, std::floor(dip * scale))); };
+    const UINT aboveFrameEnd   = pixelRow(frame.top) - 2u;
+    const UINT belowFrameBegin = (std::min)(frameOnly.heightPx, pixelRow(frame.bottom) + 3u);
+    const auto differingInRows = [](const WindowHostBitmapCapture& actual, const WindowHostBitmapCapture& expected, UINT begin, UINT end) noexcept
+    {
+        size_t differing = 0u;
+        for (UINT y = begin; y < end && y < actual.heightPx; ++y)
+        {
+            for (UINT x = 0u; x < actual.widthPx; ++x)
+            {
+                const size_t base = ((static_cast<size_t>(y) * actual.widthPx) + x) * 4u;
+                for (size_t channel = 0u; channel < 4u; ++channel)
+                {
+                    const int delta = static_cast<int>(actual.bgraPixels[base + channel]) - static_cast<int>(expected.bgraPixels[base + channel]);
+                    if (delta > 8 || delta < -8)
+                    {
+                        ++differing;
+                        break;
+                    }
+                }
+            }
+        }
+        return differing;
+    };
+
+    Require(differingInRows(straddling, frameOnly, 0u, aboveFrameEnd) == 0u, "nothing of the selected row that straddles the top edge paints above the frame");
+    Require(differingInRows(straddling, frameOnly, belowFrameBegin, frameOnly.heightPx) == 0u,
+            "nothing of the hovered row that straddles the bottom edge paints below the frame");
+    Require(differingInRows(marker, frameOnly, belowFrameBegin, frameOnly.heightPx) == 0u,
+            "nothing of the reorder marker on the row that straddles the bottom edge paints below the frame");
+    Require(differingInRows(straddling, frameOnly, pixelRow(viewportTop) + 2u, pixelRow(top.bottom) - 1u) > 0u, "the visible part of the selected row paints");
+    Require(differingInRows(straddling, frameOnly, pixelRow(bottom.top) + 2u, pixelRow(viewportBottom) - 1u) > 0u,
+            "the visible part of the hovered row paints");
+    Require(differingInRows(marker, frameOnly, pixelRow(bottom.top) + 2u, pixelRow(viewportBottom) - 1u) > 0u,
+            "the reorder marker paints on the visible part of its row");
+}
 void TestTreeScrollbarFeedbackFollowsHoverAndDragState()
 {
     using namespace DxUi;
@@ -1362,6 +1503,941 @@ void TestTreeIconFontAndReorderReleaseEdgeCases()
     Require(! tree->OnMouseUp(host, centre(2u), false, 0u) && delegate.reorderCount == 1u, "a click without a drag is not reported as a handled drag");
 }
 
+namespace
+{
+// Two groups among loose rows: the visible rows are ids 1 to 7 in that order, so a range crosses a group boundary.
+[[nodiscard]] std::vector<DxUi::TreeItemData> GroupedTreeItems()
+{
+    using namespace DxUi;
+    return {
+        TreeItemData{.id = 1u, .text = L"Group A", .depth = 0u, .hasChildren = true, .expanded = true},
+        TreeItemData{.id = 2u, .parentId = 1u, .text = L"A one", .depth = 1u},
+        TreeItemData{.id = 3u, .parentId = 1u, .text = L"A two", .depth = 1u},
+        TreeItemData{.id = 4u, .text = L"Group B", .depth = 0u, .hasChildren = true, .expanded = true},
+        TreeItemData{.id = 5u, .parentId = 4u, .text = L"B one", .depth = 1u},
+        TreeItemData{.id = 6u, .text = L"Loose", .depth = 0u},
+        TreeItemData{.id = 7u, .text = L"Other", .depth = 0u},
+    };
+}
+
+// A tree in a host whose delegate records every callback and reads the tree from inside it. Pointer input goes straight to
+// the tree, so clicking one row twice is never taken for a double-click.
+class TreeSelectionFixture final
+{
+public:
+    // `multiSelect` enables or disables multi-select; none leaves a tree as `Tree` constructs it, which is how a test of the
+    // default sees it.
+    explicit TreeSelectionFixture(std::vector<DxUi::TreeItemData> items, std::optional<bool> multiSelect = true, bool reorder = false, float heightDip = 260.0f)
+    {
+        EnableMotionForTest(host);
+        auto root = std::make_unique<DxUi::Panel>();
+        tree      = root->AddChild<DxUi::Tree>();
+        tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, heightDip));
+        model.SetVisibleItems(std::move(items));
+        tree->SetModel(&model);
+        tree->SetDelegate(&delegate);
+        if (multiSelect.has_value())
+        {
+            tree->SetMultiSelectEnabled(multiSelect.value());
+        }
+        tree->SetReorderEnabled(reorder);
+        delegate.observedTree = tree;
+        host.SetRoot(std::move(root));
+        static_cast<DxUi::Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, heightDip + 20.0f));
+    }
+
+    TreeSelectionFixture(const TreeSelectionFixture&)            = delete;
+    TreeSelectionFixture& operator=(const TreeSelectionFixture&) = delete;
+    TreeSelectionFixture(TreeSelectionFixture&&)                 = delete;
+    TreeSelectionFixture& operator=(TreeSelectionFixture&&)      = delete;
+
+    [[nodiscard]] D2D1_POINT_2F RowPoint(size_t visibleIndex, float fractionDown = 0.5f) const
+    {
+        const std::optional<D2D1_RECT_F> rect = tree->GetVisibleItemHitRect(visibleIndex);
+        Require(rect.has_value(), "the row has a hit rectangle");
+        return D2D1::Point2F((rect->left + rect->right) * 0.5f, rect->top + ((rect->bottom - rect->top) * fractionDown));
+    }
+
+    void Press(size_t visibleIndex, UINT modifiers = 0u)
+    {
+        Require(tree->OnMouseDown(host, RowPoint(visibleIndex), false, modifiers), "pressing a row is handled");
+    }
+
+    void Release(size_t visibleIndex, UINT modifiers = 0u)
+    {
+        static_cast<void>(tree->OnMouseUp(host, RowPoint(visibleIndex), false, modifiers));
+    }
+
+    void Click(size_t visibleIndex, UINT modifiers = 0u)
+    {
+        Press(visibleIndex, modifiers);
+        Release(visibleIndex, modifiers);
+    }
+
+    bool Key(UINT virtualKey, UINT modifiers = 0u)
+    {
+        return tree->OnKeyDown(host, virtualKey, modifiers);
+    }
+
+    [[nodiscard]] TreeIds Selected() const
+    {
+        return tree->GetSelectedItemIds();
+    }
+
+    DxUi::WindowHost host;
+    MutableTreeModel model;
+    RecordingTreeDelegate delegate;
+    DxUi::Tree* tree = nullptr;
+};
+
+void TestTreeMultiSelectIsOptInAndSingleSelectIsUnchanged()
+{
+    using namespace DxUi;
+
+    TreeSelectionFixture fixture(FlatTreeItems(6u), std::nullopt);
+    Tree& tree                 = *fixture.tree;
+    RecordingTreeDelegate& log = fixture.delegate;
+    Require(! tree.MultiSelectEnabled(), "a tree selects one item until multi-select is enabled");
+    Require(tree.GetSelectedItemIds().empty() && ! tree.GetSelectedItemId().has_value(), "a new tree selects nothing");
+
+    // Modifiers change nothing while it is off: every click selects its row alone, as it always did.
+    fixture.Click(1u);
+    fixture.Click(3u, MK_CONTROL);
+    RequireTreeIds(fixture.Selected(), {4u}, "Ctrl+click without multi-select");
+    fixture.Click(5u, MK_SHIFT);
+    RequireTreeIds(fixture.Selected(), {6u}, "Shift+click without multi-select");
+    Require(! tree.IsItemSelected(4u) && tree.IsItemSelected(6u), "a single selection names its one item");
+    Require(log.selectionChangedCount == 3u, "every click still notifies the focused item");
+    Require(log.selectionSetChangedCount == 0u, "the set callback belongs to multi-select");
+
+    // The keys do too: Shift and Ctrl with a movement key move the selection, and Ctrl+A and Ctrl+Space are not commands.
+    Require(fixture.Key(VK_UP, MK_SHIFT), "Shift+Up moves a single selection");
+    RequireTreeIds(fixture.Selected(), {5u}, "Shift+Up without multi-select");
+    Require(fixture.Key(VK_DOWN, MK_CONTROL), "Ctrl+Down moves a single selection");
+    RequireTreeIds(fixture.Selected(), {6u}, "Ctrl+Down without multi-select");
+    Require(! fixture.Key('A', MK_CONTROL) && ! tree.OnSelectAll(fixture.host), "Ctrl+A selects nothing without multi-select");
+    RequireTreeIds(fixture.Selected(), {6u}, "Ctrl+A without multi-select");
+    Require(fixture.Key(VK_SPACE, MK_CONTROL) && log.invokedCount == 1u && log.lastInvokedItemId == 6u, "Ctrl+Space still invokes the item");
+    RequireTreeIds(fixture.Selected(), {6u}, "Ctrl+Space without multi-select");
+    Require(tree.GetFocusedItemId() == tree.GetSelectedItemId(), "the selected item is the focused item");
+
+    // The setters and requests keep their single meaning.
+    Require(! tree.RequestRemoveVisibleItemFromSelection(5u), "there is no membership to remove without multi-select");
+    Require(tree.RequestAddVisibleItemToSelection(0u), "adding selects the item without multi-select");
+    RequireTreeIds(fixture.Selected(), {1u}, "Add without multi-select");
+    tree.SetSelectedItemIds(std::vector<uint64_t>{2u, 3u});
+    RequireTreeIds(fixture.Selected(), {3u}, "a list of ids selects its last visible item without multi-select");
+    tree.SetSelectedItemIds({});
+    Require(fixture.Selected().empty() && ! tree.GetSelectedItemId().has_value(), "an empty list clears the selection");
+    Require(log.selectionSetChangedCount == 0u, "no gesture of a single-select tree reaches the set callback");
+
+    // Characters are typeahead whatever modifier came with them, as before: a row that starts with a space is what the
+    // space character of Ctrl+Space finds, and only a multi-select tree keeps that character out of typeahead.
+    TreeSelectionFixture spaced({TreeItemData{.id = 1u, .text = L" Leading space"}, TreeItemData{.id = 2u, .text = L"Beta"}}, std::nullopt);
+    spaced.tree->SetSelectedItemId(2u);
+    Require(spaced.tree->OnChar(spaced.host, L' ', MK_CONTROL), "a space with Ctrl is typeahead without multi-select");
+    RequireTreeIds(spaced.Selected(), {1u}, "typeahead selected the row that starts with a space");
+}
+
+void TestTreeCtrlAndShiftClickBuildTheSelectionInVisibleOrder()
+{
+    using namespace DxUi;
+
+    TreeSelectionFixture fixture(GroupedTreeItems());
+    Tree& tree                 = *fixture.tree;
+    RecordingTreeDelegate& log = fixture.delegate;
+
+    // A plain click selects one row and is the anchor.
+    fixture.Click(1u);
+    RequireTreeIds(fixture.Selected(), {2u}, "plain click");
+    Require(log.selectionChangedCount == 1u && log.lastSelectedItemId == 2u, "a plain click notifies the focused item");
+    Require(log.selectionSetChangedCount == 1u, "a plain click changes the selection set once");
+    RequireTreeIds(log.lastSelectionSet, {2u}, "the set callback of a plain click");
+    Require(fixture.host.GetFocusControl() == &tree, "a click focuses the tree");
+
+    // Ctrl+click toggles one row and leaves the others; the set keeps the model's order, whichever row joins last.
+    fixture.Click(3u, MK_CONTROL);
+    RequireTreeIds(fixture.Selected(), {2u, 4u}, "Ctrl+click adds a row");
+    fixture.Click(5u, MK_CONTROL);
+    RequireTreeIds(fixture.Selected(), {2u, 4u, 6u}, "Ctrl+click adds another row");
+    fixture.Click(0u, MK_CONTROL);
+    RequireTreeIds(fixture.Selected(), {1u, 2u, 4u, 6u}, "a row added above the others keeps the model's order");
+    fixture.Click(3u, MK_CONTROL);
+    RequireTreeIds(fixture.Selected(), {1u, 2u, 6u}, "Ctrl+click on a selected row removes it");
+    Require(! tree.IsItemSelected(4u) && tree.GetSelectedItemId() == 4u, "the row Ctrl+click removed is the focused item but not selected");
+    fixture.Click(0u, MK_CONTROL);
+    RequireTreeIds(fixture.Selected(), {2u, 6u}, "Ctrl+click removes the first row");
+    RequireTreeIds(log.lastSelectionSet, {2u, 6u}, "the set callback names the selection after the toggle");
+    Require(log.selectionSetChangedCount == 6u, "each toggle changed the set once");
+
+    // Shift+click selects the visible range from the anchor, the row of the last plain click, and drops the rest.
+    fixture.Click(4u, MK_SHIFT);
+    RequireTreeIds(fixture.Selected(), {2u, 3u, 4u, 5u}, "Shift+click selects the range across a group boundary");
+    Require(tree.GetSelectedItemId() == 5u, "the clicked row of a range is the focused item");
+    fixture.Click(0u, MK_SHIFT);
+    RequireTreeIds(fixture.Selected(), {1u, 2u}, "Shift+click above the anchor selects the range upward");
+    RequireTreeIds(log.lastSelectionSet, {1u, 2u}, "the set callback of a range");
+
+    // A plain click collapses the selection to its row.
+    fixture.Click(6u);
+    RequireTreeIds(fixture.Selected(), {7u}, "plain click after a range");
+    fixture.Click(5u, MK_SHIFT);
+    RequireTreeIds(fixture.Selected(), {6u, 7u}, "the plain click moved the anchor");
+
+    // Clicking the one selected row again changes no set: its row is still announced, and the set is not.
+    fixture.Click(6u);
+    const size_t setChangesBefore = log.selectionSetChangedCount;
+    const size_t focusMovesBefore = log.selectionChangedCount;
+    fixture.Click(6u);
+    RequireTreeIds(fixture.Selected(), {7u}, "the same row clicked again");
+    Require(log.selectionSetChangedCount == setChangesBefore, "an unchanged selection is not reported again");
+    Require(log.selectionChangedCount == focusMovesBefore + 1u, "a click always announces the row it landed on");
+
+    // Shift+click with no anchor takes the focused row as one.
+    TreeSelectionFixture unanchored(FlatTreeItems(5u));
+    unanchored.tree->SetFocusedItemId(2u);
+    unanchored.Click(3u, MK_SHIFT);
+    RequireTreeIds(unanchored.Selected(), {2u, 3u, 4u}, "Shift+click extends from the focused row when nothing is selected");
+}
+
+// The host delivers Ctrl and Shift with the press (MK_CONTROL, MK_SHIFT), so the gesture reaches the tree from a message.
+void TestTreeCtrlAndShiftClickThroughTheHostMessages()
+{
+    using namespace DxUi;
+
+    TreeSelectionFixture fixture(FlatTreeItems(6u));
+    const auto post = [&](UINT message, size_t visibleIndex, WPARAM flags)
+    {
+        const D2D1_POINT_2F point = fixture.RowPoint(visibleIndex);
+        bool handled              = false;
+        static_cast<void>(fixture.host.HandleMessage(nullptr, message, flags, MAKELPARAM(static_cast<int>(point.x), static_cast<int>(point.y)), handled));
+        Require(handled, "the host handles the pointer message");
+    };
+    const auto click = [&](size_t visibleIndex, WPARAM flags)
+    {
+        post(WM_LBUTTONDOWN, visibleIndex, MK_LBUTTON | flags);
+        post(WM_LBUTTONUP, visibleIndex, flags);
+    };
+    click(1u, 0u);
+    click(3u, MK_CONTROL);
+    click(5u, MK_CONTROL);
+    RequireTreeIds(fixture.Selected(), {2u, 4u, 6u}, "host Ctrl+click");
+    click(2u, MK_SHIFT);
+    RequireTreeIds(fixture.Selected(), {2u, 3u}, "host Shift+click");
+    Require(fixture.delegate.selectionSetChangedCount == 4u, "each host gesture reached the tree once");
+}
+
+void TestTreeKeyboardExtendsTogglesAndSelectsAll()
+{
+    using namespace DxUi;
+
+    TreeSelectionFixture fixture(FlatTreeItems(9u));
+    Tree& tree                 = *fixture.tree;
+    RecordingTreeDelegate& log = fixture.delegate;
+    fixture.Click(2u);
+    RequireTreeIds(fixture.Selected(), {3u}, "the click that starts the keyboard run");
+
+    // Shift with a movement key extends from the anchor, and follows the focus back across it.
+    Require(fixture.Key(VK_DOWN, MK_SHIFT), "Shift+Down is handled");
+    RequireTreeIds(fixture.Selected(), {3u, 4u}, "Shift+Down");
+    Require(fixture.Key(VK_DOWN, MK_SHIFT), "Shift+Down again is handled");
+    RequireTreeIds(fixture.Selected(), {3u, 4u, 5u}, "Shift+Down twice");
+    Require(fixture.Key(VK_UP, MK_SHIFT), "Shift+Up is handled");
+    RequireTreeIds(fixture.Selected(), {3u, 4u}, "Shift+Up shrinks the range");
+    Require(fixture.Key(VK_UP, MK_SHIFT) && fixture.Key(VK_UP, MK_SHIFT), "Shift+Up twice is handled");
+    RequireTreeIds(fixture.Selected(), {2u, 3u}, "Shift+Up reaches past the anchor");
+    Require(fixture.Key(VK_UP, MK_SHIFT), "Shift+Up a last time is handled");
+    RequireTreeIds(fixture.Selected(), {1u, 2u, 3u}, "Shift+Up extends upward from the anchor");
+    Require(tree.GetFocusedItemId() == 1u, "the focus is at the moving end of the range");
+
+    // Ctrl with a movement key moves the focus alone, and Ctrl+Space toggles the row it reached.
+    const size_t setChangesBeforeFocus = log.selectionSetChangedCount;
+    for (int step = 0; step < 4; ++step)
+    {
+        Require(fixture.Key(VK_DOWN, MK_CONTROL), "Ctrl+Down is handled");
+    }
+    RequireTreeIds(fixture.Selected(), {1u, 2u, 3u}, "Ctrl+Down moves no selection");
+    Require(tree.GetFocusedItemId() == 5u && ! tree.IsItemSelected(5u), "Ctrl+Down left the focus on a row outside the selection");
+    Require(log.selectionSetChangedCount == setChangesBeforeFocus, "moving the focus alone does not change the set");
+    Require(fixture.Key(VK_SPACE, MK_CONTROL), "Ctrl+Space is handled");
+    RequireTreeIds(fixture.Selected(), {1u, 2u, 3u, 5u}, "Ctrl+Space adds the focused row");
+    Require(log.invokedCount == 0u, "Ctrl+Space toggles instead of invoking");
+    Require(fixture.Key(VK_SPACE, MK_CONTROL), "Ctrl+Space a second time is handled");
+    RequireTreeIds(fixture.Selected(), {1u, 2u, 3u}, "Ctrl+Space removes the focused row");
+    Require(fixture.Key(VK_SPACE) && log.invokedCount == 1u && log.lastInvokedItemId == 5u, "plain Space still invokes the focused row");
+    RequireTreeIds(fixture.Selected(), {1u, 2u, 3u}, "Space leaves the selection alone");
+
+    // Shift with Home, End and Page Down reaches the ends and the page the keys always did, and the anchor stayed put.
+    Require(fixture.Key(VK_END, MK_SHIFT), "Shift+End is handled");
+    RequireTreeIds(fixture.Selected(), {3u, 4u, 5u, 6u, 7u, 8u, 9u}, "Shift+End");
+    Require(fixture.Key(VK_HOME, MK_SHIFT), "Shift+Home is handled");
+    RequireTreeIds(fixture.Selected(), {1u, 2u, 3u}, "Shift+Home");
+
+    // Ctrl+A selects every visible row and keeps the focused one, which the delegate already knew.
+    const size_t focusMovesBeforeAll = log.selectionChangedCount;
+    Require(fixture.Key('A', MK_CONTROL), "Ctrl+A is handled");
+    RequireTreeIds(fixture.Selected(), {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u}, "Ctrl+A");
+    Require(tree.GetFocusedItemId() == 1u && log.selectionChangedCount == focusMovesBeforeAll, "Ctrl+A moves no focus");
+    RequireTreeIds(log.lastSelectionSet, {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u}, "the set callback of Ctrl+A");
+    const size_t setChangesAfterAll = log.selectionSetChangedCount;
+    Require(tree.OnSelectAll(fixture.host), "selecting everything twice is handled");
+    Require(log.selectionSetChangedCount == setChangesAfterAll, "selecting everything again reports no change");
+
+    // A movement key without a modifier collapses to the row it reaches, like Grid, and typeahead does too.
+    Require(fixture.Key(VK_DOWN), "plain Down is handled");
+    RequireTreeIds(fixture.Selected(), {2u}, "plain Down collapses the selection");
+    Require(fixture.Key(VK_HOME, MK_CONTROL), "Ctrl+Home is handled");
+    RequireTreeIds(fixture.Selected(), {2u}, "Ctrl+Home moves no selection");
+    Require(tree.GetFocusedItemId() == 1u, "Ctrl+Home moved the focus");
+    Require(fixture.Key(VK_NEXT, MK_SHIFT), "Shift+Page Down is handled");
+    RequireTreeIds(fixture.Selected(), {2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u}, "Shift+Page Down extends from the anchor by a page");
+    Require(tree.OnChar(fixture.host, L'r', 0u), "typeahead is handled");
+    RequireTreeIds(fixture.Selected(), {1u}, "typeahead collapses the selection to its match");
+    Require(! tree.OnChar(fixture.host, L' ', MK_CONTROL), "the space character of Ctrl+Space is not typeahead");
+    RequireTreeIds(fixture.Selected(), {1u}, "the Ctrl+Space character selected nothing");
+
+    // A row that starts with a space would be found by that character, which is what this keeps out of typeahead.
+    TreeSelectionFixture spaced({TreeItemData{.id = 1u, .text = L" Leading space"}, TreeItemData{.id = 2u, .text = L"Beta"}});
+    spaced.tree->SetFocusedItemId(2u);
+    Require(! spaced.tree->OnChar(spaced.host, L' ', MK_CONTROL), "the space character of Ctrl+Space finds no row");
+    Require(spaced.Selected().empty() && spaced.tree->GetFocusedItemId() == 2u, "the Ctrl+Space character moved nothing");
+    Require(spaced.tree->OnChar(spaced.host, L' ', 0u), "a space without Ctrl is typeahead");
+    RequireTreeIds(spaced.Selected(), {1u}, "typeahead selected the row that starts with a space");
+}
+
+// The host keeps Shift and Ctrl as the state of the key messages it saw, and gives it to the focused tree with every key.
+void TestTreeKeyboardGesturesThroughTheHostMessages()
+{
+    using namespace DxUi;
+
+    TreeSelectionFixture fixture(FlatTreeItems(8u));
+    fixture.host.SetFocusControl(fixture.tree);
+    const auto key = [&](UINT message, WPARAM virtualKey)
+    {
+        bool handled = false;
+        static_cast<void>(fixture.host.HandleMessage(nullptr, message, virtualKey, 0, handled));
+        Require(handled || message == WM_KEYUP, "the host handles the key message");
+    };
+    fixture.Click(1u);
+    RequireTreeIds(fixture.Selected(), {2u}, "the click that starts the key messages");
+
+    key(WM_KEYDOWN, VK_SHIFT);
+    key(WM_KEYDOWN, VK_DOWN);
+    key(WM_KEYDOWN, VK_DOWN);
+    key(WM_KEYUP, VK_SHIFT);
+    RequireTreeIds(fixture.Selected(), {2u, 3u, 4u}, "Shift held through two Down messages");
+
+    key(WM_KEYDOWN, VK_CONTROL);
+    key(WM_KEYDOWN, VK_DOWN);
+    key(WM_KEYDOWN, VK_DOWN);
+    RequireTreeIds(fixture.Selected(), {2u, 3u, 4u}, "Ctrl held through two Down messages moves the focus alone");
+    key(WM_KEYDOWN, VK_SPACE);
+    bool handled = false;
+    static_cast<void>(fixture.host.HandleMessage(nullptr, WM_CHAR, L' ', 0, handled));
+    RequireTreeIds(fixture.Selected(), {2u, 3u, 4u, 6u}, "Ctrl+Space toggles the focused row, and its space character is not typeahead");
+    key(WM_KEYDOWN, 'A');
+    RequireTreeIds(fixture.Selected(), {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u}, "Ctrl+A selects every row");
+    key(WM_KEYUP, VK_CONTROL);
+
+    key(WM_KEYDOWN, VK_UP);
+    RequireTreeIds(fixture.Selected(), {5u}, "a key after the modifier was released selects one row");
+    Require(fixture.delegate.invokedCount == 0u, "no key of the run invoked a row");
+}
+
+void TestTreeKeyboardGesturesStartFromTheFirstRowWhenNothingIsFocused()
+{
+    using namespace DxUi;
+
+    {
+        TreeSelectionFixture fixture(FlatTreeItems(5u));
+        Require(fixture.Key(VK_SPACE, MK_CONTROL), "Ctrl+Space is handled on a tree that has no focused row");
+        RequireTreeIds(fixture.Selected(), {1u}, "Ctrl+Space selects the first row");
+        Require(fixture.tree->GetFocusedItemId() == 1u, "Ctrl+Space focuses the first row");
+    }
+    {
+        TreeSelectionFixture fixture(FlatTreeItems(5u));
+        Require(fixture.Key(VK_DOWN, MK_SHIFT), "Shift+Down is handled on a tree that has no focused row");
+        RequireTreeIds(fixture.Selected(), {1u, 2u}, "Shift+Down starts its range at the first row");
+    }
+    {
+        TreeSelectionFixture fixture(FlatTreeItems(5u));
+        Require(fixture.Key(VK_DOWN, MK_CONTROL), "Ctrl+Down is handled on a tree that has no focused row");
+        Require(fixture.Selected().empty() && fixture.tree->GetFocusedItemId() == 2u, "Ctrl+Down selects nothing");
+        Require(fixture.Key('A', MK_CONTROL), "Ctrl+A is handled on a tree that has a focused row but no selection");
+        Require(fixture.Selected().size() == 5u && fixture.tree->GetFocusedItemId() == 2u, "Ctrl+A keeps the focused row");
+    }
+    {
+        TreeSelectionFixture fixture(FlatTreeItems(5u));
+        Require(fixture.Key('A', MK_CONTROL), "Ctrl+A is handled on a tree that has nothing focused");
+        Require(fixture.Selected().size() == 5u && fixture.tree->GetFocusedItemId() == 1u, "Ctrl+A focuses the first row");
+        Require(fixture.delegate.callOrder == "PS", "the delegate hears of the focus it was given and of the selection, in that order");
+    }
+}
+
+// Left and Right move between a group and its rows, or expand and collapse the focused group. Moving follows the rules of
+// every other movement key; expanding and collapsing never touch the selection, whatever modifier is held.
+void TestTreeGroupKeysFollowTheModifierRulesAndLeaveTheSelectionWhenTheyExpand()
+{
+    using namespace DxUi;
+
+    TreeSelectionFixture fixture(GroupedTreeItems());
+    Tree& tree                 = *fixture.tree;
+    RecordingTreeDelegate& log = fixture.delegate;
+    // The visible rows are ids 1 (Group A), 2, 3, 4 (Group B), 5, 6 and 7.
+
+    fixture.Click(2u);
+    fixture.Click(4u, MK_CONTROL);
+    RequireTreeIds(fixture.Selected(), {3u, 5u}, "the multi-selection the group keys start from");
+    Require(fixture.Key(VK_LEFT), "Left is handled on a row of a group");
+    RequireTreeIds(fixture.Selected(), {4u}, "Left moves to the parent and selects it alone");
+    Require(tree.GetFocusedItemId() == 4u, "the parent is the focused row");
+    Require(fixture.Key(VK_RIGHT), "Right is handled on an expanded group");
+    RequireTreeIds(fixture.Selected(), {5u}, "Right moves to the first row of the group and selects it alone");
+
+    // Shift extends from the anchor to the parent, then to the first row of the group.
+    fixture.Click(2u);
+    Require(fixture.Key(VK_LEFT, MK_SHIFT), "Shift+Left is handled");
+    RequireTreeIds(fixture.Selected(), {1u, 2u, 3u}, "Shift+Left extends the range from the anchor to the parent");
+    Require(tree.GetFocusedItemId() == 1u, "the parent is the focused row at the end of the range");
+    Require(fixture.Key(VK_RIGHT, MK_SHIFT), "Shift+Right is handled");
+    RequireTreeIds(fixture.Selected(), {2u, 3u}, "Shift+Right extends the range from the anchor to the first row of the group");
+    Require(tree.GetFocusedItemId() == 2u, "that row is the focused row");
+
+    // Ctrl moves the focus alone.
+    fixture.Click(2u);
+    const size_t setChanges = log.selectionSetChangedCount;
+    Require(fixture.Key(VK_LEFT, MK_CONTROL), "Ctrl+Left is handled");
+    RequireTreeIds(fixture.Selected(), {3u}, "Ctrl+Left moves no selection");
+    Require(tree.GetFocusedItemId() == 1u, "Ctrl+Left moved the focus to the parent");
+    Require(fixture.Key(VK_RIGHT, MK_CONTROL), "Ctrl+Right is handled");
+    RequireTreeIds(fixture.Selected(), {3u}, "Ctrl+Right moves no selection");
+    Require(tree.GetFocusedItemId() == 2u, "Ctrl+Right moved the focus to the first row of the group");
+    Require(log.selectionSetChangedCount == setChanges, "moving the focus alone does not change the set");
+
+    // Left on an expanded group asks for its collapse and changes neither the selection nor the focus, with Shift too.
+    Require(fixture.Key(VK_LEFT, MK_CONTROL), "Ctrl+Left returns to the group");
+    const size_t togglesBefore = log.toggleCount;
+    Require(fixture.Key(VK_LEFT, MK_SHIFT), "Shift+Left is handled on an expanded group");
+    Require(log.toggleCount == togglesBefore + 1u && log.lastToggledItemId == 1u && ! log.lastExpandedState, "Left on an expanded group asks for its collapse");
+    RequireTreeIds(fixture.Selected(), {3u}, "collapsing a group with Shift held extends nothing");
+    Require(tree.GetFocusedItemId() == 1u && log.selectionSetChangedCount == setChanges, "collapsing moves neither the focus nor the selection");
+
+    // Right on a collapsed group asks for its expansion, and leaves the selection alone too.
+    TreeSelectionFixture collapsed({TreeItemData{.id = 1u, .text = L"Group", .depth = 0u, .hasChildren = true, .expanded = false},
+                                    TreeItemData{.id = 2u, .text = L"Loose", .depth = 0u},
+                                    TreeItemData{.id = 3u, .text = L"Other", .depth = 0u}});
+    collapsed.Click(1u);
+    collapsed.Click(2u, MK_CONTROL);
+    RequireTreeIds(collapsed.Selected(), {2u, 3u}, "the selection next to a collapsed group");
+    collapsed.tree->SetFocusedItemId(1u);
+    const size_t collapsedSetChanges = collapsed.delegate.selectionSetChangedCount;
+    Require(collapsed.Key(VK_RIGHT, MK_SHIFT), "Shift+Right is handled on a collapsed group");
+    Require(collapsed.delegate.toggleCount == 1u && collapsed.delegate.lastToggledItemId == 1u && collapsed.delegate.lastExpandedState,
+            "Right on a collapsed group asks for its expansion");
+    RequireTreeIds(collapsed.Selected(), {2u, 3u}, "expanding a group with Shift held changes no selection");
+    Require(collapsed.delegate.selectionSetChangedCount == collapsedSetChanges && collapsed.tree->GetFocusedItemId() == 1u,
+            "expanding moves neither the focus nor the selection");
+}
+
+void TestTreeSelectionCallbacksFireOncePerChangeAndSeeTheFinishedSelection()
+{
+    using namespace DxUi;
+
+    TreeSelectionFixture fixture(FlatTreeItems(6u));
+    Tree& tree                 = *fixture.tree;
+    RecordingTreeDelegate& log = fixture.delegate;
+    const auto expectCalls     = [&](const char* order, const char* context)
+    {
+        Require(log.callOrder == order, context);
+        log.callOrder.clear();
+    };
+
+    fixture.Click(1u);
+    expectCalls("PS", "a click that changes the selection announces the row, then the set");
+    RequireTreeIds(log.idsSeenByPrimaryCallback, {2u}, "the focused-item callback of a click already sees its selection");
+    RequireTreeIds(log.idsSeenBySetCallback, {2u}, "the set callback sees the selection it reports");
+    fixture.Click(1u);
+    expectCalls("P", "a click that leaves the set alone announces the row only");
+    fixture.Click(3u, MK_CONTROL);
+    expectCalls("PS", "Ctrl+click that adds a row");
+    RequireTreeIds(log.idsSeenBySetCallback, {2u, 4u}, "the set callback of Ctrl+click sees both rows");
+    fixture.Click(3u, MK_CONTROL);
+    expectCalls("PS", "Ctrl+click that removes a row");
+    RequireTreeIds(log.lastSelectionSet, {2u}, "the set after the removal");
+    Require(fixture.Key(VK_DOWN, MK_CONTROL), "Ctrl+Down is handled");
+    expectCalls("P", "moving the focus alone announces the row only");
+    Require(fixture.Key('A', MK_CONTROL), "Ctrl+A is handled");
+    expectCalls("S", "Ctrl+A reports the new set only: the focused row stays");
+    Require(tree.OnSelectAll(fixture.host), "Ctrl+A again is handled");
+    expectCalls("", "an unchanged set reports nothing");
+
+    // The requests a UI Automation client makes notify like the gestures they stand for.
+    Require(tree.RequestSelectVisibleItem(4u), "Select is handled");
+    expectCalls("PS", "Select replaces the selection");
+    RequireTreeIds(fixture.Selected(), {5u}, "Select");
+    Require(tree.RequestAddVisibleItemToSelection(1u), "AddToSelection is handled");
+    expectCalls("PS", "AddToSelection adds the row");
+    Require(tree.RequestAddVisibleItemToSelection(1u), "AddToSelection of a selected row is handled");
+    expectCalls("P", "AddToSelection of a selected row changes no set");
+    RequireTreeIds(fixture.Selected(), {2u, 5u}, "AddToSelection is not a toggle");
+    Require(tree.RequestRemoveVisibleItemFromSelection(1u), "RemoveFromSelection is handled");
+    expectCalls("S", "RemoveFromSelection reports the set and leaves the focus");
+    RequireTreeIds(fixture.Selected(), {5u}, "RemoveFromSelection");
+    Require(tree.RequestRemoveVisibleItemFromSelection(1u), "RemoveFromSelection of a row that is not selected is handled");
+    expectCalls("", "removing a row that is not selected reports nothing");
+    Require(! tree.RequestRemoveVisibleItemFromSelection(99u) && ! tree.RequestAddVisibleItemToSelection(99u), "a row that does not exist is refused");
+
+    // The setters are silent: the application that calls them knows what it set.
+    tree.SetSelectedItemId(3u);
+    tree.SetSelectedItemIds(std::vector<uint64_t>{1u, 4u});
+    tree.SetFocusedItemId(2u);
+    tree.SetMultiSelectEnabled(false);
+    tree.SetMultiSelectEnabled(true);
+    expectCalls("", "no setter notifies");
+}
+
+void TestTreeSelectionSetCallbackMayDestroyTheTree()
+{
+    using namespace DxUi;
+
+    class RootReplacingDelegate final : public ITreeDelegate
+    {
+    public:
+        explicit RootReplacingDelegate(WindowHost& host) noexcept : _host(host)
+        {
+        }
+
+        RootReplacingDelegate(const RootReplacingDelegate&)            = delete;
+        RootReplacingDelegate(RootReplacingDelegate&&)                 = delete;
+        RootReplacingDelegate& operator=(const RootReplacingDelegate&) = delete;
+        RootReplacingDelegate& operator=(RootReplacingDelegate&&)      = delete;
+
+        void OnTreeSelectionSetChanged(std::span<const uint64_t> selectedItemIds) override
+        {
+            ++setChanges;
+            selected.assign(selectedItemIds.begin(), selectedItemIds.end());
+            _host.SetRoot(std::make_unique<Panel>());
+        }
+
+        size_t setChanges = 0u;
+        std::vector<uint64_t> selected;
+
+    private:
+        WindowHost& _host;
+    };
+
+    // Every gesture that reaches the set callback: each leaves nothing of the destroyed tree to touch afterwards.
+    for (int gesture = 0; gesture < 5; ++gesture)
+    {
+        WindowHost host;
+        EnableMotionForTest(host);
+        auto root  = std::make_unique<Panel>();
+        auto* tree = root->AddChild<Tree>();
+        tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 260.0f));
+        MutableTreeModel model;
+        model.SetVisibleItems(FlatTreeItems(5u));
+        RootReplacingDelegate delegate(host);
+        tree->SetModel(&model);
+        tree->SetDelegate(&delegate);
+        tree->SetMultiSelectEnabled(true);
+        host.SetRoot(std::move(root));
+        static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 280.0f));
+        const auto rowPoint = [&](size_t index)
+        {
+            const std::optional<D2D1_RECT_F> rect = tree->GetVisibleItemHitRect(index);
+            Require(rect.has_value(), "the row has a hit rectangle");
+            return D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f);
+        };
+        switch (gesture)
+        {
+            case 0: Require(tree->OnMouseDown(host, rowPoint(1u), false, 0u), "a click is handled"); break;
+            case 1: Require(tree->OnMouseDown(host, rowPoint(1u), false, MK_CONTROL), "a Ctrl+click is handled"); break;
+            case 2: Require(tree->OnKeyDown(host, VK_SPACE, MK_CONTROL), "Ctrl+Space is handled"); break;
+            case 3: Require(tree->OnSelectAll(host), "Ctrl+A is handled"); break;
+            default: static_cast<void>(tree->RequestSelectVisibleItem(2u)); break; // False once the delegate destroyed the tree.
+        }
+        Require(delegate.setChanges == 1u && ! delegate.selected.empty(), "the set callback ran once for the gesture");
+        Require(host.GetRoot() != nullptr, "the callback replaced the root without the tree touching itself afterwards");
+    }
+
+    // A release that collapses a multi-selection reaches the callback too.
+    WindowHost host;
+    EnableMotionForTest(host);
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 260.0f));
+    MutableTreeModel model;
+    model.SetVisibleItems(FlatTreeItems(5u));
+    RootReplacingDelegate delegate(host);
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    tree->SetMultiSelectEnabled(true);
+    tree->SetReorderEnabled(true);
+    tree->SetSelectedItemIds(std::vector<uint64_t>{2u, 3u});
+    host.SetRoot(std::move(root));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 280.0f));
+    const std::optional<D2D1_RECT_F> rect = tree->GetVisibleItemHitRect(2u);
+    Require(rect.has_value(), "the third row has a hit rectangle");
+    const D2D1_POINT_2F point = D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f);
+    Require(tree->OnMouseDown(host, point, false, 0u), "a press on a selected row is handled");
+    Require(delegate.setChanges == 0u, "the press leaves the selection for the release");
+    static_cast<void>(tree->OnMouseUp(host, point, false, 0u));
+    Require(delegate.setChanges == 1u && host.GetRoot() != nullptr, "the collapsing release reached the callback, and the tree did not touch itself after it");
+}
+
+void TestTreeMultiSelectionSurvivesModelChangesExpandCollapseAndScrolling()
+{
+    using namespace DxUi;
+
+    const TreeItemData group{.id = 1u, .text = L"Group", .depth = 0u, .hasChildren = true, .expanded = true};
+    const TreeItemData collapsedGroup{.id = 1u, .text = L"Group", .depth = 0u, .hasChildren = true, .expanded = false};
+    const auto row      = [](uint64_t id, uint32_t depth = 0u) { return TreeItemData{.id = id, .text = L"Row " + std::to_wstring(id), .depth = depth}; };
+    const auto expanded = [&]() { return std::vector<TreeItemData>{group, row(2u, 1u), row(3u, 1u), row(4u), row(5u), row(6u), row(7u), row(8u)}; };
+
+    TreeSelectionFixture fixture(expanded());
+    Tree& tree                 = *fixture.tree;
+    RecordingTreeDelegate& log = fixture.delegate;
+    fixture.Click(1u);
+    fixture.Click(2u, MK_CONTROL);
+    fixture.Click(4u, MK_CONTROL);
+    fixture.Click(6u, MK_CONTROL);
+    RequireTreeIds(fixture.Selected(), {2u, 3u, 5u, 7u}, "the selection the model changes start from");
+    const size_t setChanges = log.selectionSetChangedCount;
+
+    // Collapsing the group hides two selected rows: they leave the selection, the others stay, nothing else is reported.
+    fixture.model.SetVisibleItems({collapsedGroup, row(4u), row(5u), row(6u), row(7u), row(8u)});
+    tree.NotifyDataChanged();
+    RequireTreeIds(fixture.Selected(), {5u, 7u}, "collapsing drops the rows it hides");
+    Require(log.selectionSetChangedCount == setChanges + 1u, "the delegate hears of the dropped rows once");
+    RequireTreeIds(log.lastSelectionSet, {5u, 7u}, "the set callback of a collapse");
+    Require(tree.GetSelectedItemId() == 7u, "the focused row survived");
+
+    // Expanding shows them again, unselected.
+    fixture.model.SetVisibleItems(expanded());
+    tree.NotifyDataChanged();
+    RequireTreeIds(fixture.Selected(), {5u, 7u}, "expanding selects nothing");
+    Require(log.selectionSetChangedCount == setChanges + 1u, "an unchanged selection is not reported");
+
+    // Rows that move keep their selection and the order follows the model; moving is not a change of selection.
+    fixture.model.SetVisibleItems({row(7u), group, row(2u, 1u), row(3u, 1u), row(4u), row(5u), row(6u), row(8u)});
+    tree.NotifyDataChanged();
+    RequireTreeIds(fixture.Selected(), {7u, 5u}, "the selection follows the model's order");
+    Require(log.selectionSetChangedCount == setChanges + 1u, "rows that only moved change no selection");
+
+    // A removed row leaves it, and so does the focused row.
+    fixture.model.SetVisibleItems({row(7u), group, row(2u, 1u), row(3u, 1u), row(4u), row(6u), row(8u)});
+    tree.NotifyDataChanged();
+    RequireTreeIds(fixture.Selected(), {7u}, "a removed row leaves the selection");
+    Require(log.selectionSetChangedCount == setChanges + 2u, "the removal was reported once");
+    const size_t focusMoves = log.selectionChangedCount;
+    fixture.model.SetVisibleItems({group, row(2u, 1u), row(3u, 1u), row(4u), row(6u), row(8u)});
+    tree.NotifyDataChanged();
+    Require(fixture.Selected().empty() && ! tree.GetSelectedItemId().has_value(), "the last selected row left");
+    Require(log.selectionSetChangedCount == setChanges + 3u && log.lastSelectionSet.empty(), "an empty selection is reported");
+    Require(log.selectionChangedCount == focusMoves, "a focused row that left is not announced, as before");
+    Require(tree.GetFocusedItemId() == tree.GetSelectedItemId(), "focus and selection agree that nothing is left");
+
+    // Another model keeps the ids it also shows.
+    tree.SetSelectedItemIds(std::vector<uint64_t>{2u, 4u, 8u});
+    RequireTreeIds(fixture.Selected(), {2u, 4u, 8u}, "the selection set for the model swap");
+    const size_t beforeSwap = log.selectionSetChangedCount;
+    MutableTreeModel other;
+    other.SetVisibleItems({row(8u), row(4u), row(100u)});
+    tree.SetModel(&other);
+    RequireTreeIds(fixture.Selected(), {8u, 4u}, "a new model keeps the selected ids it shows, in its order");
+    Require(log.selectionSetChangedCount == beforeSwap + 1u, "the model swap reported its dropped row once");
+    tree.SetModel(nullptr);
+    Require(fixture.Selected().empty() && log.selectionSetChangedCount == beforeSwap + 2u, "a tree without a model selects nothing");
+    tree.SetModel(&fixture.model);
+
+    // Scrolling changes no selection, and a click after it toggles the row that is under the pointer.
+    TreeSelectionFixture tall(FlatTreeItems(40u), true, false, 140.0f);
+    tall.Click(1u);
+    tall.Click(3u, MK_CONTROL);
+    Require(tall.tree->OnMouseWheel(tall.host, D2D1::Point2F(40.0f, 40.0f), -static_cast<float>(WHEEL_DELTA) * 2.0f, 0u), "the wheel scrolls");
+    Require(tall.tree->GetFirstVisibleItemIndex() > 0u, "the tree scrolled");
+    RequireTreeIds(tall.Selected(), {2u, 4u}, "scrolling keeps the selection");
+    const size_t first = tall.tree->GetFirstVisibleItemIndex();
+    Require(tall.tree->OnMouseDown(tall.host, D2D1::Point2F(40.0f, 16.0f), false, MK_CONTROL), "a Ctrl+click after scrolling is handled");
+    RequireTreeIds(tall.Selected(), {2u, 4u, static_cast<uint64_t>(first + 1u)}, "a click after scrolling toggles the row under the pointer");
+    Require(tall.Key(VK_END, MK_CONTROL), "Ctrl+End is handled");
+    Require(tall.tree->GetFocusedItemId() == 40u && tall.Selected().size() == 3u, "Ctrl+End scrolls to the last row and keeps the selection");
+    Require(tall.tree->GetFirstVisibleItemIndex() > first, "moving the focus scrolls it into view");
+}
+
+void TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors()
+{
+    using namespace DxUi;
+
+    const ThemePalette theme = MakeAnimatedTestThemePalette(false);
+    TreeSelectionFixture fixture(FlatTreeItems(5u));
+    Tree& tree = *fixture.tree;
+    fixture.host.SetTheme(theme);
+    tree.SetSelectedItemIds(std::vector<uint64_t>{1u, 3u, 4u});
+    fixture.host.SetFocusControl(&tree);
+    TreeDebugRowVisualState state{};
+
+    // Every selected row takes the selection colors, as Grid rows do; only the focused row shows the focus ring.
+    for (const size_t index : {0u, 2u, 3u})
+    {
+        Require(tree.DebugGetRowVisualState(theme, index, true, state) && state.selected, "a selected row reports itself selected");
+        Require(state.fillArgb == PackColorForTest(theme.selectionFill), "a selected row of a focused tree is filled with the selection color");
+        Require(state.textArgb == PackColorForTest(theme.selectionText), "a selected row of a focused tree uses the selection text color");
+        Require(state.current == (index == 3u) && state.showFocus == (index == 3u), "only the focused row owns the focus ring");
+    }
+    for (const size_t index : {1u, 4u})
+    {
+        Require(tree.DebugGetRowVisualState(theme, index, true, state) && ! state.selected && ! state.current && ! state.showFocus,
+                "a row outside the selection is plain");
+        Require(state.fillArgb == 0u && state.textArgb == PackColorForTest(theme.text), "a row outside the selection keeps the row colors");
+    }
+
+    // A focused row outside the selection owns the ring, and the selected row it left has none.
+    tree.SetFocusedItemId(2u);
+    Require(tree.DebugGetRowVisualState(theme, 1u, true, state) && ! state.selected && state.current && state.showFocus,
+            "the focused row shows the ring without being selected");
+    Require(tree.DebugGetRowVisualState(theme, 3u, true, state) && state.selected && ! state.showFocus, "a selected row that is not focused has no ring");
+    Require(tree.DebugGetRowVisualState(theme, 1u, false, state) && ! state.showFocus, "the ring follows keyboard-focus visibility");
+
+    // An unfocused tree shows the selection with the inactive fill and normal text, on every selected row.
+    fixture.host.SetFocusControl(nullptr);
+    for (const size_t index : {0u, 2u, 3u})
+    {
+        Require(tree.DebugGetRowVisualState(theme, index, true, state) && state.selected, "a selected row of an unfocused tree reports itself selected");
+        Require(state.fillArgb == PackColorForTest(theme.selectionInactiveFill),
+                "a selected row of an unfocused tree is filled with the inactive selection color");
+        Require(state.textArgb == PackColorForTest(theme.text), "a selected row of an unfocused tree keeps the text color");
+    }
+
+    // The same rows reach the screen: sample the rendered rows of a window.
+    AttachedHostWindow window;
+    window.Host().SetTheme(theme);
+    auto root  = std::make_unique<Panel>();
+    auto* live = root->AddChild<Tree>();
+    live->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 150.0f));
+    MutableTreeModel model;
+    model.SetVisibleItems(FlatTreeItems(5u));
+    live->SetModel(&model);
+    live->SetMultiSelectEnabled(true);
+    live->SetSelectedItemIds(std::vector<uint64_t>{1u, 3u, 4u});
+    window.Host().SetRoot(std::move(root));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.Host().SetFocusControl(live);
+    window.PumpMessages();
+    WindowHostBitmapCapture capture;
+    Require(window.Host().DebugCaptureBitmap(capture), "capture the multi-select tree");
+    const auto pixelAt = [&](size_t visibleIndex)
+    {
+        const std::optional<D2D1_RECT_F> rect = live->GetVisibleItemHitRect(visibleIndex);
+        Require(rect.has_value(), "the painted row has a hit rectangle");
+        // Near the right end of the row: no text, icon or badge there, only the row's fill.
+        const float xPx = window.Host().DipsToPixels(rect->right - 24.0f);
+        const float yPx = window.Host().DipsToPixels((rect->top + rect->bottom) * 0.5f);
+        const size_t x  = static_cast<size_t>(xPx);
+        const size_t y  = static_cast<size_t>(yPx);
+        Require(x < capture.widthPx && y < capture.heightPx, "the sampled pixel lies in the capture");
+        const uint8_t* bgra = capture.bgraPixels.data() + (((y * capture.widthPx) + x) * 4u);
+        return D2D1::ColorF(static_cast<float>(bgra[2]) / 255.0f, static_cast<float>(bgra[1]) / 255.0f, static_cast<float>(bgra[0]) / 255.0f);
+    };
+    const auto nearSelectionFill = [&](const D2D1_COLOR_F& color)
+    {
+        return std::abs(color.r - theme.selectionFill.r) < 0.02f && std::abs(color.g - theme.selectionFill.g) < 0.02f &&
+               std::abs(color.b - theme.selectionFill.b) < 0.02f;
+    };
+    for (const size_t index : {0u, 2u, 3u})
+    {
+        Require(nearSelectionFill(pixelAt(index)), "every selected row is painted with the selection color");
+    }
+    for (const size_t index : {1u, 4u})
+    {
+        Require(! nearSelectionFill(pixelAt(index)), "a row outside the selection is not painted with the selection color");
+    }
+}
+
+void TestTreeDragReorderKeepsItsSourceAndTheMultiSelection()
+{
+    using namespace DxUi;
+
+    TreeSelectionFixture fixture(FlatTreeItems(5u, 10u), true, true);
+    Tree& tree                 = *fixture.tree;
+    RecordingTreeDelegate& log = fixture.delegate;
+    // The rows are ids 10, 11, 12, 13 and 14 from the top.
+    fixture.Click(1u);
+    fixture.Click(3u, MK_CONTROL);
+    RequireTreeIds(fixture.Selected(), {11u, 13u}, "the multi-selection the drags start from");
+
+    // A press with Ctrl or Shift is a selection gesture, never a drag, however far the pointer goes.
+    Require(tree.OnMouseDown(fixture.host, fixture.RowPoint(4u), false, MK_CONTROL), "a Ctrl+press is handled");
+    Require(tree.OnMouseMove(fixture.host, fixture.RowPoint(0u, 0.2f), MK_CONTROL), "the pointer moves after a Ctrl+press");
+    static_cast<void>(tree.OnMouseUp(fixture.host, fixture.RowPoint(0u, 0.2f), false, MK_CONTROL));
+    Require(log.reorderCount == 0u && fixture.host.GetCapturedControl() == nullptr, "Ctrl+press does not start a row drag");
+    RequireTreeIds(fixture.Selected(), {11u, 13u, 14u}, "the Ctrl+press toggled its row");
+    Require(tree.OnMouseDown(fixture.host, fixture.RowPoint(4u), false, MK_SHIFT), "a Shift+press is handled");
+    Require(tree.OnMouseMove(fixture.host, fixture.RowPoint(0u, 0.2f), MK_SHIFT), "the pointer moves after a Shift+press");
+    static_cast<void>(tree.OnMouseUp(fixture.host, fixture.RowPoint(0u, 0.2f), false, MK_SHIFT));
+    Require(log.reorderCount == 0u, "Shift+press does not start a row drag");
+    fixture.Click(1u);
+    fixture.Click(3u, MK_CONTROL);
+    RequireTreeIds(fixture.Selected(), {11u, 13u}, "the multi-selection again");
+
+    // A drag of a selected row keeps the whole selection, and the drop names the dragged row alone.
+    const size_t setChangesBeforeDrag = log.selectionSetChangedCount;
+    fixture.Press(3u);
+    RequireTreeIds(fixture.Selected(), {11u, 13u}, "a press on a selected row keeps the multi-selection while the pointer is down");
+    Require(log.selectionSetChangedCount == setChangesBeforeDrag, "the press reports no change of selection");
+    Require(tree.GetFocusedItemId() == 13u, "the press focuses the row it landed on");
+    Require(tree.OnMouseMove(fixture.host, fixture.RowPoint(0u, 0.2f), 0u), "the drag follows the pointer");
+    static_cast<void>(tree.OnMouseUp(fixture.host, fixture.RowPoint(0u, 0.2f), false, 0u));
+    Require(log.reorderCount == 1u, "the release commits one reorder");
+    Require(log.lastDrop.sourceId == 13u && log.lastDrop.targetId == 10u && log.lastDrop.place == TreeDropPlace::Before,
+            "the drop names the dragged row alone");
+    RequireTreeIds(log.idsSeenByReorderCallback, {11u, 13u}, "the delegate can apply the drop to the selection that still holds the source");
+    RequireTreeIds(fixture.Selected(), {11u, 13u}, "the drag left the selection as it was");
+    Require(log.selectionSetChangedCount == setChangesBeforeDrag, "the drag reported no change of selection");
+
+    // A click on a selected row of a multi-selection selects that row alone once the pointer is up.
+    log.callOrder.clear();
+    fixture.Press(3u);
+    Require(log.callOrder == "P", "the press announces the row it landed on");
+    fixture.Release(3u);
+    RequireTreeIds(fixture.Selected(), {13u}, "the release of a click collapses the selection to the row");
+    Require(log.callOrder == "PS", "the release reports the set once and does not announce the row twice");
+    Require(log.reorderCount == 1u, "a click is not a reorder");
+
+    // Escape and capture loss cancel the drag and its collapse: the selection stays as it was.
+    fixture.Click(1u, MK_CONTROL);
+    RequireTreeIds(fixture.Selected(), {11u, 13u}, "the multi-selection before Escape");
+    fixture.Press(1u);
+    Require(tree.OnMouseMove(fixture.host, fixture.RowPoint(4u, 0.8f), 0u), "the drag moves before Escape");
+    Require(tree.OnKeyDown(fixture.host, VK_ESCAPE, 0u), "Escape cancels the drag");
+    static_cast<void>(tree.OnMouseUp(fixture.host, fixture.RowPoint(4u, 0.8f), false, 0u));
+    Require(log.reorderCount == 1u, "Escape reports no reorder");
+    RequireTreeIds(fixture.Selected(), {11u, 13u}, "Escape leaves the multi-selection alone");
+    fixture.Press(1u);
+    tree.OnCaptureLost(fixture.host);
+    static_cast<void>(tree.OnMouseUp(fixture.host, fixture.RowPoint(1u), false, 0u));
+    RequireTreeIds(fixture.Selected(), {11u, 13u}, "capture loss leaves the multi-selection alone");
+    Require(log.reorderCount == 1u, "capture loss reports no reorder");
+
+    // A press on a row outside the selection selects it alone first, and that row is the source.
+    fixture.Press(2u);
+    RequireTreeIds(fixture.Selected(), {12u}, "a press outside the selection selects its row alone");
+    Require(tree.OnMouseMove(fixture.host, fixture.RowPoint(4u, 0.8f), 0u), "the drag moves");
+    static_cast<void>(tree.OnMouseUp(fixture.host, fixture.RowPoint(4u, 0.8f), false, 0u));
+    Require(log.reorderCount == 2u && log.lastDrop.sourceId == 12u && log.lastDrop.targetId == 14u && log.lastDrop.place == TreeDropPlace::After,
+            "the row that was pressed is the dragged row");
+    RequireTreeIds(log.idsSeenByReorderCallback, {12u}, "the selection at that drop is the dragged row alone");
+
+    // Without reordering a press on a selected row collapses the selection at once, as Grid does.
+    TreeSelectionFixture still(FlatTreeItems(5u, 10u));
+    still.Click(1u);
+    still.Click(3u, MK_CONTROL);
+    still.Press(3u);
+    RequireTreeIds(still.Selected(), {13u}, "a tree that cannot reorder collapses the selection on press");
+}
+
+void TestTreeMultiSelectContextMenuExpanderAndDoubleClickKeepTheSelectionRules()
+{
+    using namespace DxUi;
+
+    TreeSelectionFixture fixture(GroupedTreeItems());
+    Tree& tree                 = *fixture.tree;
+    RecordingTreeDelegate& log = fixture.delegate;
+    fixture.Click(1u);
+    fixture.Click(5u, MK_CONTROL);
+    RequireTreeIds(fixture.Selected(), {2u, 6u}, "the multi-selection the menus start from");
+
+    // A right-click on a selected row keeps the selection for the command; any other row is selected alone.
+    Require(tree.OnMouseDown(fixture.host, fixture.RowPoint(5u), true, 0u), "a right-click on a selected row is handled");
+    Require(log.contextMenuCount == 1u && log.lastContextMenuItemId == 6u, "the menu opens for the row under the pointer");
+    RequireTreeIds(fixture.Selected(), {2u, 6u}, "a right-click on a selected row keeps the multi-selection");
+    Require(tree.GetFocusedItemId() == 6u, "the right-click focuses its row");
+    Require(tree.OnMouseDown(fixture.host, fixture.RowPoint(6u), true, 0u), "a right-click on another row is handled");
+    Require(log.contextMenuCount == 2u && log.lastContextMenuItemId == 7u, "the menu opens for that row");
+    RequireTreeIds(fixture.Selected(), {7u}, "a right-click outside the selection selects its row alone");
+    Require(log.selectionSetChangedCount >= 3u, "the delegate heard of the selection the right-click made");
+
+    // The expander expands without touching the selection.
+    fixture.Click(1u);
+    fixture.Click(6u, MK_CONTROL);
+    RequireTreeIds(fixture.Selected(), {2u, 7u}, "the selection before the expander");
+    const std::optional<D2D1_RECT_F> rect = tree.GetVisibleItemHitRect(3u);
+    Require(rect.has_value(), "the group row has a hit rectangle");
+    const TreeItemLayoutMetrics metrics = tree.GetItemLayoutMetrics(fixture.host, 3u);
+    Require(metrics.hasExpander, "the group row has an expander");
+    const size_t setChanges = log.selectionSetChangedCount;
+    Require(tree.OnMouseDown(
+                fixture.host,
+                D2D1::Point2F((metrics.expanderRect.left + metrics.expanderRect.right) * 0.5f, (metrics.expanderRect.top + metrics.expanderRect.bottom) * 0.5f),
+                false,
+                MK_CONTROL),
+            "the expander is pressed");
+    static_cast<void>(tree.OnMouseUp(fixture.host, fixture.RowPoint(3u), false, MK_CONTROL));
+    Require(log.toggleCount == 1u && log.lastToggledItemId == 4u, "the expander asks for the expansion of its row");
+    RequireTreeIds(fixture.Selected(), {2u, 7u}, "the expander leaves the selection alone, even with Ctrl held");
+    Require(log.selectionSetChangedCount == setChanges && tree.GetFocusedItemId() == 4u, "the expander moves the focus only");
+
+    // A double-click activates; with Ctrl or Shift it leaves the selection alone, without them it selects the row.
+    const size_t invokedBefore = log.invokedCount;
+    Require(tree.OnMouseDoubleClick(fixture.host, fixture.RowPoint(6u), false, MK_CONTROL), "a Ctrl+double-click is handled");
+    Require(log.invokedCount == invokedBefore + 1u, "the double-click invokes the row");
+    RequireTreeIds(fixture.Selected(), {2u, 7u}, "a Ctrl+double-click cannot toggle the row the first click added off again");
+    Require(tree.OnMouseDoubleClick(fixture.host, fixture.RowPoint(6u), false, 0u), "a double-click is handled");
+    RequireTreeIds(fixture.Selected(), {7u}, "a plain double-click selects its row alone");
+}
+
+void TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent()
+{
+    using namespace DxUi;
+
+    TreeSelectionFixture fixture(FlatTreeItems(6u));
+    Tree& tree                 = *fixture.tree;
+    RecordingTreeDelegate& log = fixture.delegate;
+
+    // The list keeps the rows it names, in the model's order; the last one it names is the focused row and the anchor.
+    tree.SetSelectedItemIds(std::vector<uint64_t>{2u, 99u, 5u, 2u});
+    RequireTreeIds(fixture.Selected(), {2u, 5u}, "a list of ids selects the rows that exist, in the model's order, once each");
+    Require(tree.GetFocusedItemId() == 2u, "the last listed row that exists is the focused row");
+    Require(fixture.Key(VK_DOWN, MK_SHIFT), "Shift+Down is handled");
+    RequireTreeIds(fixture.Selected(), {2u, 3u}, "the range starts at the focused row");
+    tree.SetSelectedItemIds({});
+    Require(fixture.Selected().empty() && ! tree.GetFocusedItemId().has_value(), "an empty list clears the selection and the focus");
+    tree.SetSelectedItemIds(std::vector<uint64_t>{77u});
+    Require(fixture.Selected().empty() && ! tree.GetFocusedItemId().has_value(), "a list of rows that do not exist selects nothing");
+
+    // SetSelectedItemId selects one row; SetFocusedItemId moves only the focus.
+    tree.SetSelectedItemIds(std::vector<uint64_t>{1u, 3u, 4u});
+    tree.SetFocusedItemId(6u);
+    RequireTreeIds(fixture.Selected(), {1u, 3u, 4u}, "moving the focus keeps the selection");
+    Require(tree.GetFocusedItemId() == 6u && tree.GetSelectedItemId() == 6u, "the focused row is what GetSelectedItemId reports with multi-select");
+    tree.SetSelectedItemId(2u);
+    RequireTreeIds(fixture.Selected(), {2u}, "SetSelectedItemId selects one row alone");
+    tree.SetSelectedItemId(std::nullopt);
+    Require(fixture.Selected().empty(), "SetSelectedItemId with no row clears the selection");
+
+    // Turning multi-select off keeps the focused row if it is selected, else the last selected one, else nothing.
+    tree.SetSelectedItemIds(std::vector<uint64_t>{1u, 3u, 4u});
+    tree.SetFocusedItemId(3u);
+    tree.SetMultiSelectEnabled(false);
+    RequireTreeIds(fixture.Selected(), {3u}, "off keeps the focused row when it is selected");
+    tree.SetMultiSelectEnabled(true);
+    RequireTreeIds(fixture.Selected(), {3u}, "on starts from the selected row");
+    tree.SetSelectedItemIds(std::vector<uint64_t>{1u, 3u, 4u});
+    tree.SetFocusedItemId(2u);
+    tree.SetMultiSelectEnabled(false);
+    RequireTreeIds(fixture.Selected(), {4u}, "off keeps the last selected row when the focused one is not selected");
+    tree.SetMultiSelectEnabled(true);
+    tree.SetSelectedItemIds(std::vector<uint64_t>{1u, 3u});
+    tree.RequestRemoveVisibleItemFromSelection(0u);
+    tree.RequestRemoveVisibleItemFromSelection(2u);
+    Require(fixture.Selected().empty() && tree.GetFocusedItemId() == 3u, "removing the last selected row leaves the focus where it was");
+    tree.SetMultiSelectEnabled(false);
+    Require(fixture.Selected().empty() && ! tree.GetSelectedItemId().has_value(), "off with nothing selected selects nothing");
+    Require(log.selectionSetChangedCount == 3u, "only the Shift+Down and the two removals reported a set");
+}
+
+} // namespace
+
 void RunTreeTests()
 {
     DXUI_RUN_TEST(TestTreeLocalizedEmptyStateRepaintsWithoutSelectionChange);
@@ -1386,6 +2462,7 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeLargeWheelDeltaUsesFullMagnitude);
     DXUI_RUN_TEST(TestTreeAccumulatesPartialWheelDelta);
     DXUI_RUN_TEST(TestTreeScrollbarFeedbackFollowsHoverAndDragState);
+    DXUI_RUN_TEST(TestTreeRowsStraddlingTheViewportEdgesPaintOnlyInsideIt);
     DXUI_RUN_TEST(TestTreeFocusVisualsRespectKeyboardFocusVisibilityAndHighContrast);
     DXUI_RUN_TEST(TestTreeSelectedRowUsesRainbowOnlyInRainbowMode);
     DXUI_RUN_TEST(TestTreeNotifyDataChangedClearsMissingSelection);
@@ -1396,4 +2473,18 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeRowMetricsClampToSegoeVariableBodyLineHeight);
     DXUI_RUN_TEST(TestTreeCompactDensityShrinksRowMetrics);
     DXUI_RUN_TEST(TestTreeHoveredClippedTextShowsFullTextTooltip);
+    DXUI_RUN_TEST(TestTreeMultiSelectIsOptInAndSingleSelectIsUnchanged);
+    DXUI_RUN_TEST(TestTreeCtrlAndShiftClickBuildTheSelectionInVisibleOrder);
+    DXUI_RUN_TEST(TestTreeCtrlAndShiftClickThroughTheHostMessages);
+    DXUI_RUN_TEST(TestTreeKeyboardExtendsTogglesAndSelectsAll);
+    DXUI_RUN_TEST(TestTreeKeyboardGesturesThroughTheHostMessages);
+    DXUI_RUN_TEST(TestTreeKeyboardGesturesStartFromTheFirstRowWhenNothingIsFocused);
+    DXUI_RUN_TEST(TestTreeGroupKeysFollowTheModifierRulesAndLeaveTheSelectionWhenTheyExpand);
+    DXUI_RUN_TEST(TestTreeSelectionCallbacksFireOncePerChangeAndSeeTheFinishedSelection);
+    DXUI_RUN_TEST(TestTreeSelectionSetCallbackMayDestroyTheTree);
+    DXUI_RUN_TEST(TestTreeMultiSelectionSurvivesModelChangesExpandCollapseAndScrolling);
+    DXUI_RUN_TEST(TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors);
+    DXUI_RUN_TEST(TestTreeDragReorderKeepsItsSourceAndTheMultiSelection);
+    DXUI_RUN_TEST(TestTreeMultiSelectContextMenuExpanderAndDoubleClickKeepTheSelectionRules);
+    DXUI_RUN_TEST(TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent);
 }

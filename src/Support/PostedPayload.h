@@ -100,6 +100,53 @@ template <class T> bool PostMessagePayload(HWND hwnd, UINT msg, WPARAM wp, std::
         }
     return false;
 }
+// Sends a payload and waits at most timeoutMs; true once the window procedure has returned. After a timeout the receiving thread
+// may still take the payload, so it stays registered until then or until its window is destroyed, and a late answer never reaches
+// the sender's frame. A payload whose message was never delivered is freed here.
+template <class T> bool SendMessagePayload(HWND hwnd, UINT msg, WPARAM wp, std::unique_ptr<T> value, UINT timeoutMs) noexcept
+{
+    if (! value)
+        return false;
+    LPARAM token = 0;
+    {
+        auto& r = DxUi::Detail::Payloads();
+        std::lock_guard lock(r.mutex);
+        bool registered = false;
+        for (auto w : r.windows)
+            registered = registered || (w && w == hwnd);
+        if (! registered || r.next == (std::numeric_limits<LPARAM>::max)())
+            return false;
+        for (auto& e : r.entries)
+            if (! e.token)
+            {
+                e     = {r.next++, hwnd, value.release(), &DxUi::Detail::DestroyPayload<T>};
+                token = e.token;
+                break;
+            }
+    }
+    if (! token)
+        return false;
+    DWORD_PTR answer = 0;
+    if (SendMessageTimeoutW(hwnd, msg, wp, token, SMTO_BLOCK | SMTO_ABORTIFHUNG, timeoutMs, &answer) != 0)
+        return true;
+    if (GetLastError() == ERROR_TIMEOUT)
+        return false;
+    DxUi::Detail::PayloadEntry removed{};
+    {
+        auto& r = DxUi::Detail::Payloads();
+        std::lock_guard lock(r.mutex);
+        for (auto& e : r.entries)
+            if (e.token == token)
+            {
+                removed = e;
+                e       = {};
+                break;
+            }
+    }
+    if (removed.destroy)
+        removed.destroy(removed.value);
+    return false;
+}
 template <class T> std::unique_ptr<T> TakeMessagePayload(LPARAM token) noexcept
 {
     DxUi::Detail::PayloadEntry taken{};

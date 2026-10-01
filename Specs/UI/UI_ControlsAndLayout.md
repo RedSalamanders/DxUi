@@ -1,7 +1,7 @@
 # Controls and layout
 
 Status: normative intended contract
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-01
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -306,6 +306,14 @@ dilute that pair. Disabled primary buttons use the button surface and disabled t
 hide focus. Enabled focus remains visible for pointer and keyboard and uses the undiluted palette focus color.
 The normal light/dark appearance keeps its existing visual treatment.
 
+### Tree rows at the viewport edge
+
+A tree paints its rows only inside its viewport, the frame's interior within its 2 DIP inset. A row can straddle the
+viewport's top or bottom edge: the viewport need not hold a whole number of rows, and a thumb drag can leave a fraction of
+one. Such a row shows only its part inside: its fill, focus ring, text, badge and expander are clipped at the edge. The
+same applies to rows an expansion or collapse animates. The reorder marker is clipped 1 DIP past the viewport, inside
+the inset, so an insertion line on the edge keeps its full 2 DIP.
+
 ### Tree row drag
 
 `Tree::SetReorderEnabled` arms a pointer drag on a row (not the expander or the scrollbar). After the pointer moves
@@ -320,7 +328,91 @@ retargets the row now under the pointer, and moving within one drop zone repaint
 decides the drop, a second (right) button cancels, and model id 0 is an ordinary row. A click that does not travel
 4 DIP selects as before, does not reorder and reports its release unhandled. Row drag is pointer-only: consumers
 provide the keyboard or command equivalent. Row `iconText` in the private-use range uses the icon font; any other
-icon text keeps the small UI font, as in Grid.
+icon text keeps the small UI font, as in Grid. With multi-select the drag keeps this single-source contract: see
+the next section for how a press on a selected row and a drop relate to the selection.
+
+### Tree multi-select
+
+`Tree::SetMultiSelectEnabled(true)` opts a tree into several selected items. It is off by default, and a tree that
+never enables it behaves, paints and reports exactly as before (one selected item, every modifier ignored, no new
+callback). The call is silent. Enabling starts with the selected item alone; disabling keeps the focused item if it is
+selected, else the last selected one, else nothing. The selection is a `GridSelectionModel` (the class Grid uses), so
+its ids, anchor and gestures are Grid's; the model stays UI-thread only.
+
+The focused (current) item and the selection set are distinct. The focused item is what `GetSelectedItemId`,
+`GetFocusedItemId` and `OnTreeSelectionChanged` name, owns the focus ring and is where the keys start; it is selected
+unless Ctrl+click or Ctrl+Space just deselected it or Ctrl with a movement key moved past it. `GetSelectedItemIds`
+returns the selection in visible order and `IsItemSelected` tests one id; both also answer for a single-select tree
+(its one item, or none). `SetSelectedItemId` selects one item alone, `SetSelectedItemIds` selects the listed ids that
+are visible rows (the last one is the focused item and the anchor) and `SetFocusedItemId` moves the focus alone;
+all are silent.
+
+| Gesture (multi-select on) | Effect |
+| --- | --- |
+| Click | Selects the row alone; it is the anchor. |
+| Ctrl+click | Toggles the row and focuses it. The anchor stays (it is set when the selection was empty). |
+| Shift+click | Replaces the selection with the visible range from the anchor to the row, which is focused. With no anchor the focused row is one; with neither, or when the anchor is no longer a visible row, the row alone. |
+| Up, Down, Home, End, Page Up, Page Down | As before for a single tree: select and focus the row reached. |
+| Shift + those keys | Range from the anchor to the row reached, like Shift+click. |
+| Ctrl + those keys | Moves the focus alone. |
+| Left, Right | Collapse or expand the focused group and leave the selection alone, even with Shift or Ctrl held. Where they move to the parent or to the first row of an expanded group they follow the keys above (plain selects, Shift extends, Ctrl moves the focus alone). |
+| Ctrl+Space | Toggles the focused row (Space alone still invokes it). The space character it sends is not typeahead. |
+| Ctrl+A | Selects every visible row. The focused item stays, or is the first row if there is none. |
+| Typeahead | Selects the match alone, as a plain key does. |
+| Expander | Expands or collapses and focuses its row; the selection is untouched, even with Ctrl or Shift held. |
+| Right-click | On a row of a multi-selection it keeps the selection and focuses the row, so the command applies to `GetSelectedItemIds`; on any other row it selects that row alone. |
+| Double-click | Activates as before; with Ctrl or Shift held it leaves the selection alone. |
+
+A first key on a tree with no focused item starts from the first row, which only takes the focus, so that
+Ctrl+Space selects it and Shift+Down selects it and the next. Keyboard differences from Grid, whose current row is
+simply the last selected one: Grid's Ctrl+Up and Ctrl+Down toggle the neighbouring row and its Space toggles a checkbox
+cell. A tree has no checkboxes and a focused item apart from its selection, so it follows the list-view convention in which
+Ctrl with a movement key moves the focus and Ctrl+Space toggles the focused item. Shift (range from the anchor, replacing the
+selection), Ctrl+click (toggle), Ctrl+A, the right-click rule and the anchor are Grid's.
+
+`ITreeDelegate::OnTreeSelectionChanged(id)` keeps its meaning (a user gesture landed on the focused item, as before, even
+when it was already focused) and `OnTreeSelectionSetChanged(ids)` is new (default no-op, so existing delegates compile).
+It is made once per change of the set, after OnTreeSelectionChanged for the same gesture, from a click or key, a
+UI Automation request, and a model change that dropped selected rows; `ids` is an owned copy in visible order. The same
+selection is never reported twice: a click on the one selected row, Ctrl+A on a full selection, and a model change that
+only moved rows notify the set not at all. State is complete before either callback, so a delegate reads the finished
+selection from the tree, may change it, or may destroy the tree (nothing is touched after the call). The setters,
+`SetMultiSelectEnabled` and `SetFocusedItemId` call nothing.
+
+The selection survives what the model does to other rows. `NotifyDataChanged` and `SetModel` drop selected ids that are
+no longer visible rows (removed, or hidden by a collapsed ancestor: a collapse that hides selected rows deselects
+them, and expanding does not bring them back, as a single selection always behaved) and put the rest in the model's
+order. A dropped focused item is cleared without a callback, as before. Scrolling changes nothing and a click after it
+toggles the row under the pointer. After `NotifyDataChanged` the set holds visible rows only, and its membership tests are
+linear in its size, as in Grid.
+
+Row drag and the selection: a press with Ctrl or Shift is a selection gesture and never starts a drag. A press on a
+row outside the selection selects it alone and arms the drag. A plain press on a row of a multi-selection (with
+`SetReorderEnabled(true)`) keeps the selection while the pointer is down; the row takes the focus, and if the press
+becomes a drag the drop names that row alone (`TreeDrop::sourceId`) and leaves the selection as it was, so a delegate
+that finds the source in `GetSelectedItemIds` may apply the drop to all of them (the library moves nothing and invents
+no multi-item drop). A release that never became a drag selects that row alone (one `OnTreeSelectionSetChanged`, no
+second `OnTreeSelectionChanged`). Escape, capture loss, a second button, `SetModel` and a removed row cancel the drag
+and leave the multi-selection intact. Without `SetReorderEnabled` a press on a selected row selects it alone at once,
+as in Grid.
+
+Painting: every selected row takes the selection roles (`selectionFill` and `selectionText`, or `selectionInactiveFill`
+with `text` while the tree lacks focus, exactly as a Grid row does; rainbow mode tints each selected row by its own
+hash), and only the focused row shows the focus ring, even when it is not selected.
+
+UI Automation reports the selection set. The tree's Selection pattern reports `CanSelectMultiple` true and lists every
+selected item in visible order; each selected item reports `IsSelected`; only the focused item reports
+`HasKeyboardFocus`. `SelectionItem.Select` replaces the selection, `AddToSelection` adds the item (and focuses it;
+adding a selected item changes nothing) and `RemoveFromSelection` removes it and leaves the focus; each goes through the
+same callbacks as the gesture it stands for. `SetFocus` on an item moves the focus and leaves the selection. The events
+follow WPF's rules for its selectors: a selection that became exactly one item that was not selected before raises
+`ElementSelected` for it, any other change raises `ElementAddedToSelection` and `ElementRemovedFromSelection` per item,
+and more than 20 changed items, or a selected item that left the tree, raise one `Selection_Invalidated` on the tree
+instead; items named one by one also raise the `IsSelected` property change, and a republish that changed no
+selection, or rows that only moved, raise nothing. A tree without multi-select reports what it always did and raises none
+of these. The events are raised with the same publish that raises focus changes (window hosts after the focus
+announcement, embedded hosts from `UpdateAccessibility`). In a window whose only semantic control is the tree, the
+existing item navigation does not reach the root, so clients do not receive item-level events there.
 
 ### Localized built-in text
 

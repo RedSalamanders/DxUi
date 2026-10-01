@@ -277,6 +277,22 @@ Windows-generated capture moves must describe the same position. It restores the
 if the pointer remains at the fixture target, preserving intervening human movement. The 2,000-message
 flood, hover/paint assertions and 800 ms hover/invocation bounds remain unchanged.
 
+A menu test that probes a popup living on another thread waits a bounded time for the answer. The probes cover the popup's
+state, item rectangles, paint, text and layout, its backdrop, and a bitmap capture.
+- **Where the answer goes.** The popup's own thread answers into a dispatch shared by the caller and the probe's payload. The
+  popup is never read from the caller's thread.
+- **The bounds.** The state probe is posted, so the menu loop answers it ahead of owner traffic, and is bounded at one second.
+  The others are sent, answered at the popup thread's next message retrieval, and bounded at three seconds.
+- **A popup thread that does not answer.** The probe fails instead of holding its driver, and with it the open menu, until the
+  watchdog ends the run.
+- **A late answer.** An answer that comes after the caller gave up lands in the shared dispatch, never in the caller's frame.
+  A payload that is never taken is freed with its window.
+- **The fixtures.** `TestContextMenuDebugStateProbeBoundsWedgedWindowThread` and
+  `TestContextMenuDebugCaptureBoundsWedgedWindowThread` wedge the popup thread in a stalled handler. They require each probe
+  to fail at its bound, before the release, and the next capture to succeed.
+- **Diagnosis.** On a timeout, the capture readiness wait also prints its longest probe. About 3,000 ms means the popup thread
+  stopped answering.
+
 The native disclosure automation client subscribes from its own MTA thread while the owner thread pumps.
 Cold client setup (COM, `ElementFromHandle` and property-event subscription) has a separate 20-second
 allowance, because hosted x64 runners have exceeded the former 3000 ms bound. Acknowledged expansion, collapse

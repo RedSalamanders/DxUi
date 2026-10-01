@@ -3484,7 +3484,7 @@ void TestDxUiPrivateMessagesAreRegisteredDistinctAndNeverWmNull()
         std::string_view name;
         RegisteredMessage (*get)() noexcept = nullptr;
     };
-    const std::array<Accessor, 16> accessors = {{
+    const std::array<Accessor, 17> accessors = {{
         {"RedSalamanders.DxUi.WindowHost.FocusGainTurnEnd.v1", &DxUi::WndMsg::WindowHostFocusGainTurnEnd},
         {"RedSalamanders.DxUi.WindowHost.ProcessExitDetach.v1", &DxUi::WndMsg::WindowHostProcessExitDetach},
         {"RedSalamanders.DxUi.Accessibility.UiThreadAction.v1", &DxUi::WndMsg::AccessibilityUiThreadAction},
@@ -3500,6 +3500,7 @@ void TestDxUiPrivateMessagesAreRegisteredDistinctAndNeverWmNull()
         {"RedSalamanders.DxUi.MenuPopup.DebugGetState.v1", &DxUi::WndMsg::MenuPopupDebugGetState},
         {"RedSalamanders.DxUi.MenuPopup.DebugGetItemRect.v1", &DxUi::WndMsg::MenuPopupDebugGetItemRect},
         {"RedSalamanders.DxUi.MenuPopup.DebugGetItemPaint.v1", &DxUi::WndMsg::MenuPopupDebugGetItemPaint},
+        {"RedSalamanders.DxUi.MenuPopup.DebugGetItemLayout.v1", &DxUi::WndMsg::MenuPopupDebugGetItemLayout},
         {"RedSalamanders.DxUi.TextInputServices.DeferredLock.v1", &DxUi::WndMsg::TextInputServicesDeferredLock},
     }};
     std::vector<UINT> values;
