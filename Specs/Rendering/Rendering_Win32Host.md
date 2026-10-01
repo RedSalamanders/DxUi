@@ -30,6 +30,9 @@ and require the host to initialize with or without that SDK component.
 The native menu modal loop processes pointer/keyboard input and pending paints for its own popup windows before
 ordinary posted owner-window traffic. Input feedback cannot depend on the entire owner queue becoming empty.
 An idle menu still blocks on messages; this policy adds no timer, polling or synchronous repaint during dispatch.
+Each `PeekMessageW` first runs the handlers of messages other threads sent to the menu's thread. Such a handler can open
+or close a submenu while the loop walks the popup chain, so the loop indexes the chain afresh for every peek and holds no
+popup across the call. A popup that closed is not peeked, and none is read after it was freed.
 The existing owner-message-flood test retains its hover/invocation deadline and verifies visible feedback.
 Because capture suppresses `WM_SETCURSOR`, the menu sets the cursor from each delivered pointer move (arrow over its
 popups, the same-thread window under the pointer choosing its own outside them) and reads the pointer only once when

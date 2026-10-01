@@ -3157,6 +3157,140 @@ void TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay()
     Require(! result.has_value(), "closing the delayed submenu-replacement validation popup with Escape returns no invoked command");
 }
 
+// PeekMessageW runs the handlers of messages other threads sent to the menu's thread, and such a handler can close a submenu
+// while the modal loop walks the popup chain to peek each popup's own paints and state probes. The loop must then peek only
+// live popups. The hook closes the open submenu as such a handler would, from the loop's peek of the root popup's state probes:
+// none is pending, so that peek finds nothing and the loop goes on to the next popup of the chain it started with.
+void TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu()
+{
+    using namespace DxUi;
+
+    struct PeekProbe
+    {
+        std::atomic<HWND> submenu{nullptr};
+        std::atomic<bool> armed{false};
+        std::atomic<bool> recording{true};
+        bool fired = false; // The menu's thread only.
+        wil::unique_event firedEvent{wil::EventOptions::ManualReset};
+        std::mutex mutex;
+        std::vector<std::pair<HWND, bool>> peekedAfterClose; // Each window peeked after the close, and whether it was a window.
+    } probe;
+    probe.peekedAfterClose.reserve(4096u);
+
+    const ContextMenuModalLoopPeekHook hook = [](void* context, HWND popupHwnd, UINT message) noexcept
+    {
+        auto& peekProbe = *static_cast<PeekProbe*>(context);
+        if (peekProbe.fired)
+        {
+            const std::scoped_lock lock(peekProbe.mutex);
+            if (peekProbe.recording.load(std::memory_order_acquire) && peekProbe.peekedAfterClose.size() < peekProbe.peekedAfterClose.capacity())
+            {
+                peekProbe.peekedAfterClose.emplace_back(popupHwnd, IsWindow(popupHwnd) != FALSE);
+            }
+            return;
+        }
+        const HWND submenu = peekProbe.submenu.load(std::memory_order_acquire);
+        if (message == WM_PAINT || ! peekProbe.armed.load(std::memory_order_acquire) || ! submenu || popupHwnd == submenu)
+        {
+            return;
+        }
+        peekProbe.fired = true;
+        // Left in the submenu closes it, as a key another thread sent to it would.
+        static_cast<void>(SendMessageW(submenu, WM_KEYDOWN, VK_LEFT, 0));
+        peekProbe.firedEvent.SetEvent();
+    };
+
+    AttachedHostWindow ownerWindow;
+    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+    ownerWindow.PumpMessages();
+    DrainPendingMouseMessagesForMenuSuite();
+    const std::vector<MenuFlyoutItem> items = {
+        {.text      = L"P1",
+         .commandId = 3801,
+         .children =
+             {
+                 MenuFlyoutItem{.text = L"P11", .commandId = 38011},
+                 MenuFlyoutItem{.text = L"P12", .commandId = 38012},
+             }},
+        {.text = L"P2", .commandId = 3802},
+    };
+
+    DebugSetContextMenuModalLoopPeekHookForTest(hook, &probe);
+    const auto clearHook = wil::scope_exit([]() noexcept { DebugSetContextMenuModalLoopPeekHookForTest(nullptr, nullptr); });
+
+    std::string driverFailure;
+    std::thread driver([&]
+    {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+        const HWND rootPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"P1");
+        if (! rootPopupHwnd)
+        {
+            driverFailure = "menu popup window appears for the chain-change peek validation";
+            return;
+        }
+
+        const auto dismissPopup = wil::scope_exit([&]() noexcept
+        {
+            probe.recording.store(false, std::memory_order_release);
+            DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd());
+        });
+
+        ContextMenuPopupDebugState popupState{};
+        PostMessageW(rootPopupHwnd, WM_KEYDOWN, VK_HOME, 0);
+        if (! WaitForContextMenuPopupState(rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+        }, popupState))
+        {
+            driverFailure = "Home selects P1 before its submenu opens";
+            return;
+        }
+        PostMessageW(rootPopupHwnd, WM_KEYDOWN, VK_RIGHT, 0);
+        const HWND submenuHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"P11");
+        if (! submenuHwnd)
+        {
+            driverFailure = "Right opens P1's submenu";
+            return;
+        }
+
+        // No state probe is pending from here on, so the root popup's probe peek finds nothing when the hook closes the submenu.
+        probe.submenu.store(submenuHwnd, std::memory_order_release);
+        probe.armed.store(true, std::memory_order_release);
+        PostMessageW(rootPopupHwnd, WM_NULL, 0, 0); // Wakes the modal loop; its next idle pass fires the hook.
+        if (WaitForSingleObject(probe.firedEvent.get(), 5000u) != WAIT_OBJECT_0)
+        {
+            driverFailure = "the modal loop peeks the root popup's state probes while the submenu is open";
+            return;
+        }
+        if (! WaitForWindowDestroyed(submenuHwnd, std::chrono::milliseconds(1200)))
+        {
+            driverFailure = "the key the hook sent closes the submenu";
+            return;
+        }
+        // More passes of the loop, through the root popup's state probes: the root still answers.
+        if (! WaitForContextMenuPopupState(rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+            return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f;
+        }, popupState))
+        {
+            driverFailure = "the root popup still answers after a peek closed its submenu";
+        }
+    });
+
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
+    driver.join();
+
+    Require(driverFailure.empty(), driverFailure.c_str());
+    Require(! result.has_value(), "dismissing the chain-change peek validation returns no invoked command");
+    const HWND closedSubmenu = probe.submenu.load(std::memory_order_acquire);
+    const std::scoped_lock lock(probe.mutex);
+    Require(! probe.peekedAfterClose.empty(), "the modal loop goes on peeking after a peek closed the submenu");
+    for (const auto& [popupHwnd, wasWindow] : probe.peekedAfterClose)
+    {
+        Require(popupHwnd != closedSubmenu && wasWindow, "after a peek closed the submenu, the modal loop peeks only the popups still open");
+    }
+}
+
 void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
 {
     using namespace DxUi;
@@ -7578,6 +7712,7 @@ void RunMenuTests()
     runTest("TestMenuRootSwitchDoesNotPollCursorWhileIdle", TestMenuRootSwitchDoesNotPollCursorWhileIdle);
     runTest("TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay", TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay);
     runTest("TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay", TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay);
+    runTest("TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu", TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu);
     runTest("TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay", TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay);
     runTest("TestMenuKeyboardTabExitsMenuLoop", TestMenuKeyboardTabExitsMenuLoop);
     runTest("TestMenuKeyboardF10ExitsMenuLoop", TestMenuKeyboardF10ExitsMenuLoop);

@@ -465,6 +465,11 @@ struct WindowHostBitmapCapture;
 [[nodiscard]] bool DebugGetContextMenuPopupState(HWND hwnd, ContextMenuPopupDebugState& outState) noexcept;
 [[nodiscard]] ContextMenuResourceDebugState DebugGetContextMenuResources() noexcept;
 void DebugSetContextMenuStateProbeStallForTest(HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
+// Called on the menu's thread just before its modal loop peeks a popup's own messages (`message`: WM_PAINT, or the state
+// probes' message), with that popup's window. PeekMessageW runs the handlers of messages other threads sent, which can open
+// or close a submenu while the loop walks the popup chain; a test does the same from the hook. Null clears it.
+using ContextMenuModalLoopPeekHook = void (*)(void* context, HWND popupHwnd, UINT message) noexcept;
+void DebugSetContextMenuModalLoopPeekHookForTest(ContextMenuModalLoopPeekHook hook, void* context) noexcept;
 [[nodiscard]] bool DebugGetContextMenuPopupItemRect(HWND hwnd, size_t itemIndex, D2D1_RECT_F& outRectDip) noexcept;
 [[nodiscard]] bool DebugGetContextMenuItemDisplayText(const MenuFlyoutItem& item, std::wstring& outText);
 [[nodiscard]] bool DebugGetContextMenuPopupItemText(HWND hwnd, size_t itemIndex, std::wstring& outText) noexcept;
