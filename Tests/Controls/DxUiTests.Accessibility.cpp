@@ -1,4 +1,5 @@
 #include "../../src/Controls/DxUi.AccessibilityTextUnits.h"
+#include "../Support/UiaTestClient.h"
 #include "DxUiTestHelpers.h"
 #include "GridMultilineFixtures.h"
 
@@ -5313,8 +5314,10 @@ private:
 
 // The selection events of a multi-select tree, heard by a UI Automation client: a selection that became one new item is that
 // item being selected, other changes are items added to and removed from it (each also changes IsSelected), a change too large
-// to name is one invalidation of the tree, and a tree without multi-select raises none of them.
-void TestAccessibilityTreeMultiSelectRaisesSelectionEvents()
+// to name is one invalidation of the tree, and a tree without multi-select raises none of them. The tree is beside a label,
+// or it fills its window, where the window's root element stands for it (its items hang from that element, so a client
+// subscribed to the window hears the events raised on them, and the invalidation is raised on the root itself).
+void RunTreeMultiSelectSelectionEventsTest(bool fillsItsWindow)
 {
     using namespace DxUi;
     constexpr ULONGLONG kClientSetupAllowanceMs = 20000;
@@ -5323,10 +5326,10 @@ void TestAccessibilityTreeMultiSelectRaisesSelectionEvents()
     constexpr ULONGLONG kStreamDeadlineMs       = 10000;
     AttachedHostWindow window;
     auto root = std::make_unique<Panel>();
-    // A second element keeps the window from collapsing its root into the tree, which a client could not then walk up from an item.
-    root->AddChild<Label>(L"Titre")->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 24.0f));
+    if (! fillsItsWindow)
+        root->AddChild<Label>(L"Titre")->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 24.0f));
     auto* tree = root->AddChild<Tree>();
-    tree->SetBounds(D2D1::RectF(0.0f, 28.0f, 240.0f, 168.0f));
+    tree->SetBounds(fillsItsWindow ? D2D1::RectF(0.0f, 0.0f, 240.0f, 168.0f) : D2D1::RectF(0.0f, 28.0f, 240.0f, 168.0f));
     tree->SetAccessibleName(L"Catégories");
     MutableTreeModel model;
     const auto items = [](uint64_t count)
@@ -5524,6 +5527,17 @@ void TestAccessibilityTreeMultiSelectRaisesSelectionEvents()
     }),
                  {},
                  "selecting in a tree without multi-select");
+}
+
+void TestAccessibilityTreeMultiSelectRaisesSelectionEvents()
+{
+    RunTreeMultiSelectSelectionEventsTest(false);
+}
+
+// The same events and silences for a tree that is its window's only control, which is what a dialog with one list is.
+void TestAccessibilityTreeMultiSelectRaisesSelectionEventsWhenItFillsItsWindow()
+{
+    RunTreeMultiSelectSelectionEventsTest(true);
 }
 
 // A focus-changed callback may rebuild the controls around the one it was told about. The host neither keeps nor
@@ -6205,10 +6219,770 @@ void TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport()
     Require(verifyCells("under a dragged thumb") > 0u, "the dragged thumb cuts a cell at its top");
     static_cast<void>(grid->OnMouseUp(window.Host(), D2D1::Point2F(grab.x, grab.y + 9.0f), false, 0u));
 }
+
+// A window whose only semantic control is a Tree, a Grid or a masked TextField has one element, the window's, which stands for
+// that control. What the control exposes of its own (a tree's items, a grid's headers, rows and cells, a field's reveal button)
+// are that element's children, and their parent is that element. UI Automation drops an event raised on an element it cannot
+// reach from the window through the parents, so an item whose parent chain ends at a second element for its tree (one nobody
+// reaches from the window) never reaches a client subscribed to the window. The tests below ask a UI Automation client what it
+// sees, as a screen reader does: the walk from the window's element to the items and back, and the events raised on them. Each
+// of them has a twin for a window where the control has a sibling, in which it has an element of its own: what a client sees of
+// the control's parts is the same in both, apart from which element stands for the control.
+
+[[nodiscard]] bool SameComObject(IUnknown* first, IUnknown* second)
+{
+    wil::com_ptr_nothrow<IUnknown> a;
+    wil::com_ptr_nothrow<IUnknown> b;
+    return first && second && SUCCEEDED(first->QueryInterface(IID_PPV_ARGS(a.put()))) && SUCCEEDED(second->QueryInterface(IID_PPV_ARGS(b.put()))) &&
+           a.get() == b.get();
+}
+
+// A UI Automation client of one test window, with what the tests ask of it. `root` is the window's element.
+class SingleControlClient final
+{
+public:
+    explicit SingleControlClient(AttachedHostWindow& window, UiaTest::Subscription subscription = {})
+        : client(window.Hwnd(), std::move(subscription), [&window] { window.PumpMessages(); }),
+          root(client.Root())
+    {
+    }
+
+    // An expectation of what the client sees. A failed one first reports the tree the client walks and the events it heard.
+    void Expect(bool condition, const char* message)
+    {
+        if (! condition)
+        {
+            std::cerr << "    [UIA] the client walks from the window's element:\n";
+            for (const wchar_t unit : client.Dump(root))
+                std::cerr << (unit < 0x80 ? static_cast<char>(unit) : '?');
+            client.PrintEvents();
+        }
+        Require(condition, message);
+    }
+
+    [[nodiscard]] std::wstring Name(UiaTest::ElementId element)
+    {
+        return client.Describe(element).name;
+    }
+
+    [[nodiscard]] std::vector<std::wstring> Names(const std::vector<UiaTest::ElementId>& elements)
+    {
+        std::vector<std::wstring> names;
+        for (const UiaTest::ElementId element : elements)
+            names.push_back(Name(element));
+        return names;
+    }
+
+    // The names of `element` and of what follows it by next (or previous) sibling.
+    [[nodiscard]] std::vector<std::wstring> Walk(std::optional<UiaTest::ElementId> element, UiaTest::Direction direction)
+    {
+        std::vector<std::wstring> names;
+        for (size_t guard = 0u; element && guard < 64u; ++guard)
+        {
+            names.push_back(Name(*element));
+            element = client.Navigate(*element, direction);
+        }
+        return names;
+    }
+
+    // Whether UI Automation takes the parent of `element` for `parent`.
+    [[nodiscard]] bool HasParent(UiaTest::ElementId element, UiaTest::ElementId parent)
+    {
+        const std::optional<UiaTest::ElementId> found = client.Navigate(element, UiaTest::Direction::Parent);
+        return found && client.Same(*found, parent);
+    }
+
+    UiaTest::Client client;
+    UiaTest::ElementId root;
+};
+
+void FillTreeModel(MutableTreeModel& model)
+{
+    model.SetVisibleItems({DxUi::TreeItemData{.id = 1u, .text = L"Général"},
+                           DxUi::TreeItemData{.id = 2u, .text = L"Volets"},
+                           DxUi::TreeItemData{.id = 3u, .text = L"Afficheurs"}});
+}
+
+void ConfigureCategoriesTree(DxUi::Tree& tree, MutableTreeModel& model)
+{
+    tree.SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 96.0f));
+    tree.SetModel(&model);
+    tree.SetAccessibleName(L"Catégories");
+    tree.SetSelectedItemId(2u);
+}
+
+// The window of a tree and nothing else.
+struct SingleTreeWindow final
+{
+    SingleTreeWindow()
+    {
+        FillTreeModel(model);
+        auto control = std::make_unique<DxUi::Tree>();
+        ConfigureCategoriesTree(*control, model);
+        tree = control.get();
+        window.Host().SetRoot(std::move(control));
+    }
+
+    MutableTreeModel model; // Before the window: the tree it holds ends first.
+    AttachedHostWindow window;
+    DxUi::Tree* tree = nullptr;
+};
+
+// The window of a tree and a button.
+struct TreeBesideAButtonWindow final
+{
+    TreeBesideAButtonWindow()
+    {
+        FillTreeModel(model);
+        auto panel = std::make_unique<DxUi::Panel>();
+        tree       = panel->AddChild<DxUi::Tree>();
+        ConfigureCategoriesTree(*tree, model);
+        panel->AddChild<DxUi::Button>(L"Appliquer")->SetBounds(D2D1::RectF(0.0f, 104.0f, 120.0f, 136.0f));
+        window.Host().SetRoot(std::move(panel));
+    }
+
+    MutableTreeModel model;
+    AttachedHostWindow window;
+    DxUi::Tree* tree = nullptr;
+};
+
+class StatusGridModel final : public DxUi::IGridModel
+{
+public:
+    [[nodiscard]] size_t GetRowCount() const noexcept override
+    {
+        return std::size(kRows);
+    }
+
+    [[nodiscard]] size_t GetColumnCount() const noexcept override
+    {
+        return 2u;
+    }
+
+    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t columnIndex) const override
+    {
+        DxUi::GridColumnDesc column;
+        column.id       = columnIndex == 0u ? L"name" : L"status";
+        column.title    = columnIndex == 0u ? L"Nom" : L"État";
+        column.widthDip = 120.0f;
+        return column;
+    }
+
+    void GetCellData(size_t rowIndex, size_t columnIndex, DxUi::GridCellData& outCell) const override
+    {
+        outCell.kind = DxUi::GridCellKind::Text;
+        outCell.text = columnIndex == 0u ? kRows[rowIndex].name : kRows[rowIndex].status;
+    }
+
+    [[nodiscard]] uint64_t GetStableRowId(size_t rowIndex) const noexcept override
+    {
+        return kRows[rowIndex].id;
+    }
+
+    [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+    {
+        for (size_t rowIndex = 0u; rowIndex < std::size(kRows); ++rowIndex)
+        {
+            if (kRows[rowIndex].id == rowId)
+                return rowIndex;
+        }
+        return std::nullopt;
+    }
+
+private:
+    struct Row
+    {
+        uint64_t id;
+        const wchar_t* name;
+        const wchar_t* status;
+    };
+
+    static constexpr Row kRows[] = {{10u, L"Alpha", L"Prête"}, {20u, L"Beta", L"Occupée"}, {30u, L"Gamma", L"Libre"}};
+};
+
+void ConfigureResultsGrid(DxUi::Grid& grid, StatusGridModel& model)
+{
+    grid.SetBounds(D2D1::RectF(0.0f, 0.0f, 280.0f, 160.0f));
+    grid.SetModel(&model);
+    grid.SetAccessibleName(L"Résultats");
+}
+
+// The window of a grid and nothing else.
+struct SingleGridWindow final
+{
+    SingleGridWindow()
+    {
+        auto control = std::make_unique<DxUi::Grid>();
+        ConfigureResultsGrid(*control, model);
+        grid = control.get();
+        window.Host().SetRoot(std::move(control));
+    }
+
+    StatusGridModel model;
+    AttachedHostWindow window;
+    DxUi::Grid* grid = nullptr;
+};
+
+// The window of a grid and a button.
+struct GridBesideAButtonWindow final
+{
+    GridBesideAButtonWindow()
+    {
+        auto panel = std::make_unique<DxUi::Panel>();
+        grid       = panel->AddChild<DxUi::Grid>();
+        ConfigureResultsGrid(*grid, model);
+        panel->AddChild<DxUi::Button>(L"Appliquer")->SetBounds(D2D1::RectF(0.0f, 168.0f, 120.0f, 200.0f));
+        window.Host().SetRoot(std::move(panel));
+    }
+
+    StatusGridModel model;
+    AttachedHostWindow window;
+    DxUi::Grid* grid = nullptr;
+};
+
+// What a client sees of a tree and its items; `tree` is the tree's element: the window's in a window the tree fills, its own in
+// a window it shares.
+void ExpectClientSeesTreeItems(SingleControlClient& walk, UiaTest::ElementId tree)
+{
+    using UiaTest::Direction;
+    const UiaTest::ElementInfo info = walk.client.Describe(tree);
+    walk.Expect(info.controlType == UIA_TreeControlTypeId && info.name == L"Catégories", "the client reaches the tree's element");
+
+    const std::vector<std::wstring> items{L"Général", L"Volets", L"Afficheurs"};
+    const std::vector<std::wstring> reversed{L"Afficheurs", L"Volets", L"Général"};
+    const std::optional<UiaTest::ElementId> first = walk.client.Navigate(tree, Direction::FirstChild);
+    walk.Expect(first && walk.Name(*first) == items.front(), "the first child of the tree's element is the tree's first item");
+    const std::optional<UiaTest::ElementId> last = walk.client.Navigate(tree, Direction::LastChild);
+    walk.Expect(last && walk.Name(*last) == items.back(), "the last child of the tree's element is the tree's last item");
+    walk.Expect(walk.Walk(first, Direction::NextSibling) == items, "the items follow one another by next sibling");
+    walk.Expect(walk.Walk(last, Direction::PreviousSibling) == reversed, "the items follow one another by previous sibling");
+    const std::vector<UiaTest::ElementId> children = walk.client.Children(tree);
+    walk.Expect(walk.Names(children) == items, "a search of the tree element's children finds the tree's items");
+    for (const UiaTest::ElementId item : children)
+    {
+        walk.Expect(walk.client.Describe(item).controlType == UIA_TreeItemControlTypeId, "a child of the tree's element is a tree item");
+        walk.Expect(walk.HasParent(item, tree), "the parent of a tree item is the tree's element");
+        const std::optional<UiaTest::ElementId> container = walk.client.SelectionContainer(item);
+        walk.Expect(container && walk.client.Same(*container, tree), "the selection container of a tree item is the tree's element");
+    }
+    const std::vector<UiaTest::ElementId> selection = walk.client.Selection(tree);
+    walk.Expect(selection.size() == 1u && walk.Name(selection.front()) == L"Volets" && walk.HasParent(selection.front(), tree),
+                "the selected item the tree's element reports is a child of that element");
+}
+
+// What a client sees of a grid and its parts; `grid` is the grid's element.
+void ExpectClientSeesGridParts(SingleControlClient& walk, UiaTest::ElementId grid, DxUi::Grid& live)
+{
+    using UiaTest::Direction;
+    const UiaTest::ElementInfo info = walk.client.Describe(grid);
+    walk.Expect(info.controlType == UIA_DataGridControlTypeId && info.name == L"Résultats", "the client reaches the grid's element");
+
+    const std::vector<std::wstring> parts{L"Nom", L"État", L"Alpha | Prête", L"Beta | Occupée", L"Gamma | Libre"};
+    const std::vector<std::wstring> reversed(parts.rbegin(), parts.rend());
+    const std::optional<UiaTest::ElementId> first = walk.client.Navigate(grid, Direction::FirstChild);
+    walk.Expect(first && walk.Name(*first) == L"Nom", "the first child of the grid's element is the grid's first header");
+    const std::optional<UiaTest::ElementId> last = walk.client.Navigate(grid, Direction::LastChild);
+    walk.Expect(last && walk.Name(*last) == L"Gamma | Libre", "the last child of the grid's element is the grid's last row");
+    walk.Expect(walk.Walk(first, Direction::NextSibling) == parts, "the headers and the rows follow one another by next sibling");
+    walk.Expect(walk.Walk(last, Direction::PreviousSibling) == reversed, "the rows and the headers follow one another by previous sibling");
+    const std::vector<UiaTest::ElementId> children = walk.client.Children(grid);
+    walk.Expect(walk.Names(children) == parts, "a search of the grid element's children finds the grid's headers and rows");
+    for (const UiaTest::ElementId child : children)
+    {
+        const long controlType = walk.client.Describe(child).controlType;
+        walk.Expect(controlType == UIA_HeaderItemControlTypeId || controlType == UIA_DataItemControlTypeId,
+                    "a child of the grid's element is a header or a row");
+        walk.Expect(walk.HasParent(child, grid), "the parent of a grid header or row is the grid's element");
+        if (controlType != UIA_DataItemControlTypeId)
+            continue;
+        const std::optional<UiaTest::ElementId> container = walk.client.SelectionContainer(child);
+        walk.Expect(container && walk.client.Same(*container, grid), "the selection container of a grid row is the grid's element");
+    }
+
+    // The cells of the second row: their parent is the row, whose parent is the grid's element.
+    const UiaTest::ElementId row                      = children[3];
+    const std::optional<UiaTest::ElementId> firstCell = walk.client.Navigate(row, Direction::FirstChild);
+    walk.Expect(firstCell && walk.Walk(firstCell, Direction::NextSibling) == std::vector<std::wstring>({L"Beta", L"Occupée"}),
+                "a grid row's children are its cells");
+    const std::vector<UiaTest::ElementId> cells = walk.client.Children(row);
+    walk.Expect(cells.size() == 2u, "a search of a grid row's children finds its cells");
+    for (const UiaTest::ElementId cell : cells)
+    {
+        walk.Expect(walk.HasParent(cell, row), "the parent of a grid cell is its row");
+        const std::optional<UiaTest::ElementId> containing = walk.client.ContainingGrid(cell);
+        walk.Expect(containing && walk.client.Same(*containing, grid), "the containing grid of a grid cell is the grid's element");
+    }
+
+    Require(live.RequestSelectRow(1u, 0u), "the grid selects its second row");
+    const std::vector<UiaTest::ElementId> selection = walk.client.Selection(grid);
+    walk.Expect(selection.size() == 1u && walk.Name(selection.front()) == L"Beta | Occupée" && walk.HasParent(selection.front(), grid),
+                "the selected row the grid's element reports is a child of that element");
+}
+
+void TestSingleTreeWindowElementIsTheParentOfItsItems()
+{
+    SingleTreeWindow test;
+    SingleControlClient walk(test.window);
+    ExpectClientSeesTreeItems(walk, walk.root);
+
+    // The element a client reaches through a provider call is the window's one canonical element, not an equal copy of it.
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(DxUi::CreateWindowHostAccessibilityProvider(test.window.Hwnd()));
+    Require(rootProvider != nullptr, "the single-tree window exposes its fragment root");
+    const std::optional<D2D1_RECT_F> rect = test.tree->GetVisibleItemHitRect(1u);
+    Require(rect.has_value(), "the tree has a rectangle for its second item");
+    const wil::com_ptr_nothrow<IRawElementProviderFragment> item = GetProviderAtDipPoint(test.window.Hwnd(),
+                                                                                         test.window.Host(),
+                                                                                         *rootProvider.get(),
+                                                                                         (rect->left + rect->right) * 0.5f,
+                                                                                         (rect->top + rect->bottom) * 0.5f,
+                                                                                         "a tree item is found by point");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> parent;
+    RequireSucceeded(item->Navigate(NavigateDirection_Parent, parent.put()), "a tree item navigates to its parent");
+    Require(parent != nullptr && SameComObject(parent.get(), rootProvider.get()), "the parent of a tree item is the window's canonical element");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> fragmentRoot;
+    RequireSucceeded(item->get_FragmentRoot(fragmentRoot.put()), "a tree item names its fragment root");
+    Require(SameComObject(fragmentRoot.get(), rootProvider.get()), "the fragment root of a tree item is the window's canonical element");
+}
+
+// The window's element outlives the tree it stands for: the items of a replacement tree are elements of their own, those of the
+// replaced tree report that they are gone, and a client that listens for structure changes hears that it must navigate again.
+void TestSingleTreeWindowReplacementTreeGetsItemElementsOfItsOwn()
+{
+    using UiaTest::Direction;
+    SingleTreeWindow test;
+    UiaTest::Subscription subscription;
+    subscription.structure = true;
+    SingleControlClient walk(test.window, std::move(subscription));
+    const std::optional<UiaTest::ElementId> oldFirst = walk.client.Navigate(walk.root, Direction::FirstChild);
+    walk.Expect(oldFirst && walk.Name(*oldFirst) == L"Général", "the first child of the window's element is the tree's first item");
+
+    auto replacement = std::make_unique<DxUi::Tree>();
+    ConfigureCategoriesTree(*replacement, test.model);
+    test.window.Host().SetRoot(std::move(replacement)); // The tree the fixture points at is gone with it.
+    UiaTest::ElementInfo gone;
+    walk.Expect(walk.client.TryDescribe(*oldFirst, gone) == UIA_E_ELEMENTNOTAVAILABLE, "an item of the replaced tree reports that it is gone");
+    const std::optional<UiaTest::ElementId> newFirst = walk.client.Navigate(walk.root, Direction::FirstChild);
+    walk.Expect(newFirst && walk.Name(*newFirst) == L"Général" && ! walk.client.Same(*newFirst, *oldFirst),
+                "the replacement tree's first item is an element of its own");
+    walk.Expect(newFirst && walk.HasParent(*newFirst, walk.root), "the parent of the replacement tree's item is the window's element");
+    walk.Expect(walk.client.WaitForEvent(
+                    [](const UiaTest::HeardEvent& heard)
+    {
+        return heard.kind == UiaTest::EventKind::Structure && heard.id == StructureChangeType_ChildrenInvalidated && heard.controlType == UIA_TreeControlTypeId;
+    }),
+                "a client subscribed to the window hears that the window's children were invalidated");
+}
+
+void TestTreeBesideAnotherControlIsTheParentOfItsItems()
+{
+    TreeBesideAButtonWindow test;
+    SingleControlClient walk(test.window);
+    const std::optional<UiaTest::ElementId> tree = walk.client.Navigate(walk.root, UiaTest::Direction::FirstChild);
+    walk.Expect(tree.has_value() && walk.HasParent(*tree, walk.root), "the tree has an element of its own, a child of the window's");
+    ExpectClientSeesTreeItems(walk, *tree);
+}
+
+void TestSingleGridWindowElementIsTheParentOfItsHeadersRowsAndCells()
+{
+    SingleGridWindow test;
+    SingleControlClient walk(test.window);
+    ExpectClientSeesGridParts(walk, walk.root, *test.grid);
+
+    // The element a client reaches through a provider call is the window's one canonical element, not an equal copy of it.
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(DxUi::CreateWindowHostAccessibilityProvider(test.window.Hwnd()));
+    Require(rootProvider != nullptr, "the single-grid window exposes its fragment root");
+    const std::optional<D2D1_RECT_F> cellRect = test.grid->GetVisibleCellRect(1u, 0u);
+    Require(cellRect.has_value(), "the grid has a rectangle for a cell of its second row");
+    const wil::com_ptr_nothrow<IRawElementProviderFragment> cell = GetProviderAtDipPoint(test.window.Hwnd(),
+                                                                                         test.window.Host(),
+                                                                                         *rootProvider.get(),
+                                                                                         (cellRect->left + cellRect->right) * 0.5f,
+                                                                                         (cellRect->top + cellRect->bottom) * 0.5f,
+                                                                                         "a grid cell is found by point");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> row;
+    RequireSucceeded(cell->Navigate(NavigateDirection_Parent, row.put()), "a grid cell navigates to its row");
+    Require(row != nullptr, "a grid cell has a row");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> parent;
+    RequireSucceeded(row->Navigate(NavigateDirection_Parent, parent.put()), "a grid row navigates to its parent");
+    Require(parent != nullptr && SameComObject(parent.get(), rootProvider.get()), "the parent of a grid row is the window's canonical element");
+}
+
+void TestGridBesideAnotherControlIsTheParentOfItsHeadersRowsAndCells()
+{
+    GridBesideAButtonWindow test;
+    SingleControlClient walk(test.window);
+    const std::optional<UiaTest::ElementId> grid = walk.client.Navigate(walk.root, UiaTest::Direction::FirstChild);
+    walk.Expect(grid.has_value() && walk.HasParent(*grid, walk.root), "the grid has an element of its own, a child of the window's");
+    ExpectClientSeesGridParts(walk, *grid, *test.grid);
+}
+
+void TestSingleMaskedFieldWindowElementIsTheParentOfItsRevealButton()
+{
+    using namespace DxUi;
+    using UiaTest::Direction;
+    AttachedHostWindow window;
+    auto field = std::make_unique<TextField>(L"secret");
+    field->SetMasked(true);
+    field->SetAccessibleName(L"Mot de passe");
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 32.0f));
+    TextField* const liveField = field.get();
+    window.Host().SetRoot(std::move(field));
+    window.Host().SetFocusControl(liveField); // The reveal button shows while its masked field has focus.
+    SingleControlClient walk(window);
+    walk.Expect(walk.client.Describe(walk.root).controlType == UIA_EditControlTypeId, "the window's element stands for the field");
+
+    const std::optional<UiaTest::ElementId> first = walk.client.Navigate(walk.root, Direction::FirstChild);
+    walk.Expect(first && walk.client.Describe(*first).controlType == UIA_ButtonControlTypeId, "the first child of the window's element is the reveal button");
+    const std::optional<UiaTest::ElementId> last = walk.client.Navigate(walk.root, Direction::LastChild);
+    walk.Expect(first && last && walk.client.Same(*first, *last), "the reveal button is the only child of the window's element");
+    walk.Expect(first && walk.HasParent(*first, walk.root), "the parent of the reveal button is the window's element");
+    walk.Expect(first && ! walk.client.Navigate(*first, Direction::NextSibling) && ! walk.client.Navigate(*first, Direction::PreviousSibling),
+                "the reveal button has no sibling");
+}
+
+// What a client heard that matches the sender's control type and name, and the kind of event (and for a property its value).
+[[nodiscard]] std::function<bool(const UiaTest::HeardEvent&)> HeardAutomationEvent(EVENTID eventId, long controlType, std::wstring name)
+{
+    return [=](const UiaTest::HeardEvent& heard)
+    {
+        return heard.kind == UiaTest::EventKind::Automation && heard.id == static_cast<long>(eventId) && heard.controlType == controlType && heard.name == name;
+    };
+}
+
+[[nodiscard]] std::function<bool(const UiaTest::HeardEvent&)> HeardIsSelected(long controlType, std::wstring name, bool selected)
+{
+    return [=](const UiaTest::HeardEvent& heard)
+    {
+        return heard.kind == UiaTest::EventKind::Property && heard.id == UIA_SelectionItemIsSelectedPropertyId && heard.controlType == controlType &&
+               heard.name == name && heard.value == (selected ? L"true" : L"false");
+    };
+}
+
+// What the library will raise about an item, raised by the test on the element the library hands out for it: what UI Automation
+// does with an event is decided by the element's parents, which is what these tests are about.
+void RaiseSelectionItemEvents(IRawElementProviderSimple& element, bool selected, EVENTID eventId)
+{
+    VARIANT before{};
+    before.vt      = VT_BOOL;
+    before.boolVal = selected ? VARIANT_FALSE : VARIANT_TRUE;
+    VARIANT after{};
+    after.vt      = VT_BOOL;
+    after.boolVal = selected ? VARIANT_TRUE : VARIANT_FALSE;
+    RequireSucceeded(UiaRaiseAutomationPropertyChangedEvent(&element, UIA_SelectionItemIsSelectedPropertyId, before, after),
+                     "raise the IsSelected change of an element");
+    RequireSucceeded(UiaRaiseAutomationEvent(&element, eventId), "raise a selection event of an element");
+}
+
+[[nodiscard]] wil::com_ptr_nothrow<IRawElementProviderSimple> SimpleProviderOf(const wil::com_ptr_nothrow<IRawElementProviderFragment>& fragment)
+{
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(fragment.query_to(simple.put()), "an element is a simple provider");
+    return simple;
+}
+
+// The container a SelectionItem pattern names for an element, as a provider.
+[[nodiscard]] wil::com_ptr_nothrow<IRawElementProviderSimple> SelectionContainerOf(IRawElementProviderSimple& item)
+{
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    RequireSucceeded(item.GetPatternProvider(UIA_SelectionItemPatternId, pattern.put()), "an item has a selection-item pattern lookup");
+    wil::com_ptr_nothrow<ISelectionItemProvider> selectionItem;
+    RequireSucceeded(pattern.query_to(selectionItem.put()), "an item has a selection-item pattern");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
+    RequireSucceeded(selectionItem->get_SelectionContainer(container.put()), "an item names its selection container");
+    return container;
+}
+
+UiaTest::Subscription SelectionEventsSubscription()
+{
+    UiaTest::Subscription subscription;
+    subscription.automationEvents = {UIA_SelectionItem_ElementSelectedEventId,
+                                     UIA_SelectionItem_ElementAddedToSelectionEventId,
+                                     UIA_SelectionItem_ElementRemovedFromSelectionEventId,
+                                     UIA_Selection_InvalidatedEventId};
+    subscription.properties       = {UIA_SelectionItemIsSelectedPropertyId};
+    return subscription;
+}
+
+// Raises the events the library raises about a tree's items (and its selection) on the elements it hands out for them, and
+// expects a client subscribed to the window to hear each, from the item it names. `container` is the element the tree's own event
+// is raised on: the window's element, or the tree's own.
+void ExpectClientHearsTreeItemEvents(AttachedHostWindow& window, DxUi::Tree& tree, SingleControlClient& walk, IRawElementProviderSimple& container)
+{
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(DxUi::CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the window exposes its fragment root");
+    // The elements the library hands out for the tree's items, found by point: those a client reaches by walking are the same.
+    const auto itemElement = [&](size_t visibleIndex, std::wstring_view name)
+    {
+        const std::optional<D2D1_RECT_F> rect = tree.GetVisibleItemHitRect(visibleIndex);
+        Require(rect.has_value(), "the tree has a rectangle for the item");
+        const auto fragment = GetProviderAtDipPoint(window.Hwnd(),
+                                                    window.Host(),
+                                                    *rootProvider.get(),
+                                                    (rect->left + rect->right) * 0.5f,
+                                                    (rect->top + rect->bottom) * 0.5f,
+                                                    "a tree item is found by point");
+        auto simple         = SimpleProviderOf(fragment);
+        Require(ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "a tree item has a name") == name, "the point is on the tree item");
+        return simple;
+    };
+
+    // The tree itself: an event raised on its element comes from the tree.
+    RequireSucceeded(UiaRaiseAutomationEvent(&container, UIA_Selection_InvalidatedEventId), "raise the invalidation of the tree's selection");
+    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_Selection_InvalidatedEventId, UIA_TreeControlTypeId, L"Catégories")),
+                "a client subscribed to the window hears the selection invalidation raised on the tree");
+
+    // The selection moves to the second item: it is selected, the first item leaves the selection, and the third joins it.
+    const auto selected = itemElement(1u, L"Volets");
+    RaiseSelectionItemEvents(*selected.get(), true, UIA_SelectionItem_ElementSelectedEventId);
+    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementSelectedEventId, UIA_TreeItemControlTypeId, L"Volets")),
+                "a client subscribed to the window hears the ElementSelected event raised on a tree item");
+    walk.Expect(walk.client.WaitForEvent(HeardIsSelected(UIA_TreeItemControlTypeId, L"Volets", true)),
+                "a client subscribed to the window hears the IsSelected change raised on a tree item");
+    const auto added = itemElement(2u, L"Afficheurs");
+    RaiseSelectionItemEvents(*added.get(), true, UIA_SelectionItem_ElementAddedToSelectionEventId);
+    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementAddedToSelectionEventId, UIA_TreeItemControlTypeId, L"Afficheurs")),
+                "a client subscribed to the window hears the ElementAddedToSelection event raised on a tree item");
+    const auto removed = itemElement(0u, L"Général");
+    RaiseSelectionItemEvents(*removed.get(), false, UIA_SelectionItem_ElementRemovedFromSelectionEventId);
+    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementRemovedFromSelectionEventId, UIA_TreeItemControlTypeId, L"Général")),
+                "a client subscribed to the window hears the ElementRemovedFromSelection event raised on a tree item");
+    walk.Expect(walk.client.WaitForEvent(HeardIsSelected(UIA_TreeItemControlTypeId, L"Général", false)),
+                "a client subscribed to the window hears the IsSelected change of an item that left the selection");
+
+    // What the item itself names as its selection container is that element too, so an event raised on it is the tree's. UI
+    // Automation may deliver an event twice, so the earlier invalidation is allowed to finish arriving before the count is taken.
+    walk.client.Settle();
+    const size_t invalidations = walk.client.Count(HeardAutomationEvent(UIA_Selection_InvalidatedEventId, UIA_TreeControlTypeId, L"Catégories"));
+    const auto named           = SelectionContainerOf(*selected.get());
+    RequireSucceeded(UiaRaiseAutomationEvent(named.get(), UIA_Selection_InvalidatedEventId), "raise the invalidation on the item's selection container");
+    walk.Expect(walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                                      [&]
+    { return walk.client.Count(HeardAutomationEvent(UIA_Selection_InvalidatedEventId, UIA_TreeControlTypeId, L"Catégories")) > invalidations; }),
+                "a client hears the invalidation raised on the selection container an item names");
+}
+
+void TestSingleTreeWindowItemEventsReachAClientSubscribedToTheWindow()
+{
+    SingleTreeWindow test;
+    SingleControlClient walk(test.window, SelectionEventsSubscription());
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(DxUi::CreateWindowHostAccessibilityProvider(test.window.Hwnd()));
+    Require(rootProvider != nullptr, "the single-tree window exposes its fragment root");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
+    RequireSucceeded(rootProvider.query_to(container.put()), "the window's element is a simple provider"); // The window's element is the tree's.
+    ExpectClientHearsTreeItemEvents(test.window, *test.tree, walk, *container.get());
+}
+
+void TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow()
+{
+    TreeBesideAButtonWindow test;
+    SingleControlClient walk(test.window, SelectionEventsSubscription());
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(DxUi::CreateWindowHostAccessibilityProvider(test.window.Hwnd()));
+    Require(rootProvider != nullptr, "the window exposes its fragment root");
+    const std::optional<D2D1_RECT_F> rect = test.tree->GetVisibleItemHitRect(1u);
+    Require(rect.has_value(), "the tree has a rectangle for its second item");
+    const auto item      = SimpleProviderOf(GetProviderAtDipPoint(test.window.Hwnd(),
+                                                                  test.window.Host(),
+                                                                  *rootProvider.get(),
+                                                                  (rect->left + rect->right) * 0.5f,
+                                                                  (rect->top + rect->bottom) * 0.5f,
+                                                                  "a tree item is found by point"));
+    const auto container = SelectionContainerOf(*item.get()); // The tree has an element of its own here.
+    ExpectClientHearsTreeItemEvents(test.window, *test.tree, walk, *container.get());
+}
+
+void TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow()
+{
+    SingleGridWindow test;
+    SingleControlClient walk(test.window, SelectionEventsSubscription());
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(DxUi::CreateWindowHostAccessibilityProvider(test.window.Hwnd()));
+    Require(rootProvider != nullptr, "the single-grid window exposes its fragment root");
+    // The elements the library hands out for the grid's cells, found by point; a cell's parent is its row.
+    const auto cellElement = [&](size_t rowIndex)
+    {
+        const std::optional<D2D1_RECT_F> rect = test.grid->GetVisibleCellRect(rowIndex, 0u);
+        Require(rect.has_value(), "the grid has a rectangle for the cell");
+        return GetProviderAtDipPoint(test.window.Hwnd(),
+                                     test.window.Host(),
+                                     *rootProvider.get(),
+                                     (rect->left + rect->right) * 0.5f,
+                                     (rect->top + rect->bottom) * 0.5f,
+                                     "a grid cell is found by point");
+    };
+    const auto rowElement = [&](size_t rowIndex, std::wstring_view name)
+    {
+        const auto cell = cellElement(rowIndex);
+        wil::com_ptr_nothrow<IRawElementProviderFragment> row;
+        RequireSucceeded(cell->Navigate(NavigateDirection_Parent, row.put()), "a grid cell navigates to its row");
+        Require(row != nullptr, "a grid cell has a row");
+        auto simple = SimpleProviderOf(row);
+        Require(ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "a grid row has a name") == name, "the point is on the grid row");
+        return simple;
+    };
+
+    // The grid itself is the window's element: an event raised on it comes from that element.
+    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
+    RequireSucceeded(rootProvider.query_to(container.put()), "the window's element is a simple provider");
+    RequireSucceeded(UiaRaiseAutomationEvent(container.get(), UIA_Selection_InvalidatedEventId), "raise the invalidation of the grid's selection");
+    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_Selection_InvalidatedEventId, UIA_DataGridControlTypeId, L"Résultats")),
+                "a client subscribed to the window hears the selection invalidation raised on the grid");
+
+    Require(test.grid->RequestSelectRow(1u, 0u), "the grid selects its second row");
+    const auto selected = rowElement(1u, L"Beta | Occupée");
+    RaiseSelectionItemEvents(*selected.get(), true, UIA_SelectionItem_ElementSelectedEventId);
+    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementSelectedEventId, UIA_DataItemControlTypeId, L"Beta | Occupée")),
+                "a client subscribed to the window hears the ElementSelected event raised on a grid row");
+    walk.Expect(walk.client.WaitForEvent(HeardIsSelected(UIA_DataItemControlTypeId, L"Beta | Occupée", true)),
+                "a client subscribed to the window hears the IsSelected change raised on a grid row");
+    const auto added = rowElement(2u, L"Gamma | Libre");
+    RaiseSelectionItemEvents(*added.get(), true, UIA_SelectionItem_ElementAddedToSelectionEventId);
+    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementAddedToSelectionEventId, UIA_DataItemControlTypeId, L"Gamma | Libre")),
+                "a client subscribed to the window hears the ElementAddedToSelection event raised on a grid row");
+    const auto removed = rowElement(0u, L"Alpha | Prête");
+    RaiseSelectionItemEvents(*removed.get(), false, UIA_SelectionItem_ElementRemovedFromSelectionEventId);
+    walk.Expect(
+        walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementRemovedFromSelectionEventId, UIA_DataItemControlTypeId, L"Alpha | Prête")),
+        "a client subscribed to the window hears the ElementRemovedFromSelection event raised on a grid row");
+
+    // A cell is a child of its row: an event raised on it reaches the client too.
+    const auto cell = SimpleProviderOf(cellElement(1u));
+    RequireSucceeded(UiaRaiseAutomationEvent(cell.get(), UIA_SelectionItem_ElementSelectedEventId), "raise an event on a grid cell");
+    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementSelectedEventId, UIA_TextControlTypeId, L"Beta")),
+                "a client subscribed to the window hears an event raised on a grid cell");
+}
+
+// A text field is the window's element in the same way, and the text events the library raises for it (its native text-input
+// session raises them whenever it synchronizes, without the window holding the foreground) and the elements its text ranges name
+// come from that element. The twin has the field beside a button.
+void ConfigureRequestField(DxUi::TextField& field)
+{
+    field.SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 32.0f));
+    field.SetAccessibleName(L"Requête");
+}
+
+struct SingleFieldWindow final
+{
+    SingleFieldWindow()
+    {
+        window.Host().SetTextInputBackend(DxUi::TextInputBackend::Native);
+        auto control = std::make_unique<DxUi::TextField>(L"alpha beta");
+        ConfigureRequestField(*control);
+        field = control.get();
+        window.Host().SetRoot(std::move(control));
+        window.Host().SetFocusControl(field);
+        window.Host().SyncTextInput(field);
+    }
+
+    AttachedHostWindow window;
+    DxUi::TextField* field = nullptr;
+};
+
+struct FieldBesideAButtonWindow final
+{
+    FieldBesideAButtonWindow()
+    {
+        window.Host().SetTextInputBackend(DxUi::TextInputBackend::Native);
+        auto panel = std::make_unique<DxUi::Panel>();
+        field      = panel->AddChild<DxUi::TextField>(L"alpha beta");
+        ConfigureRequestField(*field);
+        panel->AddChild<DxUi::Button>(L"Chercher")->SetBounds(D2D1::RectF(0.0f, 40.0f, 120.0f, 72.0f));
+        window.Host().SetRoot(std::move(panel));
+        window.Host().SetFocusControl(field);
+        window.Host().SyncTextInput(field);
+    }
+
+    AttachedHostWindow window;
+    DxUi::TextField* field = nullptr;
+};
+
+UiaTest::Subscription TextEventsSubscription()
+{
+    UiaTest::Subscription subscription;
+    subscription.automationEvents = {UIA_Text_TextChangedEventId, UIA_Text_TextSelectionChangedEventId};
+    return subscription;
+}
+
+// Edits the field and moves its selection, which the host raises UI Automation's text events for, and expects a client subscribed
+// to the window to hear each from the field's element.
+void ExpectClientHearsTextEventsFromTheFieldsElement(AttachedHostWindow& window,
+                                                     DxUi::TextField& field,
+                                                     SingleControlClient& walk,
+                                                     UiaTest::ElementId fieldElement)
+{
+    const UiaTest::ElementInfo info = walk.client.Describe(fieldElement);
+    walk.Expect(info.controlType == UIA_EditControlTypeId && info.name == L"Requête", "the client reaches the field's element");
+    field.SetTextAndNotify(L"alpha beta edited");
+    window.Host().SyncTextInput(&field);
+    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_Text_TextChangedEventId, UIA_EditControlTypeId, L"Requête")),
+                "a client subscribed to the window hears the text change the field raises");
+    field.SetSelectionRange(6u, 10u);
+    window.Host().SyncTextInput(&field);
+    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_Text_TextSelectionChangedEventId, UIA_EditControlTypeId, L"Requête")),
+                "a client subscribed to the window hears the selection change the field raises");
+}
+
+// The element a Text pattern names as enclosing the field's text is the field's element.
+void ExpectTextEnclosingElementIsTheFieldsElement(SingleControlClient& walk, UiaTest::ElementId fieldElement)
+{
+    const std::optional<UiaTest::ElementId> enclosing = walk.client.TextEnclosingElement(fieldElement);
+    walk.Expect(enclosing && walk.client.Same(*enclosing, fieldElement), "the element that encloses the field's text is the field's element");
+}
+
+void TestSingleTextFieldWindowElementRaisesTheFieldsTextEvents()
+{
+    SingleFieldWindow test;
+    SingleControlClient walk(test.window, TextEventsSubscription());
+    ExpectClientHearsTextEventsFromTheFieldsElement(test.window, *test.field, walk, walk.root);
+}
+
+void TestTextFieldBesideAnotherControlRaisesItsTextEventsFromItsOwnElement()
+{
+    FieldBesideAButtonWindow test;
+    SingleControlClient walk(test.window, TextEventsSubscription());
+    const std::optional<UiaTest::ElementId> fieldElement = walk.client.Navigate(walk.root, UiaTest::Direction::FirstChild);
+    walk.Expect(fieldElement.has_value() && walk.HasParent(*fieldElement, walk.root), "the field has an element of its own, a child of the window's");
+    ExpectClientHearsTextEventsFromTheFieldsElement(test.window, *test.field, walk, *fieldElement);
+}
+
+void TestSingleTextFieldWindowElementEnclosesTheFieldsTextRanges()
+{
+    SingleFieldWindow test;
+    SingleControlClient walk(test.window);
+    ExpectTextEnclosingElementIsTheFieldsElement(walk, walk.root);
+}
+
+void TestTextFieldBesideAnotherControlEnclosesItsTextRangesInItsOwnElement()
+{
+    FieldBesideAButtonWindow test;
+    SingleControlClient walk(test.window);
+    const std::optional<UiaTest::ElementId> fieldElement = walk.client.Navigate(walk.root, UiaTest::Direction::FirstChild);
+    walk.Expect(fieldElement.has_value() && walk.HasParent(*fieldElement, walk.root), "the field has an element of its own, a child of the window's");
+    ExpectTextEnclosingElementIsTheFieldsElement(walk, *fieldElement);
+}
+
 } // namespace
 
 void RunAccessibilityTests()
 {
+    DXUI_RUN_TEST(TestSingleTreeWindowElementIsTheParentOfItsItems);
+    DXUI_RUN_TEST(TestSingleTreeWindowReplacementTreeGetsItemElementsOfItsOwn);
+    DXUI_RUN_TEST(TestTreeBesideAnotherControlIsTheParentOfItsItems);
+    DXUI_RUN_TEST(TestSingleGridWindowElementIsTheParentOfItsHeadersRowsAndCells);
+    DXUI_RUN_TEST(TestGridBesideAnotherControlIsTheParentOfItsHeadersRowsAndCells);
+    DXUI_RUN_TEST(TestSingleMaskedFieldWindowElementIsTheParentOfItsRevealButton);
+    DXUI_RUN_TEST(TestSingleTreeWindowItemEventsReachAClientSubscribedToTheWindow);
+    DXUI_RUN_TEST(TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow);
+    DXUI_RUN_TEST(TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow);
+    DXUI_RUN_TEST(TestSingleTextFieldWindowElementRaisesTheFieldsTextEvents);
+    DXUI_RUN_TEST(TestTextFieldBesideAnotherControlRaisesItsTextEventsFromItsOwnElement);
+    DXUI_RUN_TEST(TestSingleTextFieldWindowElementEnclosesTheFieldsTextRanges);
+    DXUI_RUN_TEST(TestTextFieldBesideAnotherControlEnclosesItsTextRangesInItsOwnElement);
     DXUI_RUN_TEST(TestNumericStepperStepButtonsAreNamedForAutomation);
     DXUI_RUN_TEST(TestWindowHostStaleElementCannotActOnAReplacementControl);
     DXUI_RUN_TEST(TestWindowHostReplacedTreeItemsGetNewRuntimeIds);
@@ -6266,6 +7040,7 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns);
     DXUI_RUN_TEST(TestAccessibilityTreeMultiSelectExposesSelectionPatternsAndItemState);
     DXUI_RUN_TEST(TestAccessibilityTreeMultiSelectRaisesSelectionEvents);
+    DXUI_RUN_TEST(TestAccessibilityTreeMultiSelectRaisesSelectionEventsWhenItFillsItsWindow);
     DXUI_RUN_TEST(TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable);
     DXUI_RUN_TEST(TestAccessibilityTrimmedMultilineGridCellKeepsCompleteNameAndValue);
     DXUI_RUN_TEST(TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues);

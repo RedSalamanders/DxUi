@@ -7062,6 +7062,62 @@ void TestWindowHostTreeArrowAnnouncesTheFocusedItem()
             "a UIA client receives a focus change naming the tree item the keyboard reached");
 }
 
+// The same in a window the tree fills: the window's element stands for the tree and parents its items, so the focus change the
+// host raises for the item the keyboard reached is raised on an element a client reaches from the window, which UI Automation
+// delivers. (A window's only control had its items beside no element of the window's, and the event raised on them was lost.)
+void TestWindowHostSingleTreeArrowAnnouncesTheFocusedItem()
+{
+    using namespace DxUi;
+    MutableTreeModel model;
+    model.SetVisibleItems({TreeItemData{.id = 71u, .text = L"Alpha"}, TreeItemData{.id = 72u, .text = L"Beta"}});
+    AttachedHostWindow window;
+    auto control = std::make_unique<Tree>();
+    control->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    control->SetModel(&model);
+    control->SetSelectedItemId(71u);
+    Tree* const tree = control.get();
+    window.Host().SetRoot(std::move(control));
+    if (! TryActivateDxUiTestWindow(window.Hwnd()))
+    {
+        SkipDxUiTest("DxUi single-control tree item UIA focus changes require an interactive desktop");
+        return;
+    }
+    window.Host().SetFocusControl(tree);
+    Require(window.Host().GetFocusControl() == tree, "the tree has focus");
+
+    FocusEventClient client(window, window.Hwnd());
+    SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_DOWN, 0);
+    Require(tree->GetSelectedItemId() == std::optional<uint64_t>{72u}, "Down moves the tree to its second item");
+    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Beta") >= 1u; }),
+            "a UIA client receives a focus change naming the item of a tree that fills its window");
+}
+
+// Likewise for the rows of a grid that fills its window.
+void TestWindowHostSingleGridArrowAnnouncesTheFocusedRow()
+{
+    using namespace DxUi;
+    MultiRowGridModel model(3u);
+    AttachedHostWindow window;
+    auto control = std::make_unique<Grid>();
+    control->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 160.0f));
+    control->SetModel(&model);
+    Grid* const grid = control.get();
+    window.Host().SetRoot(std::move(control));
+    if (! TryActivateDxUiTestWindow(window.Hwnd()))
+    {
+        SkipDxUiTest("DxUi single-control grid row UIA focus changes require an interactive desktop");
+        return;
+    }
+    window.Host().SetFocusControl(grid);
+    Require(window.Host().GetFocusControl() == grid && grid->RequestSelectRow(0u, 0u), "the grid has focus and its first row is selected");
+
+    FocusEventClient client(window, window.Hwnd());
+    SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_DOWN, 0);
+    Require(grid->GetPrimarySelectedRow() == std::optional<size_t>{1u}, "Down moves the grid to its second row");
+    Require(client.WaitUntil(FocusEventClient::kNotificationDeadlineMs, [&] { return client.Count(L"Row 01") >= 1u; }),
+            "a UIA client receives a focus change naming the row of a grid that fills its window");
+}
+
 // An element's SetFocus in an inactive window focuses that element only: the host moves its logical focus before the
 // window takes Win32 focus, so the activation neither focuses nor announces the window's first control on the way.
 // (UIA's own client path first focuses the hosting window, which announces the window's current focus as a dialog's
@@ -7853,6 +7909,8 @@ void RunMenuDescriptionTests()
     DXUI_RUN_TEST(TestDescribedMenuReleasesItsMemoryWhenItCloses);
     DXUI_RUN_TEST(TestWindowHostTabRaisesAutomationFocusChanges);
     DXUI_RUN_TEST(TestWindowHostTreeArrowAnnouncesTheFocusedItem);
+    DXUI_RUN_TEST(TestWindowHostSingleTreeArrowAnnouncesTheFocusedItem);
+    DXUI_RUN_TEST(TestWindowHostSingleGridArrowAnnouncesTheFocusedRow);
     DXUI_RUN_TEST(TestWindowHostElementSetFocusAnnouncesOnlyThatElement);
     DXUI_RUN_TEST(TestWindowHostClickThatActivatesAWindowUiAutomationHasAskedBeforeAnnouncesTheClickedControlOnce);
     DXUI_RUN_TEST(TestWindowHostClickThatActivatesAWindowUiAutomationHasNotSeenLeavesTheClickedControlToItsFirstGetFocus);

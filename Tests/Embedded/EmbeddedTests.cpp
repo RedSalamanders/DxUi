@@ -116,6 +116,7 @@ static void Hr(HRESULT hr, const char* text)
 #include "ComplexUiBenchmark.h"
 #include "EmbeddedAccessibilityTests.h"
 #include "EmbeddedTextInputTests.h"
+#include "EmbeddedUiaTests.h"
 #include "GridSelectionBenchmark.h"
 #include "LocalizedLayoutTests.h"
 
@@ -568,6 +569,7 @@ __declspec(noinline) static int RunFunctionalTests()
     Hr(gpu.Create(), "supplied WARP device");
     TestEmbeddedTextInput(gpu);
     TestEmbeddedAccessibility(gpu);
+    TestEmbeddedUiaEventHarness(gpu);
     TestLocalizedShortViewport(gpu,
                                [](DxUi::Button& action) { action.SetMultiline(true); },
                                [](const auto& sizes, float width, auto& bounds, float& height)

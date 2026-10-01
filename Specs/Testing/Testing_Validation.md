@@ -315,6 +315,46 @@ and unsubscribe keep their 3000 ms deadlines. Every run logs the setup stage, HR
 longest owner-thread pump, which separates a stalled provider thread from slow UIA client initialization.
 This is a bounded setup allowance, not a root-cause fix.
 
+UI Automation navigation and events are tested with an in-process client, `Tests/Support/UiaTestClient.h`, which the control and
+the embedded suites share, so that a test asserts what a client sees and not what a provider says about itself. The client runs
+on an MTA thread of its own, as a screen reader is another process, and the thread that owns the providers pumps its messages
+in every wait. It subscribes at a window's element (and its subtree) to the automation events, property changes, structure
+changes and, desktop-wide, focus changes a test names, and records each with the name, control type and automation id UI
+Automation cached for its sender. It walks the content view with a tree walker (the title bar UI Automation adds to every
+window is not part of it): the first and last child, the siblings and the parent of an element, a search of an element's
+children, and the elements the Selection, SelectionItem and GridItem patterns name, which it compares as UI Automation does,
+by runtime id. A client that does not start, or a request unanswered after 20 s, ends the run with a message; a failed
+expectation first prints the tree the client walks and the events it heard, and an event that takes a second or more to arrive
+is logged.
+
+The Accessibility suite uses it on an `AttachedHostWindow` for the collapsed semantic root of the
+[input and accessibility contract](../UI/UI_InputAndAccessibility.md). A window whose only control is a Tree, a Grid or a masked
+TextField is walked and listened to beside the same control in a window with a button, under the same expectations, so that
+what a client sees of the control's parts is held to be the same in both: the first and last child and the siblings of the
+control's element, a search of its children, the parent of each part, the selection container and containing grid they name,
+and the canonical identity of the element (the parent of an item, and its fragment root, is the same COM object the window's
+root provider is). The twin with a second control passed before the fix; the single-control tests failed, with no child below
+the window's element and with no item event heard while an event raised on the window's element itself was. The library raises
+the selection events of a multi-select Tree itself: the multi-select selection-event test hears them beside a label and runs
+again, with the same expectations, for a tree that fills its window. It raises none for a single selection or for a Grid's, so
+those event tests raise the events from the test, on the elements the library hands out for the parts, and require the client to
+hear each from the right sender (a part, and its control's own element for the invalidation of a selection). The text events
+of a field are the library's own, raised by its native text-input session as the test drives it. The focus change the host
+announces for the item the keyboard reached needs the window to hold the foreground: the Menu suite tests it for a tree and a
+grid that fill their window, and records a capability skip where no desktop is available. `test.ps1 -Interactive` runs it, with the
+person's agreement (see [Interactive tests](#interactive-tests)).
+
+The embedded suite uses the same client through `Tests/Embedded/EmbeddedUiaBridge.h`, which plays the application: a window
+whose provider hosts the window and has the view's root element for its only child, with the view's site adapted to it (the
+parent of the view's root and the fragment root of every element in it are that provider) and COM threading, as the view's own
+providers have. `EmbeddedUiaTests.h` attaches views whose only control is a Tree and a Grid to it. The client walks from the
+application's element through the view's root and the control to its parts and back; hears the events the view raises when it
+publishes a change (the control takes the keyboard focus the application reports); hears the selection events raised on the
+parts; and, for a multi-select tree, hears the selection events the view raises itself from `UpdateAccessibility` (selected,
+added, removed and the invalidation of the selection, and none for a publish that changed no selection). The embedded host
+never collapses its root, so these tests did not fail before the fix; they hold the chain a collapsed window host's root must
+match and prove the client against the embedded providers.
+
 ## Interactive tests
 
 The control suites whose contract needs real focus (`Menu`, `NativeTextInput` and the `MenuResources` and `MenuResourceScaling`

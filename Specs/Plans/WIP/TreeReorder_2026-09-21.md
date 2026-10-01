@@ -55,17 +55,20 @@ Normative text lives in [Controls and layout](../../UI/UI_ControlsAndLayout.md#t
 
 ## Known limits (not caused by this change)
 
-- In a window whose only semantic control is the tree, the UI Automation parent chain of a tree item ends at a
-  `Control` provider with no parent (`ResolveSnapshotNavigationTarget` returns the collapsed root's path for an item's
-  parent, and nothing for that provider's parent), so a client scoped to the window did not receive the events raised
-  on the items there (observed for the selection events). Every window with a second
-  semantic control (a label, a button) delivers them. The Accessibility test therefore adds a Label to its window.
-  Making an item's parent the canonical root in a collapsed-root window, and the root's first child that control's
-  first item, is a navigation change of its own.
+- In a window whose only semantic control is the tree, the UI Automation parent chain of a tree item ended at a
+  `Control` provider with no parent, so a client scoped to the window did not receive the events raised on the items
+  there (observed for the selection events), and `TestAccessibilityTreeMultiSelectRaisesSelectionEvents` added a Label to
+  its window. Resolved by the collapsed-root navigation change: the window's root element is the tree's one element, the
+  parent of its items and the first of them its first child, and
+  `TestAccessibilityTreeMultiSelectRaisesSelectionEventsWhenItFillsItsWindow` runs the same events and silences for a
+  tree that fills its window (the Label test is its twin).
 - An in-process UI Automation client hears each event twice, the second a moment later; the test waits the stream out.
-- The embedded selection events (`EmbeddedHost::UpdateAccessibility` raising the same `RaiseTreeSelectionEvents`) have no
-  client harness: the repository has no UI Automation client that reaches an embedded host's provider, so the embedded
-  test proves the patterns, the state and the callbacks, and the events are proved on the window-host path only.
+- The embedded selection events (`EmbeddedHost::UpdateAccessibility` raising the same `RaiseTreeSelectionEvents`) were
+  proved on the window-host path only, for lack of a UI Automation client that reaches an embedded host's provider.
+  `Tests/Embedded/EmbeddedUiaBridge.h` is that harness now, and
+  `TestEmbeddedMultiSelectTreeRaisesItsSelectionEventsToAClientOfTheApplicationsWindow` hears the selected, added, removed
+  and invalidated events an embedded view raises, and silence for a publish that changed no selection.
+  `TestEmbeddedTreeMultiSelect` still proves the patterns, the state and the callbacks.
 - `Tree::Paint` does not clip a row that straddles the content rectangle, so a selected (or hovered) row scrolled half
   out of view paints its fill past the tree's frame. It is older than this change and applies to a single selection
   too; the gallery tile is tall enough to show every row instead.

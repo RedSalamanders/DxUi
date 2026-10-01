@@ -109,6 +109,22 @@ Structural changes alone (`AddChild`, `ClearChildren`) republish the tree at the
 change, or through `RefreshAccessibilitySnapshot`. An event about a control comes from that control's element; only
 the control a collapsed semantic root stands for reports through the window's element.
 
+A window whose only semantic control is a Tree, a Grid, a Button, a Checkbox or Toggle, a TextField, a ComboBox, a Slider or a
+ColorSwatch, or whose root has the Status role, has a collapsed semantic root: the window's element stands for that control, with
+its control type, name, value and patterns, and the control has no element of its own. What the control exposes of its own is
+that element's children: a tree's items, a grid's headers and then its rows (a row's children are its cells, and a cell's parent
+is its row), a masked field's reveal button. The window's element is their parent and their fragment root. It is also the
+selection container of a tree item or grid row, the containing grid of a grid cell, the enclosing element of a text range of the
+field, and the element every event about the control comes from, so a client walks from the window's element to the parts and
+back, and sees the control as it sees the same control in a window with a second control, apart from which element stands for
+it. That includes its events: UI Automation drops an event raised on an element it cannot reach from the window through the
+parents, so an item whose parent chain ended at a second element for its tree (as a collapsed root's items once did, with the
+tree's element parentless) never reached a client subscribed to the window. A multi-select tree's selection events reach it the
+same way (the invalidation of the selection is raised on the window's element). A status root keeps its other semantic controls as
+children of its own. An embedded view is never collapsed: its root element is the child of the application's element (the site's
+`Navigate`), the control's element is the root's child and the control's items are the control's children, the same chain from
+the application's element to an item, so the application's element is where an embedded client subscribes.
+
 An element resolves its control without scanning the tree. Each published snapshot carries lookup tables built with
 it: a control's record by its path (which also gives its place among its siblings), a fragment's hit rectangle by kind,
 path and item, and a control's record by its address. A provider call examines a few table slots, however many

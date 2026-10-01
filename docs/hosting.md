@@ -78,6 +78,11 @@ removed, or replaced at the same place in the tree, reports `UIA_E_ELEMENTNOTAVA
 elements get new runtime ids; after adding or removing children, call `RefreshAccessibilitySnapshot` (or let the next
 focus, size, pointer or state change do it) so clients see the new tree, which also tells them to navigate again
 (StructureChanged).
+A window whose only semantic control is a tree, a grid, a text field, a button or another single control has one
+element, the window's, which stands for that control. What the control exposes of its own (a tree's items, a grid's
+headers, rows and cells, a masked field's reveal button) is that element's children, and the element is their parent,
+their fragment root and the container their patterns name, so a client walks to them from the window and the events
+raised on them reach a client subscribed to the window, as they do for the same control beside another control.
 When the archive is linked into several modules, each module owns its native menu and animation window classes.
 Keep each module loaded while its hosts, windows, callbacks or UI-thread resources remain alive.
 
@@ -162,6 +167,14 @@ Tests/Embedded/EmbeddedAccessibilityTests.h is an executable example using only 
 toggle, slider and Unicode field patterns; negative-origin 144-DPI geometry; COM cross-apartment marshaling; parent
 and focus callbacks; distinct identities after replacement; and cleanup. It is a synthetic component example,
 not a screen-reader acceptance claim or completed RedXe adapter.
+
+Tests/Embedded/EmbeddedUiaBridge.h is the application's side as a test plays it: a window whose UIA provider (it hosts the
+window, and uses COM threading as the view's providers do) has the view's root element for its only child, with the view's
+site adapted to it. Tests/Embedded/EmbeddedUiaTests.h attaches views of one tree or one grid to it and subscribes an
+in-process UIA client (Tests/Support/UiaTestClient.h, also used by the control suites) to the window: the client walks from
+the application's element to the control's parts and back, and hears the events the view raises on publishing a change
+and the events raised on the parts. An embedded view's root is never collapsed into its only control: the root element is
+the application element's child, and the control's element is the root's.
 
 Native consumers may include `DxUi/NativeMenuInterop.h` to adapt borrowed HMENU resources,
 `DxUi/FocusRestore.h` for owned-window focus transitions, and `DxUi/PointerInput.h` for pointer
