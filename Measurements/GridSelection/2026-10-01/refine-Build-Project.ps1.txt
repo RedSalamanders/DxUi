@@ -1,0 +1,23 @@
+# Builds one project of a DxUi tree with the same properties build.ps1 passes (scratch tooling, not part of the repository).
+# Used for quick compile checks and for mutant builds, where the whole solution is not needed.
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)][string] $Root,
+    [Parameter(Mandatory)][string] $Project,
+    [ValidateSet('Debug', 'Release', 'ASan Debug')][string] $Configuration = 'Release',
+    [ValidateSet('x64', 'ARM64')][string] $Platform = 'x64',
+    [string] $Log = ''
+)
+$ErrorActionPreference = 'Stop'
+$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+$installation = & $vswhere -latest -prerelease -products '*' -requires Microsoft.Component.MSBuild -property installationPath
+$msbuild = Join-Path $installation 'MSBuild/Current/Bin/MSBuild.exe'
+$out = (Join-Path $Root '.build') + '\'
+$arguments = @((Join-Path $Root $Project), '/m', '/nologo', '/verbosity:minimal', '/t:Build', "/p:Configuration=$Configuration", "/p:Platform=$Platform", "/p:DxUiOutputRoot=$out")
+$sw = [Diagnostics.Stopwatch]::StartNew()
+$lines = & $msbuild @arguments 2>&1 | ForEach-Object { $_.ToString() }
+$code = $LASTEXITCODE
+if ($Log) { $lines | Set-Content -LiteralPath $Log -Encoding utf8 }
+$lines | Where-Object { $_ -match 'error|warning|->' } | Select-Object -First 30 | ForEach-Object { Write-Host $_ }
+Write-Host "msbuild exit=$code elapsed=$($sw.Elapsed)"
+exit $code

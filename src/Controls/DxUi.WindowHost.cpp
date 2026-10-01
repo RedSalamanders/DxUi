@@ -1127,7 +1127,8 @@ void ShutdownAllWindowHostsForProcessExit() noexcept
         }
     }
 
-    const DWORD currentThreadId = GetCurrentThreadId();
+    const DWORD currentThreadId                   = GetCurrentThreadId();
+    const WndMsg::RegisteredMessage detachMessage = WndMsg::WindowHostProcessExitDetach();
     for (const ShutdownTarget& target : attachedHosts)
     {
         if (! target.host)
@@ -1139,14 +1140,15 @@ void ShutdownAllWindowHostsForProcessExit() noexcept
             target.host->DetachForProcessExit();
             continue;
         }
-        if (! target.hwnd || IsWindow(target.hwnd) == FALSE || GetWindowThreadProcessId(target.hwnd, nullptr) != target.ownerThreadId)
+        // Without its registered message the detach cannot be marshaled: the host stays registered, as when the send fails.
+        if (! detachMessage || ! target.hwnd || IsWindow(target.hwnd) == FALSE || GetWindowThreadProcessId(target.hwnd, nullptr) != target.ownerThreadId)
         {
             Debug::Error(L"DxUi::ControlHost: cannot marshal process-exit detach for foreign owner thread {}.", target.ownerThreadId);
             continue;
         }
 
         DWORD_PTR detachResult = 0u;
-        if (SendMessageTimeoutW(target.hwnd, WndMsg::kWindowHostProcessExitDetach, 0u, 0, SMTO_ABORTIFHUNG | SMTO_BLOCK, 5000u, &detachResult) == 0)
+        if (SendMessageTimeoutW(target.hwnd, detachMessage.value, 0u, 0, SMTO_ABORTIFHUNG | SMTO_BLOCK, 5000u, &detachResult) == 0)
         {
             Debug::ErrorWithLastError(L"DxUi::ControlHost: owner-thread process-exit detach timed out for thread {}.", target.ownerThreadId);
         }
@@ -2389,13 +2391,13 @@ LRESULT ControlHost::HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bo
         return 0;
     }
 
-    if (msg == WndMsg::kWindowHostProcessExitDetach)
+    if (WndMsg::WindowHostProcessExitDetach().Matches(msg))
     {
         handled = true;
         DetachForProcessExit();
         return TRUE;
     }
-    if (msg == WndMsg::kWindowHostFocusGainTurnEnd)
+    if (WndMsg::WindowHostFocusGainTurnEnd().Matches(msg))
     {
         handled = true;
         // Only the message of the turn still running ends it: one posted at an earlier gain, which the window lost before
@@ -4000,8 +4002,10 @@ void ControlHost::BeginFocusGainTurn() noexcept
         return;
     }
 
-    const WPARAM turn = _focusGainTurnId == (std::numeric_limits<WPARAM>::max)() ? WPARAM{1u} : _focusGainTurnId + 1u;
-    if (PostMessageW(_hwnd, WndMsg::kWindowHostFocusGainTurnEnd, turn, 0) == FALSE)
+    // Without its registered message no turn starts, as when the post fails: the host announces the turn's moves itself.
+    const WndMsg::RegisteredMessage turnEnd = WndMsg::WindowHostFocusGainTurnEnd();
+    const WPARAM turn                       = _focusGainTurnId == (std::numeric_limits<WPARAM>::max)() ? WPARAM{1u} : _focusGainTurnId + 1u;
+    if (! turnEnd || PostMessageW(_hwnd, turnEnd.value, turn, 0) == FALSE)
     {
         return;
     }

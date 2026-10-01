@@ -1,7 +1,7 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-09-08
+Last reviewed: 2026-10-01
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -92,6 +92,13 @@ when the script gives up on it after 6 s (the falsification of the rest: every r
 child, and a broken watchdog fails a case instead of hanging the script); the option's defaults and its rejection of malformed
 values; and that the log of a redirected run, as `test.ps1` writes it, yields a failure report naming the exit code and the hung
 test. `test.ps1` runs it after the build in every run that includes a control suite.
+A test process never waits on a dialog. Every native test executable first calls `Tests/Support/FailureReports.h`.
+- In a Debug build, a failed runtime check (an STL range check, a CRT assertion) writes its report to stderr and ends the
+  run with exit code 3, instead of opening the CRT's modal Abort/Retry/Ignore box.
+- Windows Error Reporting's dialog is suppressed.
+- The hidden switch `--failure-report-self-test` fails such a check on purpose. `Test-TestWatchdog.ps1` requires it to end
+  within its bound, with exit code 3 and the report among the printed lines, or with exit code 0 in Release, which has no
+  such checks.
 The foundation suite covers timing edge cases, nested stage restoration, reduced motion and injected diagnostics.
 
 Repository tools are PowerShell 7 scripts with no other runtime; the validators live in `Tools/Validation.psm1` and
@@ -169,6 +176,18 @@ their fresh receipts establish execution results.
 Physical touch, a human IME session and screen-reader interaction are manual adoption checks, not implied by synthetic
 messages or a green foundation suite.
 
+The Grid selection model is held to a copy of its original linear logic. Fixed-seed randomized runs apply thousands of mixed
+operations to both and require equal counts, order, anchors and answers after every one, over universes from one id to 5,200
+so that selections pass the two sizes at which the model changes how it works: 1,024 ids, up to which `IsSelected` scans the
+selection and above which it binary searches the ascending copy, and 4,096 ids, whose room a model gives back when the next
+selection needs half of it or less. Focused cases sit on each boundary (membership at every size around 1,024; a selection of
+exactly 4,096 ids keeps its room through `Clear` and one of 4,097 gives it back; a range over exactly half of the room gives it
+back and one id more reuses it) and a Grid-level case does the same after Ctrl+A, a click and a Shift+click. The room is
+asserted through `GridSelectionModel::DebugGetBuffers`, the library's own exact count of both buffers' capacity, so it holds
+whatever the allocator keeps. Choosing between the scan and the search cannot change an answer, so no assertion can tell a
+limit of 1,023 from 1,024 or a reversed comparison from the right one: the per-call measurement of the
+[selection record](../../Measurements/GridSelection/2026-10-01/README.md) does.
+
 EmbeddedTests independently verifies supplied-device rendering and state changes with pixel readback outside the
 rendering path, preview/commit/cancel, scaling and resource limits, pool/view isolation and device replacement.
 A 1,000-call warmed composition loop intercepts C++ allocation operators and verifies no heap calls, surface
@@ -242,6 +261,19 @@ thread takes the foreground for its own window that long after a window of the p
 reports how often it did, and says so when no window of the process ever held the foreground (Windows keeps it with the
 application the user is working in, so there was nothing to take and no takeover was exercised). It needs real focus, so
 `--no-activate` rejects it, and it is an opt-in check that a suite survives a thief, not part of `test.ps1`.
+
+Tooltip timer fixtures decide nothing by wall-clock time. A native tooltip's show and hide deadlines are on the UI thread's
+animation dispatcher clock. A tick moves that clock by the time since the previous tick, but by no more than the dispatcher's
+50 ms hitch clamp, so a runner that stalls moves it little. An idle dispatcher instead reads the wall clock and restarts
+from it at its first tick. So the hide-delay fixtures keep the dispatcher ticking with a subscription of their own, take
+the deadline from its clock, and dispatch one message at a time, so each tick is observed with the state it left. A delay of twice the clamp is certain to have ticks before its deadline, and the tooltip must be
+visible after every one of them and hidden after the first tick at or after the deadline. A pointer move one tick into the
+delay must keep the tooltip past the old deadline. A ten-second limit only ends a run whose ticks never come.
+
+The passive-tooltip fixture shows its window without activating it, because a host ticks its tooltip only while its window
+is visible. It checks the display lifetime before its click, because the click hides the tooltip: mouse-up releases capture,
+and losing capture clears the tooltip. It shows the tooltip with a tick past the longest show delay a mouse hover time allows
+(2.5 s). The five-second lifetime runs from that tick, so the tooltip must be visible 4,999 ms after it and hidden at 5,000 ms.
 
 Native menu input fixtures wait for a visible popup: the hidden measurement HWND is not ready for input.
 Cold creation has a separate five-second setup allowance; owner-message-flood hover and invocation checks
