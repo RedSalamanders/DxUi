@@ -4,6 +4,7 @@
 #include "../../Samples/EmbeddedControls/EmbeddedScene.h"
 #include "../../Samples/EmbeddedControls/GraphicsFixture.h"
 #include "../../src/Support/PostedPayload.h"
+#include "../Support/FailureReports.h"
 #include <DxUi/ControlCatalog.h>
 #include <DxUi/Diagnostics.h>
 #include <chrono>
@@ -631,5 +632,8 @@ __declspec(noinline) static int RunFunctionalTests()
               << '\n';
     return 0;
 }
+
+// Routed before main runs, so that BenchmarkMain.h, a fingerprinted benchmark input, stays as it is.
+const bool g_failureReportsRouted = (DxUiTestFailureReports::RouteAwayFromDialogs(), true);
 
 #include "BenchmarkMain.h"

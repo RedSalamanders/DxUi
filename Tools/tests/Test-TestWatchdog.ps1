@@ -144,6 +144,19 @@ Invoke-TestCase 'the self-test is a switch of its own' {
         Assert-Equal 0 (Get-Lines $run '\[START\]').Count "$($arguments -join ' ') starts nothing"
     }
 }
+Invoke-TestCase 'a failed runtime check ends the run with its report instead of waiting on a dialog' {
+    # The Debug CRT opens a modal Abort/Retry/Ignore box for a failed check unless the runner routes it away (FailureReports.h).
+    # Waiting on that box would hold this bounded run until it is killed.
+    $run = Invoke-Bounded @('--failure-report-self-test') 30
+    Assert-True $run.Exited "the run ends instead of waiting on a dialog (after $([Math]::Round($run.Seconds, 1)) s)"
+    if ($Configuration -eq 'Release') {
+        Assert-Equal 0 $run.Exit 'a Release build has no runtime checks to report'
+    } else {
+        Assert-Equal 3 $run.Exit "the failed check ends the run as the dialog's Abort would: $($run.Output -join ' | ')"
+        Assert-True (@(Get-Lines $run 'failure-report self-test fails this check on purpose').Count -ge 1) "the report reaches the output: $($run.Output -join ' | ')"
+        Assert-Equal 0 (Get-Lines $run 'returned instead of ending').Count 'the failed check does not return'
+    }
+}
 Invoke-TestCase 'test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines' {
     # test.ps1 redirects the executable's streams into a log and reports a failing suite through Get-SuiteFailureReport: the
     # exit code, the TIMEOUT line and the last lines of that log. This produces the log the way test.ps1 does.

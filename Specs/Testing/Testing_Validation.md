@@ -92,6 +92,13 @@ when the script gives up on it after 6 s (the falsification of the rest: every r
 child, and a broken watchdog fails a case instead of hanging the script); the option's defaults and its rejection of malformed
 values; and that the log of a redirected run, as `test.ps1` writes it, yields a failure report naming the exit code and the hung
 test. `test.ps1` runs it after the build in every run that includes a control suite.
+A test process never waits on a dialog. Every native test executable first calls `Tests/Support/FailureReports.h`.
+- In a Debug build, a failed runtime check (an STL range check, a CRT assertion) writes its report to stderr and ends the
+  run with exit code 3, instead of opening the CRT's modal Abort/Retry/Ignore box.
+- Windows Error Reporting's dialog is suppressed.
+- The hidden switch `--failure-report-self-test` fails such a check on purpose. `Test-TestWatchdog.ps1` requires it to end
+  within its bound, with exit code 3 and the report among the printed lines, or with exit code 0 in Release, which has no
+  such checks.
 The foundation suite covers timing edge cases, nested stage restoration, reduced motion and injected diagnostics.
 
 Repository tools are PowerShell 7 scripts with no other runtime; the validators live in `Tools/Validation.psm1` and
