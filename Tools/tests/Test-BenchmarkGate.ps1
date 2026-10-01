@@ -593,6 +593,8 @@ Invoke-FixtureCase 'annotations match what each scenario means for the check' {
     Assert-True $gate[0].Contains('dirty/composeCpuP95Ms +12.50%') 'and names the metric'
     Assert-True $gate[1].StartsWith('::error title=Paired benchmark MultilineGrid%3A inconclusive::') 'an inconclusive run is an error too, not a quiet pass'
     Assert-True $gate[1].Contains('Re-run the job') 'and says what to do'
+    Assert-Equal 1 ([regex]::Matches($gate[1], 'Re-run the job')).Count 'once'
+    Assert-True $gate[1].Contains('1 regressed metric has same-binary controls that drifted') 'one flagged metric is counted in the singular'
     $manual = @(Get-BenchmarkAnnotations -Conclusion $conclusion)
     Assert-True ($manual[0].StartsWith('::warning ') -and $manual[1].StartsWith('::warning ')) 'a manual run reports the same findings as warnings'
     $plain = New-Scenario -Directory $root -Controls @((Get-HeldControl), (Get-HeldControl)) -Metrics @((New-SetMetric 'clean' 'fps'))
@@ -640,8 +642,8 @@ Invoke-FixtureCase 'step outputs and summaries go to the files the runner names,
         $env:GITHUB_STEP_SUMMARY = $summaryFile
         Add-WorkflowOutput 'relevant' 'true'
         Add-WorkflowOutput 'baseline' ''
-        Add-WorkflowSummary "## One`n"
-        Add-WorkflowSummary "Two`n"
+        Add-WorkflowSummary "## One`n" 6>$null
+        Add-WorkflowSummary "Two`n" 6>$null
         Assert-Throws { Add-WorkflowOutput 'method' "two`nlines" } 'a multi-line value would inject another output'
     } finally { $env:GITHUB_OUTPUT = $previous[0]; $env:GITHUB_STEP_SUMMARY = $previous[1] }
     Assert-Equal "relevant=true`nbaseline=`n" ([IO.File]::ReadAllText($outputFile)) 'outputs, one per line'
@@ -680,6 +682,7 @@ Invoke-FixtureCase 'the verdict step fails a pull request on a degradation or an
     Assert-True $result.StepOutput.Contains('conclusion=degraded') 'and sets the output'
     Assert-True $result.StepSummary.StartsWith('## Paired benchmark: Confirmed degradation') 'writes the job summary'
     Assert-True $result.StepSummary.Contains('a shared hosted VM, not a controlled quiet desktop') 'which says what a runner is worth'
+    Assert-True ($result.Output -cmatch 'Job summary: \d+ bytes in the step summary file') 'and the log says how much the summary file holds'
     Assert-True (-not (Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ Reports = $reports; Gate = $true } (Join-Path $root 'local-out') $false).StepSummary.Contains('hosted VM')) 'and not on a developer machine'
     Assert-True $result.Output.Contains('::error title=') 'prints an annotation'
     Assert-True (Test-Path -LiteralPath (Join-Path $reports 'verdict.md')) 'keeps the report with the receipts'

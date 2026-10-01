@@ -226,7 +226,9 @@ function Get-BenchmarkConclusion {
         $confirmed = @($metrics | Where-Object { $_['Outcome'] -ceq 'confirmed' }).Count
         $unconfirmed = @($metrics | Where-Object { $_['Outcome'] -ceq 'unconfirmed' }).Count
         $conclusion = if ($confirmed) { 'degraded' } elseif ($unconfirmed) { 'inconclusive' } else { 'pass' }
-        if ($unconfirmed -and -not $confirmed) { $notes.Add("$unconfirmed regressed metric(s) have same-binary controls that drifted beyond their band on this runner, so the flag cannot be told from machine noise. Re-run the job; the flagged metrics are listed below, not dismissed.") }
+        if ($unconfirmed -and -not $confirmed) {
+            $notes.Add("$unconfirmed regressed $(if ($unconfirmed -eq 1) { 'metric has same-binary controls that drifted' } else { 'metrics have same-binary controls that drifted' }) beyond their band on this runner, so the flag cannot be told from machine noise. Re-run the job; the flagged metrics are listed below, not dismissed.")
+        }
         if ($conclusion -ceq 'pass' -and $null -ne $set['minimumAttainableP'] -and [double]$set['minimumAttainableP'] -ge $script:Significance) {
             $conclusion = 'inconclusive'
             $notes.Add("The set has $($set['baselineRuns']) runs against $($set['candidateRuns']), whose smallest attainable p is $(([double]$set['minimumAttainableP']).ToString('0.####', $script:Invariant)): too few to reach p < 0.05, so only a rise in an exact budget could be established. Repeat with more repetitions.")
@@ -425,7 +427,7 @@ function Get-BenchmarkAnnotations {
         switch ($scenario['Conclusion']) {
             'pass' { if ($flagged.Count) { $lines.Add((Format-WorkflowCommand 'notice' "Paired benchmark $($scenario['Scenario'])" "No regression established; flagged on unchanged library inputs (chance): $listed")) } }
             'degraded' { $lines.Add((Format-WorkflowCommand $(if ($Gate) { 'error' } else { 'warning' }) "Paired benchmark $($scenario['Scenario']): confirmed degradation" "$listed. The contract needs developer advice: optimize, reduce scope or defer.")) }
-            'inconclusive' { $lines.Add((Format-WorkflowCommand $(if ($Gate) { 'error' } else { 'warning' }) "Paired benchmark $($scenario['Scenario']): inconclusive" "$(if ($flagged.Count) { "Flagged but not confirmed by same-binary controls: $listed. " })$($scenario['Notes'] -join ' ') Re-run the job.")) }
+            'inconclusive' { $lines.Add((Format-WorkflowCommand $(if ($Gate) { 'error' } else { 'warning' }) "Paired benchmark $($scenario['Scenario']): inconclusive" "$(if ($flagged.Count) { "Flagged but not confirmed by same-binary controls: $listed. " })$($scenario['Notes'] -join ' ')")) }
             default { $lines.Add((Format-WorkflowCommand 'error' "Paired benchmark $($scenario['Scenario']): invalid evidence" ($scenario['Notes'] -join ' '))) }
         }
     }
@@ -444,7 +446,11 @@ function Add-WorkflowOutput {
 function Add-WorkflowSummary {
     <# Markdown for the job summary page, or on the console when there is no summary file. #>
     param([Parameter(Mandatory)][string] $Markdown)
-    if ($env:GITHUB_STEP_SUMMARY) { [IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY, $Markdown, [Text.UTF8Encoding]::new($false)) }
+    if ($env:GITHUB_STEP_SUMMARY) {
+        [IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY, $Markdown, [Text.UTF8Encoding]::new($false))
+        # The step's log says how much the summary file holds now, so a run's log shows the page was written.
+        Write-Host "Job summary: $((Get-Item -LiteralPath $env:GITHUB_STEP_SUMMARY).Length) bytes in the step summary file"
+    }
     else { Write-Host $Markdown }
 }
 
