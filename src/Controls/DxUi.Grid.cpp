@@ -752,24 +752,42 @@ wil::com_ptr<ID2D1Bitmap1> IGridDelegate::GetGridIconBitmap(const Grid& /*sender
     return nullptr;
 }
 
+namespace
+{
+// Sorts `ids` unless they already ascend, which they do when a model's stable ids grow with its row order.
+void SortRowIds(std::vector<uint64_t>& ids)
+{
+    if (! std::ranges::is_sorted(ids))
+    {
+        std::ranges::sort(ids);
+    }
+}
+} // namespace
+
+// Every mutator below leaves _sortedRowIds holding exactly the ids of _selectedRowIds, ascending (and as many times as
+// _selectedRowIds holds each), because IsSelected reads only the sorted copy.
 void GridSelectionModel::Clear() noexcept
 {
     _selectedRowIds.clear();
+    _sortedRowIds.clear();
     _anchorRowId.reset();
 }
 
 void GridSelectionModel::SetSingle(uint64_t rowId) noexcept
 {
     _selectedRowIds.assign(1u, rowId);
+    _sortedRowIds.assign(1u, rowId);
     _anchorRowId = rowId;
 }
 
 void GridSelectionModel::Toggle(uint64_t rowId) noexcept
 {
-    const auto it = std::ranges::find(_selectedRowIds, rowId);
-    if (it != _selectedRowIds.end())
+    const auto sortedIt = std::ranges::lower_bound(_sortedRowIds, rowId);
+    if (sortedIt != _sortedRowIds.end() && *sortedIt == rowId)
     {
-        _selectedRowIds.erase(it);
+        // The first occurrence leaves the ordered ids and one occurrence the sorted ones, so an id held twice stays selected.
+        _selectedRowIds.erase(std::ranges::find(_selectedRowIds, rowId));
+        _sortedRowIds.erase(sortedIt);
         if (_anchorRowId == rowId)
         {
             _anchorRowId = _selectedRowIds.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(_selectedRowIds.front());
@@ -778,6 +796,7 @@ void GridSelectionModel::Toggle(uint64_t rowId) noexcept
     }
 
     _selectedRowIds.push_back(rowId);
+    _sortedRowIds.insert(sortedIt, rowId);
     if (! _anchorRowId)
     {
         _anchorRowId = rowId;
@@ -794,8 +813,14 @@ void GridSelectionModel::SetRange(const std::vector<uint64_t>& orderedRowIds, ui
         return;
     }
 
+    // Both copies get their room before either changes, so a failed allocation leaves the selection as it was.
     const auto [first, last] = std::minmax(anchorIt, currentIt);
+    const size_t count       = static_cast<size_t>(last - first) + 1u;
+    _selectedRowIds.reserve(count);
+    _sortedRowIds.reserve(count);
     _selectedRowIds.assign(first, last + 1);
+    _sortedRowIds.assign(first, last + 1);
+    SortRowIds(_sortedRowIds);
     _anchorRowId = anchorRowId;
 }
 
@@ -806,25 +831,37 @@ void GridSelectionModel::PreserveOrdered(const std::vector<uint64_t>& orderedRow
         return;
     }
 
-    std::unordered_set<uint64_t> wanted(_selectedRowIds.begin(), _selectedRowIds.end());
-    _selectedRowIds.clear();
+    // What stays is each occurrence in orderedRowIds of an id that is selected now, in that order. It is built beside the current
+    // ids and moved in at the end, so a failed allocation leaves the selection as it was.
+    std::vector<uint64_t> kept;
+    kept.reserve((std::min)(orderedRowIds.size(), _selectedRowIds.size()));
     for (const uint64_t rowId : orderedRowIds)
     {
-        if (wanted.contains(rowId))
+        if (IsSelected(rowId))
         {
-            _selectedRowIds.push_back(rowId);
+            kept.push_back(rowId);
         }
     }
-
-    if (_anchorRowId && ! std::ranges::contains(_selectedRowIds, _anchorRowId.value()))
+    if (kept == _selectedRowIds)
     {
-        _anchorRowId = _selectedRowIds.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(_selectedRowIds.front());
+        // The usual data change leaves the selection as it is: its ascending copy is right, and so is the anchor, which is one of
+        // these ids (every mutator keeps it so).
+        return;
     }
+    std::vector<uint64_t> keptSorted(kept);
+    SortRowIds(keptSorted);
+
+    if (_anchorRowId && ! std::ranges::binary_search(keptSorted, _anchorRowId.value()))
+    {
+        _anchorRowId = kept.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(kept.front());
+    }
+    _selectedRowIds = std::move(kept);
+    _sortedRowIds   = std::move(keptSorted);
 }
 
 bool GridSelectionModel::IsSelected(uint64_t rowId) const noexcept
 {
-    return std::ranges::find(_selectedRowIds, rowId) != _selectedRowIds.end();
+    return std::ranges::binary_search(_sortedRowIds, rowId);
 }
 
 std::optional<uint64_t> GridSelectionModel::GetAnchor() const noexcept

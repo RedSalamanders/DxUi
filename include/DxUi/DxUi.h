@@ -1374,6 +1374,10 @@ public:
     virtual void OnTreeReorder(const TreeDrop& drop);
 };
 
+// The stable ids of the selected rows, held twice: in selection order, which GetOrderedSelection returns (the primary row is
+// last), and ascending, which makes IsSelected a binary search. A Grid asks it once per visible row on every paint, so what a
+// paint costs does not grow with the selection. The ascending copy costs 8 bytes per selected row. The mutators, which run on
+// user gestures and data changes, keep both copies equal at O(n log n) at most. An id the model is given twice is held twice.
 class GridSelectionModel final
 {
 public:
@@ -1383,6 +1387,7 @@ public:
     void SetRange(const std::vector<uint64_t>& orderedRowIds, uint64_t anchorRowId, uint64_t currentRowId);
     void PreserveOrdered(const std::vector<uint64_t>& orderedRowIds);
 
+    // O(log n) in the number of selected rows, and no allocation.
     [[nodiscard]] bool IsSelected(uint64_t rowId) const noexcept;
     [[nodiscard]] std::optional<uint64_t> GetAnchor() const noexcept;
     [[nodiscard]] size_t GetCount() const noexcept;
@@ -1390,6 +1395,7 @@ public:
 
 private:
     std::vector<uint64_t> _selectedRowIds;
+    std::vector<uint64_t> _sortedRowIds;
     std::optional<uint64_t> _anchorRowId;
 };
 
