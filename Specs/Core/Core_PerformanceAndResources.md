@@ -84,11 +84,12 @@ and `Tools/tests/Test-BenchmarkGate.ps1` covers it.
   compiled into it (`Samples`), the build and restore scripts, the paired measurement and gate tooling and the workflow.
   Markdown never counts, and neither do the control and foundation tests, the validators, the gallery and the formatter. A
   cheap Linux job (`benchmark-scope`) matches the changed paths against those rules and names the files that decided; a
-  pull request that changes none of them skips the Windows job, and a skipped job passes a required check. A manual
-  dispatch with `benchmark_baseline` measures the revisions it names. A newer push to a pull request cancels its older run,
-  and its job is bounded at 45 minutes (a run takes 10 to 14); a manual run keeps its 90, for the diagnostic scenarios.
-  A pull request's check is named `paired-benchmark (pull request)`, apart from the push and manual runs of the same job, so
-  that a required check names exactly one check run.
+  pull request that changes none of them skips the Windows job, and a skipped job passes a required check; a scope job
+  that fails does not skip it, the Windows job fails the check instead, so nothing passes unmeasured because its scope
+  could not be read. A manual dispatch with `benchmark_baseline` measures the revisions it names. A newer push to a pull
+  request cancels its older run, and its job is bounded at 45 minutes (a run takes 10 to 15); a manual run keeps its 90,
+  for the diagnostic scenarios. A pull request's check is named `paired-benchmark (pull request)`, apart from the push and
+  manual runs of the same job, so that a required check names exactly one check run.
 - **What is compared.** The candidate is the pull request's merge ref. The baseline is that merge commit's first parent, the
   base as the merge ref was made, so the two differ by exactly this pull request. The merge base with the branch would
   also hold whatever `main` gained since the branch was cut and would blame a regression it brought on this pull
@@ -123,13 +124,14 @@ and `Tools/tests/Test-BenchmarkGate.ps1` covers it.
 - **Identical library inputs.** When the compiled library inputs of both sides are identical (a change to the benchmark or
   its tooling only), the same library code was measured twice: a timing or memory flag is listed as noise, and a rise in a
   deterministic budget still fails, because noise cannot move one.
-- **No verdict.** Invalid evidence, a missing or unreadable summary and a run that did not finish fail, and so does a pull
-  request that changes the harness and the library's interfaces together, whose base cannot be built with the merge ref's
-  harness. Its comparison is measured by hand, as before.
+- **No verdict.** Invalid evidence, a missing or unreadable summary, a summary that lists no scenario or holds no set verdict
+  for one (an older summary, from before the paired sets) and a run that did not finish fail, each saying why in the job
+  summary, and so does a pull request that changes the harness and the library's interfaces together, whose base cannot be
+  built with the merge ref's harness. Its comparison is measured by hand, as before.
 - **Confirmed degradation** follows the advice rule above: stop, present the deltas and the suspected cause, ask the
   developer, and never relax a band or replace a baseline to pass. *Confirmed* means the machine held still for the
   metric, not that a second set reproduced it: a scenario makes about 26 metric tests, so a chance verdict is possible,
-  and re-running the job (a new runner, up to 14 minutes) is the repeat the advice rule asks for. The gate has no waiver list: a
+  and re-running the job (a new runner, up to 15 minutes) is the repeat the advice rule asks for. The gate has no waiver list: a
   tradeoff the developer approves is recorded in this contract, as the sections below do, and a maintainer merges over the
   failed check.
 - **A manual run** reports the same verdict in its job summary and stays green for a finding, as it always did: only a pull

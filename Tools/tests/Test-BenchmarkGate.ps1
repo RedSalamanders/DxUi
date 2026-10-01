@@ -427,6 +427,7 @@ Invoke-FixtureCase 'a set too small to reach p below 0.05 cannot pass a timing i
     $conclusion = Get-Conclusion (New-Summary @($few)) $root
     Assert-Equal 'inconclusive' $conclusion.Conclusion 'two runs against two'
     Assert-True ($conclusion.Scenarios[0].Notes -join ' ').Contains('too few') 'the note says so'
+    Assert-Equal 0.3333 $conclusion.Scenarios[0].MinimumAttainableP 'and the verdict file carries the smallest attainable p'
     $enough = New-Scenario -Directory $root -Controls @((Get-HeldControl), (Get-HeldControl)) -Metrics @((New-SetMetric 'clean' 'fps')) -MinimumP 0.0286 -Runs 4
     Assert-Equal 'pass' (Get-Conclusion (New-Summary @($enough)) $root).Conclusion 'four against four can reach it'
 }
@@ -446,6 +447,40 @@ Invoke-FixtureCase 'invalid evidence is invalid, and the worst scenario decides 
     Assert-Equal 'pass' (Get-Conclusion (New-Summary @($good)) $root).Conclusion 'a pass is a pass'
     Assert-Equal 'invalid' (Get-Conclusion (New-Summary @($degraded, $invalid)) $root).Conclusion 'invalid outranks all'
     Assert-Equal 'invalid' (Get-Conclusion (New-Summary @()) $root).Conclusion 'a summary without scenarios proves nothing'
+}
+
+Invoke-FixtureCase 'a summary the gate cannot read is invalid, never an exception' {
+    param($root)
+    $empty = Get-Conclusion @{} $root
+    Assert-Equal 'invalid' $empty.Conclusion 'an empty summary'
+    Assert-Equal 0 @($empty.Scenarios).Count 'has no scenario to report'
+    Assert-True ($empty.Notes -join ' ').Contains('lists no scenario') 'so the conclusion says why itself'
+    Assert-True @(Get-BenchmarkAnnotations -Conclusion $empty)[0].StartsWith('::error ') 'an error annotation'
+    Assert-True (ConvertTo-BenchmarkMarkdown -Conclusion $empty -Summary @{} -Gate).Contains('lists no scenario') 'and the job summary'
+    # A scenario that throws while it is read is reported as invalid, with its reason, and does not end the run.
+    $broken = @{ scenario = 'Broken'; set = @{ status = 'within-noise-budget'; metrics = @(@{ phase = 'clean'; metric = 'fps'; verdict = 'regressed'; noisePercent = 'not a number' }) } }
+    $thrown = Get-Conclusion @{ scenarios = @($broken, @{ scenario = 'Next' }) } $root
+    Assert-Equal 2 @($thrown.Scenarios).Count 'the scenario after the one that throws is read too'
+    Assert-Equal 'Broken' $thrown.Scenarios[0].Scenario 'the broken scenario is named'
+    Assert-Equal 'invalid' $thrown.Scenarios[0].Conclusion 'and invalid'
+    Assert-True ($thrown.Scenarios[0].Notes -join ' ').Contains('could not be read') 'with the reason'
+    $odd = Get-Conclusion @{ scenarios = @('text', 5, @{ scenario = 'Default' }, @{ scenario = 'Other'; set = 'not a set' }) } $root
+    Assert-Equal 'invalid' $odd.Conclusion 'scenarios that are not scenarios, or have no set verdict'
+    Assert-Equal 4 @($odd.Scenarios).Count 'every entry is reported'
+    Assert-Equal 'invalid invalid invalid invalid' (($odd.Scenarios | ForEach-Object { $_.Conclusion }) -join ' ') 'each as invalid'
+    Assert-True ($odd.Scenarios[2].Notes -join ' ').Contains('predates the paired sets') 'and says why'
+    $markdown = ConvertTo-BenchmarkMarkdown -Conclusion $odd -Summary @{} -Gate
+    Assert-True $markdown.StartsWith("## Paired benchmark: Invalid evidence`n") 'the summary says so'
+    Assert-True (-not $markdown.Contains('repetitions of the interleaved pass')) 'and does not invent a method it has not got'
+    # Every summary this repository retains, whatever its age or shape, gets a conclusion and a summary.
+    $files = @(Get-ChildItem -LiteralPath (Join-Path $repository 'Measurements') -Recurse -File -Filter 'summary.receipt.txt')
+    Assert-True ($files.Count -ge 1) "the repository retains summaries ($($files.Count)), so the loop below reads something"
+    foreach ($file in $files) {
+        $summary = Read-GateJson $file.FullName
+        $conclusion = Get-Conclusion $summary $file.DirectoryName
+        Assert-Contains @('pass', 'inconclusive', 'degraded', 'invalid') $conclusion.Conclusion "$($file.FullName) has a conclusion"
+        Assert-True (ConvertTo-BenchmarkMarkdown -Conclusion $conclusion -Summary $summary -Gate).StartsWith('## Paired benchmark: ') "$($file.FullName) has a summary"
+    }
 }
 
 Invoke-FixtureCase 'the conclusion reads the summaries performance-paired.ps1 retained' {
@@ -799,7 +834,9 @@ Invoke-TestCase 'the workflow runs the benchmark for measured pull requests to m
     Assert-True (-not $workflow.Contains('continue-on-error')) 'no job or step turns a failing verdict green'
     $order = @('./performance-paired.ps1', './Tools/Publish-BenchmarkVerdict.ps1', 'upload-artifact@') | ForEach-Object { $job.IndexOf($_, [StringComparison]::Ordinal) }
     Assert-True ($order[0] -ge 0 -and $order[0] -lt $order[1] -and $order[1] -lt $order[2]) 'the verdict follows the measurement and precedes the upload that keeps verdict.json'
-    Assert-True $job.Contains("if: `${{ !cancelled() && (needs.benchmark-scope.outputs.relevant == 'true' || (github.event_name == 'workflow_dispatch' && inputs.benchmark_baseline != '')) }}") 'it runs for a measured pull request or a dispatch with a baseline, and not for a superseded run'
+    Assert-True $job.Contains("if: `${{ !cancelled() && (needs.benchmark-scope.result == 'failure' || needs.benchmark-scope.outputs.relevant == 'true' || (github.event_name == 'workflow_dispatch' && inputs.benchmark_baseline != '')) }}") 'it runs for a measured pull request or a dispatch with a baseline, and not for a superseded run; and for a scope decision that failed, which must not pass as a skipped job'
+    Assert-True ($job -cmatch "(?m)^    steps:\r?\n(?:      #[^\r\n]*\r?\n)*      - if: \`$\{\{ needs\.benchmark-scope\.result == 'failure' \}\}\r?\n        shell: pwsh\r?\n        run: \|\r?\n(?:          [^\r\n]*\r?\n)*?          exit 1\r?\n      - uses: actions/checkout@") 'its first step fails the check when the scope job failed, before anything is restored or measured'
+    Assert-True ($job -cmatch "(?m)^      - id: verdict\r?\n        if: \`$\{\{ !cancelled\(\) && needs\.benchmark-scope\.result != 'failure' \}\}") 'and the verdict does not judge a run that never happened'
     Assert-True $job.Contains('runs-on: windows-2025-vs2026') 'on the hosted x64 runner'
     Assert-True $job.Contains('BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline || needs.benchmark-scope.outputs.baseline }}') 'a dispatch names its baseline, a pull request gets the base of its merge ref'
     Assert-True $job.Contains('BENCHMARK_CANDIDATE: ${{ inputs.benchmark_candidate }}') 'the candidate is the dispatch input, else this checkout: the merge ref'
@@ -829,7 +866,7 @@ Invoke-TestCase 'the benchmark job runs the contract''s scenarios and repetition
 Invoke-TestCase 'the workflow cancels what a push supersedes, bounds its runtime and pins what it runs' {
     Assert-True ($workflow -cmatch '(?m)^concurrency:\r?\n(?:  #.*\r?\n)*  group: dxui-\$\{\{ github\.workflow \}\}-\$\{\{ github\.event_name == ''workflow_dispatch'' && github\.run_id \|\| github\.ref \}\}\r?\n  cancel-in-progress: true') 'a push cancels the older run of its ref, and so of its pull request (refs/pull/n/merge); a dispatch is its own group'
     Assert-True ((Get-WorkflowJob 'benchmark-scope') -cmatch '(?m)^    timeout-minutes: 10\s*$') 'the scope decision is bounded at ten minutes'
-    # A pull request's limits (a run takes 13 to 14 minutes) and a manual run's (the 90 minutes it always had, for diagnostic scenarios).
+    # A pull request's limits (a run takes 10 to 15 minutes) and a manual run's (the 90 minutes it always had, for diagnostic scenarios).
     $limit = "\`$\{\{ github\.event_name == 'pull_request' && (\d+) \|\| (\d+) \}\}"
     $job = Get-WorkflowJob 'paired-benchmark'
     $jobLimit = [regex]::Match($job, "(?m)^    timeout-minutes: $limit\s*`$")

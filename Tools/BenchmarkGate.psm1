@@ -156,6 +156,85 @@ function Get-WorstConclusion([string[]] $Conclusions) {
     return 'invalid'
 }
 
+function New-ScenarioResult([string] $Scenario, [string] $SetStatus = '') {
+    return [ordered]@{
+        Scenario = $Scenario; SetStatus = $SetStatus; Conclusion = 'invalid'; Notes = [string[]]@()
+        Regressed = 0; Improved = 0; Judged = 0; Held = 0; Controls = [ordered]@{ Total = 0; Unstable = 0; Missing = 0 }
+        MinimumAttainableP = $null; Metrics = @()
+    }
+}
+
+function Get-ScenarioConclusion {
+    <# One scenario of a retained summary: its set verdict, read with its same-binary controls. A scenario whose summary does not
+       hold what this needs (it predates the paired sets, or its comparison did not run) is invalid, never an exception. #>
+    param([AllowNull()][object] $Entry, [Parameter(Mandatory)][string] $ReportsDirectory, [bool] $Unchanged, [bool] $Strict)
+    $isEntry = $Entry -is [System.Collections.IDictionary]
+    $set = if ($isEntry) { $Entry['set'] } else { $null }
+    $isSet = $set -is [System.Collections.IDictionary]
+    $result = New-ScenarioResult $(if ($isEntry) { [string]$Entry['scenario'] } else { '' }) $(if ($isSet) { [string]$set['status'] } else { '' })
+    if (-not $isSet) {
+        $result['Notes'] = [string[]]@('Invalid evidence: the summary holds no set verdict for this scenario (it predates the paired sets, or its comparison did not run).')
+        return $result
+    }
+    $notes = [Collections.Generic.List[string]]::new()
+    if ($set['status'] -ceq 'invalid-evidence' -or $set['status'] -cnotin @('advice-required', 'within-noise-budget')) {
+        $notes.Add("Invalid evidence: $($set['error'])")
+        $result['Notes'] = $notes.ToArray()
+        return $result
+    }
+    $drift = Get-ControlDrift -Scenario $Entry -ReportsDirectory $ReportsDirectory
+    $result['Controls'] = [ordered]@{ Total = $drift['Total']; Unstable = $drift['Unstable']; Missing = $drift['Missing'] }
+    $result['MinimumAttainableP'] = $set['minimumAttainableP']
+    $metrics = [Collections.Generic.List[object]]::new()
+    foreach ($metric in @($set['metrics'])) {
+        $key = '{0}/{1}' -f $metric['phase'], $metric['metric']
+        $seen = $drift['Metrics'][$key]
+        # Held: every control measured this metric and none moved it beyond its band. A control whose comparison cannot be
+        # read measured nothing, so no metric of its scenario is observed by all of them; without controls nothing is observed.
+        $held = $null -ne $seen -and $seen['Observed'] -eq $drift['Total'] -and -not $seen['Drifted']
+        # An exact budget has a band of zero; a summary that does not say so is still read by its band.
+        $exact = [bool]$metric['exact'] -or ($null -ne $metric['noisePercent'] -and [double]$metric['noisePercent'] -eq 0)
+        $outcome = switch ($metric['verdict']) {
+            'regressed' { if ($Unchanged -and -not $exact) { 'noise' } elseif ($held) { 'confirmed' } else { 'unconfirmed' } }
+            'improved' { 'improved' }
+            default { 'clear' }
+        }
+        $metrics.Add([ordered]@{
+                Phase = [string]$metric['phase']; Metric = [string]$metric['metric']; Exact = $exact; Verdict = [string]$metric['verdict']
+                Outcome = $outcome; Held = [bool]$held; ControlDriftPercent = $(if ($null -ne $seen) { $seen['MaxDriftPercent'] } else { $null })
+                ControlDrifted = $(if ($null -ne $seen) { [bool]$seen['Drifted'] } else { $null })
+                BaselineMedian = $metric['baselineMedian']; CandidateMedian = $metric['candidateMedian']; ChangePercent = $metric['changePercent']
+                NoisePercent = $metric['noisePercent']; PValue = $metric['pValue']
+                BaselineSpreadPercent = $metric['baselineSpreadPercent']; CandidateSpreadPercent = $metric['candidateSpreadPercent']
+            })
+    }
+    $result['Metrics'] = $metrics.ToArray()
+    $result['Judged'] = $metrics.Count
+    $result['Held'] = @($metrics | Where-Object { $_['Held'] }).Count
+    $result['Regressed'] = @($metrics | Where-Object { $_['Verdict'] -ceq 'regressed' }).Count
+    $result['Improved'] = @($metrics | Where-Object { $_['Verdict'] -ceq 'improved' }).Count
+    $confirmed = @($metrics | Where-Object { $_['Outcome'] -ceq 'confirmed' }).Count
+    $unconfirmed = @($metrics | Where-Object { $_['Outcome'] -ceq 'unconfirmed' }).Count
+    $conclusion = if ($confirmed) { 'degraded' } elseif ($unconfirmed) { 'inconclusive' } else { 'pass' }
+    if ($unconfirmed -and -not $confirmed) {
+        $notes.Add("$unconfirmed regressed $(if ($unconfirmed -eq 1) { 'metric has same-binary controls that drifted' } else { 'metrics have same-binary controls that drifted' }) beyond their band on this runner, so the flag cannot be told from machine noise. Re-run the job; the flagged metrics are listed below, not dismissed.")
+    }
+    if ($conclusion -ceq 'pass' -and $null -ne $set['minimumAttainableP'] -and [double]$set['minimumAttainableP'] -ge $script:Significance) {
+        $conclusion = 'inconclusive'
+        $notes.Add("The set has $($set['baselineRuns']) runs against $($set['candidateRuns']), whose smallest attainable p is $(([double]$set['minimumAttainableP']).ToString('0.####', $script:Invariant)): too few to reach p < 0.05, so only a rise in an exact budget could be established. Repeat with more repetitions.")
+    }
+    if ($Strict -and $drift['Unstable'] -gt 0 -and $conclusion -cin @('pass', 'degraded')) {
+        $conclusion = 'inconclusive'
+        $notes.Add("Strict controls: $($drift['Unstable']) of $($drift['Total']) same-binary controls drifted beyond a band, so the runner was not held still.")
+    }
+    if (@($metrics | Where-Object { $_['Outcome'] -ceq 'noise' }).Count) {
+        $notes.Add('The compiled library inputs of both sides are identical, so the timing and memory flags marked noise were measured on the same library code twice; they are chance. Deterministic budgets still gate.')
+    }
+    $result['Conclusion'] = $conclusion
+    $result['Notes'] = $notes.ToArray()
+    return $result
+}
+
 function Get-BenchmarkConclusion {
     <# The check's conclusion for one retained paired run: pass, inconclusive, degraded or invalid.
 
@@ -178,74 +257,18 @@ function Get-BenchmarkConclusion {
     $candidateFingerprint = if ($Summary['candidate'] -is [System.Collections.IDictionary]) { [string]$Summary['candidate']['sourceFingerprint'] } else { '' }
     $unchanged = [bool]$baselineFingerprint -and [string]::Equals($baselineFingerprint, $candidateFingerprint, [StringComparison]::Ordinal)
     $scenarios = [Collections.Generic.List[object]]::new()
-    foreach ($entry in @($Summary['scenarios'])) {
-        $set = $entry['set']
-        $result = [ordered]@{
-            Scenario = [string]$entry['scenario']; SetStatus = [string]$set['status']; Conclusion = 'invalid'; Notes = [string[]]@()
-            Regressed = 0; Improved = 0; Judged = 0; Held = 0; Controls = [ordered]@{ Total = 0; Unstable = 0; Missing = 0 }
-            MinimumAttainableP = $null; Metrics = @()
+    foreach ($entry in @($Summary['scenarios'] | Where-Object { $null -ne $_ })) {
+        try { $scenarios.Add((Get-ScenarioConclusion -Entry $entry -ReportsDirectory $ReportsDirectory -Unchanged $unchanged -Strict ([bool]$StrictControls))) }
+        catch {
+            $failed = New-ScenarioResult $(if ($entry -is [System.Collections.IDictionary]) { [string]$entry['scenario'] } else { '' })
+            $failed['Notes'] = [string[]]@("Invalid evidence: the scenario could not be read: $($_.Exception.Message)")
+            $scenarios.Add($failed)
         }
-        $notes = [Collections.Generic.List[string]]::new()
-        if ($set['status'] -ceq 'invalid-evidence' -or $set['status'] -cnotin @('advice-required', 'within-noise-budget')) {
-            $notes.Add("Invalid evidence: $($set['error'])")
-            $result['Notes'] = $notes.ToArray()
-            $scenarios.Add($result)
-            continue
-        }
-        $drift = Get-ControlDrift -Scenario $entry -ReportsDirectory $ReportsDirectory
-        $result['Controls'] = [ordered]@{ Total = $drift['Total']; Unstable = $drift['Unstable']; Missing = $drift['Missing'] }
-        $result['MinimumAttainableP'] = $set['minimumAttainableP']
-        $metrics = [Collections.Generic.List[object]]::new()
-        foreach ($metric in @($set['metrics'])) {
-            $key = '{0}/{1}' -f $metric['phase'], $metric['metric']
-            $seen = $drift['Metrics'][$key]
-            # Held: every control measured this metric and none moved it beyond its band. A control whose comparison cannot be
-            # read measured nothing, so no metric of its scenario is observed by all of them; without controls nothing is observed.
-            $held = $null -ne $seen -and $seen['Observed'] -eq $drift['Total'] -and -not $seen['Drifted']
-            # An exact budget has a band of zero; a summary that does not say so is still read by its band.
-            $exact = [bool]$metric['exact'] -or ($null -ne $metric['noisePercent'] -and [double]$metric['noisePercent'] -eq 0)
-            $outcome = switch ($metric['verdict']) {
-                'regressed' { if ($unchanged -and -not $exact) { 'noise' } elseif ($held) { 'confirmed' } else { 'unconfirmed' } }
-                'improved' { 'improved' }
-                default { 'clear' }
-            }
-            $metrics.Add([ordered]@{
-                    Phase = [string]$metric['phase']; Metric = [string]$metric['metric']; Exact = $exact; Verdict = [string]$metric['verdict']
-                    Outcome = $outcome; Held = [bool]$held; ControlDriftPercent = $(if ($null -ne $seen) { $seen['MaxDriftPercent'] } else { $null })
-                    ControlDrifted = $(if ($null -ne $seen) { [bool]$seen['Drifted'] } else { $null })
-                    BaselineMedian = $metric['baselineMedian']; CandidateMedian = $metric['candidateMedian']; ChangePercent = $metric['changePercent']
-                    NoisePercent = $metric['noisePercent']; PValue = $metric['pValue']
-                    BaselineSpreadPercent = $metric['baselineSpreadPercent']; CandidateSpreadPercent = $metric['candidateSpreadPercent']
-                })
-        }
-        $result['Metrics'] = $metrics.ToArray()
-        $result['Judged'] = $metrics.Count
-        $result['Held'] = @($metrics | Where-Object { $_['Held'] }).Count
-        $result['Regressed'] = @($metrics | Where-Object { $_['Verdict'] -ceq 'regressed' }).Count
-        $result['Improved'] = @($metrics | Where-Object { $_['Verdict'] -ceq 'improved' }).Count
-        $confirmed = @($metrics | Where-Object { $_['Outcome'] -ceq 'confirmed' }).Count
-        $unconfirmed = @($metrics | Where-Object { $_['Outcome'] -ceq 'unconfirmed' }).Count
-        $conclusion = if ($confirmed) { 'degraded' } elseif ($unconfirmed) { 'inconclusive' } else { 'pass' }
-        if ($unconfirmed -and -not $confirmed) {
-            $notes.Add("$unconfirmed regressed $(if ($unconfirmed -eq 1) { 'metric has same-binary controls that drifted' } else { 'metrics have same-binary controls that drifted' }) beyond their band on this runner, so the flag cannot be told from machine noise. Re-run the job; the flagged metrics are listed below, not dismissed.")
-        }
-        if ($conclusion -ceq 'pass' -and $null -ne $set['minimumAttainableP'] -and [double]$set['minimumAttainableP'] -ge $script:Significance) {
-            $conclusion = 'inconclusive'
-            $notes.Add("The set has $($set['baselineRuns']) runs against $($set['candidateRuns']), whose smallest attainable p is $(([double]$set['minimumAttainableP']).ToString('0.####', $script:Invariant)): too few to reach p < 0.05, so only a rise in an exact budget could be established. Repeat with more repetitions.")
-        }
-        if ($StrictControls -and $drift['Unstable'] -gt 0 -and $conclusion -cin @('pass', 'degraded')) {
-            $conclusion = 'inconclusive'
-            $notes.Add("Strict controls: $($drift['Unstable']) of $($drift['Total']) same-binary controls drifted beyond a band, so the runner was not held still.")
-        }
-        if (@($metrics | Where-Object { $_['Outcome'] -ceq 'noise' }).Count) {
-            $notes.Add('The compiled library inputs of both sides are identical, so the timing and memory flags marked noise were measured on the same library code twice; they are chance. Deterministic budgets still gate.')
-        }
-        $result['Conclusion'] = $conclusion
-        $result['Notes'] = $notes.ToArray()
-        $scenarios.Add($result)
     }
+    # A run is only as good as its scenarios, and a summary that lists none judged nothing: it says so itself, as there is no scenario to.
+    $notes = [string[]]@(if ($scenarios.Count -eq 0) { 'Invalid evidence: the summary lists no scenario, so there is nothing to judge.' })
     $overall = if ($scenarios.Count) { Get-WorstConclusion @($scenarios | ForEach-Object { $_['Conclusion'] }) } else { 'invalid' }
-    return [ordered]@{ Conclusion = $overall; StrictControls = [bool]$StrictControls; LibraryUnchanged = $unchanged; Scenarios = $scenarios.ToArray() }
+    return [ordered]@{ Conclusion = $overall; StrictControls = [bool]$StrictControls; LibraryUnchanged = $unchanged; Notes = $notes; Scenarios = $scenarios.ToArray() }
 }
 
 # --- What a run says ------------------------------------------------------------------------------------------------------
@@ -337,6 +360,7 @@ function ConvertTo-BenchmarkMarkdown {
     $lines.Add("## Paired benchmark: $(Get-BenchmarkHeadline $name)")
     $lines.Add('')
     $lines.Add((Get-BenchmarkMeaning $name))
+    foreach ($note in $Conclusion['Notes']) { $lines.Add(''); $lines.Add($note) }
     $unresolved = @($Conclusion['Scenarios'] | Where-Object { $_['Held'] -lt $_['Judged'] })
     if ($name -ceq 'pass' -and $unresolved.Count) {
         # A pass is not a claim about the metrics the runner could not hold still for; say how many those are.
@@ -365,7 +389,7 @@ function ConvertTo-BenchmarkMarkdown {
     $lines.Add("| Candidate | $(& $describe $candidate) |")
     $fingerprints = @($baseline, $candidate | ForEach-Object { if ($_ -is [System.Collections.IDictionary] -and $_['sourceFingerprint']) { "``$(& $short ([string]$_['sourceFingerprint']))``" } else { 'unknown' } })
     $lines.Add("| Library inputs | $(if ($Conclusion['LibraryUnchanged']) { "identical, fingerprint $($fingerprints[0]): both sides ran the same library code" } else { "changed, fingerprint $($fingerprints[0]) to $($fingerprints[1])" }) |")
-    $lines.Add("| Method | $($Summary['repetitions']) repetitions of the interleaved pass A, B, B, A, so $(2 * [int]$Summary['repetitions']) runs per side; $($Summary['platform']) $($Summary['configuration']); exact two-sided Mann-Whitney U test with the 5% timing and 2% memory investigation bands, exact budgets stay exact |")
+    $lines.Add("| Method | $(if ($Summary['repetitions']) { "$($Summary['repetitions']) repetitions of the interleaved pass A, B, B, A, so $(2 * [int]$Summary['repetitions']) runs per side; " })$($Summary['platform']) $($Summary['configuration']); exact two-sided Mann-Whitney U test with the 5% timing and 2% memory investigation bands, exact budgets stay exact |")
     $lines.Add("| Runner | $(ConvertTo-MarkdownCell $Summary['machine'])$(if ($Hosted) { '; a shared hosted VM, not a controlled quiet desktop' }) |")
     if ($Event) { $lines.Add("| Event | $(ConvertTo-MarkdownCell $Event) |") }
     $lines.Add('')
@@ -419,6 +443,7 @@ function Get-BenchmarkAnnotations {
     <# One annotation per scenario that is not a plain pass, at the level that matches what it means for the check. #>
     param([Parameter(Mandatory)][System.Collections.IDictionary] $Conclusion, [switch] $Gate)
     $lines = [Collections.Generic.List[string]]::new()
+    foreach ($note in $Conclusion['Notes']) { $lines.Add((Format-WorkflowCommand 'error' 'Paired benchmark: invalid evidence' $note)) }
     foreach ($scenario in $Conclusion['Scenarios']) {
         $flagged = @($scenario['Metrics'] | Where-Object { $_['Verdict'] -ceq 'regressed' } | ForEach-Object {
                 '{0}/{1} {2} (p {3}, controls {4})' -f $_['Phase'], $_['Metric'], (Format-GatePercent $_['ChangePercent']), (Format-GateP $_['PValue']), $(if ($_['ControlDrifted']) { 'drifted' } else { 'held' }) })

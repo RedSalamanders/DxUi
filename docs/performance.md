@@ -82,7 +82,7 @@ side's revision or path, commit and source fingerprint. Every receipt, compariso
 `summary.json` is retained; an `advice-required` set still needs developer advice.
 
 A merge does not have to wait for a quiet developer machine: the [validation workflow](../.github/workflows/ci.yml) runs
-the set on one hosted x64 Release runner (10 to 14 minutes). Its
+the set on one hosted x64 Release runner (10 to 15 minutes). Its
 [contract](../Specs/Core/Core_PerformanceAndResources.md#hosted-paired-gate) has the rules; in short:
 
 - **Pull requests.** Every pull request to `main` that changes something the benchmark measures (library sources and
@@ -93,7 +93,8 @@ the set on one hosted x64 Release runner (10 to 14 minutes). Its
   on Linux and its summary names the files that did; a pull request that changes none of them skips the Windows job. A
   skipped job satisfies a required check, so the check `paired-benchmark (pull request)` (named apart from the push and
   manual runs of the same job, so that a required check names one check run) can be made required in branch protection
-  without holding documentation changes.
+  without holding documentation changes. A scope job that fails does not skip it: the job fails the check instead of
+  passing a pull request unmeasured.
 - **Manual runs.** A manual run with `benchmark_baseline` (and optionally `benchmark_candidate` and `benchmark_scenarios`)
   measures the revisions it names, with three repetitions. It publishes the verdict the same way and stays green for a
   finding; only a pull request is gated. A manual run is its own concurrency group, so a later push does not cancel it,

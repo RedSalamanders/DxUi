@@ -5,12 +5,13 @@
   `performance.ps1` and its comparator and benchmark inputs), the sources of the benchmark executable
   (`Tests/Embedded`, `Tests/Support`) and the fixtures and samples compiled into it, the build and restore scripts, the
   paired measurement and gate tooling and `ci.yml`; Markdown never counts. A pull request that changes none of them skips
-  the Windows job, and a skipped job satisfies a required check.
+  the Windows job, and a skipped job satisfies a required check; a scope job that fails does not skip it, so the Windows
+  job fails the check instead of passing a pull request unmeasured.
   - The `paired-benchmark` job compares the pull request's merge ref with that merge commit's first parent, the base as
     the merge ref was made, so the two differ by exactly this pull request (the merge base with the branch would also hold
     what `main` gained since the branch was cut), in the gating scenarios `Default`, `MultilineGrid` and
     `MultilineGridDistinct`, three repetitions each: six runs per side, whose smallest attainable p is 0.0022. A run
-    takes 10 to 14 minutes (a pull request's job is bounded at 45, a manual run's at the 90 it always had), a newer push
+    takes 10 to 15 minutes (a pull request's job is bounded at 45, a manual run's at the 90 it always had), a newer push
     to the pull request cancels the older run, the token stays `contents: read`, and the pinned actions are the ones the
     other jobs use. A pull request's check is named `paired-benchmark (pull request)`, apart from the push and manual
     runs of the same job, so that a required check names exactly one check run.
@@ -40,9 +41,10 @@
     `Tools/Publish-BenchmarkVerdict.ps1` (which also judges a local run: `-Reports <reports directory>`), and
     `Tools/tests/Test-BenchmarkGate.ps1` covers them: the scope rules against the receipt's inputs, the include closure
     of the benchmark executable and every module the scripts import; the pair on fixture merge commits; the conclusion
-    on synthetic summaries and on the retained local and hosted sets; the summary, annotations and exit codes; and the
-    workflow's wiring. Of 57 throwaway mutants of the gate, its step scripts and the workflow, 56 fail a test, and the
-    57th changed nothing (a redundant condition, which was removed). `Get-LibraryInputPaths` is the comparator's one
-    additive export. The performance contract, `docs/performance.md`, `Tools/README.md`, `CONTRIBUTING.md`, the testing
-    contract and the performance skill describe it. Nothing visual changed, so the gallery is unchanged; the library,
-    its API and every receipt format are unchanged.
+    on synthetic summaries, on the retained local and hosted sets and on every summary this repository retains, whatever
+    its age; the summary, annotations and exit codes; and the workflow's wiring. Of 73 throwaway mutants of the gate, its
+    step scripts and the workflow, 72 fail a test, and the 73rd changed nothing (a redundant condition, which was
+    removed). `Get-LibraryInputPaths` is the comparator's one additive export. The performance contract,
+    `docs/performance.md`, `Tools/README.md`, `CONTRIBUTING.md`, the testing contract and the performance skill describe
+    it. Nothing visual changed, so the gallery is unchanged; the library, its API and every receipt format are
+    unchanged.
