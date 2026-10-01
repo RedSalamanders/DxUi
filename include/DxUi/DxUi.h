@@ -339,6 +339,7 @@ struct ContextMenuSessionCallbacks
 {
     std::function<std::optional<ContextMenuRootSwitchRequest>(POINT screenPoint)> switchRootFromPointer;
     std::function<std::optional<ContextMenuRootSwitchRequest>(bool forward)> switchRootFromDirection;
+    // Called by a running Show for each ContextMenu::PostMenuBarHover, with the values it posted.
     std::function<std::optional<ContextMenuRootSwitchRequest>(size_t hoverIndex, std::uintptr_t sequence)> switchRootFromMenuBarHover;
     ContextMenuRootHorizontalAlignment rootHorizontalAlignment = ContextMenuRootHorizontalAlignment::Start;
     ContextMenuRootVerticalPlacement rootVerticalPlacement     = ContextMenuRootVerticalPlacement::Below;
@@ -373,6 +374,12 @@ public:
                                         const ThemePalette& theme,
                                         ContextMenuClosedCallback onClosed,
                                         const ContextMenuSessionCallbacks& sessionCallbacks = {});
+    // Tells a running Show (not ShowAsync) that the pointer now hovers item `hoverIndex` of the application's menu bar.
+    // Post it to a window of the menu's thread, such as the popup holding capture or the owner: Show calls the session's
+    // switchRootFromMenuBarHover(hoverIndex, sequence) and opens the root it returns. Outside a Show the window's procedure
+    // receives it like any other message, and HandleMessage ignores it. The message is registered by name, so no
+    // application message shares its value. Returns false when it could not be posted.
+    [[nodiscard]] static bool PostMenuBarHover(HWND target, size_t hoverIndex, std::uintptr_t sequence) noexcept;
 };
 
 // Native menu diagnostics share the optional borrowed Diagnostics::sink. No trace file is opened by DxUi.
@@ -465,6 +472,11 @@ struct WindowHostBitmapCapture;
 [[nodiscard]] bool DebugGetContextMenuPopupState(HWND hwnd, ContextMenuPopupDebugState& outState) noexcept;
 [[nodiscard]] ContextMenuResourceDebugState DebugGetContextMenuResources() noexcept;
 void DebugSetContextMenuStateProbeStallForTest(HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
+// Called on the menu's thread just before its modal loop peeks a popup's own messages (`message`: WM_PAINT, or the state
+// probes' message), with that popup's window. PeekMessageW runs the handlers of messages other threads sent, which can open
+// or close a submenu while the loop walks the popup chain; a test does the same from the hook. Null clears it.
+using ContextMenuModalLoopPeekHook = void (*)(void* context, HWND popupHwnd, UINT message) noexcept;
+void DebugSetContextMenuModalLoopPeekHookForTest(ContextMenuModalLoopPeekHook hook, void* context) noexcept;
 [[nodiscard]] bool DebugGetContextMenuPopupItemRect(HWND hwnd, size_t itemIndex, D2D1_RECT_F& outRectDip) noexcept;
 [[nodiscard]] bool DebugGetContextMenuItemDisplayText(const MenuFlyoutItem& item, std::wstring& outText);
 [[nodiscard]] bool DebugGetContextMenuPopupItemText(HWND hwnd, size_t itemIndex, std::wstring& outText) noexcept;
@@ -1374,6 +1386,25 @@ public:
     virtual void OnTreeReorder(const TreeDrop& drop);
 };
 
+#if DXUI_ENABLE_DIAGNOSTICS
+// How many ids each buffer of a GridSelectionModel has room for, counted exactly whatever the allocator keeps, so a test can assert
+// that the buffers of a large selection were given back (Specs/Core/Core_PerformanceAndResources.md).
+struct GridSelectionBufferDebugState
+{
+    size_t orderedIds = 0; // The ids in selection order.
+    size_t sortedIds  = 0; // The ascending copy.
+
+    [[nodiscard]] bool operator==(const GridSelectionBufferDebugState&) const noexcept = default;
+};
+#endif
+
+// The stable ids of the selected rows, held twice: in selection order, which GetOrderedSelection returns (the primary row is
+// last), and ascending. A Grid asks IsSelected once per visible row on every paint, so what that costs must not grow with the
+// selection: a selection of up to 1,024 ids is scanned, as it always was, and a larger one is binary searched, in O(log n). The
+// ascending copy costs 8 bytes per selected row. The mutators, which run on user gestures and data changes, keep both copies
+// equal at O(n log n) at most. An id the model is given twice is held twice. The room of a copy that exceeds 4,096 ids is given
+// back, not kept, when Clear, SetSingle, SetRange or a PreserveOrdered that drops ids leaves the selection at most half as large,
+// so a model does not hold on to the Ctrl+A that is behind it.
 class GridSelectionModel final
 {
 public:
@@ -1383,13 +1414,20 @@ public:
     void SetRange(const std::vector<uint64_t>& orderedRowIds, uint64_t anchorRowId, uint64_t currentRowId);
     void PreserveOrdered(const std::vector<uint64_t>& orderedRowIds);
 
+    // No allocation. Up to 1,024 selected ids it scans them, as it always did; above that it binary searches the ascending copy,
+    // which does not grow with the selection and, whatever order the ids asked about come in, is never slower than the scan.
     [[nodiscard]] bool IsSelected(uint64_t rowId) const noexcept;
     [[nodiscard]] std::optional<uint64_t> GetAnchor() const noexcept;
     [[nodiscard]] size_t GetCount() const noexcept;
     [[nodiscard]] std::span<const uint64_t> GetOrderedSelection() const noexcept;
 
+#if DXUI_ENABLE_DIAGNOSTICS
+    [[nodiscard]] GridSelectionBufferDebugState DebugGetBuffers() const noexcept;
+#endif
+
 private:
     std::vector<uint64_t> _selectedRowIds;
+    std::vector<uint64_t> _sortedRowIds;
     std::optional<uint64_t> _anchorRowId;
 };
 

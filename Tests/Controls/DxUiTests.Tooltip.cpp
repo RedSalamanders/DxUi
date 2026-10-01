@@ -1,20 +1,76 @@
 #include "../../src/Support/AnimationDispatcher.h"
 #include "DxUiTestHelpers.h"
 
-#include <chrono>
-#include <thread>
-
 namespace
 {
 
-void PumpMessagesForDuration(const AttachedHostWindow& window, std::chrono::milliseconds duration)
+// A native tooltip's deadlines are on the UI thread's animation dispatcher clock, which a tick moves by the time since the last
+// tick but by no more than the dispatcher's hitch clamp: a runner that stalls for a second moves it 50 ms. So the timer tests
+// decide nothing by wall-clock time. They keep the dispatcher ticking with a subscription of their own, take a deadline from its
+// clock and dispatch one message at a time, so that each tick is observed with the state it left.
+
+// Dispatches this thread's messages one at a time, waiting for the next one without polling, until `reached` holds after one of
+// them. The ten-second limit only ends a run whose ticks never come: a 100 ms delay takes about a tenth of a second.
+template <class Condition> [[nodiscard]] bool DispatchMessagesUntil(Condition&& reached)
 {
-    const auto deadline = std::chrono::steady_clock::now() + duration;
-    do
+    constexpr ULONGLONG kLimitMs = 10'000u;
+    const ULONGLONG started      = GetTickCount64();
+    for (ULONGLONG elapsedMs = 0u; elapsedMs < kLimitMs; elapsedMs = GetTickCount64() - started)
     {
-        window.PumpMessages();
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    } while (std::chrono::steady_clock::now() < deadline);
+        MSG msg{};
+        if (PeekMessageW(&msg, nullptr, 0u, 0u, PM_REMOVE) == FALSE)
+        {
+            static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, static_cast<DWORD>(kLimitMs - elapsedMs), QS_ALLINPUT, MWMO_INPUTAVAILABLE));
+            continue;
+        }
+        static_cast<void>(DispatchQueuedMessageForTest(msg));
+        if (reached())
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Keeps the dispatcher ticking while it lives, so its clock stays the clock of its ticks: an idle dispatcher reads the wall clock.
+class DispatcherTicks final
+{
+public:
+    DispatcherTicks() noexcept : _subscriptionId(DxUi::Ui::AnimationDispatcher::GetInstance().Subscribe(&CountTick, &_tickCount))
+    {
+    }
+
+    ~DispatcherTicks()
+    {
+        DxUi::Ui::AnimationDispatcher::GetInstance().Unsubscribe(_subscriptionId);
+    }
+
+    DispatcherTicks(const DispatcherTicks&)            = delete;
+    DispatcherTicks& operator=(const DispatcherTicks&) = delete;
+
+    // Whether the dispatcher delivered a tick, after which its clock is the time of its last tick.
+    [[nodiscard]] bool WaitForTick()
+    {
+        const size_t ticksBefore = _tickCount;
+        return _subscriptionId != 0u && DispatchMessagesUntil([this, ticksBefore] { return _tickCount != ticksBefore; });
+    }
+
+private:
+    static bool CountTick(void* context, uint64_t /*nowTickMs*/) noexcept
+    {
+        ++*static_cast<size_t*>(context);
+        return true;
+    }
+
+    size_t _tickCount        = 0u;
+    uint64_t _subscriptionId = 0u;
+};
+
+// A tick moves the dispatcher clock by at most the hitch clamp, so a delay of twice the clamp has ticks before its deadline
+// however long the runner stalls.
+[[nodiscard]] uint64_t GetHideDelayWithTicksBeforeItsDeadlineMs() noexcept
+{
+    return 2u * DxUi::Ui::AnimationDispatcher::GetInstance().DebugGetHitchClampUsForTest() / 1'000u;
 }
 
 void TestTooltipLayerTrackingUpdateReusesVisibleTooltip()
@@ -144,15 +200,38 @@ void TestTooltipLayerHideDelayExpiresAfterTimerTicks()
     ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
     window.PumpMessages();
 
+    auto& dispatcher = Ui::AnimationDispatcher::GetInstance();
+    DispatcherTicks ticks;
+    Require(ticks.WaitForTick(), "tracking tooltip hide-delay test starts with the animation dispatcher ticking");
+    const uint64_t hideDelayMs = GetHideDelayWithTicksBeforeItsDeadlineMs();
+
     const std::wstring tooltipText = L"Tracking tooltip";
     Require(window.Host().SetTooltip(tooltipText, D2D1::Point2F(24.0f, 24.0f)), "tracking tooltip hide-delay test starts with a visible tooltip");
-    Require(window.Host().BeginTooltipHideDelay(), "tracking tooltip hide-delay scheduling succeeds");
+    const uint64_t hideTickMs = dispatcher.GetCurrentTickMs() + hideDelayMs;
+    Require(window.Host().BeginTooltipHideDelay(hideDelayMs), "tracking tooltip hide-delay scheduling succeeds");
     Require(window.Host().HasTooltip(), "tracking tooltip remains visible immediately after hide-delay scheduling");
 
-    PumpMessagesForDuration(window, std::chrono::milliseconds(50));
-    Require(window.Host().HasTooltip(), "tracking tooltip remains visible before the hide delay elapses");
-
-    PumpMessagesForDuration(window, std::chrono::milliseconds(120));
+    uint64_t lastTickMs        = dispatcher.GetCurrentTickMs();
+    size_t ticksBeforeDeadline = 0u;
+    bool visibleBeforeDeadline = true;
+    const bool reachedDeadline = DispatchMessagesUntil([&]
+    {
+        const uint64_t tickMs = dispatcher.GetCurrentTickMs();
+        if (tickMs == lastTickMs)
+        {
+            return false;
+        }
+        lastTickMs = tickMs;
+        if (tickMs >= hideTickMs)
+        {
+            return true;
+        }
+        ++ticksBeforeDeadline;
+        visibleBeforeDeadline = visibleBeforeDeadline && window.Host().HasTooltip();
+        return false;
+    });
+    Require(ticksBeforeDeadline != 0u && visibleBeforeDeadline, "tracking tooltip remains visible before the hide delay elapses");
+    Require(reachedDeadline, "the dispatcher's ticks reach the tracking tooltip's hide deadline");
     Require(! window.Host().HasTooltip(), "tracking tooltip clears after the hide delay elapses");
 }
 
@@ -190,14 +269,22 @@ void TestTooltipLayerTrackingMoveCancelsPendingHideDelay()
     ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
     window.PumpMessages();
 
+    auto& dispatcher = Ui::AnimationDispatcher::GetInstance();
+    DispatcherTicks ticks;
+    Require(ticks.WaitForTick(), "tracking tooltip cancel test starts with the animation dispatcher ticking");
+    const uint64_t hideDelayMs = GetHideDelayWithTicksBeforeItsDeadlineMs();
+
     const std::wstring tooltipText = L"Tracking tooltip";
     Require(window.Host().SetTooltip(tooltipText, D2D1::Point2F(24.0f, 24.0f)), "tracking tooltip cancel test starts with a visible tooltip");
-    Require(window.Host().BeginTooltipHideDelay(), "tracking tooltip cancel test schedules hide");
+    const uint64_t hideTickMs = dispatcher.GetCurrentTickMs() + hideDelayMs;
+    Require(window.Host().BeginTooltipHideDelay(hideDelayMs), "tracking tooltip cancel test schedules hide");
 
-    PumpMessagesForDuration(window, std::chrono::milliseconds(40));
+    // The pointer moves one tick into the delay, which the hitch clamp keeps before the deadline, so the hide is still pending.
+    Require(ticks.WaitForTick() && dispatcher.GetCurrentTickMs() < hideTickMs && window.Host().HasTooltip(),
+            "tracking tooltip is still visible one tick into its hide delay");
     Require(window.Host().SetTooltip(tooltipText, D2D1::Point2F(96.0f, 72.0f)), "tracking tooltip movement updates the tooltip and cancels the pending hide");
 
-    PumpMessagesForDuration(window, std::chrono::milliseconds(120));
+    Require(DispatchMessagesUntil([&] { return dispatcher.GetCurrentTickMs() >= hideTickMs; }), "the dispatcher's ticks pass the canceled hide deadline");
     Require(window.Host().HasTooltip(), "tracking tooltip movement cancels the pending hide delay");
     Require(window.Host().GetTooltipText() == tooltipText, "tracking tooltip keeps the same text after canceling the hide delay");
 }
@@ -362,25 +449,35 @@ void TestPassiveSupplementalTooltipUsesHostHitTestingDelayLifetimeAndClickThroug
     passiveRegion->SetTooltipText(L"Completed with partial results or warnings: 3");
     passiveRegion->SetAccessibleHelpText(L"Completed with partial results or warnings: 3");
     window.Host().SetRoot(std::move(root));
+    // A host ticks its tooltip only while its window is visible.
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
 
     SendMessageW(window.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(40, 28));
     Require(! window.Host().HasTooltip(), "passive tooltip remains hidden before the shared show delay elapses");
     Require(window.Host().DebugGetPendingTooltipText() == L"Completed with partial results or warnings: 3",
             "real host hit testing reaches the deepest passive supplemental-tooltip region");
-    static_cast<void>(window.Host().DebugAdvanceTooltipDelayForTest());
+    // The show delay is the user's mouse hover time, at most 2.5 s on the dispatcher's clock, and the display lifetime runs five
+    // seconds from the tick that shows the tooltip, so a tick past every show delay fixes when the lifetime ends.
+    const uint64_t shownTickMs = Ui::AnimationDispatcher::GetInstance().GetCurrentTickMs() + 10'000u;
+    static_cast<void>(window.Host().DebugAnimationTickForTest(shownTickMs));
     Require(window.Host().HasTooltip() && window.Host().GetTooltipText() == passiveRegion->GetAccessibleHelpText(),
             "passive pointer tooltip matches the region's accessibility HelpText after the show delay");
+    static_cast<void>(window.Host().DebugAnimationTickForTest(shownTickMs + 4'999u));
+    Require(window.Host().HasTooltip(), "stationary passive tooltip stays for its five-second display lifetime");
+    static_cast<void>(window.Host().DebugAnimationTickForTest(shownTickMs + 5'000u));
+    Require(! window.Host().HasTooltip(), "stationary passive tooltip auto-hides after the five-second display lifetime");
+
+    SendMessageW(window.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(40, 28));
+    static_cast<void>(window.Host().DebugAdvanceTooltipDelayForTest());
+    Require(window.Host().HasTooltip(), "pointer movement shows the passive tooltip again after auto-hide and the show delay");
 
     SendMessageW(window.Hwnd(), WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(40, 28));
     SendMessageW(window.Hwnd(), WM_LBUTTONUP, 0, MAKELPARAM(40, 28));
     Require(clickCount == 1u, "passive tooltip region remains click-through to the underlying interactive control");
 
-    const uint64_t lifetimeExpiryTickMs = GetTickCount64() + 6000u;
-    static_cast<void>(window.Host().DebugAnimationTickForTest(lifetimeExpiryTickMs));
-    Require(! window.Host().HasTooltip(), "stationary passive tooltip auto-hides after the five-second display lifetime");
-
+    // The click released the mouse capture it took, and losing capture clears the tooltip.
     SendMessageW(window.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(40, 28));
-    Require(! window.Host().DebugGetPendingTooltipText().empty(), "pointer movement can schedule the passive tooltip again after auto-hide");
+    Require(! window.Host().DebugGetPendingTooltipText().empty(), "pointer movement can schedule the passive tooltip again after a click hid it");
     passiveRegion->SetTooltipText(L"Updated warning details: 3");
     SendMessageW(window.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(40, 28));
     Require(window.Host().DebugGetPendingTooltipText() == L"Updated warning details: 3",

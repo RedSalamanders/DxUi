@@ -15,7 +15,19 @@ function Set-DependencyFixture([string] $Root) {
                 originalSha256 = Get-Sha256Hex ([Text.Encoding]::UTF8.GetBytes("original`n")); originalBytes = 9
             }) }
     Set-FixtureJson $Root 'Specs/Done/SourceImport/pending-dependencies.json' @{ schemaVersion = 1; files = @() }
+    # A consumer interface of one of each kind of entry.
+    Set-FixtureJson $Root 'capabilities.json' @{ apiRevision = 3; consumerInterface = @{
+            scripts = @{ 'install.ps1' = @('Platform', 'OutputRoot') }
+            modules = @{ 'Tools/Consumer.psm1' = @{ 'Get-ConsumerIdentity' = @('Root') } }
+            msbuild = @('Build/Consumer.props'); headers = @('include/DxUi')
+        } }
+    Set-FixtureFile $Root 'install.ps1' "param([string] `$Platform, [string] `$OutputRoot)`n"
+    Set-FixtureFile $Root 'Tools/Consumer.psm1' "function Get-ConsumerIdentity([string] `$Root) { }`nfunction Get-Internal { }`nExport-ModuleMember -Function Get-ConsumerIdentity`n"
+    Set-FixtureFile $Root 'Build/Consumer.props' "<Project />`n"
+    Set-FixtureFile $Root 'include/DxUi/DxUi.h' "#pragma once`n"
 }
+
+function Get-DependencyFailures([string] $Root) { return , [string[]]@((Test-DxUiDependencies $Root).Failures) }
 
 function Set-Origin([string] $Root, [hashtable] $Changes) {
     $manifest = Get-FixtureJson $Root 'Specs/Done/SourceImport/source-origin.json'
@@ -153,6 +165,57 @@ Invoke-FixtureCase 'in a checkout the path budget covers what a commit would hol
     Assert-Equal 0 (Get-DependencyFailureCount $root) 'ignored build output is not checked'
     Set-FixtureFile $root ('Samples/' + ('e' * 143)) "not yet added`n"
     Assert-Equal 1 (Get-DependencyFailureCount $root) 'an untracked file a commit would add is checked'
+}
+
+Invoke-FixtureCase 'a consumer script that is removed or loses a parameter a consumer passes is rejected' {
+    param($root)
+    Set-DependencyFixture $root
+    Assert-Equal 0 (Get-DependencyFailureCount $root) 'the complete interface passes'
+    Set-FixtureFile $root 'install.ps1' "param([string] `$Platform, [string] `$OutputRoot, [switch] `$Clean)`n"
+    Assert-Equal 0 (Get-DependencyFailureCount $root) 'a new parameter is an addition'
+    Set-FixtureFile $root 'install.ps1' "param([string] `$Platform, [string] `$Output)`n"
+    $failures = Get-DependencyFailures $root
+    Assert-Equal 1 $failures.Count 'one failure'
+    Assert-Equal 'Consumer script install.ps1 has no -OutputRoot parameter' $failures[0] 'the renamed parameter is named'
+    Remove-Item -LiteralPath (Join-Path $root 'install.ps1')
+    Assert-Contains (Get-DependencyFailures $root) 'Consumer script is missing: install.ps1' 'the removed script is named'
+}
+
+Invoke-FixtureCase 'a consumer function that stops being exported or loses a parameter is rejected' {
+    param($root)
+    Set-DependencyFixture $root
+    Set-FixtureFile $root 'Tools/Consumer.psm1' "function Get-ConsumerIdentity([string] `$Root) { }`nExport-ModuleMember -Function Get-Internal`n"
+    Assert-Contains (Get-DependencyFailures $root) 'Consumer module Tools/Consumer.psm1 does not export Get-ConsumerIdentity' 'an unexported function'
+    Set-FixtureFile $root 'Tools/Consumer.psm1' "function Get-ConsumerIdentity { param([string] `$Path) }`n"
+    Assert-Contains (Get-DependencyFailures $root) 'Consumer function Get-ConsumerIdentity in Tools/Consumer.psm1 has no -Root parameter' 'a renamed parameter of a function without Export-ModuleMember, which exports every function'
+    Set-FixtureFile $root 'Tools/Consumer.psm1' "function get-consumeridentity { param([string] `$root) }`nExport-ModuleMember -Function @('GET-CONSUMERIDENTITY')`n"
+    Assert-Equal 0 (Get-DependencyFailureCount $root) 'names compare as PowerShell binds them, ignoring case'
+    Remove-Item -LiteralPath (Join-Path $root 'Tools/Consumer.psm1')
+    Assert-Contains (Get-DependencyFailures $root) 'Consumer module is missing: Tools/Consumer.psm1' 'the removed module is named'
+}
+
+Invoke-FixtureCase 'a missing consumer MSBuild file or header root, or an API revision that is not a positive integer, is rejected' {
+    param($root)
+    Set-DependencyFixture $root
+    Remove-Item -LiteralPath (Join-Path $root 'Build/Consumer.props')
+    Assert-Contains (Get-DependencyFailures $root) 'Consumer entry point is missing: Build/Consumer.props' 'the MSBuild file'
+    Set-DependencyFixture $root
+    Remove-Item -LiteralPath (Join-Path $root 'include/DxUi') -Recurse
+    Assert-Contains (Get-DependencyFailures $root) 'Consumer entry point is missing: include/DxUi' 'the header root'
+    Set-DependencyFixture $root
+    $capabilities = Get-FixtureJson $root 'capabilities.json'
+    foreach ($revision in @('3', 0)) {
+        $capabilities['apiRevision'] = $revision
+        Set-FixtureJson $root 'capabilities.json' $capabilities
+        Assert-Contains (Get-DependencyFailures $root) 'capabilities.json needs a positive integer apiRevision' "revision <$revision>"
+    }
+    $capabilities['apiRevision'] = 3
+    $capabilities.Remove('consumerInterface')
+    Set-FixtureJson $root 'capabilities.json' $capabilities
+    Assert-Contains (Get-DependencyFailures $root) 'capabilities.json needs a consumerInterface object' 'no interface'
+    $capabilities['consumerInterface'] = @{ scripts = @{ '../outside.ps1' = @() }; modules = @{}; msbuild = @(); headers = @() }
+    Set-FixtureJson $root 'capabilities.json' $capabilities
+    Assert-Contains (Get-DependencyFailures $root) 'Consumer script is missing: ../outside.ps1' 'a path outside the repository'
 }
 
 Invoke-FixtureCase 'every validation step runs and every failure is reported' {

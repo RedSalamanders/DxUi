@@ -2,7 +2,9 @@
 
 Install Visual Studio 2026 with the Desktop development with C++ workload, v145, Windows SDK 10.0.26100,
 and the Clang tools for formatting. Use Windows 10/11, Unicode, `stdcpplatest`, and a matching x64 or ARM64 target.
-Git restores the repository-pinned vcpkg/WIL dependency. The build, test and validation tools are
+Git restores the repository-pinned vcpkg/WIL dependency, and vcpkg builds it with the Visual Studio installation and
+default MSVC toolset that MSBuild uses (not the newest toolset it finds); the first restore after a change of either
+rebuilds it. The build, test and validation tools are
 [PowerShell 7 scripts](../Tools/README.md) with no other runtime. Formatting needs clang-format 22.1.3: when Visual
 Studio's is another version, `Tools/Install-ClangFormat.ps1` fetches the checksum-pinned one.
 
@@ -20,7 +22,7 @@ Use `-Platform ARM64` to cross-build on x64; execute those binaries on a native 
 
 ## Consume the library
 
-Pin a tested full Git commit, API revision **2** and target `["DxUi"]` in the consumer's
+Pin a tested full Git commit, API revision **3** and target `["DxUi"]` in the consumer's
 `Dependencies/DxUi.lock.json`. Follow the exact schema and fingerprint validation in
 [the consumption contract](../Specs/Build/Build_ToolchainAndConsumption.md) and
 [consumer validator](../Tools/validate_consumer.ps1); branch names are not release pins.
@@ -34,13 +36,23 @@ New-Item -ItemType Directory -Path Dependencies -Force | Out-Null
 @{
     repository = 'https://github.com/RedSalamanders/DxUi'
     commit = $revision
-    apiRevision = 2
+    apiRevision = 3
     targets = @('DxUi')
 } | ConvertTo-Json | Set-Content Dependencies/DxUi.lock.json -Encoding utf8
 ```
 
 The validator checks repository identity, exact commit, clean source, API revision and target. The consumer must
 also preserve the toolchain/dependency fingerprint in its build evidence/output root as required by the contract.
+
+Call or import only what [capabilities.json](../capabilities.json) lists under `consumerInterface`:
+- the scripts, with their parameters;
+- the module functions, with their parameters;
+- the MSBuild files;
+- the public headers.
+
+Other repository tools may change in any commit. The API revision increments whenever a pinned consumer could otherwise break;
+the changelog then lists what to change. [Compatibility and the consumer interface](../Specs/Build/Build_ToolchainAndConsumption.md#compatibility-and-the-consumer-interface)
+has the rule.
 
 Set `DxUiRoot`, `DxUiConsumerLockFile`, and an isolated `DxUiConsumerOutputRoot` before importing
 [DxUi.Consumer.props](../Build/DxUi.Consumer.props) after `Microsoft.Cpp.props`, then

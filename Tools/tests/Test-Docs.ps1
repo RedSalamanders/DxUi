@@ -113,6 +113,8 @@ function Set-SpecsFixture([string] $Root) {
         'docs/samples.md', 'Measurements/README.md')
     foreach ($name in $authority) { Set-FixtureFile $Root $name "# $name`n" }
     Set-FixtureFile $Root 'Specs/Plans/WIP/README.md' "# Active plans`n"
+    Set-FixtureFile $Root 'Changes/README.md' "# Changelog fragments`n"
+    Set-FixtureFile $Root 'CHANGELOG.md' "# Changelog`n`n## Unreleased`n`n- An earlier change.`n"
     Set-DocsFixture $Root
     Set-DesignSystemFixture $Root
 }
@@ -160,6 +162,78 @@ Invoke-FixtureCase 'measurement receipts of a nested checkout are not this tree'
     Assert-True (Test-DxUiMeasurements $root).Failures.Count 'an application receipt in the tree fails'
     Set-FixtureFile $root 'Measurements/other/.git' "gitdir: elsewhere`n"
     Assert-Equal 0 (Test-DxUiMeasurements $root).Failures.Count 'the same receipt in a nested checkout is not this tree''s'
+}
+
+# --- Changelog fragments ---------------------------------------------------------------------------------------------------
+
+Import-Module (Join-Path $PSScriptRoot '../Changelog.psm1') -Force
+$foldChangelog = Join-Path ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))) 'Tools/Fold-Changelog.ps1'
+
+function Set-ChangelogFixture([string] $Root) {
+    Set-FixtureFile $Root 'Changes/README.md' "# Changelog fragments`n"
+    Set-FixtureFile $Root 'CHANGELOG.md' "# Changelog`n`nNew entries start as fragments.`n`n## Unreleased`n`n- An earlier change.`n  Its second line.`n"
+}
+
+Invoke-FixtureCase 'a changelog fragment is one dated bullet' {
+    param($root)
+    Set-ChangelogFixture $root
+    Set-FixtureFile $root 'Changes/2026-10-01-a-change.md' "- A change.`n  - A detail of it.`n  Its last line.`n"
+    $result = Test-DxUiChangelog $root
+    Assert-Equal 0 $result.Failures.Count "a well-formed fragment passes: $($result.Failures -join '; ')"
+    $cases = [ordered]@{
+        'notes.md'                    = "- Fine.`n"
+        '2026-13-01-month.md'         = "- Fine.`n"
+        '2026-10-01-Upper.md'         = "- Fine.`n"
+        '2026-10-01-two-entries.md'   = "- One.`n- Two.`n"
+        '2026-10-01-no-bullet.md'     = "A paragraph.`n"
+        '2026-10-01-empty.md'         = ''
+        '2026-10-01-unindented.md'    = "- One.`nA second line at the margin.`n"
+    }
+    foreach ($name in $cases.Keys) {
+        Remove-Item -LiteralPath (Join-Path $root 'Changes') -Recurse -Force
+        Set-ChangelogFixture $root
+        Set-FixtureFile $root "Changes/$name" $cases[$name]
+        $failures = @((Test-DxUiChangelog $root).Failures)
+        Assert-Equal 1 $failures.Count "one failure for ${name}: $($failures -join '; ')"
+        Assert-True $failures[0].StartsWith("Changelog fragment ${name}:") "the failure names the fragment: $($failures[0])"
+    }
+    Remove-Item -LiteralPath (Join-Path $root 'Changes/README.md')
+    Assert-Contains (Test-DxUiChangelog $root).Failures 'Changes/README.md must explain changelog fragments' 'the convention needs its README'
+    Set-ChangelogFixture $root
+    Set-FixtureFile $root 'CHANGELOG.md' "# Changelog`n"
+    Assert-True (Test-DxUiChangelog $root).Failures.Count 'the changelog keeps its Unreleased heading'
+}
+
+Invoke-FixtureCase 'folding puts the fragments newest first under Unreleased and removes them' {
+    param($root)
+    Set-ChangelogFixture $root
+    Set-FixtureFile $root 'Changes/2026-09-30-older.md' "- Older.`n"
+    Set-FixtureFile $root 'Changes/2026-10-01-b-later.md' "- Later, b.`n  With a second line.`n"
+    Set-FixtureFile $root 'Changes/2026-10-01-a-later.md' "- Later, a.`n"
+    & $foldChangelog -Root $root 6>$null
+    $expected = "# Changelog`n`nNew entries start as fragments.`n`n## Unreleased`n`n- Later, b.`n  With a second line.`n- Later, a.`n- Older.`n- An earlier change.`n  Its second line.`n"
+    Assert-Equal $expected ([IO.File]::ReadAllText((Join-Path $root 'CHANGELOG.md'))) 'the newest fragments come first, above the earlier entries'
+    Assert-Equal 1 @(Get-ChildItem -LiteralPath (Join-Path $root 'Changes') -File).Count 'only the README remains'
+}
+
+Invoke-FixtureCase 'a fold without fragments, or with a malformed one, changes nothing' {
+    param($root)
+    Set-ChangelogFixture $root
+    $before = [IO.File]::ReadAllText((Join-Path $root 'CHANGELOG.md'))
+    & $foldChangelog -Root $root 6>$null
+    Assert-Equal $before ([IO.File]::ReadAllText((Join-Path $root 'CHANGELOG.md'))) 'no fragments, no change'
+    Set-FixtureFile $root 'Changes/2026-10-01-good.md' "- Good.`n"
+    Set-FixtureFile $root 'Changes/2026-10-01-bad.md' "- One.`n- Two.`n"
+    Assert-Throws { & $foldChangelog -Root $root 6>$null } 'a malformed fragment stops the fold'
+    Assert-Equal $before ([IO.File]::ReadAllText((Join-Path $root 'CHANGELOG.md'))) 'the changelog is untouched'
+    Assert-Equal 3 @(Get-ChildItem -LiteralPath (Join-Path $root 'Changes') -File).Count 'and no fragment was removed'
+}
+
+Invoke-TestCase 'merging keeps the changelog''s own line endings' {
+    $fragments = @([pscustomobject]@{ Name = '2026-10-01-x.md'; Text = "- New.`n  Two.`n" })
+    $merged = Merge-ChangelogFragments "# Changelog`r`n`r`n## Unreleased`r`n`r`n- Old.`r`n" $fragments
+    Assert-Equal "# Changelog`r`n`r`n## Unreleased`r`n`r`n- New.`r`n  Two.`r`n- Old.`r`n" $merged 'CRLF in, CRLF out'
+    Assert-Throws { Merge-ChangelogFragments "# Changelog`n" $fragments } 'a changelog without the heading is refused'
 }
 
 # --- Publishing docs/gallery from a manual workflow ------------------------------------------------------------------------

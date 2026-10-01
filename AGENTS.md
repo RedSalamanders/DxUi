@@ -52,6 +52,8 @@ The repository is public and its default branch is `main`. Use focused feature b
 Use one indexed WIP plan for multi-step changes. Current intended behavior belongs in domain contracts; implemented
 support and remaining gates are explicit. When implementation/tests pass, update normative requirements and move
 the completed plan to Done. Do not leave a completed plan under WIP or close a deferred consumer migration early.
+Record each change's changelog entry as one fragment under `Changes/` (see its README), never by editing
+`CHANGELOG.md`. The WIP index keeps one blank-line-separated entry per plan.
 
 Run `validate.ps1` (the five `validate-*.ps1` validators and `Tools/tests/Invoke-ToolingTests.ps1`, reporting every
 failure before it fails) and `format.ps1 -Check` for relevant changes. Repository tooling is PowerShell only, and

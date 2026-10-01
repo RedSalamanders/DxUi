@@ -6,11 +6,14 @@
 
 #include <array>
 #include <atomic>
+#include <concepts>
 #include <cstdint>
 #include <fstream>
 #include <future>
 #include <string_view>
 #include <thread>
+#include <type_traits>
+#include <utility>
 
 namespace
 {
@@ -3446,12 +3449,184 @@ void TestWindowHostEarlierGainsTurnEndMessageDoesNotEndALaterTurn()
     Require(host.DebugIsInFocusGainTurn(), "the later gain starts a turn");
 
     MSG earlier{};
-    Require(PeekMessageW(&earlier, test.window.Hwnd(), WndMsg::kWindowHostFocusGainTurnEnd, WndMsg::kWindowHostFocusGainTurnEnd, PM_REMOVE) != FALSE,
+    const WndMsg::RegisteredMessage turnEnd = WndMsg::WindowHostFocusGainTurnEnd();
+    Require(turnEnd && PeekMessageW(&earlier, test.window.Hwnd(), turnEnd.value, turnEnd.value, PM_REMOVE) != FALSE,
             "the earlier gain's message is queued first");
     static_cast<void>(DispatchQueuedMessageForTest(earlier));
     Require(host.DebugIsInFocusGainTurn(), "the earlier gain's message does not end the later turn");
     test.window.PumpMessages();
     Require(! host.DebugIsInFocusGainTurn(), "the later gain's own message ends it");
+}
+
+// DxUi registers each of its private messages by name, so each has a value of its own from 0xC000-0xFFFF: never WM_NULL,
+// and never one an application gives its own messages (WM_USER and WM_APP values lie below 0xC000). Each accessor returns
+// the value its documented name registers, the same on every call. A failed registration cannot be caused here without
+// hooking RegisterWindowMessageW (filling the session's atom table, the only other way, would break every application of
+// the session), so its contract is checked on the type instead: a failed message is falsy, so no sender posts or sends
+// it; Matches recognizes no message for it, WM_NULL included; and a message does not compare with a message value, so a
+// receiver cannot test one without Matches.
+void TestDxUiPrivateMessagesAreRegisteredDistinctAndNeverWmNull()
+{
+    using DxUi::WndMsg::RegisteredMessage;
+    static_assert(! std::is_convertible_v<RegisteredMessage, UINT>, "a registered message never stands in for a message value");
+    static_assert(! std::equality_comparable_with<RegisteredMessage, UINT>, "a receiver recognizes a registered message only through Matches");
+
+    const RegisteredMessage failed{};
+    Require(! failed, "a failed registration is falsy, so no sender posts or sends it");
+    Require(! failed.Matches(WM_NULL), "a failed registration does not match WM_NULL");
+    Require(! failed.Matches(WM_APP) && ! failed.Matches(0xC000u), "a failed registration matches no message at all");
+    const RegisteredMessage registered{0xC123u};
+    Require(registered && registered.Matches(0xC123u), "a registered message matches its own value");
+    Require(! registered.Matches(WM_NULL) && ! registered.Matches(0xC124u), "a registered message matches no other value");
+
+    struct Accessor final
+    {
+        std::string_view name;
+        RegisteredMessage (*get)() noexcept = nullptr;
+    };
+    const std::array<Accessor, 16> accessors = {{
+        {"RedSalamanders.DxUi.WindowHost.FocusGainTurnEnd.v1", &DxUi::WndMsg::WindowHostFocusGainTurnEnd},
+        {"RedSalamanders.DxUi.WindowHost.ProcessExitDetach.v1", &DxUi::WndMsg::WindowHostProcessExitDetach},
+        {"RedSalamanders.DxUi.Accessibility.UiThreadAction.v1", &DxUi::WndMsg::AccessibilityUiThreadAction},
+        {"RedSalamanders.DxUi.Accessibility.CreateProvider.v1", &DxUi::WndMsg::AccessibilityCreateProvider},
+        {"RedSalamanders.DxUi.ContextMenu.RootHoverChanged.v1", &DxUi::WndMsg::ContextMenuRootHoverChanged},
+        {"RedSalamanders.DxUi.MenuPopup.AccessibleInvoke.v1", &DxUi::WndMsg::MenuPopupAccessibleInvoke},
+        {"RedSalamanders.DxUi.MenuPopup.AccessibleFocus.v1", &DxUi::WndMsg::MenuPopupAccessibleFocus},
+        {"RedSalamanders.DxUi.MenuPopup.DeferredFinalize.v1", &DxUi::WndMsg::MenuPopupDeferredFinalize},
+        {"RedSalamanders.DxUi.MenuPopup.ForwardCursor.v1", &DxUi::WndMsg::MenuPopupForwardCursor},
+        {"RedSalamanders.DxUi.MenuPopup.DebugCaptureBitmap.v1", &DxUi::WndMsg::MenuPopupDebugCaptureBitmap},
+        {"RedSalamanders.DxUi.MenuPopup.DebugGetItemText.v1", &DxUi::WndMsg::MenuPopupDebugGetItemText},
+        {"RedSalamanders.DxUi.MenuPopup.DebugSetBackdrop.v1", &DxUi::WndMsg::MenuPopupDebugSetBackdrop},
+        {"RedSalamanders.DxUi.MenuPopup.DebugGetState.v1", &DxUi::WndMsg::MenuPopupDebugGetState},
+        {"RedSalamanders.DxUi.MenuPopup.DebugGetItemRect.v1", &DxUi::WndMsg::MenuPopupDebugGetItemRect},
+        {"RedSalamanders.DxUi.MenuPopup.DebugGetItemPaint.v1", &DxUi::WndMsg::MenuPopupDebugGetItemPaint},
+        {"RedSalamanders.DxUi.TextInputServices.DeferredLock.v1", &DxUi::WndMsg::TextInputServicesDeferredLock},
+    }};
+    std::vector<UINT> values;
+    for (const Accessor& accessor : accessors)
+    {
+        const RegisteredMessage message = accessor.get();
+        const std::wstring name(accessor.name.begin(), accessor.name.end());
+        Require(message.value >= 0xC000u && message.value <= 0xFFFFu, std::format("{} is a registered message (0xC000-0xFFFF)", accessor.name).c_str());
+        Require(message.value == RegisterWindowMessageW(name.c_str()), std::format("{} is the message its name registers", accessor.name).c_str());
+        Require(accessor.get().value == message.value, std::format("{} returns its cached value on every call", accessor.name).c_str());
+        values.push_back(message.value);
+    }
+    std::ranges::sort(values);
+    Require(std::ranges::adjacent_find(values) == values.end(), "no two DxUi private messages share a value");
+}
+
+// Before DxUi registered its messages they were WM_APP + 0x6A through 0x6D and WM_APP + 0x539, values an application also
+// gives its own messages on the window it shares with DxUi (RedSalamander's test message at WM_APP + 0x6A was DxUi's
+// accessibility action). Now an application message at each of them, sent or posted, reaches the window procedure with its
+// parameters after HandleMessage, which neither consumes it nor acts on it: the host stays attached, no root provider is
+// stored through lParam, none of the application's posted payloads is taken, and the turn of a focus gain runs on until
+// its own registered message ends it.
+void TestWindowHostLeavesApplicationMessagesAtDxUisFormerValuesToTheApplication()
+{
+    using namespace DxUi;
+    struct Delivery final
+    {
+        UINT message  = 0u;
+        WPARAM wParam = 0u;
+        LPARAM lParam = 0;
+    };
+    struct PayloadProbe final
+    {
+        bool* destroyed = nullptr;
+        ~PayloadProbe()
+        {
+            *destroyed = true;
+        }
+    };
+    // Static, so the handler below sees one array: MSVC used separate copies of a non-static constexpr local there.
+    static constexpr std::array<UINT, 5> kFormerValues = {WM_APP + 0x06Au, WM_APP + 0x06Bu, WM_APP + 0x06Cu, WM_APP + 0x06Du, WM_APP + 0x539u};
+    constexpr UINT kApplicationPayloadMessage          = WM_APP + 0x0A0u;
+    constexpr LRESULT kApplicationAnswer               = 0x5EED;
+    std::vector<Delivery> delivered;
+    bool payloadDestroyed = false;
+
+    AttachedHostWindow window;
+    auto root = std::make_unique<Panel>();
+    root->AddChild<Button>(L"Premier bouton")->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    window.Host().SetRoot(std::move(root));
+    window.SetApplicationMessageHandler([&](UINT message, WPARAM wParam, LPARAM lParam, LRESULT& result)
+    {
+        if (! std::ranges::contains(kFormerValues, message))
+            return false;
+        delivered.push_back(Delivery{message, wParam, lParam});
+        result = kApplicationAnswer;
+        return true;
+    });
+    window.PumpMessages();
+
+    // A focus gain posts its registered turn-end message, which names the turn in wParam.
+    SendMessageW(window.Hwnd(), WM_SETFOCUS, 0, 0);
+    Require(window.Host().DebugIsInFocusGainTurn(), "the focus gain starts its turn");
+    const WndMsg::RegisteredMessage turnEnd = WndMsg::WindowHostFocusGainTurnEnd();
+    MSG gain{};
+    Require(turnEnd && PeekMessageW(&gain, window.Hwnd(), turnEnd.value, turnEnd.value, PM_NOREMOVE) != FALSE,
+            "the focus gain posts its registered turn-end message");
+
+    // A payload of the application's own, which the former accessibility action took when its lParam named it.
+    auto probe       = std::make_unique<PayloadProbe>();
+    probe->destroyed = &payloadDestroyed;
+    Require(PostMessagePayload(window.Hwnd(), kApplicationPayloadMessage, 0, std::move(probe)), "the application posts a payload to its window");
+    MSG payload{};
+    Require(PeekMessageW(&payload, window.Hwnd(), kApplicationPayloadMessage, kApplicationPayloadMessage, PM_REMOVE) != FALSE,
+            "the application's payload message is queued");
+
+    IRawElementProviderFragmentRoot* storedProvider = nullptr;
+    const std::array<Delivery, 5> messages          = {{
+        {WM_APP + 0x06Au, 0u, payload.lParam},                            // The former accessibility action took the payload lParam named.
+        {WM_APP + 0x06Bu, 0u, reinterpret_cast<LPARAM>(&storedProvider)}, // The former provider creation stored a root through lParam.
+        {WM_APP + 0x06Cu, 0u, 0},                                         // The former process-exit detach.
+        {WM_APP + 0x06Du, gain.wParam, 0},                                // The former turn end, naming the turn that runs.
+        {WM_APP + 0x539u, 1u, 2},                                         // The former menu-bar hover: item 1, sequence 2.
+    }};
+    const auto requireDelivered                     = [&](const char* how)
+    {
+        Require(delivered.size() == messages.size(),
+                std::format("every application message {} at a former DxUi value reaches the window procedure", how).c_str());
+        for (size_t index = 0u; index < messages.size(); ++index)
+        {
+            const Delivery& expected = messages[index];
+            const Delivery& actual   = delivered[index];
+            Require(actual.message == expected.message && actual.wParam == expected.wParam && actual.lParam == expected.lParam,
+                    std::format("the application message {} at WM_APP + {:#x} reaches the window procedure with its parameters", how, expected.message - WM_APP)
+                        .c_str());
+        }
+    };
+
+    for (const Delivery& message : messages)
+    {
+        Require(SendMessageW(window.Hwnd(), message.message, message.wParam, message.lParam) == kApplicationAnswer,
+                std::format("the application's procedure answers its message sent at WM_APP + {:#x}", message.message - WM_APP).c_str());
+    }
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> stored;
+    stored.attach(std::exchange(storedProvider, nullptr)); // Releases a root that a receiver of the former value stored.
+    requireDelivered("sent");
+    // The detach check comes first: a detach also drains the window's posted payloads.
+    Require(window.Host().GetHwnd() == window.Hwnd(), "the former process-exit value detaches nothing");
+    Require(stored == nullptr, "no root provider is stored through the lParam of the former provider-creation value");
+    Require(! payloadDestroyed, "the former accessibility-action value takes none of the application's payloads");
+    Require(window.Host().DebugIsInFocusGainTurn(), "the former turn-end value ends no turn");
+    Require(TakeMessagePayload<PayloadProbe>(payload.lParam) != nullptr, "the application takes its own payload back");
+    Require(payloadDestroyed, "the application's payload is destroyed once taken back");
+
+    // Posted, they reach the application through the message loop too, after the gain's own message has ended its turn.
+    delivered.clear();
+    for (const Delivery& message : messages)
+    {
+        Require(PostMessageW(window.Hwnd(), message.message, message.wParam, message.lParam) != FALSE,
+                "the application posts its message at a former DxUi value");
+    }
+    window.PumpMessages();
+    stored.attach(std::exchange(storedProvider, nullptr));
+    requireDelivered("posted");
+    Require(stored == nullptr, "no root provider is stored through the lParam of a posted former provider-creation value");
+    Require(! window.Host().DebugIsInFocusGainTurn(), "the gain's own registered message ends its turn");
+    Require(window.Host().GetHwnd() == window.Hwnd(), "the host stays attached");
 }
 
 } // namespace
@@ -3503,6 +3678,8 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostGainOfAWindowAskedBeforeIsAnnouncedWhenItsTurnEnds);
     DXUI_RUN_TEST(TestWindowHostEndOfAGainTurnAnnouncesOnlyWhatNothingElseReports);
     DXUI_RUN_TEST(TestWindowHostEarlierGainsTurnEndMessageDoesNotEndALaterTurn);
+    DXUI_RUN_TEST(TestDxUiPrivateMessagesAreRegisteredDistinctAndNeverWmNull);
+    DXUI_RUN_TEST(TestWindowHostLeavesApplicationMessagesAtDxUisFormerValuesToTheApplication);
     DXUI_RUN_TEST(TestWindowHostReturnInvokesDefaultButtonWhenFocusedControlDoesNotOwnEnter);
     DXUI_RUN_TEST(TestWindowHostReturnInvokesDefaultButtonWhenNoControlIsFocused);
     DXUI_RUN_TEST(TestWindowHostReturnDoesNotInvokeDefaultButtonWhenFocusedControlOwnsEnter);
