@@ -273,14 +273,17 @@ bool WaitForContextMenuPopupBitmapCapture(HWND popupHwnd,
                                           std::chrono::milliseconds timeout = std::chrono::milliseconds(5000))
 {
     const auto deadline = std::chrono::steady_clock::now() + timeout;
+    std::chrono::milliseconds longestProbe{};
     do
     {
         // Popup creation first exposes a hidden 1x1 measurement HWND. Cross-thread SendMessage can run during
         // initialization, so only capture the visible, sized popup used for the material comparison.
         // The bitmap dimensions are physical pixels. Do not compare them with a client rectangle queried
         // by this driver thread, whose DPI-awareness context may virtualize that rectangle.
-        if (IsWindowVisible(popupHwnd) && DxUi::DebugCaptureContextMenuPopupBitmap(popupHwnd, outCapture) && outCapture.widthPx > 1u &&
-            outCapture.heightPx > 1u && ! outCapture.bgraPixels.empty())
+        const auto probeStarted = std::chrono::steady_clock::now();
+        const bool captured     = IsWindowVisible(popupHwnd) && DxUi::DebugCaptureContextMenuPopupBitmap(popupHwnd, outCapture);
+        longestProbe = (std::max)(longestProbe, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - probeStarted));
+        if (captured && outCapture.widthPx > 1u && outCapture.heightPx > 1u && ! outCapture.bgraPixels.empty())
         {
             return true;
         }
@@ -288,8 +291,10 @@ bool WaitForContextMenuPopupBitmapCapture(HWND popupHwnd,
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     } while (std::chrono::steady_clock::now() < deadline);
 
+    // A probe the popup thread does not answer fails at its three-second bound, so a longest probe of about 3000 ms says that
+    // thread stopped answering.
     std::cerr << "Popup capture readiness timeout: visible=" << IsWindowVisible(popupHwnd) << " dpi=" << GetDpiForWindow(popupHwnd)
-              << " bitmap=" << outCapture.widthPx << 'x' << outCapture.heightPx << '\n';
+              << " bitmap=" << outCapture.widthPx << 'x' << outCapture.heightPx << " longestProbeMs=" << longestProbe.count() << '\n';
     return false;
 }
 
@@ -1019,6 +1024,90 @@ void TestContextMenuDebugStateProbeBoundsWedgedWindowThread()
     Require(wedgedElapsed >= std::chrono::milliseconds(900) && wedgedElapsed < std::chrono::milliseconds(1800),
             "wedged menu debug-state probe returns within the bounded test timeout");
     Require(! result.has_value(), "dismissed menu debug-state timeout popup returns no command");
+}
+
+// A probe sent to a popup whose thread has stopped answering (wedged here in the state probe's handler for four seconds) fails
+// within its three-second bound instead of holding its driver for good, and a capture answers again once the thread runs. Before
+// the bound, a capture whose popup thread never answered held the driver, and so the open menu, until the watchdog ended the run.
+void TestContextMenuDebugCaptureBoundsWedgedWindowThread()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow ownerWindow;
+    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 220, SWP_NOZORDER);
+    if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+    {
+        SkipDxUiTest("DxUi menu debug-probe timeout requires an interactive desktop");
+        return;
+    }
+
+    wil::unique_event_nothrow handlerEntered;
+    handlerEntered.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(handlerEntered != nullptr, "menu debug-probe timeout test creates the handler-entered event");
+    wil::unique_event_nothrow releaseHandler;
+    releaseHandler.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(releaseHandler != nullptr, "menu debug-probe timeout test creates the release event");
+
+    std::string driverFailure;
+    bool wedgedCaptureFailed      = false;
+    bool unwedgedCaptureSucceeded = false;
+    std::chrono::milliseconds wedgedElapsed{};
+    std::thread releaser([&]
+    {
+        if (WaitForSingleObject(handlerEntered.get(), 3000u) == WAIT_OBJECT_0)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+        }
+        static_cast<void>(SetEvent(releaseHandler.get()));
+    });
+    std::thread wedger;
+    std::thread driver([&]
+    {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+        const HWND popupHwnd    = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Capture probe");
+        WindowHostBitmapCapture capture{};
+        if (! popupHwnd || ! WaitForContextMenuPopupBitmapCapture(popupHwnd, capture))
+        {
+            driverFailure = "menu debug-probe timeout popup appears and answers a capture";
+            return;
+        }
+
+        // A state probe whose handler waits for the release wedges the popup thread; the capture is sent while it waits.
+        DebugSetContextMenuStateProbeStallForTest(handlerEntered.get(), releaseHandler.get());
+        wedger = std::thread([popupHwnd]
+        {
+            ContextMenuPopupDebugState state{};
+            static_cast<void>(DebugGetContextMenuPopupState(popupHwnd, state));
+        });
+        if (WaitForSingleObject(handlerEntered.get(), 3000u) != WAIT_OBJECT_0)
+        {
+            driverFailure = "the state probe wedges the popup thread";
+            return;
+        }
+        const auto started       = std::chrono::steady_clock::now();
+        wedgedCaptureFailed      = ! DebugCaptureContextMenuPopupBitmap(popupHwnd, capture);
+        wedgedElapsed            = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started);
+        unwedgedCaptureSucceeded = WaitForContextMenuPopupBitmapCapture(popupHwnd, capture);
+    });
+
+    const std::vector<MenuFlyoutItem> items{{.text = L"Capture probe", .enabled = true, .commandId = 91502}};
+    const POINT menuAnchor          = ClientScreenPointForTest(ownerWindow.Hwnd(), 24, 60, "menu debug-probe timeout anchor converts to screen coordinates");
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), menuAnchor, items, ownerWindow.Host().GetTheme());
+    driver.join();
+    if (wedger.joinable())
+    {
+        wedger.join();
+    }
+    releaser.join();
+    DebugSetContextMenuStateProbeStallForTest(nullptr, nullptr);
+
+    Require(driverFailure.empty(), driverFailure.c_str());
+    Require(wedgedCaptureFailed, "a capture sent to a wedged popup thread returns failure");
+    Require(wedgedElapsed >= std::chrono::milliseconds(2900) && wedgedElapsed < std::chrono::milliseconds(3900),
+            "a capture sent to a wedged popup thread returns at its three-second bound, before the thread is released");
+    Require(unwedgedCaptureSucceeded, "a capture answers again once the popup thread runs");
+    Require(! result.has_value(), "dismissed menu debug-probe timeout popup returns no command");
 }
 
 // A driver whose wait for its popup timed out returns without one to dismiss, and a popup that merely came up late then stays
@@ -7785,6 +7874,7 @@ void RunMenuTests()
     runTest("TestPointerInputEventButtonUsesDeliveredPointAndFlags", TestPointerInputEventButtonUsesDeliveredPointAndFlags);
     runTest("TestPointerInputEventWheelUsesDeliveredScreenPoint", TestPointerInputEventWheelUsesDeliveredScreenPoint);
     runTest("TestContextMenuDebugStateProbeBoundsWedgedWindowThread", TestContextMenuDebugStateProbeBoundsWedgedWindowThread);
+    runTest("TestContextMenuDebugCaptureBoundsWedgedWindowThread", TestContextMenuDebugCaptureBoundsWedgedWindowThread);
     runTest("TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen", TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen);
     runTest("TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion", TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion);
     runTest("TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets", TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets);
