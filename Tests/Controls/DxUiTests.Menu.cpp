@@ -7363,7 +7363,10 @@ void TestMenuSurvivesAWindowClosingItFromSetCursor()
     closingClass.hInstance     = GetModuleHandleW(nullptr);
     closingClass.lpszClassName = kClosingWindowClass;
     Require(RegisterClassExW(&closingClass) != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS, "register the menu-closing window class");
-    wil::unique_hwnd closingWindow(CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
+    // Topmost, so an application that takes the foreground back while the suite runs (the desktop application hosting a
+    // developer's session does) cannot cover it: covered, the window would never be under the pointer and the test would
+    // only ever skip.
+    wil::unique_hwnd closingWindow(CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
                                                    kClosingWindowClass,
                                                    L"",
                                                    WS_POPUP | WS_VISIBLE,
@@ -7390,9 +7393,16 @@ void TestMenuSurvivesAWindowClosingItFromSetCursor()
     RECT closingRect{};
     Require(GetWindowRect(closingWindow.get(), &closingRect) != FALSE, "read the menu-closing window rectangle");
     const POINT overClosing{(closingRect.left + closingRect.right) / 2, (closingRect.top + closingRect.bottom) / 2};
-    if (WindowFromPoint(overClosing) != closingWindow.get())
+    if (const HWND covering = WindowFromPoint(overClosing); covering != closingWindow.get())
     {
-        SkipDxUiTest("another window covers the menu-closing window");
+        wchar_t className[128]{};
+        static_cast<void>(GetClassNameW(covering, className, static_cast<int>(std::size(className))));
+        const DWORD thread       = covering ? GetWindowThreadProcessId(covering, nullptr) : 0u;
+        const std::string reason = std::format("another window covers the menu-closing window: class '{}' of {}{}",
+                                               NarrowAsciiForFailureMessage(className),
+                                               DescribeThreadProcessForTest(thread),
+                                               thread == GetCurrentThreadId() ? ", this test's own thread" : "");
+        SkipDxUiTest(reason.c_str());
         return;
     }
     g_menuClosingCursorPopup = popup;

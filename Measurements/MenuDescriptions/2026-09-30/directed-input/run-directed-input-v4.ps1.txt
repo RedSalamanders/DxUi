@@ -1,0 +1,63 @@
+# The retained V4 directed-input runner (Measurements/GridTextOverflow/2026-09-21/qualification/interactive), rerun on this
+# machine from a main checkout: the same wrapper source, compiled the same way, against RedSalamander's
+# DirectedSelfTestInputWarning.h as of 8ab1d4781 (the one version with the TryActivateOwnedWindow helper the wrapper calls);
+# only the paths differ. Menu and NativeTextInput in x64 Debug, Release and ASan Debug; the first run that fails, skips or
+# does not restore stops the rest, so the desktop is not taken over again for nothing.
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$dxui      = 'D:\DxUi'
+$here      = $PSScriptRoot
+$evidence  = Join-Path $dxui '.build\directed-input\2026-09-30'
+New-Item -ItemType Directory -Force -Path $evidence | Out-Null
+
+# The wrapper source: the retained snapshot with its one include pointed at the extracted header.
+$snapshot = Get-Content -Raw (Join-Path $dxui 'Measurements\GridTextOverflow\2026-09-21\qualification\interactive\dxui-interactive-wrapper.cpp.txt')
+$header   = (Join-Path $here 'DirectedSelfTestInputWarning.h').Replace('\', '/')
+$source   = $snapshot.Replace('#include "Z:/src/RedSalamander/Tests/TestSupport/DirectedSelfTestInputWarning.h"', "#include `"$header`"")
+if ($source -eq $snapshot) { throw 'The wrapper include was not replaced' }
+$wrapperSource = Join-Path $evidence 'dxui-interactive-wrapper.cpp'
+[IO.File]::WriteAllText($wrapperSource, $source, [Text.UTF8Encoding]::new($false))
+Copy-Item -LiteralPath (Join-Path $here 'DirectedSelfTestInputWarning.h') -Destination (Join-Path $evidence 'DirectedSelfTestInputWarning.h') -Force
+
+# Compiled in a child shell with the Visual Studio developer environment, as V4 did.
+$wilInclude = Join-Path $dxui '.build\vcpkg_installed\x64\x64-windows\include'
+if (-not (Test-Path -LiteralPath (Join-Path $wilInclude 'wil\resource.h'))) { throw "wil not found under $wilInclude" }
+$wrapper = Join-Path $evidence 'dxui-interactive-wrapper.exe'
+$build = @"
+`$ErrorActionPreference = 'Stop'
+`$installationPath = & "`${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -prerelease -products '*' -property installationPath
+& "`$installationPath/Common7/Tools/Launch-VsDevShell.ps1" -Arch amd64 -HostArch amd64 -SkipAutomaticLocation *> '$evidence\wrapper-toolchain.log'
+& cl.exe /nologo /std:c++latest /EHsc /W4 /WX /utf-8 /I '$wilInclude' /Fo'$evidence\dxui-interactive-wrapper.obj' /Fe'$wrapper' '$wrapperSource' user32.lib gdi32.lib *> '$evidence\wrapper-build.log'
+exit `$LASTEXITCODE
+"@
+pwsh -NoProfile -NonInteractive -Command $build
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $wrapper)) { Get-Content (Join-Path $evidence 'wrapper-build.log') | Select-Object -Last 15; throw 'Input wrapper build failed' }
+"wrapper built: $wrapper"
+
+$receipts = @()
+foreach ($configuration in @('Debug', 'Release', 'ASan Debug')) {
+    foreach ($suite in @('Menu', 'NativeTextInput')) {
+        $name    = $configuration.Replace(' ', '-')
+        $exe     = Join-Path $dxui ".build\x64\$configuration\DxUi.ControlTests.exe"
+        $log     = Join-Path $evidence "dxui-main-input-v4-$name-$suite.log"
+        $command = '"{0}" --suite={1}' -f $exe, $suite
+        & $wrapper $command *> $log
+        $exitCode = $LASTEXITCODE
+        $text     = Get-Content -LiteralPath $log -Raw
+        $skips    = @(Select-String -LiteralPath $log -Pattern '^SKIPPED:').Count
+        $restored = $text -match 'Restoration: childFocus=1 priorTargetPresent=1 priorTargetValid=1 foreground=1 cursorSaved=1 cursorRestored=1'
+        $receipts += [ordered]@{
+            configuration = $configuration; suite = $suite; exitCode = $exitCode; skips = $skips; restored = $restored
+            completedUtc = [DateTime]::UtcNow.ToString('o')
+            executableSha256 = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
+            wrapperSha256 = (Get-FileHash -LiteralPath $wrapper -Algorithm SHA256).Hash
+            wrapperSourceSha256 = (Get-FileHash -LiteralPath $wrapperSource -Algorithm SHA256).Hash
+            warningHeaderSha256 = (Get-FileHash -LiteralPath (Join-Path $evidence 'DirectedSelfTestInputWarning.h') -Algorithm SHA256).Hash
+            log = (Split-Path $log -Leaf)
+        }
+        $receipts | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $evidence 'receipts.json') -Encoding utf8
+        "$configuration $suite exit=$exitCode skips=$skips restored=$restored"
+        if ($exitCode -ne 0 -or $skips -ne 0 -or -not $restored) { throw 'Input qualification requires investigation; further focus runs stopped.' }
+    }
+}
+'All six directed-input runs passed with zero skips and full restoration.'
