@@ -1,5 +1,7 @@
 # Changelog
 
+New entries start as fragments under [Changes](Changes/README.md) and are folded in here, newest first.
+
 ## Unreleased
 
 - The described-menu memory waiver is removed (plan `MenuDescriptionMemory_2026-09-27`). It accepted up to 1,175,552
