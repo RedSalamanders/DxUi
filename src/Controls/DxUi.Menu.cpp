@@ -196,7 +196,8 @@ struct MenuPopup;
 
 [[nodiscard]] bool ShouldTraceMenuLoopMessageImmediately(UINT message, bool popupMessage) noexcept
 {
-    if (popupMessage || IsMenuPriorityInputMessage(message))
+    // The menu-bar hover is a registered message, not a constant a case can name.
+    if (popupMessage || IsMenuPriorityInputMessage(message) || WndMsg::ContextMenuRootHoverChanged().Matches(message))
     {
         return true;
     }
@@ -211,8 +212,7 @@ struct MenuPopup;
         case WM_NCACTIVATE:
         case WM_SETFOCUS:
         case WM_KILLFOCUS:
-        case WM_DESTROY:
-        case WndMsg::kContextMenuRootHoverChanged: return true;
+        case WM_DESTROY: return true;
         default: return false;
     }
 }
@@ -1022,35 +1022,27 @@ struct MenuDescriptionLayout
 // Menu popup window class
 // ---------------------------------------------------------------------------
 
-static constexpr wchar_t kMenuWindowClass[]        = L"DxUi_ContextMenu";
-static constexpr UINT kMenuAccessibleInvokeMessage = WM_APP + 0x21a;
-static constexpr UINT kMenuAccessibleFocusMessage  = WM_APP + 0x21b;
-// Finalizes an asynchronous session that a failed DPI reflow dismissed inside a window operation.
-static constexpr UINT kMenuDeferredFinalizeMessage = WM_APP + 0x21c;
-// Lets the window under the pointer choose its cursor, outside any menu handler (see ApplyMenuPointerCursor).
-static constexpr UINT kMenuForwardCursorMessage = WM_APP + 0x21d;
+// The popups' private messages are registered by name: WndMsg::MenuPopup* (WindowMessages.h).
+static constexpr wchar_t kMenuWindowClass[] = L"DxUi_ContextMenu";
 struct MenuAccessibilityRequest
 {
     HWND target;
     size_t index;
 };
 
-void PostMenuAccessibilityRequest(HWND target, UINT message, size_t index) noexcept
+void PostMenuAccessibilityRequest(HWND target, WndMsg::RegisteredMessage message, size_t index) noexcept
 {
     // The bounded existing registry drains payloads on WM_NCDESTROY; a queued
     // action cannot outlive its popup or be reinterpreted after HWND reuse.
+    // Without its registered message the request is dropped, as a failed post drops it.
+    if (! message)
+        return;
     std::unique_ptr<MenuAccessibilityRequest> request(new (std::nothrow) MenuAccessibilityRequest{target, index});
     if (request)
-        static_cast<void>(PostMessagePayload(target, message, 0, std::move(request)));
+        static_cast<void>(PostMessagePayload(target, message.value, 0, std::move(request)));
 }
 static std::atomic<bool> s_classRegistered = false;
 #if DXUI_ENABLE_DIAGNOSTICS
-static constexpr UINT kMenuDebugCaptureBitmapMessage    = WM_APP + 0x214;
-static constexpr UINT kMenuDebugGetItemTextMessage      = WM_APP + 0x215;
-static constexpr UINT kMenuDebugSetBackdropMessage      = WM_APP + 0x216;
-static constexpr UINT kMenuDebugGetStateMessage         = WM_APP + 0x217;
-static constexpr UINT kMenuDebugGetItemRectMessage      = WM_APP + 0x218;
-static constexpr UINT kMenuDebugGetItemPaintMessage     = WM_APP + 0x219;
 static constexpr DWORD kMenuDebugStateDispatchTimeoutMs = 1000u;
 #endif
 
@@ -1397,7 +1389,7 @@ struct MenuController
     bool leftButtonDownInPopup      = false;
     bool rightButtonDownInPopup     = false;
     bool cursorChosen               = false; // The menu set or forwarded a cursor; closing lets the window re-choose.
-    bool cursorForwardPending       = false; // A posted kMenuForwardCursorMessage will forward for cursorForwardPoint.
+    bool cursorForwardPending       = false; // A posted MenuPopupForwardCursor message will forward for cursorForwardPoint.
     POINT cursorForwardPoint{};
     POINT lastPointerScreenPoint{};
     bool hasLastPointerScreenPoint = false;
@@ -1489,9 +1481,15 @@ struct MenuController
 #if DXUI_ENABLE_DIAGNOSTICS
 [[nodiscard]] bool PeekMenuDebugStateMessage(const MenuController& controller, MSG& msg) noexcept
 {
+    // A filter of 0 through 0 would retrieve every message; without its registered message no probe was posted.
+    const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugGetState();
+    if (! probe)
+    {
+        return false;
+    }
     for (const auto& popup : controller.popups)
     {
-        if (popup->hwnd && PeekMessageW(&msg, popup->hwnd, kMenuDebugGetStateMessage, kMenuDebugGetStateMessage, PM_REMOVE) != FALSE)
+        if (popup->hwnd && PeekMessageW(&msg, popup->hwnd, probe.value, probe.value, PM_REMOVE) != FALSE)
         {
             return true;
         }
@@ -1992,7 +1990,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     if (popup)
     {
         MenuController* const controller = popup->controller;
-        if (msg == kMenuAccessibleInvokeMessage)
+        if (WndMsg::MenuPopupAccessibleInvoke().Matches(msg))
         {
             auto request       = TakeMessagePayload<MenuAccessibilityRequest>(lp);
             const size_t index = request ? request->index : SIZE_MAX;
@@ -2010,14 +2008,14 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
             return 0;
         }
-        if (msg == kMenuAccessibleFocusMessage)
+        if (WndMsg::MenuPopupAccessibleFocus().Matches(msg))
         {
             auto request = TakeMessagePayload<MenuAccessibilityRequest>(lp);
             if (request && request->target == hwnd)
                 InvalidatePopup(*popup);
             return 0;
         }
-        if (msg == kMenuForwardCursorMessage)
+        if (WndMsg::MenuPopupForwardCursor().Matches(msg))
         {
             // Read everything first: the forwarded WM_SETCURSOR may run code that closes the menu and frees both.
             if (! controller || ! controller->running || ! controller->cursorForwardPending)
@@ -2028,7 +2026,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 ShowArrowCursor();
             return 0;
         }
-        if (msg == kMenuDeferredFinalizeMessage)
+        if (WndMsg::MenuPopupDeferredFinalize().Matches(msg))
         {
             // The window operation that delivered the failed reflow has unwound. A running session
             // (for example one that reused this HWND) ignores a stale request.
@@ -2037,7 +2035,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             return 0;
         }
 #if DXUI_ENABLE_DIAGNOSTICS
-        if (msg == kMenuDebugCaptureBitmapMessage)
+        if (WndMsg::MenuPopupDebugCaptureBitmap().Matches(msg))
         {
             auto* const outCapture = reinterpret_cast<WindowHostBitmapCapture*>(lp);
             if (! outCapture)
@@ -2048,7 +2046,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             *outCapture = {};
             return popup->host.DebugCaptureBitmap(*outCapture) ? TRUE : FALSE;
         }
-        if (msg == kMenuDebugGetItemTextMessage)
+        if (WndMsg::MenuPopupDebugGetItemText().Matches(msg))
         {
             auto* const request = reinterpret_cast<MenuDebugGetItemTextRequest*>(lp);
             if (! request || ! request->outText)
@@ -2058,7 +2056,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
             return TryGetMenuPopupItemText(*popup, request->itemIndex, *request->outText) ? TRUE : FALSE;
         }
-        if (msg == kMenuDebugGetStateMessage)
+        if (WndMsg::MenuPopupDebugGetState().Matches(msg))
         {
             auto request = TakeMessagePayload<MenuDebugGetStatePayload>(lp);
             if (! request || ! request->dispatch)
@@ -2086,7 +2084,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             request->dispatch->succeeded = DebugGetContextMenuPopupState(hwnd, request->dispatch->result);
             return request->dispatch->succeeded ? TRUE : FALSE;
         }
-        if (msg == kMenuDebugGetItemRectMessage)
+        if (WndMsg::MenuPopupDebugGetItemRect().Matches(msg))
         {
             auto* const request = reinterpret_cast<MenuDebugGetItemRectRequest*>(lp);
             if (! request || ! request->outRectDip)
@@ -2096,7 +2094,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
             return DebugGetContextMenuPopupItemRect(hwnd, request->itemIndex, *request->outRectDip) ? TRUE : FALSE;
         }
-        if (msg == kMenuDebugGetItemPaintMessage)
+        if (WndMsg::MenuPopupDebugGetItemPaint().Matches(msg))
         {
             auto* const request = reinterpret_cast<MenuDebugGetItemPaintRequest*>(lp);
             if (! request || ! request->outState)
@@ -2106,7 +2104,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
             return DebugGetContextMenuPopupItemPaint(hwnd, request->itemIndex, *request->outState) ? TRUE : FALSE;
         }
-        if (msg == kMenuDebugSetBackdropMessage)
+        if (WndMsg::MenuPopupDebugSetBackdrop().Matches(msg))
         {
             const auto* const capture = reinterpret_cast<const WindowHostBitmapCapture*>(lp);
             if (! capture || capture->widthPx == 0u || capture->heightPx == 0u || capture->bgraPixels.empty())
@@ -3070,7 +3068,7 @@ protected:
         {
             _popup.keyboardIndex = _index;
             _popup.EnsureItemVisible(_index);
-            PostMenuAccessibilityRequest(_popup.hwnd, kMenuAccessibleFocusMessage, _index);
+            PostMenuAccessibilityRequest(_popup.hwnd, WndMsg::MenuPopupAccessibleFocus(), _index);
         }
     }
 
@@ -3116,7 +3114,7 @@ try
             child->SetAccessibleInvoke([hwnd = popup.hwnd, i](ControlHost&)
             {
                 // Post to the existing dispatcher so provider calls never destroy their own tree.
-                PostMenuAccessibilityRequest(hwnd, kMenuAccessibleInvokeMessage, i);
+                PostMenuAccessibilityRequest(hwnd, WndMsg::MenuPopupAccessibleInvoke(), i);
             });
         }
         child->SetVisible(item.kind != MenuItemKind::Separator);
@@ -3478,8 +3476,10 @@ void RelayoutMenuPopupForDpi(MenuPopup& popup, UINT dpi, const RECT* suggestedWi
         if (MenuController* const controller = popup.controller)
         {
             controller->Dismiss();
-            if (controller->asyncSession)
-                static_cast<void>(PostMessageW(popup.hwnd, kMenuDeferredFinalizeMessage, 0, 0));
+            // Without its registered message nothing is posted, as when the post fails.
+            const WndMsg::RegisteredMessage finalize = WndMsg::MenuPopupDeferredFinalize();
+            if (controller->asyncSession && finalize)
+                static_cast<void>(PostMessageW(popup.hwnd, finalize.value, 0, 0));
         }
         return;
     }
@@ -4318,9 +4318,11 @@ void ApplyMenuPointerCursor(MenuController& controller, POINT screenPoint, bool 
         ShowArrowCursor();
         return;
     }
-    const MenuPopup* const root     = controller.GetRootPopup();
-    controller.cursorForwardPoint   = screenPoint;
-    controller.cursorForwardPending = root && root->hwnd && PostMessageW(root->hwnd, kMenuForwardCursorMessage, 0, 0) != FALSE;
+    // Without its registered message the forward is not posted, and the arrow shows, as when the post fails.
+    const MenuPopup* const root                   = controller.GetRootPopup();
+    const WndMsg::RegisteredMessage forwardCursor = WndMsg::MenuPopupForwardCursor();
+    controller.cursorForwardPoint                 = screenPoint;
+    controller.cursorForwardPending               = forwardCursor && root && root->hwnd && PostMessageW(root->hwnd, forwardCursor.value, 0, 0) != FALSE;
     if (! controller.cursorForwardPending)
         ShowArrowCursor();
 }
@@ -5515,7 +5517,8 @@ void RunMenuModalLoop(MenuController& controller)
             continue;
         }
 
-        if (msg.message == WndMsg::kContextMenuRootHoverChanged)
+        // ContextMenu::PostMenuBarHover posts this registered message to any window of the thread.
+        if (WndMsg::ContextMenuRootHoverChanged().Matches(msg.message))
         {
             flushRepeatedMessageTrace();
             if (controller.sessionCallbacks.switchRootFromMenuBarHover)
@@ -5909,6 +5912,13 @@ bool ContextMenu::ShowAsync(HWND ownerHwnd,
     return true;
 }
 
+bool ContextMenu::PostMenuBarHover(HWND target, size_t hoverIndex, std::uintptr_t sequence) noexcept
+{
+    // Without its registered message nothing is posted, and the caller sees a failed post.
+    const WndMsg::RegisteredMessage hover = WndMsg::ContextMenuRootHoverChanged();
+    return hover && PostMessageW(target, hover.value, static_cast<WPARAM>(hoverIndex), static_cast<LPARAM>(sequence)) != FALSE;
+}
+
 #if DXUI_ENABLE_DIAGNOSTICS
 bool DebugGetContextMenuItemDisplayText(const MenuFlyoutItem& item, std::wstring& outText)
 {
@@ -6019,8 +6029,9 @@ bool DebugGetContextMenuPopupState(HWND hwnd, ContextMenuPopupDebugState& outSta
         {
             return false;
         }
-        payload->dispatch = dispatch;
-        if (! PostMessagePayload(hwnd, kMenuDebugGetStateMessage, 0, std::move(payload)))
+        payload->dispatch                     = dispatch;
+        const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugGetState();
+        if (! probe || ! PostMessagePayload(hwnd, probe.value, 0, std::move(payload)))
         {
             return false;
         }
@@ -6110,7 +6121,8 @@ bool DebugGetContextMenuPopupItemRect(HWND hwnd, size_t itemIndex, D2D1_RECT_F& 
     if (windowThreadId != 0 && windowThreadId != GetCurrentThreadId())
     {
         MenuDebugGetItemRectRequest request{.itemIndex = itemIndex, .outRectDip = &outRectDip};
-        return SendMessageW(hwnd, kMenuDebugGetItemRectMessage, 0, reinterpret_cast<LPARAM>(&request)) != FALSE;
+        const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugGetItemRect();
+        return probe && SendMessageW(hwnd, probe.value, 0, reinterpret_cast<LPARAM>(&request)) != FALSE;
     }
 
     const auto* popup = reinterpret_cast<const MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -6156,7 +6168,8 @@ bool DebugGetContextMenuPopupItemPaint(HWND hwnd, size_t itemIndex, ContextMenuP
     if (windowThreadId != 0 && windowThreadId != GetCurrentThreadId())
     {
         MenuDebugGetItemPaintRequest request{.itemIndex = itemIndex, .outState = &outState};
-        return SendMessageW(hwnd, kMenuDebugGetItemPaintMessage, 0, reinterpret_cast<LPARAM>(&request)) != FALSE;
+        const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugGetItemPaint();
+        return probe && SendMessageW(hwnd, probe.value, 0, reinterpret_cast<LPARAM>(&request)) != FALSE;
     }
 
     const auto* popup = reinterpret_cast<const MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -6175,7 +6188,8 @@ bool DebugGetContextMenuPopupItemText(HWND hwnd, size_t itemIndex, std::wstring&
     if (windowThreadId != 0 && windowThreadId != GetCurrentThreadId())
     {
         MenuDebugGetItemTextRequest request{.itemIndex = itemIndex, .outText = &outText};
-        return SendMessageW(hwnd, kMenuDebugGetItemTextMessage, 0, reinterpret_cast<LPARAM>(&request)) != FALSE;
+        const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugGetItemText();
+        return probe && SendMessageW(hwnd, probe.value, 0, reinterpret_cast<LPARAM>(&request)) != FALSE;
     }
 
     const auto* popup = reinterpret_cast<const MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -6238,7 +6252,8 @@ bool DebugSetContextMenuPopupBackdropCapture(HWND hwnd, const WindowHostBitmapCa
         return true;
     }
 
-    return SendMessageW(hwnd, kMenuDebugSetBackdropMessage, 0, reinterpret_cast<LPARAM>(&capture)) != FALSE;
+    const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugSetBackdrop();
+    return probe && SendMessageW(hwnd, probe.value, 0, reinterpret_cast<LPARAM>(&capture)) != FALSE;
 }
 
 bool DebugCaptureContextMenuPopupBitmap(HWND hwnd, WindowHostBitmapCapture& outCapture) noexcept
@@ -6255,7 +6270,8 @@ bool DebugCaptureContextMenuPopupBitmap(HWND hwnd, WindowHostBitmapCapture& outC
         return popup->host.DebugCaptureBitmap(outCapture);
     }
 
-    return SendMessageW(hwnd, kMenuDebugCaptureBitmapMessage, 0, reinterpret_cast<LPARAM>(&outCapture)) != FALSE;
+    const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugCaptureBitmap();
+    return probe && SendMessageW(hwnd, probe.value, 0, reinterpret_cast<LPARAM>(&outCapture)) != FALSE;
 }
 
 bool DebugComputeContextMenuPopupPosition(POINT screenPoint,

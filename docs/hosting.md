@@ -66,10 +66,14 @@ after the window's `WM_SETFOCUS`, in the same message-loop turn), except in a wi
 on, where it leaves that move to the call that answers the first event, which reports the clicked control. For the same
 reason, when a window UI Automation has seen is activated again (Alt+Tab back to it), the host announces the control
 that activation restored or focused once that turn ends, unless it announced a click of the turn already. Forward
-every message, not only input, to `HandleMessage`: the host posts private `WM_APP`-range messages to its window
-(accessibility actions, and the one that ends that turn). A window procedure that never passes the second on leaves a
-click to the system's event for up to 500 ms after the window gains focus, and its activations are never announced
-when UI Automation has seen the window. An element whose control was
+every message, not only input, to `HandleMessage`, including registered messages (0xC000–0xFFFF): the host posts and
+sends its own messages to its window (accessibility actions, root-provider creation for another thread, the
+process-exit detach, and the message that ends that turn). DxUi registers each of them by name with
+`RegisterWindowMessageW` (`RedSalamanders.DxUi.<Component>.<Purpose>.v1`) and reserves no `WM_USER` or `WM_APP`
+value: the application's own messages in those ranges reach its window procedure, and `HandleMessage` neither
+consumes nor acts on them. A window procedure that never passes the turn's message on leaves a click to the system's
+event for up to 500 ms after the window gains focus, and its activations are never announced when UI Automation has
+seen the window. An element whose control was
 removed, or replaced at the same place in the tree, reports `UIA_E_ELEMENTNOTAVAILABLE`, and the replacement's
 elements get new runtime ids; after adding or removing children, call `RefreshAccessibilitySnapshot` (or let the next
 focus, size, pointer or state change do it) so clients see the new tree, which also tells them to navigate again
