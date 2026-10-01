@@ -195,11 +195,12 @@ sixty complete create/render/hide/destroy cycles in one process, retaining each 
 report. Bind that diagnostic's executable/source/fixture hashes and keep its raw rounds;
 it does not replace the default acceptance comparison or a controlled long-duration soak.
 The executable's opt-in `--benchmark-grid-selection <report.json>` (fixture `dxui-grid-selection-v1`) measures Grid selection
-with synthetic data: Grids of 1,000 to 200,000 rows, selected as Ctrl+A selects them and painted offscreen on WARP,
-`IsSelected` per call over selections of 0 to 200,000 ids, and the time and C++ heap bytes of the selection model's mutators. It
-also reports how many rows the default complex-UI scene's Grid holds selected. Its entry is dispatched outside `BenchmarkMain.h`,
-so the complex-UI fixture's hashed inputs are unchanged. Compare it only between builds of one harness, as an interleaved
-paired set; it supplements the default benchmark for a change to selection and does not replace it.
+with synthetic data: Grids of 1,000 to 1,000,000 rows, selected as Ctrl+A selects them and painted offscreen on WARP, what
+`IsSelected` costs inside such a paint (one Grid painted alternately with a small and a full selection that draw alike),
+`IsSelected` per call over selections of 0 to 1,000,000 ids, and the time and C++ heap bytes of the selection model's
+mutators. It also reports how many rows the default complex-UI scene's Grid holds selected. Its entry is dispatched outside
+`BenchmarkMain.h`, so the complex-UI fixture's hashed inputs are unchanged. Compare it only between builds of one harness,
+as an interleaved paired set; it supplements the default benchmark for a change to selection and does not replace it.
 
 Shipping/consumer acceptance additionally requires a named hardware fixture and actual presented complex-UI FPS,
 frame pacing and p50/p95/p99 latency at the target refresh rate (at least 60 FPS / 16.67 ms per frame for a 60 Hz

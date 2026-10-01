@@ -201,11 +201,12 @@ reproduce in a [six-run local paired set](../Measurements/MenuDescriptions/2026-
 
 `DxUi.EmbeddedTests.exe --benchmark-grid-selection <report.json>` is an opt-in measurement of Grid selection
 membership, run in Release. It uses synthetic data and only the public `Grid` and `GridSelectionModel` interfaces, so
-one source measures any revision. It paints Grids of 1,000 to 200,000 rows, selected as Ctrl+A selects them, offscreen
+one source measures any revision. It paints Grids of 1,000 to 1,000,000 rows, selected as Ctrl+A selects them, offscreen
 on WARP (the time and the UI thread's cycles of Prepare, the time of the whole frame, and the C++ allocations and
-bytes of each round), times `IsSelected` per call over selections of 0 to 200,000 ids, times the selection model's
-mutators with their C++ heap bytes, and reports how many rows the default complex-UI scene's Grid holds selected
-(none). Its entry is dispatched outside `BenchmarkMain.h`, so the complex-UI fixture's hashed inputs do not change.
+bytes of each round), isolates what `IsSelected` costs inside such a paint (one Grid painted alternately with a small and
+a full selection that draw alike), times `IsSelected` per call over selections of 0 to 1,000,000 ids, times the
+selection model's mutators with their C++ heap bytes, and reports how many rows the default complex-UI scene's Grid
+holds selected (none). Its entry is dispatched outside `BenchmarkMain.h`, so the complex-UI fixture's hashed inputs do not change.
 Compare two builds of the one harness as an interleaved A, B, B, A set. The
 [record of the sorted selection copy](../Measurements/GridSelection/2026-10-01/README.md) does so, ten runs per side
 twice: `IsSelected` costs 2 to 17 ns from 0 to 1,000,000 selected ids, where a scan cost up to 83 us, and a paint no
