@@ -75,3 +75,8 @@ spec-workflow, or consumer-integration. These are repository-local skills and th
 Application documentation screenshots use the consumer test harness. Explicitly authorized brief focus
 for hover/keyboard captures uses its existing warning and interactive desktop lease, with cursor/focus
 restoration; static captures remain non-activating. Never substitute desktop screenshots.
+
+DxUi's own suites that take real focus (`Menu`, `NativeTextInput` and the two menu resource fixtures) run deliberately through
+`test.ps1 -Interactive`, which refuses without an interactive desktop, asks first, warns while it runs and restores the foreground
+window, keyboard focus and pointer however the run ends. Run it, or any of those suites, only when the person at the desktop has
+agreed to the time; otherwise leave them out of `-Suites`.

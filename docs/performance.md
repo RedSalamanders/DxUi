@@ -217,8 +217,9 @@ constant, rotates described-row counts and samples before opening, after ordinar
 paint and after closing. It performs no menu bitmap capture. Its raw JSON lines
 are retained in the suite log, including DPI, entry counts and process/handle
 counters. Release x64 CI runs it alongside the existing native matrix.
-This suite and `MenuResources` require foreground interaction. Local runs use the
-authorized warning and desktop lease with focus/cursor restoration; `--no-activate`
+This suite and `MenuResources` require foreground interaction. Run them locally with
+`./test.ps1 -Interactive -Suites MenuResourceScaling` (or `MenuResources`), which asks first, holds
+the desktop lease and restores the foreground window, focus and cursor; `--no-activate`
 is rejected. V4 records all 320 native extents from a visible owned parent on one
 monitor. Earlier locally failed activation-blocked runs remain invalid evidence.
 The first description enables a whole-menu semantic tree; later descriptions add
@@ -318,6 +319,25 @@ tests) a deadline, 300 s by default, and a test that outlives it ends the run wi
 code 124. `DxUi.ControlTests.exe --test-timeout=<seconds>` (`test.ps1 -TestTimeout <seconds>`) changes it and 0 turns it off,
 which debugging a test needs; every run prints its deadline on a `[WATCHDOG]` line and every `[DONE]` marker carries the
 test's duration. `test.ps1` prints a failing suite's exit code, its `TIMEOUT:` line and the last lines of its log.
+
+More than twenty control tests need the person's real desktop (focus, the foreground, the pointer), and a run that cannot get
+it records a capability skip for each. They live in the `Menu` suite (the described-menu group of them also runs, and skips, in the
+nonactivating `NewControls` lane) and in `NativeTextInput`, which `DxUi.ControlTests.exe`
+therefore never runs with `--no-activate`, and so can take focus when an ordinary `test.ps1` run reaches them on a desktop
+someone is working at. To run them deliberately, use `./test.ps1 -Interactive -Configuration Debug -Platform x64` (add
+`-SkipBuild` after a build; `-Suites MenuResources` or `MenuResourceScaling` adds the menu resource fixtures, and `-Tests` and
+`-TestTimeout` work as usual). It runs only the interactive suites, after the checks and the benchmark of every run, under the
+interactive desktop lease: it refuses before building anything in a CI job or a process without a desktop, checks the session
+(a locked screen, a disconnected session and a screen saver also refuse), and then asks. The dialog says what will happen and for
+about how long, its default button is Cancel and it cancels itself after two minutes with no answer, so nothing is taken
+unless someone chooses Start. While the suites run a banner at the top of the screen says to keep hands off the keyboard and
+mouse, and when they end, fail, hit the watchdog (exit code 124) or are stopped with Ctrl+C, the foreground window, its keyboard
+focus and the pointer position are put back and the result is printed (`Restoration: foreground=... focus=... cursor=...`). A
+suite that records a skip fails the run, since the run exists to execute what other runs skip. Logs and receipts carry the suffix
+`.interactive`. Expect about a minute and a half of checks, then about a minute and a half with the desktop taken in x64 Debug
+(a little more in ASan Debug), and run it only when the person at the desktop has agreed to the time. The
+[validation contract](../Specs/Testing/Testing_Validation.md) has the details.
+
 Use `gallery.ps1 -PublishDocs` after visual/control changes and review all
 generated sheets. CI's x64 Release job runs the same command and uploads its `docs/gallery` output as
 `docs-gallery-x64-Release` for review. To publish it after a merge, run the manual
