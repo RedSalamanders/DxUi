@@ -11,8 +11,9 @@ shows how a flag appears on identical library code, and what the gate's per-metr
   has benchmark fingerprint `F9D66318E8…` (fixture `dxui-complex-ui-v2` for `Default`).
 - Runner `runnervmfi6oq`: AMD EPYC 9V45 (the first set ran on an Intel Xeon Platinum 8573C), Windows 10.0.26100, WARP
   10.0.26100.33438, compiler 195136260, High performance power plan, x64 Release.
-- Files: the 36 receipts, their comparator outputs, the 36 pass-by-pass comparisons and the runner's summary as
-  `summary.receipt.txt`; `SHA256SUMS` covers every file here except itself and this README. Nothing was edited.
+- Files: `reports.zip` holds the 109 files the run wrote, byte for byte (the 36 receipts, their comparator outputs, the 36
+  pass-by-pass comparisons and the runner's summary as `summary.receipt.txt`), as in the first set. `SHA256SUMS` has the
+  archive's hash. Nothing was edited.
 
 ## Set verdicts
 

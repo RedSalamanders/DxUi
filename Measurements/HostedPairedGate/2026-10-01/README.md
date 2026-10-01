@@ -17,9 +17,11 @@ twice, is ever flagged.
   overlay was written: every receipt has benchmark fingerprint `F9D66318E8…`, fixture `dxui-complex-ui-v2` for `Default`.
 - Runner `runnervmfi6oq`: Intel Xeon Platinum 8573C, Windows 10.0.26100, WARP 10.0.26100.33438, compiler 195136260,
   High performance power plan, x64 Release, 1280x720 at 96 DPI.
-- Files: the 36 receipts, each with its own comparator output (`*.json.comparison.json`, unpaired), the 36 pass-by-pass
-  comparisons and the runner's summary as `summary.receipt.txt`. `SHA256SUMS` covers every file here except itself and
-  this README. The set is retained as the run wrote it; nothing was edited.
+- Files: `reports.zip` holds the 109 files the run wrote, byte for byte: the 36 receipts, each with its own comparator
+  output (`*.json.comparison.json`, unpaired), the 36 pass-by-pass comparisons and the runner's summary as
+  `summary.receipt.txt`. Extract it with `Expand-Archive`. `SHA256SUMS` has the archive's hash. It is an archive, not a
+  directory of JSON files, because the two hosted sets are 218 pretty-printed files and about 40,000 lines, more than the
+  diff of a pull request can show. Nothing was edited.
 
 ## Set verdicts
 

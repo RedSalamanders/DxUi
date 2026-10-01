@@ -8,6 +8,7 @@ Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PerformanceComparison.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PairedRun.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../BenchmarkGate.psm1') -Force
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 
 function Invoke-FixtureGit([string] $Root, [string[]] $Arguments) {
@@ -462,18 +463,23 @@ Invoke-FixtureCase 'the conclusion reads the summaries performance-paired.ps1 re
     Assert-Equal 'inconclusive' (Get-Conclusion $summary $reports -Strict).Conclusion 'under the strict reading that laptop''s set proves nothing'
 }
 
-function Assert-RetainedPacket([string] $Directory) {
-    # SHA256SUMS lists every retained file of the directory, and each hash is the file's.
+function Expand-RetainedPacket([string] $Directory, [string] $Into) {
+    # A retained packet is one archive of the files a run wrote, with its hash in SHA256SUMS. Returns the directory it extracts to.
     $sums = @([IO.File]::ReadAllLines((Join-Path $Directory 'SHA256SUMS')) | Where-Object { $_ })
-    Assert-Equal @(Get-ChildItem -LiteralPath $Directory -File | Where-Object { $_.Name -cne 'README.md' -and $_.Name -cne 'SHA256SUMS' }).Count $sums.Count 'SHA256SUMS lists every retained file'
-    foreach ($line in $sums) {
-        $hash, $name = $line -split '  ', 2
-        Assert-Equal $hash (Get-FileHash -LiteralPath (Join-Path $Directory $name) -Algorithm SHA256).Hash.ToLowerInvariant() "the hash of $name"
-    }
+    Assert-Equal 1 $sums.Count 'SHA256SUMS has one line, the archive''s'
+    $hash, $name = $sums[0] -split '  ', 2
+    Assert-Equal 'reports.zip' $name 'it names the archive'
+    $archive = Join-Path $Directory $name
+    Assert-Equal $hash (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() 'the archive is the one SHA256SUMS names'
+    [IO.Compression.ZipFile]::ExtractToDirectory($archive, $Into)
+    Assert-Equal 109 @(Get-ChildItem -LiteralPath $Into -File).Count 'the run''s 36 receipts and their comparator outputs, 36 comparisons, 4 passes of controls and the summary'
+    Assert-True (Test-Path -LiteralPath (Join-Path $Into 'summary.receipt.txt') -PathType Leaf) 'with the summary'
+    return $Into
 }
 
-Invoke-TestCase 'the retained hosted A/A set passes: identical library, nothing flagged, every control drifting, every exact budget held' {
-    $reports = Join-Path $repository 'Measurements/HostedPairedGate/2026-10-01'
+Invoke-FixtureCase 'the retained hosted A/A set passes: identical library, nothing flagged, every control drifting, every exact budget held' {
+    param($root)
+    $reports = Expand-RetainedPacket (Join-Path $repository 'Measurements/HostedPairedGate/2026-10-01') (Join-Path $root 'reports')
     $summary = Read-GateJson (Join-Path $reports 'summary.receipt.txt')
     $conclusion = Get-Conclusion $summary $reports
     Assert-Equal 'pass' $conclusion.Conclusion 'the same code measured twice'
@@ -489,11 +495,11 @@ Invoke-TestCase 'the retained hosted A/A set passes: identical library, nothing 
         Assert-True (@($exact | Where-Object { -not $_.Held }).Count -eq 0) "$($scenario.Scenario): an exact budget never drifts, so a rise in one is always confirmed"
     }
     Assert-Equal 'inconclusive' (Get-Conclusion $summary $reports -Strict).Conclusion 'a gate that needed stable controls overall would never pass a hosted run'
-    Assert-RetainedPacket $reports
 }
 
-Invoke-TestCase 'the second retained hosted A/A set: five flags on identical code are noise by the identical-inputs rule and inconclusive without it' {
-    $reports = Join-Path $repository 'Measurements/HostedPairedGate/2026-10-01/aa-2'
+Invoke-FixtureCase 'the second retained hosted A/A set: five flags on identical code are noise by the identical-inputs rule and inconclusive without it' {
+    param($root)
+    $reports = Expand-RetainedPacket (Join-Path $repository 'Measurements/HostedPairedGate/2026-10-01/aa-2') (Join-Path $root 'reports')
     $summary = Read-GateJson (Join-Path $reports 'summary.receipt.txt')
     $conclusion = Get-Conclusion $summary $reports
     Assert-Equal 'pass' $conclusion.Conclusion 'identical library inputs'
@@ -507,9 +513,7 @@ Invoke-TestCase 'the second retained hosted A/A set: five flags on identical cod
     Assert-Equal 'inconclusive' $changed.Conclusion 'read as a change, the controls of every flagged metric drifted: nothing is confirmed, and nothing is dismissed'
     $outcomes = @($changed.Scenarios | ForEach-Object { $_.Metrics } | Where-Object { $_.Verdict -eq 'regressed' } | ForEach-Object { $_.Outcome })
     Assert-Equal 'unconfirmed unconfirmed unconfirmed unconfirmed unconfirmed' ($outcomes -join ' ') 'the five stay listed as unconfirmed'
-    Assert-RetainedPacket $reports
 }
-
 # --- What a run says --------------------------------------------------------------------------------------------------------
 
 function New-ReportScenarios([string] $Directory) {
