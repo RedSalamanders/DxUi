@@ -199,6 +199,20 @@ flag clean frame p95. Their clean private-memory increase, once accepted under a
 reproduce in a [six-run local paired set](../Measurements/MenuDescriptions/2026-09-30/paired-local/README.md)
 (+0.36%, p = 0.70), so the waiver is removed; consumer adoption remains separate.
 
+`DxUi.EmbeddedTests.exe --benchmark-grid-selection <report.json>` is an opt-in measurement of Grid selection
+membership, run in Release. It uses synthetic data and only the public `Grid` and `GridSelectionModel` interfaces, so
+one source measures any revision. It paints Grids of 1,000 to 200,000 rows, selected as Ctrl+A selects them, offscreen
+on WARP (the time and the UI thread's cycles of Prepare, the time of the whole frame, and the C++ allocations and
+bytes of each round), times `IsSelected` per call over selections of 0 to 200,000 ids, times the selection model's
+mutators with their C++ heap bytes, and reports how many rows the default complex-UI scene's Grid holds selected
+(none). Its entry is dispatched outside `BenchmarkMain.h`, so the complex-UI fixture's hashed inputs do not change.
+Compare two builds of the one harness as an interleaved A, B, B, A set. The
+[record of the sorted selection copy](../Measurements/GridSelection/2026-10-01/README.md) does so, ten runs per side
+twice: `IsSelected` costs 2 to 17 ns from 0 to 1,000,000 selected ids, where a scan cost up to 83 us, and a paint no
+longer grows with its selection (27% to 30% less Prepare time at 200,000 selected rows and 70% to 73% less at
+1,000,000; the 20,000-row difference of a few percent is below what the runs separate). The record also shows what
+it costs: 8 bytes per selected row, and a sort in `SetRange` over ids that do not already ascend.
+
 [Retained independent measurements](../Measurements/README.md) include raw rounds and comparison receipts with a
 scenario explanation. They measure the library's synthetic workload; AV adoption receipts live in RedXe.
 The `dxui-complex-ui-v2` scene is a new fixture, so its baseline/repeat pair demonstrates the measurement procedure

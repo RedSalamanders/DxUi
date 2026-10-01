@@ -1,7 +1,7 @@
 # Performance and resources
 
 Status: normative current contract
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-01
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -194,6 +194,12 @@ The benchmark executable's opt-in `--benchmark-retention <output-prefix>` repeat
 sixty complete create/render/hide/destroy cycles in one process, retaining each inner
 report. Bind that diagnostic's executable/source/fixture hashes and keep its raw rounds;
 it does not replace the default acceptance comparison or a controlled long-duration soak.
+The executable's opt-in `--benchmark-grid-selection <report.json>` (fixture `dxui-grid-selection-v1`) measures Grid selection
+with synthetic data: Grids of 1,000 to 200,000 rows, selected as Ctrl+A selects them and painted offscreen on WARP,
+`IsSelected` per call over selections of 0 to 200,000 ids, and the time and C++ heap bytes of the selection model's mutators. It
+also reports how many rows the default complex-UI scene's Grid holds selected. Its entry is dispatched outside `BenchmarkMain.h`,
+so the complex-UI fixture's hashed inputs are unchanged. Compare it only between builds of one harness, as an interleaved
+paired set; it supplements the default benchmark for a change to selection and does not replace it.
 
 Shipping/consumer acceptance additionally requires a named hardware fixture and actual presented complex-UI FPS,
 frame pacing and p50/p95/p99 latency at the target refresh rate (at least 60 FPS / 16.67 ms per frame for a 60 Hz
@@ -259,3 +265,15 @@ at the start of the next embedded preparation or native paint, never mid-paint, 
 proportional to the painted working set. Diagnostics are borrowed and optional; composition does not emit them.
 The private window-message payload registry is bounded to 128 windows and 128 queued payloads; saturation fails
 immediately and releases transferred ownership. Teardown invalidates queued tokens and drains outside its lock.
+
+A Grid's selection is a `GridSelectionModel`, which keeps each selected stable id twice: in selection order, and
+ascending beside it. `IsSelected`, which a Grid asks once per visible row on every paint, is a binary search that
+allocates nothing, so what a paint costs does not grow with the selection; it was a linear scan, 0.9 to 1.4 us a call at
+20,000 selected rows and 47 to 83 us at 1,000,000. The ascending copy is the budget: 8 bytes per selected row beyond the
+ordered ids' 8 (the model itself grows from 40 to 64 bytes), kept at the selection's high-water mark like the ordered ids,
+and never a heap node per row. The mutators, which run on user gestures and data changes, keep both copies equal at O(n
+log n) at most: a `SetRange` over ids that do not already ascend sorts them (1.0 ms for 20,000 ids, 10.9 ms for 200,000),
+`PreserveOrdered` allocates at most twice instead of once per selected id, and `SetRange` and `PreserveOrdered`, the two
+that may throw, leave the selection as it was when an allocation fails. A selection structure that costs a node per row, a
+membership test that scans, or a paint that allocates for the selection regresses this budget. The
+[paired record](../../Measurements/GridSelection/2026-10-01/README.md) holds the measurements.

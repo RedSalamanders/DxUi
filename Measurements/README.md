@@ -16,6 +16,11 @@ Application adoption measurements belong in their application's repository.
 - [Hosted paired gallery follow-ups benchmark, 2026-09-28](GalleryFollowUps/2026-09-28/paired-hosted/README.md): one
   serial set for the reduced-motion progress bar and alert-color fallback; no memory flag, and its timing
   flags reverse in the other crossing.
+- [Grid selection membership, 2026-10-01](GridSelection/2026-10-01/README.md): two interleaved sets of ten runs per side
+  of the sorted selection copy against `main` (x64 Release, WARP): paint at 1,000 to 1,000,000 selected rows, the cost of
+  `IsSelected` inside a paint, per call, and the selection mutators. A paint no longer grows with its selection, 8 bytes
+  per selected row are the price, `SetRange` over ids that do not ascend sorts them, and the 20,000-row paint rows do
+  not repeat.
 
 - [Complex UI, 2026-09-05](ComplexUi/2026-09-05/README.md): Release baseline and matched repeat, complete raw rounds,
   comparison and rendered scene.

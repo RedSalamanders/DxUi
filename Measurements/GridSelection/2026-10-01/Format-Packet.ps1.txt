@@ -1,0 +1,65 @@
+<#
+.SYNOPSIS Prints the Markdown tables of a grid-selection packet from its summary (scratch tooling, not part of the repository).
+#>
+[CmdletBinding()] param([Parameter(Mandatory)][string] $Summary)
+Set-StrictMode -Version Latest
+$s = Get-Content -Raw -LiteralPath $Summary | ConvertFrom-Json
+$inv = [Globalization.CultureInfo]::InvariantCulture
+function F([double] $Value, [string] $Format) { return $Value.ToString($Format, $inv) }
+function Change($m) { if ($null -eq $m.changePercent) { return 'n/a' } return ('{0:+0.0;-0.0}%' -f [double]$m.changePercent) }
+function P($m) { $p = [double]$m.pValue; if ($p -lt 0.001) { return '<0.001' } return $p.ToString('0.000', $inv) }
+function Spread($m) { if ($null -eq $m.baselineSpreadPercent) { return 'n/a' } return ('{0:0}% / {1:0}%' -f [double]$m.baselineSpreadPercent, [double]$m.candidateSpreadPercent) }
+function Find($kind, $name, $metric) { return $s.metrics | Where-Object { $_.kind -eq $kind -and $_.name -eq $name -and $_.metric -eq $metric } | Select-Object -First 1 }
+
+"runs per side: $($s.runsPerSide); smallest attainable p: $($s.smallestAttainableP)"
+''
+'### Paint'
+''
+'| Scenario | Metric | A median | B median | Change | p | A / B spread | Verdict |'
+'|---|---|---:|---:|---:|---:|---:|---|'
+foreach ($name in @($s.metrics | Where-Object { $_.kind -eq 'paint' } | ForEach-Object { $_.name } | Select-Object -Unique)) {
+    foreach ($metric in 'prepareMcycP50', 'prepareP50Ms', 'prepareMcycP95', 'prepareP95Ms', 'frameP50Ms') {
+        $m = Find 'paint' $name $metric
+        '| {0} | {1} | {2} | {3} | {4} | {5} | {6} | {7} |' -f $name, $metric, (F $m.baselineMedian '0.000'), (F $m.candidateMedian '0.000'), (Change $m), (P $m), (Spread $m), $m.verdict
+    }
+}
+''
+'### Paint allocations per round of 60 paints (exact)'
+''
+'| Scenario | A allocations | B allocations | A bytes | B bytes |'
+'|---|---:|---:|---:|---:|'
+foreach ($name in @($s.metrics | Where-Object { $_.kind -eq 'paint' } | ForEach-Object { $_.name } | Select-Object -Unique)) {
+    $a = Find 'paint' $name 'cppAllocations'; $b = Find 'paint' $name 'cppBytes'
+    '| {0} | {1:N0} | {2:N0} | {3:N0} | {4:N0} |' -f $name, $a.baselineMedian, $a.candidateMedian, $b.baselineMedian, $b.candidateMedian
+}
+''
+'### Cost of IsSelected inside a paint (every row selected minus the rows around the view selected)'
+''
+'| Rows | A cost (Mcycles) | B cost (Mcycles) | A cost (ms) | B cost (ms) | Change in cost (Mcycles) | p | A / B spread | Verdict |'
+'|---:|---:|---:|---:|---:|---:|---:|---:|---|'
+foreach ($name in @($s.metrics | Where-Object { $_.kind -eq 'selectionCost' } | ForEach-Object { $_.name } | Select-Object -Unique)) {
+    $c = Find 'selectionCost' $name 'costMcyc'; $ms = Find 'selectionCost' $name 'costMs'
+    '| {0:N0} | {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} |' -f [int]$name, (F $c.baselineMedian '0.000'), (F $c.candidateMedian '0.000'), (F $ms.baselineMedian '0.0000'), (F $ms.candidateMedian '0.0000'), (F ([double]$c.candidateMedian - [double]$c.baselineMedian) '+0.000;-0.000'), (P $c), (Spread $c), $c.verdict
+}
+''
+'### IsSelected per call (ns)'
+''
+'| Selected | A hit | B hit | A miss | B miss | Miss change | p (miss) | Verdict (miss) |'
+'|---:|---:|---:|---:|---:|---:|---:|---|'
+foreach ($name in @($s.metrics | Where-Object { $_.kind -eq 'membership' } | ForEach-Object { $_.name } | Select-Object -Unique)) {
+    $hit = Find 'membership' $name 'hitNs'; $miss = Find 'membership' $name 'missNs'
+    '| {0:N0} | {1} | {2} | {3} | {4} | {5} | {6} | {7} |' -f [int]$name, $(if ($hit) { F $hit.baselineMedian '0.00' } else { '-' }), $(if ($hit) { F $hit.candidateMedian '0.00' } else { '-' }), (F $miss.baselineMedian '0.00'), (F $miss.candidateMedian '0.00'), (Change $miss), (P $miss), $miss.verdict
+}
+''
+'### Mutators'
+''
+'| Operation | Rows | Scattered ids | A ms | B ms | Change | p | A heap bytes | B heap bytes | A calls | B calls | Verdict |'
+'|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---|'
+foreach ($name in @($s.metrics | Where-Object { $_.kind -eq 'mutator' } | ForEach-Object { $_.name } | Select-Object -Unique)) {
+    $parts = $name -split '\|'
+    $ms = Find 'mutator' $name 'ms'; $bytes = Find 'mutator' $name 'cppBytes'; $calls = Find 'mutator' $name 'cppAllocations'
+    '| {0} | {1:N0} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10} | {11} |' -f $parts[0], [int]$parts[1], $parts[2], (F $ms.baselineMedian '0.0000'), (F $ms.candidateMedian '0.0000'), (Change $ms), (P $ms), $(if ($bytes) { '{0:N0}' -f $bytes.baselineMedian } else { '-' }), $(if ($bytes) { '{0:N0}' -f $bytes.candidateMedian } else { '-' }), $(if ($calls) { '{0:N0}' -f $calls.baselineMedian } else { '-' }), $(if ($calls) { '{0:N0}' -f $calls.candidateMedian } else { '-' }), $ms.verdict
+}
+''
+"selectionModelBytes: A $($s.selectionModelBytes.baseline), B $($s.selectionModelBytes.candidate)"
+"complexUiScene A: $($s.complexUiScene.baseline | ConvertTo-Json -Compress)  B: $($s.complexUiScene.candidate | ConvertTo-Json -Compress)"
