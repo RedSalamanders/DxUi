@@ -1,0 +1,216 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] MultilineText
+  [START] TestMultilineTextFieldCtrlASelectionReplacesAllText
+  [DONE] TestMultilineTextFieldCtrlASelectionReplacesAllText (0.334 s)
+  [START] TestWrappedMultilineTextFieldCtrlASelectionReplacesAllText
+  [DONE] TestWrappedMultilineTextFieldCtrlASelectionReplacesAllText (0.001 s)
+  [START] TestMultilineTextFieldSelectAllReplacesAllText
+  [DONE] TestMultilineTextFieldSelectAllReplacesAllText (0.000 s)
+  [START] TestWrappedMultilineTextFieldSelectAllReplacesAllText
+  [DONE] TestWrappedMultilineTextFieldSelectAllReplacesAllText (0.000 s)
+  [START] TestMultilineTextFieldBackspaceDeleteRemoveSelectedRange
+  [DONE] TestMultilineTextFieldBackspaceDeleteRemoveSelectedRange (0.000 s)
+  [START] TestWrappedMultilineTextFieldBackspaceDeleteRemoveSelectedRange
+  [DONE] TestWrappedMultilineTextFieldBackspaceDeleteRemoveSelectedRange (0.000 s)
+  [START] TestMultilineTextFieldBackspaceDeleteRemovesSelectionAcrossLogicalNewline
+  [DONE] TestMultilineTextFieldBackspaceDeleteRemovesSelectionAcrossLogicalNewline (0.000 s)
+  [START] TestMultilineTextFieldBackspaceDeleteAtBoundariesLeaveTextUnchanged
+  [DONE] TestMultilineTextFieldBackspaceDeleteAtBoundariesLeaveTextUnchanged (0.000 s)
+  [START] TestWrappedMultilineTextFieldBackspaceDeleteAtBoundariesLeaveTextUnchanged
+  [DONE] TestWrappedMultilineTextFieldBackspaceDeleteAtBoundariesLeaveTextUnchanged (0.000 s)
+  [START] TestMultilineTextFieldBackspaceDeleteAtCollapsedCaretRemovesSingleCharacter
+  [DONE] TestMultilineTextFieldBackspaceDeleteAtCollapsedCaretRemovesSingleCharacter (0.000 s)
+  [START] TestMultilineTextFieldBackspaceDeleteAtLogicalNewlineMergesLines
+  [DONE] TestMultilineTextFieldBackspaceDeleteAtLogicalNewlineMergesLines (0.000 s)
+  [START] TestWrappedMultilineTextFieldBackspaceDeleteAtCollapsedCaretRemovesSingleCharacter
+  [DONE] TestWrappedMultilineTextFieldBackspaceDeleteAtCollapsedCaretRemovesSingleCharacter (0.001 s)
+  [START] TestMultilineTextFieldCtrlInsertCopiesSelection
+  [DONE] TestMultilineTextFieldCtrlInsertCopiesSelection (0.050 s)
+  [START] TestMultilineTextFieldCtrlCCopiesSelection
+  [DONE] TestMultilineTextFieldCtrlCCopiesSelection (0.117 s)
+  [START] TestMultilineTextFieldCtrlInsertWithoutSelectionLeavesClipboardUnchanged
+  [DONE] TestMultilineTextFieldCtrlInsertWithoutSelectionLeavesClipboardUnchanged (0.114 s)
+  [START] TestMultilineTextFieldCtrlCWithoutSelectionLeavesClipboardUnchanged
+  [DONE] TestMultilineTextFieldCtrlCWithoutSelectionLeavesClipboardUnchanged (0.121 s)
+  [START] TestMultilineTextFieldCtrlXCutsSelection
+  [DONE] TestMultilineTextFieldCtrlXCutsSelection (0.114 s)
+  [START] TestMultilineTextFieldCtrlInsertCopiesSelectionAcrossLogicalNewline
+  [DONE] TestMultilineTextFieldCtrlInsertCopiesSelectionAcrossLogicalNewline (0.112 s)
+  [START] TestMultilineTextFieldCtrlCCopiesSelectionAcrossLogicalNewline
+  [DONE] TestMultilineTextFieldCtrlCCopiesSelectionAcrossLogicalNewline (0.122 s)
+  [START] TestMultilineTextFieldCtrlXCutsSelectionAcrossLogicalNewline
+  [DONE] TestMultilineTextFieldCtrlXCutsSelectionAcrossLogicalNewline (0.142 s)
+  [START] TestMultilineTextFieldCtrlXWithoutSelectionLeavesClipboardUnchanged
+  [DONE] TestMultilineTextFieldCtrlXWithoutSelectionLeavesClipboardUnchanged (0.146 s)
+  [START] TestMultilineTextFieldShiftDeleteCutsSelection
+  [DONE] TestMultilineTextFieldShiftDeleteCutsSelection (0.143 s)
+  [START] TestMultilineTextFieldShiftDeleteCutsSelectionAcrossLogicalNewline
+  [DONE] TestMultilineTextFieldShiftDeleteCutsSelectionAcrossLogicalNewline (0.135 s)
+  [START] TestMultilineTextFieldShiftDeleteWithoutSelectionLeavesClipboardUnchanged
+  [DONE] TestMultilineTextFieldShiftDeleteWithoutSelectionLeavesClipboardUnchanged (0.158 s)
+  [START] TestWrappedMultilineTextFieldCtrlInsertCopiesSelection
+  [DONE] TestWrappedMultilineTextFieldCtrlInsertCopiesSelection (0.110 s)
+  [START] TestWrappedMultilineTextFieldCtrlCCopiesSelection
+  [DONE] TestWrappedMultilineTextFieldCtrlCCopiesSelection (0.113 s)
+  [START] TestWrappedMultilineTextFieldCtrlInsertWithoutSelectionLeavesClipboardUnchanged
+  [DONE] TestWrappedMultilineTextFieldCtrlInsertWithoutSelectionLeavesClipboardUnchanged (0.110 s)
+  [START] TestWrappedMultilineTextFieldCtrlCWithoutSelectionLeavesClipboardUnchanged
+  [DONE] TestWrappedMultilineTextFieldCtrlCWithoutSelectionLeavesClipboardUnchanged (0.112 s)
+  [START] TestWrappedMultilineTextFieldCtrlXCutsSelection
+  [DONE] TestWrappedMultilineTextFieldCtrlXCutsSelection (0.113 s)
+  [START] TestWrappedMultilineTextFieldCtrlInsertCopiesPartialSelection
+  [DONE] TestWrappedMultilineTextFieldCtrlInsertCopiesPartialSelection (0.107 s)
+  [START] TestWrappedMultilineTextFieldCtrlCCopiesPartialSelection
+  [DONE] TestWrappedMultilineTextFieldCtrlCCopiesPartialSelection (0.108 s)
+  [START] TestWrappedMultilineTextFieldCtrlXCutsPartialSelection
+  [DONE] TestWrappedMultilineTextFieldCtrlXCutsPartialSelection (0.103 s)
+  [START] TestWrappedMultilineTextFieldCtrlXWithoutSelectionLeavesClipboardUnchanged
+  [DONE] TestWrappedMultilineTextFieldCtrlXWithoutSelectionLeavesClipboardUnchanged (0.109 s)
+  [START] TestWrappedMultilineTextFieldShiftDeleteCutsSelection
+  [DONE] TestWrappedMultilineTextFieldShiftDeleteCutsSelection (0.111 s)
+  [START] TestWrappedMultilineTextFieldShiftDeleteCutsPartialSelection
+  [DONE] TestWrappedMultilineTextFieldShiftDeleteCutsPartialSelection (0.112 s)
+  [START] TestWrappedMultilineTextFieldShiftDeleteWithoutSelectionLeavesClipboardUnchanged
+  [DONE] TestWrappedMultilineTextFieldShiftDeleteWithoutSelectionLeavesClipboardUnchanged (0.117 s)
+  [START] TestMultilineTextFieldShiftInsertPastesClipboard
+  [DONE] TestMultilineTextFieldShiftInsertPastesClipboard (0.121 s)
+  [START] TestWrappedMultilineTextFieldShiftInsertPastesClipboard
+  [DONE] TestWrappedMultilineTextFieldShiftInsertPastesClipboard (0.114 s)
+  [START] TestMultilineTextFieldCtrlVPastesClipboard
+  [DONE] TestMultilineTextFieldCtrlVPastesClipboard (0.114 s)
+  [START] TestWrappedMultilineTextFieldCtrlVPastesClipboard
+  [DONE] TestWrappedMultilineTextFieldCtrlVPastesClipboard (0.114 s)
+  [START] TestMultilineTextFieldShiftInsertReplacesPartialSelectionAcrossLogicalNewline
+  [DONE] TestMultilineTextFieldShiftInsertReplacesPartialSelectionAcrossLogicalNewline (0.098 s)
+  [START] TestMultilineTextFieldCtrlVReplacesPartialSelectionAcrossLogicalNewline
+  [DONE] TestMultilineTextFieldCtrlVReplacesPartialSelectionAcrossLogicalNewline (0.104 s)
+  [START] TestWrappedMultilineTextFieldShiftInsertReplacesPartialSelection
+  [DONE] TestWrappedMultilineTextFieldShiftInsertReplacesPartialSelection (0.111 s)
+  [START] TestWrappedMultilineTextFieldCtrlVReplacesPartialSelection
+  [DONE] TestWrappedMultilineTextFieldCtrlVReplacesPartialSelection (0.110 s)
+  [START] TestMultilineTextFieldUndoRedoRestoresCollapsedCaretInsertion
+  [DONE] TestMultilineTextFieldUndoRedoRestoresCollapsedCaretInsertion (0.094 s)
+  [START] TestWrappedMultilineTextFieldUndoRedoRestoresCollapsedCaretInsertion
+  [DONE] TestWrappedMultilineTextFieldUndoRedoRestoresCollapsedCaretInsertion (0.000 s)
+  [START] TestMultilineTextFieldUndoRedoRestoresSelectAllReplacement
+  [DONE] TestMultilineTextFieldUndoRedoRestoresSelectAllReplacement (0.000 s)
+  [START] TestWrappedMultilineTextFieldUndoRedoRestoresSelectAllReplacement
+  [DONE] TestWrappedMultilineTextFieldUndoRedoRestoresSelectAllReplacement (0.000 s)
+  [START] TestMultilineTextFieldUndoRedoRestoresPartialSelectionReplacement
+  [DONE] TestMultilineTextFieldUndoRedoRestoresPartialSelectionReplacement (0.000 s)
+  [START] TestWrappedMultilineTextFieldUndoRedoRestoresPartialSelectionReplacement
+  [DONE] TestWrappedMultilineTextFieldUndoRedoRestoresPartialSelectionReplacement (0.000 s)
+  [START] TestMultilineTextFieldUndoRedoWithoutHistoryLeavesTextAndCaretUnchanged
+  [DONE] TestMultilineTextFieldUndoRedoWithoutHistoryLeavesTextAndCaretUnchanged (0.000 s)
+  [START] TestWrappedMultilineTextFieldUndoRedoWithoutHistoryLeavesTextAndCaretUnchanged
+  [DONE] TestWrappedMultilineTextFieldUndoRedoWithoutHistoryLeavesTextAndCaretUnchanged (0.000 s)
+  [START] TestMultilineTextFieldRedoClearsAfterNewEdit
+  [DONE] TestMultilineTextFieldRedoClearsAfterNewEdit (0.000 s)
+  [START] TestWrappedMultilineTextFieldRedoClearsAfterNewEdit
+  [DONE] TestWrappedMultilineTextFieldRedoClearsAfterNewEdit (0.000 s)
+  [START] TestMultilineTextFieldMouseClickPlacesCaretByPointAndTypesAtCaret
+  [DONE] TestMultilineTextFieldMouseClickPlacesCaretByPointAndTypesAtCaret (0.000 s)
+  [START] TestMultilineTextFieldDragSelectionReplacesDraggedRange
+  [DONE] TestMultilineTextFieldDragSelectionReplacesDraggedRange (0.000 s)
+  [START] TestMultilineTextFieldShiftClickExtendsSelectionAndReplacesRange
+  [DONE] TestMultilineTextFieldShiftClickExtendsSelectionAndReplacesRange (0.000 s)
+  [START] TestMultilineTextFieldDoubleClickSelectsWordByPointAndReplacesRange
+  [DONE] TestMultilineTextFieldDoubleClickSelectsWordByPointAndReplacesRange (0.000 s)
+  [START] TestMultilineTextFieldArrowKeysMoveCaretByCodeUnit
+  [DONE] TestMultilineTextFieldArrowKeysMoveCaretByCodeUnit (0.000 s)
+  [START] TestMultilineTextFieldShiftArrowExtendsSelection
+  [DONE] TestMultilineTextFieldShiftArrowExtendsSelection (0.000 s)
+  [START] TestMultilineTextFieldHomeEndUseLineBoundaries
+  [DONE] TestMultilineTextFieldHomeEndUseLineBoundaries (0.000 s)
+  [START] TestMultilineTextFieldShiftHomeEndExtendSelection
+  [DONE] TestMultilineTextFieldShiftHomeEndExtendSelection (0.000 s)
+  [START] TestMultilineTextFieldCtrlShiftHomeEndExtendSelection
+  [DONE] TestMultilineTextFieldCtrlShiftHomeEndExtendSelection (0.000 s)
+  [START] TestMultilineTextFieldCtrlBackspaceDeletesPreviousWord
+  [DONE] TestMultilineTextFieldCtrlBackspaceDeletesPreviousWord (0.000 s)
+  [START] TestMultilineTextFieldCtrlDeleteDeletesNextWord
+  [DONE] TestMultilineTextFieldCtrlDeleteDeletesNextWord (0.000 s)
+  [START] TestMultilineTextFieldCtrlArrowMovesByWordBoundary
+  [DONE] TestMultilineTextFieldCtrlArrowMovesByWordBoundary (0.000 s)
+  [START] TestMultilineTextFieldCtrlShiftArrowExtendsSelectionByWord
+  [DONE] TestMultilineTextFieldCtrlShiftArrowExtendsSelectionByWord (0.000 s)
+  [START] TestMultilineTextFieldUpDownPreservePreferredColumn
+  [DONE] TestMultilineTextFieldUpDownPreservePreferredColumn (0.000 s)
+  [START] TestMultilineTextFieldShiftUpDownExtendSelection
+  [DONE] TestMultilineTextFieldShiftUpDownExtendSelection (0.000 s)
+  [START] TestMultilineTextFieldPageUpDownUseViewportLines
+  [DONE] TestMultilineTextFieldPageUpDownUseViewportLines (0.000 s)
+  [START] TestWrappedMultilineTextFieldArrowKeysUseVisualLines
+  [DONE] TestWrappedMultilineTextFieldArrowKeysUseVisualLines (0.000 s)
+  [START] TestWrappedMultilineTextFieldCtrlArrowUsesWordBoundaries
+  [DONE] TestWrappedMultilineTextFieldCtrlArrowUsesWordBoundaries (0.000 s)
+  [START] TestWrappedMultilineTextFieldCtrlShiftArrowExtendsSelectionByWord
+  [DONE] TestWrappedMultilineTextFieldCtrlShiftArrowExtendsSelectionByWord (0.000 s)
+  [START] TestWrappedMultilineTextFieldShiftArrowExtendsSelectionAndReplacesRange
+  [DONE] TestWrappedMultilineTextFieldShiftArrowExtendsSelectionAndReplacesRange (0.000 s)
+  [START] TestWrappedMultilineTextFieldShiftHomeEndExtendSelectionAndReplaceRange
+  [DONE] TestWrappedMultilineTextFieldShiftHomeEndExtendSelectionAndReplaceRange (0.001 s)
+  [START] TestWrappedMultilineTextFieldCtrlShiftHomeEndExtendSelectionAndReplaceRange
+  [DONE] TestWrappedMultilineTextFieldCtrlShiftHomeEndExtendSelectionAndReplaceRange (0.001 s)
+  [START] TestWrappedMultilineTextFieldShiftUpDownExtendSelectionAndReplaceRange
+  [DONE] TestWrappedMultilineTextFieldShiftUpDownExtendSelectionAndReplaceRange (0.001 s)
+  [START] TestWrappedMultilineTextFieldCtrlBackspaceDeleteUsesWordBoundaries
+  [DONE] TestWrappedMultilineTextFieldCtrlBackspaceDeleteUsesWordBoundaries (0.000 s)
+  [START] TestWrappedMultilineTextFieldMouseClickPlacesCaretByPointAndTypesAtCaret
+  [DONE] TestWrappedMultilineTextFieldMouseClickPlacesCaretByPointAndTypesAtCaret (0.000 s)
+  [START] TestWrappedMultilineTextFieldDoubleClickSelectsWordByPointAndReplacesRange
+  [DONE] TestWrappedMultilineTextFieldDoubleClickSelectsWordByPointAndReplacesRange (0.000 s)
+  [START] TestWrappedMultilineTextFieldDragSelectionReplacesDraggedRange
+  [DONE] TestWrappedMultilineTextFieldDragSelectionReplacesDraggedRange (0.000 s)
+  [START] TestWrappedMultilineTextFieldShiftClickExtendsSelectionAndReplacesRange
+  [DONE] TestWrappedMultilineTextFieldShiftClickExtendsSelectionAndReplacesRange (0.000 s)
+  [START] TestWrappedMultilineTextFieldPageKeysUseVisualLines
+  [DONE] TestWrappedMultilineTextFieldPageKeysUseVisualLines (0.000 s)
+  [START] TestWrappedMultilineTextFieldShiftPageDownExtendsSelectionAndReplacesRange
+  [DONE] TestWrappedMultilineTextFieldShiftPageDownExtendsSelectionAndReplacesRange (0.000 s)
+  [START] TestWrappedMultilineTextFieldShiftPageUpExtendsSelectionAndReplacesRange
+  [DONE] TestWrappedMultilineTextFieldShiftPageUpExtendsSelectionAndReplacesRange (0.000 s)
+  [START] TestWrappedMultilineTextFieldHomeEndUseVisualLineBoundaries
+  [DONE] TestWrappedMultilineTextFieldHomeEndUseVisualLineBoundaries (0.000 s)
+  [START] TestWrappedMultilineTextFieldCtrlHomeEndUseDocumentBoundaries
+  [DONE] TestWrappedMultilineTextFieldCtrlHomeEndUseDocumentBoundaries (0.000 s)
+  [START] TestMultilineTextFieldShiftPageDownExtendsSelection
+  [DONE] TestMultilineTextFieldShiftPageDownExtendsSelection (0.000 s)
+  [START] TestMultilineTextFieldShiftPageUpExtendsSelection
+  [DONE] TestMultilineTextFieldShiftPageUpExtendsSelection (0.000 s)
+  [START] TestMultilineTextFieldImportKeepsLaterCaretVisible
+  [DONE] TestMultilineTextFieldImportKeepsLaterCaretVisible (0.000 s)
+  [START] TestMultilineTextFieldMouseWheelScrollsViewport
+  [DONE] TestMultilineTextFieldMouseWheelScrollsViewport (0.000 s)
+  [START] TestMultilineTextFieldLargeWheelDeltaUsesFullMagnitude
+  [DONE] TestMultilineTextFieldLargeWheelDeltaUsesFullMagnitude (0.000 s)
+  [START] TestMultilineTextFieldAccumulatesPartialWheelDelta
+  [DONE] TestMultilineTextFieldAccumulatesPartialWheelDelta (0.001 s)
+  [START] TestWrappedMultilineTextFieldMouseWheelUsesLineMetrics
+  [DONE] TestWrappedMultilineTextFieldMouseWheelUsesLineMetrics (0.000 s)
+  [START] TestWrappedMultilineTextFieldCtrlWordNavigationUsesWrappedBoundaries
+  [DONE] TestWrappedMultilineTextFieldCtrlWordNavigationUsesWrappedBoundaries (0.001 s)
+  [START] TestWrappedMultilineTextFieldCtrlShiftWordSelectionUsesWrappedBoundaries
+  [DONE] TestWrappedMultilineTextFieldCtrlShiftWordSelectionUsesWrappedBoundaries (0.000 s)
+  [START] TestMultilineTextFieldReturnInsertsNewlineAndCollapsesSelection
+  [DONE] TestMultilineTextFieldReturnInsertsNewlineAndCollapsesSelection (0.000 s)
+  [START] TestMultilineTextFieldReturnReplacesSelectionWithNewline
+  [DONE] TestMultilineTextFieldReturnReplacesSelectionWithNewline (0.000 s)
+  [START] TestWrappedMultilineTextFieldReturnInsertsNewlineAndCollapsesSelection
+  [DONE] TestWrappedMultilineTextFieldReturnInsertsNewlineAndCollapsesSelection (0.000 s)
+  [START] TestWrappedMultilineTextFieldReturnReplacesSelectionWithNewline
+  [DONE] TestWrappedMultilineTextFieldReturnReplacesSelectionWithNewline (0.000 s)
+  [START] TestMultilineTextFieldMenuKeyInvokesContextMenu
+  [DONE] TestMultilineTextFieldMenuKeyInvokesContextMenu (0.000 s)
+  [START] TestWrappedMultilineTextFieldMenuKeyInvokesContextMenu
+  [DONE] TestWrappedMultilineTextFieldMenuKeyInvokesContextMenu (0.000 s)
+  [START] TestMultilineTextFieldShiftF10InvokesContextMenu
+  [DONE] TestMultilineTextFieldShiftF10InvokesContextMenu (0.000 s)
+  [START] TestWrappedMultilineTextFieldShiftF10InvokesContextMenu
+  [DONE] TestWrappedMultilineTextFieldShiftF10InvokesContextMenu (0.000 s)
+  [START] TestMultilineTextFieldMixedDialogFlowKeepsReturnEscapeAndTabRoutingCorrect
+  [DONE] TestMultilineTextFieldMixedDialogFlowKeepsReturnEscapeAndTabRoutingCorrect (0.000 s)
+  [START] TestWrappedMultilineTextFieldMixedDialogFlowKeepsReturnEscapeAndTabRoutingCorrect
+  [DONE] TestWrappedMultilineTextFieldMixedDialogFlowKeepsReturnEscapeAndTabRoutingCorrect (0.000 s)
+[DONE] MultilineText (4.146 s)
+All DxUi tests passed.

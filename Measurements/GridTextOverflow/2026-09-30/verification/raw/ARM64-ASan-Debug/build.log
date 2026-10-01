@@ -1,0 +1,90 @@
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                 ⚡  ASAN DEBUG  /  ARM64  /  BUILD  ⚡                 │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: ASan Debug
+  Platform:      ARM64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        D:\DxUi\.claude\worktrees\agent-a371b42370bad7067\.build\
+
+Compiling DxUi...
+
+  compilation header save succeeded; see D:\DxUi\.claude\worktrees\agent-a371b42370bad7067\.build\Intermediate\ARM64\ASan Debug\DxUi\DxUiCompositeVS.h
+  compilation object save succeeded; see D:\DxUi\.claude\worktrees\agent-a371b42370bad7067\.build\Intermediate\ARM64\ASan Debug\DxUi\DxUiCompositeVS.cso
+  compilation header save succeeded; see D:\DxUi\.claude\worktrees\agent-a371b42370bad7067\.build\Intermediate\ARM64\ASan Debug\DxUi\DxUiCompositePS.h
+  compilation object save succeeded; see D:\DxUi\.claude\worktrees\agent-a371b42370bad7067\.build\Intermediate\ARM64\ASan Debug\DxUi\DxUiCompositePS.cso
+  ControlCatalog.cpp
+  NativeMenuInterop.cpp
+  Embedded.cpp
+  FrameRuntime.cpp
+  DxUi.Accessibility.cpp
+  DxUi.ComboBox.cpp
+  DxUi.Controls.cpp
+  DxUi.EditorControls.cpp
+  DxUi.cpp
+  DxUi.Grid.cpp
+  DxUi.Menu.cpp
+  DxUi.NativeTextInput.cpp
+  DxUi.PointerInput.cpp
+  DxUi.Scrollbar.cpp
+  DxUi.SingleLineTextEditing.cpp
+  DxUi.TextInput.cpp
+  DxUi.TextStoreACP.cpp
+  TextInputServices.cpp
+  TextClipboard.cpp
+  DxUi.Theme.cpp
+  Generating Code...
+  Compiling...
+  DxUi.Tree.cpp
+  DxUi.Typeahead.cpp
+  DxUi.WindowHost.cpp
+  Generating Code...
+  DxUi.vcxproj -> D:\DxUi\.claude\worktrees\agent-a371b42370bad7067\.build\ARM64\ASan Debug\DxUi.lib
+  EmbeddedTests.cpp
+  FoundationTests.cpp
+  Main.cpp
+  DxUiTests.Accessibility.cpp
+  PublicHelpersTests.cpp
+  Generating Code...
+  DxUi.EmbeddedControls.vcxproj -> D:\DxUi\.claude\worktrees\agent-a371b42370bad7067\.build\ARM64\ASan Debug\DxUi.EmbeddedControls.exe
+  DxUi.FoundationTests.vcxproj -> D:\DxUi\.claude\worktrees\agent-a371b42370bad7067\.build\ARM64\ASan Debug\DxUi.FoundationTests.exe
+  DxUi.EmbeddedTests.vcxproj -> D:\DxUi\.claude\worktrees\agent-a371b42370bad7067\.build\ARM64\ASan Debug\DxUi.EmbeddedTests.exe
+  DxUiTests.Animation.cpp
+  DxUiTests.ComboBox.cpp
+  DxUiTests.Controls.cpp
+  DxUiTests.cpp
+  DxUiTests.EditorControls.cpp
+  DxUiTests.Gallery.cpp
+  DxUiTests.Grid.cpp
+  DxUiTests.Menu.cpp
+  DxUiTests.MultilineText.cpp
+  DxUiTests.NativeTextInput.cpp
+  DxUiTests.NewControls.cpp
+  DxUiTests.ReadOnly.cpp
+  DxUiTests.Rendering.cpp
+  DxUiTests.TextField.cpp
+  DxUiTests.Theme.cpp
+  DxUiTests.Tooltip.cpp
+  DxUiTests.Tree.cpp
+  DxUiTests.WindowHost.cpp
+  Generating Code...
+  DxUi.ControlTests.vcxproj -> D:\DxUi\.claude\worktrees\agent-a371b42370bad7067\.build\ARM64\ASan Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 02:23
+Output: D:\DxUi\.claude\worktrees\agent-a371b42370bad7067\.build\
+Log: D:\DxUi\.claude\worktrees\agent-a371b42370bad7067\.build\logs\build-ARM64-ASan Debug-96986ade44f2454d9df30139cd773191.log
+========================================

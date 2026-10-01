@@ -3673,6 +3673,11 @@ public:
         bool ellipsis            = false; // The ellipsis trimming sign of the omitted tails, or its text format, is held.
     };
     [[nodiscard]] GridDebugTextLayoutStatistics DebugGetTextLayoutStatistics() const noexcept;
+    // The entry ceiling of the layout tables: 16,384 by default, which no test window holds enough distinct cells to
+    // reach. A smaller one (rounded down to a power of two of at least 32, the sizes the tables take) lets a few hundred
+    // cells reach it; 0 restores the default. Tables already larger than the new ceiling keep their size until they halve.
+    void DebugSetTextLayoutEntryLimit(size_t maxEntries) noexcept;
+    [[nodiscard]] size_t DebugGetTextLayoutEntryLimit() const noexcept;
 #endif
     bool RequestSelectRow(size_t rowIndex, UINT modifiers);
     bool RequestRemoveRowSelection(size_t rowIndex);
@@ -3908,6 +3913,7 @@ private:
     mutable uint64_t _debugTextLayoutHits                      = 0u;
     mutable uint64_t _debugTextLayoutCreations                 = 0u;
     mutable uint64_t _debugTextLayoutShapedUnits               = 0u;
+    size_t _debugTextLayoutEntryLimit                          = 0u; // 0: the default ceiling.
     uint64_t _debugHeaderResizeDownCount                       = 0u;
     uint64_t _debugResizeMoveCount                             = 0u;
     float _debugLastResizeDeltaDip                             = 0.0f;

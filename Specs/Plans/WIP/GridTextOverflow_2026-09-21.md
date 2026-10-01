@@ -8,6 +8,74 @@ The consumer's French Issues grid exposed a generic defect: `SetLineClamp` enabl
 does not limit visible lines or produce an omission marker. Partially visible cells also lay out
 against their clipped rectangle, changing text placement as they cross the viewport boundary.
 
+## September 30 verification
+
+The verification item of the Execution list below is closed by 16 new tests in four suites. Each paints a scenario and a
+fresh twin in the same window or view (one device, so the pixels compare exactly) and never compares stored pixels; a
+scenario and its twin differ in the one thing the test is about. The
+[x64 Debug, Release and ASan Debug runs](../../../Measurements/GridTextOverflow/2026-09-30/verification/README.md) of the
+Grid, Rendering, Accessibility, Embedded and MultilineText suites are archived with their logs and receipts, zero capability
+skips. Native ARM64 execution of the new tests is not claimed: they build in all three ARM64 configurations and the next
+native CI run executes them.
+
+- Grid: `TestGridCopyOfTrimmedMultilineCellsIsExact` (Ctrl+C and `OnCopy` of cells the paint trims, holding CR LF,
+  U+2028/U+2029, a zero-width-joiner emoji, a 5,000-unit word, decomposed accents, Arabic and trailing separators, are exact
+  unit for unit across rows and columns and in the display order of reordered columns; the tooltip of each cell equals its
+  value, which proves it trimmed) and `TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves` (the real
+  tables at the 16,384-entry ceiling: growth stops there, a full set gives up a least recently used way, one of the previous
+  paint's and none of the current one's, and a paint that uses under an eighth of a table halves it, down to 32 entries).
+- Rendering: `TestGridMultilineDecomposedAccentsPaintLikePrecomposed` (e plus U+0301 paints the pixels of the precomposed
+  letter at every clamp, for 420 and 100,000 units, and the tooltip keeps the decomposed text);
+  `TestGridMultilineShapedPrefixCutInsideAClusterPaintsLikeItsShortTwin` (a 100,000-unit value whose shaped prefix ends
+  inside a surrogate pair, a zero-width-joiner sequence or a letter and its marks, at every alignment, paints the pixels of a
+  short twin; the shaped units show the surrogate guard stepping back in exactly the alignments that cut a pair);
+  `TestGridMultilineRightToLeftFlowKeepsMarkerSideAndClipping` (marker side, clipping and tooltip in a grid whose flow is
+  right to left); `TestGridMultilineCellNarrowerThanItsWordKeepsInkInsideAndOffersTheValue` (clamps 1, 2 and 3: ink inside
+  the cell, the ellipsis after the lines DirectWrite cuts, the tooltip);
+  `TestGridMultilineCellCutByTheViewportPaintsAShiftedCropOfItsWholeSelf` (whole-row, whole-DIP, scrollbar-dragged fractional
+  vertical and fractional horizontal offsets: what survives of a cut cell is a shifted crop of the unscrolled capture, so
+  nothing reflows); `TestGridMultilineRepaintsAtANewDpiLikeAFreshGrid` (144 and 192 dpi and back: the repaint equals a fresh
+  grid's, the layouts being in DIPs and the log showing the change creating none);
+  `TestGridMultilineRepaintsAfterThemeFontAndDensityChangesLikeAFreshAttach` (light, dark and a real
+  high-contrast palette lay nothing out; another font family or size, or compact density, lays out again; each step equals a
+  fresh attach); `TestGridMultilinePrefixSharingNeverCrossesTextThatLaysOutDifferently` (values that share a start but differ
+  where shaping stops, inside the prefix or after a paragraph that ends it, never share a layout, including past the 4,096
+  hashed units); `TestGridMultilineLayoutTablesStayAtALoweredCeilingAndPaintRightAfterEviction` (the tables stay at a lowered
+  ceiling, paint the pixels of the default ceiling after eviction, recover reuse when it is raised and halve when use drops);
+  `TestGridMultilineTrimmedCellsPaintTheSameAfterDeviceLoss` (the pixels before and after each of several losses are equal
+  and no layout is made again); `TestGridMultilineMovedBetweenHostsMatchesAFreshOne` (a grid moved to a host with another
+  device, dpi, theme and density arranges and paints its cells like one created there, through the shared moved-control
+  fixtures in `Tests/Controls/DxUiTestMovedControls.h`).
+- Accessibility: `TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues` (Name, Value and ValuePattern of trimmed
+  cells, a 100,000-unit one included, equal the model's units, in a left-to-right and a right-to-left grid) and
+  `TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport` (a cell the viewport cuts keeps its whole Name and Value
+  and its bounding rectangle is the viewport-clipped cell, which a point in it resolves to, at five scroll offsets and under
+  a dragged scrollbar thumb; a cell scrolled out says it is offscreen and has no rectangle).
+- Embedded: `TestEmbeddedMultilineGridFrenchCells` (long French cells at clamp 2 in 64-DIP rows on a WARP device, read back:
+  the marker follows the second line and no third line paints, a wrapped cell paints fewer rows at clamp 2 than at 3; hide and show and
+  replacing the device, shown or hidden, reproduce the pixels; 144, 192, 96 and 192 dpi equal a fresh view, the change
+  creating no layout).
+
+Every new test failed under at least one temporary mutation of the library: 27 mutants, 33 pairs of a mutant and a test, in
+[the archived table](../../../Measurements/GridTextOverflow/2026-09-30/verification/README.md#falsification) with the assertion
+that failed. The mutations were reverted and none is committed. Two limits are recorded there: a layout table is
+pixel-transparent by design, so the Rendering ceiling test cannot fail on the eviction order (the Grid test does), and the
+surrogate guard is visible only in shaped units, never in pixels, so its test asserts units.
+
+Findings. The library needed no fix. The Grid does not react to its `FlowDirection` (`DxUi.Grid.cpp` never reads it, and the
+test's log shows a right-to-left grid painting the pixels of the same grid in a left-to-right flow): the columns and cells of
+a right-to-left grid are not mirrored, and only the text's own direction places the omission marker, which is what the test
+asserts in a right-to-left grid. Mirroring a Grid would be a new feature with its own contract, not a defect of this slice.
+The performance contract said an entry the current or previous paint used is never evicted; that holds only while a table can
+grow, and at the ceiling a full set gives up its least recently used way (the Grid test pins it, on a 64-entry table running
+the same code as at 16,384), so `Core_PerformanceAndResources.md` now says that. Layouts are in DIPs, so a dpi change creates none and a repaint equals a
+fresh grid; theme changes create none; font or density changes create them again. The vertical scroll offset rests on whole
+rows except while the scrollbar thumb is dragged, so the fractional-offset check uses a dragged thumb. One hook was added for
+the ceiling test, `Grid::DebugSetTextLayoutEntryLimit` (and its getter), diagnostics only, with the production limit
+unchanged at 16,384; the API revision stays 2. Docs and the gallery were reviewed: no behavior or pixel changes, so nothing
+is regenerated. Remaining: native ARM64 execution of these tests, native assistive-technology acceptance, and the consumer
+items below.
+
 ## September 27 gallery and paired benchmark
 
 Gallery capture no longer depends on the desktop size (`9fe19cc`). The x64 Release CI job regenerated
@@ -158,8 +226,12 @@ Reuse bounded text-layout resources; clean/hidden composition adds no work. No f
 
 - [x] Retain unchanged-production pixel witness and paired complex-UI performance baseline.
 - [x] Implement complete-line trimming and stable full-cell layout with bounded resource reuse.
-- [ ] Verify actual pixels, long French/Unicode text, copy/UIA, narrow/short cells, clipping,
+- [x] Verify actual pixels, long French/Unicode text, copy/UIA, narrow/short cells, clipping,
   mutation/resize/font changes, cache bounds and independent WARP/device-loss/lifecycle suites.
+  The 30 September tests add what the earlier ones did not cover: copy, UIA values and clipped bounds, Unicode clusters at
+  the shaped prefix, right-to-left flow, dpi, theme and font changes, prefix sharing, the ceiling, embedded French cells,
+  device loss and moved hosts (the verification section above). x64 Debug, Release and ASan Debug runs are archived; native
+  ARM64 execution of the new tests awaits the next CI run.
 - [x] Run x64 Debug/Release/ASan tests and all three ARM64 cross-builds.
 - [x] Obtain native ARM64 Grid/Embedded/Rendering/Accessibility qualification in all three profiles;
   nine unrelated Menu desktop-capability skips per profile remain explicitly unqualified.

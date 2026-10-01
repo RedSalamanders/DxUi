@@ -1,0 +1,178 @@
+PASS DxUi update advisory: same
+PASS DxUi update advisory: green
+PASS DxUi update advisory: pending
+PASS DxUi update advisory: failed
+PASS DxUi update advisory: absent
+PASS DxUi update advisory: divergent
+PASS DxUi update advisory: ahead
+PASS DxUi update advisory: offline
+PASS DxUi update advisory: wrong-run
+PASS DxUi update advisory: malformed
+== Test-Validation.ps1
+ok   owned source can evolve without rewriting its historical hash
+ok   new owned source needs no fake historical origin
+ok   missing owned source is rejected
+ok   a parent path cannot escape the owned tree
+ok   developer settings cannot be owned source
+ok   a duplicate original source tree is rejected
+ok   application debt cannot be reintroduced
+ok   supported source cannot waive an application dependency
+ok   independent controls can enter the single supported build
+ok   owned source can use other owned headers
+ok   the old application namespace is rejected
+ok   a second static library is rejected
+ok   a nested checkout under owned source is not scanned
+ok   every validation step runs and every failure is reported
+ok   every tooling test script is strict itself, so a direct run fails as its run under test.ps1 does
+ok   the validation entry point covers every validator and is what CI and test.ps1 run
+ok   invalid skill metadata is rejected
+ok   valid skill metadata passes
+ok   CRLF skill files and quoted values read like YAML
+ok   front matter outside the strict subset is rejected
+ok   values YAML types as non-strings are not names or descriptions
+ok   missing front matter and empty instructions are rejected
+Validation: 22 of 22 passed
+== Test-Docs.ps1
+ok   complete docs pass
+ok   missing control usage fails
+ok   changed gallery bytes fail
+ok   lambdas in fenced code are not links
+ok   raw measurements cannot return to docs
+ok   measurements require library ownership and an explanation
+ok   a complete design system passes
+ok   a new control requires a design-system preview
+ok   a preview requires its card marker
+ok   a removed control leaves no stale component
+ok   a complete specification tree passes
+ok   nested git checkouts are not part of the tree
+ok   measurement receipts of a nested checkout are not this tree's
+ok   a regenerated sheet is committed and pushed with the gallery only
+ok   a new generation receipt or an identical rewrite alone is not a change
+ok   a changed index or README is committed even when no sheet changed
+ok   the push is never forced
+ok   nothing is pushed when asked not to
+ok   the gallery workflow publishes only on manual dispatch, with the safeguards of the formatting workflow
+Docs: 19 of 19 passed
+== Test-TestPort.ps1
+ok   a retained case is accounted for
+ok   silently deleting a case fails
+ok   discarding a disposition fails
+ok   an explicit rename retains the origin
+ok   an exclusion needs a reason
+ok   a current runtime replacement passes
+ok   a missing current policy fails
+ok   a deleted replacement fails
+ok   a duplicate policy fails
+TestPort: 9 of 9 passed
+== Test-BuildMatrix.ps1
+ok   every project requires real configuration entries
+ok   a silent Debug fallback and a missing build are rejected
+BuildMatrix: 2 of 2 passed
+== Test-PerformanceComparison.ps1
+ok   identical and new source are comparable
+ok   an FPS regression requires advice
+ok   a memory regression requires advice
+ok   surface growth has no tolerance
+ok   an improvement passes
+ok   a mismatched fixture is rejected
+ok   missing rounds are rejected
+ok   a missing or non-finite metric is rejected
+ok   an allocating composition is rejected
+ok   hidden work is rejected
+ok   the command writes the status and returns its exit code
+ok   every stored paired comparison is reproduced exactly
+ok   every stored unpaired receipt still validates
+ok   the exact rank test gives the closed-form p-value of complete separation
+ok   the exact rank test reproduces the documented reference example
+ok   the exact rank test counts ties as an enumeration of every rank assignment does
+ok   six runs against six reach p < 0.05 for exactly the nominal share of rank patterns
+ok   the p-value a set can reach depends on its runs per side
+ok   identical distributions are within noise
+ok   a 20% FPS drop with 3% jitter is regressed with p < 0.05
+ok   a significant shift inside the band is within noise
+ok   a shift beyond the band that the runs cannot separate from noise is within noise
+ok   an increase in an exact budget in any single candidate run is regressed
+ok   a clear improvement is reported and needs no advice
+ok   every metric keeps its own band and direction
+ok   a run is judged by the median of its rounds
+ok   a same-binary spread is reported and never a veto
+ok   two runs per side establish no timing shift but still catch a budget rise
+ok   a set of one binary per side on one fixture is required
+ok   the set verdict prints its status, the smallest attainable p and each finding
+PerformanceComparison: 30 of 30 passed
+== Test-PairedRun.ps1
+ok   the baseline and candidate are chosen by revision, named tree or checkout
+ok   an ambiguous or missing selection is rejected
+ok   revisions and this checkout are refused on one commit and only on the commit
+ok   a named tree is refused on identical library sources, not on one commit
+ok   a fingerprint that is not known yet defers the refusal, and the same tree is refused at once
+ok   a named tree must be the top of a git working tree with the DxUi scripts
+ok   the harness overlay leaves identical files alone, stamps what it writes and restores the tree
+ok   a restore keeps a directory that gained other files
+ok   a tree that is the harness source is never rewritten
+ok   a failed overlay leaves the tree as it was found
+ok   one repetition is the single pass a set has always been
+ok   repetitions repeat the interleaved pass and keep every pass its own comparisons
+ok   only an overlay that changed a compiled input forbids reusing a build
+ok   the harness is the driver, the comparator and every benchmark input, all present
+ok   the source fingerprint is the one receipts have always recorded, over the library inputs only
+ok   the measurement scripts parse
+PairedRun: 16 of 16 passed
+== Test-SuiteFailure.ps1
+ok   a run the watchdog ended is reported with its exit code and the hung test
+ok   the TIMEOUT line is found even when it is not among the last lines
+ok   a failed check is not called a timeout
+ok   a watchdog exit code without a TIMEOUT line says so
+ok   a missing log does not hide the exit code
+ok   each capability skip is named after the test it belongs to
+ok   a skip outside a test is named after its suite, or said to come before any test
+ok   each skip is printed on a line of its own, and a suite without skips prints nothing
+ok   test.ps1 reports a failing suite through it, gives its receipt the timeout and passes -TestTimeout on
+Suite failure report: 9 of 9 passed
+All tooling tests passed.
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 11 of 11 passed
+Complex UI clean round 1: 1143.58 completed offscreen FPS; p95 1.0477 ms; private 186052608 bytes
+Complex UI clean round 2: 1029.77 completed offscreen FPS; p95 1.2333 ms; private 190177280 bytes
+Complex UI clean round 3: 1040.37 completed offscreen FPS; p95 1.1845 ms; private 193314816 bytes
+Complex UI clean round 4: 1018.49 completed offscreen FPS; p95 1.212 ms; private 196440064 bytes
+Complex UI clean round 5: 1037.04 completed offscreen FPS; p95 1.1566 ms; private 199278592 bytes
+Complex UI dirty round 1: 92.4094 completed offscreen FPS; p95 14.2751 ms; private 297398272 bytes
+Complex UI dirty round 2: 92.7165 completed offscreen FPS; p95 11.9752 ms; private 391094272 bytes
+Complex UI dirty round 3: 96.9086 completed offscreen FPS; p95 10.9911 ms; private 486903808 bytes
+Complex UI dirty round 4: 90.8049 completed offscreen FPS; p95 13.9938 ms; private 520835072 bytes
+Complex UI dirty round 5: 84.1351 completed offscreen FPS; p95 15.0753 ms; private 533258240 bytes
+Performance comparison: unpaired
+Performance receipt: D:\DxUi\.claude\worktrees\agent-a371b42370bad7067\.build\reports\Performance-x64-ASan Debug-9f1058ab7822471d91ede229fc3e3af8.json
+PASS AddressSanitizer detection probe (isolated expected failure)
+Running Grid (x64 ASan Debug)
+PASS Grid (0 capability skips recorded)
+Running Rendering (x64 ASan Debug)
+PASS Rendering (0 capability skips recorded)
+Running Accessibility (x64 ASan Debug)
+PASS Accessibility (0 capability skips recorded)
+Running Embedded (x64 ASan Debug)
+PASS Embedded (0 capability skips recorded)
+Running MultilineText (x64 ASan Debug)
+PASS MultilineText (0 capability skips recorded)
+All 5 requested suites passed.

@@ -2,7 +2,7 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
-- **ACTIVE**: [Bounded grid text and clipping](GridTextOverflow_2026-09-21.md). Merged to main (#22); gallery regenerated, design system republished and the paired multiline benchmark within the accepted V11 envelope. Consumer qualification remains before explicit pin adoption.
+- **ACTIVE**: [Bounded grid text and clipping](GridTextOverflow_2026-09-21.md). Merged to main (#22); gallery regenerated, design system republished and the paired multiline benchmark within the accepted V11 envelope; the multiline-cell verification suites are archived for x64 (native ARM64 execution awaits CI). Consumer qualification remains before explicit pin adoption.
 
 - **ACTIVE**: [TreeReorder_2026-09-21.md](TreeReorder_2026-09-21.md). Drag-reorder and multi-select are both in `Tree`. The gallery and design-system refresh, then RedPrism's pin bump, remain. Not a second tree in the app.
 

@@ -1,4 +1,5 @@
 #include "DxUiTestHelpers.h"
+#include "GridMultilineFixtures.h"
 
 #include <cmath>
 #include <fstream>
@@ -3123,6 +3124,253 @@ void TestGridRowMetricsClampToSegoeVariableBodyLineHeight()
                      "grid compact rows clamp to the shared Segoe UI Variable body line-height minimum");
 }
 
+// Copy carries the complete model values, never what the trimmed paint shows. Every multiline cell of this grid is trimmed (hovering
+// offers its value, which only a clipped or omitted cell does) and holds what a consumer's data does: CR LF and U+2028 and U+2029
+// paragraph breaks, a zero-width-joiner emoji, a 5,000-unit word, decomposed accents, Arabic, trailing separators the paint ignores.
+// Ctrl+C and OnCopy put those values on the clipboard exactly (every unit, across rows and columns, in the display order of the
+// columns), tab between columns and CR LF between rows.
+void TestGridCopyOfTrimmedMultilineCellsIsExact()
+{
+    using namespace DxUi;
+    using namespace GridMultilineFixtures;
+    const std::vector<std::vector<std::wstring>> values{
+        {L"Première ligne\r\nDeuxième ligne\r\nTroisième ligne masquée",
+         L"Un\u2028Deux\u2028Trois\u2028Quatre",
+         L"Équipe \U0001F468\u200D\U0001F469\u200D\U0001F467\nAppareil \U0001F4F7\nAgrumes \U0001F34A"},
+        {std::wstring(5000u, L'\u00E9'), L"Cre\u0301me bru\u0302le\u0301e\nDeuxie\u0300me ligne\nTroisie\u0300me ligne", L"Ligne A\r\nLigne B\r\nLigne C\r\n"},
+        {L"\u2029Début\u2029Milieu\u2029Fin", L"مرحبا بالعالم\nالسطر الثاني\nالسطر الثالث", L"Fin de ligne avec espace \r\nsuite masquée\u2028\u2028"},
+    };
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    ConfigureHostPlace(window, 96u, false, Density::Standard, D2D1::SizeF(520.0f, 360.0f));
+    TextTableModel model(values, {150.0f, 150.0f, 150.0f});
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(10.0f, 10.0f, 510.0f, 350.0f));
+    grid->SetHeaderHeightDip(30.0f);
+    grid->SetRowHeightDip(48.0f);
+    grid->SetLineClamp(2u);
+    grid->SetModel(&model);
+    window.Host().SetRoot(std::move(root));
+    const auto detachModel = wil::scope_exit([&] { grid->SetModel(nullptr); });
+    static_cast<void>(CaptureWindow(window, "a grid of trimmed multiline cells"));
+    Require(grid->DebugGetTextLayoutStatistics().displayCapacity > 0u, "the grid laid out omitted tails");
+    for (size_t row = 0u; row < values.size(); ++row)
+        for (size_t column = 0u; column < values[row].size(); ++column)
+        {
+            window.Host().ClearTooltip();
+            const D2D1_RECT_F cell = grid->GetCellLayoutMetrics(window.Host(), row, column).cellRect;
+            Require(grid->OnMouseMove(window.Host(), D2D1::Point2F((cell.left + cell.right) * 0.5f, (cell.top + cell.bottom) * 0.5f), 0u),
+                    "the cell is hovered");
+            Require(window.Host().HasTooltip() && window.Host().GetTooltipText() == values[row][column],
+                    "the cell is trimmed and its tooltip is the complete value");
+        }
+
+    const auto expected = [&](std::span<const size_t> rows, std::span<const size_t> columns)
+    {
+        std::wstring text;
+        for (const size_t row : rows)
+        {
+            if (! text.empty())
+                text.append(L"\r\n");
+            for (size_t index = 0u; index < columns.size(); ++index)
+            {
+                if (index != 0u)
+                    text.push_back(L'\t');
+                text.append(values[row][columns[index]]);
+            }
+        }
+        return text;
+    };
+    const auto copied = [&](const char* context)
+    {
+        Require(SetClipboardUnicodeTextForTest(window.Hwnd(), L"sentinel"), "the clipboard starts with a sentinel");
+        Require(grid->OnKeyDown(window.Host(), 'C', MK_CONTROL), context);
+        const std::optional<std::wstring> text = ReadClipboardUnicodeTextForTest(window.Hwnd());
+        Require(text.has_value(), "Ctrl+C wrote the clipboard");
+        return text.value_or(std::wstring{});
+    };
+    constexpr std::array<size_t, 3> allRows{0u, 1u, 2u};
+    constexpr std::array<size_t, 3> modelOrder{0u, 1u, 2u};
+    Require(grid->OnKeyDown(window.Host(), 'A', MK_CONTROL), "Ctrl+A selects every row");
+    const std::wstring everything = copied("Ctrl+C copies the selected trimmed cells");
+    const std::wstring wanted     = expected(allRows, modelOrder);
+    if (everything != wanted)
+        std::cerr << "    [DIFFERENCE] copied " << everything.size() << " units, expected " << wanted.size() << '\n';
+    Require(everything == wanted, "Ctrl+C copies every trimmed cell exactly: every unit of every value, across rows and columns");
+    Require(everything.find(std::wstring(5000u, L'\u00E9')) != std::wstring::npos, "the 5,000-unit word is whole");
+    // One row at a time, through OnCopy as well as the key.
+    for (size_t row = 0u; row < values.size(); ++row)
+    {
+        grid->GetSelectionModel().SetSingle(model.GetStableRowId(row));
+        Require(SetClipboardUnicodeTextForTest(window.Hwnd(), L"sentinel"), "the clipboard starts with a sentinel");
+        Require(grid->OnCopy(window.Host()), "OnCopy copies one row");
+        const std::optional<std::wstring> one = ReadClipboardUnicodeTextForTest(window.Hwnd());
+        const std::array<size_t, 1> rows{row};
+        Require(one.has_value() && one.value() == expected(rows, modelOrder), "OnCopy copies one trimmed row exactly");
+        Require(copied("Ctrl+C copies one row") == expected(rows, modelOrder), "Ctrl+C copies one trimmed row exactly");
+    }
+    // The columns in the order the user arranged them.
+    const std::array columnLayout{GridColumnLayoutEntry{.columnId = L"c2", .displayIndex = 0u, .widthDip = 150.0f},
+                                  GridColumnLayoutEntry{.columnId = L"c0", .displayIndex = 1u, .widthDip = 150.0f},
+                                  GridColumnLayoutEntry{.columnId = L"c1", .displayIndex = 2u, .widthDip = 150.0f}};
+    grid->ApplyColumnLayout(columnLayout);
+    static_cast<void>(CaptureWindow(window, "the columns in another order"));
+    Require(grid->OnKeyDown(window.Host(), 'A', MK_CONTROL), "Ctrl+A selects every row again");
+    constexpr std::array<size_t, 3> displayOrder{2u, 0u, 1u};
+    Require(copied("Ctrl+C copies the reordered columns") == expected(allRows, displayOrder), "copy follows the display order of the columns");
+}
+
+// The retained-layout tables (DxUi.Internal.h): 32 ways a set, a mixed 64-bit key hash choosing the set. A table doubles while a set
+// is full of the values of the current and the previous paint, stops at its ceiling, evicts the least recently used way of a full set
+// there, and halves by one step per paint while a paint uses under an eighth of it, down to its first 32 entries. The Grid's ceiling is
+// 16,384 entries, which a window would need 16,385 distinct cells to pass, so the real tables run here with synthetic entries at that
+// ceiling (the Rendering suite runs a grid at a lowered one).
+void TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves()
+{
+    using namespace DxUi;
+    struct Entry
+    {
+        std::wstring text;
+        uint64_t keyHash = 0u;
+        uint64_t lastUse = 0u;
+        std::shared_ptr<int> layout;
+    };
+    constexpr size_t initialEntries = 32u;
+    const Grid probe;
+    const size_t ceiling = probe.DebugGetTextLayoutEntryLimit();
+    Require(ceiling == 16384u, "the grid's layout tables stop at 16,384 entries");
+    const auto keyOf  = [](size_t value) { return L"valeur " + std::to_wstring(value); };
+    const auto hashOf = [](const std::wstring& key) { return HashTextLayoutKey(key, 100.0f, 40.0f, 0u); };
+
+    // A table and what a paint does to it, as the grid does: a paint starts a generation, looks its values up (each found, or
+    // rebuilt in the entry the table offers) and ends by releasing what it did not use.
+    struct Bed
+    {
+        std::vector<Entry> table;
+        size_t maximumEntries = 0u;
+        uint64_t generation   = 1u;
+        uint64_t hits         = 0u;
+        uint64_t misses       = 0u;
+
+        void BeginPaint()
+        {
+            ++generation;
+            hits   = 0u;
+            misses = 0u;
+        }
+
+        void Touch(size_t value)
+        {
+            const std::wstring key = L"valeur " + std::to_wstring(value);
+            const uint64_t hash    = HashTextLayoutKey(key, 100.0f, 40.0f, 0u);
+            bool hit               = false;
+            Entry& entry           = FindTextLayoutEntry(
+                table, hash, generation, initialEntries, maximumEntries, [&](const Entry& candidate) { return candidate.text == key; }, hit);
+            Require(table.size() <= maximumEntries, "a table never grows past its ceiling");
+            if (hit)
+                ++hits;
+            else
+            {
+                ++misses;
+                entry.text    = key;
+                entry.keyHash = hash;
+                entry.layout  = std::make_shared<int>(static_cast<int>(value));
+            }
+            entry.lastUse = generation;
+            Require(entry.text == key && entry.layout && *entry.layout == static_cast<int>(value),
+                    "a lookup returns the entry of its own value, never another's");
+        }
+
+        void EndPaint()
+        {
+            EndTextLayoutPaint(table, generation, initialEntries, [](Entry& entry) noexcept { entry.layout.reset(); });
+        }
+
+        [[nodiscard]] size_t LiveLayouts() const
+        {
+            return static_cast<size_t>(std::ranges::count_if(table, [](const Entry& entry) { return static_cast<bool>(entry.layout); }));
+        }
+
+        [[nodiscard]] bool Holds(size_t value) const
+        {
+            const std::wstring key = L"valeur " + std::to_wstring(value);
+            return std::ranges::any_of(table, [&](const Entry& entry) { return entry.layout && entry.text == key; });
+        }
+    };
+
+    // Growth: more distinct values than the ceiling holds, in every paint.
+    Bed big;
+    big.maximumEntries      = ceiling;
+    constexpr size_t values = 20000u;
+    for (int paint = 1; paint <= 3; ++paint)
+    {
+        big.BeginPaint();
+        for (size_t value = 0u; value < values; ++value)
+            big.Touch(value);
+        std::cout << "Grid layout table at its ceiling, paint " << paint << ": " << values << " values, " << big.hits << " hits, " << big.misses
+                  << " misses, table " << big.table.size() << " entries\n";
+        Require(big.table.size() == ceiling, "a table that more values than it holds fill grows to its ceiling and no further");
+        Require(big.hits + big.misses == values, "every lookup hit or rebuilt its entry");
+        Require(paint == 1 ? big.hits == 0u : big.hits > 0u, "the first paint builds everything; later paints hit what the table kept");
+        Require(big.misses >= values - ceiling, "a table holds no more layouts than its entries, so the rest are rebuilt");
+        big.EndPaint();
+        Require(big.LiveLayouts() <= ceiling, "the table holds at most its ceiling of layouts");
+    }
+
+    // Halving: paints that use a few values return the excess, one halving a paint, down to the first 32 entries, and the values
+    // in use are still found after every step.
+    size_t entries = big.table.size();
+    for (const size_t used : {100u, 100u, 100u, 100u, 100u, 100u, 3u, 3u, 3u, 3u, 3u, 3u})
+    {
+        big.BeginPaint();
+        for (size_t value = 0u; value < used; ++value)
+            big.Touch(value);
+        big.EndPaint();
+        const bool halves = entries > initialEntries && used * 8u < entries;
+        entries           = halves ? entries / 2u : entries;
+        std::cout << "Grid layout table halving: " << used << " values used, table " << big.table.size() << " entries\n";
+        Require(big.table.size() == entries, "a paint that uses under an eighth of a table halves it, once");
+    }
+    Require(big.table.size() == initialEntries, "a table that little is used returns to its first 32 entries");
+    big.BeginPaint();
+    for (size_t value = 0u; value < 3u; ++value)
+        big.Touch(value);
+    Require(big.hits == 3u && big.misses == 0u, "the few values in use were kept through every halving");
+
+    // Eviction at the ceiling, on a table of 64 entries (two sets): in a paint that meets new values, a full set whose ways all
+    // belong to the current and the previous paint gives up a least recently used way, one of the previous paint's, for a new value.
+    // (What a paint did not use is released when it ends, so this is checked while the paint runs.)
+    Bed tight;
+    tight.maximumEntries = 64u;
+    tight.table.resize(64u);
+    const size_t setOfZero = FindTextLayoutSetStart(hashOf(keyOf(0u)), 64u);
+    std::vector<size_t> inSet;
+    for (size_t value = 1000u; inSet.size() < 33u; ++value)
+        if (FindTextLayoutSetStart(hashOf(keyOf(value)), 64u) == setOfZero)
+            inSet.push_back(value);
+    tight.BeginPaint();
+    for (size_t index = 0u; index < 16u; ++index)
+        tight.Touch(inSet[index]);
+    tight.EndPaint();
+    tight.BeginPaint();
+    for (size_t index = 16u; index < 32u; ++index)
+        tight.Touch(inSet[index]); // The first 16 are the previous paint's: they fill the set with these.
+    for (size_t index = 0u; index < 32u; ++index)
+        Require(tight.Holds(inSet[index]), "a set holds the 16 values of the previous paint and the 16 of this one");
+    tight.Touch(inSet[32]);
+    size_t olderLeft = 0u;
+    size_t newerLeft = 0u;
+    for (size_t index = 0u; index < 16u; ++index)
+        olderLeft += tight.Holds(inSet[index]) ? 1u : 0u;
+    for (size_t index = 16u; index < 32u; ++index)
+        newerLeft += tight.Holds(inSet[index]) ? 1u : 0u;
+    std::cout << "Grid layout table eviction: of the 16 older values of the set " << olderLeft << " keep a layout, of the 16 newer " << newerLeft
+              << ", and the new one is " << (tight.Holds(inSet[32]) ? "held" : "missing") << '\n';
+    Require(tight.Holds(inSet[32]) && olderLeft == 15u && newerLeft == 16u,
+            "a full set at the ceiling evicts one least recently used way, one the previous paint used, for a new value");
+    Require(tight.table.size() == 64u, "the small table kept its ceiling");
+    tight.EndPaint();
+}
 } // namespace
 
 void RunGridTests()
@@ -3192,6 +3440,8 @@ void RunGridTests()
     DXUI_RUN_TEST(TestGridLongTextFallbackTooltipRequiresClippedText);
     DXUI_RUN_TEST(TestGridRepeatedExplicitTooltipShowsWhenCellTextIsClipped);
     DXUI_RUN_TEST(TestGridMultilineTooltipFollowsPaintedLines);
+    DXUI_RUN_TEST(TestGridCopyOfTrimmedMultilineCellsIsExact);
+    DXUI_RUN_TEST(TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves);
     DXUI_RUN_TEST(TestGridScrolledSingleLineCaptionOffersTooltip);
     DXUI_RUN_TEST(TestGridFolderViewVisualModeUsesFolderLikeRowHighlights);
     DXUI_RUN_TEST(TestGridEmptyModelDoesNotHitTestBodyRows);

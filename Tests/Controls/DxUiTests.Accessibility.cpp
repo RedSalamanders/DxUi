@@ -1,5 +1,6 @@
 #include "../../src/Controls/DxUi.AccessibilityTextUnits.h"
 #include "DxUiTestHelpers.h"
+#include "GridMultilineFixtures.h"
 
 #include <array>
 #include <atomic>
@@ -5955,6 +5956,255 @@ void TestAccessibilityLookupTablesAgreeWithAScanOfTheRecords()
     Require(DebugCountAccessibilityIndexMismatchesForTest(window.Hwnd()) == 0u, "every lookup still agrees after controls were removed");
 }
 
+// The providers of a Grid's cells in a window whose tree is a label (found by the point `labelX`, `labelY`) and the grid after it:
+// the grid's, and every cell's, row by row as the row's structure offers them.
+struct GridCellProviders
+{
+    wil::com_ptr_nothrow<IRawElementProviderFragment> grid;
+    std::vector<std::vector<wil::com_ptr_nothrow<IRawElementProviderFragment>>> rows;
+};
+
+[[nodiscard]] GridCellProviders ResolveGridCellProviders(AttachedHostWindow& window, IRawElementProviderFragmentRoot& rootProvider, float labelX, float labelY)
+{
+    GridCellProviders result;
+    auto labelProvider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), rootProvider, labelX, labelY, "the grid's label resolves by point");
+    RequireSucceeded(labelProvider->Navigate(NavigateDirection_NextSibling, result.grid.put()), "the label navigates to the grid");
+    Require(result.grid != nullptr, "the grid's provider exists");
+    // The grid's children are its column headers, then its rows; a row's children are its cells.
+    wil::com_ptr_nothrow<IRawElementProviderFragment> child;
+    RequireSucceeded(result.grid->Navigate(NavigateDirection_FirstChild, child.put()), "the grid exposes its structure");
+    Require(child != nullptr, "the grid exposes a column header");
+    while (child)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(child->QueryInterface(IID_PPV_ARGS(simple.put())), "a grid child exposes a simple provider");
+        if (ReadProviderLongProperty(*simple.get(), UIA_ControlTypePropertyId, "a grid child exposes its control type") == UIA_DataItemControlTypeId)
+        {
+            auto& cells = result.rows.emplace_back();
+            wil::com_ptr_nothrow<IRawElementProviderFragment> cell;
+            RequireSucceeded(child->Navigate(NavigateDirection_FirstChild, cell.put()), "a row navigates to its first cell");
+            while (cell)
+            {
+                cells.push_back(cell);
+                wil::com_ptr_nothrow<IRawElementProviderFragment> nextCell;
+                RequireSucceeded(cell->Navigate(NavigateDirection_NextSibling, nextCell.put()), "a cell navigates to the next cell");
+                cell = nextCell;
+            }
+        }
+        wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+        RequireSucceeded(child->Navigate(NavigateDirection_NextSibling, next.put()), "a grid child navigates to the next one");
+        child = next;
+    }
+    return result;
+}
+
+// What UI Automation reads of one cell: its Name, its Value property and its ValuePattern.
+struct CellTexts
+{
+    std::wstring name;
+    std::wstring value;
+    std::wstring patternValue;
+};
+
+[[nodiscard]] CellTexts ReadCellTexts(IRawElementProviderFragment& cellProvider)
+{
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(cellProvider.QueryInterface(IID_PPV_ARGS(simple.put())), "a cell exposes a simple provider");
+    CellTexts texts;
+    texts.name  = ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "a cell exposes its Name");
+    texts.value = ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "a cell exposes its Value");
+    wil::com_ptr_nothrow<IUnknown> valueUnknown;
+    RequireSucceeded(simple->GetPatternProvider(UIA_ValuePatternId, valueUnknown.put()), "a cell's ValuePattern lookup succeeds");
+    Require(valueUnknown != nullptr, "a text cell exposes the ValuePattern");
+    wil::com_ptr_nothrow<IValueProvider> valueProvider;
+    RequireSucceeded(valueUnknown.query_to(valueProvider.put()), "the pattern is an IValueProvider");
+    wil::unique_bstr pattern;
+    RequireSucceeded(valueProvider->get_Value(pattern.put()), "the ValuePattern returns the value");
+    texts.patternValue = pattern.get() ? std::wstring(pattern.get(), SysStringLen(pattern.get())) : std::wstring{};
+    return texts;
+}
+
+// UI Automation carries the complete value of a multiline cell, unit for unit, whatever the paint shows: CR LF, U+2028 and U+2029
+// breaks, a zero-width-joiner emoji, a 5,000-unit word, decomposed accents (they stay decomposed: nothing normalizes a value),
+// Arabic, separators the paint ignores and a value of 100,000 units far past what a cell shapes. The Name, the Value property and
+// the ValuePattern agree, in a left-to-right grid and in a right-to-left one.
+void TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues()
+{
+    using namespace DxUi;
+    using namespace GridMultilineFixtures;
+    const std::vector<std::vector<std::wstring>> values{
+        {L"Première ligne\r\nDeuxième ligne\r\nTroisième ligne masquée",
+         L"Un\u2028Deux\u2028Trois\u2028Quatre",
+         L"Équipe \U0001F468\u200D\U0001F469\u200D\U0001F467\nAppareil \U0001F4F7\nAgrumes \U0001F34A"},
+        {std::wstring(5000u, L'\u00E9'), L"Cre\u0301me bru\u0302le\u0301e\nDeuxie\u0300me ligne\nTroisie\u0300me ligne", L"Ligne A\r\nLigne B\r\nLigne C\r\n"},
+        {RepeatToUnits(L"mot suivant très long \u00E9t\u00E9 ", 100000u),
+         L"مرحبا بالعالم الجميل\nالسطر الثاني\nالسطر الثالث",
+         L"\u2029Début\u2029Milieu\u2029Fin \u2028\u2028"},
+    };
+    for (const bool rightToLeft : {false, true})
+    {
+        AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+        ConfigureHostPlace(window, 96u, false, Density::Standard, D2D1::SizeF(520.0f, 240.0f));
+        TextTableModel model(values, {150.0f, 150.0f, 150.0f});
+        auto root   = std::make_unique<Panel>();
+        auto* label = root->AddChild<Label>(L"Grid witness");
+        label->SetBounds(D2D1::RectF(10.0f, 4.0f, 200.0f, 28.0f));
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(10.0f, 30.0f, 510.0f, 230.0f));
+        grid->SetHeaderHeightDip(30.0f);
+        grid->SetRowHeightDip(48.0f);
+        grid->SetLineClamp(2u);
+        if (rightToLeft)
+            grid->SetFlowDirection(FlowDirection::RightToLeft);
+        grid->SetModel(&model);
+        window.Host().SetRoot(std::move(root));
+        const auto detachModel = wil::scope_exit([&] { grid->SetModel(nullptr); });
+        static_cast<void>(CaptureWindow(window, "the grid paints its trimmed cells"));
+        Require(grid->DebugGetTextLayoutStatistics().displayCapacity > 0u, "the paint laid out omitted tails");
+        window.Host().RefreshAccessibilitySnapshot();
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        Require(rootProvider != nullptr, "the window exposes an accessibility provider");
+        const GridCellProviders providers = ResolveGridCellProviders(window, *rootProvider.get(), 60.0f, 16.0f);
+        Require(providers.rows.size() == values.size(), "every row of the grid has a provider");
+        for (size_t row = 0u; row < values.size(); ++row)
+        {
+            Require(providers.rows[row].size() == values[row].size(), "every cell of a row has a provider");
+            for (size_t column = 0u; column < values[row].size(); ++column)
+            {
+                const CellTexts texts   = ReadCellTexts(*providers.rows[row][column].get());
+                const std::string where = std::format("{} grid, cell {},{}", rightToLeft ? "right-to-left" : "left-to-right", row, column);
+                if (texts.name != values[row][column])
+                    std::cerr << "    [DIFFERENCE] " << where << ": Name holds " << texts.name.size() << " units, the value " << values[row][column].size()
+                              << '\n';
+                Require(texts.name == values[row][column], (where + ": the Name is the complete value").c_str());
+                Require(texts.value == values[row][column], (where + ": the Value property is the complete value").c_str());
+                Require(texts.patternValue == values[row][column], (where + ": the ValuePattern is the complete value").c_str());
+            }
+        }
+    }
+}
+
+// A cell the viewport cuts keeps its complete Name and Value and exposes the rectangle of what shows of it: the bounding rectangle
+// is the viewport-clipped cell (the same pixels a hit test answers for), at several scroll offsets cutting the cell at its top, bottom,
+// left and right; a cell scrolled out of view says it is offscreen and has no rectangle. The value of 100,000 units in one of them
+// is complete too.
+void TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport()
+{
+    using namespace DxUi;
+    using namespace GridMultilineFixtures;
+    constexpr size_t rowCount = 6u;
+    std::vector<std::vector<std::wstring>> cells;
+    for (size_t row = 0u; row < rowCount; ++row)
+        cells.push_back({std::format(L"Élément {}.0 : vérifier la configuration du serveur principal avant la mise en production prévue pour la semaine "
+                                     L"prochaine, puis confirmer auprès de l’équipe.",
+                                     row),
+                         std::format(L"État {}.1 : synchronisation interrompue après trois tentatives, consulter le journal détaillé pour connaître la cause "
+                                     L"exacte de l’échec.\r\nNouvelle tentative prévue.",
+                                     row)});
+    cells[2][0] = RepeatToUnits(L"mot suivant très long ", 100000u);
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    ConfigureHostPlace(window, 96u, false, Density::Standard, D2D1::SizeF(480.0f, 280.0f));
+    TextTableModel model(cells, {400.0f, 400.0f});
+    auto root   = std::make_unique<Panel>();
+    auto* label = root->AddChild<Label>(L"Grid witness");
+    label->SetBounds(D2D1::RectF(360.0f, 20.0f, 470.0f, 44.0f));
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 180.0f));
+    grid->SetHeaderHeightDip(30.0f);
+    grid->SetRowHeightDip(64.0f);
+    grid->SetLineClamp(2u);
+    grid->SetModel(&model);
+    window.Host().SetRoot(std::move(root));
+    const auto detachModel = wil::scope_exit([&] { grid->SetModel(nullptr); });
+    const auto toScreen    = [&](const D2D1_RECT_F& rectDip)
+    {
+        POINT topLeft{static_cast<LONG>(std::lround(window.Host().DipsToPixels(rectDip.left))),
+                      static_cast<LONG>(std::lround(window.Host().DipsToPixels(rectDip.top)))};
+        POINT bottomRight{static_cast<LONG>(std::lround(window.Host().DipsToPixels(rectDip.right))),
+                          static_cast<LONG>(std::lround(window.Host().DipsToPixels(rectDip.bottom)))};
+        Require(ClientToScreen(window.Hwnd(), &topLeft) != FALSE && ClientToScreen(window.Hwnd(), &bottomRight) != FALSE,
+                "the client rectangle maps to the screen");
+        return UiaRect{static_cast<double>(topLeft.x),
+                       static_cast<double>(topLeft.y),
+                       static_cast<double>(bottomRight.x - topLeft.x),
+                       static_cast<double>(bottomRight.y - topLeft.y)};
+    };
+    const auto describe = [](const UiaRect& rect) { return std::format("({}, {}) {} x {}", rect.left, rect.top, rect.width, rect.height); };
+    // Paints the grid as it is scrolled and checks what UI Automation says of every cell it exposes; returns how many cells the
+    // viewport cuts at their top.
+    const auto verifyCells = [&](const std::string& state)
+    {
+        static_cast<void>(CaptureWindow(window, "the grid paints scrolled"));
+        window.Host().RefreshAccessibilitySnapshot();
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        Require(rootProvider != nullptr, "the window exposes an accessibility provider");
+        const GridCellProviders providers = ResolveGridCellProviders(window, *rootProvider.get(), 400.0f, 30.0f);
+        Require(! providers.rows.empty(), "the scrolled grid exposes its visible rows");
+        size_t cutAtTop = 0u;
+        for (size_t visibleRow = 0u; visibleRow < providers.rows.size(); ++visibleRow)
+        {
+            const size_t row = grid->GetVisibleRowAt(visibleRow).value();
+            Require(providers.rows[visibleRow].size() == 2u, "a row exposes both cells, in view or not");
+            for (size_t column = 0u; column < 2u; ++column)
+            {
+                const std::string where               = std::format("{}, cell {},{}", state, row, column);
+                IRawElementProviderFragment& provider = *providers.rows[visibleRow][column].get();
+                const CellTexts texts                 = ReadCellTexts(provider);
+                Require(texts.name == cells[row][column] && texts.value == cells[row][column] && texts.patternValue == cells[row][column],
+                        (where + ": the Name, Value and ValuePattern are the complete value").c_str());
+                wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+                RequireSucceeded(provider.QueryInterface(IID_PPV_ARGS(simple.put())), "a cell exposes a simple provider");
+                const bool offscreen = ReadProviderBoolProperty(*simple.get(), UIA_IsOffscreenPropertyId, "a cell reports whether it is offscreen");
+                UiaRect bounds{};
+                RequireSucceeded(provider.get_BoundingRectangle(&bounds), "a cell reports its bounding rectangle");
+                const auto visible = grid->GetVisibleCellRect(row, column);
+                Require(offscreen == ! visible.has_value(), (where + ": the cell is offscreen when the viewport shows none of it").c_str());
+                if (! visible)
+                {
+                    Require(bounds.width == 0.0 && bounds.height == 0.0, (where + ": a cell scrolled out of view has no rectangle").c_str());
+                    continue;
+                }
+                const UiaRect expected  = toScreen(*visible);
+                const D2D1_RECT_F whole = grid->GetCellLayoutMetrics(window.Host(), row, column).cellRect;
+                std::cout << "UIA " << where << ": bounds " << describe(bounds) << ", visible part " << describe(expected) << ", whole cell "
+                          << (whole.right - whole.left) << " x " << (whole.bottom - whole.top) << " DIP\n";
+                Require(bounds.left == expected.left && bounds.top == expected.top && bounds.width == expected.width && bounds.height == expected.height,
+                        (where + ": the bounding rectangle is the viewport-clipped cell").c_str());
+                const bool cut = visible->left > whole.left + 0.5f || visible->top > whole.top + 0.5f || visible->right < whole.right - 0.5f ||
+                                 visible->bottom < whole.bottom - 0.5f;
+                if (cut)
+                    Require(bounds.width * bounds.height < static_cast<double>(window.Host().DipsToPixels(whole.right - whole.left)) *
+                                                               static_cast<double>(window.Host().DipsToPixels(whole.bottom - whole.top)),
+                            (where + ": a cut cell's rectangle is smaller than the whole cell").c_str());
+                cutAtTop += visible->top > whole.top + 0.5f ? 1u : 0u;
+                // A point inside the visible part answers with this cell.
+                const D2D1_POINT_2F inside = D2D1::Point2F((visible->left + visible->right) * 0.5f, (visible->top + visible->bottom) * 0.5f);
+                wil::com_ptr_nothrow<IRawElementProviderFragment> hit = GetProviderAtDipPoint(
+                    window.Hwnd(), window.Host(), *rootProvider.get(), inside.x, inside.y, "a point in the visible part of the cell resolves");
+                Require(ReadCellTexts(*hit.get()).name == cells[row][column], (where + ": a point in the visible part resolves to the cell").c_str());
+            }
+        }
+        return cutAtTop;
+    };
+    // The vertical scroll rests on whole rows, so the bottom and side edges cut cells at these offsets.
+    for (const auto [verticalDip, horizontalDip] :
+         {std::pair{0.0f, 0.0f}, std::pair{64.0f, 40.0f}, std::pair{128.0f, 0.0f}, std::pair{0.0f, 300.0f}, std::pair{128.0f, 380.0f}})
+    {
+        grid->DebugSetScrollOffsets(verticalDip, horizontalDip);
+        static_cast<void>(verifyCells(std::format("scrolled ({}, {})", verticalDip, horizontalDip)));
+    }
+    // A dragged scrollbar thumb rests between rows, so a row is cut under the header too.
+    grid->DebugSetScrollOffsets(0.0f, 0.0f);
+    static_cast<void>(CaptureWindow(window, "the grid paints at the top"));
+    const D2D1_RECT_F thumb  = grid->DebugGetScrollbarVisualState(window.Host().GetTheme()).verticalThumbRect;
+    const D2D1_POINT_2F grab = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
+    Require(grid->OnMouseDown(window.Host(), grab, false, 0u), "the vertical scrollbar thumb is grabbed");
+    Require(grid->OnMouseMove(window.Host(), D2D1::Point2F(grab.x, grab.y + 9.0f), 0u), "the thumb is dragged");
+    Require(verifyCells("under a dragged thumb") > 0u, "the dragged thumb cuts a cell at its top");
+    static_cast<void>(grid->OnMouseUp(window.Host(), D2D1::Point2F(grab.x, grab.y + 9.0f), false, 0u));
+}
 } // namespace
 
 void RunAccessibilityTests()
@@ -6018,6 +6268,8 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityTreeMultiSelectRaisesSelectionEvents);
     DXUI_RUN_TEST(TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable);
     DXUI_RUN_TEST(TestAccessibilityTrimmedMultilineGridCellKeepsCompleteNameAndValue);
+    DXUI_RUN_TEST(TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues);
+    DXUI_RUN_TEST(TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesGridRowSelectionPatterns);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure);
     DXUI_RUN_TEST(TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren);
