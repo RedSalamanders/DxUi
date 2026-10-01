@@ -32,3 +32,4 @@ Measurements/MenuDescriptions/2026-09-30/paired-local/SHA256SUMS -text -whitespa
 Measurements/GridSelection/2026-10-01/*.json -text -whitespace
 Measurements/GridSelection/2026-10-01/*.txt -text -whitespace
 Measurements/GridSelection/2026-10-01/SHA256SUMS -text -whitespace
+Measurements/GridSelection/2026-10-01/refine-SHA256SUMS -text -whitespace

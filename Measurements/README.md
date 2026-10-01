@@ -20,7 +20,10 @@ Application adoption measurements belong in their application's repository.
   of the sorted selection copy against `main` (x64 Release, WARP): paint at 1,000 to 1,000,000 selected rows, the cost of
   `IsSelected` inside a paint, per call, and the selection mutators. A paint no longer grows with its selection, 8 bytes
   per selected row are the price, `SetRange` over ids that do not ascend sorts them, and the 20,000-row paint rows do
-  not repeat.
+  not repeat. Its refinement adds ten runs per side of three builds (`main`, the sorted copy, and a scan of up to 1,024
+  ids with the room of a large selection given back): in the order of the ids on a screen a binary search costs more than a
+  scan below 512 ids (5 to 20 ns a call at 8 to 128 ids), a model that held 3.2 MB after Ctrl+A and `Clear` now holds
+  nothing, and `PreserveOrdered` over a long list needed a table of bits.
 
 - [Complex UI, 2026-09-05](ComplexUi/2026-09-05/README.md): Release baseline and matched repeat, complete raw rounds,
   comparison and rendered scene.
