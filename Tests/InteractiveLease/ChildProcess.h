@@ -5,6 +5,7 @@
 
 #include <chrono>
 #include <format>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -28,10 +29,11 @@ inline void PumpMessages() noexcept
 // The wait pumps messages, ends when the child exits, when `interruptEvent` is set (the person pressed Ctrl+C: the child is ended)
 // or when `timeoutSeconds` pass (the child is ended and reported with the watchdog's exit code, 124). The runner's own watchdog
 // bounds each test; this bound is for what the watchdog cannot reach, such as a child that hangs before it starts a test.
-[[nodiscard]] inline TestSupport::ChildResult RunChildProcess(const TestSupport::ChildRun& run,
-                                                              unsigned timeoutSeconds,
-                                                              HANDLE interruptEvent,
-                                                              bool grantForeground)
+//
+// Only a process that holds the foreground can grant it, and the child before this one may have left the person's window there when
+// its own windows closed: `holdForeground` takes it back when the grant is refused for that reason, and again until it is granted.
+[[nodiscard]] inline TestSupport::ChildResult RunChildProcess(
+    const TestSupport::ChildRun& run, unsigned timeoutSeconds, HANDLE interruptEvent, bool grantForeground, const std::function<void()>& holdForeground = {})
 {
     TestSupport::ChildResult result{};
 
@@ -120,23 +122,33 @@ inline void PumpMessages() noexcept
     }
 
     // A process that was just resumed has not registered with the window system, so the grant fails with ERROR_INVALID_PARAMETER
-    // until it has; only that error is waited out (at most two seconds), never a refusal.
+    // until it has: that is waited out. A refusal (ERROR_ACCESS_DENIED) means this process does not hold the foreground, so it takes it
+    // again, at most three times; any other error, or running out of the four seconds, ends the attempt.
     if (grantForeground)
     {
-        const auto grantDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        const auto grantDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(4);
+        int regained             = 0;
         for (;;)
         {
             if (AllowSetForegroundWindow(process.dwProcessId) != FALSE)
                 break;
             const DWORD error = GetLastError();
-            if (error != ERROR_INVALID_PARAMETER || std::chrono::steady_clock::now() >= grantDeadline ||
-                WaitForSingleObject(process.hProcess, 0) == WAIT_OBJECT_0)
+            const bool retry  = error == ERROR_INVALID_PARAMETER || (error == ERROR_ACCESS_DENIED && holdForeground && regained < 3);
+            if (! retry || std::chrono::steady_clock::now() >= grantDeadline || WaitForSingleObject(process.hProcess, 0) == WAIT_OBJECT_0)
             {
                 result.launched = false;
                 result.error    = std::format("the foreground could not be granted to the child (error {}): this process does not hold it", error);
                 return result;
             }
-            MsgWaitForMultipleObjects(0u, nullptr, FALSE, 10u, QS_ALLINPUT);
+            if (error == ERROR_ACCESS_DENIED)
+            {
+                ++regained;
+                holdForeground();
+            }
+            else
+            {
+                MsgWaitForMultipleObjects(0u, nullptr, FALSE, 10u, QS_ALLINPUT);
+            }
             PumpMessages();
         }
     }

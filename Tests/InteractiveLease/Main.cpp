@@ -153,7 +153,15 @@ public:
     [[nodiscard]] TS::ChildResult RunChild(const TS::ChildRun& run, unsigned timeoutSeconds) override
     {
         Log(std::format("{}: started", TS::ToUtf8(run.name)));
-        const TS::ChildResult result = IL::RunChildProcess(run, timeoutSeconds, g_interruptEvent.get(), true);
+        // The child can be granted the foreground only by a process that holds it, and the child before it may have left the person's
+        // window in front: hold it before the launch, and again if the grant is refused.
+        const auto holdForeground = [this]
+        {
+            if (_banner.Window() != nullptr && GetForegroundWindow() != _banner.Window())
+                static_cast<void>(_desktop.ActivateAnchor());
+        };
+        holdForeground();
+        const TS::ChildResult result = IL::RunChildProcess(run, timeoutSeconds, g_interruptEvent.get(), true, holdForeground);
         if (! result.launched)
             Log(std::format("{}: not started: {}", TS::ToUtf8(run.name), result.error));
         else if (result.timedOut)
