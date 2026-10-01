@@ -52,8 +52,9 @@ Each plan was written as a documentation-only pull request, then merged into tha
 `271bd54` (API revision 3) and implements the plan:
 
 - RedSalamander: `DxUi_HostMessagesToolsetAndRestore_2026-10-01` (I27), from
-  [DualTail/RedSalamander#109](https://github.com/DualTail/RedSalamander/pull/109), on branch
-  `dxui/update-main-2026-09-30`. Its qualification task stays open until the Full suite has run on the pin.
+  [DualTail/RedSalamander#109](https://github.com/DualTail/RedSalamander/pull/109), implemented in
+  [DualTail/RedSalamander#110](https://github.com/DualTail/RedSalamander/pull/110). Its qualification task stays open
+  until the Full suite has run on the pin.
 - RedXe: `DxUiFollowUps_2026-10-01`, from [RedSalamanders/RedXe#29](https://github.com/RedSalamanders/RedXe/pull/29),
   implemented and closed in [RedSalamanders/RedXe#30](https://github.com/RedSalamanders/RedXe/pull/30).
 - RedPrism: `DxUiFollowUps_2026-10-01`, which also covers its DxUi pin `c403052` (125 commits behind) and Tree
