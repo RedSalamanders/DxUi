@@ -1,0 +1,62 @@
+<#
+.SYNOPSIS Builds one side of the grid-selection measurement from git archives and records what it was built from (scratch tooling).
+.DESCRIPTION
+The tree is a git archive of HarnessCommit (the measurement harness and every other file), with src and include replaced by those
+of LibraryCommit when one is given, so one harness source measures different revisions of the library. It is built in Release x64
+in an output root of its own (Tests\Embedded\DxUi.EmbeddedTests.vcxproj and what it needs), then its executable and an identity
+file (commit, overlay, source fingerprint as performance.ps1 computes it, executable hash) are copied to OutputDirectory.
+#>
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)][string] $Repo,
+    [Parameter(Mandatory)][string] $TreeDirectory,
+    [Parameter(Mandatory)][string] $HarnessCommit,
+    [string] $LibraryCommit = '',
+    [Parameter(Mandatory)][string] $OutputDirectory,
+    [switch] $KeepExistingTree
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$scratch = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not $KeepExistingTree) {
+    if (Test-Path -LiteralPath $TreeDirectory) { throw "The tree directory exists already: $TreeDirectory (use a new name)." }
+    New-Item -ItemType Directory -Path $TreeDirectory | Out-Null
+    & git -C $Repo archive --format=tar $HarnessCommit | & tar -x -C $TreeDirectory
+    if ($LASTEXITCODE -ne 0) { throw 'git archive of the harness commit failed.' }
+    if ($LibraryCommit) {
+        foreach ($directory in 'src', 'include') { Remove-Item -LiteralPath (Join-Path $TreeDirectory $directory) -Recurse -Force }
+        & git -C $Repo archive --format=tar $LibraryCommit src include | & tar -x -C $TreeDirectory
+        if ($LASTEXITCODE -ne 0) { throw 'git archive of the library commit failed.' }
+    }
+    # The restored dependencies are small; a copy keeps this tree independent of the worktree's.
+    New-Item -ItemType Directory -Path (Join-Path $TreeDirectory '.build') -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $Repo '.build/vcpkg_installed') -Destination (Join-Path $TreeDirectory '.build/vcpkg_installed') -Recurse
+}
+
+# performance.ps1's sourceFingerprint, computed over the files of the archive instead of git's index (all of them are tracked).
+$fingerprintPaths = @('src', 'include', 'Build', 'Directory.Build.props', 'Directory.Build.targets', 'vcpkg.json', 'vcpkg-tool.json')
+$sources = foreach ($path in $fingerprintPaths) {
+    $full = Join-Path $TreeDirectory $path
+    if (Test-Path -LiteralPath $full -PathType Container) { Get-ChildItem -LiteralPath $full -Recurse -File | ForEach-Object { $_.FullName.Substring($TreeDirectory.Length).TrimStart('\', '/').Replace('\', '/') } }
+    elseif (Test-Path -LiteralPath $full -PathType Leaf) { $path }
+}
+$lines = foreach ($source in ($sources | Sort-Object -Unique)) { "$source $((Get-FileHash -LiteralPath (Join-Path $TreeDirectory $source) -Algorithm SHA256).Hash)" }
+$sha = [Security.Cryptography.SHA256]::Create()
+try { $fingerprint = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($lines -join "`n")))) } finally { $sha.Dispose() }
+
+$log = Join-Path $scratch ("build-" + (Split-Path -Leaf $TreeDirectory) + '.log')
+& (Join-Path $scratch 'Build-Project.ps1') -Root $TreeDirectory -Project 'Tests\Embedded\DxUi.EmbeddedTests.vcxproj' -Configuration Release -Platform x64 -Log $log
+if ($LASTEXITCODE -ne 0) { throw "The build of $TreeDirectory failed; see $log" }
+
+New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
+$exe = Join-Path $OutputDirectory 'DxUi.EmbeddedTests.exe'
+Copy-Item -LiteralPath (Join-Path $TreeDirectory '.build/x64/Release/DxUi.EmbeddedTests.exe') -Destination $exe -Force
+$full = (& git -C $Repo rev-parse $HarnessCommit).Trim()
+$identity = [ordered]@{ commit = $full; dirty = [bool]$LibraryCommit }
+if ($LibraryCommit) {
+    $identity.libraryOverlay = 'src and include of {0}, the tree of {1} otherwise; built from a git archive in its own output root' -f (& git -C $Repo rev-parse --short=7 $LibraryCommit).Trim(), (& git -C $Repo rev-parse --short=7 $HarnessCommit).Trim()
+}
+$identity.sourceFingerprint = $fingerprint
+$identity.executableSha256 = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
+$identity | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $OutputDirectory 'identity.json') -Encoding utf8
+Get-Content -LiteralPath (Join-Path $OutputDirectory 'identity.json')
