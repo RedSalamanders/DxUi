@@ -1,7 +1,7 @@
 # Toolchain and consumer integration
 
 Status: normative intended contract
-Last reviewed: 2026-09-06
+Last reviewed: 2026-10-01
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -62,6 +62,31 @@ Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the v
 its trailing separator, becomes `DxUiConsumerOutputRoot`; props locate its public WIL headers and the project
 reference passes it as `DxUiOutputRoot`. No application checkout is needed. Missing restore and mismatched/dirty pins
 fail with actionable diagnostics. Both tracked and untracked source changes invalidate a release pin.
+
+vcpkg builds with the Visual Studio installation and default MSVC toolset that MSBuild compiles DxUi with, not with the
+newest toolset it finds. The two differ when a newer toolset is installed beside the default and lacks a compiler for a
+target (VS 18 Insiders' 14.52, beside the default 14.51, has no x64-hosted ARM64 compiler, so every fresh ARM64 restore
+failed configuring `wil:arm64-windows`); for compiled vcpkg libraries a toolset newer than the one that links them is also
+a link hazard. `vcpkg-install.ps1` takes the installation from `Get-DxUiVisualStudioInstallation` (`Tools/VisualStudio.psm1`),
+the one discovery `build.ps1` also uses (`vswhere -latest -prerelease -requires Microsoft.Component.MSBuild`), and the
+toolset from that installation's `VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt`; neither is hard-coded. A missing
+or malformed version file fails before anything is cloned or run, naming the file and the repair. For each platform it then
+writes the overlay triplet `<output root>\vcpkg-triplets\<platform>\<triplet>.cmake` (`Tools/VcpkgTriplet.psm1`): the pinned
+vcpkg checkout's triplet, copied unchanged in its own line endings, then
+`set(VCPKG_VISUAL_STUDIO_PATH "<installation>")` and `set(VCPKG_PLATFORM_TOOLSET_VERSION "<major.minor>")`, and passes
+`--overlay-triplets=<that directory>` to `vcpkg install`. The file is rewritten only when its bytes change; the pin is
+major.minor, so a patch update of the default toolset and an unchanged restore leave it, and its timestamp, alone.
+
+A different triplet is a different package ABI hash, so the first restore after this change, and after a change of
+installation, default major.minor or vcpkg pin, rebuilds the packages (WIL here); vcpkg's default per-user binary cache
+then serves the result to any other output root whose triplet text is identical. The interface is unchanged (`-Platform`,
+`-OutputRoot`): a consumer that runs the pinned checkout's `vcpkg-install.ps1`, from Windows PowerShell 5.1 or PowerShell 7,
+gets the pin with its next pin update and needs no change. In an ARM64 restore on an x64 host vcpkg's host triplet,
+`x64-windows`, keeps its stock triplet; the host-tool ports it builds (`vcpkg-cmake`) run during the restore and are not
+linked into DxUi. A consumer's own installer for compiled libraries applies the same pins to every triplet it builds. It
+can import both modules from the pinned checkout, as it does `Tools/ConsumerBuild.psm1`; `Update-DxUiVcpkgOverlayTriplet`
+takes any triplet file as its source, such as a sanitizer overlay (one that names a file beside itself with
+`CMAKE_CURRENT_LIST_DIR` needs that file beside the generated copy).
 
 External consumers import `Build/DxUi.Consumer.props` after Microsoft.Cpp.props and `.targets` after
 Microsoft.Cpp.targets. Set DxUiRoot, DxUiConsumerLockFile and DxUiConsumerOutputRoot before those imports.

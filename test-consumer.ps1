@@ -15,8 +15,8 @@ $output=(Join-Path $consumer 'deps')+[IO.Path]::DirectorySeparatorChar
 New-Item -ItemType Directory -Path $consumer -Force | Out-Null
 & git clone --local --no-hardlinks $PSScriptRoot $checkout
 if ($LASTEXITCODE -ne 0) { throw 'Cannot create the isolated consumer source fixture.' }
-$vswhere=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
-$installation=& $vswhere -latest -prerelease -products '*' -requires Microsoft.Component.MSBuild -property installationPath
+Import-Module (Join-Path $PSScriptRoot 'Tools/VisualStudio.psm1') -Force
+$installation=Get-DxUiVisualStudioInstallation
 $msbuild=Join-Path $installation 'MSBuild/Current/Bin/MSBuild.exe'
 Import-Module (Join-Path $checkout 'Tools/ConsumerBuild.psm1') -Force
 $buildIdentity=Get-DxUiConsumerBuildIdentity -DxUiRoot $checkout -MSBuildPath $msbuild -Platform $Platform -DisableStlAnnotations:$DisableStlAnnotations
