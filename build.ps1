@@ -113,14 +113,9 @@ $script:UseInteractiveTerminal = Test-DxUiInteractiveTerminal
 $target = if ($Rebuild) { 'Rebuild' } else { 'Build' }
 Write-DxUiBuildBanner -Configuration $Configuration -Platform $Platform -Target $target
 Write-Host 'Locating Visual Studio and MSBuild...' -ForegroundColor Yellow
-$vswhereCandidates = @(
-    (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'),
-    (Join-Path $env:ProgramFiles 'Microsoft Visual Studio/Installer/vswhere.exe')
-)
-$vswhere = $vswhereCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-if (-not $vswhere) { throw 'Visual Studio Installer/vswhere.exe was not found.' }
-$installation = & $vswhere -latest -prerelease -products '*' -requires Microsoft.Component.MSBuild -property installationPath
-if (-not $installation) { throw 'Visual Studio with MSBuild was not found; install VS 2026 C++ tools.' }
+# The one discovery: vcpkg-install.ps1 pins vcpkg to this installation and its default toolset.
+Import-Module (Join-Path $PSScriptRoot 'Tools/VisualStudio.psm1') -Force
+$installation = Get-DxUiVisualStudioInstallation
 $msbuild = Join-Path $installation 'MSBuild/Current/Bin/MSBuild.exe'
 if (-not (Test-Path -LiteralPath $msbuild)) { throw "MSBuild is missing: $msbuild" }
 if (-not $OutputRoot) { $OutputRoot = Join-Path $PSScriptRoot '.build' }
