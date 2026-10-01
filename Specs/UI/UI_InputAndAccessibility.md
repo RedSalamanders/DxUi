@@ -305,8 +305,8 @@ Windows [provider threading contract](https://learn.microsoft.com/en-us/windows/
 Call UpdateAccessibility after changed preparation, placement or OS focus. Unchanged updates reuse the snapshot
 without allocation. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no
 snapshot allocation or UIA wake-up cost. Prepared snapshots expose confirmed Toggle, RangeValue, text/value and
-focus state. Changed active snapshots raise applicable property, text, focus and structure events only while UIA
-clients listen. Hidden controls leave navigation; background modal views must be disconnected by the application.
+focus state. Changed active snapshots raise applicable property, text, focus, structure and (for a multi-select Tree)
+selection events only while UIA clients listen. Hidden controls leave navigation; background modal views must be disconnected by the application.
 ActionCompleted allows the application to post one coalesced refresh/focus/navigation operation, without reentering
 the tree inside an accessibility callback.
 
@@ -330,6 +330,17 @@ A Grid row returned by Selection.GetSelection must provide working SelectionItem
 SelectionContainer getters even when it is offscreen or beyond the bounded row-materialization cache.
 These queries use immutable selection IDs and must not materialize every selected row. Removing the
 model/row invalidates retained providers; stale selection containers cannot survive that removal.
+
+A Tree with `SetMultiSelectEnabled(true)` reports `CanSelectMultiple`, lists every selected visible item from
+Selection.GetSelection in visible order and answers SelectionItem `IsSelected` from that set, while only its focused
+item (which may be outside the selection) reports `HasKeyboardFocus` and is what the window's `GetFocus` names.
+SelectionItem `Select` replaces the selection, `AddToSelection` adds an item and `RemoveFromSelection` removes it through
+the tree's own delegate callbacks, and `SetFocus` moves the focus alone. A publish that changes a multi-select tree's
+selection raises, only while a client listens and after the focus announcement of the same publish,
+`ElementSelected` (the selection became one item that was not selected), else `ElementAddedToSelection` and
+`ElementRemovedFromSelection` per item with the `IsSelected` property change, else, past 20 items or when a selected item
+left the tree, `Selection_Invalidated` on the tree; embedded hosts raise them from `UpdateAccessibility`. A tree without
+multi-select reports and raises what it always did. See [Tree multi-select](UI_ControlsAndLayout.md#tree-multi-select).
 
 Native consumers that know an attached HWND can acquire its canonical root with
 `DxUi::CreateWindowHostAccessibilityProvider(hwnd)` from `<DxUi/DxUi.h>`. Adopt the returned owned COM

@@ -490,6 +490,7 @@ struct AccessibilityControlNavigationSnapshot
     bool isGrid                      = false;
     bool isTree                      = false;
     bool gridCanSelectMultiple       = false;
+    bool treeCanSelectMultiple       = false;
     bool hasPasswordRevealButton     = false;
     bool passwordRevealButtonEnabled = false;
     bool treeIsEnabled               = false;
@@ -500,7 +501,10 @@ struct AccessibilityControlNavigationSnapshot
     size_t gridColumnCount           = 0u;
     size_t treeVisibleItemCount      = 0u;
     std::wstring passwordRevealButtonAccessibleName;
+    // The tree's selected (focused) item. With multi-select it is the focused item, which need not be selected:
+    // selectedTreeItemIds holds the selection, in visible order.
     std::optional<size_t> selectedTreeVisibleIndex;
+    std::vector<uint64_t> selectedTreeItemIds;
     std::vector<AccessibilityTreeItemSnapshotRecord> treeItems;
     std::vector<AccessibilityGridHeaderSnapshotRecord> gridHeaders;
     std::vector<AccessibilityGridRowSnapshotRecord> gridRows;
@@ -794,11 +798,77 @@ void PublishEmptyAccessibilitySnapshot(WindowHostAccessibilityTarget& target) no
     PublishAccessibilitySnapshot(target, MakeEmptyAccessibilitySnapshot(target.hwnd));
 }
 
+// How a publish changed the selection of a multi-select tree, for the UI Automation selection events. The rules are
+// WPF's for its selectors: a selection that became exactly one item that was not selected before is reported as that item
+// being selected (the others left it, which that event says); any other change is reported item by item, as items added
+// to and removed from the selection, and more than kAccessibilityMaxSelectionEvents of them as one invalidation of the
+// container, so that selecting everything in a large tree raises one event.
+constexpr size_t kAccessibilityMaxSelectionEvents = 20u;
+
+struct TreeSelectionChange
+{
+    ControlPath path{};
+    std::vector<uint64_t> added;   // Selected now, not before, and a row of the tree.
+    std::vector<uint64_t> removed; // Selected before, not now, and still a row of the tree.
+    bool replaced    = false;      // The selection is now exactly one item, which was not selected before.
+    bool invalidated = false;      // Too many changes to name, or a selected item left the tree's rows.
+};
+
+// What the selection of each multi-select tree of `after` gained and lost since `before`. A tree that was not a
+// multi-select tree there, or is another control, has nothing to compare with and reports nothing.
+[[nodiscard]] std::vector<TreeSelectionChange> CollectTreeSelectionChanges(const AccessibilitySnapshot& before, const AccessibilitySnapshot& after)
+{
+    std::vector<TreeSelectionChange> changes;
+    for (const AccessibilityControlNavigationSnapshot& record : after.controlNavigationRecords)
+    {
+        if (! record.isTree || ! record.treeCanSelectMultiple)
+            continue;
+        const AccessibilityControlNavigationSnapshot* const previous = FindControlNavigationRecord(before, record.path);
+        if (! previous || ! previous->isTree || ! previous->treeCanSelectMultiple || previous->controlIdentity != record.controlIdentity ||
+            std::ranges::equal(previous->selectedTreeItemIds, record.selectedTreeItemIds))
+            continue;
+
+        const std::unordered_set<uint64_t> wasSelected(previous->selectedTreeItemIds.begin(), previous->selectedTreeItemIds.end());
+        const std::unordered_set<uint64_t> isSelected(record.selectedTreeItemIds.begin(), record.selectedTreeItemIds.end());
+        TreeSelectionChange change;
+        change.path = record.path;
+        for (const uint64_t itemId : record.selectedTreeItemIds)
+        {
+            if (! wasSelected.contains(itemId))
+                change.added.push_back(itemId);
+        }
+        std::unordered_set<uint64_t> rows;
+        for (const uint64_t itemId : previous->selectedTreeItemIds)
+        {
+            if (isSelected.contains(itemId))
+                continue;
+            if (rows.empty())
+            {
+                for (const AccessibilityTreeItemSnapshotRecord& item : record.treeItems)
+                    rows.insert(item.itemId);
+            }
+            if (rows.contains(itemId))
+                change.removed.push_back(itemId);
+            else
+                change.invalidated = true; // The element is gone: there is nothing to say about it but that the selection changed.
+        }
+        if (change.added.empty() && change.removed.empty() && ! change.invalidated)
+            continue; // The same items in another order: the model moved rows.
+
+        change.replaced = record.selectedTreeItemIds.size() == 1u && change.added.size() == 1u;
+        if (change.added.size() + change.removed.size() > kAccessibilityMaxSelectionEvents)
+            change.invalidated = true;
+        changes.push_back(std::move(change));
+    }
+    return changes;
+}
+
 // What a window-host publish changed for UI Automation clients; embedded hosts diff their own snapshots.
 struct WindowHostSnapshotChanges
 {
-    bool focusMoved       = false; // Another element (control, tree item, grid row, or none) has focus.
-    bool structureChanged = false; // A semantic control was added, removed or replaced at its path.
+    bool focusMoved       = false;                   // Another element (control, tree item, grid row, or none) has focus.
+    bool structureChanged = false;                   // A semantic control was added, removed or replaced at its path.
+    std::vector<TreeSelectionChange> treeSelections; // Multi-select trees whose selection changed.
 };
 
 [[nodiscard]] bool SameControlLifetime(const std::weak_ptr<int>& first, const std::weak_ptr<int>& second) noexcept
@@ -920,6 +990,7 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     {
         changes.focusMoved       = ! SameFocusedElement(*previous, *snapshot);
         changes.structureChanged = ! SameSemanticControls(*previous, *snapshot);
+        changes.treeSelections   = CollectTreeSelectionChanges(*previous, *snapshot);
     }
     PublishAccessibilitySnapshot(target, std::move(snapshot));
     return changes;
@@ -1696,14 +1767,23 @@ void AppendAccessibilitySnapshotNavigation(
         }
         else if (const auto* tree = dynamic_cast<const Tree*>(current))
         {
-            record.isTree        = true;
-            record.treeIsEnabled = tree->IsEnabled();
-            record.treeHasFocus  = tree->HasFocus();
+            record.isTree                = true;
+            record.treeIsEnabled         = tree->IsEnabled();
+            record.treeHasFocus          = tree->HasFocus();
+            record.treeCanSelectMultiple = tree->MultiSelectEnabled();
             if (const auto* model = tree->GetModel())
             {
                 record.treeVisibleItemCount = model->GetVisibleItemCount();
                 record.treeItems.reserve(record.treeVisibleItemCount);
                 const std::optional<uint64_t> selectedItemId = tree->GetSelectedItemId();
+                // With multi-select the selection is the tree's set, reported for the rows that are visible. A single
+                // selection builds no set.
+                std::optional<std::unordered_set<uint64_t>> selectedItemIds;
+                if (record.treeCanSelectMultiple)
+                {
+                    const std::vector<uint64_t> selection = tree->GetSelectedItemIds();
+                    selectedItemIds.emplace(selection.begin(), selection.end());
+                }
                 for (size_t visibleIndex = 0u; visibleIndex < record.treeVisibleItemCount; ++visibleIndex)
                 {
                     TreeItemData item{};
@@ -1717,6 +1797,10 @@ void AppendAccessibilitySnapshotNavigation(
                     if (selectedItemId && selectedItemId.value() == item.id)
                     {
                         record.selectedTreeVisibleIndex = visibleIndex;
+                    }
+                    if (selectedItemIds && selectedItemIds->contains(item.id))
+                    {
+                        record.selectedTreeItemIds.push_back(item.id);
                     }
                 }
             }
@@ -2027,15 +2111,21 @@ bool SnapshotSupportsSelectionProvider(const AccessibilityControlNavigationSnaps
     return record.isTree || record.isGrid;
 }
 
-bool SnapshotTreeItemIsSelected(const AccessibilityControlNavigationSnapshot& record, uint64_t itemId) noexcept
+// The tree's focused (current) item: its selected item, or with multi-select the item the keyboard focus is on.
+bool SnapshotTreeItemIsFocused(const AccessibilityControlNavigationSnapshot& record, uint64_t itemId) noexcept
 {
     if (! record.selectedTreeVisibleIndex)
     {
         return false;
     }
 
-    const AccessibilityTreeItemSnapshotRecord* selected = FindSnapshotTreeItemRecordByVisibleIndex(record, record.selectedTreeVisibleIndex.value());
-    return selected && selected->itemId == itemId;
+    const AccessibilityTreeItemSnapshotRecord* focused = FindSnapshotTreeItemRecordByVisibleIndex(record, record.selectedTreeVisibleIndex.value());
+    return focused && focused->itemId == itemId;
+}
+
+bool SnapshotTreeItemIsSelected(const AccessibilityControlNavigationSnapshot& record, uint64_t itemId) noexcept
+{
+    return record.treeCanSelectMultiple ? FindU64ValueIndex(record.selectedTreeItemIds, itemId).has_value() : SnapshotTreeItemIsFocused(record, itemId);
 }
 
 bool SnapshotGridRowIsSelected(const AccessibilityControlNavigationSnapshot& record, uint64_t rowId) noexcept
@@ -5781,7 +5871,7 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
             case UIA_IsKeyboardFocusablePropertyId: *outValue = VariantFromBool(true); return S_OK;
             case UIA_IsEnabledPropertyId: *outValue = VariantFromBool(record->treeIsEnabled); return S_OK;
             case UIA_HasKeyboardFocusPropertyId:
-                *outValue = VariantFromBool(record->treeHasFocus && SnapshotTreeItemIsSelected(*record, _treeItemId));
+                *outValue = VariantFromBool(record->treeHasFocus && SnapshotTreeItemIsFocused(*record, _treeItemId));
                 return S_OK;
             case UIA_IsOffscreenPropertyId: *outValue = VariantFromBool(false); return S_OK;
             case UIA_LevelPropertyId:
@@ -7132,7 +7222,23 @@ HRESULT AccessibilityProvider::GetSelection(SAFEARRAY** outSelection) noexcept
         std::vector<wil::com_ptr_nothrow<IRawElementProviderSimple>> selectionProviders;
         if (record->isTree)
         {
-            if (record->selectedTreeVisibleIndex)
+            if (record->treeCanSelectMultiple)
+            {
+                // Every selected item that is a visible row, in visible order.
+                selectionProviders.reserve(record->selectedTreeItemIds.size());
+                for (const uint64_t itemId : record->selectedTreeItemIds)
+                {
+                    wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
+                    fragment.attach(CreateTreeItemProvider(record->path, itemId));
+                    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+                    if (! fragment || FAILED(fragment.query_to(simple.put())))
+                    {
+                        return E_OUTOFMEMORY;
+                    }
+                    selectionProviders.push_back(std::move(simple));
+                }
+            }
+            else if (record->selectedTreeVisibleIndex)
             {
                 const AccessibilityTreeItemSnapshotRecord* selectedItem =
                     FindSnapshotTreeItemRecordByVisibleIndex(*record, record->selectedTreeVisibleIndex.value());
@@ -7224,7 +7330,7 @@ HRESULT AccessibilityProvider::get_CanSelectMultiple(BOOL* outCanSelectMultiple)
 
     if (record->isTree)
     {
-        *outCanSelectMultiple = FALSE;
+        *outCanSelectMultiple = record->treeCanSelectMultiple ? TRUE : FALSE;
         return S_OK;
     }
     if (record->isGrid)
@@ -8064,7 +8170,8 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
             return UIA_E_ELEMENTNOTAVAILABLE;
         }
 
-        tree->SetSelectedItemId(item.id);
+        // A tree that selects one item selects what it focuses; with multi-select only the focus moves.
+        tree->SetFocusedItemId(item.id);
         host->SetFocusControl(tree);
         RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
         if (! _target->embedded)
@@ -8369,7 +8476,25 @@ HRESULT AccessibilityProvider::ExecuteAddToSelectionOnWindowThread() noexcept
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (_kind == AccessibilityFragmentKind::TreeItem)
     {
-        return ExecuteSelectOnWindowThread();
+        Tree* const tree = ResolveMutableTreeControl();
+        if (! tree || ! tree->MultiSelectEnabled())
+        {
+            // A single selection has nothing to add to: the item becomes the selection.
+            return ExecuteSelectOnWindowThread();
+        }
+
+        // Multi-select: the item joins the selection (and takes the focus), which keeps the items already in it.
+        ControlHost* const host = ResolveHost();
+        size_t visibleIndex     = 0u;
+        if (! host || ! ResolveTreeVisibleIndex(visibleIndex) || ! tree->RequestAddVisibleItemToSelection(visibleIndex))
+        {
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+
+        host->SetFocusControl(tree);
+        RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+        host->Invalidate();
+        return S_OK;
     }
 
     ControlHost* host = ResolveHost();
@@ -8404,6 +8529,20 @@ HRESULT AccessibilityProvider::ExecuteRemoveFromSelectionOnWindowThread() noexce
         if (! tree || ! ResolveTreeItemData(item))
         {
             return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+
+        if (tree->MultiSelectEnabled())
+        {
+            // Only this item leaves the selection; the others stay and so does the focus.
+            size_t visibleIndex = 0u;
+            if (! ResolveTreeVisibleIndex(visibleIndex) || ! tree->RequestRemoveVisibleItemFromSelection(visibleIndex))
+            {
+                return UIA_E_ELEMENTNOTAVAILABLE;
+            }
+
+            RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+            host->Invalidate();
+            return S_OK;
         }
 
         if (tree->GetSelectedItemId() && tree->GetSelectedItemId().value() == item.id)
@@ -8822,6 +8961,80 @@ bool AnnounceWindowHostFocus(HWND hwnd) noexcept
     return SUCCEEDED(UiaRaiseAutomationEvent(provider.get(), UIA_AutomationFocusChangedEventId));
 }
 
+// The UI Automation selection events for the selection changes a publish found in multi-select trees (see
+// TreeSelectionChange): per changed item the IsSelected property change and the pattern's selected, added or removed
+// event, or for a change too large to name the container's invalidated event. Every provider holds a reference of
+// `target`, which the caller keeps; `hwnd` is null for an embedded target. A client's callback may disconnect the host,
+// which ends the raising.
+void RaiseTreeSelectionEvents(WindowHostAccessibilityTarget& target, HWND hwnd, const std::vector<TreeSelectionChange>& changes) noexcept
+{
+    const auto connected    = [&]() noexcept { return target.host.load(std::memory_order_acquire) != nullptr; };
+    const auto makeProvider = [&](const ControlPath& path, const uint64_t* itemId) noexcept -> wil::com_ptr_nothrow<IRawElementProviderSimple>
+    {
+        static_cast<void>(target.AddRef());
+        AccessibilityProvider* const raw = itemId ? new (std::nothrow) AccessibilityProvider(&target, hwnd, path, *itemId, AccessibilityProvider::TreeItemTag{})
+                                                  : new (std::nothrow) AccessibilityProvider(&target, hwnd, path);
+        if (! raw)
+        {
+            static_cast<void>(target.Release());
+            return {};
+        }
+        wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
+        provider.attach(static_cast<IRawElementProviderSimple*>(raw));
+        return provider;
+    };
+    // The tree itself. A collapsed semantic root is reported through the canonical root provider, as clients see it.
+    const auto makeContainer = [&](const ControlPath& path) noexcept -> wil::com_ptr_nothrow<IRawElementProviderSimple>
+    {
+        if (const auto snapshot = target.snapshot.load(std::memory_order_acquire); snapshot && SnapshotPathIsCollapsedSemanticRoot(*snapshot, path))
+        {
+            wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
+            if (const auto root = AcquireCanonicalRootProvider(&target); root && SUCCEEDED(root.query_to(provider.put())))
+                return provider;
+            return {};
+        }
+        return makeProvider(path, nullptr);
+    };
+    const auto raiseItem = [&](const ControlPath& path, uint64_t itemId, bool selected, EVENTID eventId) noexcept
+    {
+        const wil::com_ptr_nothrow<IRawElementProviderSimple> item = makeProvider(path, &itemId);
+        if (! item || ! connected())
+            return;
+        static_cast<void>(
+            UiaRaiseAutomationPropertyChangedEvent(item.get(), UIA_SelectionItemIsSelectedPropertyId, VariantFromBool(! selected), VariantFromBool(selected)));
+        if (eventId != 0 && connected())
+            static_cast<void>(UiaRaiseAutomationEvent(item.get(), eventId));
+    };
+
+    for (const TreeSelectionChange& change : changes)
+    {
+        if (! connected())
+            return;
+        if (change.invalidated)
+        {
+            if (const wil::com_ptr_nothrow<IRawElementProviderSimple> container = makeContainer(change.path))
+                static_cast<void>(UiaRaiseAutomationEvent(container.get(), UIA_Selection_InvalidatedEventId));
+            continue;
+        }
+        // A selection that became one new item says so with that item's event, which says the others left it.
+        for (const uint64_t itemId : change.removed)
+            raiseItem(change.path, itemId, false, change.replaced ? 0 : UIA_SelectionItem_ElementRemovedFromSelectionEventId);
+        for (const uint64_t itemId : change.added)
+            raiseItem(change.path, itemId, true, change.replaced ? UIA_SelectionItem_ElementSelectedEventId : UIA_SelectionItem_ElementAddedToSelectionEventId);
+    }
+}
+
+// The selection events of a window host's publish, raised outside its lock like the focus and structure events.
+void RaiseWindowHostTreeSelectionChanges(HWND hwnd, const std::vector<TreeSelectionChange>& changes) noexcept
+{
+    if (! hwnd || changes.empty() || ! UiaClientsAreListening())
+        return;
+    constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
+    wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> target(AcquireWindowHostAccessibilityTarget(hwnd));
+    if (target)
+        RaiseTreeSelectionEvents(*target.get(), hwnd, changes);
+}
+
 // Clients learn that semantic controls were added, removed or replaced, so they drop elements that now report
 // UIA_E_ELEMENTNOTAVAILABLE and navigate again.
 void RaiseWindowHostStructureInvalidated(HWND hwnd) noexcept
@@ -9032,22 +9245,25 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexce
     // Raised outside the publish lock: clients may call back into these providers from other threads.
     if (changes.structureChanged)
         RaiseWindowHostStructureInvalidated(hwnd);
-    if (! changes.focusMoved)
-        return;
-    // What the gain itself focuses is left to the system's focus event, and a move later in its turn is too while no
-    // GetFocus call has begun on the window (see ReporterOfFocusMove): every call that begins later loads the snapshot
-    // after the store above and reports the moved-to element. Otherwise the host announces the move, at worst as a
-    // duplicate of a call that answered the event before it.
-    switch (EmbeddedAccessibilityAccess::ReporterOfFocusMove(*host, focusResolutions))
+    if (changes.focusMoved)
     {
-        case EmbeddedAccessibilityAccess::FocusMoveReporter::Host:
-            EmbeddedAccessibilityAccess::NoteFocusMoveAnnounced(*host);
-            if (AnnounceWindowHostFocus(hwnd))
-                EmbeddedAccessibilityAccess::CountFocusAnnouncement(*host);
-            break;
-        case EmbeddedAccessibilityAccess::FocusMoveReporter::SystemUnanswered: EmbeddedAccessibilityAccess::CountFocusMoveLeftToSystem(*host); break;
-        case EmbeddedAccessibilityAccess::FocusMoveReporter::SystemAtGain: break;
+        // What the gain itself focuses is left to the system's focus event, and a move later in its turn is too while no
+        // GetFocus call has begun on the window (see ReporterOfFocusMove): every call that begins later loads the snapshot
+        // after the store above and reports the moved-to element. Otherwise the host announces the move, at worst as a
+        // duplicate of a call that answered the event before it.
+        switch (EmbeddedAccessibilityAccess::ReporterOfFocusMove(*host, focusResolutions))
+        {
+            case EmbeddedAccessibilityAccess::FocusMoveReporter::Host:
+                EmbeddedAccessibilityAccess::NoteFocusMoveAnnounced(*host);
+                if (AnnounceWindowHostFocus(hwnd))
+                    EmbeddedAccessibilityAccess::CountFocusAnnouncement(*host);
+                break;
+            case EmbeddedAccessibilityAccess::FocusMoveReporter::SystemUnanswered: EmbeddedAccessibilityAccess::CountFocusMoveLeftToSystem(*host); break;
+            case EmbeddedAccessibilityAccess::FocusMoveReporter::SystemAtGain: break;
+        }
     }
+    // After the focus move, as a list view reports its focus and then its selection.
+    RaiseWindowHostTreeSelectionChanges(hwnd, changes.treeSelections);
 }
 
 void BeginWindowHostFocusGain(HWND hwnd, ControlHost* host) noexcept
@@ -9244,7 +9460,11 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
 
 namespace
 {
-void RaiseEmbeddedAccessibilityChanges(WindowHostAccessibilityTarget& target, const std::shared_ptr<const AccessibilitySnapshot>& previous) noexcept
+// `treeSelections` is the selection diff of the publish. The caller makes it, where running out of memory is reported,
+// because this function raises events and never throws.
+void RaiseEmbeddedAccessibilityChanges(WindowHostAccessibilityTarget& target,
+                                       const std::shared_ptr<const AccessibilitySnapshot>& previous,
+                                       const std::vector<TreeSelectionChange>& treeSelections) noexcept
 {
     const auto current = target.snapshot.load(std::memory_order_acquire);
     if (! previous || ! current || ! target.rootProvider || ! UiaClientsAreListening())
@@ -9342,6 +9562,8 @@ void RaiseEmbeddedAccessibilityChanges(WindowHostAccessibilityTarget& target, co
     }
     if (connected() && structureChanged)
         static_cast<void>(UiaRaiseStructureChangedEvent(root.get(), StructureChangeType_ChildrenInvalidated, nullptr, 0));
+    if (connected())
+        RaiseTreeSelectionEvents(target, nullptr, treeSelections);
 }
 } // namespace
 
@@ -9401,7 +9623,13 @@ HRESULT EmbeddedHost::UpdateAccessibility(const EmbeddedAccessibilityPlacement& 
         target->placement   = placement;
         PublishWindowHostAccessibilitySnapshot(*target, _host);
         target->preparation = preparation;
-        RaiseEmbeddedAccessibilityChanges(*target, previous);
+        std::vector<TreeSelectionChange> treeSelections;
+        if (previous && UiaClientsAreListening())
+        {
+            if (const auto current = target->snapshot.load(std::memory_order_acquire))
+                treeSelections = CollectTreeSelectionChanges(*previous, *current);
+        }
+        RaiseEmbeddedAccessibilityChanges(*target, previous, treeSelections);
         return S_OK;
     }
     catch (const std::bad_alloc&)

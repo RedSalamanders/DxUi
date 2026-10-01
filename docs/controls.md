@@ -32,7 +32,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | StackPanel | Set orientation, gap and padding; call `SetChildExtent` for every child and `ApplyLayout` after content or bounds changes. |
 | ScrollPanel | Own a content tree, set the content extent, and handle `SetOnScrollChanged` if needed. It clips and translates pointer coordinates into content space. |
 | TooltipLayer | Usually managed through `ControlHost::SetTooltip`, `SetTooltipDelayed`, hide-delay and `ClearTooltip`; delayed behavior needs host ticks. |
-| Tree | Supply a borrowed `ITreeModel`, optional `ITreeDelegate`, then `NotifyDataChanged` when data changes. Use stable IDs for selection/expansion. `iconText` in the private-use range uses the icon font; letters and symbols keep the UI font. `SetReorderEnabled` reports one `OnTreeReorder` per row drag (never into the row's own subtree); the tree does not move your model, and a keyboard reorder command is yours to provide. |
+| Tree | Supply a borrowed `ITreeModel`, optional `ITreeDelegate`, then `NotifyDataChanged` when data changes. Use stable IDs for selection/expansion. `iconText` in the private-use range uses the icon font; letters and symbols keep the UI font. `SetReorderEnabled` reports one `OnTreeReorder` per row drag (never into the row's own subtree); the tree does not move your model, and a keyboard reorder command is yours to provide. `SetMultiSelectEnabled(true)` (off by default, which keeps the single selection exactly as it was) selects several items: click selects one and sets the anchor, Ctrl+click toggles, Shift+click (or Shift with a movement key) selects the visible range from the anchor, Ctrl with a movement key moves the focus alone, Ctrl+Space toggles the focused item and Ctrl+A selects every visible row. `GetSelectedItemIds` lists the selection in visible order (`GetSelectedItemId` stays the focused item, which need not be selected), `OnTreeSelectionSetChanged` reports each change of the set once, and the selection survives `NotifyDataChanged` except for rows that are no longer visible (removed, or hidden by a collapse). A drag of a selected row reports that row alone and leaves the selection intact, so your `OnTreeReorder` may move every id in `GetSelectedItemIds` when the source is one of them. UI Automation reports `CanSelectMultiple` and raises the selection events. |
 | Grid | Supply a borrowed `IGridModel` and optional `IGridDelegate`; configure columns, row height and selection. Call `NotifyDataChanged` after model changes. |
 | Splitter | Size it over both panes, choose `SetOrientation`, set the pane minimums and `SetPosition`, then place your pane controls from `GetFirstPaneBounds` / `GetSecondPaneBounds` inside `SetOnChange(SplitterChange)` (preview while dragging, commit on release or keyboard, cancel on Escape or capture loss). Only the separator plus 2 DIP is hittable; the position you persist is your state. In an EmbeddedHost apply the pane bounds on your next Prepare rather than inside the callback, or the bounds change cancels the drag on the next pointer event. |
 | NumericStepper | Set range, `SetStep` / `SetLargeStep`, `SetDecimals`, an optional `SetLabel` / `SetUnit` with widths, and handle `SetOnChange(NumericStepperChange)`: typing previews, Enter, focus loss, the buttons and Up/Down (Shift: large step) commit, Escape cancels, and an edit whose text no longer parses reverts with a cancel. `SetValue` is silent. The step buttons are named "Increase" / "Decrease" for UI Automation; supply localized names with `SetStepButtonNames`. Preferred height is `kDefaultHeightDip` (32). |
@@ -192,3 +192,40 @@ For localized empty states, call `combo.SetNoMatchesText(L"Aucun résultat")`,
 `tree.SetEmptyStateText(L"Aucune donnée")`, or `grid.SetEmptyStateText(...)` with your product's
 resource strings. The controls own the supplied text. Reapply it when the language changes;
 an empty string restores the English default. An open ComboBox popup updates its width.
+
+## Tree multi-select
+
+```cpp
+class LayersPanel final : public DxUi::ITreeDelegate
+{
+public:
+    // The focused row moved (a click, a key, typeahead or UI Automation). With multi-select it may be outside the selection.
+    void OnTreeSelectionChanged(uint64_t itemId) override { _activeLayer = itemId; }
+    // The selection changed, once per change: `ids` are the selected rows in visible order, valid during the call.
+    void OnTreeSelectionSetChanged(std::span<const uint64_t> ids) override { _selected.assign(ids.begin(), ids.end()); }
+    // One row was dragged; the tree moves nothing. When it belongs to the selection the drop may move them all.
+    void OnTreeReorder(const DxUi::TreeDrop& drop) override
+    {
+        const std::vector<uint64_t> selection = _tree->GetSelectedItemIds();
+        const bool wholeSelection             = std::ranges::contains(selection, drop.sourceId);
+        MoveLayers(wholeSelection ? selection : std::vector<uint64_t>{drop.sourceId}, drop.targetId, drop.place);
+        _tree->NotifyDataChanged(); // The selection follows the ids, in their new order.
+    }
+    // ...
+};
+
+tree->SetModel(&layers);
+tree->SetDelegate(&panel);
+tree->SetReorderEnabled(true);
+tree->SetMultiSelectEnabled(true);
+```
+
+Enabling multi-select changes nothing else about a tree: until then every modifier is ignored and no set callback is made.
+The focused row and the selection are separate, so a command reads `GetSelectedItemIds`, not `GetSelectedItemId`. A press
+with Ctrl or Shift never starts a drag; a press on a row of a multi-selection keeps the selection until the release, so the
+drag can carry it. After a model change call `NotifyDataChanged`: selected rows that are no longer visible leave the
+selection (a collapsed group deselects the rows it hides, and expanding it does not reselect them). `SetSelectedItemIds`
+restores a selection without a callback. The selection is a `GridSelectionModel`, so Ctrl+click, Shift+click and Ctrl+A
+follow Grid; Ctrl with a movement key moves the focus and Ctrl+Space toggles it, as in a list view. The
+[gallery](gallery/README.md) shows a tree with several rows selected, and the [tree tests](../Tests/Controls/DxUiTests.Tree.cpp)
+cover each gesture.
