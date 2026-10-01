@@ -28,6 +28,11 @@ Application adoption measurements belong in their application's repository.
   ids with the room of a large selection given back): in the order of the ids on a screen a binary search costs more than a
   scan below 512 ids (5 to 20 ns a call at 8 to 128 ids), a model that held 3.2 MB after Ctrl+A and `Clear` now holds
   nothing, and `PreserveOrdered` over a long list needed a table of bits.
+- [Hosted paired gate calibration, 2026-10-01](HostedPairedGate/2026-10-01/README.md): an A/A set (the same library code
+  built twice, six runs per side, three scenarios) on a hosted x64 runner. Nothing is flagged in 78 metric tests, all 18
+  same-binary controls drift beyond a band in some metric (so the gate judges the controls of the flagged metric), and the
+  exact budgets never drift. A [second A/A set](HostedPairedGate/2026-10-01/aa-2/README.md) flags five clean-phase timings
+  of identical code, each with a drifted control: inconclusive per metric, so a hosted run can need a re-run.
 
 - [Complex UI, 2026-09-05](ComplexUi/2026-09-05/README.md): Release baseline and matched repeat, complete raw rounds,
   comparison and rendered scene.
