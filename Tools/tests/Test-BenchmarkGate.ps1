@@ -462,6 +462,16 @@ Invoke-FixtureCase 'the conclusion reads the summaries performance-paired.ps1 re
     Assert-Equal 'inconclusive' (Get-Conclusion $summary $reports -Strict).Conclusion 'under the strict reading that laptop''s set proves nothing'
 }
 
+function Assert-RetainedPacket([string] $Directory) {
+    # SHA256SUMS lists every retained file of the directory, and each hash is the file's.
+    $sums = @([IO.File]::ReadAllLines((Join-Path $Directory 'SHA256SUMS')) | Where-Object { $_ })
+    Assert-Equal @(Get-ChildItem -LiteralPath $Directory -File | Where-Object { $_.Name -cne 'README.md' -and $_.Name -cne 'SHA256SUMS' }).Count $sums.Count 'SHA256SUMS lists every retained file'
+    foreach ($line in $sums) {
+        $hash, $name = $line -split '  ', 2
+        Assert-Equal $hash (Get-FileHash -LiteralPath (Join-Path $Directory $name) -Algorithm SHA256).Hash.ToLowerInvariant() "the hash of $name"
+    }
+}
+
 Invoke-TestCase 'the retained hosted A/A set passes: identical library, nothing flagged, every control drifting, every exact budget held' {
     $reports = Join-Path $repository 'Measurements/HostedPairedGate/2026-10-01'
     $summary = Read-GateJson (Join-Path $reports 'summary.receipt.txt')
@@ -479,12 +489,25 @@ Invoke-TestCase 'the retained hosted A/A set passes: identical library, nothing 
         Assert-True (@($exact | Where-Object { -not $_.Held }).Count -eq 0) "$($scenario.Scenario): an exact budget never drifts, so a rise in one is always confirmed"
     }
     Assert-Equal 'inconclusive' (Get-Conclusion $summary $reports -Strict).Conclusion 'a gate that needed stable controls overall would never pass a hosted run'
-    $sums = @([IO.File]::ReadAllLines((Join-Path $reports 'SHA256SUMS')) | Where-Object { $_ })
-    Assert-Equal @(Get-ChildItem -LiteralPath $reports -File | Where-Object { $_.Name -cne 'README.md' -and $_.Name -cne 'SHA256SUMS' }).Count $sums.Count 'SHA256SUMS lists every retained file'
-    foreach ($line in $sums) {
-        $hash, $name = $line -split '  ', 2
-        Assert-Equal $hash (Get-FileHash -LiteralPath (Join-Path $reports $name) -Algorithm SHA256).Hash.ToLowerInvariant() "the hash of $name"
-    }
+    Assert-RetainedPacket $reports
+}
+
+Invoke-TestCase 'the second retained hosted A/A set: five flags on identical code are noise by the identical-inputs rule and inconclusive without it' {
+    $reports = Join-Path $repository 'Measurements/HostedPairedGate/2026-10-01/aa-2'
+    $summary = Read-GateJson (Join-Path $reports 'summary.receipt.txt')
+    $conclusion = Get-Conclusion $summary $reports
+    Assert-Equal 'pass' $conclusion.Conclusion 'identical library inputs'
+    Assert-Equal '4 1 0' (($conclusion.Scenarios | ForEach-Object { $_.Regressed }) -join ' ') 'the five flagged metrics'
+    $flagged = @($conclusion.Scenarios | ForEach-Object { $_.Metrics } | Where-Object { $_.Verdict -eq 'regressed' })
+    Assert-Equal 5 $flagged.Count 'five flagged metrics'
+    Assert-Equal 0 @($flagged | Where-Object { $_.Outcome -ne 'noise' }).Count 'all listed as noise'
+    Assert-Equal 0 @($flagged | Where-Object { -not $_.ControlDrifted }).Count 'every one with a drifted control'
+    $summary['candidate']['sourceFingerprint'] = 'CHANGED'
+    $changed = Get-Conclusion $summary $reports
+    Assert-Equal 'inconclusive' $changed.Conclusion 'read as a change, the controls of every flagged metric drifted: nothing is confirmed, and nothing is dismissed'
+    $outcomes = @($changed.Scenarios | ForEach-Object { $_.Metrics } | Where-Object { $_.Verdict -eq 'regressed' } | ForEach-Object { $_.Outcome })
+    Assert-Equal 'unconfirmed unconfirmed unconfirmed unconfirmed unconfirmed' ($outcomes -join ' ') 'the five stay listed as unconfirmed'
+    Assert-RetainedPacket $reports
 }
 
 # --- What a run says --------------------------------------------------------------------------------------------------------
@@ -626,9 +649,10 @@ Invoke-FixtureCase 'step outputs and summaries go to the files the runner names,
     Assert-Equal 114 ([int][IO.File]::ReadAllBytes($outputFile)[0]) 'without a byte-order mark'
 }
 
-function Invoke-GateScript([string] $Script, [hashtable] $Arguments, [string] $Directory) {
-    # A workflow step's script, in this process, with the runner's files pointed at the fixture. Returns its exit code and output.
-    $names = @('GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_EVENT_NAME', 'GITHUB_REF', 'GITHUB_BASE_REF', 'BENCHMARK_PAIR')
+function Invoke-GateScript([string] $Script, [hashtable] $Arguments, [string] $Directory, [bool] $Actions = $true) {
+    # A workflow step's script, in this process, with the runner's files pointed at the fixture (and, as on a runner,
+    # GITHUB_ACTIONS set unless $Actions is false). Returns its exit code and output.
+    $names = @('GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_EVENT_NAME', 'GITHUB_REF', 'GITHUB_BASE_REF', 'GITHUB_ACTIONS', 'BENCHMARK_PAIR')
     $previous = @{}
     foreach ($name in $names) { $previous[$name] = [Environment]::GetEnvironmentVariable($name) }
     try {
@@ -637,6 +661,7 @@ function Invoke-GateScript([string] $Script, [hashtable] $Arguments, [string] $D
         [Environment]::SetEnvironmentVariable('GITHUB_STEP_SUMMARY', (Join-Path $Directory 'step-summary.md'))
         [Environment]::SetEnvironmentVariable('GITHUB_EVENT_NAME', 'pull_request')
         [Environment]::SetEnvironmentVariable('GITHUB_REF', 'refs/pull/46/merge')
+        [Environment]::SetEnvironmentVariable('GITHUB_ACTIONS', $(if ($Actions) { 'true' } else { $null }))
         [Environment]::SetEnvironmentVariable('BENCHMARK_PAIR', '(first parent of the merge commit)')
         $global:LASTEXITCODE = -1
         $output = & (Join-Path $repository $Script) @Arguments 6>&1 2>&1
@@ -654,6 +679,8 @@ Invoke-FixtureCase 'the verdict step fails a pull request on a degradation or an
     Assert-Equal 1 $result.Code 'a confirmed degradation fails the step'
     Assert-True $result.StepOutput.Contains('conclusion=degraded') 'and sets the output'
     Assert-True $result.StepSummary.StartsWith('## Paired benchmark: Confirmed degradation') 'writes the job summary'
+    Assert-True $result.StepSummary.Contains('a shared hosted VM, not a controlled quiet desktop') 'which says what a runner is worth'
+    Assert-True (-not (Invoke-GateScript 'Tools/Publish-BenchmarkVerdict.ps1' @{ Reports = $reports; Gate = $true } (Join-Path $root 'local-out') $false).StepSummary.Contains('hosted VM')) 'and not on a developer machine'
     Assert-True $result.Output.Contains('::error title=') 'prints an annotation'
     Assert-True (Test-Path -LiteralPath (Join-Path $reports 'verdict.md')) 'keeps the report with the receipts'
     $verdict = Get-FixtureJson $reports 'verdict.json'

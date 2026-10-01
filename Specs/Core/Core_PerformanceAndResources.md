@@ -86,7 +86,7 @@ and `Tools/tests/Test-BenchmarkGate.ps1` covers it.
   cheap Linux job (`benchmark-scope`) matches the changed paths against those rules and names the files that decided; a
   pull request that changes none of them skips the Windows job, and a skipped job passes a required check. A manual
   dispatch with `benchmark_baseline` measures the revisions it names. A newer push to a pull request cancels its older run,
-  and its job is bounded at 45 minutes (a run takes 13 to 14); a manual run keeps its 90, for the diagnostic scenarios.
+  and its job is bounded at 45 minutes (a run takes 10 to 14); a manual run keeps its 90, for the diagnostic scenarios.
   A pull request's check is named `paired-benchmark (pull request)`, apart from the push and manual runs of the same job, so
   that a required check names exactly one check run.
 - **What is compared.** The candidate is the pull request's merge ref. The baseline is that merge commit's first parent, the
@@ -113,9 +113,13 @@ and `Tools/tests/Test-BenchmarkGate.ps1` covers it.
   metrics (mostly the p95 of frame, preparation and composition times, and the working set), so the check judges the
   controls of the metric a set flagged, not of all twenty-six together. The
   [retained hosted run](../../Measurements/HostedPairedGate/2026-10-01/README.md) records the drift: all 18 controls
-  drifted in some metric, and the eight exact budgets in none. The strict reading, any unstable control making its scenario
-  inconclusive, is the `-StrictControls` switch of `Tools/Publish-BenchmarkVerdict.ps1`; it is off because it would have
-  made every hosted run inconclusive.
+  drifted in some metric, and the eight exact budgets in none. A
+  [second hosted A/A run](../../Measurements/HostedPairedGate/2026-10-01/aa-2/README.md) flagged five
+  clean-phase timings (p 0.004 to 0.026) of the same library code with their controls drifted: the candidate was slow in
+  five of its six runs and the baseline in none. Per metric that is inconclusive, not a degradation, so a hosted run can
+  need a re-run. The strict reading,
+  any unstable control making its scenario inconclusive, is the `-StrictControls` switch of
+  `Tools/Publish-BenchmarkVerdict.ps1`; it is off because it would have made every hosted run inconclusive.
 - **Identical library inputs.** When the compiled library inputs of both sides are identical (a change to the benchmark or
   its tooling only), the same library code was measured twice: a timing or memory flag is listed as noise, and a rise in a
   deterministic budget still fails, because noise cannot move one.
@@ -125,7 +129,7 @@ and `Tools/tests/Test-BenchmarkGate.ps1` covers it.
 - **Confirmed degradation** follows the advice rule above: stop, present the deltas and the suspected cause, ask the
   developer, and never relax a band or replace a baseline to pass. *Confirmed* means the machine held still for the
   metric, not that a second set reproduced it: a scenario makes about 26 metric tests, so a chance verdict is possible,
-  and re-running the job (a new runner, 14 minutes) is the repeat the advice rule asks for. The gate has no waiver list: a
+  and re-running the job (a new runner, up to 14 minutes) is the repeat the advice rule asks for. The gate has no waiver list: a
   tradeoff the developer approves is recorded in this contract, as the sections below do, and a maintainer merges over the
   failed check.
 - **A manual run** reports the same verdict in its job summary and stays green for a finding, as it always did: only a pull

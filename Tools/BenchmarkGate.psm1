@@ -199,7 +199,9 @@ function Get-BenchmarkConclusion {
         foreach ($metric in @($set['metrics'])) {
             $key = '{0}/{1}' -f $metric['phase'], $metric['metric']
             $seen = $drift['Metrics'][$key]
-            $held = $drift['Total'] -gt 0 -and $drift['Missing'] -eq 0 -and $null -ne $seen -and $seen['Observed'] -eq $drift['Total'] -and -not $seen['Drifted']
+            # Held: every control measured this metric and none moved it beyond its band. A control whose comparison cannot be
+            # read measured nothing, so no metric of its scenario is observed by all of them; without controls nothing is observed.
+            $held = $null -ne $seen -and $seen['Observed'] -eq $drift['Total'] -and -not $seen['Drifted']
             # An exact budget has a band of zero; a summary that does not say so is still read by its band.
             $exact = [bool]$metric['exact'] -or ($null -ne $metric['noisePercent'] -and [double]$metric['noisePercent'] -eq 0)
             $outcome = switch ($metric['verdict']) {

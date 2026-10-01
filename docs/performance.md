@@ -82,7 +82,7 @@ side's revision or path, commit and source fingerprint. Every receipt, compariso
 `summary.json` is retained; an `advice-required` set still needs developer advice.
 
 A merge does not have to wait for a quiet developer machine: the [validation workflow](../.github/workflows/ci.yml) runs
-the set on one hosted x64 Release runner (about 14 minutes). Its
+the set on one hosted x64 Release runner (10 to 14 minutes). Its
 [contract](../Specs/Core/Core_PerformanceAndResources.md#hosted-paired-gate) has the rules; in short:
 
 - **Pull requests.** Every pull request to `main` that changes something the benchmark measures (library sources and
@@ -109,7 +109,9 @@ the set on one hosted x64 Release runner (about 14 minutes). Its
   findings, not as noise. A run with no flagged metric passes as *no regression established*, which is not evidence that
   none exists. Hosted controls drift in several timings in almost every run (the
   [calibration set](../Measurements/HostedPairedGate/2026-10-01/README.md) records 18 of 18), which is why the controls of
-  the flagged metric decide and not all twenty-six; exact budgets never drift, so a rise in one always confirms.
+  the flagged metric decide and not all twenty-six; exact budgets never drift, so a rise in one always confirms. A
+  [second calibration set](../Measurements/HostedPairedGate/2026-10-01/aa-2/README.md) of identical code flagged five
+  clean-phase timings, each with a drifted control: inconclusive, so expect an occasional re-run.
 - **Unchanged library code.** When both sides have one library fingerprint (a change to the benchmark or its tooling
   only) the same code was measured twice: a timing or memory flag is listed as noise and a rise in a deterministic budget
   still fails.

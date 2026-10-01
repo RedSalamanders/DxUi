@@ -127,7 +127,7 @@ jobs:
     needs: benchmark-scope
     if: ${{ !cancelled() && (needs.benchmark-scope.outputs.relevant == 'true' || (github.event_name == 'workflow_dispatch' && inputs.benchmark_baseline != '')) }}
     runs-on: windows-2025-vs2026
-    # A pull request's run takes 13 to 14 minutes: the restore (under a minute), then the paired run, which builds both trees
+    # A pull request's run takes 10 to 14 minutes: the restore (under a minute), then the paired run, which builds both trees
     # and measures 36 runs. Its limits are about twice that, so a hang ends while the job still has time to report and upload.
     # A manual run keeps the 90 minutes it always had, for the diagnostic scenarios that run much longer.
     timeout-minutes: ${{ github.event_name == 'pull_request' && 45 || 90 }}

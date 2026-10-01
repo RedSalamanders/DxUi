@@ -61,6 +61,13 @@ controls held their band. Under its strict reading, any unstable control making 
 inconclusive in all three scenarios. `Tools/tests/Test-BenchmarkGate.ps1` runs the conclusion over this set and over a
 retained local one.
 
+## A second set
+
+The same two commits dispatched again ([`aa-2`](aa-2/README.md), on an AMD EPYC runner) flagged five clean-phase timings
+of identical code (p 0.004 to 0.026), every one with a control beyond its band: the candidate was slow in five of its six
+runs and the baseline in none. Per metric the gate reads that as inconclusive, not as a degradation, so a hosted run can
+need a re-run. One of two A/A sets flagged; the pair cannot say how often.
+
 ## Limits
 
 One set on one shared virtual machine, run while other jobs of the repository used the same runner pool. An A/A of 36

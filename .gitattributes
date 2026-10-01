@@ -36,3 +36,6 @@ Measurements/GridSelection/2026-10-01/refine-SHA256SUMS -text -whitespace
 Measurements/HostedPairedGate/2026-10-01/*.json -text -whitespace
 Measurements/HostedPairedGate/2026-10-01/*.receipt.txt -text -whitespace
 Measurements/HostedPairedGate/2026-10-01/SHA256SUMS -text -whitespace
+Measurements/HostedPairedGate/2026-10-01/aa-2/*.json -text -whitespace
+Measurements/HostedPairedGate/2026-10-01/aa-2/*.receipt.txt -text -whitespace
+Measurements/HostedPairedGate/2026-10-01/aa-2/SHA256SUMS -text -whitespace
