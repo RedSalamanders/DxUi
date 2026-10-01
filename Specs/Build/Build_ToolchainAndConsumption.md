@@ -55,7 +55,9 @@ simultaneous releases of the two applications.
 ## Implemented build and consumption
 
 `src/DxUi.vcxproj` produces the only archive, `DxUi.lib`. FoundationTests, ControlTests, EmbeddedTests and the
-standalone EmbeddedControls executable all consume it. The supported lock target is `["DxUi"]`, API revision 3.
+standalone EmbeddedControls executable all consume it. The test-only `DxUi.InteractiveLease.exe` (the desktop lease behind
+`test.ps1 -Interactive`) is built beside them in every configuration and does not link it. The supported lock target is
+`["DxUi"]`, API revision 3.
 
 Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the vcpkg tool revision are pinned.
 `-OutputRoot` isolates restore and build work in a consumer-owned directory. The same absolute directory, including
@@ -100,7 +102,8 @@ output directory and never terminates them.
 `test.ps1` runs all three test executables, splitting inherited control suites into independent runs with exit-code,
 SHA256, native architecture and capability-skip receipts; `-Tests <Name>[,<Name>]` narrows each control-suite run to the
 named tests and `-TestTimeout <seconds>` sets the deadline each control test may run before the runner's watchdog ends the run
-with exit code 124 (see the [validation contract](../Testing/Testing_Validation.md)). `gallery.ps1` generates five themed control sheets, a
+with exit code 124; `-Interactive` runs the suites that need the real desktop under `DxUi.InteractiveLease.exe` (see the
+[validation contract](../Testing/Testing_Validation.md)). `gallery.ps1` generates five themed control sheets, a
 supplied-device example image and an HTML index. `DxUi.EmbeddedControls.exe` opens the live toggle/slider example;
 `--output image.png` renders it headlessly through a sample-created WARP device. `--complex-ui` selects the independent
 83-control/1,000-row scene shared with the benchmark. External-consumer validation copies both sample directories

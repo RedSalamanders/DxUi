@@ -3,6 +3,7 @@
 #include <crtdbg.h>
 #include <cstdio>
 #include <cstdlib>
+#include <cwchar>
 #include <windows.h>
 
 // A test process never waits on a dialog. In a Debug build a failed runtime check (an STL range check, a CRT assertion)
