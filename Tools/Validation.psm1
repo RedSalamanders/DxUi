@@ -2,6 +2,7 @@
 # Each Test-DxUi* function returns Failures and Messages instead of printing, so the tooling tests can drive it
 # against fixture trees; the root validate-*.ps1 scripts print the result and fail on any finding.
 Set-StrictMode -Version Latest
+Import-Module (Join-Path $PSScriptRoot 'Changelog.psm1')
 
 $script:PathComparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
 
@@ -308,8 +309,27 @@ function Test-DxUiSpecs([Parameter(Mandatory)][string] $Root) {
     if (-not $indexedSet.SetEquals($expected) -or $indexed.Count -ne $indexedSet.Count) {
         $failures.Add('Every direct WIP plan must appear exactly once in its index')
     }
-    foreach ($part in @((Test-DxUiDocs $Root), (Test-DxUiDesignSystem $Root), (Test-DxUiMeasurements $Root))) { $failures.AddRange($part.Failures) }
+    foreach ($part in @((Test-DxUiDocs $Root), (Test-DxUiDesignSystem $Root), (Test-DxUiMeasurements $Root), (Test-DxUiChangelog $Root))) {
+        $failures.AddRange($part.Failures)
+    }
     return New-ValidationResult $failures @("Validated $($files.Count) Markdown files, $($required.Count) authority files and $($expected.Count) active plans")
+}
+
+function Test-DxUiChangelog([Parameter(Mandatory)][string] $Root) {
+    # A change is recorded as a fragment under Changes/, which its README explains, until Fold-Changelog.ps1 moves it under
+    # CHANGELOG.md's Unreleased heading. Every fragment is one dated bullet.
+    $failures = [Collections.Generic.List[string]]::new()
+    if (-not [IO.File]::Exists((Join-Path $Root 'Changes/README.md'))) { $failures.Add('Changes/README.md must explain changelog fragments') }
+    $changelog = Join-Path $Root 'CHANGELOG.md'
+    if (-not [IO.File]::Exists($changelog) -or -not [regex]::IsMatch((Read-TextFile $changelog -StripBom), '(?m)^## Unreleased[ \t]*\r?$')) {
+        $failures.Add('CHANGELOG.md must keep its "## Unreleased" heading, under which fragments are folded')
+    }
+    $fragments = Get-ChangelogFragments $Root
+    foreach ($fragment in $fragments) {
+        $problems = Get-ChangelogFragmentProblems $fragment.Name $fragment.Text
+        foreach ($problem in $problems) { $failures.Add("Changelog fragment $problem") }
+    }
+    return New-ValidationResult $failures @()
 }
 
 # --- Skills -------------------------------------------------------------------------------------------------------
@@ -712,7 +732,7 @@ function Invoke-DxUiValidation {
     return $results.ToArray()
 }
 
-Export-ModuleMember -Function Get-MarkdownProse, Test-DxUiDocs, Test-DxUiDesignSystem, Test-DxUiMeasurements, Test-DxUiSpecs,
+Export-ModuleMember -Function Get-MarkdownProse, Test-DxUiDocs, Test-DxUiDesignSystem, Test-DxUiMeasurements, Test-DxUiSpecs, Test-DxUiChangelog,
     ConvertFrom-SkillFrontMatter, Test-DxUiSkills, Test-DxUiDependencies, Test-DxUiTestPort, Get-BuildMatrix,
     Test-DxUiProjectConfigurations, Test-DxUiSolutionConfigurations, Test-DxUiBuildMatrix, Complete-DxUiValidation,
     Get-DxUiValidationSteps, Invoke-DxUiValidation

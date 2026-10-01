@@ -3,8 +3,8 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
-$installation = & $vswhere -latest -prerelease -products '*' -requires Microsoft.Component.MSBuild -property installationPath
+Import-Module (Join-Path $repo 'Tools/VisualStudio.psm1') -Force
+$installation = Get-DxUiVisualStudioInstallation
 $msbuild = Join-Path $installation 'MSBuild/Current/Bin/MSBuild.exe'
 $fixture = Join-Path $repo ('.build/ToolTests/AsanRuntime-' + [guid]::NewGuid().ToString('N'))
 [void](New-Item -ItemType Directory -Path $fixture)

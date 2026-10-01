@@ -339,6 +339,7 @@ struct ContextMenuSessionCallbacks
 {
     std::function<std::optional<ContextMenuRootSwitchRequest>(POINT screenPoint)> switchRootFromPointer;
     std::function<std::optional<ContextMenuRootSwitchRequest>(bool forward)> switchRootFromDirection;
+    // Called by a running Show for each ContextMenu::PostMenuBarHover, with the values it posted.
     std::function<std::optional<ContextMenuRootSwitchRequest>(size_t hoverIndex, std::uintptr_t sequence)> switchRootFromMenuBarHover;
     ContextMenuRootHorizontalAlignment rootHorizontalAlignment = ContextMenuRootHorizontalAlignment::Start;
     ContextMenuRootVerticalPlacement rootVerticalPlacement     = ContextMenuRootVerticalPlacement::Below;
@@ -373,6 +374,12 @@ public:
                                         const ThemePalette& theme,
                                         ContextMenuClosedCallback onClosed,
                                         const ContextMenuSessionCallbacks& sessionCallbacks = {});
+    // Tells a running Show (not ShowAsync) that the pointer now hovers item `hoverIndex` of the application's menu bar.
+    // Post it to a window of the menu's thread, such as the popup holding capture or the owner: Show calls the session's
+    // switchRootFromMenuBarHover(hoverIndex, sequence) and opens the root it returns. Outside a Show the window's procedure
+    // receives it like any other message, and HandleMessage ignores it. The message is registered by name, so no
+    // application message shares its value. Returns false when it could not be posted.
+    [[nodiscard]] static bool PostMenuBarHover(HWND target, size_t hoverIndex, std::uintptr_t sequence) noexcept;
 };
 
 // Native menu diagnostics share the optional borrowed Diagnostics::sink. No trace file is opened by DxUi.

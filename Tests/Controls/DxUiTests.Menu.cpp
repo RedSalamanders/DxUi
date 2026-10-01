@@ -2534,8 +2534,7 @@ void TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup()
 
         pendingMenuBarHoverRootSwitch.store(1, std::memory_order_release);
         pendingMenuBarHoverSequence.store(2u, std::memory_order_release);
-        if (PostMessageW(viewPopupHwnd, DxUi::WndMsg::kContextMenuRootHoverChanged, 0u, 1u) == 0 ||
-            PostMessageW(viewPopupHwnd, DxUi::WndMsg::kContextMenuRootHoverChanged, 1u, 2u) == 0)
+        if (! ContextMenu::PostMenuBarHover(viewPopupHwnd, 0u, 1u) || ! ContextMenu::PostMenuBarHover(viewPopupHwnd, 1u, 2u))
         {
             driverFailure = "View popup receives the direct synthetic menu-bar hover switch messages";
             return;
@@ -2703,7 +2702,7 @@ void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
 
         pendingMenuBarHoverRootSwitch.store(1, std::memory_order_release);
         pendingMenuBarHoverSequence.store(1u, std::memory_order_release);
-        if (PostMessageW(viewPopupHwnd, DxUi::WndMsg::kContextMenuRootHoverChanged, 1u, 1u) == 0)
+        if (! ContextMenu::PostMenuBarHover(viewPopupHwnd, 1u, 1u))
         {
             driverFailure = "overlapping popup can receive the synthetic menu-bar hover switch message";
             return;
@@ -2729,6 +2728,103 @@ void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
 
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "closing the overlapping popup validation with Escape returns no invoked command");
+}
+
+// DxUi's menu-bar hover message used to be WM_APP + 0x539, and a modal menu's loop took that value from any window of its
+// thread. Registered now, an application message at that value posted to the owner while a modal menu runs reaches the
+// owner's window procedure with its parameters, and the session hears no hover from it. The hover ContextMenu::PostMenuBarHover
+// posts to that same window still reaches the session, and never the owner's procedure.
+void TestModalMenuLeavesApplicationMessageAtFormerRootHoverValueToItsWindow()
+{
+    using namespace DxUi;
+    constexpr UINT kFormerRootHoverValue = WM_APP + 0x539u;
+    std::atomic<int> applicationMessages{0};
+    std::atomic<bool> applicationParametersKept{false};
+    std::atomic<int> hoverCalls{0};
+    std::atomic<std::uintptr_t> lastHoverSequence{0u};
+
+    AttachedHostWindow ownerWindow;
+    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 420, 260, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+    ownerWindow.PumpMessages();
+    ownerWindow.SetApplicationMessageHandler([&](UINT message, WPARAM wParam, LPARAM lParam, LRESULT& result)
+    {
+        if (message != kFormerRootHoverValue)
+            return false;
+        applicationParametersKept.store(wParam == 1u && lParam == 2, std::memory_order_release);
+        applicationMessages.fetch_add(1, std::memory_order_acq_rel);
+        result = 0;
+        return true;
+    });
+
+    const std::vector<MenuFlyoutItem> items{{.text = L"Former value one", .commandId = 36931}, {.text = L"Former value two", .commandId = 36932}};
+    ContextMenuSessionCallbacks sessionCallbacks{};
+    sessionCallbacks.switchRootFromMenuBarHover = [&](size_t, std::uintptr_t sequence) -> std::optional<ContextMenuRootSwitchRequest>
+    {
+        lastHoverSequence.store(sequence, std::memory_order_release);
+        hoverCalls.fetch_add(1, std::memory_order_acq_rel);
+        return std::nullopt;
+    };
+
+    const auto waitFor = [](const auto& condition)
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        while (! condition())
+        {
+            if (std::chrono::steady_clock::now() >= deadline)
+                return false;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        return true;
+    };
+
+    std::string driverFailure;
+    std::thread driver([&]
+    {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+        const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Former value one");
+        if (! popupHwnd)
+        {
+            driverFailure = "the modal menu opens before the application posts its message at the former root-hover value";
+            return;
+        }
+
+        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+        if (PostMessageW(ownerWindow.Hwnd(), kFormerRootHoverValue, 1u, 2) == FALSE)
+        {
+            driverFailure = "the application posts its message at the former root-hover value to the owner";
+            return;
+        }
+        if (! waitFor([&] { return applicationMessages.load(std::memory_order_acquire) != 0; }))
+        {
+            driverFailure = "the owner's window procedure receives the application's message at the former root-hover value while the menu runs";
+            return;
+        }
+        if (! applicationParametersKept.load(std::memory_order_acquire) || hoverCalls.load(std::memory_order_acquire) != 0)
+        {
+            driverFailure = "the application's message keeps its parameters, and the session hears no menu-bar hover from it";
+            return;
+        }
+
+        if (! ContextMenu::PostMenuBarHover(ownerWindow.Hwnd(), 1u, 3u))
+        {
+            driverFailure = "ContextMenu::PostMenuBarHover posts the registered hover to the owner";
+            return;
+        }
+        if (! waitFor([&] { return hoverCalls.load(std::memory_order_acquire) != 0; }) || lastHoverSequence.load(std::memory_order_acquire) != 3u ||
+            applicationMessages.load(std::memory_order_acquire) != 1)
+        {
+            driverFailure = "the registered hover posted to the owner reaches the session, and never the owner's procedure";
+        }
+    });
+
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
+    const POINT anchor              = ClientScreenPointForTest(ownerWindow.Hwnd(), 40, 40, "the former-value menu anchor converts to screen coordinates");
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), anchor, items, theme, sessionCallbacks);
+    driver.join();
+
+    Require(driverFailure.empty(), driverFailure.c_str());
+    Require(! result.has_value(), "closing the former-value menu with Escape invokes no command");
 }
 
 void TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch()
@@ -7708,6 +7804,7 @@ void RunMenuTests()
     runTest("TestMenuOwnerMouseMoveRoutesRootSwitchImmediately", TestMenuOwnerMouseMoveRoutesRootSwitchImmediately);
     runTest("TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup", TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup);
     runTest("TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar", TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar);
+    runTest("TestModalMenuLeavesApplicationMessageAtFormerRootHoverValueToItsWindow", TestModalMenuLeavesApplicationMessageAtFormerRootHoverValueToItsWindow);
     runTest("TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch", TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch);
     runTest("TestMenuRootSwitchDoesNotPollCursorWhileIdle", TestMenuRootSwitchDoesNotPollCursorWhileIdle);
     runTest("TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay", TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay);

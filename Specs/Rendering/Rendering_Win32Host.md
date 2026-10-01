@@ -1,7 +1,7 @@
 # Window hosting
 
 Status: normative intended contract
-Last reviewed: 2026-09-29
+Last reviewed: 2026-10-01
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -13,6 +13,18 @@ Its message/timer/animation resources stop or quiesce when hidden and are destro
 
 Native ControlHost/WindowHost is supported inside the same DxUi.lib; its messages, animation dispatcher and
 resource helpers are library-owned. RedSalamander's application migration remains a later independent plan.
+
+DxUi's private window messages are registered by name with `RegisterWindowMessageW`, as
+`RedSalamanders.DxUi.<Component>.<Purpose>.v<N>` (`src/Support/WindowMessages.h`), never as `WM_USER` or `WM_APP`
+offsets. Their values come from 0xC000–0xFFFF, which no application message on a shared window can take: DxUi reserves
+no `WM_APP` value, and an application never needs one of DxUi's values. A host window procedure forwards every message,
+registered ones included, to `HandleMessage`, which consumes only DxUi's own. Each message is registered once, when it
+is first needed, and senders and receivers compare that cached value; a message whose parameters change takes the next
+version. A failed registration yields 0, which is `WM_NULL`: it is never posted or sent, no receiver matches it, and
+each sender then behaves as it does when its post or send fails. An application that drives a modal menu's menu-bar
+hover calls `ContextMenu::PostMenuBarHover`. The WindowHost and Menu suites check that every message is registered,
+distinct and nonzero, and that application messages at the former `WM_APP` values reach the window procedure while
+DxUi neither consumes nor acts on them.
 
 The native menu and animation-dispatcher window classes use the instance of the module containing their
 window procedure. An executable and independently linked DLLs may each use DxUi.lib in one process;

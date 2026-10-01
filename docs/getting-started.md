@@ -2,7 +2,9 @@
 
 Install Visual Studio 2026 with the Desktop development with C++ workload, v145, Windows SDK 10.0.26100,
 and the Clang tools for formatting. Use Windows 10/11, Unicode, `stdcpplatest`, and a matching x64 or ARM64 target.
-Git restores the repository-pinned vcpkg/WIL dependency. The build, test and validation tools are
+Git restores the repository-pinned vcpkg/WIL dependency, and vcpkg builds it with the Visual Studio installation and
+default MSVC toolset that MSBuild uses (not the newest toolset it finds); the first restore after a change of either
+rebuilds it. The build, test and validation tools are
 [PowerShell 7 scripts](../Tools/README.md) with no other runtime. Formatting needs clang-format 22.1.3: when Visual
 Studio's is another version, `Tools/Install-ClangFormat.ps1` fetches the checksum-pinned one.
 
