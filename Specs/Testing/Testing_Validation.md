@@ -1,7 +1,7 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-09-08
+Last reviewed: 2026-10-01
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -168,6 +168,18 @@ shows which tests a missing capability left unrun; a skip is not proof of that c
 their fresh receipts establish execution results.
 Physical touch, a human IME session and screen-reader interaction are manual adoption checks, not implied by synthetic
 messages or a green foundation suite.
+
+The Grid selection model is held to a copy of its original linear logic. Fixed-seed randomized runs apply thousands of mixed
+operations to both and require equal counts, order, anchors and answers after every one, over universes from one id to 5,200
+so that selections pass the two sizes at which the model changes how it works: 1,024 ids, up to which `IsSelected` scans the
+selection and above which it binary searches the ascending copy, and 4,096 ids, whose room a model gives back when the next
+selection needs half of it or less. Focused cases sit on each boundary (membership at every size around 1,024; a selection of
+exactly 4,096 ids keeps its room through `Clear` and one of 4,097 gives it back; a range over exactly half of the room gives it
+back and one id more reuses it) and a Grid-level case does the same after Ctrl+A, a click and a Shift+click. The room is
+asserted through `GridSelectionModel::DebugGetBuffers`, the library's own exact count of both buffers' capacity, so it holds
+whatever the allocator keeps. Choosing between the scan and the search cannot change an answer, so no assertion can tell a
+limit of 1,023 from 1,024 or a reversed comparison from the right one: the per-call measurement of the
+[selection record](../../Measurements/GridSelection/2026-10-01/README.md) does.
 
 EmbeddedTests independently verifies supplied-device rendering and state changes with pixel readback outside the
 rendering path, preview/commit/cancel, scaling and resource limits, pool/view isolation and device replacement.
