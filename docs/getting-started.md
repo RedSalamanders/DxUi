@@ -22,7 +22,7 @@ Use `-Platform ARM64` to cross-build on x64; execute those binaries on a native 
 
 ## Consume the library
 
-Pin a tested full Git commit, API revision **2** and target `["DxUi"]` in the consumer's
+Pin a tested full Git commit, API revision **3** and target `["DxUi"]` in the consumer's
 `Dependencies/DxUi.lock.json`. Follow the exact schema and fingerprint validation in
 [the consumption contract](../Specs/Build/Build_ToolchainAndConsumption.md) and
 [consumer validator](../Tools/validate_consumer.ps1); branch names are not release pins.
@@ -36,13 +36,23 @@ New-Item -ItemType Directory -Path Dependencies -Force | Out-Null
 @{
     repository = 'https://github.com/RedSalamanders/DxUi'
     commit = $revision
-    apiRevision = 2
+    apiRevision = 3
     targets = @('DxUi')
 } | ConvertTo-Json | Set-Content Dependencies/DxUi.lock.json -Encoding utf8
 ```
 
 The validator checks repository identity, exact commit, clean source, API revision and target. The consumer must
 also preserve the toolchain/dependency fingerprint in its build evidence/output root as required by the contract.
+
+Call or import only what [capabilities.json](../capabilities.json) lists under `consumerInterface`:
+- the scripts, with their parameters;
+- the module functions, with their parameters;
+- the MSBuild files;
+- the public headers.
+
+Other repository tools may change in any commit. The API revision increments whenever a pinned consumer could otherwise break;
+the changelog then lists what to change. [Compatibility and the consumer interface](../Specs/Build/Build_ToolchainAndConsumption.md#compatibility-and-the-consumer-interface)
+has the rule.
 
 Set `DxUiRoot`, `DxUiConsumerLockFile`, and an isolated `DxUiConsumerOutputRoot` before importing
 [DxUi.Consumer.props](../Build/DxUi.Consumer.props) after `Microsoft.Cpp.props`, then

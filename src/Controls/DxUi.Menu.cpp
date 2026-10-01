@@ -1479,24 +1479,36 @@ struct MenuController
 };
 
 #if DXUI_ENABLE_DIAGNOSTICS
-[[nodiscard]] bool PeekMenuDebugStateMessage(const MenuController& controller, MSG& msg) noexcept
+std::atomic<ContextMenuModalLoopPeekHook> g_menuModalLoopPeekHook{nullptr};
+std::atomic<void*> g_menuModalLoopPeekHookContext{nullptr};
+#endif
+
+// Removes the first `message` queued for a popup of the chain, root first. PeekMessageW first runs the handlers of messages
+// other threads sent to this thread, and such a handler can open or close a submenu, which changes controller.popups under
+// the loop. So the chain is indexed afresh on every iteration and nothing from it is held across the call: a popup that
+// closes is not visited, and no popup is read after it was freed. Nothing allocates.
+[[nodiscard]] bool PeekMenuPopupMessage(const MenuController& controller, UINT message, MSG& msg) noexcept
 {
-    // A filter of 0 through 0 would retrieve every message; without its registered message no probe was posted.
-    const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugGetState();
-    if (! probe)
+    for (size_t index = 0u; index < controller.popups.size(); ++index)
     {
-        return false;
-    }
-    for (const auto& popup : controller.popups)
-    {
-        if (popup->hwnd && PeekMessageW(&msg, popup->hwnd, probe.value, probe.value, PM_REMOVE) != FALSE)
+        const HWND popupHwnd = controller.popups[index]->hwnd;
+        if (! popupHwnd)
+        {
+            continue;
+        }
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (const ContextMenuModalLoopPeekHook hook = g_menuModalLoopPeekHook.load(std::memory_order_acquire))
+        {
+            hook(g_menuModalLoopPeekHookContext.load(std::memory_order_acquire), popupHwnd, message);
+        }
+#endif
+        if (PeekMessageW(&msg, popupHwnd, message, message, PM_REMOVE) != FALSE)
         {
             return true;
         }
     }
     return false;
 }
-#endif
 
 [[nodiscard]] bool PeekMenuModalLoopPriorityMessage(const MenuController& controller, MSG& msg) noexcept
 {
@@ -1506,15 +1518,16 @@ struct MenuController
     }
     // Input invalidates the popup, but ordinary WM_PAINT is lower priority than posted owner traffic.
     // Drain only our pending popup paints before that traffic so visible feedback cannot starve.
-    for (const auto& popup : controller.popups)
+    if (PeekMenuPopupMessage(controller, WM_PAINT, msg))
     {
-        if (popup->hwnd && PeekMessageW(&msg, popup->hwnd, WM_PAINT, WM_PAINT, PM_REMOVE) != FALSE)
-            return true;
+        return true;
     }
 #if DXUI_ENABLE_DIAGNOSTICS
     // Test-only state probes must observe already-prioritized input without
     // waiting behind unrelated owner traffic in the modal thread queue.
-    return PeekMenuDebugStateMessage(controller, msg);
+    // A filter of 0 through 0 would retrieve every message; without its registered message no probe was posted.
+    const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugGetState();
+    return probe && PeekMenuPopupMessage(controller, probe.value, msg);
 #else
     static_cast<void>(controller);
     return false;
@@ -6083,6 +6096,14 @@ void DebugSetContextMenuStateProbeStallForTest(HANDLE enteredEvent, HANDLE relea
 {
     g_menuDebugStateHandlerEnteredEvent.store(enteredEvent, std::memory_order_release);
     g_menuDebugStateHandlerReleaseEvent.store(releaseEvent, std::memory_order_release);
+}
+
+void DebugSetContextMenuModalLoopPeekHookForTest(ContextMenuModalLoopPeekHook hook, void* context) noexcept
+{
+    // The context first, so the loop never calls a new hook with the previous context.
+    g_menuModalLoopPeekHook.store(nullptr, std::memory_order_release);
+    g_menuModalLoopPeekHookContext.store(context, std::memory_order_release);
+    g_menuModalLoopPeekHook.store(hook, std::memory_order_release);
 }
 
 bool DebugFireContextMenuPopupHoverTimer(HWND hwnd) noexcept
