@@ -21,17 +21,20 @@
 
 // Opt-in measurement of how Grid selection membership scales (Specs/Core/Core_PerformanceAndResources.md):
 //   DxUi.EmbeddedTests.exe --benchmark-grid-selection <report.json> [parts]
-// It is synthetic and library-owned: no application model, settings or service. One report holds six parts, all of them unless
+// It is synthetic and library-owned: no application model, settings or service. One report holds seven parts, all of them unless
 // `parts` names some of them, comma separated (for example `membership,retention`).
 //   paint:      a Grid of 1,000 to 1,000,000 rows with rows selected, painted offscreen on WARP (time and UI-thread cycles of Prepare,
 //               time of the whole frame). The Grid asks IsSelected once per visible row each paint.
 //   selectionCost: the cost of that question inside a paint, isolated: one Grid painted in alternating blocks with a small and a
 //               full selection that draw alike, so the difference of the two is what the longer selection costs.
-//   membership: IsSelected on its own, per call, over selections of 0 to 1,000,000 ids, for an id that is selected and one that is not.
+//   membership: IsSelected on its own, per call, over selections of 0 to 1,000,000 ids, for an id that is selected and one that is not,
+//               asked in an order a processor learns and in a random one it cannot.
 //   retention:  the C++ heap bytes a selection model holds after Ctrl+A over a list and after each way back from it (Clear, a click
 //               on a row, a Shift+click on a near row, a data change that drops half the rows), counted exactly by the allocation
 //               hook of EmbeddedTests.cpp, with the process's private bytes beside them.
 //   mutators:   what each GridSelectionModel mutator costs in time and C++ heap bytes, so a faster test is not paid for there.
+//   preserve:   the usual data change, PreserveOrdered over a list of 200,000 rows in which a few to 5,000 were clicked, where every
+//               row costs one membership question: the price of a question paid in bulk.
 //   complexUiScene: how many rows the default complex-UI scene's Grid holds selected (none), which bounds what that scene can cost.
 // It uses only the public GridSelectionModel and Grid interfaces, so the identical source measures any revision of the library.
 // Fixture-only code, never used by the library. Check, Hr and the allocation counters come from EmbeddedTests.cpp.
@@ -135,6 +138,28 @@ struct ScrambledRowsModel final : DxUi::IGridModel
     std::vector<uint64_t> ids(rows);
     for (size_t row = 0; row < rows; ++row)
         ids[row] = scrambled ? ScrambledRowsModel::Id(row) : static_cast<uint64_t>(row);
+    return ids;
+}
+
+// The finalizer of MurmurHash3: a one-to-one mix of 32 bits whose outputs look random. The scramble above is one multiplication, whose
+// successive outputs fall in a low-discrepancy order that a branch predictor learns in part; ids that are hashes, as a file list's
+// often are, have no such order.
+[[nodiscard]] constexpr uint32_t HashId(uint32_t value) noexcept
+{
+    value ^= value >> 16;
+    value *= 0x85EBCA6Bu;
+    value ^= value >> 13;
+    value *= 0xC2B2AE35u;
+    value ^= value >> 16;
+    return value;
+}
+
+// The ids of `rows` rows in row order, as a model whose stable ids are hashes of the rows would give them.
+[[nodiscard]] inline std::vector<uint64_t> HashedRowIds(size_t rows)
+{
+    std::vector<uint64_t> ids(rows);
+    for (size_t row = 0; row < rows; ++row)
+        ids[row] = HashId(static_cast<uint32_t>(row));
     return ids;
 }
 
@@ -355,34 +380,60 @@ inline void MeasureSelectionCost(GraphicsFixture& gpu, const std::shared_ptr<DxU
     std::cout << "Grid selection cost of IsSelected in a paint over " << rows << " rows\n";
 }
 
-// Nanoseconds per IsSelected call over `queries`, each expected to answer `expectedHits` times in a pass: the median of seven
-// timed passes of a repetition count that makes one pass last about 20 ms.
-[[nodiscard]] inline double NanosecondsPerCall(const DxUi::GridSelectionModel& model, std::span<const uint64_t> queries, size_t expectedHits)
+// Nanoseconds per IsSelected call over `queries`, every one of which is selected (`allSelected`) or none of which is: the median of
+// seven timed passes of a length that makes one pass last about 20 ms. A pool of thousands of queries is cut to the number a pass
+// has time for, so that a slow answer is timed over fewer queries rather than for seconds.
+[[nodiscard]] inline double NanosecondsPerCall(const DxUi::GridSelectionModel& model, std::span<const uint64_t> queries, bool allSelected)
 {
     static volatile size_t sink = 0;
-    const auto pass             = [&](size_t repetitions)
+    constexpr double kPassNs    = 20'000'000.0;
+    const auto pass             = [&](std::span<const uint64_t> used, size_t repetitions)
     {
         size_t hits      = 0;
         const auto start = Clock::now();
         for (size_t repetition = 0; repetition < repetitions; ++repetition)
-            for (const uint64_t id : queries)
+            for (const uint64_t id : used)
                 hits += model.IsSelected(id) ? 1u : 0u;
         const double ns = ElapsedNs(start);
         sink            = sink + hits;
-        Check(hits == repetitions * expectedHits, "grid selection membership answers as the selection says");
-        return ns / static_cast<double>(repetitions * queries.size());
+        Check(hits == (allSelected ? repetitions * used.size() : 0u), "grid selection membership answers as the selection says");
+        return ns / static_cast<double>(repetitions * used.size());
     };
-    const double calibration = pass(1);
-    const size_t repetitions =
-        static_cast<size_t>(std::clamp(20'000'000.0 / (std::max)(calibration * static_cast<double>(queries.size()), 1.0), 1.0, 1'000'000.0));
+    const std::span<const uint64_t> probe = queries.first((std::min)(queries.size(), size_t{64}));
+    const double calibration              = pass(probe, 1);
+    const size_t calls =
+        static_cast<size_t>(std::clamp(kPassNs / (std::max)(calibration, 0.1), static_cast<double>(probe.size()), static_cast<double>(queries.size())));
+    const std::span<const uint64_t> used = queries.first(calls);
+    const size_t repetitions = static_cast<size_t>(std::clamp(kPassNs / (std::max)(calibration * static_cast<double>(used.size()), 1.0), 1.0, 1'000'000.0));
     std::vector<double> samples;
     for (size_t sample = 0; sample < 7; ++sample)
-        samples.push_back(pass(repetitions));
+        samples.push_back(pass(used, repetitions));
     return Median(samples);
 }
 
-// IsSelected against a selection of `selected` ascending ids made as Ctrl+A makes it: a batch of 32 consecutive ids from the
-// middle of it (as many rows as a screen shows) that are all selected, and 32 ids above it that are not.
+// A deterministic stream of 64-bit values (SplitMix64), for query orders that a branch predictor cannot learn.
+struct RandomStream
+{
+    uint64_t state = 0;
+
+    [[nodiscard]] uint64_t Next() noexcept
+    {
+        uint64_t value = (state += 0x9E3779B97F4A7C15ull);
+        value          = (value ^ (value >> 30)) * 0xBF58476D1CE4E5B9ull;
+        value          = (value ^ (value >> 27)) * 0x94D049BB133111EBull;
+        return value ^ (value >> 31);
+    }
+};
+
+inline constexpr size_t kScatteredQueries = size_t{1} << 16;
+
+// IsSelected against a selection of `selected` ids made as Ctrl+A makes it, asked two ways.
+//   In order: against ascending ids, a batch of 32 consecutive ids from the middle of the selection (as many rows as a screen shows)
+//   that are all selected, and 32 ids above it that are not. The same 32 questions come round every pass, so a processor learns
+//   which way each comparison goes: this is the best case of any search.
+//   Scattered: against ids that do not follow the row order (a model whose stable ids are hashes, as a file list's often are), 65,536
+//   questions in a random order, half of them about selected ids and half about ids that are not, which no processor can predict:
+//   this is closer to the ids of the rows on a screen asked about a selection that was made in row order.
 inline void MeasureMembership(size_t selected, std::ostream& output)
 {
     const std::vector<uint64_t> ids = RowIds(selected, false);
@@ -401,8 +452,33 @@ inline void MeasureMembership(size_t selected, std::ostream& output)
     if (hitQueries.empty())
         output << "null";
     else
-        output << NanosecondsPerCall(model, hitQueries, hitQueries.size());
-    output << ",\"missNs\":" << NanosecondsPerCall(model, missQueries, 0) << '}';
+        output << NanosecondsPerCall(model, hitQueries, true);
+    output << ",\"missNs\":" << NanosecondsPerCall(model, missQueries, false);
+
+    const std::vector<uint64_t> scrambled = RowIds(selected, true);
+    DxUi::GridSelectionModel scatteredModel;
+    if (selected)
+        scatteredModel.SetRange(scrambled, scrambled.front(), scrambled.back());
+    Check(scatteredModel.GetCount() == selected, "grid selection scattered membership fixture");
+    std::vector<uint64_t> ascending(scrambled);
+    std::sort(ascending.begin(), ascending.end());
+    RandomStream random{0x5E1EC7ull + selected};
+    std::vector<uint64_t> scatteredHits;
+    for (size_t index = 0; selected && index < kScatteredQueries; ++index)
+        scatteredHits.push_back(scrambled[random.Next() % selected]);
+    std::vector<uint64_t> scatteredMisses;
+    while (scatteredMisses.size() < kScatteredQueries)
+    {
+        const uint64_t id = random.Next() & 0xFFFFFFFFull;
+        if (! std::binary_search(ascending.begin(), ascending.end(), id))
+            scatteredMisses.push_back(id);
+    }
+    output << ",\"scatteredHitNs\":";
+    if (scatteredHits.empty())
+        output << "null";
+    else
+        output << NanosecondsPerCall(scatteredModel, scatteredHits, true);
+    output << ",\"scatteredMissNs\":" << NanosecondsPerCall(scatteredModel, scatteredMisses, false) << '}';
 }
 
 struct OperationCost
@@ -535,6 +611,38 @@ inline void MeasureMutators(size_t rows, bool scrambled, std::ostream& output)
     WriteCost(output, "Toggle one row on and off", rows, scrambled, OperationCost{Median(perPair), 0, 0}, 0);
 }
 
+// The usual data change: a long list in which `selected` rows were Ctrl+clicked, in an order unlike the row order, and
+// PreserveOrdered is asked over every row, none of which is dropped. Every row costs one membership question (or one lookup in the set
+// that an older revision builds), so this is where the price of a question is paid in bulk. Each repetition makes the selection anew.
+inline void MeasurePreserveFewSelected(size_t rows, size_t selected, std::ostream& output)
+{
+    const std::vector<uint64_t> ids = HashedRowIds(rows);
+    DxUi::GridSelectionModel model;
+    constexpr size_t kStride = 7'919u; // a prime, so that the clicks visit rows spread over the whole list
+    const auto select        = [&]
+    {
+        model.Clear();
+        for (size_t click = 0; click < selected; ++click)
+        {
+            const uint64_t id = ids[(click * kStride) % rows];
+            if (click == 0)
+                model.SetSingle(id);
+            else
+                model.Toggle(id);
+        }
+    };
+    std::vector<OperationCost> costs;
+    for (size_t repeat = 0; repeat < 9; ++repeat)
+    {
+        select();
+        Check(model.GetCount() == selected, "grid selection benchmark clicks the rows it names");
+        costs.push_back(CostOf([&] { model.PreserveOrdered(ids); }));
+        Check(model.GetCount() == selected, "grid selection benchmark preserve drops nothing");
+    }
+    const std::string name = "PreserveOrdered, " + std::to_string(selected) + " selected";
+    WriteCost(output, name.c_str(), rows, true, MedianCost(costs), 0);
+}
+
 // The C++ heap bytes one selection model holds at two moments: after Ctrl+A over a list, and after a way back from it.
 struct HeldBytes
 {
@@ -638,7 +746,7 @@ inline void Run(const wchar_t* outputPath, std::wstring_view parts = {})
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "grid selection benchmark graphics pool");
 
-    constexpr std::array<std::wstring_view, 6> partNames{L"paint", L"selectionCost", L"membership", L"retention", L"mutators", L"complexUiScene"};
+    constexpr std::array<std::wstring_view, 7> partNames{L"paint", L"selectionCost", L"membership", L"retention", L"mutators", L"preserve", L"complexUiScene"};
     // A part named wrongly would measure nothing, and the report would show it only by the part's absence.
     for (size_t start = 0; ! parts.empty();)
     {
@@ -709,10 +817,10 @@ inline void Run(const wchar_t* outputPath, std::wstring_view parts = {})
     if (Wants(parts, L"membership"))
     {
         output << ",\"membership\":[";
-        constexpr std::array selectionSizes{size_t{0},     size_t{1},      size_t{2},       size_t{3},        size_t{4},   size_t{6},
-                                            size_t{8},     size_t{12},     size_t{16},      size_t{24},       size_t{32},  size_t{48},
-                                            size_t{64},    size_t{96},     size_t{128},     size_t{192},      size_t{256}, size_t{512},
-                                            size_t{1'000}, size_t{20'000}, size_t{200'000}, size_t{1'000'000}};
+        constexpr std::array selectionSizes{size_t{0},     size_t{1},      size_t{2},       size_t{3},        size_t{4},   size_t{6},   size_t{8},
+                                            size_t{12},    size_t{16},     size_t{24},      size_t{32},       size_t{48},  size_t{64},  size_t{96},
+                                            size_t{128},   size_t{192},    size_t{256},     size_t{384},      size_t{512}, size_t{768}, size_t{1'000},
+                                            size_t{1'500}, size_t{20'000}, size_t{200'000}, size_t{1'000'000}};
         for (size_t index = 0; index < selectionSizes.size(); ++index)
         {
             if (index)
@@ -749,6 +857,20 @@ inline void Run(const wchar_t* outputPath, std::wstring_view parts = {})
                 first = false;
                 MeasureMutators(rows, scrambled, output);
             }
+        }
+        output << ']';
+    }
+
+    if (Wants(parts, L"preserve"))
+    {
+        output << ",\"preserve\":[";
+        bool first = true;
+        for (const size_t selected : {size_t{3}, size_t{16}, size_t{64}, size_t{256}, size_t{512}, size_t{1'000}, size_t{5'000}})
+        {
+            if (! first)
+                output << ',';
+            first = false;
+            MeasurePreserveFewSelected(200'000, selected, output);
         }
         output << ']';
     }
