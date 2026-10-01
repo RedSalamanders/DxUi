@@ -719,6 +719,74 @@ void TestSelectionModelCopiesAnswerMembershipIndependently()
             "assigning a selection copies its membership");
 }
 
+// The size at which the model stops scanning a selection and starts to search it, as Core_PerformanceAndResources.md states it.
+constexpr size_t kScanLimit = 1024u;
+
+// The ids of rows whose stable ids follow no order: row r has r * 2654435761 (mod 2^32), so the order in which rows are selected is not
+// the ascending order that a binary search needs.
+[[nodiscard]] std::vector<uint64_t> ScatteredRowIds(size_t count)
+{
+    std::vector<uint64_t> rows;
+    rows.reserve(count);
+    for (size_t row = 0u; row < count; ++row)
+    {
+        rows.push_back(static_cast<uint32_t>(static_cast<uint32_t>(row) * 2654435761u));
+    }
+    return rows;
+}
+
+// A selection that grows by one id at a time past the size at which the model stops scanning and starts to search, and shrinks back
+// across it, answers membership correctly at every size: for every id around the limit, and for ids at the two ends of the selection
+// order (the first and the newest) and a spread of others at every other size.
+void TestSelectionModelAnswersMembershipAtEverySizeAroundItsScanLimit()
+{
+    using DxUi::GridSelectionModel;
+
+    const size_t universe            = kScanLimit + 80u;
+    const std::vector<uint64_t> rows = ScatteredRowIds(universe);
+    const auto foreign               = [](size_t index) { return uint64_t{0x1'0000'0000u} + index; };
+    std::vector<char> selected(universe, 0);
+    GridSelectionModel model;
+
+    const auto check = [&](const char* phase, size_t first, size_t last)
+    {
+        // The ids selected now are rows[first, last).
+        const size_t size       = last - first;
+        const bool nearTheLimit = size + 12u >= kScanLimit && size <= kScanLimit + 12u;
+        size_t wrong            = model.GetCount() == size ? 0u : 1u;
+        for (size_t row = 0u; row < universe; row += (nearTheLimit || size < 3u) ? 1u : 7u)
+        {
+            wrong += model.IsSelected(rows[row]) == (selected[row] != 0) ? 0u : 1u;
+        }
+        if (size > 0u)
+        {
+            wrong += model.IsSelected(rows[first]) ? 0u : 1u;
+            wrong += model.IsSelected(rows[last - 1u]) ? 0u : 1u;
+        }
+        wrong += model.IsSelected(foreign(size)) ? 1u : 0u;
+        wrong += model.IsSelected((std::numeric_limits<uint64_t>::max)()) ? 1u : 0u;
+        const std::string message = std::format("membership of a selection of {} ids ({}) answers as the selection says", size, phase);
+        Require(wrong == 0u, message.c_str());
+    };
+
+    check("empty", 0u, 0u);
+    for (size_t row = 0u; row < universe; ++row)
+    {
+        model.Toggle(rows[row]);
+        selected[row] = 1;
+        check("growing", 0u, row + 1u);
+    }
+    Require(model.GetCount() > kScanLimit && std::ranges::equal(model.GetOrderedSelection(), rows),
+            "the selection grew past the scan limit in the order of its rows");
+    for (size_t row = 0u; row < universe; ++row)
+    {
+        model.Toggle(rows[row]);
+        selected[row] = 0;
+        check("shrinking", row + 1u, universe);
+    }
+    Require(model.GetCount() == 0u && ! model.GetAnchor().has_value(), "the selection shrank to nothing again");
+}
+
 void TestGridSelectionOfALargeListFollowsGesturesAndDataChanges()
 {
     using namespace DxUi;
@@ -2636,6 +2704,7 @@ void RunGridTests()
     DXUI_RUN_TEST(TestSelectionModelMembershipFollowsEveryMutator);
     DXUI_RUN_TEST(TestSelectionModelKeepsSelectionOrderForAScatteredLargeSelection);
     DXUI_RUN_TEST(TestSelectionModelCopiesAnswerMembershipIndependently);
+    DXUI_RUN_TEST(TestSelectionModelAnswersMembershipAtEverySizeAroundItsScanLimit);
     DXUI_RUN_TEST(TestGridSelectionOfALargeListFollowsGesturesAndDataChanges);
     DXUI_RUN_TEST(TestGridVisibleWorkMetricsStayBoundedForLargeDatasets);
     DXUI_RUN_TEST(TestGroupedGridVisibleWorkMetricsIncludeHeaders);

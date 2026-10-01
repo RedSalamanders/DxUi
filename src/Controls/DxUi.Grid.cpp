@@ -754,6 +754,15 @@ wil::com_ptr<ID2D1Bitmap1> IGridDelegate::GetGridIconBitmap(const Grid& /*sender
 
 namespace
 {
+// A selection of up to this many ids is answered by a scan of the ids in selection order, as it always was, a larger one by a binary
+// search of the ascending copy. A scan costs 0.06 to 0.09 ns an id whatever order the questions come in. A search costs 4 to 5 ns when
+// a processor can predict the questions (it learns which way each comparison goes) and 35 to 50 ns when it cannot, as with the ids of
+// the rows on screen asked of a selection of hashed ids. The two meet at about 500 to 900 ids on the machine of
+// Measurements/GridSelection/2026-10-01, so up to 1,024 a search can lose to the scan this model replaced and above it never does,
+// in either order. The scan pays for that: where the search is predicted it is 5 to 14 times cheaper at 500 to 1,000 ids, which a paint
+// of two dozen rows never sees. A selection of thousands of ids, which is what made a paint slow, is searched.
+constexpr size_t kScanIds = 1024u;
+
 // Sorts `ids` unless they already ascend, which they do when a model's stable ids grow with its row order.
 void SortRowIds(std::vector<uint64_t>& ids)
 {
@@ -765,7 +774,7 @@ void SortRowIds(std::vector<uint64_t>& ids)
 } // namespace
 
 // Every mutator below leaves _sortedRowIds holding exactly the ids of _selectedRowIds, ascending (and as many times as
-// _selectedRowIds holds each), because IsSelected reads only the sorted copy.
+// _selectedRowIds holds each), because IsSelected reads only the sorted copy of a selection above kScanIds ids.
 void GridSelectionModel::Clear() noexcept
 {
     _selectedRowIds.clear();
@@ -837,7 +846,9 @@ void GridSelectionModel::PreserveOrdered(const std::vector<uint64_t>& orderedRow
     kept.reserve((std::min)(orderedRowIds.size(), _selectedRowIds.size()));
     for (const uint64_t rowId : orderedRowIds)
     {
-        if (IsSelected(rowId))
+        // One question for every row of the model: a search keeps that O(rows log n) however many ids are selected, where a scan
+        // of kScanIds ids would cost each row up to a hundred times the search.
+        if (std::ranges::binary_search(_sortedRowIds, rowId))
         {
             kept.push_back(rowId);
         }
@@ -861,6 +872,10 @@ void GridSelectionModel::PreserveOrdered(const std::vector<uint64_t>& orderedRow
 
 bool GridSelectionModel::IsSelected(uint64_t rowId) const noexcept
 {
+    if (_selectedRowIds.size() <= kScanIds)
+    {
+        return std::ranges::find(_selectedRowIds, rowId) != _selectedRowIds.end();
+    }
     return std::ranges::binary_search(_sortedRowIds, rowId);
 }
 
