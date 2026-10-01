@@ -1,3 +1,4 @@
+#include "../Support/WindowMessages.h"
 #include "DxUi.Internal.h"
 #include "TextClipboard.h"
 #include "TextStoreTarget.h"
@@ -19,11 +20,6 @@ UINT_PTR NextDispatchCookie() noexcept
     if (! value)
         value = nextTextDispatchCookie.fetch_add(1, std::memory_order_relaxed);
     return value;
-}
-UINT TextDispatchMessage() noexcept
-{
-    static const UINT message = RegisterWindowMessageW(L"DxUi.TextInputServices.DeferredLock.v1");
-    return message;
 }
 
 bool ValidState(const NativeTextInputState& state) noexcept
@@ -456,9 +452,11 @@ struct TextInputServices::State
     {
         if (lockPosted)
             return true;
-        if (! hwnd || ! TextDispatchMessage())
+        // Without its registered message no lock is posted, as when the post fails.
+        const WndMsg::RegisteredMessage lockMessage = WndMsg::TextInputServicesDeferredLock();
+        if (! hwnd || ! lockMessage)
             return false;
-        lockPosted = PostMessageW(hwnd, TextDispatchMessage(), dispatchCookie, 0) != FALSE;
+        lockPosted = PostMessageW(hwnd, lockMessage.value, dispatchCookie, 0) != FALSE;
         return lockPosted;
     }
 
@@ -509,8 +507,11 @@ HRESULT TextInputServices::Attach(HWND hwnd) noexcept
         return E_INVALIDARG;
     if (_state->hwnd == hwnd)
         return S_OK;
-    if (! TextDispatchMessage())
-        return HRESULT_FROM_WIN32(GetLastError());
+    // Without its registered message the service could never grant a deferred lock. The registration failed the first
+    // time the message was asked for, perhaps long before this call, so GetLastError no longer describes that failure
+    // and can even read ERROR_SUCCESS, which HRESULT_FROM_WIN32 would turn into S_OK.
+    if (! WndMsg::TextInputServicesDeferredLock())
+        return E_FAIL;
     Detach();
     _state->hwnd = hwnd;
     return S_OK;
@@ -727,7 +728,7 @@ HRESULT TextInputServices::HandleMessage(UINT message, WPARAM wParam, LPARAM, bo
     handled = false;
     if (! _state->OnThread())
         return RPC_E_WRONG_THREAD;
-    if (message != TextDispatchMessage() || wParam != _state->dispatchCookie)
+    if (! WndMsg::TextInputServicesDeferredLock().Matches(message) || wParam != _state->dispatchCookie)
         return S_FALSE;
     handled            = true;
     _state->lockPosted = false;

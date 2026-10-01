@@ -6,6 +6,7 @@
 #include "DxUi.Internal.h"
 
 #include <algorithm>
+#include <bit>
 #include <chrono>
 #include <cmath>
 #include <exception>
@@ -752,24 +753,117 @@ wil::com_ptr<ID2D1Bitmap1> IGridDelegate::GetGridIconBitmap(const Grid& /*sender
     return nullptr;
 }
 
+namespace
+{
+// A selection of up to this many ids is answered by a scan of the ids in selection order, as it always was, a larger one by a binary
+// search of the ascending copy. A scan costs about 0.1 ns an id whatever order the questions come in. At 256 to 1,500 ids a search
+// costs 7 to 10 ns when a processor can predict the questions (it learns which way each comparison goes) and 40 to 50 ns when it
+// cannot, as with the ids of the rows on screen asked of a selection of hashed ids. In that order the two meet at about 500 to 650
+// ids on the machine of Measurements/GridSelection/2026-10-01, so up to 1,024 a search can lose to the scan this model replaced and
+// above it never does, in either order. The scan pays for that margin: where the search is predicted it is 3 to 9 times cheaper at
+// 500 to 1,000 ids, which a paint of two dozen rows does not see. A selection of thousands of ids, which is what made a paint
+// slow, is searched.
+constexpr size_t kScanIds = 1024u;
+
+// The room of a buffer for more than this many ids is given back, not kept, when the ids that replace its contents need at most half
+// of it (Clear, SetSingle, SetRange, and a PreserveOrdered that drops ids). A selection that large comes from Ctrl+A or a long
+// Shift+click, and the click after it would leave a model of one id holding 16 bytes for each row of the list: 3.2 MB after Ctrl+A
+// over 200,000 rows. Room that is more than half used is kept, so reuse wastes no more than it uses, as a vector's growth does.
+// 4,096 ids are 32 KiB a buffer, the most that a model keeps for the next selection. Giving room back costs a free and getting it
+// again an allocation: 0.1 to 0.2 ms and about 0.3 ms at 200,000 ids, a microsecond or two at 20,000, against the 0.4 to 11 ms
+// that the Ctrl+A over 200,000 ids took to make the selection.
+constexpr size_t kReleaseIds = 4096u;
+
+// Sorts `ids` unless they already ascend, which they do when a model's stable ids grow with its row order.
+void SortRowIds(std::vector<uint64_t>& ids)
+{
+    if (! std::ranges::is_sorted(ids))
+    {
+        std::ranges::sort(ids);
+    }
+}
+
+// Whether `ids` has so much more room than `needed` ids that the room is given back instead of reused.
+[[nodiscard]] bool IsRoomWasted(const std::vector<uint64_t>& ids, size_t needed) noexcept
+{
+    return ids.capacity() > kReleaseIds && needed <= ids.capacity() / 2u;
+}
+
+// Frees the room of `ids` when IsRoomWasted says so, by swapping it with an empty vector, which allocates nothing.
+void GiveBackWastedRoom(std::vector<uint64_t>& ids, size_t needed) noexcept
+{
+    if (IsRoomWasted(ids, needed))
+    {
+        std::vector<uint64_t>().swap(ids);
+    }
+}
+
+// A table of bits for the ids of a selection, 16 to 32 to an id (a power of two in all), in which an id's bit is the top bits of its
+// product with the golden ratio. An id whose bit is clear is not selected, for certain; one whose bit is set may be, and one id in
+// 16 to 32 that is not selected is let through. PreserveOrdered asks about every row of a model, and nearly every row of a long
+// list is not selected: the table answers those with one load where a binary search of hashed ids mispredicts about every other
+// comparison, and only the rows it lets through pay for the exact answer. The table lives for as long as PreserveOrdered runs.
+class SelectedIdFilter
+{
+public:
+    explicit SelectedIdFilter(std::span<const uint64_t> ids)
+        : _bitCount(std::bit_ceil((std::max)(size_t{64}, ids.size() * 16u))),
+          _words(_bitCount / 64u, uint64_t{0}),
+          _shift(64u - static_cast<unsigned>(std::countr_zero(_bitCount)))
+    {
+        for (const uint64_t id : ids)
+        {
+            const size_t bit = BitOf(id);
+            _words[bit >> 6u] |= uint64_t{1} << (bit & 63u);
+        }
+    }
+
+    [[nodiscard]] bool MayContain(uint64_t id) const noexcept
+    {
+        const size_t bit = BitOf(id);
+        return ((_words[bit >> 6u] >> (bit & 63u)) & 1u) != 0u;
+    }
+
+private:
+    [[nodiscard]] size_t BitOf(uint64_t id) const noexcept
+    {
+        return static_cast<size_t>((id * 0x9E3779B97F4A7C15ull) >> _shift);
+    }
+
+    size_t _bitCount;
+    std::vector<uint64_t> _words;
+    unsigned _shift;
+};
+} // namespace
+
+// Every mutator below leaves _sortedRowIds holding exactly the ids of _selectedRowIds, ascending (and as many times as
+// _selectedRowIds holds each), because IsSelected reads only the sorted copy of a selection above kScanIds ids.
 void GridSelectionModel::Clear() noexcept
 {
     _selectedRowIds.clear();
+    _sortedRowIds.clear();
+    GiveBackWastedRoom(_selectedRowIds, 0u);
+    GiveBackWastedRoom(_sortedRowIds, 0u);
     _anchorRowId.reset();
 }
 
 void GridSelectionModel::SetSingle(uint64_t rowId) noexcept
 {
+    GiveBackWastedRoom(_selectedRowIds, 1u);
+    GiveBackWastedRoom(_sortedRowIds, 1u);
     _selectedRowIds.assign(1u, rowId);
+    _sortedRowIds.assign(1u, rowId);
     _anchorRowId = rowId;
 }
 
 void GridSelectionModel::Toggle(uint64_t rowId) noexcept
 {
-    const auto it = std::ranges::find(_selectedRowIds, rowId);
-    if (it != _selectedRowIds.end())
+    const auto sortedIt = std::ranges::lower_bound(_sortedRowIds, rowId);
+    if (sortedIt != _sortedRowIds.end() && *sortedIt == rowId)
     {
-        _selectedRowIds.erase(it);
+        // The first occurrence leaves the ordered ids and one occurrence the sorted ones, so an id held twice stays selected.
+        _selectedRowIds.erase(std::ranges::find(_selectedRowIds, rowId));
+        _sortedRowIds.erase(sortedIt);
         if (_anchorRowId == rowId)
         {
             _anchorRowId = _selectedRowIds.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(_selectedRowIds.front());
@@ -778,6 +872,7 @@ void GridSelectionModel::Toggle(uint64_t rowId) noexcept
     }
 
     _selectedRowIds.push_back(rowId);
+    _sortedRowIds.insert(sortedIt, rowId);
     if (! _anchorRowId)
     {
         _anchorRowId = rowId;
@@ -795,7 +890,27 @@ void GridSelectionModel::SetRange(const std::vector<uint64_t>& orderedRowIds, ui
     }
 
     const auto [first, last] = std::minmax(anchorIt, currentIt);
+    const size_t count       = static_cast<size_t>(last - first) + 1u;
+    if (IsRoomWasted(_selectedRowIds, count) || IsRoomWasted(_sortedRowIds, count))
+    {
+        // A selection much smaller than the one that left its room behind gets room of its own. Both copies are made beside the
+        // old ones and swapped in, so a failed allocation leaves the selection as it was, and the old room is freed with the
+        // vectors that took it.
+        std::vector<uint64_t> ordered(first, last + 1);
+        std::vector<uint64_t> sorted(ordered);
+        SortRowIds(sorted);
+        _selectedRowIds.swap(ordered);
+        _sortedRowIds.swap(sorted);
+        _anchorRowId = anchorRowId;
+        return;
+    }
+
+    // Both copies get their room before either changes, so a failed allocation leaves the selection as it was.
+    _selectedRowIds.reserve(count);
+    _sortedRowIds.reserve(count);
     _selectedRowIds.assign(first, last + 1);
+    _sortedRowIds.assign(first, last + 1);
+    SortRowIds(_sortedRowIds);
     _anchorRowId = anchorRowId;
 }
 
@@ -806,25 +921,50 @@ void GridSelectionModel::PreserveOrdered(const std::vector<uint64_t>& orderedRow
         return;
     }
 
-    std::unordered_set<uint64_t> wanted(_selectedRowIds.begin(), _selectedRowIds.end());
-    _selectedRowIds.clear();
+    // What stays is each occurrence in orderedRowIds of an id that is selected now, in that order. It is built beside the current
+    // ids and moved in at the end, so a failed allocation leaves the selection as it was.
+    std::vector<uint64_t> kept;
+    kept.reserve((std::min)(orderedRowIds.size(), _selectedRowIds.size()));
+    // One question for every row of the model. A scan of kScanIds ids would cost each row up to a hundred times a search, and the
+    // search mispredicts about every other comparison over ids in no order, so the filter answers the rows that are not selected, and
+    // the search the others, which keeps the cost of a long list at about that of reading it.
+    const SelectedIdFilter filter(_sortedRowIds);
     for (const uint64_t rowId : orderedRowIds)
     {
-        if (wanted.contains(rowId))
+        if (filter.MayContain(rowId) && std::ranges::binary_search(_sortedRowIds, rowId))
         {
-            _selectedRowIds.push_back(rowId);
+            kept.push_back(rowId);
         }
     }
-
-    if (_anchorRowId && ! std::ranges::contains(_selectedRowIds, _anchorRowId.value()))
+    if (kept == _selectedRowIds)
     {
-        _anchorRowId = _selectedRowIds.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(_selectedRowIds.front());
+        // The usual data change leaves the selection as it is: its ascending copy is right, and so is the anchor, which is one of
+        // these ids (every mutator keeps it so).
+        return;
     }
+    if (IsRoomWasted(kept, kept.size()))
+    {
+        // What was reserved for a selection that shrank much further than that is not kept.
+        kept.shrink_to_fit();
+    }
+    std::vector<uint64_t> keptSorted(kept);
+    SortRowIds(keptSorted);
+
+    if (_anchorRowId && ! std::ranges::binary_search(keptSorted, _anchorRowId.value()))
+    {
+        _anchorRowId = kept.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(kept.front());
+    }
+    _selectedRowIds = std::move(kept);
+    _sortedRowIds   = std::move(keptSorted);
 }
 
 bool GridSelectionModel::IsSelected(uint64_t rowId) const noexcept
 {
-    return std::ranges::find(_selectedRowIds, rowId) != _selectedRowIds.end();
+    if (_selectedRowIds.size() <= kScanIds)
+    {
+        return std::ranges::find(_selectedRowIds, rowId) != _selectedRowIds.end();
+    }
+    return std::ranges::binary_search(_sortedRowIds, rowId);
 }
 
 std::optional<uint64_t> GridSelectionModel::GetAnchor() const noexcept
@@ -841,6 +981,13 @@ std::span<const uint64_t> GridSelectionModel::GetOrderedSelection() const noexce
 {
     return _selectedRowIds;
 }
+
+#if DXUI_ENABLE_DIAGNOSTICS
+GridSelectionBufferDebugState GridSelectionModel::DebugGetBuffers() const noexcept
+{
+    return {_selectedRowIds.capacity(), _sortedRowIds.capacity()};
+}
+#endif
 
 Grid::Grid()
 {

@@ -1,0 +1,138 @@
+<#
+.SYNOPSIS Prints the Markdown tables of the three-way grid-selection packet from its summary (scratch tooling, not part of the repository).
+.DESCRIPTION
+The summary holds, for each asked pair of sides (baseline, candidate), every metric's run values, medians, change, p and verdict.
+This prints the compact tables of the README: -Table percall (predictable or unpredictable order), retention, preserve, mutators,
+paint, cost, verdicts (counts of verdicts per pair and kind). Medians of the three sides come from the pair that has them.
+#>
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)][string] $Summary,
+    [ValidateSet('percall-ordered', 'percall-scattered', 'retention', 'preserve', 'mutators', 'paint', 'cost', 'verdicts', 'all')][string] $Table = 'all'
+)
+Set-StrictMode -Version Latest
+$s = Get-Content -Raw -LiteralPath $Summary | ConvertFrom-Json
+$inv = [Globalization.CultureInfo]::InvariantCulture
+function Pair([string] $baseline, [string] $candidate) { return $s.comparisons | Where-Object { $_.baseline -eq $baseline -and $_.candidate -eq $candidate } | Select-Object -First 1 }
+function Find($pair, [string] $kind, [string] $name, [string] $metric) { return $pair.metrics | Where-Object { $_.kind -eq $kind -and $_.name -eq $name -and $_.metric -eq $metric } | Select-Object -First 1 }
+function N([double] $v, [string] $f) { return $v.ToString($f, $inv) }
+function Pct($m) { if ($null -eq $m.changePercent) { return 'n/a' } return ([double]$m.changePercent).ToString('+0.0;-0.0', $inv) + '%' }
+function P($m) { $p = [double]$m.pValue; if ($p -lt 0.001) { return '<0.001' } return $p.ToString('0.000', $inv) }
+function Short($verdict) { switch ($verdict) { 'within-noise' { 'noise' } 'improved' { 'better' } 'regressed' { 'worse' } default { $verdict } } }
+$mainRefined = Pair 'main' 'refined'
+$currentRefined = Pair 'current' 'refined'
+$mainCurrent = Pair 'main' 'current'
+
+function Sign($m) { switch ($m.verdict) { 'within-noise' { return '=' } 'improved' { return 'faster' } 'regressed' { return 'SLOWER' } default { return $m.verdict } } }
+function PerCall([string[]] $metrics, [int[]] $sizes) {
+    '| Selected ids | main (hit / miss) | current (hit / miss) | refined (hit / miss) | refined vs main (hit / miss) | refined vs current (hit / miss) |'
+    '|---:|---:|---:|---:|---|---|'
+    foreach ($size in $sizes) {
+        $hit = $null; $miss = $null
+        $h = @{}; $m = @{}
+        foreach ($which in 0, 1) {
+            $metric = $metrics[$which]
+            $mr = Find $mainRefined 'membership' ([string]$size) $metric
+            $cr = Find $currentRefined 'membership' ([string]$size) $metric
+            if ($null -eq $mr) { if ($which -eq 0) { $h = @{ main = '-'; current = '-'; refined = '-'; vsMain = '-'; vsCurrent = '-' } } else { $m = @{ main = '-'; current = '-'; refined = '-'; vsMain = '-'; vsCurrent = '-' } }; continue }
+            $cell = @{ main = (N $mr.baselineMedian '0.0'); current = (N $cr.baselineMedian '0.0'); refined = (N $mr.candidateMedian '0.0'); vsMain = ('{0} {1}' -f (Pct $mr), (Sign $mr)); vsCurrent = ('{0} {1}' -f (Pct $cr), (Sign $cr)) }
+            if ($which -eq 0) { $h = $cell } else { $m = $cell }
+        }
+        '| {0:N0} | {1} / {2} | {3} / {4} | {5} / {6} | {7} / {8} | {9} / {10} |' -f $size, $h.main, $m.main, $h.current, $m.current, $h.refined, $m.refined, $h.vsMain, $m.vsMain, $h.vsCurrent, $m.vsCurrent
+    }
+}
+
+if ($Table -in 'percall-ordered', 'all') {
+    '### Per call, predictable order (ns): hit, then miss'
+    ''
+    PerCall @('hitNs', 'missNs') @(0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 768, 1000, 1500, 20000, 200000, 1000000)
+    ''
+}
+if ($Table -in 'percall-scattered', 'all') {
+    '### Per call, unpredictable order (ns): hit, then miss'
+    ''
+    PerCall @('scatteredHitNs', 'scatteredMissNs') @(0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 768, 1000, 1500, 20000, 200000, 1000000)
+    ''
+}
+if ($Table -in 'retention', 'all') {
+    '### What a selection leaves behind (C++ heap bytes held by the model)'
+    ''
+    '| Ids | After | main | current | refined |'
+    '|---:|---|---:|---:|---:|'
+    $labels = [ordered]@{ selectAllBytes = 'Ctrl+A'; afterClearBytes = 'then Clear'; afterSetSingleBytes = 'then a click on a row (SetSingle)'; afterShortRangeBytes = 'then a Shift+click 99 rows away (SetRange)'; afterPreserveHalfBytes = 'then a data change that drops every other row (PreserveOrdered)' }
+    foreach ($ids in 1000, 4096, 4097, 20000, 200000) {
+        foreach ($metric in $labels.Keys) {
+            $mr = Find $mainRefined 'retention' ([string]$ids) $metric
+            $cr = Find $currentRefined 'retention' ([string]$ids) $metric
+            if ($null -eq $mr) { continue }
+            $label = $labels[$metric]
+            '| {0:N0} | {1} | {2:N0} | {3:N0} | {4:N0} |' -f $ids, $label, $mr.baselineMedian, $cr.baselineMedian, $mr.candidateMedian
+        }
+    }
+    ''
+}
+if ($Table -in 'preserve', 'all') {
+    '### PreserveOrdered over 200,000 rows with hashed ids (ms)'
+    ''
+    '| Selected | main | current | refined | refined vs main | refined vs current | heap calls main / current / refined |'
+    '|---:|---:|---:|---:|---|---|---|'
+    foreach ($k in 3, 16, 64, 256, 512, 1000, 5000) {
+        $name = 'PreserveOrdered, {0} selected|200000|True' -f $k
+        $mr = Find $mainRefined 'preserve' $name 'ms'; $cr = Find $currentRefined 'preserve' $name 'ms'
+        if ($null -eq $mr) { continue }
+        $ma = Find $mainRefined 'preserve' $name 'cppAllocations'; $ca = Find $currentRefined 'preserve' $name 'cppAllocations'
+        '| {0:N0} | {1} | {2} | {3} | {4} {5} | {6} {7} | {8:N0} / {9:N0} / {10:N0} |' -f $k, (N $mr.baselineMedian '0.000'), (N $cr.baselineMedian '0.000'), (N $mr.candidateMedian '0.000'), (Pct $mr), (Short $mr.verdict), (Pct $cr), (Short $cr.verdict), $ma.baselineMedian, $ca.baselineMedian, $ma.candidateMedian
+    }
+    ''
+}
+if ($Table -in 'mutators', 'all') {
+    '### Mutators (ms; heap calls and bytes)'
+    ''
+    '| Operation | Rows | Ids | main | current | refined | refined vs main | refined vs current | heap main / current / refined (calls, bytes) |'
+    '|---|---:|---|---:|---:|---:|---|---|---|'
+    $names = @($mainRefined.metrics | Where-Object { $_.kind -eq 'mutators' -and $_.metric -eq 'ms' } | ForEach-Object { $_.name })
+    foreach ($name in $names) {
+        $parts = $name -split '\|'
+        if ([int]$parts[1] -eq 1000) { continue }
+        $mr = Find $mainRefined 'mutators' $name 'ms'; $cr = Find $currentRefined 'mutators' $name 'ms'
+        $ma = Find $mainRefined 'mutators' $name 'cppAllocations'; $ca = Find $currentRefined 'mutators' $name 'cppAllocations'
+        $mb = Find $mainRefined 'mutators' $name 'cppBytes'; $cb = Find $currentRefined 'mutators' $name 'cppBytes'
+        $fmt = if ($parts[0] -like 'Toggle*') { '0.00000' } else { '0.0000' }
+        '| {0} | {1:N0} | {2} | {3} | {4} | {5} | {6} {7} | {8} {9} | {10} |' -f $parts[0], [int]$parts[1], $(if ($parts[2] -eq 'True') { 'scattered' } else { 'ascending' }), (N $mr.baselineMedian $fmt), (N $cr.baselineMedian $fmt), (N $mr.candidateMedian $fmt), (Pct $mr), (Short $mr.verdict), (Pct $cr), (Short $cr.verdict), $(if ($ma) { '{0:N0}, {1:N0} / {2:N0}, {3:N0} / {4:N0}, {5:N0}' -f $ma.baselineMedian, $mb.baselineMedian, $ca.baselineMedian, $cb.baselineMedian, $ma.candidateMedian, $mb.candidateMedian } else { '-' })
+    }
+    ''
+}
+if ($Table -in 'paint', 'all') {
+    '### Paint (Prepare p50, ms) and Mcycles'
+    ''
+    '| Scenario | main | current | refined | refined vs main | refined vs current | Mcycles main / current / refined |'
+    '|---|---:|---:|---:|---|---|---|'
+    foreach ($name in @($mainRefined.metrics | Where-Object { $_.kind -eq 'paint' } | ForEach-Object { $_.name } | Select-Object -Unique)) {
+        $mr = Find $mainRefined 'paint' $name 'prepareP50Ms'; $cr = Find $currentRefined 'paint' $name 'prepareP50Ms'
+        $my = Find $mainRefined 'paint' $name 'prepareMcycP50'; $cy = Find $currentRefined 'paint' $name 'prepareMcycP50'
+        '| {0} | {1} | {2} | {3} | {4} {5} | {6} {7} | {8} / {9} / {10} |' -f $name, (N $mr.baselineMedian '0.000'), (N $cr.baselineMedian '0.000'), (N $mr.candidateMedian '0.000'), (Pct $mr), (Short $mr.verdict), (Pct $cr), (Short $cr.verdict), (N $my.baselineMedian '0.000'), (N $cy.baselineMedian '0.000'), (N $my.candidateMedian '0.000')
+    }
+    ''
+}
+if ($Table -in 'cost', 'all') {
+    '### Cost of IsSelected inside a paint (ms)'
+    ''
+    '| Rows | main | current | refined | refined vs main | refined vs current |'
+    '|---:|---:|---:|---:|---|---|'
+    foreach ($rows in 20000, 200000, 1000000) {
+        $mr = Find $mainRefined 'selectionCost' ([string]$rows) 'costMs'; $cr = Find $currentRefined 'selectionCost' ([string]$rows) 'costMs'
+        if ($null -eq $mr) { continue }
+        '| {0:N0} | {1} | {2} | {3} | {4} {5} | {6} {7} |' -f $rows, (N $mr.baselineMedian '0.0000'), (N $cr.baselineMedian '0.0000'), (N $mr.candidateMedian '0.0000'), (Pct $mr), (Short $mr.verdict), (Pct $cr), (Short $cr.verdict)
+    }
+    ''
+}
+if ($Table -in 'verdicts', 'all') {
+    '### Verdict counts'
+    ''
+    foreach ($pair in $s.comparisons) {
+        foreach ($kind in @($pair.metrics | ForEach-Object { $_.kind } | Select-Object -Unique)) {
+            $ms = @($pair.metrics | Where-Object { $_.kind -eq $kind })
+            '{0} -> {1}, {2}: {3} metrics: {4} improved, {5} within noise, {6} regressed' -f $pair.baseline, $pair.candidate, $kind, $ms.Count, @($ms | Where-Object { $_.verdict -eq 'improved' }).Count, @($ms | Where-Object { $_.verdict -eq 'within-noise' }).Count, @($ms | Where-Object { $_.verdict -eq 'regressed' }).Count
+        }
+    }
+}

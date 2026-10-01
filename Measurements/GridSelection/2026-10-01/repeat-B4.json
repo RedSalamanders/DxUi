@@ -1,0 +1,1172 @@
+{
+  "compiler": 195136257,
+  "fixture": "dxui-grid-selection-v1",
+  "renderer": "WARP",
+  "width": 1280,
+  "height": 720,
+  "dpi": 96,
+  "warmupFrames": 20,
+  "framesPerRound": 60,
+  "roundCount": 5,
+  "selectionModelBytes": 64,
+  "paint": [
+    {
+      "name": "all-1k-middle",
+      "rows": 1000,
+      "selected": 1000,
+      "visibleRows": 24,
+      "rounds": [
+        {
+          "prepareP50Ms": 0.4047,
+          "prepareP95Ms": 0.4489,
+          "prepareMcycP50": 0.809378,
+          "prepareMcycP95": 0.897801,
+          "frameP50Ms": 1.1461,
+          "frameP95Ms": 1.2702,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25554944
+        },
+        {
+          "prepareP50Ms": 0.4081,
+          "prepareP95Ms": 0.6405,
+          "prepareMcycP50": 0.816165,
+          "prepareMcycP95": 1.281233,
+          "frameP50Ms": 1.1442,
+          "frameP95Ms": 1.4438,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25272320
+        },
+        {
+          "prepareP50Ms": 0.366,
+          "prepareP95Ms": 0.4628,
+          "prepareMcycP50": 0.731534,
+          "prepareMcycP95": 0.90838,
+          "frameP50Ms": 1.1065,
+          "frameP95Ms": 1.2881,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25325568
+        },
+        {
+          "prepareP50Ms": 0.3743,
+          "prepareP95Ms": 0.5777,
+          "prepareMcycP50": 0.7483,
+          "prepareMcycP95": 1.155284,
+          "frameP50Ms": 1.1438,
+          "frameP95Ms": 1.3709,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25370624
+        },
+        {
+          "prepareP50Ms": 0.4068,
+          "prepareP95Ms": 0.6888,
+          "prepareMcycP50": 0.813569,
+          "prepareMcycP95": 1.37724,
+          "frameP50Ms": 1.1529,
+          "frameP95Ms": 1.54,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 24395776
+        }
+      ]
+    },
+    {
+      "name": "all-20k-top",
+      "rows": 20000,
+      "selected": 20000,
+      "visibleRows": 24,
+      "rounds": [
+        {
+          "prepareP50Ms": 0.3797,
+          "prepareP95Ms": 0.4793,
+          "prepareMcycP50": 0.759278,
+          "prepareMcycP95": 0.947302,
+          "frameP50Ms": 1.1651,
+          "frameP95Ms": 1.301,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25772032
+        },
+        {
+          "prepareP50Ms": 0.4403,
+          "prepareP95Ms": 0.6311,
+          "prepareMcycP50": 0.880036,
+          "prepareMcycP95": 1.261871,
+          "frameP50Ms": 1.2703,
+          "frameP95Ms": 1.4522,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25874432
+        },
+        {
+          "prepareP50Ms": 0.446,
+          "prepareP95Ms": 0.686,
+          "prepareMcycP50": 0.891813,
+          "prepareMcycP95": 1.371851,
+          "frameP50Ms": 1.2745,
+          "frameP95Ms": 1.5626,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25837568
+        },
+        {
+          "prepareP50Ms": 0.4676,
+          "prepareP95Ms": 0.6156,
+          "prepareMcycP50": 0.935126,
+          "prepareMcycP95": 1.231333,
+          "frameP50Ms": 1.2808,
+          "frameP95Ms": 1.4833,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 26329088
+        },
+        {
+          "prepareP50Ms": 0.4703,
+          "prepareP95Ms": 0.6685,
+          "prepareMcycP50": 0.940715,
+          "prepareMcycP95": 1.256881,
+          "frameP50Ms": 1.2804,
+          "frameP95Ms": 1.4895,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25358336
+        }
+      ]
+    },
+    {
+      "name": "all-20k-middle",
+      "rows": 20000,
+      "selected": 20000,
+      "visibleRows": 24,
+      "rounds": [
+        {
+          "prepareP50Ms": 0.4011,
+          "prepareP95Ms": 0.4947,
+          "prepareMcycP50": 0.801993,
+          "prepareMcycP95": 0.989218,
+          "frameP50Ms": 1.1307,
+          "frameP95Ms": 1.2713,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 26537984
+        },
+        {
+          "prepareP50Ms": 0.413,
+          "prepareP95Ms": 0.511,
+          "prepareMcycP50": 0.825745,
+          "prepareMcycP95": 1.011174,
+          "frameP50Ms": 1.1324,
+          "frameP95Ms": 1.354,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 26505216
+        },
+        {
+          "prepareP50Ms": 0.3794,
+          "prepareP95Ms": 0.5287,
+          "prepareMcycP50": 0.75828,
+          "prepareMcycP95": 1.057281,
+          "frameP50Ms": 1.119,
+          "frameP95Ms": 1.5008,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 26533888
+        },
+        {
+          "prepareP50Ms": 0.395,
+          "prepareP95Ms": 0.4787,
+          "prepareMcycP50": 0.767862,
+          "prepareMcycP95": 0.952092,
+          "frameP50Ms": 1.1087,
+          "frameP95Ms": 1.2504,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 26439680
+        },
+        {
+          "prepareP50Ms": 0.4294,
+          "prepareP95Ms": 0.5069,
+          "prepareMcycP50": 0.858879,
+          "prepareMcycP95": 1.013569,
+          "frameP50Ms": 1.1455,
+          "frameP95Ms": 1.3389,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25370624
+        }
+      ]
+    },
+    {
+      "name": "all-20k-end",
+      "rows": 20000,
+      "selected": 20000,
+      "visibleRows": 24,
+      "rounds": [
+        {
+          "prepareP50Ms": 0.5369,
+          "prepareP95Ms": 0.7492,
+          "prepareMcycP50": 1.073649,
+          "prepareMcycP95": 1.485024,
+          "frameP50Ms": 1.3047,
+          "frameP95Ms": 1.5308,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 26607616
+        },
+        {
+          "prepareP50Ms": 0.4841,
+          "prepareP95Ms": 0.77,
+          "prepareMcycP50": 0.96806,
+          "prepareMcycP95": 1.537718,
+          "frameP50Ms": 1.2411,
+          "frameP95Ms": 1.5872,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 26714112
+        },
+        {
+          "prepareP50Ms": 0.5424,
+          "prepareP95Ms": 0.7317,
+          "prepareMcycP50": 1.084427,
+          "prepareMcycP95": 1.448896,
+          "frameP50Ms": 1.3258,
+          "frameP95Ms": 1.5329,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 26701824
+        },
+        {
+          "prepareP50Ms": 0.458,
+          "prepareP95Ms": 0.7817,
+          "prepareMcycP50": 0.916164,
+          "prepareMcycP95": 1.562868,
+          "frameP50Ms": 1.2005,
+          "frameP95Ms": 1.5157,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 26681344
+        },
+        {
+          "prepareP50Ms": 0.4593,
+          "prepareP95Ms": 0.6703,
+          "prepareMcycP50": 0.91836,
+          "prepareMcycP95": 1.340913,
+          "frameP50Ms": 1.2056,
+          "frameP95Ms": 1.4253,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25456640
+        }
+      ]
+    },
+    {
+      "name": "all-200k-middle",
+      "rows": 200000,
+      "selected": 200000,
+      "visibleRows": 24,
+      "rounds": [
+        {
+          "prepareP50Ms": 0.4081,
+          "prepareP95Ms": 0.4856,
+          "prepareMcycP50": 0.815765,
+          "prepareMcycP95": 0.971054,
+          "frameP50Ms": 1.1409,
+          "frameP95Ms": 1.2392,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 31080448
+        },
+        {
+          "prepareP50Ms": 0.4247,
+          "prepareP95Ms": 0.5381,
+          "prepareMcycP50": 0.849497,
+          "prepareMcycP95": 1.06766,
+          "frameP50Ms": 1.1257,
+          "frameP95Ms": 1.3183,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 31092736
+        },
+        {
+          "prepareP50Ms": 0.3959,
+          "prepareP95Ms": 0.4599,
+          "prepareMcycP50": 0.791414,
+          "prepareMcycP95": 0.919557,
+          "frameP50Ms": 1.1213,
+          "frameP95Ms": 1.27,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 31100928
+        },
+        {
+          "prepareP50Ms": 0.6565,
+          "prepareP95Ms": 0.7845,
+          "prepareMcycP50": 1.28223,
+          "prepareMcycP95": 1.510174,
+          "frameP50Ms": 1.5357,
+          "frameP95Ms": 1.7458,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 30961664
+        },
+        {
+          "prepareP50Ms": 0.4209,
+          "prepareP95Ms": 0.6134,
+          "prepareMcycP50": 0.841115,
+          "prepareMcycP95": 1.226542,
+          "frameP50Ms": 1.1393,
+          "frameP95Ms": 1.3179,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 30011392
+        }
+      ]
+    },
+    {
+      "name": "all-1m-middle",
+      "rows": 1000000,
+      "selected": 1000000,
+      "visibleRows": 24,
+      "rounds": [
+        {
+          "prepareP50Ms": 0.405,
+          "prepareP95Ms": 0.5073,
+          "prepareMcycP50": 0.809777,
+          "prepareMcycP95": 1.014567,
+          "frameP50Ms": 1.1218,
+          "frameP95Ms": 1.2278,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 50532352
+        },
+        {
+          "prepareP50Ms": 0.4458,
+          "prepareP95Ms": 0.509,
+          "prepareMcycP50": 0.892012,
+          "prepareMcycP95": 1.017761,
+          "frameP50Ms": 1.1587,
+          "frameP95Ms": 1.3033,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 50380800
+        },
+        {
+          "prepareP50Ms": 0.4343,
+          "prepareP95Ms": 0.5025,
+          "prepareMcycP50": 0.86826,
+          "prepareMcycP95": 1.004786,
+          "frameP50Ms": 1.1546,
+          "frameP95Ms": 1.2501,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 50393088
+        },
+        {
+          "prepareP50Ms": 0.4285,
+          "prepareP95Ms": 0.541,
+          "prepareMcycP50": 0.857082,
+          "prepareMcycP95": 1.081832,
+          "frameP50Ms": 1.1336,
+          "frameP95Ms": 1.2555,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 50479104
+        },
+        {
+          "prepareP50Ms": 0.4078,
+          "prepareP95Ms": 0.5346,
+          "prepareMcycP50": 0.815166,
+          "prepareMcycP95": 1.069057,
+          "frameP50Ms": 1.1255,
+          "frameP95Ms": 1.342,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 49426432
+        }
+      ]
+    },
+    {
+      "name": "none-20k-middle",
+      "rows": 20000,
+      "selected": 0,
+      "visibleRows": 24,
+      "rounds": [
+        {
+          "prepareP50Ms": 0.5532,
+          "prepareP95Ms": 0.865,
+          "prepareMcycP50": 1.094208,
+          "prepareMcycP95": 1.720752,
+          "frameP50Ms": 1.2857,
+          "frameP95Ms": 1.7047,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 26460160
+        },
+        {
+          "prepareP50Ms": 0.5207,
+          "prepareP95Ms": 0.6741,
+          "prepareMcycP50": 1.040914,
+          "prepareMcycP95": 1.303388,
+          "frameP50Ms": 1.2229,
+          "frameP95Ms": 1.3933,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 26411008
+        },
+        {
+          "prepareP50Ms": 0.5558,
+          "prepareP95Ms": 0.8256,
+          "prepareMcycP50": 1.111373,
+          "prepareMcycP95": 1.638716,
+          "frameP50Ms": 1.2529,
+          "frameP95Ms": 1.508,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 26406912
+        },
+        {
+          "prepareP50Ms": 0.568,
+          "prepareP95Ms": 0.6285,
+          "prepareMcycP50": 1.135525,
+          "prepareMcycP95": 1.256682,
+          "frameP50Ms": 1.2669,
+          "frameP95Ms": 1.5548,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 26062848
+        },
+        {
+          "prepareP50Ms": 0.6021,
+          "prepareP95Ms": 0.8448,
+          "prepareMcycP50": 1.204187,
+          "prepareMcycP95": 1.680831,
+          "frameP50Ms": 1.3028,
+          "frameP95Ms": 1.5812,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25067520
+        }
+      ]
+    },
+    {
+      "name": "few-1k-top",
+      "rows": 1000,
+      "selected": 3,
+      "visibleRows": 24,
+      "rounds": [
+        {
+          "prepareP50Ms": 0.5848,
+          "prepareP95Ms": 0.6797,
+          "prepareMcycP50": 1.166662,
+          "prepareMcycP95": 1.33233,
+          "frameP50Ms": 1.3498,
+          "frameP95Ms": 1.5249,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25849856
+        },
+        {
+          "prepareP50Ms": 0.5709,
+          "prepareP95Ms": 0.7952,
+          "prepareMcycP50": 1.141312,
+          "prepareMcycP95": 1.590612,
+          "frameP50Ms": 1.3515,
+          "frameP95Ms": 1.5675,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25817088
+        },
+        {
+          "prepareP50Ms": 0.5819,
+          "prepareP95Ms": 0.8022,
+          "prepareMcycP50": 1.158877,
+          "prepareMcycP95": 1.604584,
+          "frameP50Ms": 1.3749,
+          "frameP95Ms": 1.5716,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25751552
+        },
+        {
+          "prepareP50Ms": 0.5508,
+          "prepareP95Ms": 0.7919,
+          "prepareMcycP50": 1.094806,
+          "prepareMcycP95": 1.583626,
+          "frameP50Ms": 1.3289,
+          "frameP95Ms": 1.5538,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 25759744
+        },
+        {
+          "prepareP50Ms": 0.5519,
+          "prepareP95Ms": 0.7469,
+          "prepareMcycP50": 1.095005,
+          "prepareMcycP95": 1.486021,
+          "frameP50Ms": 1.3285,
+          "frameP95Ms": 1.5348,
+          "cppAllocations": 11820,
+          "cppBytes": 438720,
+          "privateBytes": 24649728
+        }
+      ]
+    }
+  ],
+  "selectionCost": [
+    {
+      "rows": 20000,
+      "nearRows": 81,
+      "blockFrames": 30,
+      "settleFrames": 5,
+      "rounds": [
+        {
+          "smallMcycP50": 1.18263,
+          "everyMcycP50": 1.211772,
+          "smallP50Ms": 0.5914,
+          "everyP50Ms": 0.6068,
+          "costMcyc": 0.029142,
+          "costMs": 0.0154
+        },
+        {
+          "smallMcycP50": 1.165465,
+          "everyMcycP50": 1.210574,
+          "smallP50Ms": 0.5829,
+          "everyP50Ms": 0.6118,
+          "costMcyc": 0.045109,
+          "costMs": 0.0289
+        },
+        {
+          "smallMcycP50": 1.151293,
+          "everyMcycP50": 1.177241,
+          "smallP50Ms": 0.5757,
+          "everyP50Ms": 0.5888,
+          "costMcyc": 0.025948,
+          "costMs": 0.0131
+        },
+        {
+          "smallMcycP50": 1.182231,
+          "everyMcycP50": 1.131332,
+          "smallP50Ms": 0.591,
+          "everyP50Ms": 0.5712,
+          "costMcyc": -0.050899,
+          "costMs": -0.0198
+        },
+        {
+          "smallMcycP50": 1.240115,
+          "everyMcycP50": 1.179636,
+          "smallP50Ms": 0.6204,
+          "everyP50Ms": 0.5899,
+          "costMcyc": -0.060479,
+          "costMs": -0.0305
+        },
+        {
+          "smallMcycP50": 1.219755,
+          "everyMcycP50": 1.240314,
+          "smallP50Ms": 0.6099,
+          "everyP50Ms": 0.6202,
+          "costMcyc": 0.020559,
+          "costMs": 0.0103
+        },
+        {
+          "smallMcycP50": 0.980634,
+          "everyMcycP50": 1.184027,
+          "smallP50Ms": 0.4978,
+          "everyP50Ms": 0.5922,
+          "costMcyc": 0.203393,
+          "costMs": 0.0944
+        },
+        {
+          "smallMcycP50": 1.069058,
+          "everyMcycP50": 1.238917,
+          "smallP50Ms": 0.5391,
+          "everyP50Ms": 0.6207,
+          "costMcyc": 0.169859,
+          "costMs": 0.0816
+        },
+        {
+          "smallMcycP50": 1.113369,
+          "everyMcycP50": 1.215963,
+          "smallP50Ms": 0.5569,
+          "everyP50Ms": 0.6079,
+          "costMcyc": 0.102594,
+          "costMs": 0.051
+        },
+        {
+          "smallMcycP50": 1.089218,
+          "everyMcycP50": 1.223348,
+          "smallP50Ms": 0.5521,
+          "everyP50Ms": 0.6115,
+          "costMcyc": 0.13413,
+          "costMs": 0.0594
+        }
+      ]
+    },
+    {
+      "rows": 200000,
+      "nearRows": 81,
+      "blockFrames": 30,
+      "settleFrames": 5,
+      "rounds": [
+        {
+          "smallMcycP50": 0.979837,
+          "everyMcycP50": 1.194007,
+          "smallP50Ms": 0.4965,
+          "everyP50Ms": 0.5979,
+          "costMcyc": 0.21417,
+          "costMs": 0.1014
+        },
+        {
+          "smallMcycP50": 1.238718,
+          "everyMcycP50": 1.185824,
+          "smallP50Ms": 0.6212,
+          "everyP50Ms": 0.593,
+          "costMcyc": -0.052894,
+          "costMs": -0.0282
+        },
+        {
+          "smallMcycP50": 1.16786,
+          "everyMcycP50": 1.186622,
+          "smallP50Ms": 0.5839,
+          "everyP50Ms": 0.5936,
+          "costMcyc": 0.018762,
+          "costMs": 0.0097
+        },
+        {
+          "smallMcycP50": 1.215365,
+          "everyMcycP50": 1.203388,
+          "smallP50Ms": 0.6077,
+          "everyP50Ms": 0.6023,
+          "costMcyc": -0.011977,
+          "costMs": -0.0054
+        },
+        {
+          "smallMcycP50": 1.259076,
+          "everyMcycP50": 1.274446,
+          "smallP50Ms": 0.635,
+          "everyP50Ms": 0.6385,
+          "costMcyc": 0.01537,
+          "costMs": 0.0035
+        },
+        {
+          "smallMcycP50": 1.261871,
+          "everyMcycP50": 1.434326,
+          "smallP50Ms": 0.6311,
+          "everyP50Ms": 0.7233,
+          "costMcyc": 0.172455,
+          "costMs": 0.0922
+        },
+        {
+          "smallMcycP50": 1.271452,
+          "everyMcycP50": 1.178638,
+          "smallP50Ms": 0.64,
+          "everyP50Ms": 0.5894,
+          "costMcyc": -0.092814,
+          "costMs": -0.0506
+        },
+        {
+          "smallMcycP50": 1.190614,
+          "everyMcycP50": 1.189217,
+          "smallP50Ms": 0.5952,
+          "everyP50Ms": 0.6044,
+          "costMcyc": -0.001397,
+          "costMs": 0.0092
+        },
+        {
+          "smallMcycP50": 1.529535,
+          "everyMcycP50": 1.399595,
+          "smallP50Ms": 0.7667,
+          "everyP50Ms": 0.7,
+          "costMcyc": -0.12994,
+          "costMs": -0.0667
+        },
+        {
+          "smallMcycP50": 1.197999,
+          "everyMcycP50": 1.146304,
+          "smallP50Ms": 0.5993,
+          "everyP50Ms": 0.5737,
+          "costMcyc": -0.051695,
+          "costMs": -0.0256
+        }
+      ]
+    },
+    {
+      "rows": 1000000,
+      "nearRows": 81,
+      "blockFrames": 30,
+      "settleFrames": 5,
+      "rounds": [
+        {
+          "smallMcycP50": 1.199197,
+          "everyMcycP50": 1.228937,
+          "smallP50Ms": 0.5999,
+          "everyP50Ms": 0.6186,
+          "costMcyc": 0.02974,
+          "costMs": 0.0187
+        },
+        {
+          "smallMcycP50": 1.164067,
+          "everyMcycP50": 1.006582,
+          "smallP50Ms": 0.5825,
+          "everyP50Ms": 0.5037,
+          "costMcyc": -0.157485,
+          "costMs": -0.0788
+        },
+        {
+          "smallMcycP50": 1.335124,
+          "everyMcycP50": 1.104586,
+          "smallP50Ms": 0.6818,
+          "everyP50Ms": 0.5525,
+          "costMcyc": -0.230538,
+          "costMs": -0.1293
+        },
+        {
+          "smallMcycP50": 1.1473,
+          "everyMcycP50": 1.100594,
+          "smallP50Ms": 0.574,
+          "everyP50Ms": 0.5638,
+          "costMcyc": -0.046706,
+          "costMs": -0.0102
+        },
+        {
+          "smallMcycP50": 1.201791,
+          "everyMcycP50": 1.194207,
+          "smallP50Ms": 0.6011,
+          "everyP50Ms": 0.5979,
+          "costMcyc": -0.007584,
+          "costMs": -0.0032
+        },
+        {
+          "smallMcycP50": 1.168858,
+          "everyMcycP50": 1.096003,
+          "smallP50Ms": 0.5847,
+          "everyP50Ms": 0.5482,
+          "costMcyc": -0.072855,
+          "costMs": -0.0365
+        },
+        {
+          "smallMcycP50": 1.176043,
+          "everyMcycP50": 1.081033,
+          "smallP50Ms": 0.5929,
+          "everyP50Ms": 0.5528,
+          "costMcyc": -0.09501,
+          "costMs": -0.0401
+        },
+        {
+          "smallMcycP50": 1.149297,
+          "everyMcycP50": 1.025545,
+          "smallP50Ms": 0.5757,
+          "everyP50Ms": 0.5172,
+          "costMcyc": -0.123752,
+          "costMs": -0.0585
+        },
+        {
+          "smallMcycP50": 1.155285,
+          "everyMcycP50": 1.11716,
+          "smallP50Ms": 0.5814,
+          "everyP50Ms": 0.5617,
+          "costMcyc": -0.038125,
+          "costMs": -0.0197
+        },
+        {
+          "smallMcycP50": 1.181632,
+          "everyMcycP50": 0.981034,
+          "smallP50Ms": 0.5951,
+          "everyP50Ms": 0.4906,
+          "costMcyc": -0.200598,
+          "costMs": -0.1045
+        }
+      ]
+    }
+  ],
+  "membership": [
+    {
+      "selected": 0,
+      "hitNs": null,
+      "missNs": 2.36671875
+    },
+    {
+      "selected": 1,
+      "hitNs": 2.686,
+      "missNs": 2.7214375
+    },
+    {
+      "selected": 2,
+      "hitNs": 3.115,
+      "missNs": 2.656901569
+    },
+    {
+      "selected": 3,
+      "hitNs": 3.076833333,
+      "missNs": 3.5176875
+    },
+    {
+      "selected": 4,
+      "hitNs": 3.5225,
+      "missNs": 3.920429829
+    },
+    {
+      "selected": 8,
+      "hitNs": 4.24897999,
+      "missNs": 4.524
+    },
+    {
+      "selected": 16,
+      "hitNs": 5.05671875,
+      "missNs": 4.81015625
+    },
+    {
+      "selected": 32,
+      "hitNs": 5.194739447,
+      "missNs": 5.836015625
+    },
+    {
+      "selected": 64,
+      "hitNs": 6.110357979,
+      "missNs": 7.6228125
+    },
+    {
+      "selected": 256,
+      "hitNs": 7.65515625,
+      "missNs": 8.065861909
+    },
+    {
+      "selected": 1000,
+      "hitNs": 9.279558682,
+      "missNs": 9.864
+    },
+    {
+      "selected": 20000,
+      "hitNs": 11.86784971,
+      "missNs": 8.473303483
+    },
+    {
+      "selected": 200000,
+      "hitNs": 13.81667767,
+      "missNs": 17.24356474
+    },
+    {
+      "selected": 1000000,
+      "hitNs": 16.17471122,
+      "missNs": 17.46701118
+    }
+  ],
+  "mutators": [
+    {
+      "name": "SetRange all, cold",
+      "rows": 1000,
+      "scrambledIds": false,
+      "ms": 0.0044,
+      "cppAllocations": 2,
+      "cppBytes": 16078,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "SetRange all, warm",
+      "rows": 1000,
+      "scrambledIds": false,
+      "ms": 0.0004,
+      "cppAllocations": 0,
+      "cppBytes": 0,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "PreserveOrdered all kept",
+      "rows": 1000,
+      "scrambledIds": false,
+      "ms": 0.0118,
+      "cppAllocations": 1,
+      "cppBytes": 8039,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "PreserveOrdered half kept",
+      "rows": 1000,
+      "scrambledIds": false,
+      "ms": 0.0052,
+      "cppAllocations": 2,
+      "cppBytes": 8000,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "Toggle one row on and off",
+      "rows": 1000,
+      "scrambledIds": false,
+      "ms": 0.0001467,
+      "cppAllocations": 0,
+      "cppBytes": 0,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "SetRange all, cold",
+      "rows": 1000,
+      "scrambledIds": true,
+      "ms": 0.0358,
+      "cppAllocations": 2,
+      "cppBytes": 16078,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "SetRange all, warm",
+      "rows": 1000,
+      "scrambledIds": true,
+      "ms": 0.011,
+      "cppAllocations": 0,
+      "cppBytes": 0,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "PreserveOrdered all kept",
+      "rows": 1000,
+      "scrambledIds": true,
+      "ms": 0.0103,
+      "cppAllocations": 1,
+      "cppBytes": 8039,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "PreserveOrdered half kept",
+      "rows": 1000,
+      "scrambledIds": true,
+      "ms": 0.0131,
+      "cppAllocations": 2,
+      "cppBytes": 8000,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "Toggle one row on and off",
+      "rows": 1000,
+      "scrambledIds": true,
+      "ms": 0.00027235,
+      "cppAllocations": 0,
+      "cppBytes": 0,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "SetRange all, cold",
+      "rows": 20000,
+      "scrambledIds": false,
+      "ms": 0.0147,
+      "cppAllocations": 2,
+      "cppBytes": 320078,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "SetRange all, warm",
+      "rows": 20000,
+      "scrambledIds": false,
+      "ms": 0.0076,
+      "cppAllocations": 0,
+      "cppBytes": 0,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "PreserveOrdered all kept",
+      "rows": 20000,
+      "scrambledIds": false,
+      "ms": 0.65,
+      "cppAllocations": 1,
+      "cppBytes": 160039,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "PreserveOrdered half kept",
+      "rows": 20000,
+      "scrambledIds": false,
+      "ms": 0.3695,
+      "cppAllocations": 2,
+      "cppBytes": 160078,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "Toggle one row on and off",
+      "rows": 20000,
+      "scrambledIds": false,
+      "ms": 0.00361,
+      "cppAllocations": 0,
+      "cppBytes": 0,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "SetRange all, cold",
+      "rows": 20000,
+      "scrambledIds": true,
+      "ms": 0.9319,
+      "cppAllocations": 2,
+      "cppBytes": 320078,
+      "privateGrowthBytes": 798720
+    },
+    {
+      "name": "SetRange all, warm",
+      "rows": 20000,
+      "scrambledIds": true,
+      "ms": 0.8444,
+      "cppAllocations": 0,
+      "cppBytes": 0,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "PreserveOrdered all kept",
+      "rows": 20000,
+      "scrambledIds": true,
+      "ms": 1.3584,
+      "cppAllocations": 1,
+      "cppBytes": 160039,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "PreserveOrdered half kept",
+      "rows": 20000,
+      "scrambledIds": true,
+      "ms": 1.1215,
+      "cppAllocations": 2,
+      "cppBytes": 160078,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "Toggle one row on and off",
+      "rows": 20000,
+      "scrambledIds": true,
+      "ms": 0.004055,
+      "cppAllocations": 0,
+      "cppBytes": 0,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "SetRange all, cold",
+      "rows": 200000,
+      "scrambledIds": false,
+      "ms": 0.3953,
+      "cppAllocations": 2,
+      "cppBytes": 3200078,
+      "privateGrowthBytes": 3211264
+    },
+    {
+      "name": "SetRange all, warm",
+      "rows": 200000,
+      "scrambledIds": false,
+      "ms": 0.1164,
+      "cppAllocations": 0,
+      "cppBytes": 0,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "PreserveOrdered all kept",
+      "rows": 200000,
+      "scrambledIds": false,
+      "ms": 7.2143,
+      "cppAllocations": 1,
+      "cppBytes": 1600039,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "PreserveOrdered half kept",
+      "rows": 200000,
+      "scrambledIds": false,
+      "ms": 4.0023,
+      "cppAllocations": 2,
+      "cppBytes": 1600078,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "Toggle one row on and off",
+      "rows": 200000,
+      "scrambledIds": false,
+      "ms": 0.0353,
+      "cppAllocations": 0,
+      "cppBytes": 0,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "SetRange all, cold",
+      "rows": 200000,
+      "scrambledIds": true,
+      "ms": 10.7034,
+      "cppAllocations": 2,
+      "cppBytes": 3200078,
+      "privateGrowthBytes": 3211264
+    },
+    {
+      "name": "SetRange all, warm",
+      "rows": 200000,
+      "scrambledIds": true,
+      "ms": 11.2417,
+      "cppAllocations": 0,
+      "cppBytes": 0,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "PreserveOrdered all kept",
+      "rows": 200000,
+      "scrambledIds": true,
+      "ms": 20.2573,
+      "cppAllocations": 1,
+      "cppBytes": 1600039,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "PreserveOrdered half kept",
+      "rows": 200000,
+      "scrambledIds": true,
+      "ms": 15.4761,
+      "cppAllocations": 2,
+      "cppBytes": 1600078,
+      "privateGrowthBytes": 0
+    },
+    {
+      "name": "Toggle one row on and off",
+      "rows": 200000,
+      "scrambledIds": true,
+      "ms": 0.04107,
+      "cppAllocations": 0,
+      "cppBytes": 0,
+      "privateGrowthBytes": 0
+    }
+  ],
+  "complexUiScene": {
+    "gridRows": 1000,
+    "visibleRows": 12,
+    "selectedRows": 0
+  },
+  "run": "B4",
+  "side": "candidate",
+  "platform": "x64",
+  "configuration": "Release",
+  "nativeArchitecture": "X64",
+  "machine": "LT-PF5VDAGE",
+  "cpu": "AMD Ryzen AI 7 PRO 350 w/ Radeon 860M",
+  "os": "Microsoft Windows 10.0.26200",
+  "warpVersion": "10.0.26100.9278 (WinBuild.160101.0800)",
+  "powerPolicy": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)",
+  "startedUtc": "2026-10-01T10:56:21.2452893Z",
+  "completedUtc": "2026-10-01T10:56:33.6364848Z",
+  "quietBeforeStart": {
+    "quiet": true,
+    "waitedSeconds": 3,
+    "processorUtilityPercent": 22.7
+  },
+  "quietThresholdPercent": 60.0,
+  "processPriority": "AboveNormal",
+  "processorUtilityPercentAfterRun": 26.36,
+  "sourceCommit": "c8cc6e2fdd72c09bfd472e39d0cf06e5d0c21b11",
+  "sourceDirty": true,
+  "sourceDirtyPaths": [
+    ".gitattributes",
+    "Specs/Core/Core_PerformanceAndResources.md",
+    "docs/performance.md",
+    "Measurements/GridSelection/"
+  ],
+  "sourceFingerprint": "95F759F3F7314A8BDB0DC80F26B96726F83E300F508E99FB57CC01A4BE3897FD",
+  "executableSha256": "50C6985C61C0DC3B8116474F67D2C9388BE7DA12EFC7902098FEC1BCCFAE8B3B",
+  "workloadOwner": "DxUi",
+  "benchmarkInputs": {
+    "Tests/Embedded/GridSelectionBenchmark.h": "21FE761BEFFC53041B2CC70FD956ECF30C4D49627364C32072DD028540003D3E",
+    "Tests/Embedded/EmbeddedTests.cpp": "32B8F767B54E4BF4D2948396D98371349E0F23F186A949EDC36C6667C4F2936D",
+    "Samples/ComplexUi/ComplexUiScene.h": "425C830C22EC3672F52F6569BEBD5FE2ABABC45DFC47F530523EEB0F4C3A3041",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "benchmarkSha256": "B7C3325248896048CA25675E2ACD7A14A862E2F15AAA2BCC71C3AB27DA15D13C",
+  "measurement": "Completed offscreen WARP frames with a blocking one-pixel readback, IsSelected timed per call, and mutators timed in-process; no swap-chain presentation or vsync."
+}

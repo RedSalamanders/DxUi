@@ -5,6 +5,8 @@
 #include <string_view>
 #include <windows.h>
 
+#include "../Support/FailureReports.h"
+
 bool TestPublicHelpers();
 bool TestFontAvailabilityInvalidation();
 
@@ -44,6 +46,7 @@ __declspec(noinline) int ProbeAddressSanitizer()
 } // namespace
 int main(int argc, char** argv)
 {
+    DxUiTestFailureReports::RouteAwayFromDialogs();
     if (argc == 2 && std::string_view(argv[1]) == "--asan-probe")
     {
         SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);

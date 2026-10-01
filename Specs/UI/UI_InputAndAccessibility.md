@@ -85,8 +85,8 @@ of the move, all four operations sequentially consistent, so a call the count do
 the store, and one it does include may have answered the event with the control the activation focused, which the host
 follows with its own announcement (at worst a duplicate). In a window UI Automation has asked before nothing else
 reports the clicked control, so the host announces it itself and a client hears it once, and the end of the turn adds
-nothing. The turn ends when the message the host posts to its window at the gain is dispatched (the message of an
-earlier gain, which the window lost before the loop turned, ends nothing), or when the window loses focus; should a
+nothing. The turn ends when the registered message the host posts to its window at the gain is dispatched (the message
+of an earlier gain, which the window lost before the loop turned, ends nothing), or when the window loses focus; should a
 window procedure never hand the host that message, it ends after 500 ms, so a move is never left to the system's event
 for long, but the activation of a window UI Automation answers without asking is then not announced. A move in a
 later turn, such as a click in the window that is already active, is announced by the host. An element's SetFocus moves
@@ -239,7 +239,9 @@ changes are notified. Native-host notification behavior remains covered by its e
 
 Forward PreTranslate before TranslateMessage/DispatchMessage and HandleMessage from the application window
 procedure. Nested synchronous locks fail; asynchronous requests coalesce into one pending lock with the strongest
-requested access. A generation-tagged posted message grants it after the active lock, without recursion or a timer.
+requested access. A generation-tagged posted message, registered like DxUi's other private messages (see the
+[window hosting contract](../Rendering/Rendering_Win32Host.md)), grants it after the active lock, without recursion or
+a timer.
 Clear/detach invalidates queued messages. NotifyChanged publishes external edits outside an active TSF lock.
 Escape clears a composition before ordinary editor handling; the application refreshes its focused client afterward.
 

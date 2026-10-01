@@ -5236,6 +5236,13 @@ HRESULT DispatchAccessibilityUiActionToWindowThread(HWND hwnd, AccessibilityUiAc
     {
         return UIA_E_ELEMENTNOTAVAILABLE;
     }
+    // Without its registered message the action cannot reach the window's thread: it fails as a post that reports no
+    // Win32 error does.
+    const WndMsg::RegisteredMessage actionMessage = WndMsg::AccessibilityUiThreadAction();
+    if (! actionMessage)
+    {
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    }
 
     auto dispatch = std::shared_ptr<AccessibilityUiActionDispatch>(new (std::nothrow) AccessibilityUiActionDispatch());
     if (! dispatch)
@@ -5268,7 +5275,7 @@ HRESULT DispatchAccessibilityUiActionToWindowThread(HWND hwnd, AccessibilityUiAc
     payload->dispatch = dispatch;
 
     ::SetLastError(ERROR_SUCCESS);
-    if (! PostMessagePayload(hwnd, WndMsg::kAccessibilityAction, 0, std::move(payload)))
+    if (! PostMessagePayload(hwnd, actionMessage.value, 0, std::move(payload)))
     {
         const DWORD lastError = ::GetLastError();
         return lastError != 0u ? HRESULT_FROM_WIN32(lastError) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
@@ -9363,7 +9370,7 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
         return true;
     }
 
-    if (msg == WndMsg::kAccessibilityCreateProvider)
+    if (WndMsg::AccessibilityCreateProvider().Matches(msg))
     {
         auto** provider = reinterpret_cast<IRawElementProviderFragmentRoot**>(lp);
         if (provider)
@@ -9373,7 +9380,7 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
         return true;
     }
 
-    if (msg != WndMsg::kAccessibilityAction)
+    if (! WndMsg::AccessibilityUiThreadAction().Matches(msg))
     {
         return false;
     }
@@ -9678,9 +9685,14 @@ IRawElementProviderFragmentRoot* CreateWindowHostAccessibilityProvider(HWND hwnd
     if (windowThreadId != GetCurrentThreadId())
     {
         // Provider creation must resolve the live host on its owning thread. SendMessageW is
-        // synchronous, so the handler cannot outlive this output slot.
-        IRawElementProviderFragmentRoot* provider = nullptr;
-        static_cast<void>(SendMessageW(hwnd, WndMsg::kAccessibilityCreateProvider, 0, reinterpret_cast<LPARAM>(&provider)));
+        // synchronous, so the handler cannot outlive this output slot. Without its registered
+        // message nothing is sent, and there is no provider, as when the send fails.
+        const WndMsg::RegisteredMessage createMessage = WndMsg::AccessibilityCreateProvider();
+        IRawElementProviderFragmentRoot* provider     = nullptr;
+        if (createMessage)
+        {
+            static_cast<void>(SendMessageW(hwnd, createMessage.value, 0, reinterpret_cast<LPARAM>(&provider)));
+        }
         return provider;
     }
 

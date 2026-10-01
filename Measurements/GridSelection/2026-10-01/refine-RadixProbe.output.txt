@@ -1,0 +1,5 @@
+rows        std::sort ms   radix sort ms   same result
+1000              0.0053          0.0060   yes
+20000             0.7431          0.1098   yes
+200000           10.2367          1.5451   yes
+1000000          62.8341          8.5804   yes

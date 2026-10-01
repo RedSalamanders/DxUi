@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <format>
+#include <functional>
 #include <iostream>
 #include <mutex>
 #include <string>
@@ -808,6 +809,7 @@ public:
     ~AttachedHostWindow()
     {
         std::cerr << "    [TRACE] attached host dtor: begin\n" << std::flush;
+        _applicationMessageHandler = nullptr; // What it captured may already be gone; teardown messages go to DefWindowProc.
         _host.Detach();
         std::cerr << "    [TRACE] attached host dtor: host detached\n" << std::flush;
         _hwnd.reset();
@@ -829,6 +831,14 @@ public:
     void AllowOuterSizeBeyondDesktop(SIZE outerSizePx) noexcept
     {
         _maximumTrackSizePx = outerSizePx;
+    }
+
+    // The application's own handling of a message HandleMessage left unhandled, as an application's window procedure does
+    // after it: the handler returns true with the message's result, or false to leave the message to DefWindowProc.
+    using ApplicationMessageHandler = std::function<bool(UINT message, WPARAM wParam, LPARAM lParam, LRESULT& result)>;
+    void SetApplicationMessageHandler(ApplicationMessageHandler handler)
+    {
+        _applicationMessageHandler = std::move(handler);
     }
 
     // How often another application took the foreground from this window: Windows then sends WM_ACTIVATEAPP with FALSE and
@@ -915,6 +925,11 @@ private:
             {
                 return result;
             }
+            LRESULT applicationResult = 0;
+            if (self->_applicationMessageHandler && self->_applicationMessageHandler(msg, wp, lp, applicationResult))
+            {
+                return applicationResult;
+            }
         }
 
         return DefWindowProcW(hwnd, msg, wp, lp);
@@ -922,6 +937,7 @@ private:
 
     wil::unique_hwnd _hwnd;
     DxUi::WindowHost _host;
+    ApplicationMessageHandler _applicationMessageHandler;
     SIZE _maximumTrackSizePx{};
     uint32_t _foregroundLossCount      = 0u;
     DWORD _lastForegroundThiefThreadId = 0u;
