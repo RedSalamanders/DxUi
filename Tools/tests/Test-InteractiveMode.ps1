@@ -34,11 +34,14 @@ function Get-CommandCalls([string[]] $Names) {
     return , @($testAst.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -in $Names }, $true))
 }
 
-# Runs test.ps1 in a child process of its own under an environment that says CI, bounded, and reports how it ended.
-# The text of a run as one line: PowerShell's error view wraps a message at the console's width behind a "|" gutter, which on
-# a narrow CI console splits a phrase across lines.
-function Get-FlatText([string] $Text) { return ($Text -replace '(?m)^\s*\|\s?', '' -replace '\s+', ' ') }
+# The text of a run as one line. PowerShell's error view colors a message, and the child on CI's Ubuntu runner writes the color
+# codes although its output is redirected; it also wraps the message at the console's width behind a "|" gutter. Either splits
+# a phrase the tests look for.
+function Get-FlatText([string] $Text) {
+    return ($Text -replace '\x1b\[[0-9;?]*[ -/]*[@-~]', '' -replace '(?m)^\s*\|\s?', '' -replace '\s+', ' ')
+}
 
+# Runs test.ps1 in a child process of its own under an environment that says CI, bounded, and reports how it ended.
 function Invoke-TestScript([string[]] $Arguments, [hashtable] $Environment) {
     $info = [Diagnostics.ProcessStartInfo]::new((Get-Process -Id $PID).Path)
     foreach ($argument in @('-NoProfile', '-NonInteractive', '-File', $testScript) + $Arguments) { $info.ArgumentList.Add($argument) }

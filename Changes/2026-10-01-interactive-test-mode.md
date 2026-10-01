@@ -44,6 +44,8 @@
       process, through their own handle, never its process tree.
     - **Snapshot comparison:** the refusal tests compare their before and after file listings in ordinal order; `Sort-Object`
       is not a total order for those paths, and a Release run failed the comparison on identical listings.
+    - **Refusal text:** the refusal tests read the child's output without its color codes. On CI's Ubuntu runner the child colors
+      its error text although its output is redirected, and the codes split the reason the test looks for.
   - Docs: the contract is in `Testing_Validation` (Interactive tests), the command in `docs/performance.md` and `Tools/README.md`,
     and `AGENTS.md` and the build and input skills say to run it only with the person's agreement. A nonvisual tooling change: no
     gallery image or design-system preview changes.
