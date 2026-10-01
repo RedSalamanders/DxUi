@@ -31,7 +31,9 @@ function Invoke-Bounded([string[]] $Arguments, [int] $BoundSeconds) {
         $stderr = $process.StandardError.ReadToEndAsync()
         $exited = $process.WaitForExit($BoundSeconds * 1000)
         $seconds = $clock.Elapsed.TotalSeconds
-        if (-not $exited) { $process.Kill($true); $process.WaitForExit() }
+        # Only the process this test started, through its own handle: the lease's children are in its kill-on-close job and
+        # end with it. Never a process-tree walk, which follows reused parent ids into unrelated processes.
+        if (-not $exited) { $process.Kill(); $process.WaitForExit() }
         [void][Threading.Tasks.Task]::WaitAll(@($stdout, $stderr), 10000)
         return [pscustomobject]@{
             Exited = $exited; Exit = $(if ($exited) { $process.ExitCode }); Seconds = $seconds

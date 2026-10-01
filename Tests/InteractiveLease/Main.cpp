@@ -16,6 +16,7 @@
 // warning on a private desktop that no one sees, and runs children without a foreground grant. Tools/tests/Test-InteractiveLease.ps1
 // runs it.
 
+#include "../Support/FailureReports.h"
 #include "../Support/InteractiveLease.h"
 #include "../Support/TestWatchdog.h"
 #include "ChildProcess.h"
@@ -537,6 +538,10 @@ int SelfTestChild(std::wstring_view mode)
 
 int wmain(int argc, wchar_t** argv)
 {
+    // A failed runtime check reports to stderr and ends the run (exit code 3); only the lease's own confirmation and warning are
+    // windows a person sees.
+    DxUiTestFailureReports::RouteAwayFromDialogs();
+
     // Per-monitor DPI, so the dialog and the warning are sharp on every monitor and the pointer is read in physical pixels.
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 

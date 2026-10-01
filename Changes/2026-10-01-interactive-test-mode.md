@@ -36,6 +36,14 @@
     run) and the warning. `Test-InteractiveMode.ps1` covers the selection, the refusals (two bounded runs of `test.ps1` under a CI
     environment end before anything is built), the plan and result files and that `test.ps1` reaches the lease only through
     `-Interactive`; 19 throwaway mutants of the PowerShell side and the dialog's source each fail one of the two scripts.
+  - Hardening before review:
+    - **Failed checks:** the lease routes its own failed checks away from dialogs, as every test process does.
+    - **`<cwchar>`:** `Tests/Support/FailureReports.h` now includes `<cwchar>` for `std::fputws`. The lease was the first file
+      to include it before anything else, and Debug failed to compile.
+    - **Ending a test process:** the two tooling tests that end a test process that outlived its bound now end only that
+      process, through their own handle, never its process tree.
+    - **Snapshot comparison:** the refusal tests compare their before and after file listings in ordinal order; `Sort-Object`
+      is not a total order for those paths, and a Release run failed the comparison on identical listings.
   - Docs: the contract is in `Testing_Validation` (Interactive tests), the command in `docs/performance.md` and `Tools/README.md`,
     and `AGENTS.md` and the build and input skills say to run it only with the person's agreement. A nonvisual tooling change: no
     gallery image or design-system preview changes.

@@ -48,10 +48,20 @@ function Invoke-TestScript([string[]] $Arguments, [hashtable] $Environment) {
         $stdout = $process.StandardOutput.ReadToEndAsync()
         $stderr = $process.StandardError.ReadToEndAsync()
         $exited = $process.WaitForExit(90000)
-        if (-not $exited) { $process.Kill($true); $process.WaitForExit() }
+        # Only the process this test started, through its own handle: the lease's children are in its kill-on-close job and
+        # end with it. Never a process-tree walk, which follows reused parent ids into unrelated processes.
+        if (-not $exited) { $process.Kill(); $process.WaitForExit() }
         [void][Threading.Tasks.Task]::WaitAll(@($stdout, $stderr), 10000)
         return [pscustomobject]@{ Exited = $exited; Exit = $(if ($exited) { $process.ExitCode }); Output = (@($stdout.Result, $stderr.Result) -join "`n") }
     } finally { $process.Dispose() }
+}
+
+# Ordinal order: Sort-Object compares paths by culture, which is not a total order for them, so two listings of the same
+# files could sort differently.
+function ConvertTo-OrdinalOrder([string[]] $Values) {
+    $sorted = [string[]]@($Values)
+    [Array]::Sort($sorted, [StringComparer]::Ordinal)
+    return , $sorted
 }
 
 function Get-OutputFiles {
@@ -251,7 +261,7 @@ Invoke-TestCase 'test.ps1 -Interactive names a suite that does not need the desk
     Assert-True ($run.Exit -ne 0) 'with a failing exit code'
     Assert-True ($run.Output.Contains('not interactive: Grid')) "naming the suite: $($run.Output)"
     Assert-True (-not $run.Output.Contains('Interactive run:') -and -not $run.Output.Contains('Running ')) 'and nothing ran'
-    Assert-Equal (($before | Sort-Object) -join "`n") ((Get-OutputFiles | Sort-Object) -join "`n") 'no log or receipt was written'
+    Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles)) -join "`n") 'no log or receipt was written'
 }
 Invoke-TestCase 'test.ps1 -Interactive refuses in a CI job before it builds or runs anything' {
     # Whatever happens here must not reach the rest of test.ps1: it would run these tooling tests again and the lease's desktop with
@@ -265,6 +275,6 @@ Invoke-TestCase 'test.ps1 -Interactive refuses in a CI job before it builds or r
     $reason = if ($IsWindows) { 'CI is set' } else { 'this is not Windows' }
     Assert-True ($run.Output.Contains('Interactive tests need an interactive desktop, and there is none') -and $run.Output.Contains($reason)) "saying why: $($run.Output)"
     Assert-True (-not $run.Output.Contains('Interactive run:') -and -not $run.Output.Contains('Running ') -and -not $run.Output.Contains('== ')) 'and nothing ran: no tooling test, no build, no suite'
-    Assert-Equal (($before | Sort-Object) -join "`n") ((Get-OutputFiles | Sort-Object) -join "`n") 'no log or receipt was written'
+    Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles)) -join "`n") 'no log or receipt was written'
 }
 Complete-TestRun 'Interactive mode'
