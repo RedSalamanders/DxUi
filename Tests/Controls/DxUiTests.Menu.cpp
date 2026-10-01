@@ -3363,7 +3363,8 @@ void TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay()
 // PeekMessageW runs the handlers of messages other threads sent to the menu's thread, and such a handler can close a submenu
 // while the modal loop walks the popup chain to peek each popup's own paints and state probes. The loop must then peek only
 // live popups. The hook closes the open submenu as such a handler would, from the loop's peek of the root popup's state probes:
-// none is pending, so that peek finds nothing and the loop goes on to the next popup of the chain it started with.
+// none is pending, so that peek finds nothing and the loop goes on to the next popup of the chain it started with. The driver
+// posts no state probe from then until the loop has peeked again, which keeps that true.
 void TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu()
 {
     using namespace DxUi;
@@ -3375,6 +3376,7 @@ void TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu()
         std::atomic<bool> recording{true};
         bool fired = false; // The menu's thread only.
         wil::unique_event firedEvent{wil::EventOptions::ManualReset};
+        wil::unique_event peekedAfterCloseEvent{wil::EventOptions::ManualReset}; // Set with the first peek recorded after the close.
         std::mutex mutex;
         std::vector<std::pair<HWND, bool>> peekedAfterClose; // Each window peeked after the close, and whether it was a window.
     } probe;
@@ -3389,6 +3391,7 @@ void TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu()
             if (peekProbe.recording.load(std::memory_order_acquire) && peekProbe.peekedAfterClose.size() < peekProbe.peekedAfterClose.capacity())
             {
                 peekProbe.peekedAfterClose.emplace_back(popupHwnd, IsWindow(popupHwnd) != FALSE);
+                peekProbe.peekedAfterCloseEvent.SetEvent();
             }
             return;
         }
@@ -3463,6 +3466,15 @@ void TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu()
         if (WaitForSingleObject(probe.firedEvent.get(), 5000u) != WAIT_OBJECT_0)
         {
             driverFailure = "the modal loop peeks the root popup's state probes while the submenu is open";
+            return;
+        }
+        // The hook destroyed the submenu before it set the event, and the pass that fired it has yet to finish the root's probe
+        // peek. A state probe posted now could be the message that peek removes: the root would answer it, and the recording
+        // would end, before the loop's next pass peeks anything. Until that next pass has peeked, the root gets only a wake.
+        PostMessageW(rootPopupHwnd, WM_NULL, 0, 0);
+        if (WaitForSingleObject(probe.peekedAfterCloseEvent.get(), 5000u) != WAIT_OBJECT_0)
+        {
+            driverFailure = "the modal loop goes on peeking after a peek closed the submenu";
             return;
         }
         if (! WaitForWindowDestroyed(submenuHwnd, std::chrono::milliseconds(1200)))
