@@ -19,7 +19,10 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: dxui-${{ github.workflow }}-${{ github.ref }}
+  # A newer push cancels the older run of its ref, and so the older run of a pull request (refs/pull/<n>/merge) and its
+  # hour-long paired benchmark. A manual dispatch is its own group: a push to the same ref, or another dispatch, must not
+  # throw away a measurement someone asked for.
+  group: dxui-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
   cancel-in-progress: true
 jobs:
   validation:
@@ -95,23 +98,61 @@ jobs:
           name: docs-gallery-x64-Release
           path: docs/gallery/
           retention-days: 14
-  # Manual only: one runner measures the baseline and this revision serially with one harness.
+  # Pull requests to main only. A cheap Linux job decides from the changed paths whether anything the paired benchmark
+  # measures changed (Tools/BenchmarkGate.psm1), so a documentation-only pull request never takes a Windows runner for it.
+  benchmark-scope:
+    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      relevant: ${{ steps.scope.outputs.relevant }}
+      baseline: ${{ steps.scope.outputs.baseline }}
+      method: ${{ steps.scope.outputs.method }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - id: scope
+        shell: pwsh
+        run: ./Tools/Get-BenchmarkScope.ps1
+  # One runner measures the baseline and the candidate serially with one harness, three repetitions of the interleaved pass A,
+  # B, B, A (six runs per side, the contract's paired set). A pull request that changes something measured is compared with
+  # the base its merge ref was made on (the candidate is that merge ref) and fails this job on a confirmed degradation or an
+  # inconclusive run; a manual dispatch with benchmark_baseline names its own revisions, reports the same verdict in the job
+  # summary and stays green for a finding. permissions stay contents: read; the summary and artifacts need nothing more.
   paired-benchmark:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.benchmark_baseline != '' }}
+    # A pull request's check is named apart from the push and manual runs of this job (which report it skipped, or by hand),
+    # so that a required check names exactly one check run whatever order they complete in.
+    name: ${{ github.event_name == 'pull_request' && 'paired-benchmark (pull request)' || 'paired-benchmark' }}
+    needs: benchmark-scope
+    if: ${{ !cancelled() && (needs.benchmark-scope.outputs.relevant == 'true' || (github.event_name == 'workflow_dispatch' && inputs.benchmark_baseline != '')) }}
     runs-on: windows-2025-vs2026
-    timeout-minutes: 90
+    # A pull request's run takes 13 to 14 minutes: the restore (under a minute), then the paired run, which builds both trees
+    # and measures 36 runs. Its limits are about twice that, so a hang ends while the job still has time to report and upload.
+    # A manual run keeps the 90 minutes it always had, for the diagnostic scenarios that run much longer.
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 45 || 90 }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - shell: pwsh
+        timeout-minutes: ${{ github.event_name == 'pull_request' && 10 || 15 }}
         run: ./vcpkg-install.ps1 -Platform x64
-      - shell: pwsh
+      - id: measure
+        shell: pwsh
+        timeout-minutes: ${{ github.event_name == 'pull_request' && 30 || 70 }}
         env:
-          BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline }}
+          BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline || needs.benchmark-scope.outputs.baseline }}
           BENCHMARK_CANDIDATE: ${{ inputs.benchmark_candidate }}
-          BENCHMARK_SCENARIOS: ${{ inputs.benchmark_scenarios }}
-        run: ./performance-paired.ps1 -BaselineRevision $env:BENCHMARK_BASELINE -CandidateRevision $env:BENCHMARK_CANDIDATE -Scenario @($env:BENCHMARK_SCENARIOS -split ',' | ForEach-Object { $_.Trim() })
+          BENCHMARK_SCENARIOS: ${{ inputs.benchmark_scenarios || 'Default,MultilineGrid,MultilineGridDistinct' }}
+        run: ./performance-paired.ps1 -BaselineRevision $env:BENCHMARK_BASELINE -CandidateRevision $env:BENCHMARK_CANDIDATE -Scenario @($env:BENCHMARK_SCENARIOS -split ',' | ForEach-Object { $_.Trim() }) -Repetitions 3
+      # Also after a failed measurement, to say why there is no verdict. Not after a cancellation: a newer push superseded it.
+      - id: verdict
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        env:
+          BENCHMARK_PAIR: ${{ needs.benchmark-scope.outputs.method }}
+        run: ./Tools/Publish-BenchmarkVerdict.ps1 -Gate:($env:GITHUB_EVENT_NAME -eq 'pull_request')
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

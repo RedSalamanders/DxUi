@@ -71,6 +71,66 @@ rounds, so 2N runs per side after N repetitions.
   medians and each metric's run values, p-value, spread and verdict. Pairs are refused when there is nothing to
   compare: one commit for two revisions, or identical fingerprints when a working tree is named.
 
+### Hosted paired gate
+
+A paired set needs a machine nobody is using, and a developer's computer is rarely one: its same-binary controls drift
+and the set proves nothing. The `paired-benchmark` job of [ci.yml](../../.github/workflows/ci.yml) runs the set on a
+hosted x64 Release runner instead, so that a merge waits on GitHub. `Tools/BenchmarkGate.psm1` owns every decision below
+and `Tools/tests/Test-BenchmarkGate.ps1` covers it.
+
+- **When.** For every pull request to `main` that changes something the benchmark measures: the library inputs a receipt's
+  `sourceFingerprint` covers (`src`, `include`, `Build`, the build props and vcpkg manifests), the harness and its
+  benchmark inputs, the sources of the benchmark executable (`Tests/Embedded`, `Tests/Support`) and the fixtures and samples
+  compiled into it (`Samples`), the build and restore scripts, the paired measurement and gate tooling and the workflow.
+  Markdown never counts, and neither do the control and foundation tests, the validators, the gallery and the formatter. A
+  cheap Linux job (`benchmark-scope`) matches the changed paths against those rules and names the files that decided; a
+  pull request that changes none of them skips the Windows job, and a skipped job passes a required check. A manual
+  dispatch with `benchmark_baseline` measures the revisions it names. A newer push to a pull request cancels its older run,
+  and its job is bounded at 45 minutes (a run takes 13 to 14); a manual run keeps its 90, for the diagnostic scenarios.
+  A pull request's check is named `paired-benchmark (pull request)`, apart from the push and manual runs of the same job, so
+  that a required check names exactly one check run.
+- **What is compared.** The candidate is the pull request's merge ref. The baseline is that merge commit's first parent, the
+  base as the merge ref was made, so the two differ by exactly this pull request. The merge base with the branch would
+  also hold whatever `main` gained since the branch was cut and would blame a regression it brought on this pull
+  request; the two are one commit when the base has not moved. Both are built in Release and measured by
+  `performance-paired.ps1` with the merge ref's harness in the gating scenarios `Default`, `MultilineGrid` and
+  `MultilineGridDistinct`, three repetitions each: six runs per side, whose smallest attainable p is 0.0022. The gate keeps
+  no baseline, so there is none to replace; it measures the base afresh.
+- **What is published.** The job summary lists each scenario's set verdict and, for every metric, its medians, change,
+  p-value, band, same-binary controls and outcome, with the flagged metrics first, and the artifact
+  `paired-benchmark-x64-Release` keeps every receipt, comparison, `summary.json` and the conclusion as `verdict.json`.
+  A flagged metric is listed whatever the conclusion; the gate dismisses nothing.
+- **Conclusion.** The set's verdict says which metrics regressed against the rank test and the bands. The check also asks
+  that the machine held still for them. The same-binary controls (A2 against A1 and B2 against B1 of every pass) measure one
+  binary twice, so any change in them is the runner's. A regressed metric whose controls all stayed within its band (an
+  exact budget: stayed equal) is a **confirmed degradation** and fails the check. A regressed metric whose controls
+  drifted beyond the band cannot be told from the runner: the run is **inconclusive**, which fails the check too, because
+  GitHub has no neutral conclusion for a job and a green check would read as a pass. An inconclusive run is repeated (re-run
+  the job, or run the set on a quiet machine) and its flagged metrics stay listed as findings. A run with no regressed
+  metric passes as *no regression established*, which says what `within-noise-budget` says and no more; its summary counts
+  the metrics whose controls could not hold their band. A set too small to reach p < 0.05 cannot pass a timing.
+- **Controls of the metric in question.** A shared hosted runner drifts beyond some band in nearly every control, in a few
+  metrics (mostly the p95 of frame, preparation and composition times, and the working set), so the check judges the
+  controls of the metric a set flagged, not of all twenty-six together. The
+  [retained hosted run](../../Measurements/HostedPairedGate/2026-10-01/README.md) records the drift: all 18 controls
+  drifted in some metric, and the eight exact budgets in none. The strict reading, any unstable control making its scenario
+  inconclusive, is the `-StrictControls` switch of `Tools/Publish-BenchmarkVerdict.ps1`; it is off because it would have
+  made every hosted run inconclusive.
+- **Identical library inputs.** When the compiled library inputs of both sides are identical (a change to the benchmark or
+  its tooling only), the same library code was measured twice: a timing or memory flag is listed as noise, and a rise in a
+  deterministic budget still fails, because noise cannot move one.
+- **No verdict.** Invalid evidence, a missing or unreadable summary and a run that did not finish fail, and so does a pull
+  request that changes the harness and the library's interfaces together, whose base cannot be built with the merge ref's
+  harness. Its comparison is measured by hand, as before.
+- **Confirmed degradation** follows the advice rule above: stop, present the deltas and the suspected cause, ask the
+  developer, and never relax a band or replace a baseline to pass. *Confirmed* means the machine held still for the
+  metric, not that a second set reproduced it: a scenario makes about 26 metric tests, so a chance verdict is possible,
+  and re-running the job (a new runner, 14 minutes) is the repeat the advice rule asks for. The gate has no waiver list: a
+  tradeoff the developer approves is recorded in this contract, as the sections below do, and a maintainer merges over the
+  failed check.
+- **A manual run** reports the same verdict in its job summary and stays green for a finding, as it always did: only a pull
+  request is gated. Hosted runs are serial on one machine but not on a controlled quiet desktop, and their evidence says so.
+
 ### Described-menu clean private memory
 
 On 2026-09-27 the user directed a waiver for described native menu entries (#24, merged as `6f769ab`). In three

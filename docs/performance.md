@@ -79,10 +79,52 @@ vcpkg manifests), because nothing differs to measure; that is how uncommitted wo
 compared with it. `-SkipBuild` on a named tree needs its existing build, and refuses a tree whose overlay changed a
 compiled benchmark input, since that build predates the harness its receipts would name. `summary.json` records each
 side's revision or path, commit and source fingerprint. Every receipt, comparison and
-`summary.json` is retained; an `advice-required` set still needs developer advice. A manual run of the
-[validation workflow](../.github/workflows/ci.yml) with `benchmark_baseline` (and optionally `benchmark_candidate`
-and `benchmark_scenarios`) does the same, with three repetitions, on one hosted x64 runner and uploads
-`paired-benchmark-x64-Release`.
+`summary.json` is retained; an `advice-required` set still needs developer advice.
+
+A merge does not have to wait for a quiet developer machine: the [validation workflow](../.github/workflows/ci.yml) runs
+the set on one hosted x64 Release runner (about 14 minutes). Its
+[contract](../Specs/Core/Core_PerformanceAndResources.md#hosted-paired-gate) has the rules; in short:
+
+- **Pull requests.** Every pull request to `main` that changes something the benchmark measures (library sources and
+  headers, the build props and vcpkg manifests, the sources of the benchmark executable, its fixtures and samples, the
+  build and measurement scripts and the workflow; never Markdown) runs the `paired-benchmark` job. It compares the pull
+  request's merge ref with that merge commit's first parent, the base as the merge ref was made, in `Default`,
+  `MultilineGrid` and `MultilineGridDistinct`, three repetitions each: six runs per side. The `benchmark-scope` job decides
+  on Linux and its summary names the files that did; a pull request that changes none of them skips the Windows job. A
+  skipped job satisfies a required check, so the check `paired-benchmark (pull request)` (named apart from the push and
+  manual runs of the same job, so that a required check names one check run) can be made required in branch protection
+  without holding documentation changes.
+- **Manual runs.** A manual run with `benchmark_baseline` (and optionally `benchmark_candidate` and `benchmark_scenarios`)
+  measures the revisions it names, with three repetitions. It publishes the verdict the same way and stays green for a
+  finding; only a pull request is gated. A manual run is its own concurrency group, so a later push does not cancel it,
+  while a newer push to a pull request cancels that pull request's older run.
+- **What is published.** The job summary lists each scenario's set verdict and every metric's medians, change, p-value,
+  band, same-binary controls and outcome, flagged metrics first. `paired-benchmark-x64-Release` keeps every receipt,
+  comparison, `summary.json` and `verdict.json` for 14 days; copy a run worth keeping into `Measurements`.
+- **What fails a pull request.** A *confirmed degradation*: a metric the set flagged whose own same-binary controls stayed
+  within its band (an exact budget: stayed equal). It follows the regression rule above, and nothing is rebaselined: the
+  gate measures the base afresh. An *inconclusive* run fails too: a metric was flagged but its controls drifted beyond the
+  band, so the flag cannot be told from the runner. GitHub has no neutral job conclusion and a green check would read as a
+  pass, so the job fails; re-run it (a new runner), repeat the set on a quiet machine, and treat the listed metrics as
+  findings, not as noise. A run with no flagged metric passes as *no regression established*, which is not evidence that
+  none exists. Hosted controls drift in several timings in almost every run (the
+  [calibration set](../Measurements/HostedPairedGate/2026-10-01/README.md) records 18 of 18), which is why the controls of
+  the flagged metric decide and not all twenty-six; exact budgets never drift, so a rise in one always confirms.
+- **Unchanged library code.** When both sides have one library fingerprint (a change to the benchmark or its tooling
+  only) the same code was measured twice: a timing or memory flag is listed as noise and a rise in a deterministic budget
+  still fails.
+- **No verdict.** A run that cannot finish fails with the reason in its summary. The usual cause is a pull request that
+  changes the harness and the library's interfaces together: its base cannot be built with the merge ref's harness, so
+  measure that comparison by hand with `performance-paired.ps1`, as before.
+- **Approved tradeoffs.** The gate has no waiver list. A tradeoff the developer approves is recorded in the
+  [contract](../Specs/Core/Core_PerformanceAndResources.md) with its measured budget, as the accepted ones are, and a
+  maintainer merges over the failed check.
+
+To judge a local or retained run the same way, point the verdict script at its reports directory:
+`./Tools/Publish-BenchmarkVerdict.ps1 -Reports .build/paired/<run>/reports [-Gate]` prints the summary, writes `verdict.md`
+and `verdict.json` beside `summary.json` and, with `-Gate`, exits 1 for anything but a pass. A laptop in use drifts in
+every control, so a flagged metric there reads as inconclusive.
+
 Hosted runs are serial on one machine but not a controlled quiet desktop; record that limitation.
 `-Scenario MultilineGridRetention` extends the French multiline fixture with six complete passes through
 its 1,000 rows. It records process memory, handles and retained surface bytes every 200 frames, after
