@@ -1,7 +1,31 @@
 {
   "schemaVersion": 1,
-  "apiRevision": 2,
+  "apiRevision": 3,
   "library": "DxUi",
+  "consumerInterface": {
+    "scripts": {
+      "vcpkg-install.ps1": ["Platform", "OutputRoot"],
+      "validate-build-matrix.ps1": ["Root"],
+      "Tools/validate_consumer.ps1": ["DxUiRoot", "LockFile"]
+    },
+    "modules": {
+      "Tools/ConsumerBuild.psm1": {
+        "Get-DxUiConsumerBuildIdentity": ["DxUiRoot", "MSBuildPath", "Platform", "DisableStlAnnotations"]
+      },
+      "Tools/ConsumerUpdate.psm1": {
+        "Show-DxUiUpdateNotice": ["LockFile"]
+      },
+      "Tools/VisualStudio.psm1": {
+        "Get-DxUiVisualStudioInstallation": [],
+        "Get-DxUiDefaultToolset": ["Installation"]
+      },
+      "Tools/VcpkgTriplet.psm1": {
+        "Update-DxUiVcpkgOverlayTriplet": ["StockTripletPath", "Toolset", "OutputDirectory"]
+      }
+    },
+    "msbuild": ["Build/DxUi.Consumer.props", "Build/DxUi.Consumer.targets", "Build/DxUi.AddressSanitizer.targets", "src/DxUi.vcxproj"],
+    "headers": ["include/DxUi"]
+  },
   "supported": [
     "frame-clock",
     "frame-stage-scope",

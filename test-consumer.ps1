@@ -24,7 +24,8 @@ $otherIdentity=Get-DxUiConsumerBuildIdentity -DxUiRoot $checkout -MSBuildPath $m
 if ($buildIdentity.Fingerprint -eq $otherIdentity.Fingerprint) { throw 'STL annotation policy did not isolate the dependency output fingerprint.' }
 & (Join-Path $checkout 'vcpkg-install.ps1') -Platform $Platform -OutputRoot $output
 $lock=Join-Path $consumer 'DxUi.lock.json'
-$pin=[ordered]@{repository='https://github.com/RedSalamanders/DxUi';commit=$revision;apiRevision=2;targets=@('DxUi')}
+$apiRevision=(Get-Content -LiteralPath (Join-Path $checkout 'capabilities.json') -Raw | ConvertFrom-Json).apiRevision
+$pin=[ordered]@{repository='https://github.com/RedSalamanders/DxUi';commit=$revision;apiRevision=$apiRevision;targets=@('DxUi')}
 function Write-Lock { $pin | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $lock -Encoding utf8 }
 Write-Lock
 # Prevent ancestor repository properties from contaminating this external consumer.
@@ -114,8 +115,8 @@ function Require-Rejection([string] $scenario) {
     if ($LASTEXITCODE -eq 0) { throw "Consumer validator accepted $scenario." }
 }
 $pin.commit='0'*40;Write-Lock;Require-Rejection 'wrong-revision'
-$pin.commit=$revision;$pin.apiRevision=1;Write-Lock;Require-Rejection 'wrong-api'
-$pin.apiRevision=2;$pin.targets=@('Foundation');Write-Lock;Require-Rejection 'wrong-target'
+$pin.commit=$revision;$pin.apiRevision=$apiRevision-1;Write-Lock;Require-Rejection 'wrong-api'
+$pin.apiRevision=$apiRevision;$pin.targets=@('Foundation');Write-Lock;Require-Rejection 'wrong-target'
 $pin.targets=@('DxUi');Write-Lock
 $header=Join-Path $checkout 'include/DxUi/FrameRuntime.h';$original=[IO.File]::ReadAllBytes($header)
 try { Add-Content -LiteralPath $header -Value '// test fixture change';Require-Rejection 'tracked-dirty' } finally { [IO.File]::WriteAllBytes($header,$original) }
