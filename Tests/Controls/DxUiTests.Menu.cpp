@@ -1766,15 +1766,28 @@ DxUi::WindowHostBitmapCapture CaptureMenuPopupBitmapForTheme(const DxUi::ThemePa
 
     WindowHostBitmapCapture capture{};
     std::string driverFailure;
+    // When a CI run fails here, the message says which material, how long the driver waited, and whether ContextMenu::Show had
+    // returned by then: a menu that never opened, as against an owner thread still busy opening or painting it.
+    const char* const material = theme.overlayMaterial == OverlayMaterial::Mica      ? "Mica"
+                                 : theme.overlayMaterial == OverlayMaterial::MicaAlt ? "Mica Alt"
+                                 : theme.overlayMaterial == OverlayMaterial::Acrylic ? "Acrylic"
+                                                                                     : "Solid";
+    std::atomic<bool> showReturned{false};
+    const auto started   = std::chrono::steady_clock::now();
+    const auto elapsedMs = [started] { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count(); };
     std::thread driver([&]
     {
         const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
-            driverFailure = "menu popup window appears for material capture validation";
+            driverFailure = std::format("menu popup window appears for material capture validation ({}: no popup after {} ms, and ContextMenu::Show {})",
+                                        material,
+                                        elapsedMs(),
+                                        showReturned.load() ? "had already returned" : "had not returned");
             return;
         }
+        const long long appearedMs = elapsedMs();
 
         const auto dismissPopup = wil::scope_exit([&]() noexcept
         {
@@ -1786,11 +1799,16 @@ DxUi::WindowHostBitmapCapture CaptureMenuPopupBitmapForTheme(const DxUi::ThemePa
 
         if (! WaitForContextMenuPopupBitmapCapture(popupHwnd, capture))
         {
-            driverFailure = "menu popup bitmap capture succeeds for material validation";
+            driverFailure = std::format(
+                "menu popup bitmap capture succeeds for material validation ({}: popup after {} ms, no capture by {} ms)", material, appearedMs, elapsedMs());
+            return;
         }
+        std::cerr << "    [TRACE] material capture " << material << ": popup after " << appearedMs << " ms, captured after " << elapsedMs() << " ms\n"
+                  << std::flush;
     });
 
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
+    showReturned.store(true);
     driver.join();
 
     Require(driverFailure.empty(), driverFailure.c_str());
