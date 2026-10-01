@@ -756,20 +756,22 @@ wil::com_ptr<ID2D1Bitmap1> IGridDelegate::GetGridIconBitmap(const Grid& /*sender
 namespace
 {
 // A selection of up to this many ids is answered by a scan of the ids in selection order, as it always was, a larger one by a binary
-// search of the ascending copy. A scan costs 0.06 to 0.09 ns an id whatever order the questions come in. A search costs 4 to 5 ns when
-// a processor can predict the questions (it learns which way each comparison goes) and 35 to 50 ns when it cannot, as with the ids of
-// the rows on screen asked of a selection of hashed ids. The two meet at about 500 to 900 ids on the machine of
-// Measurements/GridSelection/2026-10-01, so up to 1,024 a search can lose to the scan this model replaced and above it never does,
-// in either order. The scan pays for that: where the search is predicted it is 5 to 14 times cheaper at 500 to 1,000 ids, which a paint
-// of two dozen rows never sees. A selection of thousands of ids, which is what made a paint slow, is searched.
+// search of the ascending copy. A scan costs about 0.1 ns an id whatever order the questions come in. At 256 to 1,500 ids a search
+// costs 7 to 10 ns when a processor can predict the questions (it learns which way each comparison goes) and 40 to 50 ns when it
+// cannot, as with the ids of the rows on screen asked of a selection of hashed ids. In that order the two meet at about 500 to 650
+// ids on the machine of Measurements/GridSelection/2026-10-01, so up to 1,024 a search can lose to the scan this model replaced and
+// above it never does, in either order. The scan pays for that margin: where the search is predicted it is 3 to 9 times cheaper at
+// 500 to 1,000 ids, which a paint of two dozen rows does not see. A selection of thousands of ids, which is what made a paint
+// slow, is searched.
 constexpr size_t kScanIds = 1024u;
 
 // The room of a buffer for more than this many ids is given back, not kept, when the ids that replace its contents need at most half
 // of it (Clear, SetSingle, SetRange, and a PreserveOrdered that drops ids). A selection that large comes from Ctrl+A or a long
 // Shift+click, and the click after it would leave a model of one id holding 16 bytes for each row of the list: 3.2 MB after Ctrl+A
 // over 200,000 rows. Room that is more than half used is kept, so reuse wastes no more than it uses, as a vector's growth does.
-// 4,096 ids are 32 KiB a buffer, the most that a model keeps for the next selection; giving room back costs a free and getting it
-// again an allocation, which is small beside the copy and the sort of a selection that size.
+// 4,096 ids are 32 KiB a buffer, the most that a model keeps for the next selection. Giving room back costs a free and getting it
+// again an allocation: 0.1 to 0.2 ms and about 0.3 ms at 200,000 ids, a microsecond or two at 20,000, against the 0.4 to 11 ms
+// that the Ctrl+A over 200,000 ids took to make the selection.
 constexpr size_t kReleaseIds = 4096u;
 
 // Sorts `ids` unless they already ascend, which they do when a model's stable ids grow with its row order.
