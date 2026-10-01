@@ -253,7 +253,8 @@ try {
         })
     if ($findings.Count -gt 0) {
         $message = "Paired findings need developer advice; regressed metrics by scenario: $($findings -join '; ')"
-        # A hosted job stays green for findings; the annotation keeps them visible on the run.
+        # This script stays green for findings and the annotation keeps them visible on the run. Whether a pull request fails
+        # on them is the workflow's next step (Tools/Publish-BenchmarkVerdict.ps1), which also asks about the controls.
         if ($env:GITHUB_ACTIONS -eq 'true') { Write-Host "::warning::$message" } else { Write-Warning $message }
     }
 } finally {
