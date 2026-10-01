@@ -1374,11 +1374,25 @@ public:
     virtual void OnTreeReorder(const TreeDrop& drop);
 };
 
+#if DXUI_ENABLE_DIAGNOSTICS
+// How many ids each buffer of a GridSelectionModel has room for, counted exactly whatever the allocator keeps, so a test can assert
+// that the buffers of a large selection were given back (Specs/Core/Core_PerformanceAndResources.md).
+struct GridSelectionBufferDebugState
+{
+    size_t orderedIds = 0; // The ids in selection order.
+    size_t sortedIds  = 0; // The ascending copy.
+
+    [[nodiscard]] bool operator==(const GridSelectionBufferDebugState&) const noexcept = default;
+};
+#endif
+
 // The stable ids of the selected rows, held twice: in selection order, which GetOrderedSelection returns (the primary row is
 // last), and ascending. A Grid asks IsSelected once per visible row on every paint, so what that costs must not grow with the
 // selection: a selection of up to 1,024 ids is scanned, as it always was, and a larger one is binary searched, in O(log n). The
 // ascending copy costs 8 bytes per selected row. The mutators, which run on user gestures and data changes, keep both copies
-// equal at O(n log n) at most. An id the model is given twice is held twice.
+// equal at O(n log n) at most. An id the model is given twice is held twice. The room of a copy that exceeds 4,096 ids is given
+// back, not kept, when Clear, SetSingle, SetRange or a PreserveOrdered that drops ids leaves the selection at most half as large,
+// so a model does not hold on to the Ctrl+A that is behind it.
 class GridSelectionModel final
 {
 public:
@@ -1394,6 +1408,10 @@ public:
     [[nodiscard]] std::optional<uint64_t> GetAnchor() const noexcept;
     [[nodiscard]] size_t GetCount() const noexcept;
     [[nodiscard]] std::span<const uint64_t> GetOrderedSelection() const noexcept;
+
+#if DXUI_ENABLE_DIAGNOSTICS
+    [[nodiscard]] GridSelectionBufferDebugState DebugGetBuffers() const noexcept;
+#endif
 
 private:
     std::vector<uint64_t> _selectedRowIds;

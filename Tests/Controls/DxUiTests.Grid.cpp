@@ -207,16 +207,45 @@ private:
     uint64_t _state;
 };
 
+// The two sizes at which the model changes how it works, as Core_PerformanceAndResources.md states them: a selection of at most
+// kScanLimit ids is answered by a scan and a larger one by a binary search, and the buffer of a selection that held room for more than
+// kReleaseLimit ids is given back when the selection that replaces it needs at most half of that room.
+constexpr size_t kScanLimit    = 1024u;
+constexpr size_t kReleaseLimit = 4096u;
+
+// Whether the model's two buffers hold at least their ids, and, when `roomWasGivenBack` is required (right after a mutator that
+// replaces the selection), neither keeps more than the documented room: more than kReleaseLimit ids' worth of capacity for a
+// selection of at most half of it.
+[[nodiscard]] bool BuffersFollowTheRoomRule(const DxUi::GridSelectionModel& model, bool roomWasGivenBack)
+{
+    const DxUi::GridSelectionBufferDebugState buffers = model.DebugGetBuffers();
+    const size_t count                                = model.GetCount();
+    if (buffers.orderedIds < count || buffers.sortedIds < count)
+    {
+        return false;
+    }
+    return ! roomWasGivenBack ||
+           ((buffers.orderedIds <= kReleaseLimit || count > buffers.orderedIds / 2u) && (buffers.sortedIds <= kReleaseLimit || count > buffers.sortedIds / 2u));
+}
+
 // What a randomized run reached, so that a test can require that its operations did cover the cases it exists for.
 struct SelectionRunCoverage
 {
-    size_t rangesOverRepeatedIds      = 0u;
-    size_t rangesFallingBackToOneId   = 0u;
-    size_t preservesThatDropIds       = 0u;
-    size_t preservesThatChangeNothing = 0u;
-    size_t togglesThatMoveTheAnchor   = 0u;
-    size_t togglesThatLeaveACopy      = 0u;
-    size_t selectionsOfHalfTheIds     = 0u;
+    size_t rangesOverRepeatedIds         = 0u;
+    size_t rangesFallingBackToOneId      = 0u;
+    size_t preservesThatDropIds          = 0u;
+    size_t preservesThatChangeNothing    = 0u;
+    size_t togglesThatMoveTheAnchor      = 0u;
+    size_t togglesThatLeaveACopy         = 0u;
+    size_t selectionsOfHalfTheIds        = 0u;
+    size_t selectionsWithinTheScanLimit  = 0u; // Selections of kScanLimit ids or fewer, not counting the empty selection.
+    size_t selectionsPastTheScanLimit    = 0u;
+    size_t selectionsPastTheReleaseLimit = 0u;
+    size_t clearsThatGaveRoomBack        = 0u;
+    size_t singlesThatGaveRoomBack       = 0u;
+    size_t rangesThatGaveRoomBack        = 0u;
+    size_t rangesThatKeptRoom            = 0u; // A range over more than half the room of a large buffer, which reuses it.
+    size_t preservesThatGaveRoomBack     = 0u;
 };
 
 [[nodiscard]] bool HasRepeatedId(const std::vector<uint64_t>& ids)
@@ -228,12 +257,19 @@ struct SelectionRunCoverage
 // Applies `operationCount` random mutators to a GridSelectionModel and to the linear reference over `universeSize` scattered ids
 // (plus the largest uint64_t), and after each one requires that the model answers as the reference does: its count, its order,
 // its anchor and, for every id of the universe and a few others, IsSelected, which must also agree with membership in the model's
-// own GetOrderedSelection. Lists given to SetRange and PreserveOrdered are shuffled, ascending, descending, or repeat ids.
-[[nodiscard]] SelectionRunCoverage RunRandomSelectionOperations(uint64_t seed, size_t universeSize, size_t operationCount)
+// own GetOrderedSelection. Lists given to SetRange and PreserveOrdered are shuffled, ascending, descending, or repeat ids. After
+// each mutator that replaces the selection, the model must also keep no more room than the documented rule allows.
+//
+// A `wide` run is for universes of thousands of ids, whose selections reach past kScanLimit and kReleaseLimit. Its lists are long,
+// a third of its ranges run from the first id of a list to the last (as Ctrl+A does) and a third span a few ids (as the click that
+// follows it does), and it asks IsSelected of a sample of ids after each operation and of every id after every 25th.
+[[nodiscard]] SelectionRunCoverage RunRandomSelectionOperations(uint64_t seed, size_t universeSize, size_t operationCount, bool wide = false)
 {
     using DxUi::GridSelectionModel;
 
     SelectionRandom random(seed);
+    // Draws the sample of a wide run's questions, so that asking them cannot change the operations of the run.
+    SelectionRandom sampler(seed ^ 0x5A17ull);
     std::vector<uint64_t> universe;
     for (size_t index = 0u; index < universeSize; ++index)
     {
@@ -249,15 +285,18 @@ struct SelectionRunCoverage
     SelectionRunCoverage coverage;
     const char* operation = "construction";
     size_t step           = 0u;
+    // Whether the last operation replaced the selection (as Toggle does not), so that the room rule must hold after it.
+    bool replaced = false;
+
+    const auto fail = [&](const char* property)
+    {
+        const std::string message =
+            std::format("selection model {} after {} (step {} of a run over {} ids, seed {:#x})", property, operation, step, universe.size(), seed);
+        Require(false, message.c_str());
+    };
 
     const auto verify = [&]
     {
-        const auto fail = [&](const char* property)
-        {
-            const std::string message =
-                std::format("selection model {} after {} (step {} of a run over {} ids, seed {:#x})", property, operation, step, universe.size(), seed);
-            Require(false, message.c_str());
-        };
         const std::span<const uint64_t> ordered = model.GetOrderedSelection();
         if (model.GetCount() != reference.ids.size())
         {
@@ -271,30 +310,84 @@ struct SelectionRunCoverage
         {
             fail("keeps the linear reference's anchor");
         }
-        for (const uint64_t id : probes)
+        if (! BuffersFollowTheRoomRule(model, replaced))
         {
-            const bool answer = model.IsSelected(id);
-            if (answer != (std::ranges::find(ordered, id) != ordered.end()))
+            fail(replaced ? "keeps more room for a smaller selection than the room rule allows" : "holds fewer ids' room than ids");
+        }
+        if (wide)
+        {
+            const std::unordered_set<uint64_t> members(reference.ids.begin(), reference.ids.end());
+            const auto ask = [&](uint64_t id)
             {
-                fail("answers IsSelected differently from membership in its GetOrderedSelection");
+                if (model.IsSelected(id) != members.contains(id))
+                {
+                    fail("answers IsSelected differently from the linear reference");
+                }
+            };
+            if (step % 25u == 0u)
+            {
+                for (const uint64_t id : probes)
+                {
+                    ask(id);
+                }
             }
-            if (answer != reference.IsSelected(id))
+            else
             {
-                fail("answers IsSelected differently from the linear reference");
+                for (size_t sample = 0u; sample < 40u; ++sample)
+                {
+                    ask(probes[sampler.Below(probes.size())]);
+                }
+                for (size_t sample = 0u; sample < 40u && ! ordered.empty(); ++sample)
+                {
+                    ask(ordered[sampler.Below(ordered.size())]);
+                }
+                if (! ordered.empty())
+                {
+                    ask(ordered.front());
+                    ask(ordered.back());
+                }
             }
         }
-        if (reference.ids.size() >= universe.size() / 2u)
+        else
+        {
+            for (const uint64_t id : probes)
+            {
+                const bool answer = model.IsSelected(id);
+                if (answer != (std::ranges::find(ordered, id) != ordered.end()))
+                {
+                    fail("answers IsSelected differently from membership in its GetOrderedSelection");
+                }
+                if (answer != reference.IsSelected(id))
+                {
+                    fail("answers IsSelected differently from the linear reference");
+                }
+            }
+        }
+        const size_t count = reference.ids.size();
+        if (count >= universe.size() / 2u)
         {
             ++coverage.selectionsOfHalfTheIds;
+        }
+        if (count > 0u && count <= kScanLimit)
+        {
+            ++coverage.selectionsWithinTheScanLimit;
+        }
+        if (count > kScanLimit)
+        {
+            ++coverage.selectionsPastTheScanLimit;
+        }
+        if (count > kReleaseLimit)
+        {
+            ++coverage.selectionsPastTheReleaseLimit;
         }
     };
 
     // A list in the order of some model's rows: shuffled, ascending or descending, or, as a model that gave one stable id to two
-    // rows would, drawing the same id again.
+    // rows would, drawing the same id again. A wide run's lists hold 60 to 100 percent of the universe.
     const auto makeList = [&]
     {
         std::vector<uint64_t> list;
-        const size_t length = 1u + random.Below(universe.size());
+        const size_t length = wide ? universe.size() * 8u / 10u + random.Below(universe.size() * 2u / 10u + 1u) : 1u + random.Below(universe.size());
         const size_t mode   = random.Below(4u);
         if (mode == 3u)
         {
@@ -318,14 +411,25 @@ struct SelectionRunCoverage
         return list;
     };
 
+    // The mix of operations, as the share of a hundred below which each kind is chosen. A wide run makes more ranges and Clears, so
+    // that a selection past the release limit is followed by each of the ways of replacing it.
+    const size_t toggleBelow   = wide ? 25u : 38u;
+    const size_t rangeBelow    = wide ? 50u : 58u;
+    const size_t preserveBelow = wide ? 65u : 73u;
+    const size_t singleBelow   = wide ? 85u : 90u;
+
     for (step = 0u; step < operationCount; ++step)
     {
-        const size_t choice                        = random.Below(100u);
-        const std::optional<uint64_t> anchorBefore = reference.anchor;
-        const size_t countBefore                   = reference.ids.size();
-        if (choice < 38u)
+        const size_t choice                                  = random.Below(100u);
+        const std::optional<uint64_t> anchorBefore           = reference.anchor;
+        const size_t countBefore                             = reference.ids.size();
+        const DxUi::GridSelectionBufferDebugState roomBefore = model.DebugGetBuffers();
+        const bool hadRoomToGiveBack                         = roomBefore.orderedIds > kReleaseLimit;
+        replaced                                             = true;
+        if (choice < toggleBelow)
         {
             operation = "Toggle";
+            replaced  = false;
             // Most toggles name an id that is selected, so removal, the anchor's removal and a copy's removal all recur.
             const uint64_t id =
                 (! reference.ids.empty() && random.Below(5u) < 3u) ? reference.ids[random.Below(reference.ids.size())] : probes[random.Below(probes.size())];
@@ -341,7 +445,7 @@ struct SelectionRunCoverage
                 ++coverage.togglesThatLeaveACopy;
             }
         }
-        else if (choice < 58u)
+        else if (choice < rangeBelow)
         {
             operation                        = "SetRange";
             const std::vector<uint64_t> list = makeList();
@@ -350,8 +454,27 @@ struct SelectionRunCoverage
                 // One time in eight an id that need not be in the list, which makes the range fall back to that one id.
                 return random.Below(8u) == 0u ? probes[random.Below(probes.size())] : list[random.Below(list.size())];
             };
-            const uint64_t anchorId  = pick();
-            const uint64_t currentId = pick();
+            uint64_t anchorId  = 0u;
+            uint64_t currentId = 0u;
+            const size_t shape = wide ? random.Below(3u) : 2u;
+            if (shape == 0u)
+            {
+                // Ctrl+A over the list.
+                anchorId  = list.front();
+                currentId = list.back();
+            }
+            else if (shape == 1u)
+            {
+                // The click on a row near another that follows a larger selection.
+                const size_t at = random.Below(list.size());
+                anchorId        = list[at];
+                currentId       = list[(std::min)(list.size() - 1u, at + random.Below(40u))];
+            }
+            else
+            {
+                anchorId  = pick();
+                currentId = pick();
+            }
             if (! std::ranges::contains(list, anchorId) || ! std::ranges::contains(list, currentId))
             {
                 ++coverage.rangesFallingBackToOneId;
@@ -362,8 +485,17 @@ struct SelectionRunCoverage
             {
                 ++coverage.rangesOverRepeatedIds;
             }
+            const DxUi::GridSelectionBufferDebugState roomAfter = model.DebugGetBuffers();
+            if (hadRoomToGiveBack && roomAfter.orderedIds < roomBefore.orderedIds)
+            {
+                ++coverage.rangesThatGaveRoomBack;
+            }
+            if (hadRoomToGiveBack && reference.ids.size() > roomBefore.orderedIds / 2u && roomAfter == roomBefore)
+            {
+                ++coverage.rangesThatKeptRoom;
+            }
         }
-        else if (choice < 73u)
+        else if (choice < preserveBelow)
         {
             operation                             = "PreserveOrdered";
             const std::vector<uint64_t> idsBefore = reference.ids;
@@ -414,23 +546,56 @@ struct SelectionRunCoverage
             {
                 ++coverage.preservesThatChangeNothing;
             }
+            // A PreserveOrdered that changes nothing leaves the buffers as they are; one that changes the selection replaces them.
+            replaced = reference.ids != idsBefore;
+            if (hadRoomToGiveBack && model.DebugGetBuffers().orderedIds < roomBefore.orderedIds)
+            {
+                ++coverage.preservesThatGaveRoomBack;
+            }
         }
-        else if (choice < 90u)
+        else if (choice < singleBelow)
         {
             operation         = "SetSingle";
             const uint64_t id = probes[random.Below(probes.size())];
             model.SetSingle(id);
             reference.SetSingle(id);
+            if (hadRoomToGiveBack && model.DebugGetBuffers().orderedIds < roomBefore.orderedIds)
+            {
+                ++coverage.singlesThatGaveRoomBack;
+            }
         }
         else
         {
             operation = "Clear";
             model.Clear();
             reference.Clear();
+            if (hadRoomToGiveBack && model.DebugGetBuffers() == DxUi::GridSelectionBufferDebugState{})
+            {
+                ++coverage.clearsThatGaveRoomBack;
+            }
         }
         verify();
     }
     return coverage;
+}
+
+void AddSelectionCoverage(SelectionRunCoverage& total, const SelectionRunCoverage& run)
+{
+    total.rangesOverRepeatedIds += run.rangesOverRepeatedIds;
+    total.rangesFallingBackToOneId += run.rangesFallingBackToOneId;
+    total.preservesThatDropIds += run.preservesThatDropIds;
+    total.preservesThatChangeNothing += run.preservesThatChangeNothing;
+    total.togglesThatMoveTheAnchor += run.togglesThatMoveTheAnchor;
+    total.togglesThatLeaveACopy += run.togglesThatLeaveACopy;
+    total.selectionsOfHalfTheIds += run.selectionsOfHalfTheIds;
+    total.selectionsWithinTheScanLimit += run.selectionsWithinTheScanLimit;
+    total.selectionsPastTheScanLimit += run.selectionsPastTheScanLimit;
+    total.selectionsPastTheReleaseLimit += run.selectionsPastTheReleaseLimit;
+    total.clearsThatGaveRoomBack += run.clearsThatGaveRoomBack;
+    total.singlesThatGaveRoomBack += run.singlesThatGaveRoomBack;
+    total.rangesThatGaveRoomBack += run.rangesThatGaveRoomBack;
+    total.rangesThatKeptRoom += run.rangesThatKeptRoom;
+    total.preservesThatGaveRoomBack += run.preservesThatGaveRoomBack;
 }
 
 void TestSelectionModelMatchesTheLinearReferenceOverRandomOperations()
@@ -443,14 +608,7 @@ void TestSelectionModelMatchesTheLinearReferenceOverRandomOperations()
                                                 std::tuple{0xB0B5ull, size_t{257}, size_t{3000}},
                                                 std::tuple{0xC0FFEEull, size_t{1}, size_t{500}}})
     {
-        const SelectionRunCoverage run = RunRandomSelectionOperations(seed, ids, operations);
-        total.rangesOverRepeatedIds += run.rangesOverRepeatedIds;
-        total.rangesFallingBackToOneId += run.rangesFallingBackToOneId;
-        total.preservesThatDropIds += run.preservesThatDropIds;
-        total.preservesThatChangeNothing += run.preservesThatChangeNothing;
-        total.togglesThatMoveTheAnchor += run.togglesThatMoveTheAnchor;
-        total.togglesThatLeaveACopy += run.togglesThatLeaveACopy;
-        total.selectionsOfHalfTheIds += run.selectionsOfHalfTheIds;
+        AddSelectionCoverage(total, RunRandomSelectionOperations(seed, ids, operations));
     }
     // The runs are only as strong as the cases they reach.
     Require(total.rangesOverRepeatedIds > 0u, "randomized selection runs reach a range over a list that repeats an id");
@@ -460,6 +618,30 @@ void TestSelectionModelMatchesTheLinearReferenceOverRandomOperations()
     Require(total.togglesThatMoveTheAnchor > 0u, "randomized selection runs reach a Toggle that removes the anchor");
     Require(total.togglesThatLeaveACopy > 0u, "randomized selection runs reach a Toggle that leaves another copy of its id selected");
     Require(total.selectionsOfHalfTheIds > 0u, "randomized selection runs reach selections of half the ids or more");
+    Require(total.selectionsWithinTheScanLimit > 0u, "randomized selection runs reach selections that the model scans");
+}
+
+// The same differential run over universes whose selections grow past the sizes at which the model changes how it works: 1,300 ids,
+// where Ctrl+A leaves the scan limit (1,024) a few hundred ids behind, and 5,200, where a selection passes the release limit (4,096)
+// and the clicks that follow it give the room back. Selections of 1,025 ids and more are answered by a binary search of the ascending
+// copy, which the order of the ids in the selection (a shuffle of it) does not help, so the runs would fail if it searched the wrong copy.
+void TestSelectionModelMatchesTheLinearReferenceOnBothSidesOfItsScanAndReleaseLimits()
+{
+    SelectionRunCoverage total;
+    for (const auto& [seed, ids, operations] : {std::tuple{0x71DE5ull, size_t{1300}, size_t{700}}, std::tuple{0x1A61Eull, size_t{5200}, size_t{500}}})
+    {
+        AddSelectionCoverage(total, RunRandomSelectionOperations(seed, ids, operations, true));
+    }
+    Require(total.selectionsWithinTheScanLimit > 0u, "wide randomized selection runs reach selections that the model scans");
+    Require(total.selectionsPastTheScanLimit > 0u, "wide randomized selection runs reach selections that the model searches");
+    Require(total.selectionsPastTheReleaseLimit > 0u, "wide randomized selection runs reach selections larger than the release limit");
+    Require(total.clearsThatGaveRoomBack > 0u, "wide randomized selection runs reach a Clear that gives room back");
+    Require(total.singlesThatGaveRoomBack > 0u, "wide randomized selection runs reach a SetSingle that gives room back");
+    Require(total.rangesThatGaveRoomBack > 0u, "wide randomized selection runs reach a SetRange that gives room back");
+    Require(total.rangesThatKeptRoom > 0u, "wide randomized selection runs reach a SetRange that reuses the room of a large buffer");
+    Require(total.preservesThatGaveRoomBack > 0u, "wide randomized selection runs reach a PreserveOrdered that gives room back");
+    Require(total.preservesThatDropIds > 0u, "wide randomized selection runs reach a PreserveOrdered that drops selected ids");
+    Require(total.togglesThatMoveTheAnchor > 0u, "wide randomized selection runs reach a Toggle that removes the anchor");
 }
 
 void TestSelectionModelKeepsEveryOccurrenceOfAnIdThatARangeRepeats()
@@ -719,9 +901,6 @@ void TestSelectionModelCopiesAnswerMembershipIndependently()
             "assigning a selection copies its membership");
 }
 
-// The size at which the model stops scanning a selection and starts to search it, as Core_PerformanceAndResources.md states it.
-constexpr size_t kScanLimit = 1024u;
-
 // The ids of rows whose stable ids follow no order: row r has r * 2654435761 (mod 2^32), so the order in which rows are selected is not
 // the ascending order that a binary search needs.
 [[nodiscard]] std::vector<uint64_t> ScatteredRowIds(size_t count)
@@ -785,6 +964,178 @@ void TestSelectionModelAnswersMembershipAtEverySizeAroundItsScanLimit()
         check("shrinking", row + 1u, universe);
     }
     Require(model.GetCount() == 0u && ! model.GetAnchor().has_value(), "the selection shrank to nothing again");
+}
+
+// The room of a model's buffers. A selection that took room for more than kReleaseLimit ids gives it back when the selection that
+// replaces it needs at most half of it (Clear, SetSingle, SetRange and a PreserveOrdered that drops ids), and keeps it otherwise.
+void TestSelectionModelGivesBackTheRoomOfALargeSelection()
+{
+    using DxUi::GridSelectionBufferDebugState;
+    using DxUi::GridSelectionModel;
+
+    const auto selectAll = [](GridSelectionModel& model, const std::vector<uint64_t>& rows) { model.SetRange(rows, rows.front(), rows.back()); };
+
+    // A selection of exactly kReleaseLimit ids keeps its room through Clear: only a selection of more ids gives it back.
+    {
+        const std::vector<uint64_t> rows = ScatteredRowIds(kReleaseLimit);
+        GridSelectionModel model;
+        selectAll(model, rows);
+        const GridSelectionBufferDebugState held = model.DebugGetBuffers();
+        Require(held.orderedIds >= rows.size() && held.sortedIds >= rows.size(),
+                "a selection of the release limit's size holds room for its ids in both copies");
+        model.Clear();
+        Require(model.DebugGetBuffers() == held, "Clear keeps the room of a selection of exactly the release limit's size");
+        selectAll(model, rows);
+        Require(model.DebugGetBuffers() == held, "Ctrl+A again reuses the room that Clear kept");
+    }
+
+    // One id more, and Clear gives both copies' room back.
+    {
+        const std::vector<uint64_t> rows = ScatteredRowIds(kReleaseLimit + 1u);
+        GridSelectionModel model;
+        selectAll(model, rows);
+        const GridSelectionBufferDebugState held = model.DebugGetBuffers();
+        Require(held.orderedIds > kReleaseLimit && held.sortedIds > kReleaseLimit,
+                "a selection of more than the release limit's size holds room for more than that");
+        model.Clear();
+        Require(model.DebugGetBuffers() == GridSelectionBufferDebugState{},
+                "Clear gives back the room of both copies of a selection larger than the release limit");
+        Require(model.GetCount() == 0u && ! model.GetAnchor().has_value() && ! model.IsSelected(rows.front()),
+                "Clear still empties a selection whose room it gave back");
+
+        // The model is as good as a new one: it selects, toggles, preserves and clears again.
+        selectAll(model, rows);
+        Require(model.GetCount() == rows.size() && model.IsSelected(rows[1234]) && model.IsSelected(rows.back()),
+                "a model whose room was given back selects again");
+        model.Toggle(rows[1234]);
+        Require(! model.IsSelected(rows[1234]) && model.IsSelected(rows[1235]) && model.GetCount() == rows.size() - 1u,
+                "a model whose room was given back toggles");
+        model.Clear();
+        model.Clear();
+        Require(model.DebugGetBuffers() == GridSelectionBufferDebugState{}, "Clear of an empty model with no room leaves it so");
+    }
+
+    // The click that follows Ctrl+A: SetSingle gives back the room of both copies, and the one id it selects is found.
+    {
+        const std::vector<uint64_t> rows = ScatteredRowIds(10'000u);
+        GridSelectionModel model;
+        selectAll(model, rows);
+        model.SetSingle(rows[777]);
+        const GridSelectionBufferDebugState after = model.DebugGetBuffers();
+        Require(after.orderedIds >= 1u && after.orderedIds <= kReleaseLimit, "SetSingle gives back the room of the ordered ids of a large selection");
+        Require(after.sortedIds >= 1u && after.sortedIds <= kReleaseLimit, "SetSingle gives back the room of the ascending copy of a large selection");
+        Require(model.GetCount() == 1u && model.IsSelected(rows[777]) && ! model.IsSelected(rows[778]), "SetSingle after a large selection selects its one id");
+        Require(model.GetAnchor() == std::optional<uint64_t>(rows[777]), "SetSingle after a large selection anchors at its id");
+    }
+
+    // A SetRange whose selection needs half of the room or less (the Shift+click after Ctrl+A) gives the room back, and one that needs
+    // more than half reuses it, so that stepping a large range by a row does not allocate every time.
+    {
+        const std::vector<uint64_t> rows = ScatteredRowIds(10'000u);
+        GridSelectionModel model;
+        selectAll(model, rows);
+        const GridSelectionBufferDebugState held = model.DebugGetBuffers();
+        const size_t half                        = held.orderedIds / 2u;
+        Require(held.orderedIds == held.sortedIds && half > kReleaseLimit / 2u, "the large selection holds equal room in both copies");
+
+        model.SetRange(rows, rows.front(), rows[half]);
+        Require(model.GetCount() == half + 1u, "the range after Ctrl+A selects the rows from the anchor to the clicked row");
+        Require(model.DebugGetBuffers() == held, "a SetRange over more than half of the room keeps that room");
+        selectAll(model, rows);
+        model.SetRange(rows, rows.front(), rows[half - 1u]);
+        Require(model.GetCount() == half, "the range of exactly half of the room selects the rows from the anchor to the clicked row");
+        const GridSelectionBufferDebugState smaller = model.DebugGetBuffers();
+        Require(smaller.orderedIds < held.orderedIds && smaller.sortedIds < held.sortedIds,
+                "a SetRange over exactly half of the room gives back the room of both copies");
+        Require(smaller.orderedIds >= half && smaller.sortedIds >= half, "a SetRange that gave room back holds room for its ids");
+        Require(model.IsSelected(rows.front()) && model.IsSelected(rows[half - 1u]) && ! model.IsSelected(rows[half]) &&
+                    model.GetAnchor() == std::optional<uint64_t>(rows.front()),
+                "a SetRange that gave room back selects its range and anchors at its first id");
+        Require(std::ranges::equal(model.GetOrderedSelection(), std::span<const uint64_t>(rows).first(half)),
+                "a SetRange that gave room back keeps the rows' order");
+
+        selectAll(model, rows);
+        model.SetRange(rows, rows[500], rows[100]);
+        const GridSelectionBufferDebugState shortRange = model.DebugGetBuffers();
+        Require(shortRange.orderedIds >= 401u && shortRange.orderedIds <= kReleaseLimit && shortRange.sortedIds >= 401u &&
+                    shortRange.sortedIds <= kReleaseLimit,
+                "a short SetRange after a large selection leaves room for a short selection");
+        Require(model.IsSelected(rows[300]) && ! model.IsSelected(rows[99]) && ! model.IsSelected(rows[501]) &&
+                    model.GetAnchor() == std::optional<uint64_t>(rows[500]),
+                "a short range run backwards after a large selection selects its rows and anchors at its first id");
+    }
+
+    // A data change that drops almost every row (PreserveOrdered) leaves room for the rows that remain; one that drops nothing keeps
+    // the buffers it has.
+    {
+        const std::vector<uint64_t> rows = ScatteredRowIds(10'000u);
+        GridSelectionModel model;
+        selectAll(model, rows);
+        const GridSelectionBufferDebugState held = model.DebugGetBuffers();
+        model.PreserveOrdered(rows);
+        Require(model.DebugGetBuffers() == held, "a PreserveOrdered that drops nothing keeps its buffers");
+
+        // Ten of the selected rows among 8,000 rows that were never selected.
+        const std::vector<uint64_t> others = ScatteredRowIds(20'000u);
+        std::vector<uint64_t> list(rows.begin() + 9000, rows.begin() + 9010);
+        list.insert(list.end(), others.begin() + 12'000, others.end());
+        model.PreserveOrdered(list);
+        Require(model.GetCount() == 10u && model.IsSelected(rows[9005]) && ! model.IsSelected(rows[8999]),
+                "PreserveOrdered keeps the rows of the list that were selected");
+        const GridSelectionBufferDebugState kept = model.DebugGetBuffers();
+        Require(kept.orderedIds >= 10u && kept.orderedIds <= kReleaseLimit && kept.sortedIds >= 10u && kept.sortedIds <= kReleaseLimit,
+                "PreserveOrdered leaves room for the few rows that remain of a large selection, however long the list is");
+    }
+
+    // Toggle adds or removes one id and leaves the room as it is, whatever is selected after it.
+    {
+        const std::vector<uint64_t> rows = ScatteredRowIds(10'000u);
+        GridSelectionModel model;
+        selectAll(model, rows);
+        const GridSelectionBufferDebugState held = model.DebugGetBuffers();
+        for (size_t row = 0u; row < 9'990u; ++row)
+        {
+            model.Toggle(rows[row]);
+        }
+        Require(model.GetCount() == 10u && model.DebugGetBuffers() == held, "Toggle leaves the room of a selection that shrinks to a few ids");
+    }
+}
+
+// What a user does to a Grid: Ctrl+A over a list longer than the release limit, then a click on one row, then Ctrl+A and a
+// Shift+click on a row near the first. The model keeps no room for the selection it replaced.
+void TestGridGivesBackTheRoomOfALargeSelectionWhenAClickReplacesIt()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    Grid grid;
+    grid.SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 160.0f));
+    grid.SetSelectionMode(GridSelectionMode::Extended);
+    const std::vector<uint64_t> rowIds = ScatteredRowIds(6000u);
+    MutableRowGridModel model;
+    model.SetRowIds(rowIds);
+    grid.SetModel(&model);
+
+    Require(grid.OnSelectAll(host), "select all handles a list longer than the release limit");
+    const GridSelectionBufferDebugState everyRow = grid.GetSelectionModel().DebugGetBuffers();
+    Require(grid.GetSelectionModel().GetCount() == 6000u && everyRow.orderedIds >= 6000u && everyRow.sortedIds >= 6000u,
+            "select all holds room for every row of the list");
+
+    Require(grid.RequestSelectRow(100u, 0u), "a click handles a row of a selection larger than the release limit");
+    const GridSelectionBufferDebugState clicked = grid.GetSelectionModel().DebugGetBuffers();
+    Require(clicked.orderedIds <= kReleaseLimit && clicked.sortedIds <= kReleaseLimit,
+            "a click gives back the room of the selection larger than the release limit that it replaces");
+    Require(grid.GetSelectionModel().GetCount() == 1u && grid.IsRowSelected(100u) && ! grid.IsRowSelected(101u) && ! grid.IsRowSelected(5999u),
+            "a click on a row after Ctrl+A selects that row alone");
+
+    Require(grid.OnSelectAll(host), "select all handles the list again");
+    Require(grid.GetSelectionModel().GetCount() == 6000u && grid.IsRowSelected(0u) && grid.IsRowSelected(5999u), "select all selects every row again");
+    Require(grid.RequestSelectRow(40u, MK_SHIFT), "Shift+click handles a row of a selection larger than the release limit");
+    const GridSelectionBufferDebugState ranged = grid.GetSelectionModel().DebugGetBuffers();
+    Require(ranged.orderedIds <= kReleaseLimit && ranged.sortedIds <= kReleaseLimit,
+            "Shift+click gives back the room of the selection larger than the release limit that it replaces");
+    Require(grid.GetSelectionModel().GetCount() == 41u && grid.IsRowSelected(0u) && grid.IsRowSelected(40u) && ! grid.IsRowSelected(41u),
+            "Shift+click after Ctrl+A selects the rows from the anchor to the clicked row");
 }
 
 void TestGridSelectionOfALargeListFollowsGesturesAndDataChanges()
@@ -2697,6 +3048,7 @@ void RunGridTests()
     DXUI_RUN_TEST(TestVisibleSpan);
     DXUI_RUN_TEST(TestSelectionModel);
     DXUI_RUN_TEST(TestSelectionModelMatchesTheLinearReferenceOverRandomOperations);
+    DXUI_RUN_TEST(TestSelectionModelMatchesTheLinearReferenceOnBothSidesOfItsScanAndReleaseLimits);
     DXUI_RUN_TEST(TestSelectionModelKeepsEveryOccurrenceOfAnIdThatARangeRepeats);
     DXUI_RUN_TEST(TestSelectionModelRangeRunsBothWaysAndFallsBackToTheCurrentId);
     DXUI_RUN_TEST(TestSelectionModelAnchorLeavesWithItsToggleAndMovesToTheFirstRemainingId);
@@ -2705,7 +3057,9 @@ void RunGridTests()
     DXUI_RUN_TEST(TestSelectionModelKeepsSelectionOrderForAScatteredLargeSelection);
     DXUI_RUN_TEST(TestSelectionModelCopiesAnswerMembershipIndependently);
     DXUI_RUN_TEST(TestSelectionModelAnswersMembershipAtEverySizeAroundItsScanLimit);
+    DXUI_RUN_TEST(TestSelectionModelGivesBackTheRoomOfALargeSelection);
     DXUI_RUN_TEST(TestGridSelectionOfALargeListFollowsGesturesAndDataChanges);
+    DXUI_RUN_TEST(TestGridGivesBackTheRoomOfALargeSelectionWhenAClickReplacesIt);
     DXUI_RUN_TEST(TestGridVisibleWorkMetricsStayBoundedForLargeDatasets);
     DXUI_RUN_TEST(TestGroupedGridVisibleWorkMetricsIncludeHeaders);
     DXUI_RUN_TEST(TestGridPartiallyVisibleBottomRowIsPaintedAndHitTestable);

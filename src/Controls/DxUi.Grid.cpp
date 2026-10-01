@@ -763,12 +763,35 @@ namespace
 // of two dozen rows never sees. A selection of thousands of ids, which is what made a paint slow, is searched.
 constexpr size_t kScanIds = 1024u;
 
+// The room of a buffer for more than this many ids is given back, not kept, when the ids that replace its contents need at most half
+// of it (Clear, SetSingle, SetRange, and a PreserveOrdered that drops ids). A selection that large comes from Ctrl+A or a long
+// Shift+click, and the click after it would leave a model of one id holding 16 bytes for each row of the list: 3.2 MB after Ctrl+A
+// over 200,000 rows. Room that is more than half used is kept, so reuse wastes no more than it uses, as a vector's growth does.
+// 4,096 ids are 32 KiB a buffer, the most that a model keeps for the next selection; giving room back costs a free and getting it
+// again an allocation, which is small beside the copy and the sort of a selection that size.
+constexpr size_t kReleaseIds = 4096u;
+
 // Sorts `ids` unless they already ascend, which they do when a model's stable ids grow with its row order.
 void SortRowIds(std::vector<uint64_t>& ids)
 {
     if (! std::ranges::is_sorted(ids))
     {
         std::ranges::sort(ids);
+    }
+}
+
+// Whether `ids` has so much more room than `needed` ids that the room is given back instead of reused.
+[[nodiscard]] bool IsRoomWasted(const std::vector<uint64_t>& ids, size_t needed) noexcept
+{
+    return ids.capacity() > kReleaseIds && needed <= ids.capacity() / 2u;
+}
+
+// Frees the room of `ids` when IsRoomWasted says so, by swapping it with an empty vector, which allocates nothing.
+void GiveBackWastedRoom(std::vector<uint64_t>& ids, size_t needed) noexcept
+{
+    if (IsRoomWasted(ids, needed))
+    {
+        std::vector<uint64_t>().swap(ids);
     }
 }
 } // namespace
@@ -779,11 +802,15 @@ void GridSelectionModel::Clear() noexcept
 {
     _selectedRowIds.clear();
     _sortedRowIds.clear();
+    GiveBackWastedRoom(_selectedRowIds, 0u);
+    GiveBackWastedRoom(_sortedRowIds, 0u);
     _anchorRowId.reset();
 }
 
 void GridSelectionModel::SetSingle(uint64_t rowId) noexcept
 {
+    GiveBackWastedRoom(_selectedRowIds, 1u);
+    GiveBackWastedRoom(_sortedRowIds, 1u);
     _selectedRowIds.assign(1u, rowId);
     _sortedRowIds.assign(1u, rowId);
     _anchorRowId = rowId;
@@ -822,9 +849,23 @@ void GridSelectionModel::SetRange(const std::vector<uint64_t>& orderedRowIds, ui
         return;
     }
 
-    // Both copies get their room before either changes, so a failed allocation leaves the selection as it was.
     const auto [first, last] = std::minmax(anchorIt, currentIt);
     const size_t count       = static_cast<size_t>(last - first) + 1u;
+    if (IsRoomWasted(_selectedRowIds, count) || IsRoomWasted(_sortedRowIds, count))
+    {
+        // A selection much smaller than the one that left its room behind gets room of its own. Both copies are made beside the
+        // old ones and swapped in, so a failed allocation leaves the selection as it was, and the old room is freed with the
+        // vectors that took it.
+        std::vector<uint64_t> ordered(first, last + 1);
+        std::vector<uint64_t> sorted(ordered);
+        SortRowIds(sorted);
+        _selectedRowIds.swap(ordered);
+        _sortedRowIds.swap(sorted);
+        _anchorRowId = anchorRowId;
+        return;
+    }
+
+    // Both copies get their room before either changes, so a failed allocation leaves the selection as it was.
     _selectedRowIds.reserve(count);
     _sortedRowIds.reserve(count);
     _selectedRowIds.assign(first, last + 1);
@@ -858,6 +899,11 @@ void GridSelectionModel::PreserveOrdered(const std::vector<uint64_t>& orderedRow
         // The usual data change leaves the selection as it is: its ascending copy is right, and so is the anchor, which is one of
         // these ids (every mutator keeps it so).
         return;
+    }
+    if (IsRoomWasted(kept, kept.size()))
+    {
+        // What was reserved for a selection that shrank much further than that is not kept.
+        kept.shrink_to_fit();
     }
     std::vector<uint64_t> keptSorted(kept);
     SortRowIds(keptSorted);
@@ -893,6 +939,13 @@ std::span<const uint64_t> GridSelectionModel::GetOrderedSelection() const noexce
 {
     return _selectedRowIds;
 }
+
+#if DXUI_ENABLE_DIAGNOSTICS
+GridSelectionBufferDebugState GridSelectionModel::DebugGetBuffers() const noexcept
+{
+    return {_selectedRowIds.capacity(), _sortedRowIds.capacity()};
+}
+#endif
 
 Grid::Grid()
 {
