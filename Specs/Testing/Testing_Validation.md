@@ -334,12 +334,24 @@ what a client sees of the control's parts is held to be the same in both: the fi
 control's element, a search of its children, the parent of each part, the selection container and containing grid they name,
 and the canonical identity of the element (the parent of an item, and its fragment root, is the same COM object the window's
 root provider is). The twin with a second control passed before the fix; the single-control tests failed, with no child below
-the window's element and with no item event heard while an event raised on the window's element itself was. The library raises
-the selection events of a multi-select Tree itself: the multi-select selection-event test hears them beside a label and runs
-again, with the same expectations, for a tree that fills its window. It raises none for a single selection or for a Grid's, so
-those event tests raise the events from the test, on the elements the library hands out for the parts, and require the client to
-hear each from the right sender (a part, and its control's own element for the invalidation of a selection). The text events
-of a field are the library's own, raised by its native text-input session as the test drives it. The focus change the host
+the window's element and with no item event heard while an event raised on the window's element itself was.
+
+The [selection events](../UI/UI_InputAndAccessibility.md#selection-events) are the library's own, heard from the right sender (an
+item or a row, and the control's element for the invalidation of a selection) by a client subscribed to the window, again for a
+control that fills its window and for its twin beside a button or a label. A test step drives a change through the window's own
+messages (a click with its MK_CONTROL or MK_SHIFT flags, keys with Ctrl held, which need no foreground), a UI Automation request
+or the application's setters, and `UiaTest::HearSelectionEvents` returns the different selection events heard for that step once
+the stream of events stopped, which the step requires to be exactly what it expects. The steps cover a single-selection tree's
+click, Up and setters, its clearing and items that leave it; a grid's click, Down, Ctrl+click, Shift+click, clearing, Ctrl+A,
+exactly 20 and 21 changes, rows out of view and a selected row that leaves the model; and a multi-select tree's set (selected,
+added, removed, invalidated, 30 selected rows that only moved, and the items that turning multi-select off drops). A diagnostics
+hook, `DebugSetAccessibilitySelectionEventHookForTest` (`Tests/Support/SelectionEventInterruption.h`), runs after each selection
+event the library raises and stands for what can run while they are raised: hiding the grid, replacing the window's root or
+detaching the host there must end the raising after that one event. Each of these tests failed against the library as it was
+before single selections and grids raised the events (the client heard nothing, or for the multi-select tree nothing when
+multi-select was turned off), and single-point mutants of the change each fail a named step. The text events of a field are the
+library's own, raised by its native text-input session as the test drives it. A cell's events, which the library raises none of,
+are raised by the test on the cell's element to show that they reach the client through its row. The focus change the host
 announces for the item the keyboard reached needs the window to hold the foreground: the Menu suite tests it for a tree and a
 grid that fill their window, and records a capability skip where no desktop is available. `test.ps1 -Interactive` runs it, with the
 person's agreement (see [Interactive tests](#interactive-tests)).
@@ -349,11 +361,12 @@ whose provider hosts the window and has the view's root element for its only chi
 parent of the view's root and the fragment root of every element in it are that provider) and COM threading, as the view's own
 providers have. `EmbeddedUiaTests.h` attaches views whose only control is a Tree and a Grid to it. The client walks from the
 application's element through the view's root and the control to its parts and back; hears the events the view raises when it
-publishes a change (the control takes the keyboard focus the application reports); hears the selection events raised on the
-parts; and, for a multi-select tree, hears the selection events the view raises itself from `UpdateAccessibility` (selected,
-added, removed and the invalidation of the selection, and none for a publish that changed no selection). The embedded host
-never collapses its root, so these tests did not fail before the fix; they hold the chain a collapsed window host's root must
-match and prove the client against the embedded providers.
+publishes a change (the control takes the keyboard focus the application reports); and hears the selection events the view
+raises itself from `UpdateAccessibility`: a single-selection tree's click, Up, setter and clearing, a grid's click, Ctrl+click,
+Shift+click, clearing and Ctrl+A, and a multi-select tree's selected, added, removed and invalidated items, with none for a
+publish that changed no selection. Hiding the view or replacing its root while they are raised (the hook again) ends the raising.
+The embedded host never collapses its root, so the walk and the multi-select events did not fail before the collapsed-root fix;
+they hold the chain a collapsed window host's root must match and prove the client against the embedded providers.
 
 ## Interactive tests
 

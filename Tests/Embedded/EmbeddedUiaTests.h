@@ -1,3 +1,4 @@
+#include "../Support/SelectionEventInterruption.h"
 #include "../Support/UiaTestClient.h"
 #include "EmbeddedUiaBridge.h"
 
@@ -5,11 +6,11 @@
 
 // An embedded view whose only control is a Tree or a Grid, exposed to UI Automation through an application window (see
 // EmbeddedUiaBridge.h), and a UI Automation client of that window: the walk from the application's element through the view's
-// root and its control to the control's items and back, the events raised on them, and the selection events a multi-select tree's
-// view raises itself when the application publishes a change. The embedded host never collapses its root into the control (its
-// root element is the application element's child, and the control's elements have it for their parent), so these tests guard
-// the chain the window host's collapsed root must match, and they prove the harness: a client that hears the events an embedded
-// view raises, and walks the tree its providers expose.
+// root and its control to the control's items and back, and the selection events the view raises itself when the application
+// publishes a change (a tree's single selection or multi-selection, a grid's rows). The embedded host never collapses its root
+// into the control (its root element is the application element's child, and the control's elements have it for their parent),
+// so these tests guard the chain the window host's collapsed root must match, and they prove the harness: a client that hears
+// the events an embedded view raises, and walks the tree its providers expose.
 
 class EmbeddedTreeModel final : public DxUi::ITreeModel
 {
@@ -60,6 +61,43 @@ public:
     [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
     {
         return rowId < 3u ? std::optional<size_t>(static_cast<size_t>(rowId)) : std::nullopt;
+    }
+};
+
+// Thirty numbered rows in one column, "Ligne 1" to "Ligne 30", whose stable ids are their indices.
+class EmbeddedNumberedGridModel final : public DxUi::IGridModel
+{
+public:
+    static constexpr size_t kRows = 30u;
+
+    [[nodiscard]] size_t GetRowCount() const noexcept override
+    {
+        return kRows;
+    }
+
+    [[nodiscard]] size_t GetColumnCount() const noexcept override
+    {
+        return 1u;
+    }
+
+    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t /*columnIndex*/) const override
+    {
+        DxUi::GridColumnDesc column;
+        column.id       = L"name";
+        column.title    = L"Nom";
+        column.widthDip = 200.0f;
+        return column;
+    }
+
+    void GetCellData(size_t rowIndex, size_t /*columnIndex*/, DxUi::GridCellData& cell) const override
+    {
+        cell.kind = DxUi::GridCellKind::Text;
+        cell.text = L"Ligne " + std::to_wstring(rowIndex + 1u);
+    }
+
+    [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+    {
+        return rowId < kRows ? std::optional<size_t>(static_cast<size_t>(rowId)) : std::nullopt;
     }
 };
 
@@ -116,6 +154,17 @@ public:
     {
         const std::optional<UiaTest::ElementId> found = client.Navigate(element, UiaTest::Direction::Parent);
         return found && client.Same(*found, parent);
+    }
+
+    // Requires that the client heard `expected`, no more and no less, for a step: what UiaTest::HearSelectionEvents returned.
+    void ExpectHeard(const std::vector<std::wstring>& heard, std::vector<std::wstring> expected, const char* step)
+    {
+        expected = UiaTest::SortedEvents(std::move(expected));
+        if (heard == expected)
+            return;
+        const std::string message =
+            std::string(step) + ": the client heard" + UiaTest::DescribeEventList(heard) + ", not" + UiaTest::DescribeEventList(expected);
+        Expect(false, message.c_str());
     }
 
     UiaTest::Client client;
@@ -185,20 +234,21 @@ static std::function<bool(const UiaTest::HeardEvent&)> EmbeddedHeardProperty(PRO
     };
 }
 
-// Raises, from the test, the events the library will raise about an item, on the element the view hands out for it: what UI
-// Automation does with an event is decided by the element's parents.
-static void RaiseEmbeddedSelectionItemEvents(IRawElementProviderFragment& element, bool selected, EVENTID eventId)
+// What an application does after it changed a view's controls: repaints them (the view prepares) and publishes the change, whose
+// events the view raises then. The selection setters are silent, so the view is told to repaint.
+static void PublishEmbeddedView(EmbeddedSingleControlView& test, EmbeddedUiaTest::Bridge& bridge, const char* text)
 {
-    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
-    Hr(element.QueryInterface(IID_PPV_ARGS(simple.put())), "an element is a simple provider");
-    VARIANT before{};
-    before.vt      = VT_BOOL;
-    before.boolVal = selected ? VARIANT_FALSE : VARIANT_TRUE;
-    VARIANT after{};
-    after.vt      = VT_BOOL;
-    after.boolVal = selected ? VARIANT_TRUE : VARIANT_FALSE;
-    Hr(UiaRaiseAutomationPropertyChangedEvent(simple.get(), UIA_SelectionItemIsSelectedPropertyId, before, after), "raise the IsSelected change of an element");
-    Hr(UiaRaiseAutomationEvent(simple.get(), eventId), "raise a selection event of an element");
+    test.view.Controls().Invalidate();
+    Check(test.view.Prepare(320, 160, 96) == S_OK, text);
+    Check(bridge.Update() == S_OK, text);
+}
+
+// A click on a prepared view at a point in its DIPs, which are its pixels at 96 DPI, with the modifiers of the press (MK_CONTROL,
+// MK_SHIFT).
+static void ClickEmbeddedView(DxUi::EmbeddedHost& view, D2D1_POINT_2F point, UINT modifiers = 0u)
+{
+    Check(view.DispatchPointer({DxUi::PointerAction::Down, point.x, point.y, modifiers}), "the view takes a press");
+    static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Up, point.x, point.y, modifiers}));
 }
 
 __declspec(noinline) static void TestEmbeddedSingleTreeIsNavigableFromTheApplicationsElement(GraphicsFixture& gpu)
@@ -284,6 +334,10 @@ __declspec(noinline) static void TestEmbeddedSingleGridIsNavigableFromTheApplica
     }
 }
 
+// The events a view of a tree with a single selection raises itself when the application publishes a change, as a client
+// subscribed to the application's window hears them: the tree taking the keyboard focus the application reports, then its
+// selection moved by a click, a key and the application (the item becomes selected, which says that the other left the selection,
+// and each item whose state changed reports its IsSelected change) and cleared (the item is removed).
 __declspec(noinline) static void TestEmbeddedSingleTreeEventsReachAClientSubscribedToTheApplicationsWindow(GraphicsFixture& gpu)
 {
     EmbeddedTreeModel model;
@@ -293,14 +347,10 @@ __declspec(noinline) static void TestEmbeddedSingleTreeEventsReachAClientSubscri
     EmbeddedSingleControlView test(gpu, std::move(control), L"Catégories");
     EmbeddedUiaTest::Bridge bridge(test.view, 320, 160);
     Hr(bridge.Attach(), "attach the single-tree view to the application window");
-    UiaTest::Subscription subscription;
-    subscription.automationEvents = {UIA_SelectionItem_ElementSelectedEventId,
-                                     UIA_SelectionItem_ElementAddedToSelectionEventId,
-                                     UIA_SelectionItem_ElementRemovedFromSelectionEventId,
-                                     UIA_Selection_InvalidatedEventId};
-    subscription.properties       = {UIA_SelectionItemIsSelectedPropertyId, UIA_HasKeyboardFocusPropertyId};
-    subscription.structure        = true;
-    subscription.focus            = true;
+    UiaTest::Subscription subscription = UiaTest::SelectionEventsSubscription();
+    subscription.properties.push_back(UIA_HasKeyboardFocusPropertyId);
+    subscription.structure = true;
+    subscription.focus     = true;
     EmbeddedClientWalk walk(bridge, std::move(subscription));
 
     // What the view raises when it publishes a change: the tree takes the focus, and the application reports it has the window's.
@@ -313,71 +363,156 @@ __declspec(noinline) static void TestEmbeddedSingleTreeEventsReachAClientSubscri
     { return heard.kind == UiaTest::EventKind::Focus && heard.controlType == UIA_TreeControlTypeId && heard.name == L"Catégories"; }),
                 "a client hears the focus change the view raises for its tree");
 
-    // The events raised on the tree's items, on the elements the view hands out for them.
-    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> viewRoot;
-    Hr(test.view.GetAccessibilityProvider(viewRoot.put()), "the view's root provider");
-    wil::com_ptr_nothrow<IRawElementProviderFragment> viewRootFragment;
-    Hr(viewRoot.query_to(viewRootFragment.put()), "the view's root is a fragment");
-    const auto treeElement = EmbeddedFirstChild(*viewRootFragment.get());
-    const auto first       = EmbeddedFirstChild(*treeElement.get());
-    const auto second      = EmbeddedNextSibling(*first.get());
-    const auto third       = EmbeddedNextSibling(*second.get());
-    Check(EmbeddedElementName(*second.get()) == L"Volets" && EmbeddedElementName(*third.get()) == L"Afficheurs", "the view's providers name the tree's items");
-    RaiseEmbeddedSelectionItemEvents(*second.get(), true, UIA_SelectionItem_ElementSelectedEventId);
-    walk.Expect(walk.client.WaitForEvent(EmbeddedHeardEvent(UIA_SelectionItem_ElementSelectedEventId, UIA_TreeItemControlTypeId, L"Volets")),
-                "a client subscribed to the application's window hears the ElementSelected event raised on a tree item");
-    walk.Expect(walk.client.WaitForEvent(EmbeddedHeardProperty(UIA_SelectionItemIsSelectedPropertyId, UIA_TreeItemControlTypeId, L"Volets", L"true")),
-                "a client subscribed to the application's window hears the IsSelected change raised on a tree item");
-    RaiseEmbeddedSelectionItemEvents(*third.get(), true, UIA_SelectionItem_ElementAddedToSelectionEventId);
-    walk.Expect(walk.client.WaitForEvent(EmbeddedHeardEvent(UIA_SelectionItem_ElementAddedToSelectionEventId, UIA_TreeItemControlTypeId, L"Afficheurs")),
-                "a client subscribed to the application's window hears the ElementAddedToSelection event raised on a tree item");
-    RaiseEmbeddedSelectionItemEvents(*first.get(), false, UIA_SelectionItem_ElementRemovedFromSelectionEventId);
-    walk.Expect(walk.client.WaitForEvent(EmbeddedHeardEvent(UIA_SelectionItem_ElementRemovedFromSelectionEventId, UIA_TreeItemControlTypeId, L"Général")),
-                "a client subscribed to the application's window hears the ElementRemovedFromSelection event raised on a tree item");
-
-    wil::com_ptr_nothrow<IRawElementProviderSimple> treeSimple;
-    Hr(treeElement.query_to(treeSimple.put()), "the tree's element is a simple provider");
-    Hr(UiaRaiseAutomationEvent(treeSimple.get(), UIA_Selection_InvalidatedEventId), "raise the invalidation of the tree's selection");
-    walk.Expect(walk.client.WaitForEvent(EmbeddedHeardEvent(UIA_Selection_InvalidatedEventId, UIA_TreeControlTypeId, L"Catégories")),
-                "a client subscribed to the application's window hears the selection invalidation raised on the tree");
+    // The tree's selection: each step changes it, the application publishes, and the view raises the events.
+    const auto hear = [&](size_t expected, const char* step, const std::function<void()>& change)
+    {
+        return UiaTest::HearSelectionEvents(walk.client,
+                                            expected,
+                                            [&]
+        {
+            change();
+            PublishEmbeddedView(test, bridge, step);
+        });
+    };
+    const auto item  = [](std::wstring_view what, std::wstring_view name) { return std::wstring(what) + L" TreeItem '" + std::wstring(name) + L"'"; };
+    const auto click = [&](size_t visibleIndex)
+    {
+        const std::optional<D2D1_RECT_F> rect = tree->GetVisibleItemHitRect(visibleIndex);
+        Check(rect.has_value(), "the tree has a rectangle for the item");
+        ClickEmbeddedView(test.view, D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f));
+    };
+    walk.ExpectHeard(hear(2u, "a click on an item", [&] { click(2u); }),
+                     {item(L"Selected", L"Afficheurs"), item(L"IsSelected:true", L"Afficheurs")},
+                     "a click on an item of an empty selection");
+    walk.ExpectHeard(hear(3u, "Up", [&] { Check(test.view.DispatchKey(VK_UP, true), "the tree takes Up"); }),
+                     {item(L"Selected", L"Volets"), item(L"IsSelected:true", L"Volets"), item(L"IsSelected:false", L"Afficheurs")},
+                     "Up");
+    walk.ExpectHeard(hear(3u, "the application selecting an item", [&] { tree->SetSelectedItemId(1u); }),
+                     {item(L"Selected", L"Général"), item(L"IsSelected:true", L"Général"), item(L"IsSelected:false", L"Volets")},
+                     "the application selecting an item");
+    walk.ExpectHeard(hear(2u, "the application clearing the selection", [&] { tree->SetSelectedItemId(std::nullopt); }),
+                     {item(L"Removed", L"Général"), item(L"IsSelected:false", L"Général")},
+                     "the application clearing the selection");
 }
 
+// The events a view of a grid raises itself when the application publishes a change of its selection, as a client subscribed to
+// the application's window hears them: a click selects a row, Ctrl+click adds one, Shift+click selects the range from the anchor
+// (each row that joined is added and each that left removed), clearing removes the rows, and Ctrl+A is more changes than a client
+// is told of one by one, an invalidation of the grid's selection. A cell is a child of its row: an event raised on it reaches the
+// client too.
 __declspec(noinline) static void TestEmbeddedSingleGridEventsReachAClientSubscribedToTheApplicationsWindow(GraphicsFixture& gpu)
 {
-    EmbeddedStatusGridModel model;
-    auto control = std::make_unique<DxUi::Grid>();
+    EmbeddedNumberedGridModel model;
+    auto control     = std::make_unique<DxUi::Grid>();
+    DxUi::Grid* grid = control.get();
     control->SetModel(&model);
     EmbeddedSingleControlView test(gpu, std::move(control), L"Résultats");
+    grid->SetBounds(D2D1::RectF(0, 0, 240, 160)); // Four rows on screen.
+    Hr(test.view.Prepare(320, 160, 96), "prepare the grid at its full height");
     EmbeddedUiaTest::Bridge bridge(test.view, 320, 160);
     Hr(bridge.Attach(), "attach the single-grid view to the application window");
-    UiaTest::Subscription subscription;
-    subscription.automationEvents = {UIA_SelectionItem_ElementSelectedEventId, UIA_Selection_InvalidatedEventId};
-    subscription.properties       = {UIA_SelectionItemIsSelectedPropertyId};
-    EmbeddedClientWalk walk(bridge, std::move(subscription));
+    EmbeddedClientWalk walk(bridge, UiaTest::SelectionEventsSubscription());
 
+    const auto hear = [&](size_t expected, const char* step, const std::function<void()>& change)
+    {
+        return UiaTest::HearSelectionEvents(walk.client,
+                                            expected,
+                                            [&]
+        {
+            change();
+            PublishEmbeddedView(test, bridge, step);
+        });
+    };
+    const auto row   = [](std::wstring_view what, size_t number) { return std::wstring(what) + L" DataItem 'Ligne " + std::to_wstring(number) + L"'"; };
+    const auto click = [&](size_t number, UINT modifiers = 0u)
+    {
+        const std::optional<D2D1_RECT_F> cell = grid->GetVisibleCellRect(number - 1u, 0u);
+        Check(cell.has_value(), "the row to click is on screen");
+        ClickEmbeddedView(test.view, D2D1::Point2F((cell->left + cell->right) * 0.5f, (cell->top + cell->bottom) * 0.5f), modifiers);
+    };
+    walk.ExpectHeard(hear(2u, "a click on a row", [&] { click(1u); }), {row(L"Selected", 1u), row(L"IsSelected:true", 1u)}, "a click on a row");
+    walk.ExpectHeard(hear(2u, "Ctrl+click", [&] { click(3u, MK_CONTROL); }), {row(L"Added", 3u), row(L"IsSelected:true", 3u)}, "Ctrl+click");
+    walk.ExpectHeard(hear(4u, "Shift+click", [&] { click(2u, MK_SHIFT); }),
+                     {row(L"Added", 2u), row(L"IsSelected:true", 2u), row(L"Removed", 3u), row(L"IsSelected:false", 3u)},
+                     "Shift+click from the anchor, Ligne 1");
+    walk.ExpectHeard(hear(4u,
+                          "clearing the selection",
+                          [&]
+    {
+        grid->GetSelectionModel().Clear();
+        grid->NotifyDataChanged();
+    }),
+                     {row(L"Removed", 1u), row(L"Removed", 2u), row(L"IsSelected:false", 1u), row(L"IsSelected:false", 2u)},
+                     "clearing the selection");
+    walk.ExpectHeard(hear(1u,
+                          "Ctrl+A",
+                          [&]
+    {
+        test.view.Controls().SetFocusControl(grid);
+        Check(test.view.DispatchKey('A', true, MK_CONTROL), "the grid takes Ctrl+A");
+    }),
+                     {L"Invalidated DataGrid 'Résultats'"},
+                     "Ctrl+A");
+
+    // A cell is a child of its row: an event raised on it reaches the client too. The grid's children are its header, then its
+    // rows: the second row is the third child.
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> viewRoot;
     Hr(test.view.GetAccessibilityProvider(viewRoot.put()), "the view's root provider");
     wil::com_ptr_nothrow<IRawElementProviderFragment> viewRootFragment;
     Hr(viewRoot.query_to(viewRootFragment.put()), "the view's root is a fragment");
     const auto gridElement = EmbeddedFirstChild(*viewRootFragment.get());
-    // The grid's children are its headers, then its rows: the second row is the fourth child.
-    auto child = EmbeddedFirstChild(*gridElement.get());
-    for (size_t index = 0u; index < 3u; ++index)
+    auto child             = EmbeddedFirstChild(*gridElement.get());
+    for (size_t index = 0u; index < 2u; ++index)
         child = EmbeddedNextSibling(*child.get());
-    Check(EmbeddedElementName(*child.get()) == L"Beta | Occupée", "the view's providers name the grid's second row");
-    RaiseEmbeddedSelectionItemEvents(*child.get(), true, UIA_SelectionItem_ElementSelectedEventId);
-    walk.Expect(walk.client.WaitForEvent(EmbeddedHeardEvent(UIA_SelectionItem_ElementSelectedEventId, UIA_DataItemControlTypeId, L"Beta | Occupée")),
-                "a client subscribed to the application's window hears the ElementSelected event raised on a grid row");
-    walk.Expect(walk.client.WaitForEvent(EmbeddedHeardProperty(UIA_SelectionItemIsSelectedPropertyId, UIA_DataItemControlTypeId, L"Beta | Occupée", L"true")),
-                "a client subscribed to the application's window hears the IsSelected change raised on a grid row");
-
-    // A cell is a child of its row: an event raised on it reaches the client too.
+    Check(EmbeddedElementName(*child.get()) == L"Ligne 2", "the view's providers name the grid's second row");
     const auto cell = EmbeddedFirstChild(*child.get());
     wil::com_ptr_nothrow<IRawElementProviderSimple> cellSimple;
     Hr(cell.query_to(cellSimple.put()), "a grid cell is a simple provider");
     Hr(UiaRaiseAutomationEvent(cellSimple.get(), UIA_SelectionItem_ElementSelectedEventId), "raise an event on a grid cell");
-    walk.Expect(walk.client.WaitForEvent(EmbeddedHeardEvent(UIA_SelectionItem_ElementSelectedEventId, UIA_TextControlTypeId, L"Beta")),
+    walk.Expect(walk.client.WaitForEvent(EmbeddedHeardEvent(UIA_SelectionItem_ElementSelectedEventId, UIA_TextControlTypeId, L"Ligne 2")),
                 "a client subscribed to the application's window hears an event raised on a grid cell");
+}
+
+// When the view whose selection events are being raised is hidden (which disconnects its accessibility) or its root replaced, by
+// something that runs while they are raised (see UiaTest::SelectionEventInterruption), the raising ends there. Each case adds two
+// rows to a selection, four events.
+__declspec(noinline) static void TestEmbeddedSelectionEventsEndWhenTheViewLeavesWhileTheyAreRaised(GraphicsFixture& gpu)
+{
+    const auto run = [&](const char* what, bool replaceTheRoot)
+    {
+        EmbeddedNumberedGridModel model;
+        auto control     = std::make_unique<DxUi::Grid>();
+        DxUi::Grid* grid = control.get();
+        control->SetModel(&model);
+        EmbeddedSingleControlView test(gpu, std::move(control), L"Résultats");
+        EmbeddedUiaTest::Bridge bridge(test.view, 320, 160);
+        Hr(bridge.Attach(), "attach the grid view to the application window");
+        EmbeddedClientWalk walk(bridge, UiaTest::SelectionEventsSubscription()); // A client listens, so the view raises them.
+        grid->GetSelectionModel().SetSingle(0u);
+        PublishEmbeddedView(test, bridge, "publish a selection of one row");
+        std::vector<uint64_t> rows;
+        for (uint64_t rowId = 0u; rowId < EmbeddedNumberedGridModel::kRows; ++rowId)
+            rows.push_back(rowId);
+        auto replacement = std::make_unique<DxUi::Panel>();
+        size_t events    = 0u;
+        {
+            UiaTest::SelectionEventInterruption interruption([&]
+            {
+                if (replaceTheRoot)
+                    test.view.Controls().SetRoot(std::move(replacement));
+                else
+                    test.view.SetVisible(false);
+            });
+            grid->GetSelectionModel().SetRange(rows, 0u, 2u);
+            test.view.Controls().Invalidate();
+            Check(test.view.Prepare(320, 160, 96) == S_OK, "prepare two rows added to the selection");
+            static_cast<void>(bridge.Update()); // The grid may be gone by now.
+            events = interruption.Events();
+        }
+        Check(events == 1u, what);
+    };
+    run("hiding the view while its grid's selection events are raised ends them", false);
+    run("replacing the view's root while its grid's selection events are raised ends them", true);
 }
 
 // A tree whose rows a test removes: a selected row that leaves it can only be reported as the tree's selection being invalidated.
@@ -485,4 +620,5 @@ __declspec(noinline) static void TestEmbeddedUiaEventHarness(GraphicsFixture& gp
     TestEmbeddedSingleTreeEventsReachAClientSubscribedToTheApplicationsWindow(gpu);
     TestEmbeddedSingleGridEventsReachAClientSubscribedToTheApplicationsWindow(gpu);
     TestEmbeddedMultiSelectTreeRaisesItsSelectionEventsToAClientOfTheApplicationsWindow(gpu);
+    TestEmbeddedSelectionEventsEndWhenTheViewLeavesWhileTheyAreRaised(gpu);
 }

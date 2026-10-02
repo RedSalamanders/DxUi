@@ -119,8 +119,8 @@ field, and the element every event about the control comes from, so a client wal
 back, and sees the control as it sees the same control in a window with a second control, apart from which element stands for
 it. That includes its events: UI Automation drops an event raised on an element it cannot reach from the window through the
 parents, so an item whose parent chain ended at a second element for its tree (as a collapsed root's items once did, with the
-tree's element parentless) never reached a client subscribed to the window. A multi-select tree's selection events reach it the
-same way (the invalidation of the selection is raised on the window's element). A status root keeps its other semantic controls as
+tree's element parentless) never reached a client subscribed to the window. The [selection events](#selection-events) of a tree or a
+grid reach it the same way (the invalidation of a selection is raised on the window's element). A status root keeps its other semantic controls as
 children of its own. An embedded view is never collapsed: its root element is the child of the application's element (the site's
 `Navigate`), the control's element is the root's child and the control's items are the control's children, the same chain from
 the application's element to an item, so the application's element is where an embedded client subscribes.
@@ -321,8 +321,8 @@ Windows [provider threading contract](https://learn.microsoft.com/en-us/windows/
 Call UpdateAccessibility after changed preparation, placement or OS focus. Unchanged updates reuse the snapshot
 without allocation. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no
 snapshot allocation or UIA wake-up cost. Prepared snapshots expose confirmed Toggle, RangeValue, text/value and
-focus state. Changed active snapshots raise applicable property, text, focus, structure and (for a multi-select Tree)
-selection events only while UIA clients listen. Hidden controls leave navigation; background modal views must be disconnected by the application.
+focus state. Changed active snapshots raise applicable property, text, focus, structure and (for a Tree or a Grid)
+[selection](#selection-events) events only while UIA clients listen. Hidden controls leave navigation; background modal views must be disconnected by the application.
 ActionCompleted allows the application to post one coalesced refresh/focus/navigation operation, without reentering
 the tree inside an accessibility callback.
 
@@ -351,12 +351,9 @@ A Tree with `SetMultiSelectEnabled(true)` reports `CanSelectMultiple`, lists eve
 Selection.GetSelection in visible order and answers SelectionItem `IsSelected` from that set, while only its focused
 item (which may be outside the selection) reports `HasKeyboardFocus` and is what the window's `GetFocus` names.
 SelectionItem `Select` replaces the selection, `AddToSelection` adds an item and `RemoveFromSelection` removes it through
-the tree's own delegate callbacks, and `SetFocus` moves the focus alone. A publish that changes a multi-select tree's
-selection raises, only while a client listens and after the focus announcement of the same publish,
-`ElementSelected` (the selection became one item that was not selected), else `ElementAddedToSelection` and
-`ElementRemovedFromSelection` per item with the `IsSelected` property change, else, past 20 items or when a selected item
-left the tree, `Selection_Invalidated` on the tree; embedded hosts raise them from `UpdateAccessibility`. A tree without
-multi-select reports and raises what it always did. See [Tree multi-select](UI_ControlsAndLayout.md#tree-multi-select).
+the tree's own delegate callbacks, and `SetFocus` moves the focus alone. A change of the set raises the
+[selection events](#selection-events), as a single selection's change does. A tree without multi-select reports what it
+always did. See [Tree multi-select](UI_ControlsAndLayout.md#tree-multi-select).
 
 Native consumers that know an attached HWND can acquire its canonical root with
 `DxUi::CreateWindowHostAccessibilityProvider(hwnd)` from `<DxUi/DxUi.h>`. Adopt the returned owned COM
@@ -365,3 +362,41 @@ window in the same process. A foreign-thread call synchronously dispatches to th
 messages. Repeated acquisitions share identity during one attachment. Detach invalidates access to the retired
 tree; reattachment creates a distinct identity. Keep the owning module loaded while any provider is retained.
 This API requires neither private implementation headers nor a consumer diagnostics build define.
+
+### Selection events
+
+A publish that changes the selection of a Tree or a Grid raises UI Automation's selection events, only while a client
+listens: a window host after the focus announcement of the same publish (a list reports its focus, then its selection),
+an embedded host from `UpdateAccessibility`. A tree's items are its visible items, of which it selects one, or several
+with `SetMultiSelectEnabled(true)`; a grid's are its rows, of which it selects one or several (`GridSelectionMode`). Every
+change counts, whatever made it: a click, a key, a UI Automation request or the application's own setters (which are silent
+to the delegate, not to clients). The rules are WPF's for its selectors:
+
+- A selection that became exactly one item that was not selected raises `ElementSelected` on that item, which says that the
+  others left the selection.
+- Any other change raises `ElementAddedToSelection` on each item that joined and `ElementRemovedFromSelection` on each that
+  left.
+- Each item those name, and each that left a selection that became one new item, also raises the SelectionItem `IsSelected`
+  property change.
+- More than 20 changed items raise one `Selection_Invalidated` on the control instead, so selecting everything in a long list
+  raises one event. So does a change that would name an item without an element: a tree's item that left its rows (removed,
+  or hidden by a collapsed ancestor), or a grid's row that left the selection out of view or left the model. A grid's rows
+  are virtualized: a snapshot holds those on screen and up to 256 selected ones off screen, and a row that is neither has no
+  element a client can read. Of a selection that became one new row, that row's `ElementSelected` says the others left it,
+  so a row out of view needs no event there.
+- Items that only moved and a republish that changed no selection raise nothing. Turning a tree's multi-select off removes
+  the items it drops; turning it on keeps the selected item, which changes nothing.
+
+Each item's events come from its own element (a tree item, a grid row) and the invalidation from the control's element,
+which is the window's element when a collapsed semantic root (above) stands for the control. The
+comparison is made in publishing, never in composition. A control whose selection did not change costs a comparison of
+its selected ids and no allocation. A change costs at most the ids between the common start and end of the two
+selections, sorted once a side when there are more than 16, and names at most 21 items before it is reported as an
+invalidation; a difference in size of more than 20 is an invalidation without comparing an id. A multi-select tree raises
+what it did before single selections and grids raised these events.
+
+Something can run while the events are raised: an outgoing call of UI Automation's in a single-threaded apartment
+dispatches messages, and a message can hide, remove or replace the control, or disconnect its host. The raising then ends:
+the events left are dropped once the host is disconnected (or an embedded view's root is gone), or once the control is no
+longer the one published at its path, and never reach an element that is gone. The providers that raise them never touch a
+control.

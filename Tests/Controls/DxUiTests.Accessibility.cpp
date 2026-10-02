@@ -1,4 +1,5 @@
 #include "../../src/Controls/DxUi.AccessibilityTextUnits.h"
+#include "../Support/SelectionEventInterruption.h"
 #include "../Support/UiaTestClient.h"
 #include "DxUiTestHelpers.h"
 #include "GridMultilineFixtures.h"
@@ -5314,8 +5315,8 @@ private:
 
 // The selection events of a multi-select tree, heard by a UI Automation client: a selection that became one new item is that
 // item being selected, other changes are items added to and removed from it (each also changes IsSelected), a change too large
-// to name is one invalidation of the tree, and a tree without multi-select raises none of them. The tree is beside a label,
-// or it fills its window, where the window's root element stands for it (its items hang from that element, so a client
+// to name is one invalidation of the tree, and turning multi-select off removes the items it leaves out. The tree is beside a
+// label, or it fills its window, where the window's root element stands for it (its items hang from that element, so a client
 // subscribed to the window hears the events raised on them, and the invalidation is raised on the root itself).
 void RunTreeMultiSelectSelectionEventsTest(bool fillsItsWindow)
 {
@@ -5494,6 +5495,18 @@ void RunTreeMultiSelectSelectionEventsTest(bool fillsItsWindow)
         hear(1u, [&] { Require(tree->OnSelectAll(window.Host()), "select everything"); }), {{L"Invalidated", L"Catégories"}}, "selecting thirty items");
     Require(tree->GetSelectedItemIds().size() == 30u, "every row is selected");
 
+    // Rows that only moved are silent however many are selected: all thirty, in the reverse order.
+    requireHeard(hear(0u,
+                      [&]
+    {
+        std::vector<TreeItemData> reversed = items(30u);
+        std::ranges::reverse(reversed);
+        model.SetVisibleItems(std::move(reversed));
+        tree->NotifyDataChanged();
+    }),
+                 {},
+                 "moving thirty selected rows");
+
     // Selected items that left the tree cannot be named: that is an invalidation too.
     requireHeard(hear(1u,
                       [&]
@@ -5517,16 +5530,17 @@ void RunTreeMultiSelectSelectionEventsTest(bool fillsItsWindow)
                  {},
                  "moving selected rows");
 
-    // Without multi-select the tree raises none of them, whatever it selects.
-    tree->SetMultiSelectEnabled(false);
-    requireHeard(hear(0u,
-                      [&]
-    {
-        static_cast<void>(tree->RequestSelectVisibleItem(0u));
-        tree->SetSelectedItemId(2u);
-    }),
-                 {},
+    // Turning multi-select off keeps the last selected item alone, as none has the focus: the others are removed. The single
+    // selection then raises its own events (see ExpectClientHearsSingleSelectionTreeEvents), and turning multi-select on again
+    // keeps that item as the whole selection, which changes nothing.
+    requireHeard(hear(4u, [&] { tree->SetMultiSelectEnabled(false); }),
+                 {{L"Removed", item(1u)}, {L"Removed", item(3u)}, {L"IsSelected:false", item(1u)}, {L"IsSelected:false", item(3u)}},
+                 "turning multi-select off");
+    RequireTreeIds(tree->GetSelectedItemIds(), {2u}, "the last selected item stays selected alone");
+    requireHeard(hear(3u, [&] { static_cast<void>(tree->RequestSelectVisibleItem(0u)); }),
+                 {{L"Selected", item(3u)}, {L"IsSelected:true", item(3u)}, {L"IsSelected:false", item(2u)}},
                  "selecting in a tree without multi-select");
+    requireHeard(hear(0u, [&] { tree->SetMultiSelectEnabled(true); }), {}, "turning multi-select on again");
 }
 
 void TestAccessibilityTreeMultiSelectRaisesSelectionEvents()
@@ -6651,30 +6665,6 @@ void TestSingleMaskedFieldWindowElementIsTheParentOfItsRevealButton()
     };
 }
 
-[[nodiscard]] std::function<bool(const UiaTest::HeardEvent&)> HeardIsSelected(long controlType, std::wstring name, bool selected)
-{
-    return [=](const UiaTest::HeardEvent& heard)
-    {
-        return heard.kind == UiaTest::EventKind::Property && heard.id == UIA_SelectionItemIsSelectedPropertyId && heard.controlType == controlType &&
-               heard.name == name && heard.value == (selected ? L"true" : L"false");
-    };
-}
-
-// What the library will raise about an item, raised by the test on the element the library hands out for it: what UI Automation
-// does with an event is decided by the element's parents, which is what these tests are about.
-void RaiseSelectionItemEvents(IRawElementProviderSimple& element, bool selected, EVENTID eventId)
-{
-    VARIANT before{};
-    before.vt      = VT_BOOL;
-    before.boolVal = selected ? VARIANT_FALSE : VARIANT_TRUE;
-    VARIANT after{};
-    after.vt      = VT_BOOL;
-    after.boolVal = selected ? VARIANT_TRUE : VARIANT_FALSE;
-    RequireSucceeded(UiaRaiseAutomationPropertyChangedEvent(&element, UIA_SelectionItemIsSelectedPropertyId, before, after),
-                     "raise the IsSelected change of an element");
-    RequireSucceeded(UiaRaiseAutomationEvent(&element, eventId), "raise a selection event of an element");
-}
-
 [[nodiscard]] wil::com_ptr_nothrow<IRawElementProviderSimple> SimpleProviderOf(const wil::com_ptr_nothrow<IRawElementProviderFragment>& fragment)
 {
     wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
@@ -6682,179 +6672,403 @@ void RaiseSelectionItemEvents(IRawElementProviderSimple& element, bool selected,
     return simple;
 }
 
-// The container a SelectionItem pattern names for an element, as a provider.
-[[nodiscard]] wil::com_ptr_nothrow<IRawElementProviderSimple> SelectionContainerOf(IRawElementProviderSimple& item)
+// A click and keys reach a test window as its own messages, at a point given in DIPs and with the modifiers the system reports
+// with a press (MK_CONTROL, MK_SHIFT) or the key held around a key (VK_CONTROL, VK_SHIFT): nothing goes through the desktop, so
+// the window needs no foreground.
+void SendClick(AttachedHostWindow& window, D2D1_POINT_2F pointDip, WPARAM modifiers = 0u)
 {
-    wil::com_ptr_nothrow<IUnknown> pattern;
-    RequireSucceeded(item.GetPatternProvider(UIA_SelectionItemPatternId, pattern.put()), "an item has a selection-item pattern lookup");
-    wil::com_ptr_nothrow<ISelectionItemProvider> selectionItem;
-    RequireSucceeded(pattern.query_to(selectionItem.put()), "an item has a selection-item pattern");
-    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
-    RequireSucceeded(selectionItem->get_SelectionContainer(container.put()), "an item names its selection container");
-    return container;
+    const LPARAM point = MAKELPARAM(static_cast<int>(std::lround(window.Host().DipsToPixels(pointDip.x))),
+                                    static_cast<int>(std::lround(window.Host().DipsToPixels(pointDip.y))));
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_LBUTTONDOWN, MK_LBUTTON | modifiers, point));
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_LBUTTONUP, modifiers, point));
 }
 
-UiaTest::Subscription SelectionEventsSubscription()
+void SendKey(AttachedHostWindow& window, UINT virtualKey, UINT heldKey = 0u)
 {
-    UiaTest::Subscription subscription;
-    subscription.automationEvents = {UIA_SelectionItem_ElementSelectedEventId,
-                                     UIA_SelectionItem_ElementAddedToSelectionEventId,
-                                     UIA_SelectionItem_ElementRemovedFromSelectionEventId,
-                                     UIA_Selection_InvalidatedEventId};
-    subscription.properties       = {UIA_SelectionItemIsSelectedPropertyId};
-    return subscription;
+    if (heldKey != 0u)
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, heldKey, 0));
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYDOWN, virtualKey, 0));
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYUP, virtualKey, 0));
+    if (heldKey != 0u)
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_KEYUP, heldKey, 0));
 }
 
-// Raises the events the library raises about a tree's items (and its selection) on the elements it hands out for them, and
-// expects a client subscribed to the window to hear each, from the item it names. `container` is the element the tree's own event
-// is raised on: the window's element, or the tree's own.
-void ExpectClientHearsTreeItemEvents(AttachedHostWindow& window, DxUi::Tree& tree, SingleControlClient& walk, IRawElementProviderSimple& container)
+// Gives a test window the client area of a size in DIPs, which a root that fills it takes.
+void SizeClientAreaInDips(AttachedHostWindow& window, float widthDip, float heightDip)
 {
-    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(DxUi::CreateWindowHostAccessibilityProvider(window.Hwnd()));
-    Require(rootProvider != nullptr, "the window exposes its fragment root");
-    // The elements the library hands out for the tree's items, found by point: those a client reaches by walking are the same.
-    const auto itemElement = [&](size_t visibleIndex, std::wstring_view name)
+    RECT rect{0, 0, static_cast<LONG>(std::ceil(window.Host().DipsToPixels(widthDip))), static_cast<LONG>(std::ceil(window.Host().DipsToPixels(heightDip)))};
+    const DWORD style   = static_cast<DWORD>(GetWindowLongPtrW(window.Hwnd(), GWL_STYLE));
+    const DWORD exStyle = static_cast<DWORD>(GetWindowLongPtrW(window.Hwnd(), GWL_EXSTYLE));
+    Require(AdjustWindowRectEx(&rect, style, FALSE, exStyle) != FALSE, "the test window's frame adjusts to a client area");
+    window.AllowOuterSizeBeyondDesktop(SIZE{rect.right - rect.left, rect.bottom - rect.top});
+    Require(SetWindowPos(window.Hwnd(), nullptr, -32000, -32000, rect.right - rect.left, rect.bottom - rect.top, SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+            "the test window takes its client area");
+    window.PumpMessages();
+}
+
+// Requires that the client heard `expected`, no more and no less, for a step of a test: what HearSelectionEvents returned.
+void ExpectHeard(SingleControlClient& walk, const std::vector<std::wstring>& heard, std::vector<std::wstring> expected, const char* step)
+{
+    expected = UiaTest::SortedEvents(std::move(expected));
+    if (heard == expected)
+        return;
+    const std::string message = std::string(step) + ": the client heard" + UiaTest::DescribeEventList(heard) + ", not" + UiaTest::DescribeEventList(expected);
+    walk.Expect(false, message.c_str());
+}
+
+// The selection events of a tree with a single selection, as a client subscribed to the window hears them from the library: a
+// click, a key or the application moving the selection to another item is that item being selected (which says that the other
+// left the selection; each item whose state changed also reports its IsSelected change); clearing the selection removes its
+// item; a republish that changed no selection is silent; and a selected item that leaves the tree cannot be named, so the tree's
+// selection is invalidated. The tree fills the window, whose element stands for it, or has a button beside it: a client hears
+// the same events, from the same items and the same tree, in both.
+void ExpectClientHearsSingleSelectionTreeEvents(AttachedHostWindow& window, DxUi::Tree& tree, MutableTreeModel& model)
+{
+    SingleControlClient walk(window, UiaTest::SelectionEventsSubscription());
+    const auto hear  = [&](size_t expected, const std::function<void()>& action) { return UiaTest::HearSelectionEvents(walk.client, expected, action); };
+    const auto item  = [](std::wstring_view what, std::wstring_view name) { return std::wstring(what) + L" TreeItem '" + std::wstring(name) + L"'"; };
+    const auto click = [&](size_t visibleIndex)
     {
         const std::optional<D2D1_RECT_F> rect = tree.GetVisibleItemHitRect(visibleIndex);
         Require(rect.has_value(), "the tree has a rectangle for the item");
-        const auto fragment = GetProviderAtDipPoint(window.Hwnd(),
-                                                    window.Host(),
-                                                    *rootProvider.get(),
-                                                    (rect->left + rect->right) * 0.5f,
-                                                    (rect->top + rect->bottom) * 0.5f,
-                                                    "a tree item is found by point");
-        auto simple         = SimpleProviderOf(fragment);
-        Require(ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "a tree item has a name") == name, "the point is on the tree item");
-        return simple;
+        SendClick(window, D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f));
     };
+    Require(tree.GetSelectedItemId() == 2u && ! tree.MultiSelectEnabled(), "the tree selects one item, Volets");
 
-    // The tree itself: an event raised on its element comes from the tree.
-    RequireSucceeded(UiaRaiseAutomationEvent(&container, UIA_Selection_InvalidatedEventId), "raise the invalidation of the tree's selection");
-    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_Selection_InvalidatedEventId, UIA_TreeControlTypeId, L"Catégories")),
-                "a client subscribed to the window hears the selection invalidation raised on the tree");
+    ExpectHeard(walk,
+                hear(3u, [&] { click(2u); }),
+                {item(L"Selected", L"Afficheurs"), item(L"IsSelected:true", L"Afficheurs"), item(L"IsSelected:false", L"Volets")},
+                "a click on another item");
+    Require(tree.GetSelectedItemId() == 3u, "the click selected the item");
 
-    // The selection moves to the second item: it is selected, the first item leaves the selection, and the third joins it.
-    const auto selected = itemElement(1u, L"Volets");
-    RaiseSelectionItemEvents(*selected.get(), true, UIA_SelectionItem_ElementSelectedEventId);
-    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementSelectedEventId, UIA_TreeItemControlTypeId, L"Volets")),
-                "a client subscribed to the window hears the ElementSelected event raised on a tree item");
-    walk.Expect(walk.client.WaitForEvent(HeardIsSelected(UIA_TreeItemControlTypeId, L"Volets", true)),
-                "a client subscribed to the window hears the IsSelected change raised on a tree item");
-    const auto added = itemElement(2u, L"Afficheurs");
-    RaiseSelectionItemEvents(*added.get(), true, UIA_SelectionItem_ElementAddedToSelectionEventId);
-    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementAddedToSelectionEventId, UIA_TreeItemControlTypeId, L"Afficheurs")),
-                "a client subscribed to the window hears the ElementAddedToSelection event raised on a tree item");
-    const auto removed = itemElement(0u, L"Général");
-    RaiseSelectionItemEvents(*removed.get(), false, UIA_SelectionItem_ElementRemovedFromSelectionEventId);
-    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementRemovedFromSelectionEventId, UIA_TreeItemControlTypeId, L"Général")),
-                "a client subscribed to the window hears the ElementRemovedFromSelection event raised on a tree item");
-    walk.Expect(walk.client.WaitForEvent(HeardIsSelected(UIA_TreeItemControlTypeId, L"Général", false)),
-                "a client subscribed to the window hears the IsSelected change of an item that left the selection");
+    window.Host().SetFocusControl(&tree);
+    ExpectHeard(walk,
+                hear(3u, [&] { SendKey(window, VK_UP); }),
+                {item(L"Selected", L"Volets"), item(L"IsSelected:true", L"Volets"), item(L"IsSelected:false", L"Afficheurs")},
+                "Up");
+    Require(tree.GetSelectedItemId() == 2u, "Up selected the item above");
 
-    // What the item itself names as its selection container is that element too, so an event raised on it is the tree's. UI
-    // Automation may deliver an event twice, so the earlier invalidation is allowed to finish arriving before the count is taken.
-    walk.client.Settle();
-    const size_t invalidations = walk.client.Count(HeardAutomationEvent(UIA_Selection_InvalidatedEventId, UIA_TreeControlTypeId, L"Catégories"));
-    const auto named           = SelectionContainerOf(*selected.get());
-    RequireSucceeded(UiaRaiseAutomationEvent(named.get(), UIA_Selection_InvalidatedEventId), "raise the invalidation on the item's selection container");
-    walk.Expect(walk.client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
-                                      [&]
-    { return walk.client.Count(HeardAutomationEvent(UIA_Selection_InvalidatedEventId, UIA_TreeControlTypeId, L"Catégories")) > invalidations; }),
-                "a client hears the invalidation raised on the selection container an item names");
+    ExpectHeard(walk,
+                hear(3u, [&] { tree.SetSelectedItemId(1u); }),
+                {item(L"Selected", L"Général"), item(L"IsSelected:true", L"Général"), item(L"IsSelected:false", L"Volets")},
+                "the application selecting an item");
+
+    ExpectHeard(walk,
+                hear(2u, [&] { tree.SetSelectedItemId(std::nullopt); }),
+                {item(L"Removed", L"Général"), item(L"IsSelected:false", L"Général")},
+                "the application clearing the selection");
+
+    ExpectHeard(walk,
+                hear(2u, [&] { tree.SetSelectedItemId(3u); }),
+                {item(L"Selected", L"Afficheurs"), item(L"IsSelected:true", L"Afficheurs")},
+                "selecting an item of an empty selection");
+
+    ExpectHeard(walk, hear(0u, [&] { window.Host().RefreshAccessibilitySnapshot(); }), {}, "republishing an unchanged selection");
+
+    // An item that left the tree cannot be named, even when another became the selection in the same change.
+    ExpectHeard(walk,
+                hear(1u,
+                     [&]
+    {
+        model.SetVisibleItems({DxUi::TreeItemData{.id = 1u, .text = L"Général"}, DxUi::TreeItemData{.id = 2u, .text = L"Volets"}});
+        tree.SetSelectedItemId(1u);
+        tree.NotifyDataChanged();
+    }),
+                {L"Invalidated Tree 'Catégories'"},
+                "selecting an item as the selected one leaves the tree");
+    ExpectHeard(walk,
+                hear(1u,
+                     [&]
+    {
+        model.SetVisibleItems({DxUi::TreeItemData{.id = 2u, .text = L"Volets"}});
+        tree.NotifyDataChanged();
+    }),
+                {L"Invalidated Tree 'Catégories'"},
+                "the selected item leaving the tree");
+    Require(! tree.GetSelectedItemId().has_value(), "the tree has no selected item once it left");
 }
 
 void TestSingleTreeWindowItemEventsReachAClientSubscribedToTheWindow()
 {
     SingleTreeWindow test;
-    SingleControlClient walk(test.window, SelectionEventsSubscription());
-    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(DxUi::CreateWindowHostAccessibilityProvider(test.window.Hwnd()));
-    Require(rootProvider != nullptr, "the single-tree window exposes its fragment root");
-    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
-    RequireSucceeded(rootProvider.query_to(container.put()), "the window's element is a simple provider"); // The window's element is the tree's.
-    ExpectClientHearsTreeItemEvents(test.window, *test.tree, walk, *container.get());
+    ExpectClientHearsSingleSelectionTreeEvents(test.window, *test.tree, test.model);
 }
 
 void TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow()
 {
     TreeBesideAButtonWindow test;
-    SingleControlClient walk(test.window, SelectionEventsSubscription());
+    ExpectClientHearsSingleSelectionTreeEvents(test.window, *test.tree, test.model);
+}
+
+// Numbered rows in one column, "Ligne 1" to "Ligne n" with the stable id 1000 + n, from which a test removes a row.
+class NumberedRowsGridModel final : public DxUi::IGridModel
+{
+public:
+    explicit NumberedRowsGridModel(size_t count)
+    {
+        for (size_t number = 1u; number <= count; ++number)
+            _rows.push_back(number);
+    }
+
+    [[nodiscard]] size_t GetRowCount() const noexcept override
+    {
+        return _rows.size();
+    }
+
+    [[nodiscard]] size_t GetColumnCount() const noexcept override
+    {
+        return 1u;
+    }
+
+    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t /*columnIndex*/) const override
+    {
+        DxUi::GridColumnDesc column;
+        column.id       = L"name";
+        column.title    = L"Nom";
+        column.widthDip = 200.0f;
+        return column;
+    }
+
+    void GetCellData(size_t rowIndex, size_t /*columnIndex*/, DxUi::GridCellData& outCell) const override
+    {
+        outCell.kind = DxUi::GridCellKind::Text;
+        outCell.text = L"Ligne " + std::to_wstring(_rows[rowIndex]);
+    }
+
+    [[nodiscard]] uint64_t GetStableRowId(size_t rowIndex) const noexcept override
+    {
+        return IdOf(_rows[rowIndex]);
+    }
+
+    [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+    {
+        for (size_t rowIndex = 0u; rowIndex < _rows.size(); ++rowIndex)
+        {
+            if (IdOf(_rows[rowIndex]) == rowId)
+                return rowIndex;
+        }
+        return std::nullopt;
+    }
+
+    [[nodiscard]] static uint64_t IdOf(size_t number) noexcept
+    {
+        return 1000u + number;
+    }
+
+    // The ids of the rows numbered `first` to `last`, in the model's order.
+    [[nodiscard]] std::vector<uint64_t> Ids(size_t first, size_t last) const
+    {
+        std::vector<uint64_t> ids;
+        for (size_t number = first; number <= last; ++number)
+            ids.push_back(IdOf(number));
+        return ids;
+    }
+
+    void RemoveRow(size_t number)
+    {
+        std::erase(_rows, number);
+    }
+
+private:
+    std::vector<size_t> _rows; // The number of each row, in order.
+};
+
+// The window of a grid of thirty rows in its default extended selection: alone, so that the window's element stands for it, or
+// beside a button. Its client area is set in DIPs, so that the grid shows its first nine rows or more at any scale, and its last
+// rows are off screen.
+struct SelectionGridWindow final
+{
+    explicit SelectionGridWindow(bool fillsItsWindow)
+    {
+        SizeClientAreaInDips(window, 280.0f, 360.0f);
+        const auto configure = [&](DxUi::Grid& control)
+        {
+            control.SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 300.0f));
+            control.SetModel(&model);
+            control.SetAccessibleName(L"Résultats");
+            grid = &control;
+        };
+        if (fillsItsWindow)
+        {
+            auto control = std::make_unique<DxUi::Grid>();
+            configure(*control);
+            window.Host().SetRoot(std::move(control)); // It takes the whole client area.
+            return;
+        }
+        auto panel = std::make_unique<DxUi::Panel>();
+        configure(*panel->AddChild<DxUi::Grid>());
+        panel->AddChild<DxUi::Button>(L"Appliquer")->SetBounds(D2D1::RectF(0.0f, 308.0f, 120.0f, 340.0f));
+        window.Host().SetRoot(std::move(panel));
+    }
+
+    NumberedRowsGridModel model{30u}; // Before the window: the grid it holds ends first.
+    AttachedHostWindow window;
+    DxUi::Grid* grid = nullptr;
+};
+
+// The selection events of a grid's rows, as a client subscribed to the window hears them from the library. A row the selection
+// becomes alone is selected, which says that the others left it; rows that Ctrl+click, Shift+click, clearing or the application
+// add or remove are each added or removed; each row whose state changed reports its IsSelected change; more than 20 changes, or a
+// row that left the selection and has no element (out of view, or gone from the grid), are one invalidation of the grid's
+// selection; and a republish that changed no selection is silent. What a client hears is the same whether the window's element
+// stands for the grid or the grid has an element of its own. A cell is a child of its row: an event raised on it reaches the
+// client too.
+void ExpectClientHearsGridSelectionEvents(SelectionGridWindow& test)
+{
+    SingleControlClient walk(test.window, UiaTest::SelectionEventsSubscription());
+    DxUi::Grid& grid                   = *test.grid;
+    const NumberedRowsGridModel& model = test.model;
+    const auto hear = [&](size_t expected, const std::function<void()>& action) { return UiaTest::HearSelectionEvents(walk.client, expected, action); };
+    const auto row  = [](std::wstring_view what, size_t number) { return std::wstring(what) + L" DataItem 'Ligne " + std::to_wstring(number) + L"'"; };
+    const auto rows = [&](std::wstring_view what, size_t first, size_t last)
+    {
+        std::vector<std::wstring> events;
+        for (size_t number = first; number <= last; ++number)
+            events.push_back(row(what, number));
+        return events;
+    };
+    const auto both = [](std::vector<std::wstring> first, const std::vector<std::wstring>& second)
+    {
+        first.insert(first.end(), second.begin(), second.end());
+        return first;
+    };
+    const std::wstring invalidated = L"Invalidated DataGrid 'Résultats'";
+    const auto click               = [&](size_t number, WPARAM modifiers = 0u)
+    {
+        const std::optional<size_t> rowIndex  = model.FindRowByStableId(NumberedRowsGridModel::IdOf(number));
+        const std::optional<D2D1_RECT_F> cell = rowIndex ? grid.GetVisibleCellRect(rowIndex.value(), 0u) : std::nullopt;
+        Require(cell.has_value(), "the row to click is on screen");
+        SendClick(test.window, D2D1::Point2F((cell->left + cell->right) * 0.5f, (cell->top + cell->bottom) * 0.5f), modifiers);
+    };
+    // The application's own selection: the rows `first` to `last` (in the model's order), then a republish.
+    const auto select = [&](size_t first, size_t last)
+    {
+        grid.GetSelectionModel().SetRange(model.Ids(1u, 30u), NumberedRowsGridModel::IdOf(first), NumberedRowsGridModel::IdOf(last));
+        grid.RefreshAccessibilitySnapshot();
+    };
+    Require(! grid.GetVisibleCellRect(model.FindRowByStableId(NumberedRowsGridModel::IdOf(22u)).value(), 0u).has_value(), "the last rows are off screen");
+
+    // One row, by a click on a selection of none, then on another row, then by the keyboard.
+    ExpectHeard(walk, hear(2u, [&] { click(1u); }), {row(L"Selected", 1u), row(L"IsSelected:true", 1u)}, "a click on a row of an empty selection");
+    ExpectHeard(
+        walk, hear(3u, [&] { click(2u); }), {row(L"Selected", 2u), row(L"IsSelected:true", 2u), row(L"IsSelected:false", 1u)}, "a click on another row");
+    test.window.Host().SetFocusControl(&grid);
+    ExpectHeard(
+        walk, hear(3u, [&] { SendKey(test.window, VK_DOWN); }), {row(L"Selected", 3u), row(L"IsSelected:true", 3u), row(L"IsSelected:false", 2u)}, "Down");
+
+    // Several rows: Ctrl+click adds one, Shift+click the range from the anchor (Ligne 3), and Ctrl+click on a selected row removes it.
+    ExpectHeard(walk, hear(2u, [&] { click(5u, MK_CONTROL); }), {row(L"Added", 5u), row(L"IsSelected:true", 5u)}, "Ctrl+click");
+    ExpectHeard(
+        walk,
+        hear(6u, [&] { click(7u, MK_SHIFT); }),
+        {row(L"Added", 4u), row(L"IsSelected:true", 4u), row(L"Added", 6u), row(L"IsSelected:true", 6u), row(L"Added", 7u), row(L"IsSelected:true", 7u)},
+        "Shift+click");
+    ExpectHeard(walk, hear(2u, [&] { click(4u, MK_CONTROL); }), {row(L"Removed", 4u), row(L"IsSelected:false", 4u)}, "Ctrl+click on a selected row");
+
+    // Clearing a selection removes each of its rows.
+    const auto clear = [&]
+    {
+        grid.GetSelectionModel().Clear();
+        grid.NotifyDataChanged();
+    };
+    ExpectHeard(walk,
+                hear(8u, clear),
+                {row(L"Removed", 3u),
+                 row(L"Removed", 5u),
+                 row(L"Removed", 6u),
+                 row(L"Removed", 7u),
+                 row(L"IsSelected:false", 3u),
+                 row(L"IsSelected:false", 5u),
+                 row(L"IsSelected:false", 6u),
+                 row(L"IsSelected:false", 7u)},
+                "clearing the selection");
+
+    // Selecting every row is more changes than a client is told of one by one, and so is a click that leaves one of them.
+    ExpectHeard(walk, hear(1u, [&] { SendKey(test.window, 'A', VK_CONTROL); }), {invalidated}, "Ctrl+A");
+    Require(grid.GetSelectionModel().GetCount() == 30u, "Ctrl+A selected every row");
+    ExpectHeard(walk, hear(1u, [&] { click(1u); }), {invalidated}, "a click after Ctrl+A");
+
+    // Exactly 20 changes are named one by one, the rows off screen among them (selected rows have elements); 21 are not, however
+    // many rows are selected before and after.
+    ExpectHeard(walk, hear(40u, [&] { select(1u, 21u); }), both(rows(L"Added", 2u, 21u), rows(L"IsSelected:true", 2u, 21u)), "twenty rows added at once");
+    ExpectHeard(walk, hear(1u, [&] { select(22u, 30u); }), {invalidated}, "nine rows replacing twenty-one");
+
+    // A row out of view that leaves the selection has no element a client can read (the grid's rows are virtualized): clearing a
+    // selection of such rows is an invalidation, and when a row on screen becomes the whole selection, its being selected says
+    // that the row out of view left.
+    ExpectHeard(walk, hear(1u, clear), {invalidated}, "clearing a selection out of view");
+    ExpectHeard(walk, hear(2u, [&] { select(25u, 25u); }), {row(L"Selected", 25u), row(L"IsSelected:true", 25u)}, "the application selecting a row off screen");
+    ExpectHeard(walk, hear(2u, [&] { click(3u); }), {row(L"Selected", 3u), row(L"IsSelected:true", 3u)}, "a click that replaces a selection out of view");
+
+    ExpectHeard(walk, hear(0u, [&] { test.window.Host().RefreshAccessibilitySnapshot(); }), {}, "republishing an unchanged selection");
+
+    // A selected row that leaves the grid cannot be named.
+    ExpectHeard(walk,
+                hear(1u,
+                     [&]
+    {
+        test.model.RemoveRow(3u);
+        grid.NotifyDataChanged();
+    }),
+                {invalidated},
+                "the selected row leaving the grid");
+    Require(grid.GetSelectionModel().GetCount() == 0u, "the row that left took the selection with it");
+
+    // A cell is a child of its row: an event raised on it reaches the client too.
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
     rootProvider.attach(DxUi::CreateWindowHostAccessibilityProvider(test.window.Hwnd()));
     Require(rootProvider != nullptr, "the window exposes its fragment root");
-    const std::optional<D2D1_RECT_F> rect = test.tree->GetVisibleItemHitRect(1u);
-    Require(rect.has_value(), "the tree has a rectangle for its second item");
-    const auto item      = SimpleProviderOf(GetProviderAtDipPoint(test.window.Hwnd(),
-                                                                  test.window.Host(),
-                                                                  *rootProvider.get(),
-                                                                  (rect->left + rect->right) * 0.5f,
-                                                                  (rect->top + rect->bottom) * 0.5f,
-                                                                  "a tree item is found by point"));
-    const auto container = SelectionContainerOf(*item.get()); // The tree has an element of its own here.
-    ExpectClientHearsTreeItemEvents(test.window, *test.tree, walk, *container.get());
+    const std::optional<D2D1_RECT_F> cellRect = grid.GetVisibleCellRect(1u, 0u);
+    Require(cellRect.has_value(), "the grid has a rectangle for a cell of its second row");
+    const auto cell = SimpleProviderOf(GetProviderAtDipPoint(test.window.Hwnd(),
+                                                             test.window.Host(),
+                                                             *rootProvider.get(),
+                                                             (cellRect->left + cellRect->right) * 0.5f,
+                                                             (cellRect->top + cellRect->bottom) * 0.5f,
+                                                             "a grid cell is found by point"));
+    RequireSucceeded(UiaRaiseAutomationEvent(cell.get(), UIA_SelectionItem_ElementSelectedEventId), "raise an event on a grid cell");
+    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementSelectedEventId, UIA_TextControlTypeId, L"Ligne 2")),
+                "a client subscribed to the window hears an event raised on a grid cell");
 }
 
 void TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow()
 {
-    SingleGridWindow test;
-    SingleControlClient walk(test.window, SelectionEventsSubscription());
+    SelectionGridWindow test(true);
+    ExpectClientHearsGridSelectionEvents(test);
+}
 
-    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
-    rootProvider.attach(DxUi::CreateWindowHostAccessibilityProvider(test.window.Hwnd()));
-    Require(rootProvider != nullptr, "the single-grid window exposes its fragment root");
-    // The elements the library hands out for the grid's cells, found by point; a cell's parent is its row.
-    const auto cellElement = [&](size_t rowIndex)
+void TestGridBesideAnotherControlRowAndCellEventsReachAClientSubscribedToTheWindow()
+{
+    SelectionGridWindow test(false);
+    ExpectClientHearsGridSelectionEvents(test);
+}
+
+// When the grid whose selection events are being raised is hidden or replaced, or its host detached, by something that runs
+// while they are raised (see UiaTest::SelectionEventInterruption), the raising ends there: the events left are not raised for an
+// element that is gone. Each case adds two rows to a selection, four events.
+void TestSelectionEventsEndWhenTheControlLeavesWhileTheyAreRaised()
+{
+    const auto run = [](const char* what, const std::function<void(SelectionGridWindow&, std::unique_ptr<DxUi::Panel>&)>& interrupt)
     {
-        const std::optional<D2D1_RECT_F> rect = test.grid->GetVisibleCellRect(rowIndex, 0u);
-        Require(rect.has_value(), "the grid has a rectangle for the cell");
-        return GetProviderAtDipPoint(test.window.Hwnd(),
-                                     test.window.Host(),
-                                     *rootProvider.get(),
-                                     (rect->left + rect->right) * 0.5f,
-                                     (rect->top + rect->bottom) * 0.5f,
-                                     "a grid cell is found by point");
+        SelectionGridWindow test(false);
+        auto replacement = std::make_unique<DxUi::Panel>();
+        SingleControlClient walk(test.window, UiaTest::SelectionEventsSubscription()); // A client listens, so the host raises them.
+        Require(test.grid->RequestSelectRow(0u, 0u), "the grid selects its first row");
+        size_t events = 0u;
+        {
+            UiaTest::SelectionEventInterruption interruption([&] { interrupt(test, replacement); });
+            test.grid->GetSelectionModel().SetRange(test.model.Ids(1u, 30u), NumberedRowsGridModel::IdOf(1u), NumberedRowsGridModel::IdOf(3u));
+            test.window.Host().RefreshAccessibilitySnapshot(); // The grid may be gone by now.
+            events = interruption.Events();
+        }
+        Require(events == 1u, what);
     };
-    const auto rowElement = [&](size_t rowIndex, std::wstring_view name)
-    {
-        const auto cell = cellElement(rowIndex);
-        wil::com_ptr_nothrow<IRawElementProviderFragment> row;
-        RequireSucceeded(cell->Navigate(NavigateDirection_Parent, row.put()), "a grid cell navigates to its row");
-        Require(row != nullptr, "a grid cell has a row");
-        auto simple = SimpleProviderOf(row);
-        Require(ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "a grid row has a name") == name, "the point is on the grid row");
-        return simple;
-    };
-
-    // The grid itself is the window's element: an event raised on it comes from that element.
-    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
-    RequireSucceeded(rootProvider.query_to(container.put()), "the window's element is a simple provider");
-    RequireSucceeded(UiaRaiseAutomationEvent(container.get(), UIA_Selection_InvalidatedEventId), "raise the invalidation of the grid's selection");
-    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_Selection_InvalidatedEventId, UIA_DataGridControlTypeId, L"Résultats")),
-                "a client subscribed to the window hears the selection invalidation raised on the grid");
-
-    Require(test.grid->RequestSelectRow(1u, 0u), "the grid selects its second row");
-    const auto selected = rowElement(1u, L"Beta | Occupée");
-    RaiseSelectionItemEvents(*selected.get(), true, UIA_SelectionItem_ElementSelectedEventId);
-    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementSelectedEventId, UIA_DataItemControlTypeId, L"Beta | Occupée")),
-                "a client subscribed to the window hears the ElementSelected event raised on a grid row");
-    walk.Expect(walk.client.WaitForEvent(HeardIsSelected(UIA_DataItemControlTypeId, L"Beta | Occupée", true)),
-                "a client subscribed to the window hears the IsSelected change raised on a grid row");
-    const auto added = rowElement(2u, L"Gamma | Libre");
-    RaiseSelectionItemEvents(*added.get(), true, UIA_SelectionItem_ElementAddedToSelectionEventId);
-    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementAddedToSelectionEventId, UIA_DataItemControlTypeId, L"Gamma | Libre")),
-                "a client subscribed to the window hears the ElementAddedToSelection event raised on a grid row");
-    const auto removed = rowElement(0u, L"Alpha | Prête");
-    RaiseSelectionItemEvents(*removed.get(), false, UIA_SelectionItem_ElementRemovedFromSelectionEventId);
-    walk.Expect(
-        walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementRemovedFromSelectionEventId, UIA_DataItemControlTypeId, L"Alpha | Prête")),
-        "a client subscribed to the window hears the ElementRemovedFromSelection event raised on a grid row");
-
-    // A cell is a child of its row: an event raised on it reaches the client too.
-    const auto cell = SimpleProviderOf(cellElement(1u));
-    RequireSucceeded(UiaRaiseAutomationEvent(cell.get(), UIA_SelectionItem_ElementSelectedEventId), "raise an event on a grid cell");
-    walk.Expect(walk.client.WaitForEvent(HeardAutomationEvent(UIA_SelectionItem_ElementSelectedEventId, UIA_TextControlTypeId, L"Beta")),
-                "a client subscribed to the window hears an event raised on a grid cell");
+    run("hiding the grid while its selection events are raised ends them",
+        [](SelectionGridWindow& test, std::unique_ptr<DxUi::Panel>&) { test.grid->SetVisible(false); });
+    run("replacing the window's root while the grid's selection events are raised ends them",
+        [](SelectionGridWindow& test, std::unique_ptr<DxUi::Panel>& replacement) { test.window.Host().SetRoot(std::move(replacement)); });
+    run("detaching the host while the grid's selection events are raised ends them",
+        [](SelectionGridWindow& test, std::unique_ptr<DxUi::Panel>&) { test.window.Host().Detach(); });
 }
 
 // A text field is the window's element in the same way, and the text events the library raises for it (its native text-input
@@ -6979,6 +7193,8 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestSingleTreeWindowItemEventsReachAClientSubscribedToTheWindow);
     DXUI_RUN_TEST(TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow);
     DXUI_RUN_TEST(TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow);
+    DXUI_RUN_TEST(TestGridBesideAnotherControlRowAndCellEventsReachAClientSubscribedToTheWindow);
+    DXUI_RUN_TEST(TestSelectionEventsEndWhenTheControlLeavesWhileTheyAreRaised);
     DXUI_RUN_TEST(TestSingleTextFieldWindowElementRaisesTheFieldsTextEvents);
     DXUI_RUN_TEST(TestTextFieldBesideAnotherControlRaisesItsTextEventsFromItsOwnElement);
     DXUI_RUN_TEST(TestSingleTextFieldWindowElementEnclosesTheFieldsTextRanges);

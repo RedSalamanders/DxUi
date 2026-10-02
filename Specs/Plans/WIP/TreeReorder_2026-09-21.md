@@ -35,7 +35,9 @@ Normative text lives in [Controls and layout](../../UI/UI_ControlsAndLayout.md#t
 - [x] UI Automation: the Selection pattern reports `CanSelectMultiple` and lists the selected items, each item reports
   `IsSelected`, `Select`/`AddToSelection`/`RemoveFromSelection`/`SetFocus` work, and `ElementSelected`,
   `ElementAddedToSelection`, `ElementRemovedFromSelection`, `Selection_Invalidated` (and the `IsSelected` property
-  change) are raised for window hosts and embedded hosts. A single-select tree reports and raises what it did.
+  change) are raised for window hosts and embedded hosts. A single-select tree reports and raises what it did. Later
+  (the developer's decision of 2 October), a single selection and a Grid's rows raise the same events, from the same diff;
+  the multi-select events are unchanged, and turning multi-select off now reports the items it drops.
 - [x] Catalog interaction tests and a gallery tile: Tree suite (14 new tests), Accessibility suite (2 new tests), the
   embedded suite (`TestEmbeddedTreeMultiSelect`), and the gallery's `Tree / Multi-select` tile (several rows selected,
   not adjacent, all four rows visible). `test.ps1` in x64 Debug, Release and ASan Debug, plus the three ARM64 builds:
@@ -64,7 +66,8 @@ Normative text lives in [Controls and layout](../../UI/UI_ControlsAndLayout.md#t
   `TestAccessibilityTreeMultiSelectRaisesSelectionEventsWhenItFillsItsWindow` runs the same events and silences for a
   tree that fills its window (the Label test is its twin).
 - An in-process UI Automation client hears each event twice, the second a moment later; the test waits the stream out.
-- The embedded selection events (`EmbeddedHost::UpdateAccessibility` raising the same `RaiseTreeSelectionEvents`) were
+- The embedded selection events (`EmbeddedHost::UpdateAccessibility` raising the same `RaiseTreeSelectionEvents`, now
+  `RaiseSelectionEvents`) were
   proved on the window-host path only, for lack of a UI Automation client that reaches an embedded host's provider.
   `Tests/Embedded/EmbeddedUiaBridge.h` is that harness now, and
   `TestEmbeddedMultiSelectTreeRaisesItsSelectionEventsToAClientOfTheApplicationsWindow` hears the selected, added, removed
@@ -97,7 +100,7 @@ Branch `improve/tree-multi-select`, tested on the final tree (every command Powe
 | `TestTreeMultiSelectContextMenuExpanderAndDoubleClickKeepTheSelectionRules` | Right-click on a selected row keeps the set, the expander and a modified double-click leave it alone | right-click replacing; expander selecting; Ctrl double-click toggling |
 | `TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent` | `SetSelectedItemIds`, `SetFocusedItemId`, switching the mode both ways | setter selecting; focus lost on disabling; invisible ids kept |
 | Accessibility `TestAccessibilityTreeMultiSelectExposesSelectionPatternsAndItemState` | `CanSelectMultiple`, `GetSelection` in order, per-item `IsSelected`, only the focused item has keyboard focus, Select, AddToSelection (not a toggle), RemoveFromSelection, SetFocus | `CanSelectMultiple` false; single `GetSelection`; Select adding; focus equal to selection |
-| `TestAccessibilityTreeMultiSelectRaisesSelectionEvents` | An in-process client hears `ElementSelected`, per-item added and removed with the `IsSelected` change, one `Selection_Invalidated` over 20 items or for a vanished item, nothing for moved rows or a single-select tree | no events; one new item not reported as selected; no threshold; removal events for a replacement |
+| `TestAccessibilityTreeMultiSelectRaisesSelectionEvents` | An in-process client hears `ElementSelected`, per-item added and removed with the `IsSelected` change, one `Selection_Invalidated` over 20 items or for a vanished item, nothing for moved rows or (until single selections raised them) a single-select tree | no events; one new item not reported as selected; no threshold; removal events for a replacement |
 | Embedded `TestEmbeddedTreeMultiSelect` | Pointer and key modifiers, `CanSelectMultiple`, the selection and its actions through an embedded view | Ctrl or Shift click replacing; Ctrl+A; `CanSelectMultiple`; AddToSelection |
 
 - Falsification: 52 single-point mutants (37 in `Tree`, 15 in UI Automation), each a run-time switch in a throwaway

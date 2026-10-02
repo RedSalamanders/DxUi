@@ -409,12 +409,14 @@ follow WPF's rules for its selectors: a selection that became exactly one item t
 `ElementSelected` for it, any other change raises `ElementAddedToSelection` and `ElementRemovedFromSelection` per item,
 and more than 20 changed items, or a selected item that left the tree, raise one `Selection_Invalidated` on the tree
 instead; items named one by one also raise the `IsSelected` property change, and a republish that changed no
-selection, or rows that only moved, raise nothing. A tree without multi-select reports what it always did and raises none
-of these. The events are raised with the same publish that raises focus changes (window hosts after the focus
+selection, or rows that only moved, raise nothing. A tree without multi-select reports what it always did, and its one
+selected item raises the same events when it changes (`ElementSelected` for an item that became the selection,
+`ElementRemovedFromSelection` when it is cleared), as a Grid's rows do; turning multi-select off removes the items it
+drops. The events are raised with the same publish that raises focus changes (window hosts after the focus
 announcement, embedded hosts from `UpdateAccessibility`). They reach a client subscribed to the window in a window whose
 only semantic control is the tree as in any other: the window's root element stands for the tree, is the parent of its
-items, and is where the invalidation is raised (see the collapsed semantic root in
-[Input and accessibility](UI_InputAndAccessibility.md)).
+items, and is where the invalidation is raised (see the collapsed semantic root and the
+[selection events](UI_InputAndAccessibility.md#selection-events) in Input and accessibility).
 
 ### Localized built-in text
 
