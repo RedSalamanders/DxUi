@@ -382,8 +382,8 @@ to the delegate, not to clients). The rules are WPF's for its selectors:
   raises one event. So does a change that would name an item without an element: a tree's item that left its rows (removed,
   or hidden by a collapsed ancestor), or a grid's row that left the selection out of view or left the model. A grid's rows
   are virtualized: a snapshot holds those on screen and up to 256 selected ones off screen, and a row that is neither has no
-  element a client can read. Of a selection that became one new row, that row's `ElementSelected` says the others left it,
-  so a row out of view needs no event there.
+  element a client can read. Of a selection that became one new item, that item's `ElementSelected` says the others left it,
+  so an item without an element (a tree's item that left its rows, a grid's row out of view or gone) needs no event there.
 - Items that only moved and a republish that changed no selection raise nothing. Turning a tree's multi-select off removes
   the items it drops; turning it on keeps the selected item, which changes nothing.
 
