@@ -339,6 +339,7 @@ struct ContextMenuSessionCallbacks
 {
     std::function<std::optional<ContextMenuRootSwitchRequest>(POINT screenPoint)> switchRootFromPointer;
     std::function<std::optional<ContextMenuRootSwitchRequest>(bool forward)> switchRootFromDirection;
+    // Called by a running Show for each ContextMenu::PostMenuBarHover, with the values it posted.
     std::function<std::optional<ContextMenuRootSwitchRequest>(size_t hoverIndex, std::uintptr_t sequence)> switchRootFromMenuBarHover;
     ContextMenuRootHorizontalAlignment rootHorizontalAlignment = ContextMenuRootHorizontalAlignment::Start;
     ContextMenuRootVerticalPlacement rootVerticalPlacement     = ContextMenuRootVerticalPlacement::Below;
@@ -373,6 +374,12 @@ public:
                                         const ThemePalette& theme,
                                         ContextMenuClosedCallback onClosed,
                                         const ContextMenuSessionCallbacks& sessionCallbacks = {});
+    // Tells a running Show (not ShowAsync) that the pointer now hovers item `hoverIndex` of the application's menu bar.
+    // Post it to a window of the menu's thread, such as the popup holding capture or the owner: Show calls the session's
+    // switchRootFromMenuBarHover(hoverIndex, sequence) and opens the root it returns. Outside a Show the window's procedure
+    // receives it like any other message, and HandleMessage ignores it. The message is registered by name, so no
+    // application message shares its value. Returns false when it could not be posted.
+    [[nodiscard]] static bool PostMenuBarHover(HWND target, size_t hoverIndex, std::uintptr_t sequence) noexcept;
 };
 
 // Native menu diagnostics share the optional borrowed Diagnostics::sink. No trace file is opened by DxUi.
@@ -468,6 +475,11 @@ struct WindowHostBitmapCapture;
 [[nodiscard]] bool DebugGetContextMenuPopupState(HWND hwnd, ContextMenuPopupDebugState& outState) noexcept;
 [[nodiscard]] ContextMenuResourceDebugState DebugGetContextMenuResources() noexcept;
 void DebugSetContextMenuStateProbeStallForTest(HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
+// Called on the menu's thread just before its modal loop peeks a popup's own messages (`message`: WM_PAINT, or the state
+// probes' message), with that popup's window. PeekMessageW runs the handlers of messages other threads sent, which can open
+// or close a submenu while the loop walks the popup chain; a test does the same from the hook. Null clears it.
+using ContextMenuModalLoopPeekHook = void (*)(void* context, HWND popupHwnd, UINT message) noexcept;
+void DebugSetContextMenuModalLoopPeekHookForTest(ContextMenuModalLoopPeekHook hook, void* context) noexcept;
 [[nodiscard]] bool DebugGetContextMenuPopupItemRect(HWND hwnd, size_t itemIndex, D2D1_RECT_F& outRectDip) noexcept;
 [[nodiscard]] bool DebugGetContextMenuItemDisplayText(const MenuFlyoutItem& item, std::wstring& outText);
 [[nodiscard]] bool DebugGetContextMenuPopupItemText(HWND hwnd, size_t itemIndex, std::wstring& outText) noexcept;
@@ -724,6 +736,8 @@ struct TreeDebugRowVisualState
     bool usesRainbow       = false;
     bool selected          = false;
     bool iconUsesIconFont  = false;
+    // The focused (current) item, which owns the focus ring. It is the selected item unless multi-select is on.
+    bool current = false;
 };
 
 struct GridSortGlyphVisualState
@@ -1373,13 +1387,39 @@ class ITreeDelegate
 public:
     virtual ~ITreeDelegate() = default;
 
+    // A user gesture (pointer, keyboard, typeahead or UI Automation) made `itemId` the selected item. With
+    // Tree::SetMultiSelectEnabled(true) it is the focused (current) item, which Ctrl+click or Ctrl+Space may have just
+    // deselected: read the selection from OnTreeSelectionSetChanged.
     virtual void OnTreeSelectionChanged(uint64_t itemId);
     virtual void OnTreeItemInvoked(uint64_t itemId);
     virtual void OnTreeToggleExpanded(uint64_t itemId, bool expanded);
     virtual void OnTreeContextMenu(uint64_t itemId, POINT screenPoint);
     virtual void OnTreeReorder(const TreeDrop& drop);
+    // Only with Tree::SetMultiSelectEnabled(true): the set of selected items changed, once per change, after
+    // OnTreeSelectionChanged for the same gesture and after a model change (`NotifyDataChanged`, `SetModel`) dropped
+    // selected items. `selectedItemIds` lists the selection in visible order and is valid during the call only.
+    virtual void OnTreeSelectionSetChanged(std::span<const uint64_t> selectedItemIds);
 };
 
+#if DXUI_ENABLE_DIAGNOSTICS
+// How many ids each buffer of a GridSelectionModel has room for, counted exactly whatever the allocator keeps, so a test can assert
+// that the buffers of a large selection were given back (Specs/Core/Core_PerformanceAndResources.md).
+struct GridSelectionBufferDebugState
+{
+    size_t orderedIds = 0; // The ids in selection order.
+    size_t sortedIds  = 0; // The ascending copy.
+
+    [[nodiscard]] bool operator==(const GridSelectionBufferDebugState&) const noexcept = default;
+};
+#endif
+
+// The stable ids of the selected rows, held twice: in selection order, which GetOrderedSelection returns (the primary row is
+// last), and ascending. A Grid asks IsSelected once per visible row on every paint, so what that costs must not grow with the
+// selection: a selection of up to 1,024 ids is scanned, as it always was, and a larger one is binary searched, in O(log n). The
+// ascending copy costs 8 bytes per selected row. The mutators, which run on user gestures and data changes, keep both copies
+// equal at O(n log n) at most. An id the model is given twice is held twice. The room of a copy that exceeds 4,096 ids is given
+// back, not kept, when Clear, SetSingle, SetRange or a PreserveOrdered that drops ids leaves the selection at most half as large,
+// so a model does not hold on to the Ctrl+A that is behind it.
 class GridSelectionModel final
 {
 public:
@@ -1389,13 +1429,20 @@ public:
     void SetRange(const std::vector<uint64_t>& orderedRowIds, uint64_t anchorRowId, uint64_t currentRowId);
     void PreserveOrdered(const std::vector<uint64_t>& orderedRowIds);
 
+    // No allocation. Up to 1,024 selected ids it scans them, as it always did; above that it binary searches the ascending copy,
+    // which does not grow with the selection and, whatever order the ids asked about come in, is never slower than the scan.
     [[nodiscard]] bool IsSelected(uint64_t rowId) const noexcept;
     [[nodiscard]] std::optional<uint64_t> GetAnchor() const noexcept;
     [[nodiscard]] size_t GetCount() const noexcept;
     [[nodiscard]] std::span<const uint64_t> GetOrderedSelection() const noexcept;
 
+#if DXUI_ENABLE_DIAGNOSTICS
+    [[nodiscard]] GridSelectionBufferDebugState DebugGetBuffers() const noexcept;
+#endif
+
 private:
     std::vector<uint64_t> _selectedRowIds;
+    std::vector<uint64_t> _sortedRowIds;
     std::optional<uint64_t> _anchorRowId;
 };
 
@@ -3277,9 +3324,39 @@ public:
     {
         return _model;
     }
+    // Opt-in multiple selection, off by default: the tree then keeps exactly one selected item, as before. On, it keeps a
+    // set of selected items and, separately, the focused (current) item that GetSelectedItemId reports. Plain click or
+    // key selects one item and is the anchor; Ctrl+click toggles one; Shift+click (or Shift with Up, Down, Home, End,
+    // Page Up, Page Down) selects the visible range from the anchor; Ctrl with those keys moves the focus alone,
+    // Ctrl+Space toggles the focused item and Ctrl+A selects every visible item. The call is silent: enabling starts with
+    // the selected item alone, disabling keeps the focused item if it is selected, else the last selected one.
+    void SetMultiSelectEnabled(bool enabled) noexcept;
+    [[nodiscard]] bool MultiSelectEnabled() const noexcept
+    {
+        return _multiSelect;
+    }
+    // Single selection: the selected item. Multi-select: the focused (current) item, which need not be selected.
+    // `SetSelectedItemId` is silent and selects that item alone (none clears the selection).
     void SetSelectedItemId(std::optional<uint64_t> itemId) noexcept;
     [[nodiscard]] std::optional<uint64_t> GetSelectedItemId() const noexcept;
+    // The focused (current) item owns the focus ring and is where the keys start. It is the selected item, except with
+    // multi-select, where it may be outside the selection. `SetFocusedItemId` is silent and, with multi-select, moves the
+    // focus alone (UI Automation's SetFocus does); without multi-select it is SetSelectedItemId.
+    void SetFocusedItemId(std::optional<uint64_t> itemId) noexcept;
+    [[nodiscard]] std::optional<uint64_t> GetFocusedItemId() const noexcept;
+    // The selected items in visible order: the set with multi-select, else the selected item alone or nothing.
+    [[nodiscard]] std::vector<uint64_t> GetSelectedItemIds() const;
+    [[nodiscard]] bool IsItemSelected(uint64_t itemId) const noexcept;
+    // Silent. Selects the listed items that are visible rows, keeps the last of them as the focused item and the anchor.
+    // Without multi-select only that last visible item is selected.
+    void SetSelectedItemIds(std::span<const uint64_t> itemIds) noexcept;
+    // Selection by the user's action, as UI Automation does: Select replaces the selection with the item; with
+    // multi-select Add and Remove change only that item's membership (Add also makes it the focused item). Each notifies
+    // the delegate. False for an index that is not a visible row, and for Remove without multi-select; Add without it
+    // selects the item like Select.
     bool RequestSelectVisibleItem(size_t visibleIndex) noexcept;
+    bool RequestAddVisibleItemToSelection(size_t visibleIndex) noexcept;
+    bool RequestRemoveVisibleItemFromSelection(size_t visibleIndex) noexcept;
     bool RequestExpandedState(size_t visibleIndex, bool expanded) noexcept;
     [[nodiscard]] size_t GetFirstVisibleItemIndex() const noexcept;
     [[nodiscard]] std::optional<D2D1_RECT_F> GetVisibleItemHitRect(size_t visibleIndex) const noexcept;
@@ -3308,6 +3385,8 @@ public:
     bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers) override;
     bool OnChar(ControlHost& host, wchar_t ch, UINT modifiers) override;
     bool OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip) override;
+    // Multi-select only: selects every visible item (Ctrl+A); the focused item stays, or is the first item.
+    bool OnSelectAll(ControlHost& host) override;
     void OnDensityChanged() noexcept override;
 
 private:
@@ -3317,6 +3396,15 @@ private:
         Item,
         Expander,
         VerticalScrollbar,
+    };
+
+    // How a selection gesture lands on an item. Without multi-select every gesture replaces the selection.
+    enum class SelectMode : uint8_t
+    {
+        Replace,   // The item alone is selected and becomes the anchor.
+        Toggle,    // The item's membership flips; the anchor stays unless the selection was empty.
+        Range,     // The visible range from the anchor (or the focused item) to the item replaces the selection.
+        FocusOnly, // The item becomes the focused item and the selection stays as it is.
     };
 
     struct HitInfo
@@ -3373,6 +3461,17 @@ private:
     [[nodiscard]] std::optional<size_t> FindSelectedVisibleIndex() const noexcept;
     void EnsureVisibleIndex(size_t visibleIndex) noexcept;
     [[nodiscard]] bool SelectVisibleIndex(size_t visibleIndex, bool notifyDelegate);
+    // Lands a selection gesture on a visible row: updates the focused item and, with multi-select, the selection set by
+    // `mode`, then notifies the delegate (OnTreeSelectionChanged for the focused item, then OnTreeSelectionSetChanged once
+    // if the set changed). False when the index is not a row or the delegate destroyed the tree.
+    [[nodiscard]] bool SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyDelegate);
+    [[nodiscard]] std::vector<uint64_t> CollectVisibleItemIds() const;
+    // Drops selected items that are no longer visible rows and puts the rest in visible order (multi-select only).
+    void ReconcileSelectionWithModel();
+    // The delegate's OnTreeSelectionSetChanged, for a change from `previous`; false when the tree is gone after it.
+    [[nodiscard]] bool NotifySelectionSetChanged(const std::vector<uint64_t>& previous);
+    // The release of a click on a row of a multi-selection: the row becomes the whole selection (set callback only).
+    [[nodiscard]] bool CollapseSelectionToItem(uint64_t itemId);
     [[nodiscard]] bool ToggleExpanded(size_t visibleIndex);
     void RefreshAccessibilitySnapshot() const noexcept;
     [[nodiscard]] float ComputeExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept;
@@ -3396,7 +3495,11 @@ private:
     // Invalidation validated at message entry by PruneStaleInteractionState().
     ITreeModel* _model       = nullptr;
     ITreeDelegate* _delegate = nullptr;
+    // The selected item, or with multi-select the focused (current) item.
     std::optional<uint64_t> _selectedItemId;
+    // Multi-select only: the selected items and their anchor. Unused (empty) while `_multiSelect` is off.
+    GridSelectionModel _selection;
+    bool _multiSelect = false;
     std::optional<size_t> _hoveredVisibleIndex;
     float _rowHeightBaseDip    = 28.0f;
     float _rowHeightDip        = 28.0f;
@@ -3433,11 +3536,14 @@ private:
     mutable TreeTooltipOverflowCache _tooltipOverflowCache;
     ScrollbarHotPart _verticalScrollbarHotPart = ScrollbarHotPart::None;
     ScrollbarAnimationState _verticalScrollbarAnimation{};
-    bool _dragVerticalThumb   = false;
-    bool _reorderEnabled      = false;
-    bool _reorderArmed        = false;
-    bool _reorderDragging     = false;
-    uint64_t _reorderSourceId = 0u;
+    bool _dragVerticalThumb = false;
+    bool _reorderEnabled    = false;
+    bool _reorderArmed      = false;
+    bool _reorderDragging   = false;
+    // The press landed on a row of a multi-selection: it keeps the selection while pointer is down, and a release that
+    // never became a drag collapses the selection to that row (`_reorderSourceId`).
+    bool _reorderCollapsesSelection = false;
+    uint64_t _reorderSourceId       = 0u;
     // Visible rows (source, subtreeEnd) are the dragged row's own descendants: a drop there would make the row
     // its own ancestor. The drop index names the target row for painting while the model is unchanged.
     size_t _reorderSourceIndex = 0u;
@@ -3573,6 +3679,11 @@ public:
         bool ellipsis            = false; // The ellipsis trimming sign of the omitted tails, or its text format, is held.
     };
     [[nodiscard]] GridDebugTextLayoutStatistics DebugGetTextLayoutStatistics() const noexcept;
+    // The entry ceiling of the layout tables: 16,384 by default, which no test window holds enough distinct cells to
+    // reach. A smaller one (rounded down to a power of two of at least 32, the sizes the tables take) lets a few hundred
+    // cells reach it; 0 restores the default. Tables already larger than the new ceiling keep their size until they halve.
+    void DebugSetTextLayoutEntryLimit(size_t maxEntries) noexcept;
+    [[nodiscard]] size_t DebugGetTextLayoutEntryLimit() const noexcept;
 #endif
     bool RequestSelectRow(size_t rowIndex, UINT modifiers);
     bool RequestRemoveRowSelection(size_t rowIndex);
@@ -3808,6 +3919,7 @@ private:
     mutable uint64_t _debugTextLayoutHits                      = 0u;
     mutable uint64_t _debugTextLayoutCreations                 = 0u;
     mutable uint64_t _debugTextLayoutShapedUnits               = 0u;
+    size_t _debugTextLayoutEntryLimit                          = 0u; // 0: the default ceiling.
     uint64_t _debugHeaderResizeDownCount                       = 0u;
     uint64_t _debugResizeMoveCount                             = 0u;
     float _debugLastResizeDeltaDip                             = 0.0f;

@@ -1,7 +1,7 @@
 # Toolchain and consumer integration
 
 Status: normative intended contract
-Last reviewed: 2026-09-06
+Last reviewed: 2026-10-01
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -55,13 +55,40 @@ simultaneous releases of the two applications.
 ## Implemented build and consumption
 
 `src/DxUi.vcxproj` produces the only archive, `DxUi.lib`. FoundationTests, ControlTests, EmbeddedTests and the
-standalone EmbeddedControls executable all consume it. The supported lock target is `["DxUi"]`, API revision 2.
+standalone EmbeddedControls executable all consume it. The test-only `DxUi.InteractiveLease.exe` (the desktop lease behind
+`test.ps1 -Interactive`) is built beside them in every configuration and does not link it. The supported lock target is
+`["DxUi"]`, API revision 3.
 
 Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the vcpkg tool revision are pinned.
 `-OutputRoot` isolates restore and build work in a consumer-owned directory. The same absolute directory, including
 its trailing separator, becomes `DxUiConsumerOutputRoot`; props locate its public WIL headers and the project
 reference passes it as `DxUiOutputRoot`. No application checkout is needed. Missing restore and mismatched/dirty pins
 fail with actionable diagnostics. Both tracked and untracked source changes invalidate a release pin.
+
+vcpkg builds with the Visual Studio installation and default MSVC toolset that MSBuild compiles DxUi with, not with the
+newest toolset it finds. The two differ when a newer toolset is installed beside the default and lacks a compiler for a
+target (VS 18 Insiders' 14.52, beside the default 14.51, has no x64-hosted ARM64 compiler, so every fresh ARM64 restore
+failed configuring `wil:arm64-windows`); for compiled vcpkg libraries a toolset newer than the one that links them is also
+a link hazard. `vcpkg-install.ps1` takes the installation from `Get-DxUiVisualStudioInstallation` (`Tools/VisualStudio.psm1`),
+the one discovery `build.ps1` also uses (`vswhere -latest -prerelease -requires Microsoft.Component.MSBuild`), and the
+toolset from that installation's `VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt`; neither is hard-coded. A missing
+or malformed version file fails before anything is cloned or run, naming the file and the repair. For each platform it then
+writes the overlay triplet `<output root>\vcpkg-triplets\<platform>\<triplet>.cmake` (`Tools/VcpkgTriplet.psm1`): the pinned
+vcpkg checkout's triplet, copied unchanged in its own line endings, then
+`set(VCPKG_VISUAL_STUDIO_PATH "<installation>")` and `set(VCPKG_PLATFORM_TOOLSET_VERSION "<major.minor>")`, and passes
+`--overlay-triplets=<that directory>` to `vcpkg install`. The file is rewritten only when its bytes change; the pin is
+major.minor, so a patch update of the default toolset and an unchanged restore leave it, and its timestamp, alone.
+
+A different triplet is a different package ABI hash, so the first restore after this change, and after a change of
+installation, default major.minor or vcpkg pin, rebuilds the packages (WIL here); vcpkg's default per-user binary cache
+then serves the result to any other output root whose triplet text is identical. The interface is unchanged (`-Platform`,
+`-OutputRoot`): a consumer that runs the pinned checkout's `vcpkg-install.ps1`, from Windows PowerShell 5.1 or PowerShell 7,
+gets the pin with its next pin update and needs no change. In an ARM64 restore on an x64 host vcpkg's host triplet,
+`x64-windows`, keeps its stock triplet; the host-tool ports it builds (`vcpkg-cmake`) run during the restore and are not
+linked into DxUi. A consumer's own installer for compiled libraries applies the same pins to every triplet it builds. It
+can import both modules from the pinned checkout, as it does `Tools/ConsumerBuild.psm1`; `Update-DxUiVcpkgOverlayTriplet`
+takes any triplet file as its source, such as a sanitizer overlay (one that names a file beside itself with
+`CMAKE_CURRENT_LIST_DIR` needs that file beside the generated copy).
 
 External consumers import `Build/DxUi.Consumer.props` after Microsoft.Cpp.props and `.targets` after
 Microsoft.Cpp.targets. Set DxUiRoot, DxUiConsumerLockFile and DxUiConsumerOutputRoot before those imports.
@@ -75,7 +102,8 @@ output directory and never terminates them.
 `test.ps1` runs all three test executables, splitting inherited control suites into independent runs with exit-code,
 SHA256, native architecture and capability-skip receipts; `-Tests <Name>[,<Name>]` narrows each control-suite run to the
 named tests and `-TestTimeout <seconds>` sets the deadline each control test may run before the runner's watchdog ends the run
-with exit code 124 (see the [validation contract](../Testing/Testing_Validation.md)). `gallery.ps1` generates five themed control sheets, a
+with exit code 124; `-Interactive` runs the suites that need the real desktop under `DxUi.InteractiveLease.exe` (see the
+[validation contract](../Testing/Testing_Validation.md)). `gallery.ps1` generates five themed control sheets, a
 supplied-device example image and an HTML index. `DxUi.EmbeddedControls.exe` opens the live toggle/slider example;
 `--output image.png` renders it headlessly through a sample-created WARP device. `--complex-ui` selects the independent
 83-control/1,000-row scene shared with the benchmark. External-consumer validation copies both sample directories
@@ -138,6 +166,50 @@ ASAN outputs stage the selected MSVC toolset's architecture-matching runtime bes
 copy target and fails if that runtime is missing. The standalone archive stages once for its common
 output directory; external consumers stage for their own output. Synthetic MSBuild staging tests
 do not replace the required native sanitizer detection probe and regression suite.
+
+## Compatibility and the consumer interface
+
+`apiRevision` in `capabilities.json` is the compatibility number a consumer lock pins, and `validate_consumer.ps1`
+rejects a lock that names another, so a consumer adopts a new revision in the reviewed change that moves its pin.
+
+The revision increments when a consumer built against the previous one could stop compiling, linking or behaving as before
+without a change of its own:
+- a public header, declaration, MSBuild property or file is removed or renamed;
+- a public function, control or message whose meaning a consumer relies on changes, including a private value a consumer had
+  copied;
+- a consumer interface entry, or one of its parameters, is removed or renamed;
+- a behavior now needs a call it did not need before.
+
+Additions do not increment it. Instead of incrementing, a change may keep the old form working for one revision: an alias for
+a renamed declaration, or a script or function that forwards to its replacement. The next increment removes it. Such an
+alias carries no `[[deprecated]]` attribute, since consumers compile with warnings as errors; the changelog names it and its
+replacement. The changelog fragment of a change that increments the revision says so and lists what each consumer must
+change.
+
+The consumer interface is what a consumer may call or import from its pinned checkout. `capabilities.json` lists it under
+`consumerInterface`:
+- **Scripts**, with the parameters consumers pass: `vcpkg-install.ps1`, `validate-build-matrix.ps1` and
+  `Tools/validate_consumer.ps1`.
+- **Module functions**, with their parameters: `Get-DxUiConsumerBuildIdentity`, `Show-DxUiUpdateNotice`,
+  `Get-DxUiVisualStudioInstallation`, `Get-DxUiDefaultToolset` and `Update-DxUiVcpkgOverlayTriplet`.
+- **MSBuild files**: `Build/DxUi.Consumer.props` and `.targets`, `Build/DxUi.AddressSanitizer.targets` and `src/DxUi.vcxproj`.
+- **Public headers**: the `include/DxUi` root.
+
+`validate-dependencies.ps1` fails if any of the following holds:
+- a listed script or module is missing;
+- a listed module no longer exports a listed function;
+- a listed script or function lost a listed parameter;
+- a listed MSBuild file or the header root is missing;
+- the revision is not a positive integer.
+
+It reads scripts and modules from their parse trees and runs nothing. Names compare as PowerShell binds them, ignoring case,
+and a new parameter is an addition. Every other repository tool, such as `build.ps1`, `test.ps1`, `Tools/Validation.psm1` and
+the other validators, may change without a revision.
+
+Revision 3 covers three changes made at revision 2:
+- the model and delegate interfaces were renamed to `IGridModel`, `IGridDelegate`, `ITreeModel` and `ITreeDelegate`;
+- the Python tools were removed, including the build-matrix validator that `validate-build-matrix.ps1` replaces;
+- DxUi's private window messages are now registered by name, with `ContextMenu::PostMenuBarHover` for the menu-bar hover.
 
 ## Advisory updates
 

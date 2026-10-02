@@ -723,6 +723,7 @@ struct GalleryScene
 
     std::unique_ptr<Panel> root;
     std::unique_ptr<GalleryTreeModel> treeModel;
+    std::unique_ptr<GalleryTreeModel> multiSelectTreeModel;
     std::unique_ptr<GalleryGridModel> gridModel;
     ExposedButton* selectorHoverButton = nullptr;
     ExposedButton* hoverButton         = nullptr;
@@ -1147,6 +1148,17 @@ void AddComboItems(ComboBox& combo)
         tree->SetBounds(tile.content);
         tree->SetModel(scene.treeModel.get());
         tree->SetSelectedItemId(3u);
+    }
+    {
+        // Several rows selected, not next to one another: Ctrl+click adds a row, Shift+click a range, and Ctrl+A every row.
+        // Tall enough for all four rows: a selected row that is only partly visible paints its fill past the tree's edge.
+        const Tile tile            = flow.Next(*scene.root, L"Tree / Multi-select", 2u, 170.0f);
+        scene.multiSelectTreeModel = std::make_unique<GalleryTreeModel>();
+        auto* tree                 = scene.root->AddChild<Tree>();
+        tree->SetBounds(tile.content);
+        tree->SetModel(scene.multiSelectTreeModel.get());
+        tree->SetMultiSelectEnabled(true);
+        tree->SetSelectedItemIds(std::vector<uint64_t>{1u, 3u, 4u});
     }
     {
         const Tile tile = flow.Next(*scene.root, L"Grid / Cell variants", 2u, 176.0f);

@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <span>
+#include <unordered_set>
+#include <vector>
 
 #include "../Support/Diagnostics.h"
 
@@ -40,8 +43,16 @@ struct TreeResolvedRowVisuals final
     return (std::max)(minimumDip, baseDip * scale);
 }
 
-[[nodiscard]] TreeResolvedRowVisuals ResolveTreeRowVisuals(
-    const ThemePalette& theme, std::wstring_view rainbowSeed, AdornmentTone badgeTone, bool selected, bool focused, bool keyboardFocused, bool hovered) noexcept
+// `selected` paints the selection; `current` (the focused item) owns the focus ring. They are the same row unless the tree
+// has a multi-selection, where every selected row takes the selection colors and only the current one shows focus.
+[[nodiscard]] TreeResolvedRowVisuals ResolveTreeRowVisuals(const ThemePalette& theme,
+                                                           std::wstring_view rainbowSeed,
+                                                           AdornmentTone badgeTone,
+                                                           bool selected,
+                                                           bool current,
+                                                           bool focused,
+                                                           bool keyboardFocused,
+                                                           bool hovered) noexcept
 {
     TreeResolvedRowVisuals visuals{};
     visuals.text = theme.text;
@@ -77,7 +88,7 @@ struct TreeResolvedRowVisuals final
     visuals.badgeFill                     = badgeStyle.fill;
     visuals.badgeText                     = badgeStyle.text;
     visuals.focus                         = theme.focusStroke;
-    visuals.showFocus                     = selected && (keyboardFocused || (theme.highContrast && focused));
+    visuals.showFocus                     = current && (keyboardFocused || (theme.highContrast && focused));
     return visuals;
 }
 
@@ -127,18 +138,38 @@ struct TreeResolvedRowVisuals final
     return count;
 }
 
+// Whether two selections hold the same items, whatever their order: a model that only moved rows changes no selection.
+[[nodiscard]] bool SameSelectedItems(std::span<const uint64_t> first, std::span<const uint64_t> second)
+{
+    if (first.size() != second.size())
+    {
+        return false;
+    }
+    if (std::ranges::equal(first, second))
+    {
+        return true;
+    }
+
+    std::vector<uint64_t> sortedFirst(first.begin(), first.end());
+    std::vector<uint64_t> sortedSecond(second.begin(), second.end());
+    std::ranges::sort(sortedFirst);
+    std::ranges::sort(sortedSecond);
+    return sortedFirst == sortedSecond;
+}
+
 void DrawTreeRow(ControlHost& host,
                  const ThemePalette& theme,
                  const TreeItemLayoutMetrics& layout,
                  const TreeItemData& item,
                  bool selected,
+                 bool current,
                  bool hovered,
                  bool focused,
                  bool keyboardFocused,
                  float expanderProgress,
                  float alpha) noexcept
 {
-    const TreeResolvedRowVisuals rowVisuals = ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, focused, keyboardFocused, hovered);
+    const TreeResolvedRowVisuals rowVisuals = ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, current, focused, keyboardFocused, hovered);
     const D2D1_COLOR_F fill                 = WithAlpha(rowVisuals.fill, alpha);
     const D2D1_COLOR_F textColor            = WithAlpha(rowVisuals.text, alpha);
     const D2D1_COLOR_F transparent          = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
@@ -227,6 +258,10 @@ void ITreeDelegate::OnTreeReorder(const TreeDrop& /*drop*/)
 {
 }
 
+void ITreeDelegate::OnTreeSelectionSetChanged(std::span<const uint64_t> /*selectedItemIds*/)
+{
+}
+
 void Tree::SetReorderEnabled(bool enabled) noexcept
 {
     if (_reorderEnabled == enabled)
@@ -248,12 +283,13 @@ void Tree::SetReorderEnabled(bool enabled) noexcept
 
 void Tree::ClearReorderDrag() noexcept
 {
-    _reorderArmed       = false;
-    _reorderDragging    = false;
-    _reorderSourceId    = 0u;
-    _reorderSourceIndex = 0u;
-    _reorderSubtreeEnd  = 0u;
-    _reorderDropIndex   = 0u;
+    _reorderArmed              = false;
+    _reorderDragging           = false;
+    _reorderCollapsesSelection = false;
+    _reorderSourceId           = 0u;
+    _reorderSourceIndex        = 0u;
+    _reorderSubtreeEnd         = 0u;
+    _reorderDropIndex          = 0u;
     _reorderDrop.reset();
 }
 
@@ -427,6 +463,15 @@ void Tree::NotifyDataChanged()
         }
     }
     InvalidateTreeTextMeasurementCaches();
+    // Multi-select: selected items that left the visible rows (removed, or hidden by a collapsed ancestor) leave the
+    // selection and the rest keep the model's order. The delegate hears of a change last, when nothing else is left to do.
+    std::vector<uint64_t> previousSelection;
+    if (_multiSelect && _selection.GetCount() > 0u)
+    {
+        const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
+        previousSelection.assign(selection.begin(), selection.end());
+        ReconcileSelectionWithModel();
+    }
     if (_selectedItemId && (! _model || ! _model->FindVisibleItemById(_selectedItemId.value())))
     {
         _selectedItemId.reset();
@@ -449,11 +494,58 @@ void Tree::NotifyDataChanged()
         ClearTreeExpansionAnimation();
     }
     RefreshAccessibilitySnapshot();
+    if (! previousSelection.empty())
+    {
+        static_cast<void>(NotifySelectionSetChanged(previousSelection));
+    }
+}
+
+void Tree::SetMultiSelectEnabled(bool enabled) noexcept
+{
+    if (_multiSelect == enabled)
+    {
+        return;
+    }
+
+    _multiSelect               = enabled;
+    _reorderCollapsesSelection = false;
+    if (enabled)
+    {
+        // The selected item carries over as the whole selection and the anchor.
+        _selection.Clear();
+        if (_selectedItemId)
+        {
+            _selection.SetSingle(_selectedItemId.value());
+        }
+    }
+    else
+    {
+        // A single selection is its focused item: keep it when it is selected, else the last selected item, else none.
+        if (! _selectedItemId || ! _selection.IsSelected(_selectedItemId.value()))
+        {
+            const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
+            _selectedItemId                           = selection.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(selection.back());
+        }
+        _selection.Clear();
+    }
+    RefreshAccessibilitySnapshot();
+    RequestInvalidate();
 }
 
 void Tree::SetSelectedItemId(std::optional<uint64_t> itemId) noexcept
 {
     _selectedItemId = std::move(itemId);
+    if (_multiSelect)
+    {
+        if (_selectedItemId)
+        {
+            _selection.SetSingle(_selectedItemId.value());
+        }
+        else
+        {
+            _selection.Clear();
+        }
+    }
     if (const std::optional<size_t> selectedIndex = FindSelectedVisibleIndex())
     {
         EnsureVisibleIndex(selectedIndex.value());
@@ -464,6 +556,80 @@ void Tree::SetSelectedItemId(std::optional<uint64_t> itemId) noexcept
 std::optional<uint64_t> Tree::GetSelectedItemId() const noexcept
 {
     return _selectedItemId;
+}
+
+void Tree::SetFocusedItemId(std::optional<uint64_t> itemId) noexcept
+{
+    if (! _multiSelect)
+    {
+        SetSelectedItemId(std::move(itemId));
+        return;
+    }
+
+    _selectedItemId = std::move(itemId);
+    if (const std::optional<size_t> focusedIndex = FindSelectedVisibleIndex())
+    {
+        EnsureVisibleIndex(focusedIndex.value());
+    }
+    RefreshAccessibilitySnapshot();
+}
+
+std::optional<uint64_t> Tree::GetFocusedItemId() const noexcept
+{
+    return _selectedItemId;
+}
+
+std::vector<uint64_t> Tree::GetSelectedItemIds() const
+{
+    if (_multiSelect)
+    {
+        const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
+        return std::vector<uint64_t>(selection.begin(), selection.end());
+    }
+    return _selectedItemId ? std::vector<uint64_t>{_selectedItemId.value()} : std::vector<uint64_t>{};
+}
+
+bool Tree::IsItemSelected(uint64_t itemId) const noexcept
+{
+    return _multiSelect ? _selection.IsSelected(itemId) : (_selectedItemId.has_value() && _selectedItemId.value() == itemId);
+}
+
+void Tree::SetSelectedItemIds(std::span<const uint64_t> itemIds) noexcept
+{
+    const std::vector<uint64_t> visibleIds = CollectVisibleItemIds();
+    const std::unordered_set<uint64_t> visible(visibleIds.begin(), visibleIds.end());
+    // The last listed id that is a visible row is the focused item (and the anchor); the rest keep the model's order.
+    std::optional<uint64_t> last;
+    for (auto it = itemIds.rbegin(); it != itemIds.rend() && ! last; ++it)
+    {
+        if (visible.contains(*it))
+        {
+            last = *it;
+        }
+    }
+
+    _selectedItemId = last;
+    if (_multiSelect)
+    {
+        _selection.Clear();
+        if (last)
+        {
+            _selection.SetSingle(last.value());
+            for (const uint64_t itemId : itemIds)
+            {
+                if (itemId != last.value() && visible.contains(itemId) && ! _selection.IsSelected(itemId))
+                {
+                    _selection.Toggle(itemId);
+                }
+            }
+            _selection.PreserveOrdered(visibleIds);
+        }
+    }
+    if (const std::optional<size_t> selectedIndex = FindSelectedVisibleIndex())
+    {
+        EnsureVisibleIndex(selectedIndex.value());
+    }
+    RefreshAccessibilitySnapshot();
 }
 
 void Tree::RefreshAccessibilitySnapshot() const noexcept
@@ -564,10 +730,11 @@ bool Tree::DebugGetRowVisualState(const ThemePalette& theme, size_t visibleIndex
 
     TreeItemData item;
     _model->GetVisibleItem(visibleIndex, item);
-    const bool selected = _selectedItemId && _selectedItemId.value() == item.id;
+    const bool selected = IsItemSelected(item.id);
+    const bool current  = _selectedItemId && _selectedItemId.value() == item.id;
     const bool hovered  = _hoveredVisibleIndex && _hoveredVisibleIndex.value() == visibleIndex;
     const TreeResolvedRowVisuals visuals =
-        ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, HasFocus(), keyboardFocusVisible && HasFocus(), hovered);
+        ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, current, HasFocus(), keyboardFocusVisible && HasFocus(), hovered);
     out.fillArgb         = PackColor(visuals.fill);
     out.textArgb         = PackColor(visuals.text);
     out.iconArgb         = PackColor(visuals.icon);
@@ -578,6 +745,7 @@ bool Tree::DebugGetRowVisualState(const ThemePalette& theme, size_t visibleIndex
     out.showFocus        = visuals.showFocus;
     out.usesRainbow      = visuals.usesRainbow;
     out.selected         = selected;
+    out.current          = current;
     out.iconUsesIconFont = ! item.iconText.empty() && IconTextUsesIconFont(item.iconText);
     return true;
 }
@@ -629,6 +797,14 @@ void Tree::Paint(ControlHost& host) const
     TreeItemData item;
     const VisibleSpan span = ComputeVisibleSpan(
         static_cast<uint64_t>(_model->GetVisibleItemCount()), _rowHeightDip, _verticalScrollDip, (std::max)(1.0f, contentRect.bottom - contentRect.top));
+    // Rows sit at whole-row positions offset by the scroll, so after a thumb drag the first and last visible rows straddle
+    // the viewport's edges: the rows, and those an expansion moves, are clipped to it so none paints over the frame or
+    // outside the tree. A wholly visible row, focus ring included, lies inside the viewport and is unchanged.
+    auto* const dc = host.GetDeviceContext();
+    if (dc)
+    {
+        dc->PushAxisAlignedClip(contentRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+    }
     for (uint64_t visibleIndex = span.beginIndex; visibleIndex < span.endIndex; ++visibleIndex)
     {
         _model->GetVisibleItem(static_cast<size_t>(visibleIndex), item);
@@ -661,11 +837,12 @@ void Tree::Paint(ControlHost& host) const
             continue;
         }
 
-        const bool selected          = _selectedItemId && _selectedItemId.value() == item.id;
+        const bool selected          = IsItemSelected(item.id);
+        const bool current           = _selectedItemId && _selectedItemId.value() == item.id;
         const bool hovered           = hoveredVisibleIndex && hoveredVisibleIndex.value() == static_cast<size_t>(visibleIndex);
-        const bool keyboardFocused   = selected && HasFocus() && host.IsKeyboardFocusVisible();
+        const bool keyboardFocused   = current && HasFocus() && host.IsKeyboardFocusVisible();
         const float expanderProgress = theme.reducedMotion ? (item.expanded ? 1.0f : 0.0f) : GetExpanderProgress(item.id, item.expanded, nowTickMs);
-        DrawTreeRow(host, theme, layout, item, selected, hovered, HasFocus(), keyboardFocused, expanderProgress, rowAlpha);
+        DrawTreeRow(host, theme, layout, item, selected, current, hovered, HasFocus(), keyboardFocused, expanderProgress, rowAlpha);
     }
 
     if (animateTreeExpansion && _treeExpansionAnimation.has_value() && ! _treeExpansionAnimation->toExpanded)
@@ -695,20 +872,28 @@ void Tree::Paint(ControlHost& host) const
                     continue;
                 }
 
-                const bool selected          = _selectedItemId && _selectedItemId.value() == removedItem.id;
-                const bool keyboardFocused   = selected && HasFocus() && host.IsKeyboardFocusVisible();
+                const bool selected          = IsItemSelected(removedItem.id);
+                const bool current           = _selectedItemId && _selectedItemId.value() == removedItem.id;
+                const bool keyboardFocused   = current && HasFocus() && host.IsKeyboardFocusVisible();
                 const float expanderProgress = theme.reducedMotion ? 0.0f : GetExpanderProgress(removedItem.id, false, nowTickMs);
-                DrawTreeRow(host, theme, layout, removedItem, selected, false, HasFocus(), keyboardFocused, expanderProgress, 1.0f - progress);
+                DrawTreeRow(host, theme, layout, removedItem, selected, current, false, HasFocus(), keyboardFocused, expanderProgress, 1.0f - progress);
             }
         }
     }
+    if (dc)
+    {
+        dc->PopAxisAlignedClip();
+    }
 
-    if (_reorderDrop.has_value())
+    if (_reorderDrop.has_value() && dc)
     {
         // The drop is resolved with its row index and cleared whenever the model changes, so no id scan per paint.
         const std::optional<D2D1_RECT_F> rect = GetVisibleItemHitRect(_reorderDropIndex);
         if (rect.has_value())
         {
+            // The marker of a row that straddles an edge stops there too. The clip reaches 1 DIP past the viewport, inside
+            // the frame's inset, so a Before or After line on the edge keeps its full 2 DIP.
+            dc->PushAxisAlignedClip(InflateRect(contentRect, 0.0f, 1.0f), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
             if (_reorderDrop->place == TreeDropPlace::Inside)
             {
                 D2D1_COLOR_F fill = theme.accent;
@@ -722,6 +907,7 @@ void Tree::Paint(ControlHost& host) const
                     D2D1::RectF(contentRect.left + 4.0f, y - 1.0f, (std::max)(contentRect.left + 8.0f, contentRect.right - 4.0f), y + 1.0f);
                 DrawRoundedRect(host, line, theme.accent, theme.accent, 1.0f);
             }
+            dc->PopAxisAlignedClip();
         }
     }
 
@@ -880,7 +1066,7 @@ bool Tree::OnMouseLeave(ControlHost& host)
     return true;
 }
 
-bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     const HitInfo hit = HitTestPoint(MakePointDip(point));
     if (hit.zone == HitZone::None)
@@ -928,7 +1114,36 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
 
     TreeItemData hitItem;
     _model->GetVisibleItem(hit.visibleIndex, hitItem);
-    if (! SelectVisibleIndex(hit.visibleIndex, true))
+
+    // With multi-select Shift and Ctrl are selection gestures (they never start a row drag), the expander moves the focus
+    // and expands without touching the selection, and a plain press on a row of a multi-selection keeps it until the
+    // release, so that the row can be dragged. Without multi-select every press selects the row alone, as it always did.
+    SelectMode mode            = SelectMode::Replace;
+    bool selectionGesture      = false;
+    bool keepsSelectionForDrag = false;
+    if (_multiSelect)
+    {
+        if (hit.zone == HitZone::Expander)
+        {
+            mode = SelectMode::FocusOnly;
+        }
+        else if (ModifiersContainShift(modifiers))
+        {
+            mode             = SelectMode::Range;
+            selectionGesture = true;
+        }
+        else if (ModifiersContainCtrl(modifiers))
+        {
+            mode             = SelectMode::Toggle;
+            selectionGesture = true;
+        }
+        else if (_reorderEnabled && _selection.GetCount() > 1u && _selection.IsSelected(hitItem.id))
+        {
+            mode                  = SelectMode::FocusOnly;
+            keepsSelectionForDrag = true;
+        }
+    }
+    if (! SelectVisibleIndex(hit.visibleIndex, mode, true))
     {
         return true;
     }
@@ -944,15 +1159,16 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             host.RequestAnimation();
         }
     }
-    else if (_reorderEnabled && hit.zone == HitZone::Item)
+    else if (_reorderEnabled && hit.zone == HitZone::Item && ! selectionGesture)
     {
         // Resolved by id: the selection callback above may already have changed the model.
         _reorderSourceId = hitItem.id;
         if (ResolveReorderSource())
         {
-            _reorderArmed    = true;
-            _reorderDragging = false;
-            _reorderPress    = point;
+            _reorderArmed              = true;
+            _reorderDragging           = false;
+            _reorderCollapsesSelection = keepsSelectionForDrag;
+            _reorderPress              = point;
             _reorderDrop.reset();
             host.CaptureMouse(this);
         }
@@ -965,7 +1181,7 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     return true;
 }
 
-bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
+bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
     if (rightButton)
     {
@@ -981,7 +1197,10 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
     host.SetFocusControl(this);
     TreeItemData item;
     _model->GetVisibleItem(hit.visibleIndex, item);
-    if (! SelectVisibleIndex(hit.visibleIndex, true))
+    // The first press of a double-click already made its selection gesture: with multi-select the second, with Ctrl or
+    // Shift, only activates, so a Ctrl double-click cannot toggle the item off again.
+    const bool selectionModifier = ModifiersContainCtrl(modifiers) || ModifiersContainShift(modifiers);
+    if (! SelectVisibleIndex(hit.visibleIndex, _multiSelect && selectionModifier ? SelectMode::FocusOnly : SelectMode::Replace, true))
     {
         return true;
     }
@@ -1032,8 +1251,19 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         }
         const bool commit   = dragged && _reorderDrop.has_value() && _delegate != nullptr;
         const TreeDrop drop = _reorderDrop.value_or(TreeDrop{});
+        // A click (not a drag) on a row of a multi-selection selects that row alone once the pointer is up.
+        const bool collapse       = ! dragged && _reorderCollapsesSelection;
+        const uint64_t collapseId = _reorderSourceId;
         ClearReorderDrag();
         host.ReleaseMouseCapture();
+        if (collapse)
+        {
+            const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+            if (! CollapseSelectionToItem(collapseId) || selfLifetime.expired())
+            {
+                return false;
+            }
+        }
         Invalidate(host);
         if (commit)
         {
@@ -1098,7 +1328,7 @@ bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta
     return true;
 }
 
-bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
+bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
     if (_reorderArmed && virtualKey == VK_ESCAPE)
     {
@@ -1113,9 +1343,22 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
         return false;
     }
 
-    const auto selectAndInvalidate = [this, &host](size_t visibleIndex) -> bool
+    if (_multiSelect && ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers) && virtualKey == 'A')
     {
-        if (! SelectVisibleIndex(visibleIndex, true))
+        return OnSelectAll(host);
+    }
+
+    // With multi-select a movement key with Shift extends the selection from the anchor, and with Ctrl moves the focus
+    // alone (Ctrl+Space then toggles the item it reached). Without it modifiers change nothing: a movement selects.
+    SelectMode moveMode = SelectMode::Replace;
+    if (_multiSelect)
+    {
+        moveMode = ModifiersContainShift(modifiers) ? SelectMode::Range : (ModifiersContainCtrl(modifiers) ? SelectMode::FocusOnly : SelectMode::Replace);
+    }
+
+    const auto landOn = [this, &host](size_t visibleIndex, SelectMode mode) -> bool
+    {
+        if (! SelectVisibleIndex(visibleIndex, mode, true))
         {
             return true;
         }
@@ -1126,12 +1369,15 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
         Invalidate(host);
         return true;
     };
+    const auto selectAndInvalidate = [&landOn, moveMode](size_t visibleIndex) -> bool { return landOn(visibleIndex, moveMode); };
 
     std::optional<size_t> currentIndex = FindSelectedVisibleIndex();
     if (! currentIndex)
     {
+        // The first key starts from the first row. With multi-select it only takes the focus there, so that the key's
+        // own gesture (Ctrl+Space, Shift+Down) decides what is selected.
         currentIndex = 0u;
-        if (! SelectVisibleIndex(currentIndex.value(), false))
+        if (! SelectVisibleIndex(currentIndex.value(), _multiSelect ? SelectMode::FocusOnly : SelectMode::Replace, false))
         {
             return true;
         }
@@ -1199,6 +1445,10 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
             return true;
         case VK_RETURN:
         case VK_SPACE:
+            if (_multiSelect && virtualKey == VK_SPACE && ModifiersContainCtrl(modifiers))
+            {
+                return landOn(currentIndex.value(), SelectMode::Toggle);
+            }
             if (_delegate)
             {
                 _delegate->OnTreeItemInvoked(item.id);
@@ -1208,11 +1458,15 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*/)
     }
 }
 
-bool Tree::OnChar(ControlHost& host, wchar_t ch, UINT /*modifiers*/)
+bool Tree::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
 {
     if (! _model || _model->GetVisibleItemCount() == 0u || ch < 0x20)
     {
         return false;
+    }
+    if (_multiSelect && ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
+    {
+        return false; // Ctrl+Space (toggle) sends a space character too: a Ctrl chord is a command, not typeahead.
     }
 
     const uint64_t nowTickMs = GetTickCount64();
@@ -1296,11 +1550,14 @@ bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
     if (! keyboardInvocation)
     {
         const std::optional<uint64_t> previousSelection = _selectedItemId;
-        if (! SelectVisibleIndex(visibleIndex, true))
+        // A right-click on a row of a multi-selection keeps it, so the command it opens applies to the selection (the
+        // delegate compares the item with GetSelectedItemIds); any other row is selected alone first.
+        const SelectMode mode = (_multiSelect && _selection.GetCount() > 1u && _selection.IsSelected(item.id)) ? SelectMode::FocusOnly : SelectMode::Replace;
+        if (! SelectVisibleIndex(visibleIndex, mode, true))
         {
             return true;
         }
-        if (_selectedItemId != previousSelection)
+        if (_multiSelect || _selectedItemId != previousSelection)
         {
             Invalidate(host);
         }
@@ -1693,6 +1950,11 @@ void Tree::EnsureVisibleIndex(size_t visibleIndex) noexcept
 
 bool Tree::SelectVisibleIndex(size_t visibleIndex, bool notifyDelegate)
 {
+    return SelectVisibleIndex(visibleIndex, SelectMode::Replace, notifyDelegate);
+}
+
+bool Tree::SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyDelegate)
+{
     if (! _model || visibleIndex >= _model->GetVisibleItemCount())
     {
         return false;
@@ -1700,6 +1962,41 @@ bool Tree::SelectVisibleIndex(size_t visibleIndex, bool notifyDelegate)
 
     TreeItemData item;
     _model->GetVisibleItem(visibleIndex, item);
+
+    // Without multi-select every gesture replaces the one selected item, which is the focused item.
+    std::vector<uint64_t> previousSelection;
+    if (_multiSelect)
+    {
+        const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
+        previousSelection.assign(selection.begin(), selection.end());
+        switch (mode)
+        {
+            case SelectMode::Replace: _selection.SetSingle(item.id); break;
+            case SelectMode::Toggle:
+                _selection.Toggle(item.id);
+                _selection.PreserveOrdered(CollectVisibleItemIds()); // A toggled-on item joins at the end: restore the model's order.
+                break;
+            case SelectMode::Range:
+            {
+                // The anchor is the item a plain click or key last selected, or else the focused item.
+                std::optional<uint64_t> anchor = _selection.GetAnchor();
+                if (! anchor)
+                {
+                    anchor = _selectedItemId;
+                }
+                if (anchor)
+                {
+                    _selection.SetRange(CollectVisibleItemIds(), anchor.value(), item.id);
+                }
+                else
+                {
+                    _selection.SetSingle(item.id);
+                }
+                break;
+            }
+            case SelectMode::FocusOnly: break;
+        }
+    }
     _selectedItemId = item.id;
     EnsureVisibleIndex(visibleIndex);
     if (notifyDelegate && _delegate)
@@ -1711,8 +2008,156 @@ bool Tree::SelectVisibleIndex(size_t visibleIndex, bool notifyDelegate)
         {
             return false;
         }
+        if (_multiSelect && ! NotifySelectionSetChanged(previousSelection))
+        {
+            return false;
+        }
     }
     RefreshAccessibilitySnapshot();
+    return true;
+}
+
+std::vector<uint64_t> Tree::CollectVisibleItemIds() const
+{
+    std::vector<uint64_t> itemIds;
+    if (! _model)
+    {
+        return itemIds;
+    }
+
+    const size_t itemCount = _model->GetVisibleItemCount();
+    itemIds.reserve(itemCount);
+    TreeItemData item;
+    for (size_t visibleIndex = 0u; visibleIndex < itemCount; ++visibleIndex)
+    {
+        _model->GetVisibleItem(visibleIndex, item);
+        itemIds.push_back(item.id);
+    }
+    return itemIds;
+}
+
+void Tree::ReconcileSelectionWithModel()
+{
+    if (_multiSelect)
+    {
+        _selection.PreserveOrdered(CollectVisibleItemIds());
+    }
+}
+
+bool Tree::NotifySelectionSetChanged(const std::vector<uint64_t>& previous)
+{
+    const std::span<const uint64_t> current = _selection.GetOrderedSelection();
+    if (! _delegate || SameSelectedItems(previous, current))
+    {
+        return true;
+    }
+
+    // The delegate gets its own copy: it may change the selection, or destroy the tree, from inside the call.
+    const std::vector<uint64_t> selectedItemIds(current.begin(), current.end());
+    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+    ITreeDelegate* const delegate         = _delegate;
+    delegate->OnTreeSelectionSetChanged(selectedItemIds);
+    return ! selfLifetime.expired();
+}
+
+bool Tree::CollapseSelectionToItem(uint64_t itemId)
+{
+    if (! _multiSelect)
+    {
+        return true;
+    }
+
+    // The item already holds the focus from the press: only the selection changes, so only its set callback is due.
+    const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
+    const std::vector<uint64_t> previousSelection(selection.begin(), selection.end());
+    _selection.SetSingle(itemId);
+    _selectedItemId = itemId;
+    if (! NotifySelectionSetChanged(previousSelection))
+    {
+        return false;
+    }
+    RefreshAccessibilitySnapshot();
+    return true;
+}
+
+bool Tree::RequestAddVisibleItemToSelection(size_t visibleIndex) noexcept
+{
+    if (! _model || visibleIndex >= _model->GetVisibleItemCount())
+    {
+        return false;
+    }
+    if (! _multiSelect)
+    {
+        return SelectVisibleIndex(visibleIndex, true);
+    }
+
+    // Adding a selected item changes nothing: this is not a toggle.
+    TreeItemData item;
+    _model->GetVisibleItem(visibleIndex, item);
+    return SelectVisibleIndex(visibleIndex, _selection.IsSelected(item.id) ? SelectMode::FocusOnly : SelectMode::Toggle, true);
+}
+
+bool Tree::RequestRemoveVisibleItemFromSelection(size_t visibleIndex) noexcept
+{
+    if (! _multiSelect || ! _model || visibleIndex >= _model->GetVisibleItemCount())
+    {
+        return false;
+    }
+
+    TreeItemData item;
+    _model->GetVisibleItem(visibleIndex, item);
+    if (! _selection.IsSelected(item.id))
+    {
+        return true;
+    }
+
+    const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
+    const std::vector<uint64_t> previousSelection(selection.begin(), selection.end());
+    _selection.Toggle(item.id); // Removes it; the focused item stays where it is.
+    if (! NotifySelectionSetChanged(previousSelection))
+    {
+        return false;
+    }
+    RefreshAccessibilitySnapshot();
+    return true;
+}
+
+bool Tree::OnSelectAll(ControlHost& host)
+{
+    if (! _multiSelect || ! _model || _model->GetVisibleItemCount() == 0u)
+    {
+        return false;
+    }
+
+    const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
+    const std::vector<uint64_t> previousSelection(selection.begin(), selection.end());
+    const std::vector<uint64_t> allItemIds = CollectVisibleItemIds();
+    _selection.SetRange(allItemIds, allItemIds.front(), allItemIds.back());
+    // The focused item stays; without one the first item takes it, and the delegate hears of that like any other move.
+    const bool focusMoves = ! FindSelectedVisibleIndex().has_value();
+    if (focusMoves)
+    {
+        _selectedItemId = allItemIds.front();
+    }
+    if (_delegate)
+    {
+        const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+        ITreeDelegate* const delegate         = _delegate;
+        if (focusMoves)
+        {
+            delegate->OnTreeSelectionChanged(allItemIds.front());
+            if (selfLifetime.expired())
+            {
+                return true;
+            }
+        }
+        if (! NotifySelectionSetChanged(previousSelection))
+        {
+            return true;
+        }
+    }
+    RefreshAccessibilitySnapshot();
+    Invalidate(host);
     return true;
 }
 

@@ -2,6 +2,7 @@
 # Each Test-DxUi* function returns Failures and Messages instead of printing, so the tooling tests can drive it
 # against fixture trees; the root validate-*.ps1 scripts print the result and fail on any finding.
 Set-StrictMode -Version Latest
+Import-Module (Join-Path $PSScriptRoot 'Changelog.psm1')
 
 $script:PathComparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
 
@@ -308,8 +309,27 @@ function Test-DxUiSpecs([Parameter(Mandatory)][string] $Root) {
     if (-not $indexedSet.SetEquals($expected) -or $indexed.Count -ne $indexedSet.Count) {
         $failures.Add('Every direct WIP plan must appear exactly once in its index')
     }
-    foreach ($part in @((Test-DxUiDocs $Root), (Test-DxUiDesignSystem $Root), (Test-DxUiMeasurements $Root))) { $failures.AddRange($part.Failures) }
+    foreach ($part in @((Test-DxUiDocs $Root), (Test-DxUiDesignSystem $Root), (Test-DxUiMeasurements $Root), (Test-DxUiChangelog $Root))) {
+        $failures.AddRange($part.Failures)
+    }
     return New-ValidationResult $failures @("Validated $($files.Count) Markdown files, $($required.Count) authority files and $($expected.Count) active plans")
+}
+
+function Test-DxUiChangelog([Parameter(Mandatory)][string] $Root) {
+    # A change is recorded as a fragment under Changes/, which its README explains, until Fold-Changelog.ps1 moves it under
+    # CHANGELOG.md's Unreleased heading. Every fragment is one dated bullet.
+    $failures = [Collections.Generic.List[string]]::new()
+    if (-not [IO.File]::Exists((Join-Path $Root 'Changes/README.md'))) { $failures.Add('Changes/README.md must explain changelog fragments') }
+    $changelog = Join-Path $Root 'CHANGELOG.md'
+    if (-not [IO.File]::Exists($changelog) -or -not [regex]::IsMatch((Read-TextFile $changelog -StripBom), '(?m)^## Unreleased[ \t]*\r?$')) {
+        $failures.Add('CHANGELOG.md must keep its "## Unreleased" heading, under which fragments are folded')
+    }
+    $fragments = Get-ChangelogFragments $Root
+    foreach ($fragment in $fragments) {
+        $problems = Get-ChangelogFragmentProblems $fragment.Name $fragment.Text
+        foreach ($problem in $problems) { $failures.Add("Changelog fragment $problem") }
+    }
+    return New-ValidationResult $failures @()
 }
 
 # --- Skills -------------------------------------------------------------------------------------------------------
@@ -528,7 +548,104 @@ function Test-DxUiDependencies([Parameter(Mandatory)][string] $Root) {
             $failures.Add("Path of $($path.Length) characters, over the $($script:ConsumerPathBudget) a consumer's pinned restore can check out: $path")
         }
     }
-    return New-ValidationResult $failures @("Validated $($origins.Count) historical origins, $($destinations.Count) owned paths, $($allowed.Count) pending dependency records, supported-source independence and $($committable.Count) paths within $($script:ConsumerPathBudget) characters")
+    $interface = Test-DxUiConsumerInterface $Root
+    foreach ($failure in $interface.Failures) { $failures.Add($failure) }
+    return New-ValidationResult $failures @("Validated $($origins.Count) historical origins, $($destinations.Count) owned paths, $($allowed.Count) pending dependency records, supported-source independence, $($committable.Count) paths within $($script:ConsumerPathBudget) characters and $($interface.Entries) consumer interface entries at API revision $($interface.Revision)")
+}
+
+# --- Consumer interface -----------------------------------------------------------------------------------------
+
+function Resolve-ConsumerInterfacePath([string] $Root, [object] $Relative) {
+    # A relative, forward-slash path inside this repository, or nothing.
+    if ($Relative -isnot [string] -or -not $Relative -or $Relative.Contains('\') -or $Relative.StartsWith('/')) { return $null }
+    if (@($Relative.Split('/') | Where-Object { $_ -eq '..' }).Count) { return $null }
+    $resolved = Get-FullPath (Join-Path $Root $Relative)
+    if (Test-UnderPath $resolved $Root) { return $resolved }
+    return $null
+}
+
+function Get-ParameterNames([object] $Parameters) {
+    return , [string[]]@($Parameters | Where-Object { $_ } | ForEach-Object { $_.Name.VariablePath.UserPath })
+}
+
+function Get-ScriptParameterNames([string] $Path) {
+    # Read from the parse tree, so nothing runs.
+    $ast = [Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$null)
+    if (-not $ast.ParamBlock) { return , [string[]]@() }
+    return Get-ParameterNames $ast.ParamBlock.Parameters
+}
+
+function Get-ModuleFunctionParameters([string] $Path) {
+    # The functions a module exports, each with its parameter names, read from the parse tree, so nothing is imported or run.
+    # Without Export-ModuleMember a module exports every function it defines.
+    $ast = [Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$null)
+    $defined = @{}
+    foreach ($function in $ast.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] }, $false)) {
+        $parameters = if ($function.Body.ParamBlock) { $function.Body.ParamBlock.Parameters } else { $function.Parameters }
+        $defined[$function.Name] = Get-ParameterNames $parameters
+    }
+    $exports = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'Export-ModuleMember' }, $true))
+    if ($exports.Count -eq 0) { return $defined }
+    $exported = @{}
+    foreach ($command in $exports) {
+        $elements = @($command.CommandElements)
+        for ($index = 1; $index -lt $elements.Count - 1; $index++) {
+            if ($elements[$index] -isnot [Management.Automation.Language.CommandParameterAst] -or $elements[$index].ParameterName -ne 'Function') { continue }
+            foreach ($name in $elements[$index + 1].FindAll({ param($node) $node -is [Management.Automation.Language.StringConstantExpressionAst] }, $true)) {
+                if ($defined.Contains($name.Value)) { $exported[$name.Value] = $defined[$name.Value] }
+            }
+        }
+    }
+    return $exported
+}
+
+function Test-DxUiConsumerInterface([Parameter(Mandatory)][string] $Root) {
+    # What a consumer may call or import from its pinned checkout, as capabilities.json lists it: scripts with their parameters,
+    # module functions with theirs, the MSBuild files and the public header root. Removing or renaming any of them breaks a
+    # pinned consumer, so it fails here until capabilities.json changes too, under the revision rule of
+    # Specs/Build/Build_ToolchainAndConsumption.md. Parameter and function names compare as PowerShell binds them, ignoring case.
+    $failures = [Collections.Generic.List[string]]::new()
+    $manifest = Read-JsonFile (Join-Path $Root 'capabilities.json') -StripBom
+    $revision = Get-JsonValue $manifest 'apiRevision'
+    if (-not ($revision -is [int] -or $revision -is [long]) -or $revision -lt 1) { $failures.Add('capabilities.json needs a positive integer apiRevision') }
+    $interface = Get-JsonValue $manifest 'consumerInterface'
+    if ($interface -isnot [Collections.IDictionary]) {
+        $failures.Add('capabilities.json needs a consumerInterface object')
+        return [pscustomobject]@{ Failures = $failures.ToArray(); Entries = 0; Revision = $revision }
+    }
+    $entries = 0
+    $scripts = Get-JsonValue $interface 'scripts' @{}
+    foreach ($relative in Sort-Ordinal @($scripts.Keys)) {
+        $entries++
+        $path = Resolve-ConsumerInterfacePath $Root $relative
+        if ($null -eq $path -or -not [IO.File]::Exists($path)) { $failures.Add("Consumer script is missing: $relative"); continue }
+        $present = Get-ScriptParameterNames $path
+        foreach ($parameter in @($scripts[$relative])) {
+            if ($parameter -notin $present) { $failures.Add("Consumer script $relative has no -$parameter parameter") }
+        }
+    }
+    $modules = Get-JsonValue $interface 'modules' @{}
+    foreach ($relative in Sort-Ordinal @($modules.Keys)) {
+        $path = Resolve-ConsumerInterfacePath $Root $relative
+        if ($null -eq $path -or -not [IO.File]::Exists($path)) { $entries++; $failures.Add("Consumer module is missing: $relative"); continue }
+        $exported = Get-ModuleFunctionParameters $path
+        foreach ($function in Sort-Ordinal @($modules[$relative].Keys)) {
+            $entries++
+            $match = @($exported.Keys | Where-Object { $_ -eq $function })
+            if ($match.Count -eq 0) { $failures.Add("Consumer module $relative does not export $function"); continue }
+            foreach ($parameter in @($modules[$relative][$function])) {
+                if ($parameter -notin $exported[$match[0]]) { $failures.Add("Consumer function $function in $relative has no -$parameter parameter") }
+            }
+        }
+    }
+    $msbuild = Get-JsonValue $interface 'msbuild' @()
+    $headers = Get-JsonValue $interface 'headers' @()
+    foreach ($relative in @($msbuild) + @($headers)) {
+        $entries++
+        $path = Resolve-ConsumerInterfacePath $Root $relative
+        if ($null -eq $path -or -not (Test-PathExists $path)) { $failures.Add("Consumer entry point is missing: $relative") }
+    }
+    return [pscustomobject]@{ Failures = $failures.ToArray(); Entries = $entries; Revision = $revision }
 }
 
 # --- Inherited test accounting ----------------------------------------------------------------------------------
@@ -712,7 +829,7 @@ function Invoke-DxUiValidation {
     return $results.ToArray()
 }
 
-Export-ModuleMember -Function Get-MarkdownProse, Test-DxUiDocs, Test-DxUiDesignSystem, Test-DxUiMeasurements, Test-DxUiSpecs,
+Export-ModuleMember -Function Get-MarkdownProse, Test-DxUiDocs, Test-DxUiDesignSystem, Test-DxUiMeasurements, Test-DxUiSpecs, Test-DxUiChangelog,
     ConvertFrom-SkillFrontMatter, Test-DxUiSkills, Test-DxUiDependencies, Test-DxUiTestPort, Get-BuildMatrix,
     Test-DxUiProjectConfigurations, Test-DxUiSolutionConfigurations, Test-DxUiBuildMatrix, Complete-DxUiValidation,
     Get-DxUiValidationSteps, Invoke-DxUiValidation

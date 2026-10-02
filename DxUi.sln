@@ -10,6 +10,8 @@ Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "DxUi.EmbeddedControls", "Sa
 EndProject
 Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "DxUi.EmbeddedTests", "Tests\Embedded\DxUi.EmbeddedTests.vcxproj", "{8B4FAB6F-83CD-48EF-A16E-21CD97073F92}"
 EndProject
+Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "DxUi.InteractiveLease", "Tests\InteractiveLease\DxUi.InteractiveLease.vcxproj", "{5C2E7B19-3D84-4F6A-A1B0-7E9C58D2F364}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -80,5 +82,17 @@ Global
 		{D62F4A2E-28A8-5CCD-B5B9-3C27572B4EF7}.ASan Debug|ARM64.Build.0 = ASan Debug|ARM64
 		{D62F4A2E-28A8-5CCD-B5B9-3C27572B4EF7}.Release|ARM64.ActiveCfg = Release|ARM64
 		{D62F4A2E-28A8-5CCD-B5B9-3C27572B4EF7}.Release|ARM64.Build.0 = Release|ARM64
+		{5C2E7B19-3D84-4F6A-A1B0-7E9C58D2F364}.Debug|x64.ActiveCfg = Debug|x64
+		{5C2E7B19-3D84-4F6A-A1B0-7E9C58D2F364}.ASan Debug|x64.ActiveCfg = ASan Debug|x64
+		{5C2E7B19-3D84-4F6A-A1B0-7E9C58D2F364}.Debug|x64.Build.0 = Debug|x64
+		{5C2E7B19-3D84-4F6A-A1B0-7E9C58D2F364}.ASan Debug|x64.Build.0 = ASan Debug|x64
+		{5C2E7B19-3D84-4F6A-A1B0-7E9C58D2F364}.Release|x64.ActiveCfg = Release|x64
+		{5C2E7B19-3D84-4F6A-A1B0-7E9C58D2F364}.Release|x64.Build.0 = Release|x64
+		{5C2E7B19-3D84-4F6A-A1B0-7E9C58D2F364}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{5C2E7B19-3D84-4F6A-A1B0-7E9C58D2F364}.ASan Debug|ARM64.ActiveCfg = ASan Debug|ARM64
+		{5C2E7B19-3D84-4F6A-A1B0-7E9C58D2F364}.Debug|ARM64.Build.0 = Debug|ARM64
+		{5C2E7B19-3D84-4F6A-A1B0-7E9C58D2F364}.ASan Debug|ARM64.Build.0 = ASan Debug|ARM64
+		{5C2E7B19-3D84-4F6A-A1B0-7E9C58D2F364}.Release|ARM64.ActiveCfg = Release|ARM64
+		{5C2E7B19-3D84-4F6A-A1B0-7E9C58D2F364}.Release|ARM64.Build.0 = Release|ARM64
 	EndGlobalSection
 EndGlobal

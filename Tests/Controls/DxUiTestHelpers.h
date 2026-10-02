@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <format>
+#include <functional>
 #include <iostream>
 #include <mutex>
 #include <string>
@@ -808,6 +809,7 @@ public:
     ~AttachedHostWindow()
     {
         std::cerr << "    [TRACE] attached host dtor: begin\n" << std::flush;
+        _applicationMessageHandler = nullptr; // What it captured may already be gone; teardown messages go to DefWindowProc.
         _host.Detach();
         std::cerr << "    [TRACE] attached host dtor: host detached\n" << std::flush;
         _hwnd.reset();
@@ -829,6 +831,14 @@ public:
     void AllowOuterSizeBeyondDesktop(SIZE outerSizePx) noexcept
     {
         _maximumTrackSizePx = outerSizePx;
+    }
+
+    // The application's own handling of a message HandleMessage left unhandled, as an application's window procedure does
+    // after it: the handler returns true with the message's result, or false to leave the message to DefWindowProc.
+    using ApplicationMessageHandler = std::function<bool(UINT message, WPARAM wParam, LPARAM lParam, LRESULT& result)>;
+    void SetApplicationMessageHandler(ApplicationMessageHandler handler)
+    {
+        _applicationMessageHandler = std::move(handler);
     }
 
     // How often another application took the foreground from this window: Windows then sends WM_ACTIVATEAPP with FALSE and
@@ -915,6 +925,11 @@ private:
             {
                 return result;
             }
+            LRESULT applicationResult = 0;
+            if (self->_applicationMessageHandler && self->_applicationMessageHandler(msg, wp, lp, applicationResult))
+            {
+                return applicationResult;
+            }
         }
 
         return DefWindowProcW(hwnd, msg, wp, lp);
@@ -922,6 +937,7 @@ private:
 
     wil::unique_hwnd _hwnd;
     DxUi::WindowHost _host;
+    ApplicationMessageHandler _applicationMessageHandler;
     SIZE _maximumTrackSizePx{};
     uint32_t _foregroundLossCount      = 0u;
     DWORD _lastForegroundThiefThreadId = 0u;
@@ -2107,6 +2123,18 @@ public:
     {
         ++selectionChangedCount;
         lastSelectedItemId = itemId;
+        callOrder += 'P';
+        if (observedTree)
+            idsSeenByPrimaryCallback = observedTree->GetSelectedItemIds();
+    }
+
+    void OnTreeSelectionSetChanged(std::span<const uint64_t> selectedItemIds) override
+    {
+        ++selectionSetChangedCount;
+        lastSelectionSet.assign(selectedItemIds.begin(), selectedItemIds.end());
+        callOrder += 'S';
+        if (observedTree)
+            idsSeenBySetCallback = observedTree->GetSelectedItemIds();
     }
 
     void OnTreeItemInvoked(uint64_t itemId) override
@@ -2133,13 +2161,25 @@ public:
     {
         ++reorderCount;
         lastDrop = drop;
+        if (observedTree)
+            idsSeenByReorderCallback = observedTree->GetSelectedItemIds();
     }
 
-    size_t selectionChangedCount = 0u;
-    size_t invokedCount          = 0u;
-    size_t toggleCount           = 0u;
-    size_t contextMenuCount      = 0u;
-    size_t reorderCount          = 0u;
+    size_t selectionChangedCount    = 0u;
+    size_t selectionSetChangedCount = 0u;
+    size_t invokedCount             = 0u;
+    size_t toggleCount              = 0u;
+    size_t contextMenuCount         = 0u;
+    size_t reorderCount             = 0u;
+    // The set of the latest OnTreeSelectionSetChanged, and what the tree itself reported while the callbacks ran when
+    // `observedTree` is set: a delegate reads a finished selection, never a half-applied one. `callOrder` is P for each
+    // OnTreeSelectionChanged and S for each OnTreeSelectionSetChanged, in call order.
+    std::vector<uint64_t> lastSelectionSet;
+    const DxUi::Tree* observedTree = nullptr;
+    std::vector<uint64_t> idsSeenByPrimaryCallback;
+    std::vector<uint64_t> idsSeenBySetCallback;
+    std::vector<uint64_t> idsSeenByReorderCallback;
+    std::string callOrder;
     DxUi::TreeDrop lastDrop{};
     uint64_t lastSelectedItemId    = 0u;
     uint64_t lastInvokedItemId     = 0u;
@@ -2148,6 +2188,39 @@ public:
     bool lastExpandedState         = false;
     POINT lastContextMenuPoint{};
 };
+
+using TreeIds = std::vector<uint64_t>;
+
+[[nodiscard]] inline std::string DescribeTreeIds(const TreeIds& ids)
+{
+    std::string text = "{";
+    for (size_t index = 0u; index < ids.size(); ++index)
+    {
+        text += (index == 0u ? "" : ",") + std::to_string(ids[index]);
+    }
+    return text + "}";
+}
+
+// Fails naming both selections, so a broken gesture shows what it selected.
+inline void RequireTreeIds(const TreeIds& actual, const TreeIds& expected, const char* context)
+{
+    if (actual != expected)
+    {
+        const std::string message = std::string(context) + ": expected " + DescribeTreeIds(expected) + " but the tree holds " + DescribeTreeIds(actual);
+        Require(false, message.c_str());
+    }
+}
+
+// Rows "Row N" at the top level, for ids firstId to firstId + count - 1.
+[[nodiscard]] inline std::vector<DxUi::TreeItemData> FlatTreeItems(uint64_t count, uint64_t firstId = 1u)
+{
+    std::vector<DxUi::TreeItemData> items;
+    for (uint64_t id = firstId; id < firstId + count; ++id)
+    {
+        items.push_back(DxUi::TreeItemData{.id = id, .text = L"Row " + std::to_wstring(id)});
+    }
+    return items;
+}
 
 class PaintTraceControl final : public DxUi::Control
 {

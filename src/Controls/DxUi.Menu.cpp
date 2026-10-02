@@ -194,7 +194,8 @@ struct MenuPopup;
 
 [[nodiscard]] bool ShouldTraceMenuLoopMessageImmediately(UINT message, bool popupMessage) noexcept
 {
-    if (popupMessage || IsMenuPriorityInputMessage(message))
+    // The menu-bar hover is a registered message, not a constant a case can name.
+    if (popupMessage || IsMenuPriorityInputMessage(message) || WndMsg::ContextMenuRootHoverChanged().Matches(message))
     {
         return true;
     }
@@ -209,8 +210,7 @@ struct MenuPopup;
         case WM_NCACTIVATE:
         case WM_SETFOCUS:
         case WM_KILLFOCUS:
-        case WM_DESTROY:
-        case WndMsg::kContextMenuRootHoverChanged: return true;
+        case WM_DESTROY: return true;
         default: return false;
     }
 }
@@ -1036,36 +1036,31 @@ struct MenuDescriptionLayout
 // Menu popup window class
 // ---------------------------------------------------------------------------
 
-static constexpr wchar_t kMenuWindowClass[]        = L"DxUi_ContextMenu";
-static constexpr UINT kMenuAccessibleInvokeMessage = WM_APP + 0x21a;
-static constexpr UINT kMenuAccessibleFocusMessage  = WM_APP + 0x21b;
-// Finalizes an asynchronous session that a failed DPI reflow dismissed inside a window operation.
-static constexpr UINT kMenuDeferredFinalizeMessage = WM_APP + 0x21c;
-// Lets the window under the pointer choose its cursor, outside any menu handler (see ApplyMenuPointerCursor).
-static constexpr UINT kMenuForwardCursorMessage = WM_APP + 0x21d;
+// The popups' private messages are registered by name: WndMsg::MenuPopup* (WindowMessages.h).
+static constexpr wchar_t kMenuWindowClass[] = L"DxUi_ContextMenu";
 struct MenuAccessibilityRequest
 {
     HWND target;
     size_t index;
 };
 
-void PostMenuAccessibilityRequest(HWND target, UINT message, size_t index) noexcept
+void PostMenuAccessibilityRequest(HWND target, WndMsg::RegisteredMessage message, size_t index) noexcept
 {
     // The bounded existing registry drains payloads on WM_NCDESTROY; a queued
     // action cannot outlive its popup or be reinterpreted after HWND reuse.
+    // Without its registered message the request is dropped, as a failed post drops it.
+    if (! message)
+        return;
     std::unique_ptr<MenuAccessibilityRequest> request(new (std::nothrow) MenuAccessibilityRequest{target, index});
     if (request)
-        static_cast<void>(PostMessagePayload(target, message, 0, std::move(request)));
+        static_cast<void>(PostMessagePayload(target, message.value, 0, std::move(request)));
 }
 static std::atomic<bool> s_classRegistered = false;
 #if DXUI_ENABLE_DIAGNOSTICS
-static constexpr UINT kMenuDebugCaptureBitmapMessage    = WM_APP + 0x214;
-static constexpr UINT kMenuDebugGetItemTextMessage      = WM_APP + 0x215;
-static constexpr UINT kMenuDebugSetBackdropMessage      = WM_APP + 0x216;
-static constexpr UINT kMenuDebugGetStateMessage         = WM_APP + 0x217;
-static constexpr UINT kMenuDebugGetItemRectMessage      = WM_APP + 0x218;
-static constexpr UINT kMenuDebugGetItemPaintMessage     = WM_APP + 0x219;
 static constexpr DWORD kMenuDebugStateDispatchTimeoutMs = 1000u;
+// The other cross-thread probes, a software-rendered capture under AddressSanitizer among them, answer within a second: a popup
+// thread that does not answer in three seconds is wedged or blocked, and its probe fails instead of holding the caller for good.
+static constexpr DWORD kMenuDebugProbeTimeoutMs = 3000u;
 #endif
 
 struct MenuController; // forward
@@ -1416,7 +1411,7 @@ struct MenuController
     bool leftButtonDownInPopup      = false;
     bool rightButtonDownInPopup     = false;
     bool cursorChosen               = false; // The menu set or forwarded a cursor; closing lets the window re-choose.
-    bool cursorForwardPending       = false; // A posted kMenuForwardCursorMessage will forward for cursorForwardPoint.
+    bool cursorForwardPending       = false; // A posted MenuPopupForwardCursor message will forward for cursorForwardPoint.
     POINT cursorForwardPoint{};
     POINT lastPointerScreenPoint{};
     bool hasLastPointerScreenPoint = false;
@@ -1506,18 +1501,36 @@ struct MenuController
 };
 
 #if DXUI_ENABLE_DIAGNOSTICS
-[[nodiscard]] bool PeekMenuDebugStateMessage(const MenuController& controller, MSG& msg) noexcept
+std::atomic<ContextMenuModalLoopPeekHook> g_menuModalLoopPeekHook{nullptr};
+std::atomic<void*> g_menuModalLoopPeekHookContext{nullptr};
+#endif
+
+// Removes the first `message` queued for a popup of the chain, root first. PeekMessageW first runs the handlers of messages
+// other threads sent to this thread, and such a handler can open or close a submenu, which changes controller.popups under
+// the loop. So the chain is indexed afresh on every iteration and nothing from it is held across the call: a popup that
+// closes is not visited, and no popup is read after it was freed. Nothing allocates.
+[[nodiscard]] bool PeekMenuPopupMessage(const MenuController& controller, UINT message, MSG& msg) noexcept
 {
-    for (const auto& popup : controller.popups)
+    for (size_t index = 0u; index < controller.popups.size(); ++index)
     {
-        if (popup->hwnd && PeekMessageW(&msg, popup->hwnd, kMenuDebugGetStateMessage, kMenuDebugGetStateMessage, PM_REMOVE) != FALSE)
+        const HWND popupHwnd = controller.popups[index]->hwnd;
+        if (! popupHwnd)
+        {
+            continue;
+        }
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (const ContextMenuModalLoopPeekHook hook = g_menuModalLoopPeekHook.load(std::memory_order_acquire))
+        {
+            hook(g_menuModalLoopPeekHookContext.load(std::memory_order_acquire), popupHwnd, message);
+        }
+#endif
+        if (PeekMessageW(&msg, popupHwnd, message, message, PM_REMOVE) != FALSE)
         {
             return true;
         }
     }
     return false;
 }
-#endif
 
 [[nodiscard]] bool PeekMenuModalLoopPriorityMessage(const MenuController& controller, MSG& msg) noexcept
 {
@@ -1527,15 +1540,16 @@ struct MenuController
     }
     // Input invalidates the popup, but ordinary WM_PAINT is lower priority than posted owner traffic.
     // Drain only our pending popup paints before that traffic so visible feedback cannot starve.
-    for (const auto& popup : controller.popups)
+    if (PeekMenuPopupMessage(controller, WM_PAINT, msg))
     {
-        if (popup->hwnd && PeekMessageW(&msg, popup->hwnd, WM_PAINT, WM_PAINT, PM_REMOVE) != FALSE)
-            return true;
+        return true;
     }
 #if DXUI_ENABLE_DIAGNOSTICS
     // Test-only state probes must observe already-prioritized input without
     // waiting behind unrelated owner traffic in the modal thread queue.
-    return PeekMenuDebugStateMessage(controller, msg);
+    // A filter of 0 through 0 would retrieve every message; without its registered message no probe was posted.
+    const WndMsg::RegisteredMessage probe = WndMsg::MenuPopupDebugGetState();
+    return probe && PeekMenuPopupMessage(controller, probe.value, msg);
 #else
     static_cast<void>(controller);
     return false;
@@ -1914,31 +1928,16 @@ void RememberRootSwitchPointerPoint(MenuController& controller, POINT screenPoin
 // ---------------------------------------------------------------------------
 
 #if DXUI_ENABLE_DIAGNOSTICS
-struct MenuDebugGetItemTextRequest
+// A test probe of a popup that lives on another thread is answered by that thread, into this state, which the caller and the
+// probe's payload share. The caller waits a bounded time and then gives up; an answer that comes later lands here, never in the
+// caller's frame, and a payload the popup thread never takes is freed with its window.
+template <class Result> struct MenuDebugDispatch
 {
-    size_t itemIndex      = 0u;
-    std::wstring* outText = nullptr;
-};
-
-struct MenuDebugGetItemRectRequest
-{
-    size_t itemIndex        = 0u;
-    D2D1_RECT_F* outRectDip = nullptr;
-};
-
-struct MenuDebugGetItemPaintRequest
-{
-    size_t itemIndex                              = 0u;
-    ContextMenuPopupItemPaintDebugState* outState = nullptr;
-};
-
-struct MenuDebugGetStateDispatch
-{
-    MenuDebugGetStateDispatch()                                            = default;
-    MenuDebugGetStateDispatch(const MenuDebugGetStateDispatch&)            = delete;
-    MenuDebugGetStateDispatch& operator=(const MenuDebugGetStateDispatch&) = delete;
-    MenuDebugGetStateDispatch(MenuDebugGetStateDispatch&&)                 = delete;
-    MenuDebugGetStateDispatch& operator=(MenuDebugGetStateDispatch&&)      = delete;
+    MenuDebugDispatch()                                    = default;
+    MenuDebugDispatch(const MenuDebugDispatch&)            = delete;
+    MenuDebugDispatch& operator=(const MenuDebugDispatch&) = delete;
+    MenuDebugDispatch(MenuDebugDispatch&&)                 = delete;
+    MenuDebugDispatch& operator=(MenuDebugDispatch&&)      = delete;
 
     enum class State : uint8_t
     {
@@ -1948,36 +1947,128 @@ struct MenuDebugGetStateDispatch
     };
 
     std::atomic<State> state{State::Pending};
-    ContextMenuPopupDebugState result;
+    Result result{};
     wil::unique_event_nothrow completedEvent;
     bool succeeded = false;
 };
 
-struct MenuDebugGetStatePayload
+template <class Result> struct MenuDebugPayload
 {
-    MenuDebugGetStatePayload()                                           = default;
-    MenuDebugGetStatePayload(const MenuDebugGetStatePayload&)            = delete;
-    MenuDebugGetStatePayload& operator=(const MenuDebugGetStatePayload&) = delete;
-    MenuDebugGetStatePayload(MenuDebugGetStatePayload&&)                 = delete;
-    MenuDebugGetStatePayload& operator=(MenuDebugGetStatePayload&&)      = delete;
+    MenuDebugPayload()                                   = default;
+    MenuDebugPayload(const MenuDebugPayload&)            = delete;
+    MenuDebugPayload& operator=(const MenuDebugPayload&) = delete;
+    MenuDebugPayload(MenuDebugPayload&&)                 = delete;
+    MenuDebugPayload& operator=(MenuDebugPayload&&)      = delete;
 
-    ~MenuDebugGetStatePayload() noexcept
+    ~MenuDebugPayload() noexcept
     {
         if (! dispatch)
         {
             return;
         }
-        MenuDebugGetStateDispatch::State expected = MenuDebugGetStateDispatch::State::Pending;
+        // A payload freed unanswered leaves its dispatch abandoned; an answered one was taken. Either way its caller wakes.
+        auto expected = MenuDebugDispatch<Result>::State::Pending;
         static_cast<void>(dispatch->state.compare_exchange_strong(
-            expected, MenuDebugGetStateDispatch::State::Abandoned, std::memory_order_acq_rel, std::memory_order_acquire));
+            expected, MenuDebugDispatch<Result>::State::Abandoned, std::memory_order_acq_rel, std::memory_order_acquire));
         if (dispatch->completedEvent)
         {
             static_cast<void>(SetEvent(dispatch->completedEvent.get()));
         }
     }
 
-    std::shared_ptr<MenuDebugGetStateDispatch> dispatch;
+    std::shared_ptr<MenuDebugDispatch<Result>> dispatch;
+    size_t itemIndex = 0u;
+    WindowHostBitmapCapture backdrop; // What DebugSetContextMenuPopupBackdropCapture installs.
 };
+
+[[nodiscard]] bool IsAnotherThreadsWindow(HWND hwnd) noexcept
+{
+    const DWORD windowThreadId = GetWindowThreadProcessId(hwnd, nullptr);
+    return windowThreadId != 0 && windowThreadId != GetCurrentThreadId();
+}
+
+// Asks the thread of `hwnd` for `out` and waits at most `timeoutMs`. A posted probe reaches the menu loop's priority peek, ahead of
+// owner traffic; a sent one is answered at the popup thread's next message retrieval, as SendMessage would be.
+template <class Result>
+[[nodiscard]] bool CallMenuPopupDebugProbe(
+    HWND hwnd, WndMsg::RegisteredMessage probe, bool post, DWORD timeoutMs, size_t itemIndex, const WindowHostBitmapCapture* backdrop, Result& out) noexcept
+{
+    using Dispatch = MenuDebugDispatch<Result>;
+    if (! probe)
+    {
+        return false;
+    }
+    auto dispatch = std::shared_ptr<Dispatch>(new (std::nothrow) Dispatch());
+    if (! dispatch)
+    {
+        return false;
+    }
+    dispatch->completedEvent.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    if (! dispatch->completedEvent)
+    {
+        return false;
+    }
+    auto payload = std::unique_ptr<MenuDebugPayload<Result>>(new (std::nothrow) MenuDebugPayload<Result>());
+    if (! payload)
+    {
+        return false;
+    }
+    payload->dispatch  = dispatch;
+    payload->itemIndex = itemIndex;
+    if (backdrop)
+    {
+        try
+        {
+            payload->backdrop = *backdrop;
+        }
+        catch (const std::bad_alloc&)
+        {
+            return false; // A capture that cannot be copied is not installed.
+        }
+    }
+
+    const bool answered =
+        post ? PostMessagePayload(hwnd, probe.value, 0, std::move(payload)) && WaitForSingleObject(dispatch->completedEvent.get(), timeoutMs) == WAIT_OBJECT_0
+             : SendMessagePayload(hwnd, probe.value, 0, std::move(payload), timeoutMs) &&
+                   WaitForSingleObject(dispatch->completedEvent.get(), 0u) == WAIT_OBJECT_0;
+    if (! answered)
+    {
+        auto expected = Dispatch::State::Pending;
+        if (dispatch->state.compare_exchange_strong(expected, Dispatch::State::Abandoned, std::memory_order_acq_rel, std::memory_order_acquire))
+        {
+            return false;
+        }
+        // The popup thread took the probe and may be answering now: its answer counts only once it is complete.
+        if (expected != Dispatch::State::Taken || WaitForSingleObject(dispatch->completedEvent.get(), 0u) != WAIT_OBJECT_0)
+        {
+            return false;
+        }
+    }
+    if (! dispatch->succeeded)
+    {
+        return false;
+    }
+    out = std::move(dispatch->result);
+    return true;
+}
+
+// Answers a probe on the popup's own thread, into its dispatch, unless its caller has given up already.
+template <class Result, class Answer> [[nodiscard]] LRESULT AnswerMenuPopupDebugProbe(LPARAM lp, Answer&& answer) noexcept
+{
+    using Dispatch = MenuDebugDispatch<Result>;
+    auto payload   = TakeMessagePayload<MenuDebugPayload<Result>>(lp);
+    if (! payload || ! payload->dispatch)
+    {
+        return FALSE;
+    }
+    auto expected = Dispatch::State::Pending;
+    if (! payload->dispatch->state.compare_exchange_strong(expected, Dispatch::State::Taken, std::memory_order_acq_rel, std::memory_order_acquire))
+    {
+        return FALSE;
+    }
+    payload->dispatch->succeeded = answer(*payload, payload->dispatch->result);
+    return payload->dispatch->succeeded ? TRUE : FALSE;
+}
 
 std::atomic<HANDLE> g_menuDebugStateHandlerEnteredEvent{nullptr};
 std::atomic<HANDLE> g_menuDebugStateHandlerReleaseEvent{nullptr};
@@ -2011,7 +2102,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     if (popup)
     {
         MenuController* const controller = popup->controller;
-        if (msg == kMenuAccessibleInvokeMessage)
+        if (WndMsg::MenuPopupAccessibleInvoke().Matches(msg))
         {
             auto request       = TakeMessagePayload<MenuAccessibilityRequest>(lp);
             const size_t index = request ? request->index : SIZE_MAX;
@@ -2029,14 +2120,14 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
             return 0;
         }
-        if (msg == kMenuAccessibleFocusMessage)
+        if (WndMsg::MenuPopupAccessibleFocus().Matches(msg))
         {
             auto request = TakeMessagePayload<MenuAccessibilityRequest>(lp);
             if (request && request->target == hwnd)
                 InvalidatePopup(*popup);
             return 0;
         }
-        if (msg == kMenuForwardCursorMessage)
+        if (WndMsg::MenuPopupForwardCursor().Matches(msg))
         {
             // Read everything first: the forwarded WM_SETCURSOR may run code that closes the menu and frees both.
             if (! controller || ! controller->running || ! controller->cursorForwardPending)
@@ -2047,7 +2138,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 ShowArrowCursor();
             return 0;
         }
-        if (msg == kMenuDeferredFinalizeMessage)
+        if (WndMsg::MenuPopupDeferredFinalize().Matches(msg))
         {
             // The window operation that delivered the failed reflow has unwound. A running session
             // (for example one that reused this HWND) ignores a stale request.
@@ -2056,35 +2147,21 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             return 0;
         }
 #if DXUI_ENABLE_DIAGNOSTICS
-        if (msg == kMenuDebugCaptureBitmapMessage)
+        // Cross-thread test probes, answered here on the popup's thread into a dispatch their caller shares (see
+        // CallMenuPopupDebugProbe). The same-thread Debug* functions below take their direct path on this thread.
+        if (WndMsg::MenuPopupDebugCaptureBitmap().Matches(msg))
         {
-            auto* const outCapture = reinterpret_cast<WindowHostBitmapCapture*>(lp);
-            if (! outCapture)
-            {
-                return FALSE;
-            }
-
-            *outCapture = {};
-            return popup->host.DebugCaptureBitmap(*outCapture) ? TRUE : FALSE;
+            return AnswerMenuPopupDebugProbe<WindowHostBitmapCapture>(
+                lp, [&](MenuDebugPayload<WindowHostBitmapCapture>&, WindowHostBitmapCapture& out) { return popup->host.DebugCaptureBitmap(out); });
         }
-        if (msg == kMenuDebugGetItemTextMessage)
+        if (WndMsg::MenuPopupDebugGetItemText().Matches(msg))
         {
-            auto* const request = reinterpret_cast<MenuDebugGetItemTextRequest*>(lp);
-            if (! request || ! request->outText)
-            {
-                return FALSE;
-            }
-
-            return TryGetMenuPopupItemText(*popup, request->itemIndex, *request->outText) ? TRUE : FALSE;
+            return AnswerMenuPopupDebugProbe<std::wstring>(
+                lp, [&](MenuDebugPayload<std::wstring>& request, std::wstring& out) { return TryGetMenuPopupItemText(*popup, request.itemIndex, out); });
         }
-        if (msg == kMenuDebugGetStateMessage)
+        if (WndMsg::MenuPopupDebugGetState().Matches(msg))
         {
-            auto request = TakeMessagePayload<MenuDebugGetStatePayload>(lp);
-            if (! request || ! request->dispatch)
-            {
-                return FALSE;
-            }
-
+            // A test can wedge this handler, standing for a popup thread that stops answering.
             const HANDLE enteredEvent = g_menuDebugStateHandlerEnteredEvent.load(std::memory_order_acquire);
             const HANDLE releaseEvent = g_menuDebugStateHandlerReleaseEvent.load(std::memory_order_acquire);
             if (enteredEvent)
@@ -2093,52 +2170,47 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
             if (releaseEvent)
             {
-                static_cast<void>(WaitForSingleObject(releaseEvent, kMenuDebugStateDispatchTimeoutMs + 2000u));
+                static_cast<void>(WaitForSingleObject(releaseEvent, kMenuDebugProbeTimeoutMs + 2000u));
             }
-
-            MenuDebugGetStateDispatch::State expected = MenuDebugGetStateDispatch::State::Pending;
-            if (! request->dispatch->state.compare_exchange_strong(
-                    expected, MenuDebugGetStateDispatch::State::Taken, std::memory_order_acq_rel, std::memory_order_acquire))
-            {
-                return FALSE;
-            }
-            request->dispatch->succeeded = DebugGetContextMenuPopupState(hwnd, request->dispatch->result);
-            return request->dispatch->succeeded ? TRUE : FALSE;
+            return AnswerMenuPopupDebugProbe<ContextMenuPopupDebugState>(
+                lp, [&](MenuDebugPayload<ContextMenuPopupDebugState>&, ContextMenuPopupDebugState& out) { return DebugGetContextMenuPopupState(hwnd, out); });
         }
-        if (msg == kMenuDebugGetItemRectMessage)
+        if (WndMsg::MenuPopupDebugGetItemRect().Matches(msg))
         {
-            auto* const request = reinterpret_cast<MenuDebugGetItemRectRequest*>(lp);
-            if (! request || ! request->outRectDip)
-            {
-                return FALSE;
-            }
-
-            return DebugGetContextMenuPopupItemRect(hwnd, request->itemIndex, *request->outRectDip) ? TRUE : FALSE;
+            return AnswerMenuPopupDebugProbe<D2D1_RECT_F>(
+                lp, [&](MenuDebugPayload<D2D1_RECT_F>& request, D2D1_RECT_F& out) { return DebugGetContextMenuPopupItemRect(hwnd, request.itemIndex, out); });
         }
-        if (msg == kMenuDebugGetItemPaintMessage)
+        if (WndMsg::MenuPopupDebugGetItemPaint().Matches(msg))
         {
-            auto* const request = reinterpret_cast<MenuDebugGetItemPaintRequest*>(lp);
-            if (! request || ! request->outState)
-            {
-                return FALSE;
-            }
-
-            return DebugGetContextMenuPopupItemPaint(hwnd, request->itemIndex, *request->outState) ? TRUE : FALSE;
+            return AnswerMenuPopupDebugProbe<ContextMenuPopupItemPaintDebugState>(
+                lp, [&](MenuDebugPayload<ContextMenuPopupItemPaintDebugState>& request, ContextMenuPopupItemPaintDebugState& out) {
+                return DebugGetContextMenuPopupItemPaint(hwnd, request.itemIndex, out);
+            });
         }
-        if (msg == kMenuDebugSetBackdropMessage)
+        if (WndMsg::MenuPopupDebugGetItemLayout().Matches(msg))
         {
-            const auto* const capture = reinterpret_cast<const WindowHostBitmapCapture*>(lp);
-            if (! capture || capture->widthPx == 0u || capture->heightPx == 0u || capture->bgraPixels.empty())
+            return AnswerMenuPopupDebugProbe<ContextMenuPopupItemLayoutDebugState>(
+                lp, [&](MenuDebugPayload<ContextMenuPopupItemLayoutDebugState>& request, ContextMenuPopupItemLayoutDebugState& out) {
+                return DebugGetContextMenuPopupItemLayout(hwnd, request.itemIndex, out);
+            });
+        }
+        if (WndMsg::MenuPopupDebugSetBackdrop().Matches(msg))
+        {
+            return AnswerMenuPopupDebugProbe<bool>(lp,
+                                                   [&](MenuDebugPayload<bool>& request, bool&)
             {
-                return FALSE;
-            }
-
-            popup->backdropSnapshot.capture      = *capture;
-            popup->backdropSnapshot.cachedBitmap = nullptr;
-            popup->backdropSnapshot.cachedDevice = nullptr;
-            popup->usesAppBackdropBlur           = true;
-            popup->host.Invalidate();
-            return TRUE;
+                const WindowHostBitmapCapture& capture = request.backdrop;
+                if (capture.widthPx == 0u || capture.heightPx == 0u || capture.bgraPixels.empty())
+                {
+                    return false;
+                }
+                popup->backdropSnapshot.capture      = std::move(request.backdrop);
+                popup->backdropSnapshot.cachedBitmap = nullptr;
+                popup->backdropSnapshot.cachedDevice = nullptr;
+                popup->usesAppBackdropBlur           = true;
+                popup->host.Invalidate();
+                return true;
+            });
         }
 #endif
         if (msg == WM_NCDESTROY)
@@ -3271,7 +3343,7 @@ protected:
         {
             _popup.keyboardIndex = _index;
             _popup.EnsureItemVisible(_index);
-            PostMenuAccessibilityRequest(_popup.hwnd, kMenuAccessibleFocusMessage, _index);
+            PostMenuAccessibilityRequest(_popup.hwnd, WndMsg::MenuPopupAccessibleFocus(), _index);
         }
     }
 
@@ -3317,7 +3389,7 @@ try
             child->SetAccessibleInvoke([hwnd = popup.hwnd, i](ControlHost&)
             {
                 // Post to the existing dispatcher so provider calls never destroy their own tree.
-                PostMenuAccessibilityRequest(hwnd, kMenuAccessibleInvokeMessage, i);
+                PostMenuAccessibilityRequest(hwnd, WndMsg::MenuPopupAccessibleInvoke(), i);
             });
         }
         child->SetVisible(item.kind != MenuItemKind::Separator);
@@ -3679,8 +3751,10 @@ void RelayoutMenuPopupForDpi(MenuPopup& popup, UINT dpi, const RECT* suggestedWi
         if (MenuController* const controller = popup.controller)
         {
             controller->Dismiss();
-            if (controller->asyncSession)
-                static_cast<void>(PostMessageW(popup.hwnd, kMenuDeferredFinalizeMessage, 0, 0));
+            // Without its registered message nothing is posted, as when the post fails.
+            const WndMsg::RegisteredMessage finalize = WndMsg::MenuPopupDeferredFinalize();
+            if (controller->asyncSession && finalize)
+                static_cast<void>(PostMessageW(popup.hwnd, finalize.value, 0, 0));
         }
         return;
     }
@@ -4519,9 +4593,11 @@ void ApplyMenuPointerCursor(MenuController& controller, POINT screenPoint, bool 
         ShowArrowCursor();
         return;
     }
-    const MenuPopup* const root     = controller.GetRootPopup();
-    controller.cursorForwardPoint   = screenPoint;
-    controller.cursorForwardPending = root && root->hwnd && PostMessageW(root->hwnd, kMenuForwardCursorMessage, 0, 0) != FALSE;
+    // Without its registered message the forward is not posted, and the arrow shows, as when the post fails.
+    const MenuPopup* const root                   = controller.GetRootPopup();
+    const WndMsg::RegisteredMessage forwardCursor = WndMsg::MenuPopupForwardCursor();
+    controller.cursorForwardPoint                 = screenPoint;
+    controller.cursorForwardPending               = forwardCursor && root && root->hwnd && PostMessageW(root->hwnd, forwardCursor.value, 0, 0) != FALSE;
     if (! controller.cursorForwardPending)
         ShowArrowCursor();
 }
@@ -5716,7 +5792,8 @@ void RunMenuModalLoop(MenuController& controller)
             continue;
         }
 
-        if (msg.message == WndMsg::kContextMenuRootHoverChanged)
+        // ContextMenu::PostMenuBarHover posts this registered message to any window of the thread.
+        if (WndMsg::ContextMenuRootHoverChanged().Matches(msg.message))
         {
             flushRepeatedMessageTrace();
             if (controller.sessionCallbacks.switchRootFromMenuBarHover)
@@ -6110,6 +6187,13 @@ bool ContextMenu::ShowAsync(HWND ownerHwnd,
     return true;
 }
 
+bool ContextMenu::PostMenuBarHover(HWND target, size_t hoverIndex, std::uintptr_t sequence) noexcept
+{
+    // Without its registered message nothing is posted, and the caller sees a failed post.
+    const WndMsg::RegisteredMessage hover = WndMsg::ContextMenuRootHoverChanged();
+    return hover && PostMessageW(target, hover.value, static_cast<WPARAM>(hoverIndex), static_cast<LPARAM>(sequence)) != FALSE;
+}
+
 #if DXUI_ENABLE_DIAGNOSTICS
 bool DebugGetContextMenuItemDisplayText(const MenuFlyoutItem& item, std::wstring& outText)
 {
@@ -6201,56 +6285,11 @@ bool TryGetMenuPopupState(const MenuPopup& popup, ContextMenuPopupDebugState& ou
 
 bool DebugGetContextMenuPopupState(HWND hwnd, ContextMenuPopupDebugState& outState) noexcept
 {
-    outState                   = {};
-    const DWORD windowThreadId = GetWindowThreadProcessId(hwnd, nullptr);
-    if (windowThreadId != 0 && windowThreadId != GetCurrentThreadId())
+    outState = {};
+    if (IsAnotherThreadsWindow(hwnd))
     {
-        auto dispatch = std::shared_ptr<MenuDebugGetStateDispatch>(new (std::nothrow) MenuDebugGetStateDispatch());
-        if (! dispatch)
-        {
-            return false;
-        }
-        dispatch->completedEvent.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
-        if (! dispatch->completedEvent)
-        {
-            return false;
-        }
-        auto payload = std::unique_ptr<MenuDebugGetStatePayload>(new (std::nothrow) MenuDebugGetStatePayload());
-        if (! payload)
-        {
-            return false;
-        }
-        payload->dispatch = dispatch;
-        if (! PostMessagePayload(hwnd, kMenuDebugGetStateMessage, 0, std::move(payload)))
-        {
-            return false;
-        }
-
-        const DWORD waitResult = WaitForSingleObject(dispatch->completedEvent.get(), kMenuDebugStateDispatchTimeoutMs);
-        if (waitResult == WAIT_TIMEOUT)
-        {
-            MenuDebugGetStateDispatch::State expected = MenuDebugGetStateDispatch::State::Pending;
-            if (dispatch->state.compare_exchange_strong(
-                    expected, MenuDebugGetStateDispatch::State::Abandoned, std::memory_order_acq_rel, std::memory_order_acquire))
-            {
-                return false;
-            }
-            if (expected != MenuDebugGetStateDispatch::State::Taken || WaitForSingleObject(dispatch->completedEvent.get(), 0u) != WAIT_OBJECT_0)
-            {
-                return false;
-            }
-        }
-        else if (waitResult != WAIT_OBJECT_0)
-        {
-            return false;
-        }
-
-        if (! dispatch->succeeded)
-        {
-            return false;
-        }
-        outState = std::move(dispatch->result);
-        return true;
+        // Posted, so the menu loop answers it ahead of owner traffic.
+        return CallMenuPopupDebugProbe(hwnd, WndMsg::MenuPopupDebugGetState(), true, kMenuDebugStateDispatchTimeoutMs, 0u, nullptr, outState);
     }
 
     const auto* popup = reinterpret_cast<const MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -6273,6 +6312,14 @@ void DebugSetContextMenuStateProbeStallForTest(HANDLE enteredEvent, HANDLE relea
 {
     g_menuDebugStateHandlerEnteredEvent.store(enteredEvent, std::memory_order_release);
     g_menuDebugStateHandlerReleaseEvent.store(releaseEvent, std::memory_order_release);
+}
+
+void DebugSetContextMenuModalLoopPeekHookForTest(ContextMenuModalLoopPeekHook hook, void* context) noexcept
+{
+    // The context first, so the loop never calls a new hook with the previous context.
+    g_menuModalLoopPeekHook.store(nullptr, std::memory_order_release);
+    g_menuModalLoopPeekHookContext.store(context, std::memory_order_release);
+    g_menuModalLoopPeekHook.store(hook, std::memory_order_release);
 }
 
 bool DebugFireContextMenuPopupHoverTimer(HWND hwnd) noexcept
@@ -6306,12 +6353,10 @@ bool TryGetMenuPopupItemRect(const MenuPopup& popup, size_t itemIndex, D2D1_RECT
 
 bool DebugGetContextMenuPopupItemRect(HWND hwnd, size_t itemIndex, D2D1_RECT_F& outRectDip) noexcept
 {
-    outRectDip                 = D2D1::RectF();
-    const DWORD windowThreadId = GetWindowThreadProcessId(hwnd, nullptr);
-    if (windowThreadId != 0 && windowThreadId != GetCurrentThreadId())
+    outRectDip = D2D1::RectF();
+    if (IsAnotherThreadsWindow(hwnd))
     {
-        MenuDebugGetItemRectRequest request{.itemIndex = itemIndex, .outRectDip = &outRectDip};
-        return SendMessageW(hwnd, kMenuDebugGetItemRectMessage, 0, reinterpret_cast<LPARAM>(&request)) != FALSE;
+        return CallMenuPopupDebugProbe(hwnd, WndMsg::MenuPopupDebugGetItemRect(), false, kMenuDebugProbeTimeoutMs, itemIndex, nullptr, outRectDip);
     }
 
     const auto* popup = reinterpret_cast<const MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -6352,12 +6397,10 @@ bool TryGetMenuPopupItemPaint(const MenuPopup& popup, size_t itemIndex, ContextM
 
 bool DebugGetContextMenuPopupItemPaint(HWND hwnd, size_t itemIndex, ContextMenuPopupItemPaintDebugState& outState) noexcept
 {
-    outState                   = {};
-    const DWORD windowThreadId = GetWindowThreadProcessId(hwnd, nullptr);
-    if (windowThreadId != 0 && windowThreadId != GetCurrentThreadId())
+    outState = {};
+    if (IsAnotherThreadsWindow(hwnd))
     {
-        MenuDebugGetItemPaintRequest request{.itemIndex = itemIndex, .outState = &outState};
-        return SendMessageW(hwnd, kMenuDebugGetItemPaintMessage, 0, reinterpret_cast<LPARAM>(&request)) != FALSE;
+        return CallMenuPopupDebugProbe(hwnd, WndMsg::MenuPopupDebugGetItemPaint(), false, kMenuDebugProbeTimeoutMs, itemIndex, nullptr, outState);
     }
 
     const auto* popup = reinterpret_cast<const MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -6372,11 +6415,9 @@ bool DebugGetContextMenuPopupItemPaint(HWND hwnd, size_t itemIndex, ContextMenuP
 bool DebugGetContextMenuPopupItemText(HWND hwnd, size_t itemIndex, std::wstring& outText) noexcept
 {
     outText.clear();
-    const DWORD windowThreadId = GetWindowThreadProcessId(hwnd, nullptr);
-    if (windowThreadId != 0 && windowThreadId != GetCurrentThreadId())
+    if (IsAnotherThreadsWindow(hwnd))
     {
-        MenuDebugGetItemTextRequest request{.itemIndex = itemIndex, .outText = &outText};
-        return SendMessageW(hwnd, kMenuDebugGetItemTextMessage, 0, reinterpret_cast<LPARAM>(&request)) != FALSE;
+        return CallMenuPopupDebugProbe(hwnd, WndMsg::MenuPopupDebugGetItemText(), false, kMenuDebugProbeTimeoutMs, itemIndex, nullptr, outText);
     }
 
     const auto* popup = reinterpret_cast<const MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -6390,7 +6431,12 @@ bool DebugGetContextMenuPopupItemText(HWND hwnd, size_t itemIndex, std::wstring&
 
 bool DebugGetContextMenuPopupItemLayout(HWND hwnd, size_t itemIndex, ContextMenuPopupItemLayoutDebugState& outState) noexcept
 {
-    outState          = {};
+    outState = {};
+    if (IsAnotherThreadsWindow(hwnd))
+    {
+        return CallMenuPopupDebugProbe(hwnd, WndMsg::MenuPopupDebugGetItemLayout(), false, kMenuDebugProbeTimeoutMs, itemIndex, nullptr, outState);
+    }
+
     const auto* popup = reinterpret_cast<const MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
     if (! popup || popup->hwnd != hwnd || itemIndex >= popup->itemCount)
     {
@@ -6432,24 +6478,24 @@ bool DebugSetContextMenuPopupBackdropCapture(HWND hwnd, const WindowHostBitmapCa
     {
         return false;
     }
+    if (IsAnotherThreadsWindow(hwnd))
+    {
+        // The popup is read only on its own thread, which may be freeing it now.
+        bool installed = false;
+        return CallMenuPopupDebugProbe(hwnd, WndMsg::MenuPopupDebugSetBackdrop(), false, kMenuDebugProbeTimeoutMs, 0u, &capture, installed);
+    }
 
     auto* popup = reinterpret_cast<MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
     if (! popup || popup->hwnd != hwnd)
     {
         return false;
     }
-
-    if (GetWindowThreadProcessId(hwnd, nullptr) == GetCurrentThreadId())
-    {
-        popup->backdropSnapshot.capture      = capture;
-        popup->backdropSnapshot.cachedBitmap = nullptr;
-        popup->backdropSnapshot.cachedDevice = nullptr;
-        popup->usesAppBackdropBlur           = true;
-        popup->host.Invalidate();
-        return true;
-    }
-
-    return SendMessageW(hwnd, kMenuDebugSetBackdropMessage, 0, reinterpret_cast<LPARAM>(&capture)) != FALSE;
+    popup->backdropSnapshot.capture      = capture;
+    popup->backdropSnapshot.cachedBitmap = nullptr;
+    popup->backdropSnapshot.cachedDevice = nullptr;
+    popup->usesAppBackdropBlur           = true;
+    popup->host.Invalidate();
+    return true;
 }
 
 bool DebugSimulateContextMenuPopupDeviceLoss(HWND hwnd) noexcept
@@ -6466,19 +6512,19 @@ bool DebugSimulateContextMenuPopupDeviceLoss(HWND hwnd) noexcept
 
 bool DebugCaptureContextMenuPopupBitmap(HWND hwnd, WindowHostBitmapCapture& outCapture) noexcept
 {
-    outCapture  = {};
+    outCapture = {};
+    if (IsAnotherThreadsWindow(hwnd))
+    {
+        // The popup is read only on its own thread, which may be freeing it now.
+        return CallMenuPopupDebugProbe(hwnd, WndMsg::MenuPopupDebugCaptureBitmap(), false, kMenuDebugProbeTimeoutMs, 0u, nullptr, outCapture);
+    }
+
     auto* popup = reinterpret_cast<MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
     if (! popup || popup->hwnd != hwnd)
     {
         return false;
     }
-
-    if (GetWindowThreadProcessId(hwnd, nullptr) == GetCurrentThreadId())
-    {
-        return popup->host.DebugCaptureBitmap(outCapture);
-    }
-
-    return SendMessageW(hwnd, kMenuDebugCaptureBitmapMessage, 0, reinterpret_cast<LPARAM>(&outCapture)) != FALSE;
+    return popup->host.DebugCaptureBitmap(outCapture);
 }
 
 bool DebugComputeContextMenuPopupPosition(POINT screenPoint,

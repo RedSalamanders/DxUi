@@ -1,11 +1,14 @@
 # Active plans
 
-| Status | Plan | Next action |
-|---|---|---|
-| ACTIVE | [Bounded grid text and clipping](GridTextOverflow_2026-09-21.md) | Merged to main (#22); gallery regenerated, design system republished and the paired multiline benchmark within the accepted V11 envelope. Consumer qualification remains before explicit pin adoption. |
-| HOLD | [TreeReorder_2026-09-21.md](TreeReorder_2026-09-21.md) | Drag-reorder is in `Tree`. Multi-select remains. Not a second tree in the app. |
-| ACTIVE | [Described native menu entries](MenuDescriptions_2026-09-21.md) | Merged to main (#24); memory waiver recorded 2026-09-27 with an optimization plan. Directed input restoration and consumer handoff remain. |
-| ACTIVE | [Described-menu memory optimization](MenuDescriptionMemory_2026-09-27.md) | The first hosted paired set does not reproduce the waived increase, and one layout per described row is implemented (about a third less open-menu live heap wherever labels differ); run the quiet local sets and the placebo control, then optimize the waived increase or present the attribution. |
+One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
+
+- **ACTIVE**: [Bounded grid text and clipping](GridTextOverflow_2026-09-21.md). Merged to main (#22); gallery regenerated, design system republished and the paired multiline benchmark within the accepted V11 envelope; the multiline-cell verification suites are archived for x64 (native ARM64 execution awaits CI). Consumer qualification remains before explicit pin adoption.
+
+- **ACTIVE**: [TreeReorder_2026-09-21.md](TreeReorder_2026-09-21.md). Drag-reorder and multi-select are both in `Tree` (#35); the gallery is regenerated and the design system republished with them. RedPrism's pin bump remains. Not a second tree in the app.
+
+- **ACTIVE**: [Described native menu entries](MenuDescriptions_2026-09-21.md). Merged to main (#24); the memory waiver is removed (30 September) and directed input restoration passed. The consumer pin handoff remains.
+
+- **ACTIVE**: [Described-menu memory optimization](MenuDescriptionMemory_2026-09-27.md). The waived increase reproduces neither hosted nor locally (six runs per side), so the waiver is removed. One layout per described row is implemented (#37): about a third less open-menu live heap wherever labels differ, and up to 7% more where one label repeats in every row, a cost the developer accepted. The close-out remains.
 
 Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md`,
 `../Done/RedSalamanderMigration.md` and `../Done/EditorConsumerControls_2026-09-20.md`. Further ARM64 and ASan qualification is

@@ -1,4 +1,5 @@
 #include "DxUiTestHelpers.h"
+#include "GridMultilineFixtures.h"
 
 namespace
 {
@@ -2693,6 +2694,9 @@ void TestAttachedHostRecoversAfterSimulatedDeviceLoss()
 #endif
 }
 
+// The Grid's multiline cells: pixels, shaping, caches and lifecycle beyond the tests above.
+#include "GridMultilineRenderingTests.h"
+
 } // namespace
 
 void RunRenderingTests()
@@ -2708,6 +2712,17 @@ void RunRenderingTests()
     DXUI_RUN_TEST(TestGridInAnUnselectedTabReleasesItsLayouts);
     DXUI_RUN_TEST(TestGridSingleLineOversizedCaptionShapesOnlyItsVisiblePrefix);
     DXUI_RUN_TEST(TestGridMultilineOmissionMarkerFollowsTheTextDirection);
+    DXUI_RUN_TEST(TestGridMultilineDecomposedAccentsPaintLikePrecomposed);
+    DXUI_RUN_TEST(TestGridMultilineShapedPrefixCutInsideAClusterPaintsLikeItsShortTwin);
+    DXUI_RUN_TEST(TestGridMultilineRightToLeftFlowKeepsMarkerSideAndClipping);
+    DXUI_RUN_TEST(TestGridMultilineCellNarrowerThanItsWordKeepsInkInsideAndOffersTheValue);
+    DXUI_RUN_TEST(TestGridMultilineCellCutByTheViewportPaintsAShiftedCropOfItsWholeSelf);
+    DXUI_RUN_TEST(TestGridMultilineRepaintsAtANewDpiLikeAFreshGrid);
+    DXUI_RUN_TEST(TestGridMultilineRepaintsAfterThemeFontAndDensityChangesLikeAFreshAttach);
+    DXUI_RUN_TEST(TestGridMultilinePrefixSharingNeverCrossesTextThatLaysOutDifferently);
+    DXUI_RUN_TEST(TestGridMultilineLayoutTablesStayAtALoweredCeilingAndPaintRightAfterEviction);
+    DXUI_RUN_TEST(TestGridMultilineTrimmedCellsPaintTheSameAfterDeviceLoss);
+    DXUI_RUN_TEST(TestGridMultilineMovedBetweenHostsMatchesAFreshOne);
     DXUI_RUN_TEST(TestMultilineButtonPaintUsesMultipleTextRows);
 
     DXUI_RUN_TEST(TestSharedTransientSurfaceRendersOrdinaryPressedAndHighContrastPolicies);

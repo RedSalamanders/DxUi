@@ -124,6 +124,8 @@ body { margin: 0; background: var(--windowBackground); color: var(--text); font:
 .dx-tree .row .t { flex: 1; }
 .dx-tree .row.is-selected { background: var(--selectionFill); color: var(--selectionText); }
 .dx-tree .row.is-selected .exp { color: var(--selectionText); }
+.dx-tree .row.is-inactive { background: var(--selectionInactiveFill); }
+.dx-tree .row.is-focus { outline: 1px solid var(--focusStroke); outline-offset: -2px; }
 .dx-tree .row.is-hover { background: var(--hoverFill); }
 
 /* Panels */

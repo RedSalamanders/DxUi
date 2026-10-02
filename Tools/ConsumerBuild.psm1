@@ -12,7 +12,10 @@ function Get-DxUiConsumerBuildIdentity {
     $ErrorActionPreference = 'Stop'
     $head = (& git -C $DxUiRoot rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0 -or $head -cnotmatch '^[0-9a-f]{40}$') { throw 'Cannot identify the pinned DxUi source.' }
-    $names = 'PlatformToolset,VCToolsInstallDir,VCToolsVersion,WindowsSdkDir,WindowsTargetPlatformVersion,PreferredToolArchitecture'
+    # The API revision of the pinned source, as validate_consumer.ps1 reads it.
+    $apiRevision = (Get-Content -LiteralPath (Join-Path $DxUiRoot 'capabilities.json') -Raw | ConvertFrom-Json).apiRevision
+    if ($apiRevision -isnot [long] -and $apiRevision -isnot [int]) { throw 'The pinned DxUi capabilities.json has no API revision.' }
+    $names ='PlatformToolset,VCToolsInstallDir,VCToolsVersion,WindowsSdkDir,WindowsTargetPlatformVersion,PreferredToolArchitecture'
     # Evaluation only: this works before WIL restore and never compiles into the source checkout.
     $json = & $MSBuildPath (Join-Path $DxUiRoot 'src/DxUi.vcxproj') /nologo /p:Configuration=Debug "/p:Platform=$Platform" "-getProperty:$names"
     if ($LASTEXITCODE -ne 0) { throw 'Could not evaluate the DxUi toolchain identity.' }
@@ -27,7 +30,7 @@ function Get-DxUiConsumerBuildIdentity {
     $linker = Join-Path $properties.VCToolsInstallDir "bin/$hostTool/$Platform/link.exe"
     $sdk = $properties.WindowsTargetPlatformVersion.TrimEnd('\','/')
     $identity = [ordered]@{
-        commit=$head; apiRevision=2; platform=$Platform; toolset=$properties.PlatformToolset;
+        commit=$head; apiRevision=$apiRevision; platform=$Platform; toolset=$properties.PlatformToolset;
         vcToolsVersion=$properties.VCToolsVersion; windowsSdkVersion=$sdk; runtimeFamily='MD';
         preferredToolArchitecture=$hostArchitecture;
         disableStlAnnotations=$DisableStlAnnotations.IsPresent;

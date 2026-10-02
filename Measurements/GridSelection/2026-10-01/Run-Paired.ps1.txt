@@ -1,0 +1,206 @@
+<#
+.SYNOPSIS Runs the grid-selection measurement of two executables interleaved A, B, B, A and judges every metric of the set.
+.DESCRIPTION
+A is the baseline (main's library plus the harness), B the candidate. The order is Get-PairedRunSchedule's, repeated
+Repetitions times (A1 B1 B2 A2 A3 B3 B4 A4 ...), so a machine that drifts lands on both sides. Every receipt the executable
+writes is annotated as performance.ps1 annotates its receipts (machine, CPU, OS, WARP, power plan, source commit and
+fingerprint, executable and harness hashes), then a summary applies the repository's exact two-sided Mann-Whitney test
+(Get-MetricVerdict, 5% investigation band) to the run values of each side. Scratch tooling: the retained packet copies its output.
+#>
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)][string] $Repo,
+    [Parameter(Mandatory)][string] $BaselineExe,
+    [Parameter(Mandatory)][string] $BaselineIdentity,
+    [Parameter(Mandatory)][string] $CandidateExe,
+    [Parameter(Mandatory)][string] $CandidateIdentity,
+    [Parameter(Mandatory)][string] $OutputDirectory,
+    [ValidateRange(1, 10)][int] $Repetitions = 5,
+    [double] $QuietBelowPercent = 60,
+    [int] $QuietGiveUpSeconds = 60
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $Repo 'Tools/PerformanceComparison.psm1') -Force
+Import-Module (Join-Path $Repo 'Tools/PairedRun.psm1') -Force
+$native = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+if ($native -ne 'X64') { throw 'This packet measures x64 Release natively.' }
+New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+$OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
+
+$identities = @{ baseline = Get-Content -Raw -LiteralPath $BaselineIdentity | ConvertFrom-Json; candidate = Get-Content -Raw -LiteralPath $CandidateIdentity | ConvertFrom-Json }
+$executables = @{ baseline = [IO.Path]::GetFullPath($BaselineExe); candidate = [IO.Path]::GetFullPath($CandidateExe) }
+foreach ($side in $executables.Keys) {
+    $actual = (Get-FileHash -LiteralPath $executables[$side] -Algorithm SHA256).Hash
+    if ($actual -ne $identities[$side].executableSha256) { throw "The $side executable is not the one its identity names: $actual" }
+}
+# The harness inputs both sides were compiled from, hashed into every receipt like performance.ps1's benchmarkInputs.
+$harnessPaths = @('Tests/Embedded/GridSelectionBenchmark.h', 'Tests/Embedded/EmbeddedTests.cpp', 'Samples/ComplexUi/ComplexUiScene.h', 'Samples/EmbeddedControls/GraphicsFixture.h')
+$benchmarkInputs = [ordered]@{}
+foreach ($path in $harnessPaths) { $benchmarkInputs[$path] = (Get-FileHash -LiteralPath (Join-Path $Repo $path) -Algorithm SHA256).Hash }
+$hasher = [Security.Cryptography.SHA256]::Create()
+try { $benchmarkSha256 = [Convert]::ToHexString($hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes((($benchmarkInputs.GetEnumerator() | ForEach-Object { "$($_.Key) $($_.Value)" }) -join "`n")))) }
+finally { $hasher.Dispose() }
+
+$cpu = (Get-ItemProperty -LiteralPath 'HKLM:\HARDWARE\DESCRIPTION\System\CentralProcessor\0' -Name ProcessorNameString).ProcessorNameString.Trim()
+$os = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
+$warp = (Get-Item -LiteralPath (Join-Path $env:SystemRoot 'System32/d3d10warp.dll')).VersionInfo.FileVersion
+$power = ((& powercfg.exe /getactivescheme) -join ' ').Trim()
+if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the active power policy.' }
+
+function Get-ProcessorLoad([int] $Seconds) {
+    # A quiet-machine witness, taken before and after the series: the mean total processor time over a few samples.
+    $samples = @(Get-Counter -Counter '\Processor Information(_Total)\% Processor Utility' -SampleInterval 1 -MaxSamples $Seconds | ForEach-Object { $_.CounterSamples[0].CookedValue })
+    return [Math]::Round((($samples | Measure-Object -Average).Average), 2)
+}
+$loadBefore = Get-ProcessorLoad 5
+Write-Host "Processor utility before the series: $loadBefore %"
+
+function Wait-ForQuietMachine([double] $BelowPercent, [int] $GiveUpSeconds) {
+    # A run starts once three consecutive one-second samples of the total processor utility are all below the threshold; after
+    # GiveUpSeconds it starts anyway and its receipt says so. Other work on the machine is outside this script's control.
+    $deadline = [DateTime]::UtcNow.AddSeconds($GiveUpSeconds)
+    $waited = 0
+    while ($true) {
+        $samples = @(Get-Counter -Counter '\Processor Information(_Total)\% Processor Utility' -SampleInterval 1 -MaxSamples 3 | ForEach-Object { $_.CounterSamples[0].CookedValue })
+        $waited += 3
+        $mean = [Math]::Round((($samples | Measure-Object -Average).Average), 2)
+        if (($samples | Measure-Object -Maximum).Maximum -lt $BelowPercent) { return [ordered]@{ quiet = $true; waitedSeconds = $waited; processorUtilityPercent = $mean } }
+        if ([DateTime]::UtcNow -gt $deadline) { return [ordered]@{ quiet = $false; waitedSeconds = $waited; processorUtilityPercent = $mean } }
+    }
+}
+
+$schedule = Get-PairedRunSchedule -Repetitions $Repetitions
+Write-Host "Order: $($schedule.Order)"
+$runs = [ordered]@{}
+foreach ($step in $schedule.Steps) {
+    $path = Join-Path $OutputDirectory "$($step.Name).json"
+    if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path }
+    $quiet = Wait-ForQuietMachine -BelowPercent $QuietBelowPercent -GiveUpSeconds $QuietGiveUpSeconds
+    $startedUtc = [DateTime]::UtcNow
+    # The run goes at above-normal priority, so that the compiles and desktop applications this shared machine runs beside it
+    # preempt its UI thread less; both sides run the same way.
+    $stdout = Join-Path $OutputDirectory "$($step.Name).stdout.txt"
+    $process = Start-Process -FilePath $executables[$step.Side] -ArgumentList '--benchmark-grid-selection', "`"$path`"" -WorkingDirectory $Repo -RedirectStandardOutput $stdout -PassThru -NoNewWindow
+    try { $process.PriorityClass = [Diagnostics.ProcessPriorityClass]::AboveNormal } catch { Write-Host "could not raise the priority of $($step.Name): $($_.Exception.Message)" }
+    $process.WaitForExit()
+    $exitCode = $process.ExitCode
+    Remove-Item -LiteralPath $stdout -Force -ErrorAction SilentlyContinue
+    if ($exitCode -ne 0) { throw "$($step.Name) failed with exit code $exitCode" }
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "$($step.Name) wrote no receipt" }
+    $receipt = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json -AsHashtable
+    $identity = $identities[$step.Side]
+    $receipt.run = $step.Name
+    $receipt.side = $step.Side
+    $receipt.platform = 'x64'
+    $receipt.configuration = 'Release'
+    $receipt.nativeArchitecture = $native
+    $receipt.machine = [Environment]::MachineName
+    $receipt.cpu = $cpu
+    $receipt.os = $os
+    $receipt.warpVersion = $warp
+    $receipt.powerPolicy = $power
+    $receipt.startedUtc = $startedUtc.ToString('o')
+    $receipt.completedUtc = [DateTime]::UtcNow.ToString('o')
+    $receipt.quietBeforeStart = $quiet
+    $receipt.quietThresholdPercent = $QuietBelowPercent
+    $receipt.processPriority = 'AboveNormal'
+    $receipt.processorUtilityPercentAfterRun = (Get-ProcessorLoad 2)
+    $receipt.sourceCommit = $identity.commit
+    $receipt.sourceDirty = [bool]$identity.dirty
+    if ($identity.PSObject.Properties['dirtyPaths']) { $receipt.sourceDirtyPaths = @($identity.dirtyPaths) }
+    if ($identity.PSObject.Properties['libraryOverlay']) { $receipt.libraryOverlay = [string]$identity.libraryOverlay }
+    $receipt.sourceFingerprint = $identity.sourceFingerprint
+    $receipt.executableSha256 = $identity.executableSha256
+    $receipt.workloadOwner = 'DxUi'
+    $receipt.benchmarkInputs = $benchmarkInputs
+    $receipt.benchmarkSha256 = $benchmarkSha256
+    $receipt.measurement = 'Completed offscreen WARP frames with a blocking one-pixel readback, IsSelected timed per call, and mutators timed in-process; no swap-chain presentation or vsync.'
+    $receipt | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $path -Encoding utf8
+    $runs[$step.Name] = $receipt
+    Write-Host ("{0,-4} {1,-9} done {2:HH:mm:ss}" -f $step.Name, $step.Side, [DateTime]::Now)
+}
+$loadAfter = Get-ProcessorLoad 5
+Write-Host "Processor utility after the series: $loadAfter %"
+
+function Get-MedianValue([object[]] $Values) {
+    $sorted = @($Values | Sort-Object { [double]$_ })
+    $middle = [int][Math]::Floor($sorted.Count / 2)
+    if ($sorted.Count % 2) { return $sorted[$middle] }
+    return ([double]$sorted[$middle - 1] + [double]$sorted[$middle]) / 2.0
+}
+
+function Get-RunMetric([System.Collections.IDictionary] $Receipt, [string] $Kind, [string] $Name, [string] $Metric) {
+    if ($Kind -eq 'paint') {
+        $scenario = $Receipt.paint | Where-Object { $_.name -ceq $Name }
+        return [double](Get-MedianValue @($scenario.rounds | ForEach-Object { $_[$Metric] }))
+    }
+    if ($Kind -eq 'selectionCost') {
+        $record = $Receipt.selectionCost | Where-Object { $_.rows -eq [int]$Name }
+        return [double](Get-MedianValue @($record.rounds | ForEach-Object { $_[$Metric] }))
+    }
+    if ($Kind -eq 'membership') {
+        $point = $Receipt.membership | Where-Object { $_.selected -eq [int]$Name }
+        return $point[$Metric]
+    }
+    $parts = $Name -split '\|'
+    $record = $Receipt.mutators | Where-Object { $_.name -ceq $parts[0] -and $_.rows -eq [int]$parts[1] -and $_.scrambledIds -eq [bool]::Parse($parts[2]) }
+    return [double]$record[$Metric]
+}
+
+$sideRuns = @{ baseline = @($schedule.Steps | Where-Object { $_.Side -eq 'baseline' } | ForEach-Object { $runs[$_.Name] }); candidate = @($schedule.Steps | Where-Object { $_.Side -eq 'candidate' } | ForEach-Object { $runs[$_.Name] }) }
+$metrics = [Collections.Generic.List[object]]::new()
+$first = $sideRuns.baseline[0]
+$add = {
+    param([string] $Kind, [string] $Name, [string] $Metric, [string] $Unit)
+    $a = [double[]]@($sideRuns.baseline | ForEach-Object { Get-RunMetric $_ $Kind $Name $Metric } | Where-Object { $null -ne $_ })
+    $b = [double[]]@($sideRuns.candidate | ForEach-Object { Get-RunMetric $_ $Kind $Name $Metric } | Where-Object { $null -ne $_ })
+    if ($a.Count -eq 0 -or $b.Count -eq 0) { return }
+    $exact = $Metric -in @('cppAllocations', 'cppBytes')
+    $verdict = Get-MetricVerdict -Direction 'lower' -Band $(if ($exact) { 0 } else { 0.05 }) -Baseline $a -Candidate $b
+    $record = [ordered]@{ kind = $Kind; name = $Name; metric = $Metric; unit = $Unit }
+    foreach ($key in $verdict.Keys) { $record[$key] = $verdict[$key] }
+    $record.baselineRuns = $a
+    $record.candidateRuns = $b
+    $metrics.Add($record)
+}
+foreach ($scenario in $first.paint) {
+    foreach ($metric in @('prepareP50Ms', 'prepareP95Ms', 'prepareMcycP50', 'prepareMcycP95', 'frameP50Ms', 'frameP95Ms')) { & $add 'paint' $scenario.name $metric $(if ($metric -like '*Mcyc*') { 'million cycles' } else { 'ms' }) }
+    foreach ($metric in @('cppAllocations', 'cppBytes')) { & $add 'paint' $scenario.name $metric 'per round of 60 paints' }
+}
+foreach ($record in $first.selectionCost) {
+    foreach ($metric in @('costMcyc', 'costMs', 'smallMcycP50', 'everyMcycP50')) { & $add 'selectionCost' ([string]$record.rows) $metric $(if ($metric -like '*Mcyc*') { 'million cycles' } else { 'ms' }) }
+}
+foreach ($point in $first.membership) {
+    foreach ($metric in @('hitNs', 'missNs')) { & $add 'membership' ([string]$point.selected) $metric 'ns per call' }
+}
+foreach ($record in $first.mutators) {
+    $name = '{0}|{1}|{2}' -f $record.name, $record.rows, $record.scrambledIds
+    & $add 'mutator' $name 'ms' 'ms'
+    if ($record.name -ne 'Toggle one row on and off') {
+        & $add 'mutator' $name 'cppAllocations' 'C++ heap calls'
+        & $add 'mutator' $name 'cppBytes' 'C++ heap bytes'
+    }
+}
+$summary = [ordered]@{
+    command = 'Run-Paired.ps1 (scratch driver of the grid-selection measurement)'
+    workloadOwner = 'DxUi'
+    fixture = $first.fixture
+    benchmarkInputs = $benchmarkInputs
+    benchmarkSha256 = $benchmarkSha256
+    baseline = $identities.baseline
+    candidate = $identities.candidate
+    order = $schedule.Order
+    repetitions = $Repetitions
+    runsPerSide = $sideRuns.baseline.Count
+    smallestAttainableP = Get-MinimumAttainableP $sideRuns.baseline.Count $sideRuns.candidate.Count
+    significance = 0.05
+    machine = [Environment]::MachineName; cpu = $cpu; os = $os; warpVersion = $warp; powerPolicy = $power
+    processorUtilityPercentBefore = $loadBefore; processorUtilityPercentAfter = $loadAfter
+    selectionModelBytes = [ordered]@{ baseline = $first.selectionModelBytes; candidate = $sideRuns.candidate[0].selectionModelBytes }
+    complexUiScene = [ordered]@{ baseline = $first.complexUiScene; candidate = $sideRuns.candidate[0].complexUiScene }
+    completedUtc = [DateTime]::UtcNow.ToString('o')
+    metrics = $metrics.ToArray()
+}
+$summary | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'summary.json') -Encoding utf8
+Write-Host "Summary written: $(Join-Path $OutputDirectory 'summary.json')"

@@ -1,7 +1,7 @@
 # Performance and resources
 
 Status: normative current contract
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-01
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -71,28 +71,90 @@ rounds, so 2N runs per side after N repetitions.
   medians and each metric's run values, p-value, spread and verdict. Pairs are refused when there is nothing to
   compare: one commit for two revisions, or identical fingerprints when a working tree is named.
 
-### Described-menu clean private-memory waiver
+### Hosted paired gate
 
-On 2026-09-27 the user directed that described native menu entries (#24, merged as `6f769ab`)
-keep their measured common-scene memory cost under a recorded waiver, while an
-[optimization plan](../Plans/WIP/MenuDescriptionMemory_2026-09-27.md) works to remove it.
-In the three matched September 21 Release pairs against unchanged `78b3de3`
-([common-scene investigation](../../Measurements/MenuDescriptions/2026-09-21/README.md)),
-clean-round median private bytes rise by 823,296, 1,175,552 and 1,175,552 bytes
-(+3.23%, +4.56%, +4.51%), above the 2% band. Clean private peak rises by 2.12% to 4.68%;
-clean working set rises by 3.10% and 2.61% in pairs two and three. The accepted envelope is
-those recorded clean-round increases: at most 1,175,552 private bytes (+4.6%) on the default
-x64 Release WARP fixture.
+A paired set needs a machine nobody is using, and a developer's computer is rarely one: its same-binary controls drift
+and the set proves nothing. The `paired-benchmark` job of [ci.yml](../../.github/workflows/ci.yml) runs the set on a
+hosted x64 Release runner instead, so that a merge waits on GitHub. `Tools/BenchmarkGate.psm1` owns every decision below
+and `Tools/tests/Test-BenchmarkGate.ps1` covers it.
 
-The scene opens no menu, and outside menu popups the change adds no allocation. The nine-phase heap
-diagnostic shows the difference as allocator capacity (committed and free heap) rather than live
-data, and sixty-cycle retention medians converge. Neither establishes a cause or a settled bound.
-Pair three also flags a dirty-round increase of 2,408,448 private bytes (+8.67%) that pairs one and
-two do not repeat; it is not accepted, and the plan measures it again. This waiver does not cover
-timing, additional growth, other fixtures or consumer adoption. Thresholds, baselines and the
-deterministic allocation, surface and hidden-work budgets are unchanged, and the retained
-comparisons keep their `advice-required` status. Remove or tighten the waiver when the plan's
-paired measurements are within the investigation bands.
+- **When.** For every pull request to `main` that changes something the benchmark measures: the library inputs a receipt's
+  `sourceFingerprint` covers (`src`, `include`, `Build`, the build props and vcpkg manifests), the harness and its
+  benchmark inputs, the sources of the benchmark executable (`Tests/Embedded`, `Tests/Support`) and the fixtures and samples
+  compiled into it (`Samples`), the build and restore scripts, the paired measurement and gate tooling and the workflow.
+  Markdown never counts, and neither do the control and foundation tests, the validators, the gallery and the formatter. The
+  job always starts for a pull request to `main`: its first step matches the changed paths against those rules and names
+  the files that decided, and the steps after it run only when one matched, so a pull request that changes none of them
+  ends the job within a couple of minutes with the check passed. A step that cannot decide fails the job, so nothing passes
+  unmeasured because its scope could not be read. The job is not skipped for such a pull request, because GitHub reports a
+  skipped job under its unevaluated name expression and a required check of the same name would wait forever. A manual
+  dispatch with `benchmark_baseline` measures the revisions it names. A newer push to a pull request cancels its older run,
+  and its job is bounded at 45 minutes (a run takes 10 to 15); a manual run keeps its 90, for the diagnostic scenarios. A
+  pull request's check is named `paired-benchmark (pull request)`, apart from the push and manual runs of the same job, so
+  that a required check names exactly one check run.
+- **What is compared.** The candidate is the pull request's merge ref. The baseline is that merge commit's first parent, the
+  base as the merge ref was made, so the two differ by exactly this pull request. The merge base with the branch would
+  also hold whatever `main` gained since the branch was cut and would blame a regression it brought on this pull
+  request; the two are one commit when the base has not moved. Both are built in Release and measured by
+  `performance-paired.ps1` with the merge ref's harness in the gating scenarios `Default`, `MultilineGrid` and
+  `MultilineGridDistinct`, three repetitions each: six runs per side, whose smallest attainable p is 0.0022. The gate keeps
+  no baseline, so there is none to replace; it measures the base afresh.
+- **What is published.** The job summary lists each scenario's set verdict and, for every metric, its medians, change,
+  p-value, band, same-binary controls and outcome, with the flagged metrics first, and the artifact
+  `paired-benchmark-x64-Release` keeps every receipt, comparison, `summary.json` and the conclusion as `verdict.json`.
+  A flagged metric is listed whatever the conclusion; the gate dismisses nothing.
+- **Conclusion.** The set's verdict says which metrics regressed against the rank test and the bands. The check also asks
+  that the machine held still for them. The same-binary controls (A2 against A1 and B2 against B1 of every pass) measure one
+  binary twice, so any change in them is the runner's. A regressed metric whose controls all stayed within its band (an
+  exact budget: stayed equal) is a **confirmed degradation** and fails the check. A regressed metric whose controls
+  drifted beyond the band cannot be told from the runner: the run is **inconclusive**, which fails the check too, because
+  GitHub has no neutral conclusion for a job and a green check would read as a pass. An inconclusive run is repeated (re-run
+  the job, or run the set on a quiet machine) and its flagged metrics stay listed as findings. A run with no regressed
+  metric passes as *no regression established*, which says what `within-noise-budget` says and no more; its summary counts
+  the metrics whose controls could not hold their band. A set too small to reach p < 0.05 cannot pass a timing.
+- **Controls of the metric in question.** A shared hosted runner drifts beyond some band in nearly every control, in a few
+  metrics (mostly the p95 of frame, preparation and composition times, and the working set), so the check judges the
+  controls of the metric a set flagged, not of all twenty-six together. The
+  [retained hosted run](../../Measurements/HostedPairedGate/2026-10-01/README.md) records the drift: all 18 controls
+  drifted in some metric, and the eight exact budgets in none. A
+  [second hosted A/A run](../../Measurements/HostedPairedGate/2026-10-01/aa-2/README.md) flagged five
+  clean-phase timings (p 0.004 to 0.026) of the same library code with their controls drifted: the candidate was slow in
+  five of its six runs and the baseline in none. Per metric that is inconclusive, not a degradation, so a hosted run can
+  need a re-run. The strict reading,
+  any unstable control making its scenario inconclusive, is the `-StrictControls` switch of
+  `Tools/Publish-BenchmarkVerdict.ps1`; it is off because it would have made every hosted run inconclusive.
+- **Identical library inputs.** When the compiled library inputs of both sides are identical (a change to the benchmark or
+  its tooling only), the same library code was measured twice: a timing or memory flag is listed as noise, and a rise in a
+  deterministic budget still fails, because noise cannot move one.
+- **No verdict.** Invalid evidence, a missing or unreadable summary, a summary that lists no scenario or holds no set verdict
+  for one (an older summary, from before the paired sets) and a run that did not finish fail, each saying why in the job
+  summary, and so does a pull request that changes the harness and the library's interfaces together, whose base cannot be
+  built with the merge ref's harness. Its comparison is measured by hand, as before.
+- **Confirmed degradation** follows the advice rule above: stop, present the deltas and the suspected cause, ask the
+  developer, and never relax a band or replace a baseline to pass. *Confirmed* means the machine held still for the
+  metric, not that a second set reproduced it: a scenario makes about 26 metric tests, so a chance verdict is possible,
+  and re-running the job (a new runner, up to 15 minutes) is the repeat the advice rule asks for. The gate has no waiver list: a
+  tradeoff the developer approves is recorded in this contract, as the sections below do, and a maintainer merges over the
+  failed check.
+- **A manual run** reports the same verdict in its job summary and stays green for a finding, as it always did: only a pull
+  request is gated. Hosted runs are serial on one machine but not on a controlled quiet desktop, and their evidence says so.
+
+### Described-menu clean private memory
+
+On 2026-09-27 the user directed a waiver for described native menu entries (#24, merged as `6f769ab`). In three
+matched September 21 Release pairs against `78b3de3`
+([common-scene investigation](../../Measurements/MenuDescriptions/2026-09-21/README.md)), clean-round median
+private bytes had risen by 823,296, 1,175,552 and 1,175,552 bytes (+3.23%, +4.56%, +4.51%). The waiver accepted up to
+1,175,552 bytes (+4.6%) on the default x64 Release WARP fixture while an
+[optimization plan](../Plans/WIP/MenuDescriptionMemory_2026-09-27.md) investigated. The scene opens no menu, and
+outside menu popups the change adds no allocation.
+
+On 2026-09-30 the waiver is removed, because the plan's repeated paired runs of `e47c836` against `6f769ab` are within
+the bands. A local set of six runs per side
+([receipts](../../Measurements/MenuDescriptions/2026-09-30/paired-local/README.md)) measures clean private bytes
++0.36% (p = 0.70) and dirty private bytes -0.89% (p = 0.56). The earlier hosted set measured clean private bytes
+-0.50% and -0.70%, and pair three's unaccepted dirty-round +8.67% did not repeat. Described menus now carry no memory
+envelope, and the regular investigation bands and exact budgets apply to them.
 
 ### I26 accepted multiline Grid memory tradeoff
 
@@ -124,8 +186,9 @@ quiet-fixture repeat.
 On 2026-09-29 the developer set the priority for Grid text layouts: the best frame rate first, then the least memory
 for it. That replaces the memory-first rejection of the associative-cache experiment for the Grid. The
 [review follow-ups](../Plans/Done/ReviewFollowUps_2026-09-29.md) keep cell layouts in 32-way set-associative tables
-(at most 16,384 entries; an entry the current or previous paint used is never evicted) and keep single-line captions'
-layouts as well. Two local paired sets against the review fixes
+(at most 16,384 entries; a table grows instead of evicting an entry the current or previous paint used, and at the ceiling a
+full set gives up its least recently used way) and keep single-line captions' layouts as well. Two local paired sets against
+the review fixes
 ([receipts](../../Measurements/ReviewFollowUps/2026-09-29/paired-local/README.md)) record equal or fewer dirty-round
 allocations and no clean-round allocation in all three scenes, and a higher `Default` dirty rate in all four crossings
 (+5.1% to +14.5%). B's median private bytes averaged -0.08 to +0.52 MB from A's per scene and phase. Every
@@ -200,6 +263,18 @@ The benchmark executable's opt-in `--benchmark-retention <output-prefix>` repeat
 sixty complete create/render/hide/destroy cycles in one process, retaining each inner
 report. Bind that diagnostic's executable/source/fixture hashes and keep its raw rounds;
 it does not replace the default acceptance comparison or a controlled long-duration soak.
+The executable's opt-in `--benchmark-grid-selection <report.json> [parts]` (fixture `dxui-grid-selection-v2`; `parts` names
+some of paint, selectionCost, membership, retention, mutators, preserve and complexUiScene, comma separated, and defaults to
+all) measures Grid selection with synthetic data: Grids of 1,000 to 1,000,000 rows, selected as Ctrl+A selects them and painted
+offscreen on WARP, what `IsSelected` costs inside such a paint (one Grid painted alternately with a small and a full selection
+that draw alike), `IsSelected` per call over selections of 0 to 1,000,000 ids with questions in an order a processor learns
+and in a random order it cannot (a binary search is only as cheap as the first), the C++ heap bytes a selection model holds
+after Ctrl+A and after each way back from it (Clear, a click, a Shift+click, a data change), counted exactly by the executable's
+allocation hook, the time and C++ heap bytes of the selection model's mutators, and `PreserveOrdered` over 200,000 rows with a
+few to 5,000 clicked. It also reports how many rows the default complex-UI scene's Grid holds selected. Its entry is dispatched
+outside `BenchmarkMain.h`, so the complex-UI fixture's hashed inputs are unchanged. Compare it only between builds of one
+harness, as an interleaved paired set (a record of three builds runs them as A, B, C, C, B, A); it supplements the default
+benchmark for a change to selection and does not replace it.
 
 Shipping/consumer acceptance additionally requires a named hardware fixture and actual presented complex-UI FPS,
 frame pacing and p50/p95/p99 latency at the target refresh rate (at least 60 FPS / 16.67 ms per frame for a 60 Hz
@@ -265,3 +340,27 @@ at the start of the next embedded preparation or native paint, never mid-paint, 
 proportional to the painted working set. Diagnostics are borrowed and optional; composition does not emit them.
 The private window-message payload registry is bounded to 128 windows and 128 queued payloads; saturation fails
 immediately and releases transferred ownership. Teardown invalidates queued tokens and drains outside its lock.
+
+A Grid's selection is a `GridSelectionModel`, which keeps each selected stable id twice: in selection order, and
+ascending beside it. `IsSelected`, which a Grid asks once per visible row on every paint, allocates nothing and does not
+grow with the selection. Up to 1,024 selected ids it scans the ids in selection order, as it always did (about 0.1 ns an
+id); above that it binary searches the ascending copy (9 to 16 ns in an order a processor can predict and 48 to 149 ns in
+one it cannot, from 1,500 to 1,000,000 ids, where the scan cost up to 94 us). The limit is 1,024 because a search whose
+branches cannot be predicted, as the ids of the rows on screen cannot be against a selection of hashed ids, costs what a
+scan costs at about 500 to 650 ids: below the limit the search can lose to the scan (4.5 times at 32 ids), above it never
+does, so the model is never slower than that scan at any size in either order. The ascending copy is the budget: 8 bytes per
+selected row beyond the ordered ids' 8 (the model itself grows from 40 to 64 bytes), and never a heap node per row. Both
+copies give their room back when a selection that needed room for more than 4,096 ids (32 KiB) is replaced by one that needs
+half of it or less (`Clear`, `SetSingle`, `SetRange` and a `PreserveOrdered` that drops ids; `Toggle` leaves its room):
+after Ctrl+A over 200,000 ids a model holds 0 bytes after `Clear` and 16 after a click, not 3.2 MB, for 0.1 to 0.2 ms to
+free and 0.3 ms to get back, and a selection of 4,096 ids or fewer keeps its room. The mutators, which run on user gestures
+and data changes, keep both copies equal at O(n log n) at most: a `SetRange` over ids that do not already ascend sorts
+them (1.0 ms for 20,000 ids, 10.9 ms for 200,000; a radix sort of them takes about a seventh of that and is not done);
+`PreserveOrdered` asks about every row of the model, and a table of bits rules out most rows before the search answers the
+rest, so 200,000 rows with 3 to 5,000 ids selected take 0.2 to 1.1 ms (a hash set took 1.2 to 2.8) with 2 or 3 heap
+calls; and `SetRange` and `PreserveOrdered`, the two that may throw, leave the selection as it was when an allocation
+fails. A selection structure that costs a node per row, a membership test that scans more than 1,024 ids or that searches a
+smaller selection more slowly than the scan would, a model that keeps the room of a selection it no longer holds, a
+`PreserveOrdered` that costs more than reading its list, or a paint that allocates for the selection regresses this
+budget. The
+[paired record](../../Measurements/GridSelection/2026-10-01/README.md) holds the measurements.

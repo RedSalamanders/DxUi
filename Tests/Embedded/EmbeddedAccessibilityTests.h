@@ -87,9 +87,138 @@ static void TestEmbeddedDisclosureAccessibility(GraphicsFixture& gpu)
     Check(pattern->Expand() == UIA_E_ELEMENTNOTAVAILABLE, "retained disclosure provider disconnects on detach");
 }
 
+// A multi-select tree through an embedded view: pointer and key modifiers reach its gestures, and the retained UI
+// Automation providers report and change its selection through the same callbacks.
+class EmbeddedSelectionTreeModel final : public DxUi::ITreeModel
+{
+public:
+    [[nodiscard]] size_t GetVisibleItemCount() const noexcept override
+    {
+        return 5u;
+    }
+
+    void GetVisibleItem(size_t visibleIndex, DxUi::TreeItemData& outItem) const override
+    {
+        constexpr std::wstring_view names[] = {L"Alpha", L"Beta", L"Gamma", L"Delta", L"Epsilon"};
+        outItem                             = DxUi::TreeItemData{.id = visibleIndex + 1u, .text = std::wstring(names[visibleIndex])};
+    }
+};
+
+struct EmbeddedSelectionTreeDelegate final : DxUi::ITreeDelegate
+{
+    size_t sets = 0;
+    std::vector<uint64_t> lastSet;
+    void OnTreeSelectionSetChanged(std::span<const uint64_t> selectedItemIds) override
+    {
+        ++sets;
+        lastSet.assign(selectedItemIds.begin(), selectedItemIds.end());
+    }
+};
+
+static void TestEmbeddedTreeMultiSelect(GraphicsFixture& gpu)
+{
+    EmbeddedScene scene;
+    Hr(scene.Initialize(gpu.device.get()), "multi-select tree scene");
+    auto& view    = scene.view;
+    auto controls = std::make_unique<DxUi::Panel>();
+    auto* tree    = controls->AddChild<DxUi::Tree>();
+    tree->SetBounds(D2D1::RectF(0, 0, 300, 180));
+    EmbeddedSelectionTreeModel model;
+    EmbeddedSelectionTreeDelegate delegate;
+    tree->SetModel(&model);
+    tree->SetDelegate(&delegate);
+    tree->SetMultiSelectEnabled(true);
+    view.Controls().SetRoot(std::move(controls));
+    Hr(view.Prepare(720, 510, 144), "prepare the multi-select tree");
+
+    // Rows are 28 DIP apart from 2 DIP down; the view is prepared at 144 DPI, so physical pixels are DIPs times 1.5.
+    const auto rowY  = [](size_t row) { return (2.0f + (28.0f * static_cast<float>(row)) + 14.0f) * 1.5f; };
+    const auto click = [&](size_t row, UINT modifiers)
+    {
+        Check(view.DispatchPointer({DxUi::PointerAction::Down, 150.0f, rowY(row), modifiers}), "the tree handles a row press");
+        static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Up, 150.0f, rowY(row), modifiers}));
+        Hr(view.Prepare(720, 510, 144), "prepare after the tree changed");
+    };
+    const auto selected = [&]() { return tree->GetSelectedItemIds(); };
+    click(1, 0);
+    Check(selected() == std::vector<uint64_t>{2u}, "an embedded click selects one row");
+    click(3, MK_CONTROL);
+    Check(selected() == std::vector<uint64_t>{2u, 4u}, "an embedded Ctrl+click toggles a row");
+    click(4, MK_SHIFT);
+    Check(selected() == std::vector<uint64_t>{2u, 3u, 4u, 5u}, "an embedded Shift+click selects the range from the anchor");
+    Check(view.DispatchKey(VK_UP, true, MK_SHIFT), "the tree handles Shift+Up");
+    Check(selected() == std::vector<uint64_t>{2u, 3u, 4u}, "an embedded Shift+Up shrinks the range");
+    Check(view.DispatchKey('A', true, MK_CONTROL), "the tree handles Ctrl+A");
+    Check(selected().size() == 5u && delegate.lastSet.size() == 5u, "an embedded Ctrl+A selects every row and reports it");
+    Hr(view.Prepare(720, 510, 144), "prepare after Ctrl+A");
+    click(2, 0);
+    Check(selected() == std::vector<uint64_t>{3u}, "an embedded plain click collapses the selection");
+
+    // The retained providers: CanSelectMultiple, the selection, and the actions that change it.
+    auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
+    DxUi::EmbeddedAccessibilityPlacement placement{{0, 0, 720, 510}, true};
+    Hr(view.AttachAccessibility(site, 0x4444, placement), "attach the multi-select tree's accessibility");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    Hr(view.GetAccessibilityProvider(root.put()), "multi-select tree provider root");
+    site->root        = root.get();
+    const auto itemAt = [&](size_t row)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
+        Hr(root->ElementProviderFromPoint(150.0, rowY(row), fragment.put()), "hit a tree row");
+        Check(bool(fragment), "a tree row has an element");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        Hr(fragment.query_to(simple.put()), "a tree row is a simple provider");
+        return simple;
+    };
+    const auto selectionItem = [&](const wil::com_ptr_nothrow<IRawElementProviderSimple>& item)
+    {
+        wil::com_ptr_nothrow<IUnknown> unknown;
+        Hr(item->GetPatternProvider(UIA_SelectionItemPatternId, unknown.put()), "a tree row exposes SelectionItem");
+        wil::com_ptr_nothrow<ISelectionItemProvider> pattern;
+        Hr(unknown.query_to(pattern.put()), "SelectionItem pattern");
+        return pattern;
+    };
+    const auto isSelected = [&](const wil::com_ptr_nothrow<IRawElementProviderSimple>& item)
+    {
+        BOOL value = FALSE;
+        Hr(selectionItem(item)->get_IsSelected(&value), "IsSelected");
+        return value != FALSE;
+    };
+    const auto row0 = itemAt(0);
+    const auto row1 = itemAt(1);
+    const auto row2 = itemAt(2);
+    Check(! isSelected(row0) && ! isSelected(row1) && isSelected(row2), "the published snapshot reports the one selected row");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
+    Hr(selectionItem(row0)->get_SelectionContainer(container.put()), "the tree is the selection container");
+    wil::com_ptr_nothrow<IUnknown> containerPattern;
+    Hr(container->GetPatternProvider(UIA_SelectionPatternId, containerPattern.put()), "the tree exposes Selection");
+    wil::com_ptr_nothrow<ISelectionProvider> selection;
+    Hr(containerPattern.query_to(selection.put()), "Selection pattern");
+    BOOL canSelectMultiple = FALSE;
+    Hr(selection->get_CanSelectMultiple(&canSelectMultiple), "CanSelectMultiple");
+    Check(canSelectMultiple == TRUE, "an embedded multi-select tree reports CanSelectMultiple");
+
+    Hr(selectionItem(row0)->AddToSelection(), "UIA adds a row to the selection");
+    Check(selected() == std::vector<uint64_t>{1u, 3u} && delegate.lastSet == std::vector<uint64_t>{1u, 3u},
+          "UIA AddToSelection keeps the selection and reports it once");
+    Check(site->completions >= 1, "UIA selection posts application completion work");
+    Hr(view.Prepare(720, 510, 144), "prepare after UIA selection");
+    Hr(view.UpdateAccessibility(placement), "publish the UIA selection");
+    SAFEARRAY* items = nullptr;
+    Hr(selection->GetSelection(&items), "UIA selection readback");
+    Check(items && items->rgsabound[0].cElements == 2, "the Selection pattern lists both selected rows");
+    SafeArrayDestroy(items);
+    Check(isSelected(row0) && isSelected(row2) && ! isSelected(row1), "existing row providers see the published selection");
+    Hr(selectionItem(row2)->RemoveFromSelection(), "UIA removes a row from the selection");
+    Check(selected() == std::vector<uint64_t>{1u}, "UIA RemoveFromSelection keeps the other rows");
+    site->root = nullptr;
+    view.Detach();
+}
+
 static void TestEmbeddedAccessibility(GraphicsFixture& gpu)
 {
     TestEmbeddedDisclosureAccessibility(gpu);
+    TestEmbeddedTreeMultiSelect(gpu);
     EmbeddedScene scene;
     Hr(scene.Initialize(gpu.device.get(), {}, true), "UIA supplied-device scene");
     auto& view = scene.view;

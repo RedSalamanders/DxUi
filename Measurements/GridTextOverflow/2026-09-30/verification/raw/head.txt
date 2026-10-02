@@ -1,0 +1,4 @@
+head=7fe47c0f16287f073a3fb9b3185df6608001c658
+sourceStatusLines=0
+subject=Make the multiline pixel comparisons refuse captures of two sizes and log the Grid's right-to-left paint
+note=documentation and this packet were uncommitted while the suites ran; no source path differed from the commit

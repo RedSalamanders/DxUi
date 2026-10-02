@@ -52,6 +52,8 @@ The repository is public and its default branch is `main`. Use focused feature b
 Use one indexed WIP plan for multi-step changes. Current intended behavior belongs in domain contracts; implemented
 support and remaining gates are explicit. When implementation/tests pass, update normative requirements and move
 the completed plan to Done. Do not leave a completed plan under WIP or close a deferred consumer migration early.
+Record each change's changelog entry as one fragment under `Changes/` (see its README), never by editing
+`CHANGELOG.md`. The WIP index keeps one blank-line-separated entry per plan.
 
 Run `validate.ps1` (the five `validate-*.ps1` validators and `Tools/tests/Invoke-ToolingTests.ps1`, reporting every
 failure before it fails) and `format.ps1 -Check` for relevant changes. Repository tooling is PowerShell only, and
@@ -73,3 +75,8 @@ spec-workflow, or consumer-integration. These are repository-local skills and th
 Application documentation screenshots use the consumer test harness. Explicitly authorized brief focus
 for hover/keyboard captures uses its existing warning and interactive desktop lease, with cursor/focus
 restoration; static captures remain non-activating. Never substitute desktop screenshots.
+
+DxUi's own suites that take real focus (`Menu`, `NativeTextInput` and the two menu resource fixtures) run deliberately through
+`test.ps1 -Interactive`, which refuses without an interactive desktop, asks first, warns while it runs and restores the foreground
+window, keyboard focus and pointer however the run ends. Run it, or any of those suites, only when the person at the desktop has
+agreed to the time; otherwise leave them out of `-Suites`.

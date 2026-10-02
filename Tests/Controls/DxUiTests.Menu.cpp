@@ -273,14 +273,17 @@ bool WaitForContextMenuPopupBitmapCapture(HWND popupHwnd,
                                           std::chrono::milliseconds timeout = std::chrono::milliseconds(5000))
 {
     const auto deadline = std::chrono::steady_clock::now() + timeout;
+    std::chrono::milliseconds longestProbe{};
     do
     {
         // Popup creation first exposes a hidden 1x1 measurement HWND. Cross-thread SendMessage can run during
         // initialization, so only capture the visible, sized popup used for the material comparison.
         // The bitmap dimensions are physical pixels. Do not compare them with a client rectangle queried
         // by this driver thread, whose DPI-awareness context may virtualize that rectangle.
-        if (IsWindowVisible(popupHwnd) && DxUi::DebugCaptureContextMenuPopupBitmap(popupHwnd, outCapture) && outCapture.widthPx > 1u &&
-            outCapture.heightPx > 1u && ! outCapture.bgraPixels.empty())
+        const auto probeStarted = std::chrono::steady_clock::now();
+        const bool captured     = IsWindowVisible(popupHwnd) && DxUi::DebugCaptureContextMenuPopupBitmap(popupHwnd, outCapture);
+        longestProbe = (std::max)(longestProbe, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - probeStarted));
+        if (captured && outCapture.widthPx > 1u && outCapture.heightPx > 1u && ! outCapture.bgraPixels.empty())
         {
             return true;
         }
@@ -288,8 +291,10 @@ bool WaitForContextMenuPopupBitmapCapture(HWND popupHwnd,
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     } while (std::chrono::steady_clock::now() < deadline);
 
+    // A probe the popup thread does not answer fails at its three-second bound, so a longest probe of about 3000 ms says that
+    // thread stopped answering.
     std::cerr << "Popup capture readiness timeout: visible=" << IsWindowVisible(popupHwnd) << " dpi=" << GetDpiForWindow(popupHwnd)
-              << " bitmap=" << outCapture.widthPx << 'x' << outCapture.heightPx << '\n';
+              << " bitmap=" << outCapture.widthPx << 'x' << outCapture.heightPx << " longestProbeMs=" << longestProbe.count() << '\n';
     return false;
 }
 
@@ -1021,6 +1026,90 @@ void TestContextMenuDebugStateProbeBoundsWedgedWindowThread()
     Require(! result.has_value(), "dismissed menu debug-state timeout popup returns no command");
 }
 
+// A probe sent to a popup whose thread has stopped answering (wedged here in the state probe's handler for four seconds) fails
+// within its three-second bound instead of holding its driver for good, and a capture answers again once the thread runs. Before
+// the bound, a capture whose popup thread never answered held the driver, and so the open menu, until the watchdog ended the run.
+void TestContextMenuDebugCaptureBoundsWedgedWindowThread()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow ownerWindow;
+    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 220, SWP_NOZORDER);
+    if (! TryActivateDxUiTestWindow(ownerWindow.Hwnd()))
+    {
+        SkipDxUiTest("DxUi menu debug-probe timeout requires an interactive desktop");
+        return;
+    }
+
+    wil::unique_event_nothrow handlerEntered;
+    handlerEntered.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(handlerEntered != nullptr, "menu debug-probe timeout test creates the handler-entered event");
+    wil::unique_event_nothrow releaseHandler;
+    releaseHandler.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(releaseHandler != nullptr, "menu debug-probe timeout test creates the release event");
+
+    std::string driverFailure;
+    bool wedgedCaptureFailed      = false;
+    bool unwedgedCaptureSucceeded = false;
+    std::chrono::milliseconds wedgedElapsed{};
+    std::thread releaser([&]
+    {
+        if (WaitForSingleObject(handlerEntered.get(), 3000u) == WAIT_OBJECT_0)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+        }
+        static_cast<void>(SetEvent(releaseHandler.get()));
+    });
+    std::thread wedger;
+    std::thread driver([&]
+    {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+        const HWND popupHwnd    = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Capture probe");
+        WindowHostBitmapCapture capture{};
+        if (! popupHwnd || ! WaitForContextMenuPopupBitmapCapture(popupHwnd, capture))
+        {
+            driverFailure = "menu debug-probe timeout popup appears and answers a capture";
+            return;
+        }
+
+        // A state probe whose handler waits for the release wedges the popup thread; the capture is sent while it waits.
+        DebugSetContextMenuStateProbeStallForTest(handlerEntered.get(), releaseHandler.get());
+        wedger = std::thread([popupHwnd]
+        {
+            ContextMenuPopupDebugState state{};
+            static_cast<void>(DebugGetContextMenuPopupState(popupHwnd, state));
+        });
+        if (WaitForSingleObject(handlerEntered.get(), 3000u) != WAIT_OBJECT_0)
+        {
+            driverFailure = "the state probe wedges the popup thread";
+            return;
+        }
+        const auto started       = std::chrono::steady_clock::now();
+        wedgedCaptureFailed      = ! DebugCaptureContextMenuPopupBitmap(popupHwnd, capture);
+        wedgedElapsed            = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started);
+        unwedgedCaptureSucceeded = WaitForContextMenuPopupBitmapCapture(popupHwnd, capture);
+    });
+
+    const std::vector<MenuFlyoutItem> items{{.text = L"Capture probe", .enabled = true, .commandId = 91502}};
+    const POINT menuAnchor          = ClientScreenPointForTest(ownerWindow.Hwnd(), 24, 60, "menu debug-probe timeout anchor converts to screen coordinates");
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), menuAnchor, items, ownerWindow.Host().GetTheme());
+    driver.join();
+    if (wedger.joinable())
+    {
+        wedger.join();
+    }
+    releaser.join();
+    DebugSetContextMenuStateProbeStallForTest(nullptr, nullptr);
+
+    Require(driverFailure.empty(), driverFailure.c_str());
+    Require(wedgedCaptureFailed, "a capture sent to a wedged popup thread returns failure");
+    Require(wedgedElapsed >= std::chrono::milliseconds(2900) && wedgedElapsed < std::chrono::milliseconds(3900),
+            "a capture sent to a wedged popup thread returns at its three-second bound, before the thread is released");
+    Require(unwedgedCaptureSucceeded, "a capture answers again once the popup thread runs");
+    Require(! result.has_value(), "dismissed menu debug-probe timeout popup returns no command");
+}
+
 // A driver whose wait for its popup timed out returns without one to dismiss, and a popup that merely came up late then stays
 // open under the owner thread's modal loop for good. This driver gives up at once, before its popup exists, as that driver did:
 // the guard every driver starts with closes the menu when it comes up, so the failure is reported and the owner thread returns.
@@ -1677,15 +1766,28 @@ DxUi::WindowHostBitmapCapture CaptureMenuPopupBitmapForTheme(const DxUi::ThemePa
 
     WindowHostBitmapCapture capture{};
     std::string driverFailure;
+    // When a CI run fails here, the message says which material, how long the driver waited, and whether ContextMenu::Show had
+    // returned by then: a menu that never opened, as against an owner thread still busy opening or painting it.
+    const char* const material = theme.overlayMaterial == OverlayMaterial::Mica      ? "Mica"
+                                 : theme.overlayMaterial == OverlayMaterial::MicaAlt ? "Mica Alt"
+                                 : theme.overlayMaterial == OverlayMaterial::Acrylic ? "Acrylic"
+                                                                                     : "Solid";
+    std::atomic<bool> showReturned{false};
+    const auto started   = std::chrono::steady_clock::now();
+    const auto elapsedMs = [started] { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count(); };
     std::thread driver([&]
     {
         const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
-            driverFailure = "menu popup window appears for material capture validation";
+            driverFailure = std::format("menu popup window appears for material capture validation ({}: no popup after {} ms, and ContextMenu::Show {})",
+                                        material,
+                                        elapsedMs(),
+                                        showReturned.load() ? "had already returned" : "had not returned");
             return;
         }
+        const long long appearedMs = elapsedMs();
 
         const auto dismissPopup = wil::scope_exit([&]() noexcept
         {
@@ -1697,11 +1799,16 @@ DxUi::WindowHostBitmapCapture CaptureMenuPopupBitmapForTheme(const DxUi::ThemePa
 
         if (! WaitForContextMenuPopupBitmapCapture(popupHwnd, capture))
         {
-            driverFailure = "menu popup bitmap capture succeeds for material validation";
+            driverFailure = std::format(
+                "menu popup bitmap capture succeeds for material validation ({}: popup after {} ms, no capture by {} ms)", material, appearedMs, elapsedMs());
+            return;
         }
+        std::cerr << "    [TRACE] material capture " << material << ": popup after " << appearedMs << " ms, captured after " << elapsedMs() << " ms\n"
+                  << std::flush;
     });
 
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
+    showReturned.store(true);
     driver.join();
 
     Require(driverFailure.empty(), driverFailure.c_str());
@@ -2534,8 +2641,7 @@ void TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup()
 
         pendingMenuBarHoverRootSwitch.store(1, std::memory_order_release);
         pendingMenuBarHoverSequence.store(2u, std::memory_order_release);
-        if (PostMessageW(viewPopupHwnd, DxUi::WndMsg::kContextMenuRootHoverChanged, 0u, 1u) == 0 ||
-            PostMessageW(viewPopupHwnd, DxUi::WndMsg::kContextMenuRootHoverChanged, 1u, 2u) == 0)
+        if (! ContextMenu::PostMenuBarHover(viewPopupHwnd, 0u, 1u) || ! ContextMenu::PostMenuBarHover(viewPopupHwnd, 1u, 2u))
         {
             driverFailure = "View popup receives the direct synthetic menu-bar hover switch messages";
             return;
@@ -2703,7 +2809,7 @@ void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
 
         pendingMenuBarHoverRootSwitch.store(1, std::memory_order_release);
         pendingMenuBarHoverSequence.store(1u, std::memory_order_release);
-        if (PostMessageW(viewPopupHwnd, DxUi::WndMsg::kContextMenuRootHoverChanged, 1u, 1u) == 0)
+        if (! ContextMenu::PostMenuBarHover(viewPopupHwnd, 1u, 1u))
         {
             driverFailure = "overlapping popup can receive the synthetic menu-bar hover switch message";
             return;
@@ -2729,6 +2835,103 @@ void TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar()
 
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "closing the overlapping popup validation with Escape returns no invoked command");
+}
+
+// DxUi's menu-bar hover message used to be WM_APP + 0x539, and a modal menu's loop took that value from any window of its
+// thread. Registered now, an application message at that value posted to the owner while a modal menu runs reaches the
+// owner's window procedure with its parameters, and the session hears no hover from it. The hover ContextMenu::PostMenuBarHover
+// posts to that same window still reaches the session, and never the owner's procedure.
+void TestModalMenuLeavesApplicationMessageAtFormerRootHoverValueToItsWindow()
+{
+    using namespace DxUi;
+    constexpr UINT kFormerRootHoverValue = WM_APP + 0x539u;
+    std::atomic<int> applicationMessages{0};
+    std::atomic<bool> applicationParametersKept{false};
+    std::atomic<int> hoverCalls{0};
+    std::atomic<std::uintptr_t> lastHoverSequence{0u};
+
+    AttachedHostWindow ownerWindow;
+    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 420, 260, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+    ownerWindow.PumpMessages();
+    ownerWindow.SetApplicationMessageHandler([&](UINT message, WPARAM wParam, LPARAM lParam, LRESULT& result)
+    {
+        if (message != kFormerRootHoverValue)
+            return false;
+        applicationParametersKept.store(wParam == 1u && lParam == 2, std::memory_order_release);
+        applicationMessages.fetch_add(1, std::memory_order_acq_rel);
+        result = 0;
+        return true;
+    });
+
+    const std::vector<MenuFlyoutItem> items{{.text = L"Former value one", .commandId = 36931}, {.text = L"Former value two", .commandId = 36932}};
+    ContextMenuSessionCallbacks sessionCallbacks{};
+    sessionCallbacks.switchRootFromMenuBarHover = [&](size_t, std::uintptr_t sequence) -> std::optional<ContextMenuRootSwitchRequest>
+    {
+        lastHoverSequence.store(sequence, std::memory_order_release);
+        hoverCalls.fetch_add(1, std::memory_order_acq_rel);
+        return std::nullopt;
+    };
+
+    const auto waitFor = [](const auto& condition)
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        while (! condition())
+        {
+            if (std::chrono::steady_clock::now() >= deadline)
+                return false;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        return true;
+    };
+
+    std::string driverFailure;
+    std::thread driver([&]
+    {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+        const HWND popupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"Former value one");
+        if (! popupHwnd)
+        {
+            driverFailure = "the modal menu opens before the application posts its message at the former root-hover value";
+            return;
+        }
+
+        const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd()); });
+        if (PostMessageW(ownerWindow.Hwnd(), kFormerRootHoverValue, 1u, 2) == FALSE)
+        {
+            driverFailure = "the application posts its message at the former root-hover value to the owner";
+            return;
+        }
+        if (! waitFor([&] { return applicationMessages.load(std::memory_order_acquire) != 0; }))
+        {
+            driverFailure = "the owner's window procedure receives the application's message at the former root-hover value while the menu runs";
+            return;
+        }
+        if (! applicationParametersKept.load(std::memory_order_acquire) || hoverCalls.load(std::memory_order_acquire) != 0)
+        {
+            driverFailure = "the application's message keeps its parameters, and the session hears no menu-bar hover from it";
+            return;
+        }
+
+        if (! ContextMenu::PostMenuBarHover(ownerWindow.Hwnd(), 1u, 3u))
+        {
+            driverFailure = "ContextMenu::PostMenuBarHover posts the registered hover to the owner";
+            return;
+        }
+        if (! waitFor([&] { return hoverCalls.load(std::memory_order_acquire) != 0; }) || lastHoverSequence.load(std::memory_order_acquire) != 3u ||
+            applicationMessages.load(std::memory_order_acquire) != 1)
+        {
+            driverFailure = "the registered hover posted to the owner reaches the session, and never the owner's procedure";
+        }
+    });
+
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
+    const POINT anchor              = ClientScreenPointForTest(ownerWindow.Hwnd(), 40, 40, "the former-value menu anchor converts to screen coordinates");
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), anchor, items, theme, sessionCallbacks);
+    driver.join();
+
+    Require(driverFailure.empty(), driverFailure.c_str());
+    Require(! result.has_value(), "closing the former-value menu with Escape invokes no command");
 }
 
 void TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch()
@@ -3155,6 +3358,152 @@ void TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay()
 
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "closing the delayed submenu-replacement validation popup with Escape returns no invoked command");
+}
+
+// PeekMessageW runs the handlers of messages other threads sent to the menu's thread, and such a handler can close a submenu
+// while the modal loop walks the popup chain to peek each popup's own paints and state probes. The loop must then peek only
+// live popups. The hook closes the open submenu as such a handler would, from the loop's peek of the root popup's state probes:
+// none is pending, so that peek finds nothing and the loop goes on to the next popup of the chain it started with. The driver
+// posts no state probe from then until the loop has peeked again, which keeps that true.
+void TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu()
+{
+    using namespace DxUi;
+
+    struct PeekProbe
+    {
+        std::atomic<HWND> submenu{nullptr};
+        std::atomic<bool> armed{false};
+        std::atomic<bool> recording{true};
+        bool fired = false; // The menu's thread only.
+        wil::unique_event firedEvent{wil::EventOptions::ManualReset};
+        wil::unique_event peekedAfterCloseEvent{wil::EventOptions::ManualReset}; // Set with the first peek recorded after the close.
+        std::mutex mutex;
+        std::vector<std::pair<HWND, bool>> peekedAfterClose; // Each window peeked after the close, and whether it was a window.
+    } probe;
+    probe.peekedAfterClose.reserve(4096u);
+
+    const ContextMenuModalLoopPeekHook hook = [](void* context, HWND popupHwnd, UINT message) noexcept
+    {
+        auto& peekProbe = *static_cast<PeekProbe*>(context);
+        if (peekProbe.fired)
+        {
+            const std::scoped_lock lock(peekProbe.mutex);
+            if (peekProbe.recording.load(std::memory_order_acquire) && peekProbe.peekedAfterClose.size() < peekProbe.peekedAfterClose.capacity())
+            {
+                peekProbe.peekedAfterClose.emplace_back(popupHwnd, IsWindow(popupHwnd) != FALSE);
+                peekProbe.peekedAfterCloseEvent.SetEvent();
+            }
+            return;
+        }
+        const HWND submenu = peekProbe.submenu.load(std::memory_order_acquire);
+        if (message == WM_PAINT || ! peekProbe.armed.load(std::memory_order_acquire) || ! submenu || popupHwnd == submenu)
+        {
+            return;
+        }
+        peekProbe.fired = true;
+        // Left in the submenu closes it, as a key another thread sent to it would.
+        static_cast<void>(SendMessageW(submenu, WM_KEYDOWN, VK_LEFT, 0));
+        peekProbe.firedEvent.SetEvent();
+    };
+
+    AttachedHostWindow ownerWindow;
+    SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
+    ownerWindow.PumpMessages();
+    DrainPendingMouseMessagesForMenuSuite();
+    const std::vector<MenuFlyoutItem> items = {
+        {.text      = L"P1",
+         .commandId = 3801,
+         .children =
+             {
+                 MenuFlyoutItem{.text = L"P11", .commandId = 38011},
+                 MenuFlyoutItem{.text = L"P12", .commandId = 38012},
+             }},
+        {.text = L"P2", .commandId = 3802},
+    };
+
+    DebugSetContextMenuModalLoopPeekHookForTest(hook, &probe);
+    const auto clearHook = wil::scope_exit([]() noexcept { DebugSetContextMenuModalLoopPeekHookForTest(nullptr, nullptr); });
+
+    std::string driverFailure;
+    std::thread driver([&]
+    {
+        const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+        const HWND rootPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"P1");
+        if (! rootPopupHwnd)
+        {
+            driverFailure = "menu popup window appears for the chain-change peek validation";
+            return;
+        }
+
+        const auto dismissPopup = wil::scope_exit([&]() noexcept
+        {
+            probe.recording.store(false, std::memory_order_release);
+            DismissOwnedContextMenuPopupChain(ownerWindow.Hwnd());
+        });
+
+        ContextMenuPopupDebugState popupState{};
+        PostMessageW(rootPopupHwnd, WM_KEYDOWN, VK_HOME, 0);
+        if (! WaitForContextMenuPopupState(rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+            return state.keyboardIndex.has_value() && state.keyboardIndex.value() == 0u;
+        }, popupState))
+        {
+            driverFailure = "Home selects P1 before its submenu opens";
+            return;
+        }
+        PostMessageW(rootPopupHwnd, WM_KEYDOWN, VK_RIGHT, 0);
+        const HWND submenuHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"P11");
+        if (! submenuHwnd)
+        {
+            driverFailure = "Right opens P1's submenu";
+            return;
+        }
+
+        // No state probe is pending from here on, so the root popup's probe peek finds nothing when the hook closes the submenu.
+        probe.submenu.store(submenuHwnd, std::memory_order_release);
+        probe.armed.store(true, std::memory_order_release);
+        PostMessageW(rootPopupHwnd, WM_NULL, 0, 0); // Wakes the modal loop; its next idle pass fires the hook.
+        if (WaitForSingleObject(probe.firedEvent.get(), 5000u) != WAIT_OBJECT_0)
+        {
+            driverFailure = "the modal loop peeks the root popup's state probes while the submenu is open";
+            return;
+        }
+        // The hook destroyed the submenu before it set the event, and the pass that fired it has yet to finish the root's probe
+        // peek. A state probe posted now could be the message that peek removes: the root would answer it, and the recording
+        // would end, before the loop's next pass peeks anything. Until that next pass has peeked, the root gets only a wake.
+        PostMessageW(rootPopupHwnd, WM_NULL, 0, 0);
+        if (WaitForSingleObject(probe.peekedAfterCloseEvent.get(), 5000u) != WAIT_OBJECT_0)
+        {
+            driverFailure = "the modal loop goes on peeking after a peek closed the submenu";
+            return;
+        }
+        if (! WaitForWindowDestroyed(submenuHwnd, std::chrono::milliseconds(1200)))
+        {
+            driverFailure = "the key the hook sent closes the submenu";
+            return;
+        }
+        // More passes of the loop, through the root popup's state probes: the root still answers.
+        if (! WaitForContextMenuPopupState(rootPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept {
+            return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f;
+        }, popupState))
+        {
+            driverFailure = "the root popup still answers after a peek closed its submenu";
+        }
+    });
+
+    const ThemePalette theme        = MakeAnimatedTestThemePalette(true);
+    const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
+    driver.join();
+
+    Require(driverFailure.empty(), driverFailure.c_str());
+    Require(! result.has_value(), "dismissing the chain-change peek validation returns no invoked command");
+    const HWND closedSubmenu = probe.submenu.load(std::memory_order_acquire);
+    const std::scoped_lock lock(probe.mutex);
+    Require(! probe.peekedAfterClose.empty(), "the modal loop goes on peeking after a peek closed the submenu");
+    for (const auto& [popupHwnd, wasWindow] : probe.peekedAfterClose)
+    {
+        Require(popupHwnd != closedSubmenu && wasWindow, "after a peek closed the submenu, the modal loop peeks only the popups still open");
+    }
 }
 
 void TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay()
@@ -7363,7 +7712,10 @@ void TestMenuSurvivesAWindowClosingItFromSetCursor()
     closingClass.hInstance     = GetModuleHandleW(nullptr);
     closingClass.lpszClassName = kClosingWindowClass;
     Require(RegisterClassExW(&closingClass) != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS, "register the menu-closing window class");
-    wil::unique_hwnd closingWindow(CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
+    // Topmost, so an application that takes the foreground back while the suite runs (the desktop application hosting a
+    // developer's session does) cannot cover it: covered, the window would never be under the pointer and the test would
+    // only ever skip.
+    wil::unique_hwnd closingWindow(CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
                                                    kClosingWindowClass,
                                                    L"",
                                                    WS_POPUP | WS_VISIBLE,
@@ -7390,9 +7742,16 @@ void TestMenuSurvivesAWindowClosingItFromSetCursor()
     RECT closingRect{};
     Require(GetWindowRect(closingWindow.get(), &closingRect) != FALSE, "read the menu-closing window rectangle");
     const POINT overClosing{(closingRect.left + closingRect.right) / 2, (closingRect.top + closingRect.bottom) / 2};
-    if (WindowFromPoint(overClosing) != closingWindow.get())
+    if (const HWND covering = WindowFromPoint(overClosing); covering != closingWindow.get())
     {
-        SkipDxUiTest("another window covers the menu-closing window");
+        wchar_t className[128]{};
+        static_cast<void>(GetClassNameW(covering, className, static_cast<int>(std::size(className))));
+        const DWORD thread       = covering ? GetWindowThreadProcessId(covering, nullptr) : 0u;
+        const std::string reason = std::format("another window covers the menu-closing window: class '{}' of {}{}",
+                                               NarrowAsciiForFailureMessage(className),
+                                               DescribeThreadProcessForTest(thread),
+                                               thread == GetCurrentThreadId() ? ", this test's own thread" : "");
+        SkipDxUiTest(reason.c_str());
         return;
     }
     g_menuClosingCursorPopup = popup;
@@ -8002,6 +8361,7 @@ void RunMenuTests()
     runTest("TestPointerInputEventButtonUsesDeliveredPointAndFlags", TestPointerInputEventButtonUsesDeliveredPointAndFlags);
     runTest("TestPointerInputEventWheelUsesDeliveredScreenPoint", TestPointerInputEventWheelUsesDeliveredScreenPoint);
     runTest("TestContextMenuDebugStateProbeBoundsWedgedWindowThread", TestContextMenuDebugStateProbeBoundsWedgedWindowThread);
+    runTest("TestContextMenuDebugCaptureBoundsWedgedWindowThread", TestContextMenuDebugCaptureBoundsWedgedWindowThread);
     runTest("TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen", TestContextMenuShowAsyncKeepsOwnerPaintableWhileOpen);
     runTest("TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion", TestContextMenuRootMinimumWidthUsesAnchorAndAllowsContentExpansion);
     runTest("TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets", TestLargeMenuPaintsOnlyVisibleRowsWithCachedOffsets);
@@ -8021,10 +8381,12 @@ void RunMenuTests()
     runTest("TestMenuOwnerMouseMoveRoutesRootSwitchImmediately", TestMenuOwnerMouseMoveRoutesRootSwitchImmediately);
     runTest("TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup", TestMenuBarHoverMessageSwitchesRootWhenCursorOutsidePopup);
     runTest("TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar", TestMenuBarHoverMessageSwitchesRootWhilePopupOverlapsMenuBar);
+    runTest("TestModalMenuLeavesApplicationMessageAtFormerRootHoverValueToItsWindow", TestModalMenuLeavesApplicationMessageAtFormerRootHoverValueToItsWindow);
     runTest("TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch", TestMenuRootSwitchUsesDeliveredOwnerMouseMoveAfterPopupSwitch);
     runTest("TestMenuRootSwitchDoesNotPollCursorWhileIdle", TestMenuRootSwitchDoesNotPollCursorWhileIdle);
     runTest("TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay", TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay);
     runTest("TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay", TestMenuHoveringSiblingWithChildrenReplacesOpenSubmenuAfterDelay);
+    runTest("TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu", TestMenuModalLoopPeeksOnlyLivePopupsWhenAPeekClosesASubmenu);
     runTest("TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay", TestMenuPointerInsideSubmenuAndParentItemCancelPendingCloseDelay);
     runTest("TestMenuKeyboardTabExitsMenuLoop", TestMenuKeyboardTabExitsMenuLoop);
     runTest("TestMenuKeyboardF10ExitsMenuLoop", TestMenuKeyboardF10ExitsMenuLoop);

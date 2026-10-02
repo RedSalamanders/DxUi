@@ -61,27 +61,41 @@ On 27 September the first
 same-source controls and are runner noise. One hosted set cannot remove the waiver; the quiet local
 sets below decide it.
 
+On 30 September a local set of six runs per side confirmed it: clean private memory +0.36% (p = 0.70). The waiver is
+removed from the performance contract. The one-layout-per-row evaluation remains, and this plan closes after it.
+
 ## Execution
 
-- [ ] Re-measure on main with `performance-paired.ps1 -BaselineRevision e47c836 -CandidateRevision 6f769ab
+- [x] Re-measure on main with `performance-paired.ps1 -BaselineRevision e47c836 -CandidateRevision 6f769ab
   -Scenario Default`. The two revisions differ only by #24's library change. Run at least two
   A1/B1/B2/A2 sets on a quiet local machine and one hosted CI dispatch, labelled as hosted. Keep every
   comparison; the September 21 evidence stays as recorded. The hosted set is done (see Progress);
   the quiet local sets remain.
-- [ ] Add a placebo control: `e47c836` plus an inert, unreferenced change of similar code size. If it
+  Outcome: on 30 September the runner's `-Repetitions 3` played three interleaved passes locally, six runs per side
+  ([receipts](../../../Measurements/MenuDescriptions/2026-09-30/paired-local/README.md)), judged by the exact rank
+  test. The current harness no longer compiles against these revisions (PR 29 renamed the model interfaces), so the
+  runner ran from a worktree with the hosted set's harness from `cb4cdde`, and the benchmark fingerprint equals the
+  hosted set's. The set is within the noise budget: clean private bytes +0.36% (p = 0.70), dirty -0.89% (p = 0.56),
+  identical allocations and surfaces.
+- [x] Add a placebo control: `e47c836` plus an inert, unreferenced change of similar code size. If it
   reproduces a comparable clean private-memory flag, the waived difference is layout or allocator
   variation rather than a cost of the feature.
-- [ ] Sample the opt-in heap diagnostic (`Tests/Support/HeapDiagnostic.h`) at each benchmark memory
+  Outcome: not run. A placebo distinguishes layout variation from a feature cost only when a flag reproduces, and
+  neither the hosted set nor the local set reproduces one.
+- [x] Sample the opt-in heap diagnostic (`Tests/Support/HeapDiagnostic.h`) at each benchmark memory
   phase on both sides to separate live heap from committed and free capacity.
-- [ ] If a code-attributable cost exists, remove it without changing menu behavior: defer or avoid
+  Outcome: not run, for the same reason: there is no difference left to attribute.
+- [x] If a code-attributable cost exists, remove it without changing menu behavior: defer or avoid
   the allocation, reuse storage or reduce transient peaks. Measure again with the same pairs.
+  Outcome: none is established, so there is nothing to remove.
 - [x] Separately, evaluate one formatted layout per described row. The isolated twelve-row probe
   measured 453,754 live bytes for separate primary and secondary layouts versus 250,346 for one
   formatted layout per row. This targets the open-menu feature cost, not the waived flag, and must
   keep the two-field spacing and drawing contract. Done on 30 September and implemented (see
   [the row-layout packet](../../../Measurements/MenuDescriptions/2026-09-30/row-layout/README.md) and Progress):
   the contract and all pixels are kept, and live bytes fall by a third for every menu whose labels differ and rise up to
-  7% where one label repeats in every row.
+  7% where one label repeats in every row. On 2 October 2026 the developer accepted that cost (the packet's option 1):
+  real menus have distinct labels, and neither the hybrid that keeps sharing repeated labels nor the rejection is built.
 - [ ] Close out. When repeated paired runs are within the bands, remove the waiver. If the difference
   proves to be measurement variation, present that evidence for a developer decision; never change
   a threshold or baseline instead. Update the contract, the

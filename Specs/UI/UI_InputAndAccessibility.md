@@ -1,7 +1,7 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-01
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -85,8 +85,8 @@ of the move, all four operations sequentially consistent, so a call the count do
 the store, and one it does include may have answered the event with the control the activation focused, which the host
 follows with its own announcement (at worst a duplicate). In a window UI Automation has asked before nothing else
 reports the clicked control, so the host announces it itself and a client hears it once, and the end of the turn adds
-nothing. The turn ends when the message the host posts to its window at the gain is dispatched (the message of an
-earlier gain, which the window lost before the loop turned, ends nothing), or when the window loses focus; should a
+nothing. The turn ends when the registered message the host posts to its window at the gain is dispatched (the message
+of an earlier gain, which the window lost before the loop turned, ends nothing), or when the window loses focus; should a
 window procedure never hand the host that message, it ends after 500 ms, so a move is never left to the system's event
 for long, but the activation of a window UI Automation answers without asking is then not announced. A move in a
 later turn, such as a click in the window that is already active, is announced by the host. An element's SetFocus moves
@@ -239,7 +239,9 @@ changes are notified. Native-host notification behavior remains covered by its e
 
 Forward PreTranslate before TranslateMessage/DispatchMessage and HandleMessage from the application window
 procedure. Nested synchronous locks fail; asynchronous requests coalesce into one pending lock with the strongest
-requested access. A generation-tagged posted message grants it after the active lock, without recursion or a timer.
+requested access. A generation-tagged posted message, registered like DxUi's other private messages (see the
+[window hosting contract](../Rendering/Rendering_Win32Host.md)), grants it after the active lock, without recursion or
+a timer.
 Clear/detach invalidates queued messages. NotifyChanged publishes external edits outside an active TSF lock.
 Escape clears a composition before ordinary editor handling; the application refreshes its focused client afterward.
 
@@ -303,8 +305,8 @@ Windows [provider threading contract](https://learn.microsoft.com/en-us/windows/
 Call UpdateAccessibility after changed preparation, placement or OS focus. Unchanged updates reuse the snapshot
 without allocation. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no
 snapshot allocation or UIA wake-up cost. Prepared snapshots expose confirmed Toggle, RangeValue, text/value and
-focus state. Changed active snapshots raise applicable property, text, focus and structure events only while UIA
-clients listen. Hidden controls leave navigation; background modal views must be disconnected by the application.
+focus state. Changed active snapshots raise applicable property, text, focus, structure and (for a multi-select Tree)
+selection events only while UIA clients listen. Hidden controls leave navigation; background modal views must be disconnected by the application.
 ActionCompleted allows the application to post one coalesced refresh/focus/navigation operation, without reentering
 the tree inside an accessibility callback.
 
@@ -328,6 +330,17 @@ A Grid row returned by Selection.GetSelection must provide working SelectionItem
 SelectionContainer getters even when it is offscreen or beyond the bounded row-materialization cache.
 These queries use immutable selection IDs and must not materialize every selected row. Removing the
 model/row invalidates retained providers; stale selection containers cannot survive that removal.
+
+A Tree with `SetMultiSelectEnabled(true)` reports `CanSelectMultiple`, lists every selected visible item from
+Selection.GetSelection in visible order and answers SelectionItem `IsSelected` from that set, while only its focused
+item (which may be outside the selection) reports `HasKeyboardFocus` and is what the window's `GetFocus` names.
+SelectionItem `Select` replaces the selection, `AddToSelection` adds an item and `RemoveFromSelection` removes it through
+the tree's own delegate callbacks, and `SetFocus` moves the focus alone. A publish that changes a multi-select tree's
+selection raises, only while a client listens and after the focus announcement of the same publish,
+`ElementSelected` (the selection became one item that was not selected), else `ElementAddedToSelection` and
+`ElementRemovedFromSelection` per item with the `IsSelected` property change, else, past 20 items or when a selected item
+left the tree, `Selection_Invalidated` on the tree; embedded hosts raise them from `UpdateAccessibility`. A tree without
+multi-select reports and raises what it always did. See [Tree multi-select](UI_ControlsAndLayout.md#tree-multi-select).
 
 Native consumers that know an attached HWND can acquire its canonical root with
 `DxUi::CreateWindowHostAccessibilityProvider(hwnd)` from `<DxUi/DxUi.h>`. Adopt the returned owned COM

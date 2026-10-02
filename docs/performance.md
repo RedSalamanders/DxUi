@@ -79,10 +79,57 @@ vcpkg manifests), because nothing differs to measure; that is how uncommitted wo
 compared with it. `-SkipBuild` on a named tree needs its existing build, and refuses a tree whose overlay changed a
 compiled benchmark input, since that build predates the harness its receipts would name. `summary.json` records each
 side's revision or path, commit and source fingerprint. Every receipt, comparison and
-`summary.json` is retained; an `advice-required` set still needs developer advice. A manual run of the
-[validation workflow](../.github/workflows/ci.yml) with `benchmark_baseline` (and optionally `benchmark_candidate`
-and `benchmark_scenarios`) does the same, with three repetitions, on one hosted x64 runner and uploads
-`paired-benchmark-x64-Release`.
+`summary.json` is retained; an `advice-required` set still needs developer advice.
+
+A merge does not have to wait for a quiet developer machine: the [validation workflow](../.github/workflows/ci.yml) runs
+the set on one hosted x64 Release runner (10 to 15 minutes). Its
+[contract](../Specs/Core/Core_PerformanceAndResources.md#hosted-paired-gate) has the rules; in short:
+
+- **Pull requests.** Every pull request to `main` that changes something the benchmark measures (library sources and
+  headers, the build props and vcpkg manifests, the sources of the benchmark executable, its fixtures and samples, the
+  build and measurement scripts and the workflow; never Markdown) is measured by the `paired-benchmark` job. It compares
+  the pull request's merge ref with that merge commit's first parent, the base as the merge ref was made, in `Default`,
+  `MultilineGrid` and `MultilineGridDistinct`, three repetitions each: six runs per side. The job starts for every pull
+  request to `main`: its first step decides from the changed paths and its summary names the files that did, and a pull
+  request that changes none of them ends the job within a couple of minutes, passed, without restoring or measuring
+  anything. The job is not skipped for such a pull request because GitHub names a skipped job by its unevaluated name
+  expression, which a required check would never see. The check `paired-benchmark (pull request)` (named apart from the
+  push and manual runs of the same job, so that a required check names one check run) can therefore be made required in
+  branch protection without holding documentation changes. A step that cannot decide fails the job: nothing passes
+  unmeasured because its scope could not be read.
+- **Manual runs.** A manual run with `benchmark_baseline` (and optionally `benchmark_candidate` and `benchmark_scenarios`)
+  measures the revisions it names, with three repetitions. It publishes the verdict the same way and stays green for a
+  finding; only a pull request is gated. A manual run is its own concurrency group, so a later push does not cancel it,
+  while a newer push to a pull request cancels that pull request's older run.
+- **What is published.** The job summary lists each scenario's set verdict and every metric's medians, change, p-value,
+  band, same-binary controls and outcome, flagged metrics first. `paired-benchmark-x64-Release` keeps every receipt,
+  comparison, `summary.json` and `verdict.json` for 14 days; copy a run worth keeping into `Measurements`.
+- **What fails a pull request.** A *confirmed degradation*: a metric the set flagged whose own same-binary controls stayed
+  within its band (an exact budget: stayed equal). It follows the regression rule above, and nothing is rebaselined: the
+  gate measures the base afresh. An *inconclusive* run fails too: a metric was flagged but its controls drifted beyond the
+  band, so the flag cannot be told from the runner. GitHub has no neutral job conclusion and a green check would read as a
+  pass, so the job fails; re-run it (a new runner), repeat the set on a quiet machine, and treat the listed metrics as
+  findings, not as noise. A run with no flagged metric passes as *no regression established*, which is not evidence that
+  none exists. Hosted controls drift in several timings in almost every run (the
+  [calibration set](../Measurements/HostedPairedGate/2026-10-01/README.md) records 18 of 18), which is why the controls of
+  the flagged metric decide and not all twenty-six; exact budgets never drift, so a rise in one always confirms. A
+  [second calibration set](../Measurements/HostedPairedGate/2026-10-01/aa-2/README.md) of identical code flagged five
+  clean-phase timings, each with a drifted control: inconclusive, so expect an occasional re-run.
+- **Unchanged library code.** When both sides have one library fingerprint (a change to the benchmark or its tooling
+  only) the same code was measured twice: a timing or memory flag is listed as noise and a rise in a deterministic budget
+  still fails.
+- **No verdict.** A run that cannot finish fails with the reason in its summary. The usual cause is a pull request that
+  changes the harness and the library's interfaces together: its base cannot be built with the merge ref's harness, so
+  measure that comparison by hand with `performance-paired.ps1`, as before.
+- **Approved tradeoffs.** The gate has no waiver list. A tradeoff the developer approves is recorded in the
+  [contract](../Specs/Core/Core_PerformanceAndResources.md) with its measured budget, as the accepted ones are, and a
+  maintainer merges over the failed check.
+
+To judge a local or retained run the same way, point the verdict script at its reports directory:
+`./Tools/Publish-BenchmarkVerdict.ps1 -Reports .build/paired/<run>/reports [-Gate]` prints the summary, writes `verdict.md`
+and `verdict.json` beside `summary.json` and, with `-Gate`, exits 1 for anything but a pass. A laptop in use drifts in
+every control, so a flagged metric there reads as inconclusive.
+
 Hosted runs are serial on one machine but not a controlled quiet desktop; record that limitation.
 `-Scenario MultilineGridRetention` extends the French multiline fixture with six complete passes through
 its 1,000 rows. It records process memory, handles and retained surface bytes every 200 frames, after
@@ -170,8 +217,9 @@ constant, rotates described-row counts and samples before opening, after ordinar
 paint and after closing. It performs no menu bitmap capture. Its raw JSON lines
 are retained in the suite log, including DPI, entry counts and process/handle
 counters. Release x64 CI runs it alongside the existing native matrix.
-This suite and `MenuResources` require foreground interaction. Local runs use the
-authorized warning and desktop lease with focus/cursor restoration; `--no-activate`
+This suite and `MenuResources` require foreground interaction. Run them locally with
+`./test.ps1 -Interactive -Suites MenuResourceScaling` (or `MenuResources`), which asks first, holds
+the desktop lease and restores the foreground window, focus and cursor; `--no-activate`
 is rejected. V4 records all 320 native extents from a visible owned parent on one
 monitor. Earlier locally failed activation-blocked runs remain invalid evidence.
 The first description enables a whole-menu semantic tree; later descriptions add
@@ -207,9 +255,33 @@ It is live heap in an open menu, not the common-scene flag below. The
 [six-profile native qualification](../Measurements/MenuDescriptions/2026-09-23/native-ci-sharing/README.md)
 passes functionally with explicit ARM64 desktop skips. Its common-scene timing flags compare two
 described-menu builds, not the feature against unchanged main; the matched pairs against main never
-flag clean frame p95. Their repeated clean private-memory increase is accepted under a recorded waiver
-while an [optimization plan](../Specs/Plans/WIP/MenuDescriptionMemory_2026-09-27.md) investigates it;
-consumer adoption remains separate.
+flag clean frame p95. Their clean private-memory increase, once accepted under a waiver, does not
+reproduce in a [six-run local paired set](../Measurements/MenuDescriptions/2026-09-30/paired-local/README.md)
+(+0.36%, p = 0.70), so the waiver is removed; consumer adoption remains separate.
+
+`DxUi.EmbeddedTests.exe --benchmark-grid-selection <report.json> [parts]` is an opt-in measurement of Grid selection
+membership, run in Release. It uses synthetic data and only the public `Grid` and `GridSelectionModel` interfaces, so
+one source measures any revision; `parts` names some of paint, selectionCost, membership, retention, mutators, preserve and
+complexUiScene. It paints Grids of 1,000 to 1,000,000 rows, selected as Ctrl+A selects them, offscreen
+on WARP (the time and the UI thread's cycles of Prepare, the time of the whole frame, and the C++ allocations and
+bytes of each round), isolates what `IsSelected` costs inside such a paint (one Grid painted alternately with a small and
+a full selection that draw alike), times `IsSelected` per call over selections of 0 to 1,000,000 ids with the questions in
+an order a processor learns and in a random one it cannot, counts the C++ heap bytes a selection model holds after Ctrl+A
+and after each way back from it, times the selection model's mutators with their C++ heap bytes and `PreserveOrdered` over
+a long list, and reports how many rows the default complex-UI scene's Grid
+holds selected (none). Its entry is dispatched outside `BenchmarkMain.h`, so the complex-UI fixture's hashed inputs do not change.
+Compare builds of the one harness as an interleaved A, B, B, A set (A, B, C, C, B, A for three). The
+[record of the sorted selection copy](../Measurements/GridSelection/2026-10-01/README.md) does so, ten runs per side
+twice and then for three builds: `IsSelected` costs 9 to 16 ns from 1,500 to 1,000,000 selected ids when a processor can
+predict the questions (48 to 149 ns when it cannot), where a scan cost up to 94 us, and a paint no
+longer grows with its selection (27% to 30% less Prepare time at 200,000 selected rows and 70% to 73% less at
+1,000,000; the 20,000-row difference of a few percent is below what the runs separate). The record also shows what
+it costs: 8 bytes per selected row, and a sort in `SetRange` over ids that do not already ascend. Its second set shows that
+a binary search is dearer than a scan for 2 to 512 selected ids when the questions cannot be predicted (the ids of the
+rows on screen against hashed ids), by 5 to 20 ns a call at 8 to 128 ids, which is why the model scans up to 1,024 ids and
+searches above; that a
+model gives back the room of a large selection (3.2 MB after Ctrl+A over 200,000 ids and `Clear`, 0 now); and that
+`PreserveOrdered` over a long list with a modest selection needs a table of bits to stay under a hash set's cost.
 
 [Retained independent measurements](../Measurements/README.md) include raw rounds and comparison receipts with a
 scenario explanation. They measure the library's synthetic workload; AV adoption receipts live in RedXe.
@@ -259,6 +331,25 @@ tests) a deadline, 300 s by default, and a test that outlives it ends the run wi
 code 124. `DxUi.ControlTests.exe --test-timeout=<seconds>` (`test.ps1 -TestTimeout <seconds>`) changes it and 0 turns it off,
 which debugging a test needs; every run prints its deadline on a `[WATCHDOG]` line and every `[DONE]` marker carries the
 test's duration. `test.ps1` prints a failing suite's exit code, its `TIMEOUT:` line and the last lines of its log.
+
+More than twenty control tests need the person's real desktop (focus, the foreground, the pointer), and a run that cannot get
+it records a capability skip for each. They live in the `Menu` suite (the described-menu group of them also runs, and skips, in the
+nonactivating `NewControls` lane) and in `NativeTextInput`, which `DxUi.ControlTests.exe`
+therefore never runs with `--no-activate`, and so can take focus when an ordinary `test.ps1` run reaches them on a desktop
+someone is working at. To run them deliberately, use `./test.ps1 -Interactive -Configuration Debug -Platform x64` (add
+`-SkipBuild` after a build; `-Suites MenuResources` or `MenuResourceScaling` adds the menu resource fixtures, and `-Tests` and
+`-TestTimeout` work as usual). It runs only the interactive suites, after the checks and the benchmark of every run, under the
+interactive desktop lease: it refuses before building anything in a CI job or a process without a desktop, checks the session
+(a locked screen, a disconnected session and a screen saver also refuse), and then asks. The dialog says what will happen and for
+about how long, its default button is Cancel and it cancels itself after two minutes with no answer, so nothing is taken
+unless someone chooses Start. While the suites run a banner at the top of the screen says to keep hands off the keyboard and
+mouse, and when they end, fail, hit the watchdog (exit code 124) or are stopped with Ctrl+C, the foreground window, its keyboard
+focus and the pointer position are put back and the result is printed (`Restoration: foreground=... focus=... cursor=...`). A
+suite that records a skip fails the run, since the run exists to execute what other runs skip. Logs and receipts carry the suffix
+`.interactive`. Expect about a minute and a half of checks, then about a minute and a half with the desktop taken in x64 Debug
+(a little more in ASan Debug), and run it only when the person at the desktop has agreed to the time. The
+[validation contract](../Specs/Testing/Testing_Validation.md) has the details.
+
 Use `gallery.ps1 -PublishDocs` after visual/control changes and review all
 generated sheets. CI's x64 Release job runs the same command and uploads its `docs/gallery` output as
 `docs-gallery-x64-Release` for review. To publish it after a merge, run the manual

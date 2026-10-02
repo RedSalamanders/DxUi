@@ -1,6 +1,8 @@
 #include "../../src/Controls/DxUi.AccessibilityTextUnits.h"
 #include "DxUiTestHelpers.h"
+#include "GridMultilineFixtures.h"
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <fstream>
@@ -3520,6 +3522,139 @@ void TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns(
     Require(expandState == ExpandCollapseState_Collapsed, "tree item expand-collapse pattern reports the collapsed state after Collapse");
 }
 
+// A multi-select tree reports what it holds through the Selection pattern and each item's SelectionItem pattern, and the
+// pattern's actions change one item's membership (or the whole selection, for Select) through the tree's own callbacks.
+void TestAccessibilityTreeMultiSelectExposesSelectionPatternsAndItemState()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    auto root       = std::make_unique<Panel>();
+    auto* treeLabel = root->AddChild<Label>(L"Categories");
+    treeLabel->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 24.0f));
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 28.0f, 240.0f, 168.0f));
+    MutableTreeModel treeModel;
+    treeModel.SetVisibleItems({
+        TreeItemData{.id = 1u, .text = L"General"},
+        TreeItemData{.id = 2u, .text = L"Panes"},
+        TreeItemData{.id = 3u, .text = L"Viewers"},
+        TreeItemData{.id = 4u, .text = L"Network"},
+    });
+    RecordingTreeDelegate delegate;
+    delegate.observedTree = tree;
+    tree->SetModel(&treeModel);
+    tree->SetDelegate(&delegate);
+    treeLabel->SetMnemonicTarget(tree);
+    tree->SetMultiSelectEnabled(true);
+    tree->SetSelectedItemIds(std::vector<uint64_t>{1u, 3u});
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(tree);
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "multi-select tree accessibility test creates a root provider");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> treeLabelProvider =
+        GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 48.0f, 12.0f, "the label of the multi-select tree is resolved by point");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> treeProvider;
+    RequireSucceeded(treeLabelProvider->Navigate(NavigateDirection_NextSibling, treeProvider.put()), "the label navigates to the multi-select tree");
+    Require(treeProvider != nullptr, "the tree follows its label");
+
+    // The four items, in order.
+    std::vector<wil::com_ptr_nothrow<IRawElementProviderSimple>> items;
+    wil::com_ptr_nothrow<IRawElementProviderFragment> walker;
+    RequireSucceeded(treeProvider->Navigate(NavigateDirection_FirstChild, walker.put()), "the tree navigates to its first item");
+    while (walker)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(walker.query_to(simple.put()), "a tree item is a simple provider");
+        items.push_back(simple);
+        wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+        RequireSucceeded(walker->Navigate(NavigateDirection_NextSibling, next.put()), "a tree item navigates to its sibling");
+        walker = std::move(next);
+    }
+    Require(items.size() == 4u, "the tree exposes its four items");
+    const auto selectionItem = [&](size_t index)
+    {
+        wil::com_ptr_nothrow<IUnknown> unknown;
+        RequireSucceeded(items[index]->GetPatternProvider(UIA_SelectionItemPatternId, unknown.put()), "a tree item exposes SelectionItem");
+        wil::com_ptr_nothrow<ISelectionItemProvider> pattern;
+        RequireSucceeded(unknown.query_to(pattern.put()), "the pattern is an ISelectionItemProvider");
+        return pattern;
+    };
+    const auto isSelectedProperty = [&](size_t index)
+    { return ReadProviderBoolProperty(*items[index].get(), UIA_SelectionItemIsSelectedPropertyId, "a tree item reports IsSelected"); };
+    const auto isSelectedPattern = [&](size_t index)
+    {
+        BOOL selected = FALSE;
+        RequireSucceeded(selectionItem(index)->get_IsSelected(&selected), "SelectionItem reports IsSelected");
+        return selected != FALSE;
+    };
+    wil::com_ptr_nothrow<IRawElementProviderSimple> container;
+    RequireSucceeded(selectionItem(0u)->get_SelectionContainer(container.put()), "an item names its selection container");
+    wil::com_ptr_nothrow<IUnknown> containerPattern;
+    RequireSucceeded(container->GetPatternProvider(UIA_SelectionPatternId, containerPattern.put()), "the tree exposes the Selection pattern");
+    wil::com_ptr_nothrow<ISelectionProvider> selection;
+    RequireSucceeded(containerPattern.query_to(selection.put()), "the pattern is an ISelectionProvider");
+    const auto selectedNames = [&](const char* context) { return ReadSelectionProviderNames(*selection.get(), context); };
+
+    // The Selection pattern says the tree can select several items, and every selected item says it is selected.
+    BOOL canSelectMultiple = FALSE;
+    RequireSucceeded(selection->get_CanSelectMultiple(&canSelectMultiple), "the tree reports whether it selects several items");
+    Require(canSelectMultiple == TRUE, "a multi-select tree reports CanSelectMultiple");
+    Require(selectedNames("the multi-select tree reports its selection") == std::vector<std::wstring>{L"General", L"Viewers"},
+            "the Selection pattern lists every selected item in order");
+    Require(isSelectedProperty(0u) && ! isSelectedProperty(1u) && isSelectedProperty(2u) && ! isSelectedProperty(3u),
+            "each item's IsSelected property agrees with the selection");
+    Require(isSelectedPattern(0u) && ! isSelectedPattern(1u) && isSelectedPattern(2u) && ! isSelectedPattern(3u),
+            "each SelectionItem pattern agrees with the selection");
+
+    // Only the focused item has the keyboard focus, whatever is selected.
+    const auto hasKeyboardFocus = [&](size_t index)
+    { return ReadProviderBoolProperty(*items[index].get(), UIA_HasKeyboardFocusPropertyId, "a tree item reports keyboard focus"); };
+    Require(! hasKeyboardFocus(0u) && ! hasKeyboardFocus(1u) && hasKeyboardFocus(2u) && ! hasKeyboardFocus(3u),
+            "only the focused item of the selection has the keyboard focus");
+    Require(ReadFocusedElementName(*rootProvider.get()) == L"Viewers", "the window's focus is the focused item");
+    tree->SetFocusedItemId(2u);
+    Require(hasKeyboardFocus(1u) && ! hasKeyboardFocus(2u) && ! isSelectedProperty(1u), "the focus can rest on an item that is not selected");
+    Require(ReadFocusedElementName(*rootProvider.get()) == L"Panes", "the window's focus follows the focused item");
+
+    // AddToSelection adds one item and keeps the rest, RemoveFromSelection removes one, Select replaces the selection.
+    RequireSucceeded(selectionItem(1u)->AddToSelection(), "AddToSelection adds an item to a multi-select tree");
+    RequireTreeIds(tree->GetSelectedItemIds(), {1u, 2u, 3u}, "AddToSelection keeps the items already selected");
+    Require(selectedNames("the Selection pattern after AddToSelection") == std::vector<std::wstring>{L"General", L"Panes", L"Viewers"},
+            "the Selection pattern lists the added item");
+    Require(isSelectedProperty(1u) && isSelectedPattern(1u), "the added item reports itself selected");
+    Require(delegate.selectionSetChangedCount == 1u && delegate.callOrder == "PS", "AddToSelection reaches the delegate as the gesture it stands for");
+    RequireSucceeded(selectionItem(1u)->AddToSelection(), "AddToSelection of a selected item succeeds");
+    RequireTreeIds(tree->GetSelectedItemIds(), {1u, 2u, 3u}, "AddToSelection is not a toggle");
+    Require(delegate.selectionSetChangedCount == 1u, "AddToSelection of a selected item changes no set");
+    RequireSucceeded(selectionItem(0u)->RemoveFromSelection(), "RemoveFromSelection removes an item");
+    RequireTreeIds(tree->GetSelectedItemIds(), {2u, 3u}, "RemoveFromSelection keeps the other items");
+    Require(! isSelectedProperty(0u) && ! isSelectedPattern(0u), "the removed item reports itself unselected");
+    Require(delegate.selectionSetChangedCount == 2u, "RemoveFromSelection reaches the delegate once");
+    RequireSucceeded(selectionItem(0u)->RemoveFromSelection(), "RemoveFromSelection of an unselected item succeeds");
+    Require(delegate.selectionSetChangedCount == 2u, "removing an unselected item changes no set");
+    RequireSucceeded(selectionItem(3u)->Select(), "Select replaces the selection");
+    RequireTreeIds(tree->GetSelectedItemIds(), {4u}, "Select leaves only its item");
+    Require(selectedNames("the Selection pattern after Select") == std::vector<std::wstring>{L"Network"}, "the Selection pattern lists the one selected item");
+    Require(delegate.selectionSetChangedCount == 3u && delegate.lastSelectedItemId == 4u, "Select reaches the delegate once");
+
+    // SetFocus moves the focus and leaves the selection, which a selection that follows the focus would not.
+    wil::com_ptr_nothrow<IRawElementProviderFragment> firstFragment;
+    RequireSucceeded(items[0]->QueryInterface(IID_PPV_ARGS(firstFragment.put())), "an item is a fragment");
+    RequireSucceeded(firstFragment->SetFocus(), "SetFocus on a tree item succeeds");
+    RequireTreeIds(tree->GetSelectedItemIds(), {4u}, "SetFocus leaves the multi-selection alone");
+    Require(tree->GetFocusedItemId() == 1u && ! isSelectedProperty(0u), "SetFocus moved the focus to an item that stays unselected");
+
+    // Turning multi-select off restores the single-selection answers.
+    tree->SetMultiSelectEnabled(false);
+    RequireSucceeded(selection->get_CanSelectMultiple(&canSelectMultiple), "the tree reports whether it selects several items after the switch");
+    Require(canSelectMultiple == FALSE, "a tree without multi-select reports CanSelectMultiple FALSE");
+    Require(selectedNames("the Selection pattern of a single-select tree") == std::vector<std::wstring>{L"Network"}, "a single-select tree lists its one item");
+    Require(! isSelectedProperty(0u) && isSelectedProperty(3u), "the single selection is the one item that stayed selected");
+}
+
 void TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable()
 {
     using namespace DxUi;
@@ -5094,6 +5229,303 @@ void TestCollapsedStatusRootChildEventComesFromTheChild()
     Require(observer->SenderAutomationId() == L"UndoStatus.Details", "the disclosure change comes from the child, not the collapsed status root");
 }
 
+// What an in-process UI Automation client hears of a tree's selection: the four selection events and the IsSelected
+// property change, each with the name of the element it came from (cached with the event, so the handler never calls back
+// into the provider's thread).
+struct HeardSelectionEvent
+{
+    std::wstring what; // "Selected", "Added", "Removed", "Invalidated" or "IsSelected:true|false".
+    std::wstring name;
+    [[nodiscard]] auto operator<=>(const HeardSelectionEvent&) const = default;
+    [[nodiscard]] bool operator==(const HeardSelectionEvent&) const  = default;
+};
+
+class SelectionEventObserver final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+                                                                         IUIAutomationEventHandler,
+                                                                         IUIAutomationPropertyChangedEventHandler,
+                                                                         Microsoft::WRL::FtmBase>
+{
+public:
+    HRESULT STDMETHODCALLTYPE HandleAutomationEvent(IUIAutomationElement* sender, EVENTID eventId) noexcept override
+    {
+        const wchar_t* what = nullptr;
+        switch (eventId)
+        {
+            case UIA_SelectionItem_ElementSelectedEventId: what = L"Selected"; break;
+            case UIA_SelectionItem_ElementAddedToSelectionEventId: what = L"Added"; break;
+            case UIA_SelectionItem_ElementRemovedFromSelectionEventId: what = L"Removed"; break;
+            case UIA_Selection_InvalidatedEventId: what = L"Invalidated"; break;
+            default: return S_OK;
+        }
+        Record(what, sender);
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE HandlePropertyChangedEvent(IUIAutomationElement* sender, PROPERTYID property, VARIANT newValue) noexcept override
+    {
+        if (property == UIA_SelectionItemIsSelectedPropertyId && newValue.vt == VT_BOOL)
+            Record(newValue.boolVal == VARIANT_TRUE ? L"IsSelected:true" : L"IsSelected:false", sender);
+        return S_OK;
+    }
+
+    // How many events, repeats included, arrived since the last Take.
+    [[nodiscard]] size_t Count() const
+    {
+        const std::scoped_lock lock(_mutex);
+        return _events.size();
+    }
+
+    // How many different events were heard since the last Take. An in-process client hears each event twice: once as it is
+    // raised and again a moment later (about 60 ms apart when several were raised at once).
+    [[nodiscard]] size_t DistinctCount() const
+    {
+        const std::scoped_lock lock(_mutex);
+        std::vector<HeardSelectionEvent> events = _events;
+        std::ranges::sort(events);
+        return static_cast<size_t>(std::ranges::unique(events).begin() - events.begin());
+    }
+
+    // The different events heard since the last call, in a fixed order: UI Automation delivers to its client on threads of
+    // its own, so two events raised one after the other may arrive in either order, and it may deliver one twice.
+    [[nodiscard]] std::vector<HeardSelectionEvent> Take()
+    {
+        const std::scoped_lock lock(_mutex);
+        std::vector<HeardSelectionEvent> events = std::move(_events);
+        _events.clear();
+        std::ranges::sort(events);
+        events.erase(std::ranges::unique(events).begin(), events.end());
+        return events;
+    }
+
+private:
+    void Record(const wchar_t* what, IUIAutomationElement* sender)
+    {
+        wil::unique_bstr name;
+        if (sender)
+            static_cast<void>(sender->get_CachedName(name.put()));
+        const std::scoped_lock lock(_mutex);
+        _events.push_back(HeardSelectionEvent{what, name ? std::wstring(name.get(), SysStringLen(name.get())) : std::wstring{}});
+    }
+
+    mutable std::mutex _mutex;
+    std::vector<HeardSelectionEvent> _events;
+};
+
+// The selection events of a multi-select tree, heard by a UI Automation client: a selection that became one new item is that
+// item being selected, other changes are items added to and removed from it (each also changes IsSelected), a change too large
+// to name is one invalidation of the tree, and a tree without multi-select raises none of them.
+void TestAccessibilityTreeMultiSelectRaisesSelectionEvents()
+{
+    using namespace DxUi;
+    constexpr ULONGLONG kClientSetupAllowanceMs = 20000;
+    constexpr ULONGLONG kNotificationDeadlineMs = 3000;
+    constexpr ULONGLONG kQuietPeriodMs          = 500;
+    constexpr ULONGLONG kStreamDeadlineMs       = 10000;
+    AttachedHostWindow window;
+    auto root = std::make_unique<Panel>();
+    // A second element keeps the window from collapsing its root into the tree, which a client could not then walk up from an item.
+    root->AddChild<Label>(L"Titre")->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 24.0f));
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 28.0f, 240.0f, 168.0f));
+    tree->SetAccessibleName(L"Catégories");
+    MutableTreeModel model;
+    const auto items = [](uint64_t count)
+    {
+        std::vector<TreeItemData> rows;
+        for (uint64_t id = 1u; id <= count; ++id)
+            rows.push_back(TreeItemData{.id = id, .text = L"Élément " + std::to_wstring(id)});
+        return rows;
+    };
+    model.SetVisibleItems(items(6u));
+    tree->SetModel(&model);
+    tree->SetMultiSelectEnabled(true);
+    window.Host().SetRoot(std::move(root));
+
+    wil::com_ptr_nothrow<SelectionEventObserver> observer;
+    observer.attach(Microsoft::WRL::Make<SelectionEventObserver>().Detach());
+    Require(observer != nullptr, "allocate the selection event observer");
+    wil::unique_event stop(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(bool(stop), "create the UIA client stop event");
+    std::atomic<bool> ready{false};
+    std::atomic<bool> finished{false};
+    std::atomic<HRESULT> setup{E_PENDING};
+    const HWND hwnd = window.Hwnd();
+    std::jthread client([&]
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        const auto uninitialize   = wil::scope_exit([&]
+        {
+            if (SUCCEEDED(initialized))
+                CoUninitialize();
+        });
+        wil::com_ptr_nothrow<IUIAutomation> automation;
+        wil::com_ptr_nothrow<IUIAutomationElement> element;
+        wil::com_ptr_nothrow<IUIAutomationCacheRequest> cache;
+        HRESULT hr = initialized;
+        if (SUCCEEDED(hr))
+            hr = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(automation.put()));
+        if (SUCCEEDED(hr))
+            hr = automation->ElementFromHandle(hwnd, element.put());
+        if (SUCCEEDED(hr))
+            hr = automation->CreateCacheRequest(cache.put());
+        if (SUCCEEDED(hr))
+            hr = cache->AddProperty(UIA_NamePropertyId);
+        constexpr std::array<EVENTID, 4> kEvents{UIA_SelectionItem_ElementSelectedEventId,
+                                                 UIA_SelectionItem_ElementAddedToSelectionEventId,
+                                                 UIA_SelectionItem_ElementRemovedFromSelectionEventId,
+                                                 UIA_Selection_InvalidatedEventId};
+        for (size_t index = 0u; SUCCEEDED(hr) && index < kEvents.size(); ++index)
+            hr = automation->AddAutomationEventHandler(kEvents[index], element.get(), TreeScope_Subtree, cache.get(), observer.get());
+        PROPERTYID property = UIA_SelectionItemIsSelectedPropertyId;
+        if (SUCCEEDED(hr))
+            hr = automation->AddPropertyChangedEventHandlerNativeArray(element.get(), TreeScope_Subtree, cache.get(), observer.get(), &property, 1);
+        setup.store(hr);
+        ready.store(true);
+        if (SUCCEEDED(hr))
+        {
+            static_cast<void>(WaitForSingleObject(stop.get(), 30000));
+            static_cast<void>(automation->RemoveAllEventHandlers());
+        }
+        finished.store(true);
+    });
+    const auto waitUntil = [&](ULONGLONG timeoutMs, const auto& predicate)
+    {
+        const auto deadline = GetTickCount64() + timeoutMs;
+        while (! predicate() && GetTickCount64() < deadline)
+        {
+            window.PumpMessages();
+            Sleep(1);
+        }
+        return predicate();
+    };
+    const auto stopClient = wil::scope_exit([&]() noexcept
+    {
+        SetEvent(stop.get());
+        // The jthread joins after this without pumping, and the client's teardown may need this thread's providers to answer:
+        // wait for it here, pumping, as long as its setup was allowed, and fail instead of hanging in the join.
+        Require(waitUntil(kClientSetupAllowanceMs, [&] { return finished.load(); }), "the UIA client thread ends");
+    });
+    Require(waitUntil(kClientSetupAllowanceMs, [&] { return ready.load(); }) && SUCCEEDED(setup.load()), "subscribe the UIA selection events");
+
+    // What the client heard after `action`: the different events that arrived once the expected number had, and then none
+    // came for a quiet period. The client hears each event again a moment after the first time, so the stream is waited
+    // out: a repeat must not reach the next step.
+    const auto hear = [&](size_t expected, const auto& action)
+    {
+        static_cast<void>(observer->Take());
+        action();
+        if (expected != 0u)
+            Require(waitUntil(kNotificationDeadlineMs, [&] { return observer->DistinctCount() >= expected; }), "the UIA client hears the selection events");
+        size_t arrived        = observer->Count();
+        ULONGLONG lastArrival = GetTickCount64();
+        static_cast<void>(waitUntil(kStreamDeadlineMs,
+                                    [&]
+        {
+            if (observer->Count() != arrived)
+            {
+                arrived     = observer->Count();
+                lastArrival = GetTickCount64();
+            }
+            return GetTickCount64() - lastArrival >= kQuietPeriodMs;
+        }));
+        return observer->Take();
+    };
+    using Heard     = std::vector<HeardSelectionEvent>;
+    const auto utf8 = [](const std::wstring& text)
+    {
+        std::string narrow(
+            static_cast<size_t>((std::max)(0, WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr))),
+            '\0');
+        WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), narrow.data(), static_cast<int>(narrow.size()), nullptr, nullptr);
+        return narrow;
+    };
+    const auto requireHeard = [&](const Heard& actual, Heard expected, const char* context)
+    {
+        std::ranges::sort(expected);
+        if (actual == expected)
+            return;
+        std::string message = std::string(context) + ": the client heard";
+        for (const HeardSelectionEvent& event : actual)
+            message += " [" + utf8(event.what) + " " + utf8(event.name) + "]";
+        Require(false, message.c_str());
+    };
+    const auto item = [](uint64_t id) { return std::wstring(L"Élément ") + std::to_wstring(id); };
+
+    // A selection that became one new item is that item being selected.
+    requireHeard(hear(2u, [&] { tree->SetSelectedItemIds(std::vector<uint64_t>{2u}); }),
+                 {{L"Selected", item(2u)}, {L"IsSelected:true", item(2u)}},
+                 "selecting one item of an empty selection");
+
+    // An item added to a selection is added, and one taken out is removed.
+    requireHeard(hear(2u, [&] { static_cast<void>(tree->RequestAddVisibleItemToSelection(3u)); }),
+                 {{L"Added", item(4u)}, {L"IsSelected:true", item(4u)}},
+                 "adding an item to a selection");
+    requireHeard(hear(2u, [&] { static_cast<void>(tree->RequestRemoveVisibleItemFromSelection(1u)); }),
+                 {{L"Removed", item(2u)}, {L"IsSelected:false", item(2u)}},
+                 "removing an item from a selection");
+
+    // Replacing the selection with one other item is that item being selected: the old one leaves without an event of its own.
+    requireHeard(hear(3u, [&] { static_cast<void>(tree->RequestSelectVisibleItem(5u)); }),
+                 {{L"Selected", item(6u)}, {L"IsSelected:true", item(6u)}, {L"IsSelected:false", item(4u)}},
+                 "replacing the selection with one item");
+
+    // Several items at once are each added.
+    requireHeard(hear(10u, [&] { tree->SetSelectedItemIds(std::vector<uint64_t>{1u, 2u, 3u, 4u, 5u, 6u}); }),
+                 {{L"Added", item(1u)},
+                  {L"Added", item(2u)},
+                  {L"Added", item(3u)},
+                  {L"Added", item(4u)},
+                  {L"Added", item(5u)},
+                  {L"IsSelected:true", item(1u)},
+                  {L"IsSelected:true", item(2u)},
+                  {L"IsSelected:true", item(3u)},
+                  {L"IsSelected:true", item(4u)},
+                  {L"IsSelected:true", item(5u)}},
+                 "adding five items at once");
+
+    // More changes than a client is told of one by one are one invalidation of the tree.
+    model.SetVisibleItems(items(30u));
+    tree->NotifyDataChanged();
+    static_cast<void>(observer->Take());
+    requireHeard(
+        hear(1u, [&] { Require(tree->OnSelectAll(window.Host()), "select everything"); }), {{L"Invalidated", L"Catégories"}}, "selecting thirty items");
+    Require(tree->GetSelectedItemIds().size() == 30u, "every row is selected");
+
+    // Selected items that left the tree cannot be named: that is an invalidation too.
+    requireHeard(hear(1u,
+                      [&]
+    {
+        model.SetVisibleItems(items(3u));
+        tree->NotifyDataChanged();
+    }),
+                 {{L"Invalidated", L"Catégories"}},
+                 "removing selected rows");
+    RequireTreeIds(tree->GetSelectedItemIds(), {1u, 2u, 3u}, "the rows that stayed are still selected");
+
+    // A republish that changed no selection, and rows that only moved, are silent.
+    requireHeard(hear(0u, [&] { window.Host().RefreshAccessibilitySnapshot(); }), {}, "republishing an unchanged selection");
+    requireHeard(hear(0u,
+                      [&]
+    {
+        model.SetVisibleItems(
+            {TreeItemData{.id = 3u, .text = L"Élément 3"}, TreeItemData{.id = 1u, .text = L"Élément 1"}, TreeItemData{.id = 2u, .text = L"Élément 2"}});
+        tree->NotifyDataChanged();
+    }),
+                 {},
+                 "moving selected rows");
+
+    // Without multi-select the tree raises none of them, whatever it selects.
+    tree->SetMultiSelectEnabled(false);
+    requireHeard(hear(0u,
+                      [&]
+    {
+        static_cast<void>(tree->RequestSelectVisibleItem(0u));
+        tree->SetSelectedItemId(2u);
+    }),
+                 {},
+                 "selecting in a tree without multi-select");
+}
+
 // A focus-changed callback may rebuild the controls around the one it was told about. The host neither keeps nor
 // publishes focus on a control the callback removed.
 void TestWindowHostFocusCallbackThatRemovesTheControlLeavesNoFocus()
@@ -5524,6 +5956,255 @@ void TestAccessibilityLookupTablesAgreeWithAScanOfTheRecords()
     Require(DebugCountAccessibilityIndexMismatchesForTest(window.Hwnd()) == 0u, "every lookup still agrees after controls were removed");
 }
 
+// The providers of a Grid's cells in a window whose tree is a label (found by the point `labelX`, `labelY`) and the grid after it:
+// the grid's, and every cell's, row by row as the row's structure offers them.
+struct GridCellProviders
+{
+    wil::com_ptr_nothrow<IRawElementProviderFragment> grid;
+    std::vector<std::vector<wil::com_ptr_nothrow<IRawElementProviderFragment>>> rows;
+};
+
+[[nodiscard]] GridCellProviders ResolveGridCellProviders(AttachedHostWindow& window, IRawElementProviderFragmentRoot& rootProvider, float labelX, float labelY)
+{
+    GridCellProviders result;
+    auto labelProvider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), rootProvider, labelX, labelY, "the grid's label resolves by point");
+    RequireSucceeded(labelProvider->Navigate(NavigateDirection_NextSibling, result.grid.put()), "the label navigates to the grid");
+    Require(result.grid != nullptr, "the grid's provider exists");
+    // The grid's children are its column headers, then its rows; a row's children are its cells.
+    wil::com_ptr_nothrow<IRawElementProviderFragment> child;
+    RequireSucceeded(result.grid->Navigate(NavigateDirection_FirstChild, child.put()), "the grid exposes its structure");
+    Require(child != nullptr, "the grid exposes a column header");
+    while (child)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(child->QueryInterface(IID_PPV_ARGS(simple.put())), "a grid child exposes a simple provider");
+        if (ReadProviderLongProperty(*simple.get(), UIA_ControlTypePropertyId, "a grid child exposes its control type") == UIA_DataItemControlTypeId)
+        {
+            auto& cells = result.rows.emplace_back();
+            wil::com_ptr_nothrow<IRawElementProviderFragment> cell;
+            RequireSucceeded(child->Navigate(NavigateDirection_FirstChild, cell.put()), "a row navigates to its first cell");
+            while (cell)
+            {
+                cells.push_back(cell);
+                wil::com_ptr_nothrow<IRawElementProviderFragment> nextCell;
+                RequireSucceeded(cell->Navigate(NavigateDirection_NextSibling, nextCell.put()), "a cell navigates to the next cell");
+                cell = nextCell;
+            }
+        }
+        wil::com_ptr_nothrow<IRawElementProviderFragment> next;
+        RequireSucceeded(child->Navigate(NavigateDirection_NextSibling, next.put()), "a grid child navigates to the next one");
+        child = next;
+    }
+    return result;
+}
+
+// What UI Automation reads of one cell: its Name, its Value property and its ValuePattern.
+struct CellTexts
+{
+    std::wstring name;
+    std::wstring value;
+    std::wstring patternValue;
+};
+
+[[nodiscard]] CellTexts ReadCellTexts(IRawElementProviderFragment& cellProvider)
+{
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(cellProvider.QueryInterface(IID_PPV_ARGS(simple.put())), "a cell exposes a simple provider");
+    CellTexts texts;
+    texts.name  = ReadProviderStringProperty(*simple.get(), UIA_NamePropertyId, "a cell exposes its Name");
+    texts.value = ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "a cell exposes its Value");
+    wil::com_ptr_nothrow<IUnknown> valueUnknown;
+    RequireSucceeded(simple->GetPatternProvider(UIA_ValuePatternId, valueUnknown.put()), "a cell's ValuePattern lookup succeeds");
+    Require(valueUnknown != nullptr, "a text cell exposes the ValuePattern");
+    wil::com_ptr_nothrow<IValueProvider> valueProvider;
+    RequireSucceeded(valueUnknown.query_to(valueProvider.put()), "the pattern is an IValueProvider");
+    wil::unique_bstr pattern;
+    RequireSucceeded(valueProvider->get_Value(pattern.put()), "the ValuePattern returns the value");
+    texts.patternValue = pattern.get() ? std::wstring(pattern.get(), SysStringLen(pattern.get())) : std::wstring{};
+    return texts;
+}
+
+// UI Automation carries the complete value of a multiline cell, unit for unit, whatever the paint shows: CR LF, U+2028 and U+2029
+// breaks, a zero-width-joiner emoji, a 5,000-unit word, decomposed accents (they stay decomposed: nothing normalizes a value),
+// Arabic, separators the paint ignores and a value of 100,000 units far past what a cell shapes. The Name, the Value property and
+// the ValuePattern agree, in a left-to-right grid and in a right-to-left one.
+void TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues()
+{
+    using namespace DxUi;
+    using namespace GridMultilineFixtures;
+    const std::vector<std::vector<std::wstring>> values{
+        {L"Première ligne\r\nDeuxième ligne\r\nTroisième ligne masquée",
+         L"Un\u2028Deux\u2028Trois\u2028Quatre",
+         L"Équipe \U0001F468\u200D\U0001F469\u200D\U0001F467\nAppareil \U0001F4F7\nAgrumes \U0001F34A"},
+        {std::wstring(5000u, L'\u00E9'), L"Cre\u0301me bru\u0302le\u0301e\nDeuxie\u0300me ligne\nTroisie\u0300me ligne", L"Ligne A\r\nLigne B\r\nLigne C\r\n"},
+        {RepeatToUnits(L"mot suivant très long \u00E9t\u00E9 ", 100000u),
+         L"مرحبا بالعالم الجميل\nالسطر الثاني\nالسطر الثالث",
+         L"\u2029Début\u2029Milieu\u2029Fin \u2028\u2028"},
+    };
+    for (const bool rightToLeft : {false, true})
+    {
+        AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+        ConfigureHostPlace(window, 96u, false, Density::Standard, D2D1::SizeF(520.0f, 240.0f));
+        TextTableModel model(values, {150.0f, 150.0f, 150.0f});
+        auto root   = std::make_unique<Panel>();
+        auto* label = root->AddChild<Label>(L"Grid witness");
+        label->SetBounds(D2D1::RectF(10.0f, 4.0f, 200.0f, 28.0f));
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(10.0f, 30.0f, 510.0f, 230.0f));
+        grid->SetHeaderHeightDip(30.0f);
+        grid->SetRowHeightDip(48.0f);
+        grid->SetLineClamp(2u);
+        if (rightToLeft)
+            grid->SetFlowDirection(FlowDirection::RightToLeft);
+        grid->SetModel(&model);
+        window.Host().SetRoot(std::move(root));
+        const auto detachModel = wil::scope_exit([&] { grid->SetModel(nullptr); });
+        static_cast<void>(CaptureWindow(window, "the grid paints its trimmed cells"));
+        Require(grid->DebugGetTextLayoutStatistics().displayCapacity > 0u, "the paint laid out omitted tails");
+        window.Host().RefreshAccessibilitySnapshot();
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        Require(rootProvider != nullptr, "the window exposes an accessibility provider");
+        const GridCellProviders providers = ResolveGridCellProviders(window, *rootProvider.get(), 60.0f, 16.0f);
+        Require(providers.rows.size() == values.size(), "every row of the grid has a provider");
+        for (size_t row = 0u; row < values.size(); ++row)
+        {
+            Require(providers.rows[row].size() == values[row].size(), "every cell of a row has a provider");
+            for (size_t column = 0u; column < values[row].size(); ++column)
+            {
+                const CellTexts texts   = ReadCellTexts(*providers.rows[row][column].get());
+                const std::string where = std::format("{} grid, cell {},{}", rightToLeft ? "right-to-left" : "left-to-right", row, column);
+                if (texts.name != values[row][column])
+                    std::cerr << "    [DIFFERENCE] " << where << ": Name holds " << texts.name.size() << " units, the value " << values[row][column].size()
+                              << '\n';
+                Require(texts.name == values[row][column], (where + ": the Name is the complete value").c_str());
+                Require(texts.value == values[row][column], (where + ": the Value property is the complete value").c_str());
+                Require(texts.patternValue == values[row][column], (where + ": the ValuePattern is the complete value").c_str());
+            }
+        }
+    }
+}
+
+// A cell the viewport cuts keeps its complete Name and Value and exposes the rectangle of what shows of it: the bounding rectangle
+// is the viewport-clipped cell (the same pixels a hit test answers for), at several scroll offsets cutting the cell at its top, bottom,
+// left and right; a cell scrolled out of view says it is offscreen and has no rectangle. The value of 100,000 units in one of them
+// is complete too.
+void TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport()
+{
+    using namespace DxUi;
+    using namespace GridMultilineFixtures;
+    constexpr size_t rowCount = 6u;
+    std::vector<std::vector<std::wstring>> cells;
+    for (size_t row = 0u; row < rowCount; ++row)
+        cells.push_back({std::format(L"Élément {}.0 : vérifier la configuration du serveur principal avant la mise en production prévue pour la semaine "
+                                     L"prochaine, puis confirmer auprès de l’équipe.",
+                                     row),
+                         std::format(L"État {}.1 : synchronisation interrompue après trois tentatives, consulter le journal détaillé pour connaître la cause "
+                                     L"exacte de l’échec.\r\nNouvelle tentative prévue.",
+                                     row)});
+    cells[2][0] = RepeatToUnits(L"mot suivant très long ", 100000u);
+    AttachedHostWindow window(WindowHost::PresentationMode::CompositionSwapChain);
+    ConfigureHostPlace(window, 96u, false, Density::Standard, D2D1::SizeF(480.0f, 280.0f));
+    TextTableModel model(cells, {400.0f, 400.0f});
+    auto root   = std::make_unique<Panel>();
+    auto* label = root->AddChild<Label>(L"Grid witness");
+    label->SetBounds(D2D1::RectF(360.0f, 20.0f, 470.0f, 44.0f));
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(20.0f, 20.0f, 340.0f, 180.0f));
+    grid->SetHeaderHeightDip(30.0f);
+    grid->SetRowHeightDip(64.0f);
+    grid->SetLineClamp(2u);
+    grid->SetModel(&model);
+    window.Host().SetRoot(std::move(root));
+    const auto detachModel = wil::scope_exit([&] { grid->SetModel(nullptr); });
+    const auto toScreen    = [&](const D2D1_RECT_F& rectDip)
+    {
+        POINT topLeft{static_cast<LONG>(std::lround(window.Host().DipsToPixels(rectDip.left))),
+                      static_cast<LONG>(std::lround(window.Host().DipsToPixels(rectDip.top)))};
+        POINT bottomRight{static_cast<LONG>(std::lround(window.Host().DipsToPixels(rectDip.right))),
+                          static_cast<LONG>(std::lround(window.Host().DipsToPixels(rectDip.bottom)))};
+        Require(ClientToScreen(window.Hwnd(), &topLeft) != FALSE && ClientToScreen(window.Hwnd(), &bottomRight) != FALSE,
+                "the client rectangle maps to the screen");
+        return UiaRect{static_cast<double>(topLeft.x),
+                       static_cast<double>(topLeft.y),
+                       static_cast<double>(bottomRight.x - topLeft.x),
+                       static_cast<double>(bottomRight.y - topLeft.y)};
+    };
+    const auto describe = [](const UiaRect& rect) { return std::format("({}, {}) {} x {}", rect.left, rect.top, rect.width, rect.height); };
+    // Paints the grid as it is scrolled and checks what UI Automation says of every cell it exposes; returns how many cells the
+    // viewport cuts at their top.
+    const auto verifyCells = [&](const std::string& state)
+    {
+        static_cast<void>(CaptureWindow(window, "the grid paints scrolled"));
+        window.Host().RefreshAccessibilitySnapshot();
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+        rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        Require(rootProvider != nullptr, "the window exposes an accessibility provider");
+        const GridCellProviders providers = ResolveGridCellProviders(window, *rootProvider.get(), 400.0f, 30.0f);
+        Require(! providers.rows.empty(), "the scrolled grid exposes its visible rows");
+        size_t cutAtTop = 0u;
+        for (size_t visibleRow = 0u; visibleRow < providers.rows.size(); ++visibleRow)
+        {
+            const size_t row = grid->GetVisibleRowAt(visibleRow).value();
+            Require(providers.rows[visibleRow].size() == 2u, "a row exposes both cells, in view or not");
+            for (size_t column = 0u; column < 2u; ++column)
+            {
+                const std::string where               = std::format("{}, cell {},{}", state, row, column);
+                IRawElementProviderFragment& provider = *providers.rows[visibleRow][column].get();
+                const CellTexts texts                 = ReadCellTexts(provider);
+                Require(texts.name == cells[row][column] && texts.value == cells[row][column] && texts.patternValue == cells[row][column],
+                        (where + ": the Name, Value and ValuePattern are the complete value").c_str());
+                wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+                RequireSucceeded(provider.QueryInterface(IID_PPV_ARGS(simple.put())), "a cell exposes a simple provider");
+                const bool offscreen = ReadProviderBoolProperty(*simple.get(), UIA_IsOffscreenPropertyId, "a cell reports whether it is offscreen");
+                UiaRect bounds{};
+                RequireSucceeded(provider.get_BoundingRectangle(&bounds), "a cell reports its bounding rectangle");
+                const auto visible = grid->GetVisibleCellRect(row, column);
+                Require(offscreen == ! visible.has_value(), (where + ": the cell is offscreen when the viewport shows none of it").c_str());
+                if (! visible)
+                {
+                    Require(bounds.width == 0.0 && bounds.height == 0.0, (where + ": a cell scrolled out of view has no rectangle").c_str());
+                    continue;
+                }
+                const UiaRect expected  = toScreen(*visible);
+                const D2D1_RECT_F whole = grid->GetCellLayoutMetrics(window.Host(), row, column).cellRect;
+                std::cout << "UIA " << where << ": bounds " << describe(bounds) << ", visible part " << describe(expected) << ", whole cell "
+                          << (whole.right - whole.left) << " x " << (whole.bottom - whole.top) << " DIP\n";
+                Require(bounds.left == expected.left && bounds.top == expected.top && bounds.width == expected.width && bounds.height == expected.height,
+                        (where + ": the bounding rectangle is the viewport-clipped cell").c_str());
+                const bool cut = visible->left > whole.left + 0.5f || visible->top > whole.top + 0.5f || visible->right < whole.right - 0.5f ||
+                                 visible->bottom < whole.bottom - 0.5f;
+                if (cut)
+                    Require(bounds.width * bounds.height < static_cast<double>(window.Host().DipsToPixels(whole.right - whole.left)) *
+                                                               static_cast<double>(window.Host().DipsToPixels(whole.bottom - whole.top)),
+                            (where + ": a cut cell's rectangle is smaller than the whole cell").c_str());
+                cutAtTop += visible->top > whole.top + 0.5f ? 1u : 0u;
+                // A point inside the visible part answers with this cell.
+                const D2D1_POINT_2F inside = D2D1::Point2F((visible->left + visible->right) * 0.5f, (visible->top + visible->bottom) * 0.5f);
+                wil::com_ptr_nothrow<IRawElementProviderFragment> hit = GetProviderAtDipPoint(
+                    window.Hwnd(), window.Host(), *rootProvider.get(), inside.x, inside.y, "a point in the visible part of the cell resolves");
+                Require(ReadCellTexts(*hit.get()).name == cells[row][column], (where + ": a point in the visible part resolves to the cell").c_str());
+            }
+        }
+        return cutAtTop;
+    };
+    // The vertical scroll rests on whole rows, so the bottom and side edges cut cells at these offsets.
+    for (const auto [verticalDip, horizontalDip] :
+         {std::pair{0.0f, 0.0f}, std::pair{64.0f, 40.0f}, std::pair{128.0f, 0.0f}, std::pair{0.0f, 300.0f}, std::pair{128.0f, 380.0f}})
+    {
+        grid->DebugSetScrollOffsets(verticalDip, horizontalDip);
+        static_cast<void>(verifyCells(std::format("scrolled ({}, {})", verticalDip, horizontalDip)));
+    }
+    // A dragged scrollbar thumb rests between rows, so a row is cut under the header too.
+    grid->DebugSetScrollOffsets(0.0f, 0.0f);
+    static_cast<void>(CaptureWindow(window, "the grid paints at the top"));
+    const D2D1_RECT_F thumb  = grid->DebugGetScrollbarVisualState(window.Host().GetTheme()).verticalThumbRect;
+    const D2D1_POINT_2F grab = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
+    Require(grid->OnMouseDown(window.Host(), grab, false, 0u), "the vertical scrollbar thumb is grabbed");
+    Require(grid->OnMouseMove(window.Host(), D2D1::Point2F(grab.x, grab.y + 9.0f), 0u), "the thumb is dragged");
+    Require(verifyCells("under a dragged thumb") > 0u, "the dragged thumb cuts a cell at its top");
+    static_cast<void>(grid->OnMouseUp(window.Host(), D2D1::Point2F(grab.x, grab.y + 9.0f), false, 0u));
+}
 } // namespace
 
 void RunAccessibilityTests()
@@ -5583,8 +6264,12 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityProviderExposesTreeAndGridMetadata);
     DXUI_RUN_TEST(TestAccessibilityTreeItemProviderKeepsStableIdentityAcrossReorder);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns);
+    DXUI_RUN_TEST(TestAccessibilityTreeMultiSelectExposesSelectionPatternsAndItemState);
+    DXUI_RUN_TEST(TestAccessibilityTreeMultiSelectRaisesSelectionEvents);
     DXUI_RUN_TEST(TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable);
     DXUI_RUN_TEST(TestAccessibilityTrimmedMultilineGridCellKeepsCompleteNameAndValue);
+    DXUI_RUN_TEST(TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues);
+    DXUI_RUN_TEST(TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesGridRowSelectionPatterns);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure);
     DXUI_RUN_TEST(TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren);
