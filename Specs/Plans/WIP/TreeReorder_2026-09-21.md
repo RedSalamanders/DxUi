@@ -1,7 +1,8 @@
 # Tree multi-select and drag-reorder
 
-- **Status**: ACTIVE (drag-reorder and multi-select are both in `Tree` on branch `improve/tree-multi-select`; merge,
-  the republished gallery and design system, and RedPrism's pin bump remain)
+- **Status**: ACTIVE (drag-reorder and multi-select are both in `Tree`, merged in #35 as `8ea3201`; `docs/gallery` is
+  regenerated from `448e924` with the `Tree / Multi-select` tile and the design system republished as version 17 with
+  the Tree guideline, preview and styles; RedPrism's pin bump remains, since its adoption pin `271bd54` predates #35)
 - **Owner**: DxUi `Tree` (`include/DxUi/DxUi.h`, `src/Controls`). RedPrism consumes the result with a pin bump.
   It must not grow a second tree widget.
 - **Why**: RedPrism's layers panel is a `Tree`. `ITreeDelegate` could select, invoke, expand, and show a context
@@ -110,10 +111,13 @@ Branch `improve/tree-multi-select`, tested on the final tree (every command Powe
   1130 FPS, dirty 123 to 387 FPS and 24.5 to 26.6 MB private: the FPS moved with what else ran on the machine. No
   paired baseline was measured, so this change's effect on them is not established by those numbers. The multi-select
   code is behind `_multiSelect`: a tree that never enables it adds one branch on the flag per painted row, per key or
-  pointer message and per published snapshot, and allocates nothing more.
+  pointer message and per published snapshot, and allocates nothing more. Before the merge, the pull request's hosted
+  paired benchmark (workflow run 36915683164) compared it with main `252561d`, six runs per side: Default, MultilineGrid
+  and MultilineGridDistinct are each within the noise budget, with no regressed metric.
 - Gallery: `gallery.ps1 -Configuration Release -SkipBuild -OutputDirectory <scratch>` renders the `Tree / Multi-select`
   tile in all five themes (Controls, Inputs and Themes selected, Buttons not, unfocused so the inactive fill, per-row
-  hues in the rainbow themes). `docs/gallery` is not regenerated here.
+  hues in the rainbow themes). `docs/gallery` is not regenerated here; it is regenerated after the merge, from
+  `448e924`, by the Publish docs gallery workflow (run 36928815558).
 
 ## STOP
 
