@@ -1805,10 +1805,42 @@ void TestTextFieldClearButtonNotVisibleWhenReadOnly()
     Require(field->GetText() == L"Read only text", "read-only text field click in clear-button area does not clear text");
 }
 
+// A text field press, double click or context menu that focuses the field, given a focus callback that replaces every
+// control, touches the destroyed field no further (AddressSanitizer catches one that does).
+void TestTextFieldInputLeavesAFieldTheFocusCallbackDestroyed()
+{
+    using namespace DxUi;
+    const auto add = [](bool multiline)
+    {
+        return [multiline](Panel& root)
+        {
+            auto* field = root.AddChild<TextField>(L"alpha beta gamma");
+            field->SetMultiline(multiline);
+            field->SetBounds(D2D1::RectF(0.0f, 40.0f, 320.0f, multiline ? 160.0f : 72.0f));
+            return field;
+        };
+    };
+    const D2D1_POINT_2F text = D2D1::Point2F(40.0f, 56.0f);
+    for (const bool multiline : {false, true})
+    {
+        const std::string_view lines = multiline ? "multiline " : "";
+        RequireFocusReplacementLeavesControlAlone(std::format("{}TextField press", lines), add(multiline), [&](WindowHost& host, Control& field) {
+            static_cast<void>(field.OnMouseDown(host, text, false, 0u));
+        });
+        RequireFocusReplacementLeavesControlAlone(std::format("{}TextField double click", lines), add(multiline), [&](WindowHost& host, Control& field) {
+            static_cast<void>(field.OnMouseDoubleClick(host, text, false, 0u));
+        });
+        RequireFocusReplacementLeavesControlAlone(std::format("{}TextField context menu", lines), add(multiline), [&](WindowHost& host, Control& field) {
+            static_cast<void>(field.OnContextMenu(host, false, text));
+        });
+    }
+}
+
 } // namespace
 
 void RunTextFieldTests()
 {
+    DXUI_RUN_TEST(TestTextFieldInputLeavesAFieldTheFocusCallbackDestroyed);
     DXUI_RUN_TEST(TestTextFieldHoverStyleUsesSharedOverlayChrome);
     DXUI_RUN_TEST(TestTextFieldHighContrastFocusStaysVisibleWithoutKeyboardFocus);
     DXUI_RUN_TEST(TestTextFieldHighContrastDisabledBorderStaysVisible);

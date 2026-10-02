@@ -1074,7 +1074,10 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         return false;
     }
 
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);
     if (rightButton)
@@ -1194,7 +1197,10 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
         return false;
     }
 
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     TreeItemData item;
     _model->GetVisibleItem(hit.visibleIndex, item);
     // The first press of a double-click already made its selection gesture: with multi-select the second, with Ctrl or

@@ -2086,7 +2086,8 @@ bool Grid::RequestSelectRow(size_t rowIndex, UINT modifiers)
         return false;
     }
 
-    SelectRow(rowIndex, modifiers);
+    // A grid its delegate destroyed is left to the caller, which revalidates its element.
+    static_cast<void>(SelectRow(rowIndex, modifiers));
     return true;
 }
 
@@ -2115,7 +2116,13 @@ bool Grid::RequestRemoveRowSelection(size_t rowIndex)
 
     if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
     {
+        // The delegate may rebuild the controls and destroy this grid; the caller revalidates its element.
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         _delegate->OnGridSelectionChanged(*this);
+        if (lifetime.expired())
+        {
+            return true;
+        }
     }
     RefreshAccessibilitySnapshot();
 
@@ -3543,7 +3550,10 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         return false;
     }
 
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     const HitInfo hit = HitTestPoint(MakePointDip(point));
     UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);
@@ -3616,9 +3626,9 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             const bool preserveRightClickSelection = rightButton && _selectionMode == GridSelectionMode::Extended && modelBeforeSelect &&
                                                      hit.rowIndex < modelBeforeSelect->GetRowCount() && _selectionModel.GetCount() > 1u &&
                                                      _selectionModel.IsSelected(modelBeforeSelect->GetStableRowId(hit.rowIndex));
-            if (! preserveRightClickSelection)
+            if (! preserveRightClickSelection && ! SelectRow(hit.rowIndex, modifiers))
             {
-                SelectRow(hit.rowIndex, modifiers);
+                return true;
             }
             if (! rightButton && clickedCheckbox && clickedCheckboxRowId.has_value() && _model == modelBeforeSelect && _model &&
                 hit.columnIndex < _model->GetColumnCount())
@@ -3725,7 +3735,10 @@ bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
         return false;
     }
 
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     const HitInfo hit = HitTestPoint(MakePointDip(point));
     UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);
@@ -3751,7 +3764,10 @@ bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
         }
     }
 
-    SelectRow(hit.rowIndex, modifiers);
+    if (! SelectRow(hit.rowIndex, modifiers))
+    {
+        return true;
+    }
     if (clickedCheckbox && clickedCheckboxRowId.has_value() && _model == modelBeforeSelect && _model && hit.columnIndex < _model->GetColumnCount())
     {
         if (const auto resolvedRowIndex = _model->FindRowByStableId(clickedCheckboxRowId.value()))
@@ -4088,7 +4104,10 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     }
 
     const size_t nextRow = visibleRows[nextVisibleIndex];
-    SelectRow(nextRow, modifiers);
+    if (! SelectRow(nextRow, modifiers))
+    {
+        return true;
+    }
     const D2D1_RECT_F contentRect = GetContentRect();
     const float rowTop            = GetRowTopDip(groups, nextRow);
     const float rowBottom         = rowTop + _rowHeightDip;
@@ -4178,7 +4197,13 @@ bool Grid::OnSelectAll(ControlHost& host)
     _selectionModel.SetRange(allRows, allRows.front(), allRows.back());
     if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
     {
+        // The delegate may rebuild the controls and destroy this grid.
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         _delegate->OnGridSelectionChanged(*this);
+        if (lifetime.expired())
+        {
+            return true;
+        }
     }
     RefreshAccessibilitySnapshot();
     Invalidate(host);
@@ -4352,11 +4377,11 @@ void Grid::EnsureColumnWidths() const
     RebuildColumnDisplayIndexLookup();
 }
 
-void Grid::SelectRow(size_t rowIndex, UINT modifiers)
+bool Grid::SelectRow(size_t rowIndex, UINT modifiers)
 {
     if (! _model || rowIndex >= _model->GetRowCount())
     {
-        return;
+        return true;
     }
 
     const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
@@ -4380,9 +4405,16 @@ void Grid::SelectRow(size_t rowIndex, UINT modifiers)
 
     if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
     {
+        // The delegate may rebuild the controls and destroy this grid.
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         _delegate->OnGridSelectionChanged(*this);
+        if (lifetime.expired())
+        {
+            return false;
+        }
     }
     RefreshAccessibilitySnapshot();
+    return true;
 }
 
 std::wstring Grid::BuildSelectionTsv() const

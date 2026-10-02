@@ -1820,6 +1820,34 @@ void TestEditorControlsAreCatalogued()
     }
     Require(found, "the catalog names the color picker");
 }
+// A splitter or color picker press that focuses its control, given a focus callback that replaces every control, touches
+// the destroyed control no further (AddressSanitizer catches a press that does).
+void TestEditorControlPressesLeaveAControlTheFocusCallbackDestroyed()
+{
+    RequireFocusReplacementLeavesControlAlone("Splitter press",
+                                              [](Panel& root)
+    {
+        auto* splitter = root.AddChild<Splitter>();
+        splitter->SetBounds(D2D1::RectF(0.0f, 40.0f, 300.0f, 140.0f));
+        splitter->SetPosition(100.0f);
+        return splitter;
+    },
+                                              [](WindowHost& host, Control& splitter)
+    { static_cast<void>(splitter.OnMouseDown(host, D2D1::Point2F(103.0f, 90.0f), false, 0u)); });
+    RequireFocusReplacementLeavesControlAlone("ColorPicker press",
+                                              [](Panel& root)
+    {
+        auto* picker = root.AddChild<ColorPicker>();
+        picker->SetBounds(D2D1::RectF(0.0f, 40.0f, ColorPicker::kDefaultWidthDip, 40.0f + ColorPicker::kDefaultHeightDip));
+        return picker;
+    },
+                                              [](WindowHost& host, Control& picker)
+    {
+        const D2D1_RECT_F field = static_cast<ColorPicker&>(picker).GetFieldRect();
+        static_cast<void>(picker.OnMouseDown(host, D2D1::Point2F(field.left + 4.0f, field.top + 4.0f), false, 0u));
+    });
+}
+
 } // namespace
 
 void RunEditorControlTests()
@@ -1876,4 +1904,5 @@ void RunEditorControlTests()
     DXUI_RUN_TEST(TestMovingAControlAnnouncesWhatItNowInheritsOnce);
     DXUI_RUN_TEST(TestPanelSkipsTheSlotOfAChildMovedOutThroughGetChildren);
     DXUI_RUN_TEST(TestEditorControlsAreCatalogued);
+    DXUI_RUN_TEST(TestEditorControlPressesLeaveAControlTheFocusCallbackDestroyed);
 }

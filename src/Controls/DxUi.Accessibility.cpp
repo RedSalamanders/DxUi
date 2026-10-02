@@ -8391,8 +8391,11 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
             return UIA_E_ELEMENTNOTAVAILABLE;
         }
 
-        // A tree that selects one item selects what it focuses; with multi-select only the focus moves.
+        // A tree that selects one item selects what it focuses; with multi-select only the focus moves. The selection's
+        // delegate may rebuild the controls: a tree it destroyed is not focused.
         tree->SetFocusedItemId(item.id);
+        if (! survived())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         host->SetFocusControl(tree);
         if (! survived())
             return UIA_E_ELEMENTNOTAVAILABLE;
@@ -8425,6 +8428,9 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         Grid* grid      = ResolveMutableGridControl();
         if (grid && ResolveGridRowIndex(rowIndex) && grid->RequestSelectRow(rowIndex, 0u))
         {
+            // The selection's delegate may rebuild the controls: a grid it destroyed is not focused.
+            if (! survived())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             host->SetFocusControl(grid);
             if (! survived())
                 return UIA_E_ELEMENTNOTAVAILABLE;
@@ -8444,6 +8450,8 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         Grid* grid = ResolveMutableGridControl();
         if (grid && ResolveGridCellData(rowIndex, columnIndex, cellData) && grid->RequestSelectRow(rowIndex, 0u))
         {
+            if (! survived())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             host->SetFocusControl(grid);
             if (! survived())
                 return UIA_E_ELEMENTNOTAVAILABLE;
@@ -8672,6 +8680,9 @@ HRESULT AccessibilityProvider::ExecuteSelectOnWindowThread() noexcept
     {
         return UIA_E_NOTSUPPORTED;
     }
+    // The selection's delegate and the focus callbacks may rebuild the controls: an element whose control did not survive
+    // them reports itself gone, and its control is neither focused nor touched again.
+    const auto survived = [&]() noexcept { return ResolveHost() == host; };
 
     if (_kind == AccessibilityFragmentKind::TreeItem)
     {
@@ -8681,8 +8692,12 @@ HRESULT AccessibilityProvider::ExecuteSelectOnWindowThread() noexcept
         {
             return UIA_E_ELEMENTNOTAVAILABLE;
         }
+        if (! survived())
+            return UIA_E_ELEMENTNOTAVAILABLE;
 
         host->SetFocusControl(tree);
+        if (! survived())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
         host->Invalidate();
         return S_OK;
@@ -8696,8 +8711,12 @@ HRESULT AccessibilityProvider::ExecuteSelectOnWindowThread() noexcept
         {
             return UIA_E_NOTSUPPORTED;
         }
+        if (! survived())
+            return UIA_E_ELEMENTNOTAVAILABLE;
 
         host->SetFocusControl(grid);
+        if (! survived())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
         host->Invalidate();
         return S_OK;
@@ -8720,15 +8739,20 @@ HRESULT AccessibilityProvider::ExecuteAddToSelectionOnWindowThread() noexcept
             return ExecuteSelectOnWindowThread();
         }
 
-        // Multi-select: the item joins the selection (and takes the focus), which keeps the items already in it.
+        // Multi-select: the item joins the selection (and takes the focus), which keeps the items already in it. The
+        // selection's delegate and the focus callbacks may rebuild the controls, as for ExecuteSelectOnWindowThread.
         ControlHost* const host = ResolveHost();
         size_t visibleIndex     = 0u;
         if (! host || ! ResolveTreeVisibleIndex(visibleIndex) || ! tree->RequestAddVisibleItemToSelection(visibleIndex))
         {
             return UIA_E_ELEMENTNOTAVAILABLE;
         }
+        if (ResolveHost() != host)
+            return UIA_E_ELEMENTNOTAVAILABLE;
 
         host->SetFocusControl(tree);
+        if (ResolveHost() != host)
+            return UIA_E_ELEMENTNOTAVAILABLE;
         RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
         host->Invalidate();
         return S_OK;
@@ -8741,8 +8765,12 @@ HRESULT AccessibilityProvider::ExecuteAddToSelectionOnWindowThread() noexcept
     {
         return UIA_E_NOTSUPPORTED;
     }
+    if (ResolveHost() != host)
+        return UIA_E_ELEMENTNOTAVAILABLE;
 
     host->SetFocusControl(grid);
+    if (ResolveHost() != host)
+        return UIA_E_ELEMENTNOTAVAILABLE;
     RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
     host->Invalidate();
     return S_OK;

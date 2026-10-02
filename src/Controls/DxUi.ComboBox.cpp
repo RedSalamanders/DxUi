@@ -915,7 +915,10 @@ bool ComboBox::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBut
         return OnContextMenu(host, false, point);
     }
 
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     if (_open)
     {
         UpdatePopupLayout(&host);
@@ -1037,7 +1040,10 @@ bool ComboBox::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool r
         return OnMouseDown(host, point, rightButton, modifiers);
     }
 
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     const D2D1_RECT_F textRect = GetEditableTextRect();
     const size_t hitIndex =
         HitTestCaretIndexDip(&host, _text, FontRole::Body, textRect, _editableHorizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
@@ -1645,7 +1651,10 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 bool ComboBox::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     if (_editable)
     {
         host.SyncTextInput(this);

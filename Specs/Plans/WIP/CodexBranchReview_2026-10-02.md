@@ -1,7 +1,8 @@
 # Fixes kept from the codex branches
 
-- **Status**: ACTIVE (review done; the provider-lifetime and caret fixes are ported with their tests; the ordinary-menu
-  decision, the large-menu measurement and the focus-callback audit remain)
+- **Status**: ACTIVE (review done; the provider-lifetime and caret fixes are ported with their tests, and the
+  focus-callback audit is done; the ordinary-menu decision, the large-menu measurement and the wider delegate audit
+  remain)
 - **Owner**: DxUi accessibility (`src/Controls/DxUi.Accessibility.cpp`), `Button` and `TextField`. RedSalamander's
   `codex/fileops-ui-i26` branch is the consumer that met these bugs.
 - **Why**: four branches on GitHub were never merged and have no pull request: `codex/multiline-caret-viewport`, which
@@ -54,9 +55,17 @@ The oracles of `49c963f`, run against main: a queued `Select` of a stale text ra
 - [ ] Decide with the developer whether ordinary menus get per-entry elements (`15be545`, `d45c361`): it changes the
   contract in `UI_InputAndAccessibility.md` and the menu resource budgets, so it needs paired menu resource runs.
 - [ ] Measure `65b0257` on a large menu before taking it; leave it out unless a paired run shows a gain.
-- [ ] Audit the other controls that focus themselves and go on using `this` (about 25 `SetFocusControl(this)` call
+- [x] Audit the other controls that focus themselves and go on using `this` (about 25 `SetFocusControl(this)` call
   sites), and the UI Automation actions that select a grid row before focusing the grid, for the same focus-callback or
-  delegate rebuild, as a follow-up.
+  delegate rebuild, as a follow-up. 28 call sites focused their own control and 25 went on using it; all now go
+  through `FocusControlAndSurvive` and stop when a focus callback destroyed the control. `TabControl::SelectTab` reports
+  whether its focus and selection callbacks left the control alive. UI Automation's Select, AddToSelection and grid-row,
+  grid-cell and single-selection tree-item focus check that their control survived the selection's delegate. Each path
+  has a replacement test that AddressSanitizer would fail.
+- [ ] An application delegate that destroys its control in the middle of an input handler is a wider class than the
+  focus callbacks, and only partly covered. Grid calls `OnGridGroupToggled` and `OnGridSelectionChanged` during a press
+  and then keeps using itself, with no lifetime check anywhere in `DxUi.Grid.cpp`. Audit the delegate and callback
+  call sites of the controls that keep running after them, as the focus sites were.
 - [ ] Keep the four codex branches until RedSalamander's `codex/fileops-ui-i26` pins a DxUi main.
 
 ## Validation

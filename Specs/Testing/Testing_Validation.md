@@ -359,6 +359,22 @@ the library before its port ([plan](../Plans/WIP/CodexBranchReview_2026-10-02.md
 read-only, and requires no caret pixel outside the text viewport: on a partly visible bottom line, scrolled above and below the
 viewport, and restored.
 
+`TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus` has a grid's and a tree's selection delegate replace every
+control while a UI Automation Select or AddToSelection runs on a row or an item, or SetFocus on a row (which selects it; a tree
+item's focus selects silently): the action reports its element gone and nothing is left focused. Before the fix the grid's
+own selection went on refreshing the destroyed grid, which crashed the Debug test.
+`TestGridSelectionDelegateReplacementStopsTheInput` has the grid's selection delegate replace every control during a click,
+a Down key and Ctrl+A. Each control that focuses itself from an
+input handler gets the same test from
+`RequireFocusReplacementLeavesControlAlone` (`DxUiTestHelpers.h`), whose host's focus-changed callback replaces every control
+the first time that control gains the focus: a button's press, right press and `Invoke`, a toggle's and a radio button's
+mnemonic, a page indicator's, a slider's and a color swatch's press, a menu bar's press and mnemonic, a tab control's tab
+press, close press and End key and the removal of the tab that held the focus (the Control suite), a splitter's and a color
+picker's press (EditorControls), a combo box's press, double click and context menu (ComboBox), a single-line and a
+multiline text field's (TextField), and a grid's and a tree's press and double click (Grid, Tree). A handler that went on
+using its destroyed control is caught by AddressSanitizer; every build checks that the replacement happened and left
+nothing focused.
+
 The [selection events](../UI/UI_InputAndAccessibility.md#selection-events) are the library's own, heard from the right sender (an
 item or a row, and the control's element for the invalidation of a selection) by a client subscribed to the window, again for a
 control that fills its window and for its twin beside a button or a label. A test step drives a change through the window's own

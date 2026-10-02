@@ -171,6 +171,10 @@ using unique_safearray = std::unique_ptr<SAFEARRAY, safearray_deleter>;
 [[nodiscard]] float SnapDipToPixel(const ControlHost& host, float dip) noexcept;
 [[nodiscard]] D2D1_RECT_F SnapRectToPixel(const ControlHost& host, const D2D1_RECT_F& rect) noexcept;
 [[nodiscard]] std::optional<size_t> FindMnemonicTextIndex(std::wstring_view text, wchar_t mnemonic) noexcept;
+// Gives `control` the host's focus, first the window's native focus when asked, and says whether the control outlived it.
+// The control that loses focus, the focused control's own handler and the host's focus-changed callback run inside, and
+// any of them may rebuild the controls: a control that focuses itself touches nothing of its own once this is false.
+[[nodiscard]] bool FocusControlAndSurvive(ControlHost& host, Control& control, bool takeNativeFocus = false) noexcept;
 
 [[nodiscard]] D2D1_COLOR_F CompositeOverBackground(const D2D1_COLOR_F& overlay, const D2D1_COLOR_F& background) noexcept;
 [[nodiscard]] uint32_t PackColor(const D2D1_COLOR_F& color) noexcept;
