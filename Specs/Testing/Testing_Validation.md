@@ -367,7 +367,9 @@ or the application's setters, and `UiaTest::HearSelectionEvents` returns the dif
 the stream of events stopped, which the step requires to be exactly what it expects. The steps cover a single-selection tree's
 click, Up and setters, its clearing and items that leave it; a grid's click, Down, Ctrl+click, Shift+click, clearing, Ctrl+A,
 exactly 20 and 21 changes, rows out of view and a selected row that leaves the model; and a multi-select tree's set (selected,
-added, removed, invalidated, 30 selected rows that only moved, and the items that turning multi-select off drops). A diagnostics
+added, removed, invalidated, 30 selected rows that only moved, and the items that turning multi-select off drops). In both
+trees, a selected item that leaves the tree while another becomes the whole selection is heard as that item being selected,
+and one that leaves without that is an invalidation. A diagnostics
 hook, `DebugSetAccessibilitySelectionEventHookForTest` (`Tests/Support/SelectionEventInterruption.h`), runs after each selection
 event the library raises and stands for what can run while they are raised: hiding the grid, replacing the window's root or
 detaching the host there must end the raising after that one event. Each of these tests failed against the library as it was

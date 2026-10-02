@@ -831,7 +831,8 @@ struct SelectionChange
     std::vector<uint64_t> added;                                              // Selected now, not before.
     std::vector<uint64_t> removed; // Selected before, not now, and an element of the new snapshot (a tree's visible item, a grid's row on screen).
     bool replaced    = false;      // The selection is now exactly one item, which was not selected before.
-    bool invalidated = false;      // Too many changes to name, or one that cannot be named: an item that left has no element now.
+    bool invalidated = false;      // Too many changes to name, or one that cannot be named: an item that left has no element now and
+                                   // the selection did not become one new item, whose event would say that it left.
 };
 
 // What the selection of each tree and grid of `after` gained and lost since `before`, the snapshot published before it. A control
@@ -2227,8 +2228,9 @@ std::vector<SelectionChange> CollectSelectionChanges(const AccessibilitySnapshot
         change.replaced = now.size() == 1u && change.added.size() == 1u;
         // An item that left the selection is named by its element, which `after` must hold for a client to read it: a tree holds
         // its visible items, a grid the rows on screen (and the selected ones). One it does not hold cannot be named: a tree's
-        // item that left the rows, or a grid's row that is out of view or gone. Of a selection that became one new item, the
-        // new item's event says that the others left it, so a grid's row out of view needs no event of its own there.
+        // item that left the rows (removed, or hidden by a collapsed ancestor), or a grid's row that is out of view or gone. Of
+        // a selection that became one new item, the new item's event says that the others left it, so such an item needs no
+        // event of its own there.
         for (size_t index = 0u; index < left.size() && ! tooMany() && ! change.invalidated; ++index)
         {
             const uint64_t id = left[index];
@@ -2240,7 +2242,7 @@ std::vector<SelectionChange> CollectSelectionChanges(const AccessibilitySnapshot
             {
                 change.removed.push_back(id);
             }
-            else if (! record.isGrid || ! change.replaced)
+            else if (! change.replaced)
             {
                 change.invalidated = true; // There is nothing to say about it but that the selection changed.
             }
