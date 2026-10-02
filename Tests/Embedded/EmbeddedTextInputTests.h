@@ -1,6 +1,96 @@
 #include <algorithm>
 #include <thread>
 
+// Exercise real caret pixels on a supplied WARP surface, without an HWND or OS focus.
+static void TestMultilineCaretViewport(GraphicsFixture& gpu)
+{
+    for (const float dpi : {96.0f, 144.0f, 192.0f})
+    {
+        const float scale = dpi / 96.0f;
+        Hr(gpu.Resize(static_cast<UINT>(480 * scale), static_cast<UINT>(240 * scale)), "caret fixture target DPI");
+        for (const bool readOnly : {false, true})
+        {
+            DxUi::EmbeddedHost view;
+            std::shared_ptr<DxUi::GraphicsDevice> pool;
+            Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "caret fixture pool");
+            Hr(view.Attach(pool), "caret fixture attach");
+            auto root   = std::make_unique<DxUi::Panel>();
+            auto* field = root->AddChild<DxUi::TextField>(L"alpha\nbravo\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel\nindia");
+            field->SetMultiline(true);
+            field->SetReadOnly(readOnly);
+            field->SetVerticalTextPadding(0, 0);
+            field->SetCaretColor(D2D1::ColorF(1, 0, 1));
+            field->SetBounds(D2D1::RectF(40, 80, 400, 105));
+            view.Controls().SetRoot(std::move(root));
+            Hr(view.Prepare(gpu.width, gpu.height, dpi), "prepare caret fixture");
+            view.Controls().SetFocusControl(field);
+            field->SetSelectionRange(0, 0);
+            Check(field->OnKeyDown(view.Controls(), VK_HOME, MK_CONTROL), "reset caret and viewport to document start");
+            Check(field->OnKeyDown(view.Controls(), VK_RIGHT, 0), "place visible caret inside horizontal viewport");
+
+            const auto verify = [&](const char* scenario, bool visible, bool partial, bool above)
+            {
+                Hr(view.Prepare(gpu.width, gpu.height, dpi), "prepare caret viewport state");
+                DxUi::EmbeddedTextInputSnapshot before;
+                Check(view.ReadTextInput(before) == S_OK && before.viewportBoundsDip.has_value(), "caret viewport snapshot exists");
+                const auto viewport = *before.viewportBoundsDip;
+                D2D1_RECT_F caret{};
+                Check(field->DebugGetCaretRect(view.Controls(), field->GetCaretIndex(), caret), "unclipped native caret geometry exists");
+                if (partial)
+                    Check(caret.top < viewport.bottom && caret.bottom > viewport.bottom, "fixture has a partially visible bottom-line caret");
+                else if (! visible)
+                {
+                    Check(above ? caret.bottom <= viewport.top : caret.top >= viewport.bottom, "fixture caret lies fully outside viewport");
+                    Check(caret.top >= 0 && caret.bottom < 240, "offviewport caret remains inside the capture surface");
+                }
+                gpu.Bind();
+                Hr(view.Composite(gpu.context.get(), gpu.Viewport()), "composite caret fixture");
+                std::vector<uint8_t> pixels;
+                Hr(gpu.Read(pixels), "read caret fixture pixels");
+                const auto imagePath = std::filesystem::path(".build/test-artifacts/caret-viewport") /
+                                       (std::string(scenario) + "-" + std::to_string(static_cast<UINT>(dpi)) + (readOnly ? "-readonly.png" : "-editable.png"));
+                Hr(gpu.Save(imagePath), "caret fixture capture");
+                size_t inside = 0, outside = 0;
+                const auto snap = [scale](float value) { return std::round(value * scale); };
+                for (UINT y = 0; y < gpu.height; ++y)
+                    for (UINT x = 0; x < gpu.width; ++x)
+                    {
+                        const size_t offset = (static_cast<size_t>(y) * gpu.width + x) * 4;
+                        if (pixels[offset] > pixels[offset + 1] + 40 && pixels[offset + 2] > pixels[offset + 1] + 40)
+                        {
+                            const bool inViewport =
+                                x >= snap(viewport.left) && x < snap(viewport.right) && y >= snap(viewport.top) && y < snap(viewport.bottom);
+                            if (inViewport)
+                                ++inside;
+                            else
+                                ++outside;
+                        }
+                    }
+                std::cout << "caret viewport " << scenario << " dpi=" << dpi << " readOnly=" << readOnly << " inside=" << inside << " outside=" << outside
+                          << " caret=" << caret.left << ',' << caret.top << ',' << caret.bottom << '\n';
+                Check(visible ? inside > 0 : inside == 0, "visible caret survives clipping and offscreen caret paints nothing");
+                Check(outside == 0, "caret pixels never escape the text viewport");
+                DxUi::EmbeddedTextInputSnapshot after;
+                Check(view.ReadTextInput(after) == S_OK && after.state.text == before.state.text && after.state.caretIndex == before.state.caretIndex &&
+                          after.state.selectionAnchorIndex == before.state.selectionAnchorIndex &&
+                          after.state.firstVisibleLine == before.state.firstVisibleLine,
+                      "painting preserves document, caret, selection and scroll");
+            };
+            verify("visible", true, false, false);
+            Check(field->OnKeyDown(view.Controls(), VK_NEXT, 0), "PageDown positions the caret on a partial line");
+            verify("partial-bottom", true, true, false);
+            Check(field->OnMouseWheel(view.Controls(), {60, 90}, -WHEEL_DELTA * 1.0f, 0), "wheel scrolls caret above viewport");
+            verify("offscreen-above", false, false, true);
+            field->SetSelectionRange(0, field->GetText().size());
+            Check(field->OnMouseWheel(view.Controls(), {60, 90}, WHEEL_DELTA * 8.0f, 0), "wheel scrolls selected caret below viewport");
+            verify("offscreen-below-selected", false, false, false);
+            field->SetSelectionRange(0, 0);
+            verify("restored", true, false, false);
+        }
+    }
+    Hr(gpu.Resize(480, 240), "restore shared graphics fixture size");
+}
+
 // Application-side composition transport; no HWND, TSF context or real IME is created by this fixture.
 static void TestEmbeddedTextInput(GraphicsFixture& gpu)
 {

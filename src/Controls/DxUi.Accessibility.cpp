@@ -4149,6 +4149,24 @@ struct AccessibilityControlIdentity
     return record ? AccessibilityControlIdentity{record->controlLifetime, record->controlIdentity} : AccessibilityControlIdentity{};
 }
 
+// The identity a window-host element binds to: its control's, or, for the window's root element, the identity of the
+// single semantic control collapsed into it, whose element it then is. A root that stands for no control has none and
+// represents the host.
+[[nodiscard]] AccessibilityControlIdentity CaptureWindowHostElementIdentity(WindowHostAccessibilityTarget* target,
+                                                                            const ControlPath& path,
+                                                                            AccessibilityFragmentKind kind) noexcept
+{
+    if (kind != AccessibilityFragmentKind::Root)
+        return CaptureWindowHostControlIdentity(target, path, true);
+    if (! target || target->embedded)
+        return {};
+    const auto snapshot = target->snapshot.load(std::memory_order_acquire);
+    if (! snapshot || ! SnapshotHasCollapsedSemanticRoot(*snapshot))
+        return {};
+    const auto* record = FindControlNavigationRecord(*snapshot, snapshot->semanticControlOrder.front());
+    return record ? AccessibilityControlIdentity{record->controlLifetime, record->controlIdentity} : AccessibilityControlIdentity{};
+}
+
 template <typename TControl>
 [[nodiscard]] TControl* ResolveIdentifiedControlAtPath(TControl* root, const ControlPath& path, const AccessibilityControlIdentity& identity) noexcept
 {
@@ -4305,6 +4323,13 @@ public:
           _hwnd(hwnd),
           _snapshot(CaptureProviderCreationSnapshot(target, hwnd))
     {
+    }
+
+    // Whether this element's control is gone for its clients (see CaptureSnapshot), as a window's cached root is once the
+    // control it stood for no longer collapses into it.
+    [[nodiscard]] bool IsElementGone() const noexcept
+    {
+        return ! CaptureSnapshot();
     }
 
     AccessibilityProvider(WindowHostAccessibilityTarget* target, HWND hwnd, const ControlPath& path) noexcept
@@ -4499,7 +4524,7 @@ private:
     uint64_t _treeItemId                   = 0u;
     uint64_t _gridRowId                    = 0u;
     size_t _gridColumnIndex                = 0u;
-    AccessibilityControlIdentity _identity = CaptureWindowHostControlIdentity(_target, _path, _kind != AccessibilityFragmentKind::Root);
+    AccessibilityControlIdentity _identity = CaptureWindowHostElementIdentity(_target, _path, _kind);
 };
 
 [[nodiscard]] wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> AcquireCanonicalRootProvider(WindowHostAccessibilityTarget* target) noexcept
@@ -4511,6 +4536,10 @@ private:
     }
 
     const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+    // A cached root that stood for a control no longer collapsed into the window is gone for the clients that hold it; a
+    // newly acquiring client gets a fresh root, which stands for what the window shows now.
+    if (target->rootProvider && ! target->embedded && static_cast<AccessibilityProvider*>(target->rootProvider.get())->IsElementGone())
+        target->rootProvider.reset();
     if (! target->rootProvider)
     {
         static_cast<void>(target->AddRef());
@@ -5614,7 +5643,20 @@ std::shared_ptr<const AccessibilitySnapshot> AccessibilityTextRangeProvider::Cap
 }
 std::shared_ptr<const AccessibilitySnapshot> AccessibilityProvider::CaptureSnapshot() const noexcept
 {
-    return GuardedElementSnapshot(_target, _hwnd, _snapshot, _kind == AccessibilityFragmentKind::Root ? nullptr : &_path, _identity);
+    if (_kind != AccessibilityFragmentKind::Root || ! _target || _target->embedded)
+        return GuardedElementSnapshot(_target, _hwnd, _snapshot, _kind == AccessibilityFragmentKind::Root ? nullptr : &_path, _identity);
+    // A window's root element that stands for the semantic control collapsed into it is that control's element, and lives
+    // as long as that control stays collapsed into it, as every element lives with its control: neither a retained root
+    // nor an action queued on it reaches a control that replaced it, and the window gives newly acquiring clients a fresh
+    // root (AcquireCanonicalRootProvider). A root that stood for no control represents the host until one collapses into it.
+    auto snapshot = CaptureAccessibilitySnapshot(_target, _hwnd);
+    if (! snapshot)
+        return snapshot;
+    const bool collapsed = SnapshotHasCollapsedSemanticRoot(*snapshot);
+    if (_identity.value == 0u)
+        return collapsed ? nullptr : snapshot;
+    const auto* now = collapsed ? FindControlNavigationRecord(*snapshot, snapshot->semanticControlOrder.front()) : nullptr;
+    return now && ! _identity.lifetime.expired() && SameControlLifetime(_identity.lifetime, now->controlLifetime) ? snapshot : nullptr;
 }
 
 ControlHost* AccessibilityTextRangeProvider::ResolveHost() const noexcept
@@ -6368,6 +6410,13 @@ HRESULT AccessibilityProvider::GetRuntimeId(SAFEARRAY** outRuntimeId) noexcept
         }
         return BuildRuntimeId(outRuntimeId, std::span<const LONG>(values.data(), count));
     }
+    // An element whose control is gone has no runtime id either, as it answers nothing else.
+    if (_target && ! CaptureSnapshot())
+    {
+        if (outRuntimeId)
+            *outRuntimeId = nullptr;
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    }
     if (_kind == AccessibilityFragmentKind::Root)
     {
         return SetRuntimeId(outRuntimeId, _hwnd, nullptr);
@@ -6582,7 +6631,13 @@ HRESULT AccessibilityProvider::ElementProviderFromPoint(double x, double y, IRaw
         *outProvider = nullptr;
 
     if (! CaptureSnapshot())
-        return UIA_E_ELEMENTNOTAVAILABLE;
+    {
+        // A window's root element whose control is gone (see CaptureSnapshot) still answers for its window, where it finds
+        // nothing any more; an embedded view's replaced root is gone for every call.
+        if (_kind != AccessibilityFragmentKind::Root || ! _target || _target->embedded)
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        return outProvider ? S_OK : E_POINTER;
+    }
     if (! outProvider)
     {
         return E_POINTER;
@@ -6657,7 +6712,13 @@ HRESULT AccessibilityProvider::GetFocus(IRawElementProviderFragment** outProvide
         static_cast<void>(_target->focusResolutions.fetch_add(1u, std::memory_order_seq_cst));
 
     if (! CaptureSnapshot())
-        return UIA_E_ELEMENTNOTAVAILABLE;
+    {
+        // A window's root element whose control is gone (see CaptureSnapshot) still answers for its window, through which
+        // nothing has focus any more; an embedded view's replaced root is gone for every call.
+        if (_kind != AccessibilityFragmentKind::Root || ! _target || _target->embedded)
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        return outProvider ? S_OK : E_POINTER;
+    }
     if (! outProvider)
     {
         return E_POINTER;
@@ -8309,13 +8370,16 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         if (! host)
             return UIA_E_ELEMENTNOTAVAILABLE;
     }
+    // Moving focus runs application code (native focus, the host's focus-changed callback) that can rebuild the controls:
+    // an element whose control did not survive it reports itself gone instead of success, and moves no further focus.
+    const auto survived = [&]() noexcept { return ResolveHost() == host; };
     if (_kind == AccessibilityFragmentKind::Root)
     {
         // A native menu popup keeps its session's Win32 focus target: activating a submenu popup would dismiss the
         // whole menu, as for its rows below.
         if (! _target->embedded && ! IsNativeMenuPopupWindow(_hwnd))
             ::SetFocus(_hwnd);
-        return S_OK;
+        return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
     }
 
     if (_kind == AccessibilityFragmentKind::TreeItem)
@@ -8330,11 +8394,13 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         // A tree that selects one item selects what it focuses; with multi-select only the focus moves.
         tree->SetFocusedItemId(item.id);
         host->SetFocusControl(tree);
+        if (! survived())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
         if (! _target->embedded)
             ::SetFocus(_hwnd);
         host->Invalidate();
-        return S_OK;
+        return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
     }
 
     if (_kind == AccessibilityFragmentKind::GridHeader)
@@ -8343,12 +8409,14 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         if (grid)
         {
             host->SetFocusControl(grid);
+            if (! survived())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
             if (! _target->embedded)
                 ::SetFocus(_hwnd);
             host->Invalidate();
         }
-        return S_OK;
+        return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
     }
 
     if (_kind == AccessibilityFragmentKind::GridRow)
@@ -8358,12 +8426,14 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         if (grid && ResolveGridRowIndex(rowIndex) && grid->RequestSelectRow(rowIndex, 0u))
         {
             host->SetFocusControl(grid);
+            if (! survived())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
             if (! _target->embedded)
                 ::SetFocus(_hwnd);
             host->Invalidate();
         }
-        return S_OK;
+        return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
     }
 
     if (_kind == AccessibilityFragmentKind::GridCell)
@@ -8375,12 +8445,14 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         if (grid && ResolveGridCellData(rowIndex, columnIndex, cellData) && grid->RequestSelectRow(rowIndex, 0u))
         {
             host->SetFocusControl(grid);
+            if (! survived())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
             if (! _target->embedded)
                 ::SetFocus(_hwnd);
             host->Invalidate();
         }
-        return S_OK;
+        return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
     }
 
     if (_kind == AccessibilityFragmentKind::TextFieldPasswordRevealButton)
@@ -8389,11 +8461,13 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         if (textField && textField->IsPasswordRevealButtonVisibleForAccessibility())
         {
             host->SetFocusControl(textField);
+            if (! survived())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             if (! _target->embedded)
                 ::SetFocus(_hwnd);
             host->Invalidate();
         }
-        return S_OK;
+        return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
     }
 
     Control* control = ResolveMutableControl();
@@ -8405,10 +8479,12 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         // including sliders, and ordinary controls that use the MenuItem role keep native focus transfer.
         const bool nativeMenuRow = ! _target->embedded && IsNativeMenuPopupWindow(_hwnd);
         host->SetFocusControl(control, ! nativeMenuRow);
+        if (! survived())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         if (! _target->embedded && ! nativeMenuRow)
             ::SetFocus(_hwnd);
     }
-    return S_OK;
+    return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
 }
 
 HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread() noexcept
@@ -8464,7 +8540,11 @@ HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread() noexcept
         return accessibleControl->InvokeAccessible(*host) ? S_OK : UIA_E_NOTSUPPORTED;
     }
 
-    return button->Invoke(*host, true) ? S_OK : UIA_E_NOTSUPPORTED;
+    // The button focuses itself first, and a focus callback that rebuilds the controls ends the invocation (Button::Invoke):
+    // the element then reports its control gone.
+    if (button->Invoke(*host, true))
+        return S_OK;
+    return ResolveHost() == host ? UIA_E_NOTSUPPORTED : UIA_E_ELEMENTNOTAVAILABLE;
 }
 
 HRESULT AccessibilityProvider::ExecuteToggleOnWindowThread() noexcept
