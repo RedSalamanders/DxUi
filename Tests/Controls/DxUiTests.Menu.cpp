@@ -6707,17 +6707,15 @@ void TestPlainMenuAccessibilityInvokesAndDisconnects()
 {
     using namespace DxUi;
     AttachedHostWindow owner;
-    const std::vector<MenuFlyoutItem> items{{.kind           = MenuItemKind::Radio,
-                                             .text           = L"Première destination",
-                                             .checked        = true,
-                                             .commandId      = 8991,
-                                             .accessibleName = L"C:\\Famille\\Été\\Première destination"},
-                                            {.text = L"Indisponible", .enabled = false, .commandId = 8992},
-                                            {.kind = MenuItemKind::Info, .text = L"Information seulement"},
-                                            {.kind           = MenuItemKind::Radio,
-                                             .text           = L"Deuxième destination",
-                                             .commandId      = 8994,
-                                             .accessibleName = L"D:\\Musée\\Été\\Deuxième destination"}};
+    const std::vector<MenuFlyoutItem> items{
+        {.kind           = MenuItemKind::Radio,
+         .text           = L"Première destination",
+         .checked        = true,
+         .commandId      = 8991,
+         .accessibleName = L"C:\\Famille\\Été\\Première destination"},
+        {.text = L"Indisponible", .enabled = false, .commandId = 8992},
+        {.kind = MenuItemKind::Info, .text = L"Information seulement"},
+        {.kind = MenuItemKind::Radio, .text = L"Deuxième destination", .commandId = 8994, .accessibleName = L"D:\\Musée\\Été\\Deuxième destination"}};
     const ContextMenuResourceDebugState before = DebugGetContextMenuResources();
     int callbacks                              = 0;
     std::optional<int> result;
@@ -6886,7 +6884,8 @@ void TestPlainMenuAccessibilityScrollsFocusedRow()
     RequireSucceeded(last->get_BoundingRectangle(&bounds), "the revealed row's bounds are readable");
     Require(! offscreen(last, "the revealed row's offscreen state is readable") && bounds.width > 0.0 && bounds.height > 0.0,
             "the revealed row is on screen, with its rectangle");
-    Require(offscreen(first, "the first row's offscreen state is readable again"), "scrolling to the last row leaves the first one offscreen, still an element");
+    Require(offscreen(first, "the first row's offscreen state is readable again"),
+            "scrolling to the last row leaves the first one offscreen, still an element");
     Require(GetFocus() == nativeFocus && ! closed, "UIA focus keeps native focus and invokes nothing");
     SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
     owner.PumpMessages();
@@ -6913,7 +6912,7 @@ void TestMenuNativeFocusSelectsNoRowAndRestoresTheChosenOne()
                 "native focus menu opens");
         const HWND popup = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), items.front().text);
         Require(popup != nullptr, "native focus menu appears");
-        const auto dismiss = wil::scope_exit([&]() noexcept
+        const auto dismiss     = wil::scope_exit([&]() noexcept
         {
             if (IsWindow(popup))
                 SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
@@ -6927,7 +6926,8 @@ void TestMenuNativeFocusSelectsNoRowAndRestoresTheChosenOne()
                     GetFocus() == nativeFocus,
                 "native focus selects no row of a plain or described menu");
         SendMessageW(popup, WM_KEYDOWN, VK_DOWN, 0);
-        Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == 1u && GetFocus() == nativeFocus, "the first Down selects the first command");
+        Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == 1u && GetFocus() == nativeFocus,
+                "the first Down selects the first command");
         SendMessageW(popup, WM_KILLFOCUS, reinterpret_cast<WPARAM>(owner.Hwnd()), 0);
         SendMessageW(popup, WM_SETFOCUS, 0, 0);
         Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == 1u && GetFocus() == nativeFocus,
@@ -6944,7 +6944,8 @@ void TestMenuNativeFocusSelectsNoRowAndRestoresTheChosenOne()
         RequireSucceeded(focusedSimple->GetPropertyValue(UIA_HasKeyboardFocusPropertyId, &hasFocus), "the focused row's focus state is readable");
         wil::unique_variant automationId;
         RequireSucceeded(focusedSimple->GetPropertyValue(UIA_AutomationIdPropertyId, &automationId), "the focused row's automation id is readable");
-        Require(hasFocus.vt == VT_BOOL && hasFocus.boolVal == VARIANT_TRUE && automationId.vt == VT_BSTR && std::wstring_view(automationId.bstrVal) == L"menu.item.1",
+        Require(hasFocus.vt == VT_BOOL && hasFocus.boolVal == VARIANT_TRUE && automationId.vt == VT_BSTR &&
+                    std::wstring_view(automationId.bstrVal) == L"menu.item.1",
                 "the restored focus is the chosen row's");
         SendMessageW(popup, WM_KEYDOWN, VK_DOWN, 0);
         Require(DebugGetContextMenuPopupState(popup, state) && state.keyboardIndex == 3u && GetFocus() == nativeFocus && ! closed,

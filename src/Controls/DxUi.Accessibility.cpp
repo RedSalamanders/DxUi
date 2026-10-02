@@ -1668,6 +1668,7 @@ void AppendAccessibilitySnapshotNavigation(
 
         // Made in place, and complete before the children below add theirs.
         AccessibilityControlNavigationSnapshot& record = snapshot.controlNavigationRecords.emplace_back();
+
         record.path                      = basePath;
         record.controlLifetime           = GetControlLifetimeToken(*current);
         record.controlIdentity           = ControlIdentityOf(record.controlLifetime);
@@ -6298,7 +6299,7 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
             // publishes no visible rectangle for it: that row is offscreen.
             const bool scrolledAway = record->controlVisible && _target && _target->menuPopup &&
                                       ! FindSnapshotFragmentBounds(*snapshot, AccessibilityFragmentKind::Control, record->path, 0u, 0u, 0u).has_value();
-            *outValue = VariantFromBool(! record->controlVisible || scrolledAway);
+            *outValue               = VariantFromBool(! record->controlVisible || scrolledAway);
             return S_OK;
         }
         case UIA_IsPasswordPropertyId: *outValue = VariantFromBool(record->controlVisible && record->controlIsPassword); return S_OK;
