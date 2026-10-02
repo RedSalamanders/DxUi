@@ -11,12 +11,14 @@
   their grid or tree survived the selection's delegate before focusing it, and report `UIA_E_ELEMENTNOTAVAILABLE` where
   they focused a destroyed control before. `Grid::SelectRow` (private), which they share with a grid's press, double
   click and arrow keys, went on refreshing the destroyed grid after its delegate: it now stops and says so, and its
-  callers stop too, as `Grid::RequestRemoveRowSelection` (RemoveFromSelection) now does. A tree's selection already
-  stopped after its delegate.
+  callers stop too, as `Grid::RequestRemoveRowSelection` (RemoveFromSelection) and Ctrl+A now do. A tree's selection
+  already stopped after its delegate. `docs/controls.md` says which callbacks may rebuild the controls, and which of
+  Grid's delegate calls should post a rebuild instead.
   - **Tests.** `RequireFocusReplacementLeavesControlAlone` (`DxUiTestHelpers.h`) runs each of those handlers with a
     focus-changed callback that replaces every control, in the Control, EditorControls, ComboBox, TextField, Grid and
     Tree suites. `TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus` does the same with a grid's and a
-    tree's selection delegate for UI Automation's three actions. AddressSanitizer catches a handler that touched its
-    destroyed control.
+    tree's selection delegate for UI Automation's actions, and `TestGridSelectionDelegateReplacementStopsTheInput` with
+    a grid's for a click, Down and Ctrl+A. AddressSanitizer catches a handler that touched its destroyed control; each
+    test fails so against main's library.
   - Specified in `UI_InputAndAccessibility.md`; `Testing_Validation.md` and the codex review plan follow. No API
     changes, and nothing visual changed.

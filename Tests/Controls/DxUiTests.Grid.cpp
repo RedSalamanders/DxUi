@@ -3374,6 +3374,52 @@ void TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves
 
 // A grid press or double click that focuses the grid, given a focus callback that replaces every control, touches the
 // destroyed grid no further (AddressSanitizer catches one that does).
+// A grid whose selection delegate replaces every control stops using itself after the click, the arrow key or the
+// Ctrl+A that changed its selection (AddressSanitizer catches one that does not).
+void TestGridSelectionDelegateReplacementStopsTheInput()
+{
+    using namespace DxUi;
+    struct ReplacingDelegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridSelectionChanged;
+        std::function<void()> onSelection;
+        void OnGridSelectionChanged(Grid& /*sender*/) override
+        {
+            if (onSelection)
+                onSelection();
+        }
+    };
+    const auto run = [](std::string_view name, auto&& input)
+    {
+        // The model and the delegate outlive the host, whose grid still holds them when a check fails.
+        MultiRowGridModel model(12u);
+        ReplacingDelegate delegate;
+        WindowHost host;
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 360.0f, 240.0f));
+        grid->SetModel(&model);
+        grid->SetDelegate(&delegate);
+        grid->SetSelectionMode(GridSelectionMode::Extended);
+        host.SetRoot(std::move(root));
+        host.SetFocusControl(grid);
+        bool replaced        = false;
+        delegate.onSelection = [&]
+        {
+            if (! replaced)
+            {
+                replaced = true;
+                host.SetRoot(std::make_unique<Panel>());
+            }
+        };
+        input(host, *grid);
+        Require(replaced, std::format("{}: the selection's delegate replaced the controls", name).c_str());
+    };
+    run("Grid click", [](WindowHost& host, Grid& grid) { static_cast<void>(grid.OnMouseDown(host, D2D1::Point2F(60.0f, 80.0f), false, 0u)); });
+    run("Grid Down", [](WindowHost& host, Grid& grid) { static_cast<void>(grid.OnKeyDown(host, VK_DOWN, 0u)); });
+    run("Grid Ctrl+A", [](WindowHost& host, Grid& grid) { static_cast<void>(grid.OnSelectAll(host)); });
+}
+
 void TestGridInputLeavesAGridTheFocusCallbackDestroyed()
 {
     using namespace DxUi;
@@ -3397,6 +3443,7 @@ void TestGridInputLeavesAGridTheFocusCallbackDestroyed()
 void RunGridTests()
 {
     DXUI_RUN_TEST(TestGridInputLeavesAGridTheFocusCallbackDestroyed);
+    DXUI_RUN_TEST(TestGridSelectionDelegateReplacementStopsTheInput);
     DXUI_RUN_TEST(TestSortCycle);
     DXUI_RUN_TEST(TestVisibleSpan);
     DXUI_RUN_TEST(TestSelectionModel);

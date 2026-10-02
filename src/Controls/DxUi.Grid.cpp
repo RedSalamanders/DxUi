@@ -4197,7 +4197,13 @@ bool Grid::OnSelectAll(ControlHost& host)
     _selectionModel.SetRange(allRows, allRows.front(), allRows.back());
     if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
     {
+        // The delegate may rebuild the controls and destroy this grid.
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         _delegate->OnGridSelectionChanged(*this);
+        if (lifetime.expired())
+        {
+            return true;
+        }
     }
     RefreshAccessibilitySnapshot();
     Invalidate(host);
