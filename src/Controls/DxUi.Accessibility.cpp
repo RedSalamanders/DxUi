@@ -681,6 +681,7 @@ void IndexAccessibilitySnapshot(AccessibilitySnapshot& snapshot);
 void AppendAccessibilitySnapshotPointHits(ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot);
 void AppendAccessibilitySnapshotPointHits(
     ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot, const AccessibilityPointHitBuildContext& context);
+[[nodiscard]] size_t CountAccessibilitySnapshotNavigation(const Control* current, const ControlPath& basePath) noexcept;
 void AppendAccessibilitySnapshotNavigation(
     ControlHost& host, const Control* root, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot);
 [[nodiscard]] const AccessibilityPointHitSnapshot* FindSnapshotPointHit(const AccessibilitySnapshot& snapshot, D2D1_POINT_2F pointDip) noexcept;
@@ -892,6 +893,11 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     snapshot->pixelsToDipScale = USER_DEFAULT_SCREEN_DPI / host.GetDpi();
     const Control* const root  = host.GetRoot();
     snapshot->hasRetainedRoot  = root != nullptr;
+    // Sized once: a menu's rows make thousands of records, which growing vectors would move again and again.
+    const size_t semanticControls = CountAccessibilitySnapshotNavigation(root, ControlPath{});
+    snapshot->semanticControlOrder.reserve(semanticControls);
+    snapshot->controlsByAddress.reserve(semanticControls);
+    snapshot->controlNavigationRecords.reserve(semanticControls);
     AppendAccessibilitySnapshotNavigation(host, root, root, ControlPath{}, *snapshot);
     if (root && ! target.embedded)
     {
@@ -1622,6 +1628,30 @@ std::optional<D2D1_RECT_F> FindSnapshotFragmentBounds(const AccessibilitySnapsho
     return static_cast<uint32_t>(*token);
 }
 
+// The records AppendAccessibilitySnapshotNavigation makes: the same visibility, semantic and path-depth rules.
+size_t CountAccessibilitySnapshotNavigation(const Control* current, const ControlPath& basePath) noexcept
+{
+    if (! current || ! current->IsVisible())
+    {
+        return 0u;
+    }
+
+    size_t count = IsSemanticAccessibilityControl(current) ? 1u : 0u;
+    if (const auto* panel = dynamic_cast<const Panel*>(current))
+    {
+        const auto children = panel->GetChildren();
+        for (size_t index = 0u; index < children.size(); ++index)
+        {
+            ControlPath childPath{};
+            if (children[index] && TryAppendPathIndex(basePath, index, childPath))
+            {
+                count += CountAccessibilitySnapshotNavigation(children[index].get(), childPath);
+            }
+        }
+    }
+    return count;
+}
+
 void AppendAccessibilitySnapshotNavigation(
     ControlHost& host, const Control* root, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot)
 {
@@ -1636,7 +1666,8 @@ void AppendAccessibilitySnapshotNavigation(
         snapshot.controlsByAddress.push_back(AccessibilityControlAddress{.address = reinterpret_cast<uintptr_t>(current),
                                                                          .ordinal = static_cast<uint32_t>(snapshot.controlNavigationRecords.size())});
 
-        AccessibilityControlNavigationSnapshot record{};
+        // Made in place, and complete before the children below add theirs.
+        AccessibilityControlNavigationSnapshot& record = snapshot.controlNavigationRecords.emplace_back();
         record.path                      = basePath;
         record.controlLifetime           = GetControlLifetimeToken(*current);
         record.controlIdentity           = ControlIdentityOf(record.controlLifetime);
@@ -1918,7 +1949,6 @@ void AppendAccessibilitySnapshotNavigation(
 
         record.controlSupportsSelection = record.isTree || record.isGrid;
         record.controlSupportsTable     = record.isGrid && record.gridColumnCount > 0u;
-        snapshot.controlNavigationRecords.push_back(std::move(record));
     }
 
     if (const auto* panel = dynamic_cast<const Panel*>(current))
