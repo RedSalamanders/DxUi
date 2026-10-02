@@ -2605,6 +2605,384 @@ struct AccessibilityTextRangeSelectFixture
     wil::com_ptr_nothrow<ITextRangeProvider> documentRange;
 };
 
+void TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction()
+{
+    using namespace DxUi;
+    for (const bool invokeAction : {false, true})
+    {
+        AttachedHostWindow window;
+        auto root      = std::make_unique<Panel>();
+        auto* original = root->AddChild<Button>(L"Original focus target");
+        original->SetBounds(D2D1::RectF(0, 0, 220, 32));
+        // Keep the action as an ordinary child, not a collapsed semantic root.
+        auto* other = root->AddChild<Button>(L"Other original action");
+        other->SetBounds(D2D1::RectF(0, 40, 220, 72));
+        unsigned int originalActions    = 0u;
+        unsigned int replacementActions = 0u;
+        unsigned int replacements       = 0u;
+        original->SetOnClick([&] { ++originalActions; });
+        window.Host().SetRoot(std::move(root));
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> hostProvider;
+        hostProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        Require(hostProvider != nullptr, "focus reentry host provider exists");
+        auto fragment = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *hostProvider.get(), 20, 12, "focus reentry original provider");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(fragment.query_to(simple.put()), "focus reentry simple provider");
+        wil::com_ptr_nothrow<IUnknown> pattern;
+        RequireSucceeded(simple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "focus reentry Invoke lookup");
+        Require(pattern != nullptr, "focus reentry original exposes Invoke");
+        wil::com_ptr_nothrow<IInvokeProvider> invoke;
+        RequireSucceeded(pattern.query_to(invoke.put()), "focus reentry Invoke interface");
+        Button* replacementFocus = nullptr;
+        window.Host().SetOnFocusChanged([&](Control* focused)
+        {
+            if (focused != original || replacements != 0u)
+                return;
+            ++replacements;
+            // Allocate while the original is alive, then destroy the old tree.
+            // The callback's safe focus successor must survive the outer UIA call.
+            auto replacement        = std::make_unique<Panel>();
+            auto* replacementAction = replacement->AddChild<Button>(L"Replacement action");
+            replacementAction->SetBounds(D2D1::RectF(0, 0, 220, 32));
+            replacementAction->SetOnClick([&] { ++replacementActions; });
+            replacementFocus = replacement->AddChild<Button>(L"Replacement focus successor");
+            replacementFocus->SetBounds(D2D1::RectF(0, 40, 220, 72));
+            window.Host().SetRoot(std::move(replacement));
+            window.Host().SetFocusControl(replacementFocus, false);
+        });
+        const auto clearCallback = wil::scope_exit([&] { window.Host().SetOnFocusChanged({}); });
+        const HWND focusBefore   = GetFocus();
+        const HRESULT hr         = invokeAction ? invoke->Invoke() : fragment->SetFocus();
+        std::cout << "    [UIA focus reentry] invoke=" << invokeAction << " result=0x" << std::hex << static_cast<unsigned long>(hr) << std::dec
+                  << " replacements=" << replacements << " originalActions=" << originalActions << " replacementActions=" << replacementActions << '\n';
+        Require(hr == UIA_E_ELEMENTNOTAVAILABLE && replacements == 1u && originalActions == 0u && replacementActions == 0u,
+                "focus-triggered tree replacement stops original UIA focus/action without invoking a replacement");
+        Require(window.Host().GetFocusControl() == replacementFocus, "outer UIA focus/action preserves callback-selected focus successor");
+        if (! DxUiTestWindowsCanActivateFlag())
+            Require(GetFocus() == focusBefore, "governed no-activation focus-reentry witness does not change native focus");
+    }
+}
+
+void TestNativeAccessibilityProvidersRejectReplacementAtSamePath()
+{
+    using namespace DxUi;
+    const auto readRuntimeId = [](IRawElementProviderFragment& provider)
+    {
+        SAFEARRAY* id = nullptr;
+        RequireSucceeded(provider.GetRuntimeId(&id), "native lifetime runtime ID lookup");
+        const auto releaseId = wil::scope_exit([&]
+        {
+            if (id)
+                SafeArrayDestroy(id);
+        });
+        Require(id != nullptr, "native lifetime runtime ID exists");
+        LONG first = 0;
+        LONG last  = -1;
+        RequireSucceeded(SafeArrayGetLBound(id, 1, &first), "native runtime ID lower bound");
+        RequireSucceeded(SafeArrayGetUBound(id, 1, &last), "native runtime ID upper bound");
+        std::vector<LONG> values;
+        for (LONG index = first; index <= last; ++index)
+        {
+            LONG value = 0;
+            RequireSucceeded(SafeArrayGetElement(id, &index, &value), "native runtime ID component");
+            values.push_back(value);
+        }
+        return values;
+    };
+    for (const bool replaceRoot : {false, true})
+    {
+        AttachedHostWindow window;
+        auto root    = std::make_unique<Panel>();
+        Panel* panel = root.get();
+        auto* button = panel->AddChild<Button>(L"Original action");
+        button->SetBounds(D2D1::RectF(0, 0, 200, 28));
+        auto* field = panel->AddChild<TextField>(L"original text");
+        field->SetBounds(D2D1::RectF(0, 36, 260, 68));
+        unsigned int oldInvocations         = 0u;
+        unsigned int replacementInvocations = 0u;
+        button->SetOnClick([&] { ++oldInvocations; });
+        window.Host().SetRoot(std::move(root));
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> hostProvider;
+        hostProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        Require(hostProvider != nullptr, "native lifetime host provider exists");
+        auto actionFragment = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *hostProvider.get(), 20, 12, "original native action provider");
+        auto fieldFragment  = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *hostProvider.get(), 20, 48, "original native text provider");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> actionSimple;
+        wil::com_ptr_nothrow<IRawElementProviderSimple> fieldSimple;
+        RequireSucceeded(actionFragment.query_to(actionSimple.put()), "original action simple provider");
+        RequireSucceeded(fieldFragment.query_to(fieldSimple.put()), "original field simple provider");
+        wil::com_ptr_nothrow<IUnknown> pattern;
+        wil::com_ptr_nothrow<IInvokeProvider> invoke;
+        RequireSucceeded(actionSimple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "original action Invoke pattern");
+        Require(pattern != nullptr, "original action has Invoke");
+        RequireSucceeded(pattern.query_to(invoke.put()), "original action Invoke interface");
+        RequireSucceeded(invoke->Invoke(), "original live provider invokes its own action");
+        Require(oldInvocations == 1u, "original live callback runs once");
+        pattern.reset();
+        wil::com_ptr_nothrow<IValueProvider> value;
+        RequireSucceeded(fieldSimple->GetPatternProvider(UIA_ValuePatternId, pattern.put()), "original field Value pattern");
+        Require(pattern != nullptr, "original field has Value");
+        RequireSucceeded(pattern.query_to(value.put()), "original field Value interface");
+        pattern.reset();
+        wil::com_ptr_nothrow<ITextProvider> text;
+        RequireSucceeded(fieldSimple->GetPatternProvider(UIA_TextPatternId, pattern.put()), "original field Text pattern");
+        Require(pattern != nullptr, "original field has Text");
+        RequireSucceeded(pattern.query_to(text.put()), "original field Text interface");
+        wil::com_ptr_nothrow<ITextRangeProvider> range;
+        RequireSucceeded(text->get_DocumentRange(range.put()), "retain original native document range");
+        const auto originalRuntimeId = readRuntimeId(*actionFragment.get());
+
+        button->SetText(L"Original renamed");
+        field->SetText(L"original updated");
+        window.Host().RefreshAccessibilitySnapshot();
+        Require(ReadProviderStringProperty(*actionSimple.get(), UIA_NamePropertyId, "live semantic refresh") == L"Original renamed",
+                "same control remains available across semantic snapshot refresh");
+        Require(ReadTextRangeText(*range.get(), -1, "live range refresh").starts_with(L"original"),
+                "same control text range remains available across text refresh");
+        Require(readRuntimeId(*actionFragment.get()) == originalRuntimeId, "unchanged native control retains its runtime identity across refreshed snapshots");
+
+        window.Host().ResetInteractionState();
+        std::unique_ptr<Panel> replacementRoot;
+        if (replaceRoot)
+        {
+            replacementRoot = std::make_unique<Panel>();
+            panel           = replacementRoot.get();
+        }
+        else
+            panel->ClearChildren();
+        auto* replacementButton = panel->AddChild<Button>(L"Replacement action");
+        replacementButton->SetBounds(D2D1::RectF(0, 0, 200, 28));
+        replacementButton->SetOnClick([&] { ++replacementInvocations; });
+        auto* replacementField = panel->AddChild<TextField>(L"replacement secret");
+        replacementField->SetBounds(D2D1::RectF(0, 36, 260, 68));
+        replacementField->SetSelectionRange(1u, 3u);
+        if (replaceRoot)
+            window.Host().SetRoot(std::move(replacementRoot));
+        window.Host().SetFocusControl(replacementButton, false);
+        window.Host().RefreshAccessibilitySnapshot();
+        const HWND focusBefore = GetFocus();
+        wil::unique_variant staleName;
+        const HRESULT propertyHr = actionSimple->GetPropertyValue(UIA_NamePropertyId, &staleName);
+        const HRESULT invokeHr   = invoke->Invoke();
+        const HRESULT focusHr    = fieldFragment->SetFocus();
+        const HRESULT valueHr    = value->SetValue(L"unauthorized replacement");
+        wil::unique_bstr staleText;
+        const HRESULT rangeTextHr = range->GetText(-1, staleText.put());
+        const HRESULT selectHr    = range->Select();
+        wil::com_ptr_nothrow<ITextRangeProvider> staleClone;
+        const HRESULT cloneHr     = range->Clone(staleClone.put());
+        SAFEARRAY* staleRuntimeId = nullptr;
+        const HRESULT runtimeIdHr = actionFragment->GetRuntimeId(&staleRuntimeId);
+        const auto releaseStaleId = wil::scope_exit([&]
+        {
+            if (staleRuntimeId)
+                SafeArrayDestroy(staleRuntimeId);
+        });
+        std::cout << "    [UIA lifetime] replaceRoot=" << replaceRoot << " property=0x" << std::hex << static_cast<unsigned long>(propertyHr) << " invoke=0x"
+                  << static_cast<unsigned long>(invokeHr) << " focus=0x" << static_cast<unsigned long>(focusHr) << " value=0x"
+                  << static_cast<unsigned long>(valueHr) << " rangeText=0x" << static_cast<unsigned long>(rangeTextHr) << " select=0x"
+                  << static_cast<unsigned long>(selectHr) << " clone=0x" << static_cast<unsigned long>(cloneHr) << " runtimeId=0x"
+                  << static_cast<unsigned long>(runtimeIdHr) << std::dec << " replacementInvocations=" << replacementInvocations << '\n';
+        Require(propertyHr == UIA_E_ELEMENTNOTAVAILABLE && invokeHr == UIA_E_ELEMENTNOTAVAILABLE && focusHr == UIA_E_ELEMENTNOTAVAILABLE &&
+                    valueHr == UIA_E_ELEMENTNOTAVAILABLE && rangeTextHr == UIA_E_ELEMENTNOTAVAILABLE && selectHr == UIA_E_ELEMENTNOTAVAILABLE &&
+                    cloneHr == UIA_E_ELEMENTNOTAVAILABLE && runtimeIdHr == UIA_E_ELEMENTNOTAVAILABLE && ! staleRuntimeId,
+                "retained native providers and text ranges reject same-path child/root replacements");
+        Require(replacementInvocations == 0u && oldInvocations == 1u && replacementField->GetText() == L"replacement secret" &&
+                    replacementField->GetSelectionRange() == std::optional<std::pair<size_t, size_t>>{{1u, 3u}} &&
+                    window.Host().GetFocusControl() == replacementButton && GetFocus() == focusBefore,
+                "stale native providers cannot read, invoke, edit, select, or focus the replacement");
+        auto current = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *hostProvider.get(), 20, 12, "persistent host root finds replacement");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> currentSimple;
+        RequireSucceeded(current.query_to(currentSimple.put()), "replacement provider exposes properties");
+        Require(ReadProviderStringProperty(*currentSimple.get(), UIA_NamePropertyId, "replacement name") == L"Replacement action",
+                "fresh native provider reaches replacement through persistent container root");
+        Require(readRuntimeId(*current.get()) != originalRuntimeId, "same-path native replacement has a distinct runtime identity for client caches");
+    }
+}
+
+// A window's root element acquired while the window held no control stands for the host. Once a single control collapses
+// into the root, that element is gone for the client holding it, which acquires a fresh root for the control; the old
+// root still answers its fragment-root queries, with nothing.
+void TestNativeAccessibilityRootRetiresWhenAControlCollapsesIntoIt()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> early;
+    early.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(early != nullptr, "a window without controls has a root element");
+    wil::com_ptr_nothrow<IUnknown> earlyIdentity;
+    RequireSucceeded(early.query_to(earlyIdentity.put()), "the early root has a COM identity");
+
+    unsigned int invoked = 0u;
+    auto button          = std::make_unique<Button>(L"Collapsed action");
+    button->SetOnClick([&] { ++invoked; });
+    window.Host().SetRoot(std::move(button));
+
+    wil::com_ptr_nothrow<IRawElementProviderSimple> earlySimple;
+    RequireSucceeded(early.query_to(earlySimple.put()), "the early root is a simple provider");
+    wil::com_ptr_nothrow<IUnknown> earlyPattern;
+    Require(earlySimple->GetPatternProvider(UIA_InvokePatternId, earlyPattern.put()) == UIA_E_ELEMENTNOTAVAILABLE && ! earlyPattern,
+            "the root acquired before a control collapsed into it is gone, and invokes nothing");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> earlyFocus;
+    RequireSucceeded(early->GetFocus(earlyFocus.put()), "the early root still answers its focus query");
+    Require(earlyFocus == nullptr, "nothing has focus through the early root");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> fresh;
+    fresh.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(fresh != nullptr, "the window gives a fresh root once a control collapsed into it");
+    wil::com_ptr_nothrow<IUnknown> freshIdentity;
+    RequireSucceeded(fresh.query_to(freshIdentity.put()), "the fresh root has a COM identity");
+    Require(freshIdentity.get() != earlyIdentity.get(), "the fresh root is a new element");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> freshSimple;
+    RequireSucceeded(fresh.query_to(freshSimple.put()), "the fresh root is a simple provider");
+    Require(ReadProviderStringProperty(*freshSimple.get(), UIA_NamePropertyId, "the fresh root's name") == L"Collapsed action",
+            "the fresh root is the collapsed control's element");
+    wil::com_ptr_nothrow<IUnknown> freshPattern;
+    wil::com_ptr_nothrow<IInvokeProvider> freshInvoke;
+    RequireSucceeded(freshSimple->GetPatternProvider(UIA_InvokePatternId, freshPattern.put()), "the fresh root exposes Invoke");
+    Require(freshPattern != nullptr, "the fresh root has an Invoke pattern");
+    RequireSucceeded(freshPattern.query_to(freshInvoke.put()), "the fresh root's Invoke interface");
+    RequireSucceeded(freshInvoke->Invoke(), "the fresh root invokes the collapsed control");
+    Require(invoked == 1u, "the collapsed control's action runs once");
+}
+
+void TestNativeAccessibilityCollapsedRootRetiresAfterCallbackReplacement()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    unsigned int originalCount    = 0u;
+    unsigned int replacementCount = 0u;
+    auto button                   = std::make_unique<Button>(L"Original semantic root");
+    button->SetOnClick([&]
+    {
+        ++originalCount;
+        auto replacement = std::make_unique<Button>(L"Replacement semantic root");
+        replacement->SetOnClick([&] { ++replacementCount; });
+        window.Host().SetRoot(std::move(replacement));
+    });
+    window.Host().SetRoot(std::move(button));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    provider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    Require(provider != nullptr, "collapsed native root provider exists");
+    RequireSucceeded(provider.query_to(simple.put()), "collapsed native root simple interface");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    RequireSucceeded(simple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "collapsed native root Invoke lookup");
+    Require(pattern != nullptr, "collapsed native root exposes Invoke");
+    RequireSucceeded(pattern.query_to(invoke.put()), "collapsed native root Invoke interface");
+    RequireSucceeded(invoke->Invoke(), "native callback may replace its semantic root");
+    Require(invoke->Invoke() == UIA_E_ELEMENTNOTAVAILABLE && originalCount == 1u && replacementCount == 0u,
+            "retained collapsed-root provider cannot invoke callback replacement");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> fresh;
+    fresh.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(fresh != nullptr, "fresh native semantic root acquisition remains available after replacement");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> freshSimple;
+    RequireSucceeded(fresh.query_to(freshSimple.put()), "replacement semantic root simple interface");
+    Require(ReadProviderStringProperty(*freshSimple.get(), UIA_NamePropertyId, "replacement semantic root name") == L"Replacement semantic root",
+            "canonical root cache must replace the disconnected semantic-root provider");
+    pattern.reset();
+    wil::com_ptr_nothrow<IInvokeProvider> freshInvoke;
+    RequireSucceeded(freshSimple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "replacement semantic root Invoke lookup");
+    Require(pattern != nullptr, "replacement semantic root has Invoke");
+    RequireSucceeded(pattern.query_to(freshInvoke.put()), "replacement semantic root Invoke interface");
+    RequireSucceeded(freshInvoke->Invoke(), "fresh provider invokes replacement semantic root");
+    Require(originalCount == 1u && replacementCount == 1u, "fresh semantic root callback runs exactly once");
+}
+
+void TestNativeAccessibilityPostedSelectRejectsReplacement()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    AccessibilityTextRangeSelectFixture fixture(window);
+    wil::unique_event_nothrow posted(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(posted != nullptr, "replacement-before-dispatch test creates posted event");
+    DebugSetAccessibilityUiActionPostedEventForTest(posted.get());
+    DebugSetAccessibilityUiActionDispatchTimeoutForTest(2000u);
+    const auto clearHooks = wil::scope_exit([]() noexcept
+    {
+        DebugSetAccessibilityUiActionPostedEventForTest(nullptr);
+        DebugSetAccessibilityUiActionDispatchTimeoutForTest(0u);
+    });
+    std::atomic<HRESULT> result{E_PENDING};
+    std::thread worker([&] { result.store(fixture.documentRange->Select(), std::memory_order_release); });
+    // Always join before reporting failure; no failed Require leaves a live worker.
+    const DWORD postedWait = WaitForSingleObject(posted.get(), 2000u);
+    auto replacement       = std::make_unique<Panel>();
+    auto* field            = replacement->AddChild<TextField>(L"replacement value");
+    field->SetBounds(D2D1::RectF(0, 28, 260, 60));
+    field->SetSelectionRange(1u, 3u);
+    window.Host().SetRoot(std::move(replacement));
+    window.Host().RefreshAccessibilitySnapshot();
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    while (result.load(std::memory_order_acquire) == E_PENDING && std::chrono::steady_clock::now() < deadline)
+    {
+        window.PumpMessages();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    worker.join();
+    const HRESULT selectHr = result.load(std::memory_order_acquire);
+    std::cout << "    [UIA lifetime] posted-select result=0x" << std::hex << static_cast<unsigned long>(selectHr) << std::dec << '\n';
+    Require(postedWait == WAIT_OBJECT_0, "original native selection request is queued before replacement");
+    Require(selectHr == UIA_E_ELEMENTNOTAVAILABLE, "queued native selection revalidates original control lifetime on UI-thread execution");
+    Require(field->GetSelectionRange() == std::optional<std::pair<size_t, size_t>>{{1u, 3u}} && field->GetText() == L"replacement value",
+            "queued stale selection leaves replacement text and selection unchanged");
+}
+
+void TestNativeAccessibilityPostedInvokeRejectsReplacement()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    unsigned int invoked            = 0u;
+    unsigned int replacementInvoked = 0u;
+    auto root                       = std::make_unique<Panel>();
+    auto* button                    = root->AddChild<Button>(L"Original queued action");
+    button->SetBounds(D2D1::RectF(0, 0, 200, 32));
+    button->SetOnClick([&] { ++invoked; });
+    window.Host().SetRoot(std::move(root));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> hostProvider;
+    hostProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(hostProvider != nullptr, "queued native action host provider exists");
+    auto fragment = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *hostProvider.get(), 20, 12, "original queued action provider");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+    RequireSucceeded(fragment.query_to(simple.put()), "queued action simple interface");
+    wil::com_ptr_nothrow<IUnknown> pattern;
+    wil::com_ptr_nothrow<IInvokeProvider> invoke;
+    RequireSucceeded(simple->GetPatternProvider(UIA_InvokePatternId, pattern.put()), "queued action Invoke lookup");
+    Require(pattern != nullptr, "queued action exposes Invoke");
+    RequireSucceeded(pattern.query_to(invoke.put()), "queued action Invoke interface");
+    wil::unique_event_nothrow posted(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(posted != nullptr, "queued action posted event");
+    DebugSetAccessibilityUiActionPostedEventForTest(posted.get());
+    DebugSetAccessibilityUiActionDispatchTimeoutForTest(2000u);
+    const auto clearHooks = wil::scope_exit([]() noexcept
+    {
+        DebugSetAccessibilityUiActionPostedEventForTest(nullptr);
+        DebugSetAccessibilityUiActionDispatchTimeoutForTest(0u);
+    });
+    std::atomic<HRESULT> result{E_PENDING};
+    std::thread worker([&] { result.store(invoke->Invoke(), std::memory_order_release); });
+    const DWORD postedWait  = WaitForSingleObject(posted.get(), 2000u);
+    auto replacement        = std::make_unique<Panel>();
+    auto* replacementButton = replacement->AddChild<Button>(L"Replacement queued action");
+    replacementButton->SetBounds(D2D1::RectF(0, 0, 200, 32));
+    replacementButton->SetOnClick([&] { ++replacementInvoked; });
+    window.Host().SetRoot(std::move(replacement));
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    while (result.load(std::memory_order_acquire) == E_PENDING && std::chrono::steady_clock::now() < deadline)
+    {
+        window.PumpMessages();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    worker.join();
+    const HRESULT invokeHr = result.load(std::memory_order_acquire);
+    std::cout << "    [UIA lifetime] posted-invoke result=0x" << std::hex << static_cast<unsigned long>(invokeHr) << std::dec << " original=" << invoked
+              << " replacement=" << replacementInvoked << '\n';
+    Require(postedWait == WAIT_OBJECT_0, "native Invoke is queued before replacement");
+    Require(invokeHr == UIA_E_ELEMENTNOTAVAILABLE && invoked == 0u && replacementInvoked == 0u,
+            "queued native Invoke cannot dispatch into the same-path replacement");
+}
+
 void TestAccessibilityTimedOutTextRangeSelectDoesNotExecuteLater()
 {
     using namespace DxUi;
@@ -7184,6 +7562,12 @@ void TestTextFieldBesideAnotherControlEnclosesItsTextRangesInItsOwnElement()
 
 void RunAccessibilityTests()
 {
+    DXUI_RUN_TEST(TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction);
+    DXUI_RUN_TEST(TestNativeAccessibilityProvidersRejectReplacementAtSamePath);
+    DXUI_RUN_TEST(TestNativeAccessibilityRootRetiresWhenAControlCollapsesIntoIt);
+    DXUI_RUN_TEST(TestNativeAccessibilityCollapsedRootRetiresAfterCallbackReplacement);
+    DXUI_RUN_TEST(TestNativeAccessibilityPostedSelectRejectsReplacement);
+    DXUI_RUN_TEST(TestNativeAccessibilityPostedInvokeRejectsReplacement);
     DXUI_RUN_TEST(TestSingleTreeWindowElementIsTheParentOfItsItems);
     DXUI_RUN_TEST(TestSingleTreeWindowReplacementTreeGetsItemElementsOfItsOwn);
     DXUI_RUN_TEST(TestTreeBesideAnotherControlIsTheParentOfItsItems);

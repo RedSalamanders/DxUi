@@ -153,6 +153,8 @@ geometry from already measured sizes, with unchanged outputs on invalid/capacity
 Hidden `{0,0}` entries retain their index and receive empty bounds. The caller measures overlong
 labels at the available width and reserves the returned action height before laying out body content.
 `Button::SetMultiline` is opt-in for Standard text buttons, with 12/8 DIP per-side text padding.
+A multiline `TextField` draws its caret only inside its text viewport, at every DPI and editable or read-only: a caret on a
+partly visible line is cut at the viewport's edge, and one the wheel scrolled out of view is not drawn.
 Checkbox honors the inherited multiline option with the indicator/text geometry above. Disclosure
 uses acknowledged state and exposes the ExpandCollapse contract in the input/accessibility domain.
 Native x64/ARM64 Debug, Release and ASan suites, WARP scenes and reviewed five-theme gallery sheets

@@ -101,9 +101,17 @@ in during the swap.
 
 A window-host element keeps the identity of the control it was created for, as an embedded element does. Once that
 control is removed, or another control takes its tree path (a rebuilt list or tree), every call on the old element,
-including a tree item's or grid row's, returns `UIA_E_ELEMENTNOTAVAILABLE` and never reaches the new control, and the
-new control's elements (its items and rows too) have different runtime ids: they carry a per-process serial the
-control receives when first published, which no later control reuses. A republish that adds, removes or replaces
+including a tree item's or grid row's, its runtime id and an action already queued for the window's thread, returns
+`UIA_E_ELEMENTNOTAVAILABLE` and never reaches the new control, and the new control's elements (its items and rows too)
+have different runtime ids: they carry a per-process serial the control receives when first published, which no later
+control reuses. The window's element is bound the same way while a collapsed semantic root (below) makes it a
+control's element: once that control is replaced, or stops being the only one, a client's window element is gone like
+any other, except that its focus and point queries answer that nothing is there, and the window gives a newly
+acquiring client a fresh element for what it now shows. A window's element acquired while no control collapsed into
+it stands for the window, and is gone in the same way once a control collapses into it. An element's focus or
+invocation that runs a focus-changed callback which rebuilds the controls ends there and reports the element gone:
+`Button::Invoke` does not touch the button the callback destroyed, and the callback's own focus choice stands. A
+republish that adds, removes or replaces
 a semantic control raises StructureChanged (ChildrenInvalidated) on the window's element, so a client navigates again.
 Structural changes alone (`AddChild`, `ClearChildren`) republish the tree at the next focus, size, pointer or state
 change, or through `RefreshAccessibilitySnapshot`. An event about a control comes from that control's element; only

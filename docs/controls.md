@@ -24,7 +24,7 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | MenuBar | Supply `MenuBarItem` records through `SetItems`; handle `SetOnOpenItem` and hover changes. Native menu operations require the HWND integration. While a bar item's menu runs in a modal `ContextMenu::Show`, a hover change calls `ContextMenu::PostMenuBarHover`, and the session's `switchRootFromMenuBarHover` returns the hovered item's menu. |
 | TabControl | Add populated tab pages with `AddTab`; handle selection, close-request, closed and reorder callbacks as needed. |
 | ColorSwatch | Configure the displayed color and handle `SetOnClick` to launch your color selection flow. |
-| TextField | Set text/editing options; handle `SetOnTextChanged`, `SetOnSubmitted` and `SetOnBlur`. Full IME/native text behavior needs the appropriate host bridge. |
+| TextField | Set text/editing options; handle `SetOnTextChanged`, `SetOnSubmitted` and `SetOnBlur`. Full IME/native text behavior needs the appropriate host bridge. A multiline field draws its caret only inside its text viewport: on a partly visible line it is cut at the viewport's edge, and scrolled out of view it is not drawn. |
 | ComboBox | Supply `Item` records with `SetItems`; use `SetOnSelectionChanged`, text/submission callbacks and popup requests for editable selection. For touch, call `SetMinimumPopupItemHeight(48.0f)`; the gallery Modern open variant uses it. |
 | TagPicker | Call `SetOptions(allLabel, values)`, `SetSelectedValues` and `SetOnSelectionChanged` for multiple named choices. |
 | StatusStrip | Use `SetText` for one value or `SetSections` and `SetSectionText` for multiple aligned status values. |

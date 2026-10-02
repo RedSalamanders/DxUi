@@ -1597,8 +1597,14 @@ void TextField::Paint(ControlHost& host) const
             if (auto* brush = host.GetSolidBrush(style.caret))
             {
                 const D2D1_RECT_F snappedCaretRect = SnapRectToPixel(host, caretRect);
+                // A multiline caret on a partly visible line, or scrolled out by the wheel, reaches past the text viewport;
+                // only its part inside the viewport is drawn.
+                if (_multiline)
+                    dc->PushAxisAlignedClip(SnapRectToPixel(host, textRect), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
                 dc->DrawLine(
                     D2D1::Point2F(snappedCaretRect.left, snappedCaretRect.top), D2D1::Point2F(snappedCaretRect.left, snappedCaretRect.bottom), brush, 1.0f);
+                if (_multiline)
+                    dc->PopAxisAlignedClip();
             }
         }
     }
