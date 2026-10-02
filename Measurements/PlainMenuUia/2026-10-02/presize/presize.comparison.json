@@ -1,0 +1,2354 @@
+{
+  "baselineRuns": [
+    "A1",
+    "A2",
+    "A3",
+    "A4",
+    "A5",
+    "A6"
+  ],
+  "candidateRuns": [
+    "B1",
+    "B2",
+    "B3",
+    "B4",
+    "B5",
+    "B6"
+  ],
+  "uiaClients": {
+    "A1": "uiaClientsListening=True uiaClientsListeningAtEnd=True",
+    "A2": "uiaClientsListening=True uiaClientsListeningAtEnd=True",
+    "A3": "uiaClientsListening=True uiaClientsListeningAtEnd=True",
+    "A4": "uiaClientsListening=True uiaClientsListeningAtEnd=True",
+    "A5": "uiaClientsListening=True uiaClientsListeningAtEnd=True",
+    "A6": "uiaClientsListening=True uiaClientsListeningAtEnd=True",
+    "B1": "uiaClientsListening=True uiaClientsListeningAtEnd=True",
+    "B2": "uiaClientsListening=True uiaClientsListeningAtEnd=True",
+    "B3": "uiaClientsListening=True uiaClientsListeningAtEnd=True",
+    "B4": "uiaClientsListening=True uiaClientsListeningAtEnd=True",
+    "B5": "uiaClientsListening=True uiaClientsListeningAtEnd=True",
+    "B6": "uiaClientsListening=True uiaClientsListeningAtEnd=True"
+  },
+  "metrics": {
+    "timing/described-12/close/wallUs": {
+      "baseline": [
+        3036.4,
+        4006.7,
+        3427.1,
+        3574.3,
+        4017.1,
+        3506.9
+      ],
+      "candidate": [
+        3249.3,
+        3355.1,
+        3470.9,
+        2776.2,
+        3061.0,
+        3507.1
+      ],
+      "exact": false,
+      "baselineMedian": 3540.6000000000004,
+      "candidateMedian": 3302.2,
+      "changePercent": -6.733322035813149,
+      "noisePercent": 5.0,
+      "pValue": 0.13203463203463203,
+      "u": 8.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 27.69869513641755,
+      "candidateSpreadPercent": 22.1337290291321,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/close/kiloCycles": {
+      "baseline": [
+        5012.16,
+        6395.38,
+        5795.99,
+        5949.08,
+        5375.03,
+        5378.02
+      ],
+      "candidate": [
+        5397.98,
+        5330.32,
+        5219.14,
+        4698.39,
+        4938.7,
+        5416.94
+      ],
+      "exact": false,
+      "baselineMedian": 5587.005,
+      "candidateMedian": 5274.73,
+      "changePercent": -5.589309477976134,
+      "noisePercent": 5.0,
+      "pValue": 0.13203463203463203,
+      "u": 8.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 24.757808521739292,
+      "candidateSpreadPercent": 13.622498213178671,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/down-dispatch/wallUs": {
+      "baseline": [
+        355.15,
+        337.1,
+        370.25,
+        412.25,
+        416.9,
+        387.1
+      ],
+      "candidate": [
+        328.35,
+        328.79999999999995,
+        330.85,
+        371.85,
+        394.4,
+        351.15
+      ],
+      "exact": false,
+      "baselineMedian": 378.675,
+      "candidateMedian": 341.0,
+      "changePercent": -9.949164851125635,
+      "noisePercent": 5.0,
+      "pValue": 0.13203463203463203,
+      "u": 8.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 21.073479897009296,
+      "candidateSpreadPercent": 19.369501466275647,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/down-dispatch/kiloCycles": {
+      "baseline": [
+        631.835,
+        624.05,
+        704.29,
+        753.79,
+        745.505,
+        699.395
+      ],
+      "candidate": [
+        613.47,
+        590.32,
+        598.2,
+        661.075,
+        705.19,
+        640.615
+      ],
+      "exact": false,
+      "baselineMedian": 701.8425,
+      "candidateMedian": 627.0425,
+      "changePercent": -10.657661797340568,
+      "noisePercent": 5.0,
+      "pValue": 0.13203463203463203,
+      "u": 8.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 18.485628898221467,
+      "candidateSpreadPercent": 18.319332421646063,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/down-paint/wallUs": {
+      "baseline": [
+        16278.45,
+        16307.45,
+        16232.849999999999,
+        16178.1,
+        16194.8,
+        16271.8
+      ],
+      "candidate": [
+        16324.6,
+        16290.85,
+        16321.8,
+        16313.35,
+        16248.5,
+        16289.75
+      ],
+      "exact": false,
+      "baselineMedian": 16252.324999999999,
+      "candidateMedian": 16302.1,
+      "changePercent": 0.30626387301511127,
+      "noisePercent": 5.0,
+      "pValue": 0.04112554112554113,
+      "u": 31.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 0.7958861270618227,
+      "candidateSpreadPercent": 0.46681102434655875,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/down-paint/kiloCycles": {
+      "baseline": [
+        2991.205,
+        3140.305,
+        3418.6450000000004,
+        3338.01,
+        3297.69,
+        3212.165
+      ],
+      "candidate": [
+        3019.25,
+        3089.9049999999997,
+        3006.08,
+        3343.2,
+        3207.275,
+        3257.67
+      ],
+      "exact": false,
+      "baselineMedian": 3254.9275,
+      "candidateMedian": 3148.59,
+      "changePercent": -3.266969848022716,
+      "noisePercent": 5.0,
+      "pValue": 0.48484848484848486,
+      "u": 13.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 13.132089731645344,
+      "candidateSpreadPercent": 10.707014886028345,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/end-home-dispatch/wallUs": {
+      "baseline": [
+        380.1,
+        338.8,
+        434.5,
+        433.75,
+        422.05,
+        433.1
+      ],
+      "candidate": [
+        337.75,
+        332.0,
+        399.55,
+        412.0,
+        450.2,
+        407.7
+      ],
+      "exact": false,
+      "baselineMedian": 427.57500000000005,
+      "candidateMedian": 403.625,
+      "changePercent": -5.60135648716601,
+      "noisePercent": 5.0,
+      "pValue": 0.3939393939393939,
+      "u": 12.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 22.382038238905448,
+      "candidateSpreadPercent": 29.284608237844534,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/end-home-dispatch/kiloCycles": {
+      "baseline": [
+        689.615,
+        641.115,
+        822.0550000000001,
+        781.935,
+        772.9549999999999,
+        842.41
+      ],
+      "candidate": [
+        620.655,
+        592.81,
+        709.58,
+        705.885,
+        816.96,
+        745.905
+      ],
+      "exact": false,
+      "baselineMedian": 777.4449999999999,
+      "candidateMedian": 707.7325000000001,
+      "changePercent": -8.966872254628932,
+      "noisePercent": 5.0,
+      "pValue": 0.24025974025974026,
+      "u": 10.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 25.891863733125813,
+      "candidateSpreadPercent": 31.671570826548173,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/end-home-paint/wallUs": {
+      "baseline": [
+        16292.3,
+        16366.25,
+        16190.2,
+        16222.599999999999,
+        16283.2,
+        16253.55
+      ],
+      "candidate": [
+        16326.5,
+        16337.95,
+        16297.95,
+        16320.25,
+        16266.95,
+        16264.3
+      ],
+      "exact": false,
+      "baselineMedian": 16268.375,
+      "candidateMedian": 16309.1,
+      "changePercent": 0.25033231653437404,
+      "noisePercent": 5.0,
+      "pValue": 0.24025974025974026,
+      "u": 26.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 1.0821609410896864,
+      "candidateSpreadPercent": 0.4515883770410473,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/end-home-paint/kiloCycles": {
+      "baseline": [
+        2992.105,
+        3012.76,
+        3350.585,
+        3230.23,
+        3208.4700000000003,
+        3174.14
+      ],
+      "candidate": [
+        3060.17,
+        2985.815,
+        3151.785,
+        3284.915,
+        3187.41,
+        3190.8050000000003
+      ],
+      "exact": false,
+      "baselineMedian": 3191.3050000000003,
+      "candidateMedian": 3169.5975,
+      "changePercent": -0.6802076266605783,
+      "noisePercent": 5.0,
+      "pValue": 0.6991341991341992,
+      "u": 15.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 11.233022227584014,
+      "candidateSpreadPercent": 9.436529401603828,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/hover-dispatch/wallUs": {
+      "baseline": [
+        40.55,
+        49.900000000000006,
+        53.1,
+        51.7,
+        55.95,
+        50.45
+      ],
+      "candidate": [
+        47.5,
+        41.4,
+        49.95,
+        53.25,
+        53.15,
+        44.85
+      ],
+      "exact": false,
+      "baselineMedian": 51.075,
+      "candidateMedian": 48.725,
+      "changePercent": -4.601076847772889,
+      "noisePercent": 5.0,
+      "pValue": 0.6991341991341992,
+      "u": 15.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 30.151737640724434,
+      "candidateSpreadPercent": 24.320164186762444,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/hover-dispatch/kiloCycles": {
+      "baseline": [
+        79.44,
+        95.41,
+        102.99,
+        100.69999999999999,
+        108.48,
+        98.0
+      ],
+      "candidate": [
+        91.91999999999999,
+        80.44,
+        94.50999999999999,
+        102.99000000000001,
+        102.49000000000001,
+        86.23
+      ],
+      "exact": false,
+      "baselineMedian": 99.35,
+      "candidateMedian": 93.21499999999999,
+      "changePercent": -6.17513839959739,
+      "noisePercent": 5.0,
+      "pValue": 0.48484848484848486,
+      "u": 13.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 29.229994967287375,
+      "candidateSpreadPercent": 24.191385506624485,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/hover-paint/wallUs": {
+      "baseline": [
+        16625.95,
+        16640.25,
+        16624.050000000003,
+        16634.449999999997,
+        16598.300000000003,
+        16604.65
+      ],
+      "candidate": [
+        16646.95,
+        16649.85,
+        16631.15,
+        16606.4,
+        16638.7,
+        16653.449999999997
+      ],
+      "exact": false,
+      "baselineMedian": 16625.0,
+      "candidateMedian": 16642.825,
+      "changePercent": 0.107218045112778,
+      "noisePercent": 5.0,
+      "pValue": 0.09307359307359307,
+      "u": 29.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 0.25233082706765164,
+      "candidateSpreadPercent": 0.282704408656557,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/hover-paint/kiloCycles": {
+      "baseline": [
+        2960.665,
+        3298.99,
+        3565.355,
+        3429.0299999999997,
+        3550.49,
+        3301.385
+      ],
+      "candidate": [
+        3043.2,
+        3180.425,
+        3336.615,
+        3498.085,
+        3449.785,
+        3216.155
+      ],
+      "exact": false,
+      "baselineMedian": 3365.2075,
+      "candidateMedian": 3276.385,
+      "changePercent": -2.639436052605959,
+      "noisePercent": 5.0,
+      "pValue": 0.5887445887445888,
+      "u": 14.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 17.968877104903637,
+      "candidateSpreadPercent": 13.883746873459627,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/open/wallUs": {
+      "baseline": [
+        15041.3,
+        14407.3,
+        13917.3,
+        14600.1,
+        16358.5,
+        15549.4
+      ],
+      "candidate": [
+        16155.9,
+        17144.2,
+        15162.1,
+        13670.6,
+        14560.6,
+        13741.2
+      ],
+      "exact": false,
+      "baselineMedian": 14820.7,
+      "candidateMedian": 14861.35,
+      "changePercent": 0.2742785428488492,
+      "noisePercent": 5.0,
+      "pValue": 0.9372294372294372,
+      "u": 17.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 16.471556674111213,
+      "candidateSpreadPercent": 23.373381287702667,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/open/kiloCycles": {
+      "baseline": [
+        16381.17,
+        17339.05,
+        15811.71,
+        16624.08,
+        17253.82,
+        16787.56
+      ],
+      "candidate": [
+        16150.03,
+        18714.9,
+        16689.75,
+        15895.15,
+        17974.78,
+        16237.46
+      ],
+      "exact": false,
+      "baselineMedian": 16705.82,
+      "candidateMedian": 16463.605,
+      "changePercent": -1.4498839326653856,
+      "noisePercent": 5.0,
+      "pValue": 1.0,
+      "u": 18.0,
+      "rankDirection": "none",
+      "baselineSpreadPercent": 9.14256229266208,
+      "candidateSpreadPercent": 17.127172329511076,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/wheel-dispatch/wallUs": {
+      "baseline": [
+        152.45,
+        161.8,
+        182.7,
+        179.9,
+        174.5,
+        160.6
+      ],
+      "candidate": [
+        143.65,
+        137.75,
+        160.55,
+        172.7,
+        156.8,
+        144.0
+      ],
+      "exact": false,
+      "baselineMedian": 168.15,
+      "candidateMedian": 150.4,
+      "changePercent": -10.556051144811185,
+      "noisePercent": 5.0,
+      "pValue": 0.04112554112554113,
+      "u": 5.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 17.98988997918525,
+      "candidateSpreadPercent": 23.238031914893607,
+      "verdict": "improved"
+    },
+    "timing/described-12/wheel-dispatch/kiloCycles": {
+      "baseline": [
+        301.70000000000005,
+        308.28499999999997,
+        358.28499999999997,
+        354.78999999999996,
+        344.61,
+        314.57000000000005
+      ],
+      "candidate": [
+        274.05,
+        271.855,
+        304.59000000000003,
+        333.33,
+        303.495,
+        279.03999999999996
+      ],
+      "exact": false,
+      "baselineMedian": 329.59000000000003,
+      "candidateMedian": 291.2675,
+      "changePercent": -11.627324858157117,
+      "noisePercent": 5.0,
+      "pValue": 0.04112554112554113,
+      "u": 5.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 17.168300009102193,
+      "candidateSpreadPercent": 21.106027963984985,
+      "verdict": "improved"
+    },
+    "timing/described-12/wheel-paint/wallUs": {
+      "baseline": [
+        16551.3,
+        16515.199999999997,
+        16535.699999999997,
+        16543.1,
+        16556.85,
+        16547.199999999997
+      ],
+      "candidate": [
+        16546.7,
+        16546.300000000003,
+        16525.300000000003,
+        16502.15,
+        16553.949999999997,
+        16548.65
+      ],
+      "exact": false,
+      "baselineMedian": 16545.149999999998,
+      "candidateMedian": 16546.5,
+      "changePercent": 0.008159490847781115,
+      "noisePercent": 5.0,
+      "pValue": 0.8181818181818182,
+      "u": 16.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 0.25173540282198387,
+      "candidateSpreadPercent": 0.31305714199374873,
+      "verdict": "within-noise"
+    },
+    "timing/described-12/wheel-paint/kiloCycles": {
+      "baseline": [
+        3017.35,
+        3325.135,
+        3347.19,
+        3385.02,
+        3325.335,
+        3209.7650000000003
+      ],
+      "candidate": [
+        3057.7749999999996,
+        3121.4399999999996,
+        3337.415,
+        3433.92,
+        3313.16,
+        3150.285
+      ],
+      "exact": false,
+      "baselineMedian": 3325.235,
+      "candidateMedian": 3231.7225,
+      "changePercent": -2.8122072575321844,
+      "noisePercent": 5.0,
+      "pValue": 0.6991341991341992,
+      "u": 15.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 11.056962891344524,
+      "candidateSpreadPercent": 11.639149091544848,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/close/wallUs": {
+      "baseline": [
+        3008.2,
+        3128.6,
+        3121.8,
+        3544.9,
+        3749.7,
+        3144.3
+      ],
+      "candidate": [
+        3039.3,
+        3325.9,
+        3059.8,
+        2789.5,
+        3804.4,
+        3345.8
+      ],
+      "exact": false,
+      "baselineMedian": 3136.45,
+      "candidateMedian": 3192.8500000000004,
+      "changePercent": 1.7982113536004318,
+      "noisePercent": 5.0,
+      "pValue": 0.8181818181818182,
+      "u": 16.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 23.641377991040827,
+      "candidateSpreadPercent": 31.78664829227806,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/close/kiloCycles": {
+      "baseline": [
+        4877.22,
+        5183.41,
+        5368.04,
+        5814.95,
+        6215.55,
+        5400.18
+      ],
+      "candidate": [
+        5054.67,
+        5181.42,
+        4761.86,
+        4487.41,
+        5989.6,
+        5367.65
+      ],
+      "exact": false,
+      "baselineMedian": 5384.110000000001,
+      "candidateMedian": 5118.045,
+      "changePercent": -4.941670953973832,
+      "noisePercent": 5.0,
+      "pValue": 0.17965367965367965,
+      "u": 9.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 24.857033010098228,
+      "candidateSpreadPercent": 29.350855648983163,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/down-dispatch/wallUs": {
+      "baseline": [
+        345.25,
+        348.29999999999995,
+        354.8,
+        346.35,
+        384.75,
+        367.1
+      ],
+      "candidate": [
+        292.95,
+        320.35,
+        340.4,
+        339.4,
+        373.85,
+        320.25
+      ],
+      "exact": false,
+      "baselineMedian": 351.54999999999995,
+      "candidateMedian": 329.875,
+      "changePercent": -6.165552552979648,
+      "noisePercent": 5.0,
+      "pValue": 0.04112554112554113,
+      "u": 5.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 11.235955056179776,
+      "candidateSpreadPercent": 24.524441076165225,
+      "verdict": "improved"
+    },
+    "timing/standard-12/down-dispatch/kiloCycles": {
+      "baseline": [
+        637.125,
+        628.04,
+        656.385,
+        640.9200000000001,
+        698.7,
+        681.63
+      ],
+      "candidate": [
+        538.5250000000001,
+        572.05,
+        591.515,
+        605.49,
+        690.7149999999999,
+        584.03
+      ],
+      "exact": false,
+      "baselineMedian": 648.6525,
+      "candidateMedian": 587.7725,
+      "changePercent": -9.385610939601708,
+      "noisePercent": 5.0,
+      "pValue": 0.04112554112554113,
+      "u": 5.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 10.893351987389254,
+      "candidateSpreadPercent": 25.892671058955603,
+      "verdict": "improved"
+    },
+    "timing/standard-12/down-paint/wallUs": {
+      "baseline": [
+        16316.05,
+        16310.25,
+        16240.5,
+        16310.05,
+        16253.75,
+        16279.900000000001
+      ],
+      "candidate": [
+        16341.1,
+        16338.05,
+        16289.599999999999,
+        16296.6,
+        16271.8,
+        16341.150000000001
+      ],
+      "exact": false,
+      "baselineMedian": 16294.975,
+      "candidateMedian": 16317.325,
+      "changePercent": 0.13715884804978984,
+      "noisePercent": 5.0,
+      "pValue": 0.24025974025974026,
+      "u": 26.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 0.4636398644367314,
+      "candidateSpreadPercent": 0.4250083883234671,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/down-paint/kiloCycles": {
+      "baseline": [
+        3424.035,
+        3711.765,
+        3715.955,
+        3739.605,
+        3844.495,
+        3683.8199999999997
+      ],
+      "candidate": [
+        3430.825,
+        3574.035,
+        3702.08,
+        3597.8900000000003,
+        3622.94,
+        3624.63
+      ],
+      "exact": false,
+      "baselineMedian": 3713.8599999999997,
+      "candidateMedian": 3610.415,
+      "changePercent": -2.7853769393568872,
+      "noisePercent": 5.0,
+      "pValue": 0.09307359307359307,
+      "u": 7.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 11.321374526772686,
+      "candidateSpreadPercent": 7.51312522244673,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/end-home-dispatch/wallUs": {
+      "baseline": [
+        339.25,
+        373.45000000000005,
+        389.65,
+        446.65,
+        409.7,
+        441.29999999999995
+      ],
+      "candidate": [
+        324.7,
+        316.55,
+        367.5,
+        412.45000000000005,
+        393.15,
+        385.75
+      ],
+      "exact": false,
+      "baselineMedian": 399.67499999999995,
+      "candidateMedian": 376.625,
+      "changePercent": -5.76718583849376,
+      "noisePercent": 5.0,
+      "pValue": 0.24025974025974026,
+      "u": 10.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 26.871833364608744,
+      "candidateSpreadPercent": 25.462993693992708,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/end-home-dispatch/kiloCycles": {
+      "baseline": [
+        639.62,
+        704.99,
+        735.23,
+        835.625,
+        782.435,
+        809.38
+      ],
+      "candidate": [
+        598.9000000000001,
+        574.25,
+        632.73,
+        695.905,
+        722.75,
+        700.395
+      ],
+      "exact": false,
+      "baselineMedian": 758.8325,
+      "candidateMedian": 664.3175,
+      "changePercent": -12.455317873180183,
+      "noisePercent": 5.0,
+      "pValue": 0.025974025974025976,
+      "u": 4.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 25.829810926653774,
+      "candidateSpreadPercent": 22.353769093844434,
+      "verdict": "improved"
+    },
+    "timing/standard-12/end-home-paint/wallUs": {
+      "baseline": [
+        16314.2,
+        16332.0,
+        16318.05,
+        16251.7,
+        16281.95,
+        16200.05
+      ],
+      "candidate": [
+        16348.75,
+        16299.55,
+        16305.75,
+        16257.45,
+        16251.9,
+        16296.55
+      ],
+      "exact": false,
+      "baselineMedian": 16298.075,
+      "candidateMedian": 16298.05,
+      "changePercent": -0.00015339234848976702,
+      "noisePercent": 5.0,
+      "pValue": 0.9372294372294372,
+      "u": 19.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 0.809604815292608,
+      "candidateSpreadPercent": 0.5942428695457455,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/end-home-paint/kiloCycles": {
+      "baseline": [
+        3395.295,
+        3834.315,
+        3824.7349999999997,
+        3929.325,
+        3926.9300000000003,
+        3717.35
+      ],
+      "candidate": [
+        3398.885,
+        3437.3100000000004,
+        3508.365,
+        3681.5249999999996,
+        3760.2650000000003,
+        3826.035
+      ],
+      "exact": false,
+      "baselineMedian": 3829.5249999999996,
+      "candidateMedian": 3594.9449999999997,
+      "changePercent": -6.125563875415352,
+      "noisePercent": 5.0,
+      "pValue": 0.17965367965367965,
+      "u": 9.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 13.945071516702459,
+      "candidateSpreadPercent": 11.881962032798823,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/hover-dispatch/wallUs": {
+      "baseline": [
+        49.0,
+        51.6,
+        50.25,
+        52.150000000000006,
+        54.8,
+        50.45
+      ],
+      "candidate": [
+        40.349999999999994,
+        43.5,
+        47.85,
+        51.3,
+        52.6,
+        49.25
+      ],
+      "exact": false,
+      "baselineMedian": 51.025000000000006,
+      "candidateMedian": 48.55,
+      "changePercent": -4.85056344928958,
+      "noisePercent": 5.0,
+      "pValue": 0.17965367965367965,
+      "u": 9.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 11.366976972072507,
+      "candidateSpreadPercent": 25.23171987641608,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/hover-dispatch/kiloCycles": {
+      "baseline": [
+        94.50999999999999,
+        99.9,
+        97.60499999999999,
+        101.795,
+        104.99000000000001,
+        96.50999999999999
+      ],
+      "candidate": [
+        77.54499999999999,
+        85.43,
+        92.61,
+        96.01,
+        102.195,
+        95.71000000000001
+      ],
+      "exact": false,
+      "baselineMedian": 98.7525,
+      "candidateMedian": 94.16,
+      "changePercent": -4.650515176830972,
+      "noisePercent": 5.0,
+      "pValue": 0.09307359307359307,
+      "u": 7.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 10.612389559758,
+      "candidateSpreadPercent": 26.17884451996602,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/hover-paint/wallUs": {
+      "baseline": [
+        16650.75,
+        16593.05,
+        16629.75,
+        16628.3,
+        16610.75,
+        16615.6
+      ],
+      "candidate": [
+        16648.3,
+        16668.6,
+        16635.6,
+        16657.7,
+        16634.4,
+        16615.9
+      ],
+      "exact": false,
+      "baselineMedian": 16621.949999999997,
+      "candidateMedian": 16641.949999999997,
+      "changePercent": 0.1203228261425382,
+      "noisePercent": 5.0,
+      "pValue": 0.06493506493506493,
+      "u": 30.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 0.3471313534212336,
+      "candidateSpreadPercent": 0.3166696210479968,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/hover-paint/kiloCycles": {
+      "baseline": [
+        3505.875,
+        3815.05,
+        3732.72,
+        3983.115,
+        3990.3050000000003,
+        3820.245
+      ],
+      "candidate": [
+        3494.795,
+        3699.585,
+        3614.855,
+        3570.045,
+        4003.075,
+        3904.77
+      ],
+      "exact": false,
+      "baselineMedian": 3817.6475,
+      "candidateMedian": 3657.2200000000003,
+      "changePercent": -4.202260685409009,
+      "noisePercent": 5.0,
+      "pValue": 0.48484848484848486,
+      "u": 13.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 12.689228117577652,
+      "candidateSpreadPercent": 13.897988089313735,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/open/wallUs": {
+      "baseline": [
+        17314.7,
+        16498.1,
+        14753.5,
+        16459.1,
+        14893.5,
+        16587.4
+      ],
+      "candidate": [
+        16307.9,
+        16548.6,
+        16692.5,
+        17180.4,
+        17104.7,
+        16451.0
+      ],
+      "exact": false,
+      "baselineMedian": 16478.6,
+      "candidateMedian": 16620.55,
+      "changePercent": 0.8614202662847514,
+      "noisePercent": 5.0,
+      "pValue": 0.48484848484848486,
+      "u": 23.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 15.542582500940618,
+      "candidateSpreadPercent": 5.249525436883869,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/open/kiloCycles": {
+      "baseline": [
+        15837.07,
+        16518.9,
+        13779.19,
+        15424.89,
+        15124.49,
+        15828.68
+      ],
+      "candidate": [
+        14999.74,
+        15376.38,
+        15768.4,
+        13875.79,
+        15071.8,
+        15630.08
+      ],
+      "exact": false,
+      "baselineMedian": 15626.785,
+      "candidateMedian": 15224.09,
+      "changePercent": -2.576953608819732,
+      "noisePercent": 5.0,
+      "pValue": 0.30952380952380953,
+      "u": 11.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 17.53214112819752,
+      "candidateSpreadPercent": 12.431679003474091,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/wheel-dispatch/wallUs": {
+      "baseline": [
+        42.25,
+        47.599999999999994,
+        50.8,
+        49.9,
+        53.45,
+        47.650000000000006
+      ],
+      "candidate": [
+        36.5,
+        43.0,
+        44.7,
+        50.25,
+        49.2,
+        43.85
+      ],
+      "exact": false,
+      "baselineMedian": 48.775000000000006,
+      "candidateMedian": 44.275000000000006,
+      "changePercent": -9.22603792926704,
+      "noisePercent": 5.0,
+      "pValue": 0.24025974025974026,
+      "u": 10.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 22.9625832906202,
+      "candidateSpreadPercent": 31.05590062111801,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/wheel-dispatch/kiloCycles": {
+      "baseline": [
+        80.64,
+        90.12,
+        98.5,
+        96.21,
+        102.095,
+        92.61500000000001
+      ],
+      "candidate": [
+        71.46000000000001,
+        83.13,
+        86.43,
+        95.00999999999999,
+        94.61,
+        84.43
+      ],
+      "exact": false,
+      "baselineMedian": 94.4125,
+      "candidateMedian": 85.43,
+      "changePercent": -9.514100357473843,
+      "noisePercent": 5.0,
+      "pValue": 0.17965367965367965,
+      "u": 9.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 22.72474513438369,
+      "candidateSpreadPercent": 27.566428655039193,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/wheel-paint/wallUs": {
+      "baseline": [
+        16635.85,
+        16560.75,
+        16589.85,
+        16601.05,
+        16606.65,
+        16614.4
+      ],
+      "candidate": [
+        16639.3,
+        16616.35,
+        16609.800000000003,
+        16601.7,
+        16612.05,
+        16616.699999999997
+      ],
+      "exact": false,
+      "baselineMedian": 16603.85,
+      "candidateMedian": 16614.199999999997,
+      "changePercent": 0.062334940390318394,
+      "noisePercent": 5.0,
+      "pValue": 0.17965367965367965,
+      "u": 27.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 0.45230473655205594,
+      "candidateSpreadPercent": 0.22631243153446182,
+      "verdict": "within-noise"
+    },
+    "timing/standard-12/wheel-paint/kiloCycles": {
+      "baseline": [
+        3576.83,
+        3697.8900000000003,
+        4066.3500000000004,
+        3864.455,
+        3988.605,
+        3701.285
+      ],
+      "candidate": [
+        3514.06,
+        3570.64,
+        3675.935,
+        3821.94,
+        3915.455,
+        3808.37
+      ],
+      "exact": false,
+      "baselineMedian": 3782.87,
+      "candidateMedian": 3742.1525,
+      "changePercent": -1.0763652993626471,
+      "noisePercent": 5.0,
+      "pValue": 0.30952380952380953,
+      "u": 11.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 12.94043940182984,
+      "candidateSpreadPercent": 10.72631326489233,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/close/wallUs": {
+      "baseline": [
+        3059.8,
+        3553.9,
+        3383.3,
+        3153.7,
+        3803.0,
+        3507.3
+      ],
+      "candidate": [
+        3247.1,
+        3454.5,
+        3011.8,
+        3273.5,
+        3380.4,
+        3220.7
+      ],
+      "exact": false,
+      "baselineMedian": 3445.3,
+      "candidateMedian": 3260.3,
+      "changePercent": -5.369633994136935,
+      "noisePercent": 5.0,
+      "pValue": 0.30952380952380953,
+      "u": 11.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 21.571416132122014,
+      "candidateSpreadPercent": 13.578505045547951,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/close/kiloCycles": {
+      "baseline": [
+        5239.1,
+        5853.87,
+        5473.43,
+        5160.66,
+        6045.88,
+        6022.33
+      ],
+      "candidate": [
+        5255.67,
+        5455.67,
+        5029.12,
+        4788.2,
+        5651.27,
+        5671.23
+      ],
+      "exact": false,
+      "baselineMedian": 5663.65,
+      "candidateMedian": 5355.67,
+      "changePercent": -5.437836024471842,
+      "noisePercent": 5.0,
+      "pValue": 0.24025974025974026,
+      "u": 10.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 15.629850008386823,
+      "candidateSpreadPercent": 16.487759701400567,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/down-dispatch/wallUs": {
+      "baseline": [
+        623.15,
+        603.45,
+        642.9000000000001,
+        700.95,
+        705.5999999999999,
+        678.35
+      ],
+      "candidate": [
+        522.15,
+        549.0,
+        581.75,
+        603.05,
+        656.4,
+        625.0999999999999
+      ],
+      "exact": false,
+      "baselineMedian": 660.625,
+      "candidateMedian": 592.4,
+      "changePercent": -10.327341532639544,
+      "noisePercent": 5.0,
+      "pValue": 0.04112554112554113,
+      "u": 5.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 15.46263008514662,
+      "candidateSpreadPercent": 22.662052667116814,
+      "verdict": "improved"
+    },
+    "timing/standard-128/down-dispatch/kiloCycles": {
+      "baseline": [
+        1150.495,
+        1090.81,
+        1180.33,
+        1289.7150000000001,
+        1319.95,
+        1237.3200000000002
+      ],
+      "candidate": [
+        987.9200000000001,
+        1015.665,
+        1062.57,
+        1107.28,
+        1188.915,
+        1163.7649999999999
+      ],
+      "exact": false,
+      "baselineMedian": 1208.825,
+      "candidateMedian": 1084.925,
+      "changePercent": -10.249622567369144,
+      "noisePercent": 5.0,
+      "pValue": 0.06493506493506493,
+      "u": 6.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 18.95559737761877,
+      "candidateSpreadPercent": 18.526165403138457,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/down-paint/wallUs": {
+      "baseline": [
+        15987.6,
+        16042.0,
+        16018.85,
+        15939.900000000001,
+        15938.9,
+        15983.25
+      ],
+      "candidate": [
+        16073.5,
+        16108.7,
+        16052.4,
+        16010.45,
+        15975.8,
+        16009.85
+      ],
+      "exact": false,
+      "baselineMedian": 15985.425,
+      "candidateMedian": 16031.425,
+      "changePercent": 0.28776213331831446,
+      "noisePercent": 5.0,
+      "pValue": 0.13203463203463203,
+      "u": 28.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 0.6449625205460622,
+      "candidateSpreadPercent": 0.8289967984755033,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/down-paint/kiloCycles": {
+      "baseline": [
+        3384.915,
+        3449.99,
+        3634.52,
+        3563.36,
+        3650.88,
+        3619.45
+      ],
+      "candidate": [
+        3361.565,
+        3412.96,
+        3465.755,
+        3537.815,
+        3536.71,
+        3559.37
+      ],
+      "exact": false,
+      "baselineMedian": 3591.4049999999997,
+      "candidateMedian": 3501.2325,
+      "changePercent": -2.5107861686442967,
+      "noisePercent": 5.0,
+      "pValue": 0.17965367965367965,
+      "u": 9.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 7.405597530771388,
+      "candidateSpreadPercent": 5.649581968635325,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/end-home-dispatch/wallUs": {
+      "baseline": [
+        644.15,
+        722.2,
+        752.25,
+        744.35,
+        753.7,
+        700.2
+      ],
+      "candidate": [
+        571.4,
+        601.6,
+        604.55,
+        666.9000000000001,
+        711.25,
+        675.55
+      ],
+      "exact": false,
+      "baselineMedian": 733.2750000000001,
+      "candidateMedian": 635.725,
+      "changePercent": -13.303330946779868,
+      "noisePercent": 5.0,
+      "pValue": 0.025974025974025976,
+      "u": 4.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 14.939824758787637,
+      "candidateSpreadPercent": 21.99850564316332,
+      "verdict": "improved"
+    },
+    "timing/standard-128/end-home-dispatch/kiloCycles": {
+      "baseline": [
+        1190.1149999999998,
+        1338.015,
+        1404.9850000000001,
+        1398.4,
+        1393.905,
+        1318.755
+      ],
+      "candidate": [
+        1097.6,
+        1106.18,
+        1069.5549999999998,
+        1239.815,
+        1330.135,
+        1267.1599999999999
+      ],
+      "exact": false,
+      "baselineMedian": 1365.96,
+      "candidateMedian": 1172.9975,
+      "changePercent": -14.126511757298898,
+      "noisePercent": 5.0,
+      "pValue": 0.025974025974025976,
+      "u": 4.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 15.7303288529679,
+      "candidateSpreadPercent": 22.214881105884725,
+      "verdict": "improved"
+    },
+    "timing/standard-128/end-home-paint/wallUs": {
+      "baseline": [
+        15978.0,
+        16015.8,
+        15973.05,
+        15999.25,
+        15969.3,
+        15974.05
+      ],
+      "candidate": [
+        16102.1,
+        16065.349999999999,
+        16065.85,
+        16064.8,
+        15922.85,
+        15960.05
+      ],
+      "exact": false,
+      "baselineMedian": 15976.025,
+      "candidateMedian": 16065.074999999999,
+      "changePercent": 0.5573977256545293,
+      "noisePercent": 5.0,
+      "pValue": 0.3939393939393939,
+      "u": 24.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 0.2910611369223571,
+      "candidateSpreadPercent": 1.115774436160429,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/end-home-paint/kiloCycles": {
+      "baseline": [
+        3323.4399999999996,
+        3606.77,
+        3619.9449999999997,
+        3498.09,
+        3644.395,
+        3604.9750000000004
+      ],
+      "candidate": [
+        3293.8999999999996,
+        3469.745,
+        3594.6,
+        3907.67,
+        3827.73,
+        3514.755
+      ],
+      "exact": false,
+      "baselineMedian": 3605.8725000000004,
+      "candidateMedian": 3554.6775,
+      "changePercent": -1.4197673378634645,
+      "noisePercent": 5.0,
+      "pValue": 0.9372294372294372,
+      "u": 17.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 8.900897078307688,
+      "candidateSpreadPercent": 17.2665452773142,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/hover-dispatch/wallUs": {
+      "baseline": [
+        48.15,
+        48.7,
+        59.7,
+        59.7,
+        63.150000000000006,
+        61.2
+      ],
+      "candidate": [
+        45.150000000000006,
+        46.95,
+        52.650000000000006,
+        55.75,
+        57.95,
+        55.150000000000006
+      ],
+      "exact": false,
+      "baselineMedian": 59.7,
+      "candidateMedian": 53.900000000000006,
+      "changePercent": -9.715242881072017,
+      "noisePercent": 5.0,
+      "pValue": 0.12121212121212122,
+      "u": 8.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 25.125628140703526,
+      "candidateSpreadPercent": 23.747680890538025,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/hover-dispatch/kiloCycles": {
+      "baseline": [
+        93.31,
+        94.61,
+        115.17,
+        116.77,
+        122.655,
+        119.16
+      ],
+      "candidate": [
+        89.12,
+        92.12,
+        100.19999999999999,
+        106.99000000000001,
+        112.37,
+        106.99000000000001
+      ],
+      "exact": false,
+      "baselineMedian": 115.97,
+      "candidateMedian": 103.595,
+      "changePercent": -10.670863154264032,
+      "noisePercent": 5.0,
+      "pValue": 0.12121212121212122,
+      "u": 8.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 25.303957920151767,
+      "candidateSpreadPercent": 22.44316810656885,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/hover-paint/wallUs": {
+      "baseline": [
+        16652.2,
+        16614.5,
+        16633.949999999997,
+        16629.65,
+        16606.7,
+        16590.1
+      ],
+      "candidate": [
+        16659.75,
+        16638.55,
+        16628.15,
+        16576.95,
+        16625.199999999997,
+        16599.75
+      ],
+      "exact": false,
+      "baselineMedian": 16622.075,
+      "candidateMedian": 16626.675,
+      "changePercent": 0.02767404189909506,
+      "noisePercent": 5.0,
+      "pValue": 1.0,
+      "u": 18.0,
+      "rankDirection": "none",
+      "baselineSpreadPercent": 0.3735995656378772,
+      "candidateSpreadPercent": 0.49799493885578017,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/hover-paint/kiloCycles": {
+      "baseline": [
+        3449.99,
+        3637.51,
+        3960.065,
+        3861.465,
+        4179.425,
+        3846.3900000000003
+      ],
+      "candidate": [
+        3475.335,
+        3620.645,
+        3595.895,
+        3665.855,
+        3912.26,
+        3769.85
+      ],
+      "exact": false,
+      "baselineMedian": 3853.9275000000002,
+      "candidateMedian": 3643.25,
+      "changePercent": -5.466566249624583,
+      "noisePercent": 5.0,
+      "pValue": 0.30952380952380953,
+      "u": 11.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 18.927055581611235,
+      "candidateSpreadPercent": 11.992726274617448,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/open/wallUs": {
+      "baseline": [
+        12254.9,
+        14992.3,
+        13148.9,
+        10680.5,
+        11937.6,
+        12761.4
+      ],
+      "candidate": [
+        13311.4,
+        14579.4,
+        15976.1,
+        11614.4,
+        14569.3,
+        11599.7
+      ],
+      "exact": false,
+      "baselineMedian": 12508.15,
+      "candidateMedian": 13940.349999999999,
+      "changePercent": 11.450134512297971,
+      "noisePercent": 5.0,
+      "pValue": 0.48484848484848486,
+      "u": 23.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 34.47192430535291,
+      "candidateSpreadPercent": 31.39375984103699,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/open/kiloCycles": {
+      "baseline": [
+        18776.17,
+        22032.25,
+        18773.78,
+        18168.99,
+        19477.37,
+        20676.96
+      ],
+      "candidate": [
+        18921.68,
+        19337.45,
+        19436.04,
+        18462.8,
+        17687.15,
+        18136.65
+      ],
+      "exact": false,
+      "baselineMedian": 19126.769999999997,
+      "candidateMedian": 18692.239999999998,
+      "changePercent": -2.271842030829041,
+      "noisePercent": 5.0,
+      "pValue": 0.24025974025974026,
+      "u": 10.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 20.198182965550373,
+      "candidateSpreadPercent": 9.356235528754176,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/wheel-dispatch/wallUs": {
+      "baseline": [
+        425.5,
+        492.79999999999995,
+        469.75,
+        515.8499999999999,
+        519.6500000000001,
+        488.75
+      ],
+      "candidate": [
+        388.8,
+        399.55,
+        417.5,
+        436.4,
+        455.1,
+        435.75
+      ],
+      "exact": false,
+      "baselineMedian": 490.775,
+      "candidateMedian": 426.625,
+      "changePercent": -13.07116295654831,
+      "noisePercent": 5.0,
+      "pValue": 0.015151515151515152,
+      "u": 3.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 19.183943762416604,
+      "candidateSpreadPercent": 15.54058013477879,
+      "verdict": "improved"
+    },
+    "timing/standard-128/wheel-dispatch/kiloCycles": {
+      "baseline": [
+        836.625,
+        950.0,
+        918.8599999999999,
+        987.52,
+        979.835,
+        948.0
+      ],
+      "candidate": [
+        751.49,
+        764.7650000000001,
+        790.715,
+        836.625,
+        885.625,
+        846.405
+      ],
+      "exact": false,
+      "baselineMedian": 949.0,
+      "candidateMedian": 813.6700000000001,
+      "changePercent": -14.260273972602732,
+      "noisePercent": 5.0,
+      "pValue": 0.010822510822510822,
+      "u": 2.5,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 15.900421496311907,
+      "candidateSpreadPercent": 16.485184411370703,
+      "verdict": "improved"
+    },
+    "timing/standard-128/wheel-paint/wallUs": {
+      "baseline": [
+        16231.4,
+        16155.0,
+        16223.400000000001,
+        16175.400000000001,
+        16195.95,
+        16205.65
+      ],
+      "candidate": [
+        16257.1,
+        16302.75,
+        16258.7,
+        16253.55,
+        16233.3,
+        16269.05
+      ],
+      "exact": false,
+      "baselineMedian": 16200.8,
+      "candidateMedian": 16257.900000000001,
+      "changePercent": 0.3524517307787356,
+      "noisePercent": 5.0,
+      "pValue": 0.0021645021645021645,
+      "u": 36.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 0.4715816502888724,
+      "candidateSpreadPercent": 0.427176941671438,
+      "verdict": "within-noise"
+    },
+    "timing/standard-128/wheel-paint/kiloCycles": {
+      "baseline": [
+        3412.66,
+        3587.51,
+        3628.63,
+        3786.0150000000003,
+        3799.985,
+        3540.9
+      ],
+      "candidate": [
+        3451.98,
+        3428.83,
+        3677.625,
+        3828.225,
+        3722.74,
+        3600.585
+      ],
+      "exact": false,
+      "baselineMedian": 3608.07,
+      "candidateMedian": 3639.105,
+      "changePercent": 0.8601551522004813,
+      "noisePercent": 5.0,
+      "pValue": 0.9372294372294372,
+      "u": 19.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 10.73496356778001,
+      "candidateSpreadPercent": 10.975088655040182,
+      "verdict": "within-noise"
+    },
+    "timing/standard-4096/close/wallUs": {
+      "baseline": [
+        5453.2,
+        7418.2,
+        6742.7,
+        5744.1,
+        6753.3,
+        5975.2
+      ],
+      "candidate": [
+        5420.9,
+        6476.5,
+        5997.7,
+        5776.1,
+        5661.1,
+        6415.1
+      ],
+      "exact": false,
+      "baselineMedian": 6358.95,
+      "candidateMedian": 5886.9,
+      "changePercent": -7.423395371877439,
+      "noisePercent": 5.0,
+      "pValue": 0.3939393939393939,
+      "u": 12.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 30.901328049442128,
+      "candidateSpreadPercent": 17.931339074895114,
+      "verdict": "within-noise"
+    },
+    "timing/standard-4096/close/kiloCycles": {
+      "baseline": [
+        10406.55,
+        13748.65,
+        12779.39,
+        10777.2,
+        12128.5,
+        10902.95
+      ],
+      "candidate": [
+        10336.09,
+        12369.01,
+        11138.28,
+        10930.29,
+        10610.93,
+        11999.75
+      ],
+      "exact": false,
+      "baselineMedian": 11515.725,
+      "candidateMedian": 11034.285,
+      "changePercent": -4.18071810502596,
+      "noisePercent": 5.0,
+      "pValue": 0.5887445887445888,
+      "u": 14.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 29.02205462530583,
+      "candidateSpreadPercent": 18.423667686669322,
+      "verdict": "within-noise"
+    },
+    "timing/standard-4096/down-dispatch/wallUs": {
+      "baseline": [
+        8043.4,
+        9253.15,
+        7147.85,
+        7715.6,
+        7588.75,
+        8325.75
+      ],
+      "candidate": [
+        5968.950000000001,
+        6347.25,
+        5715.05,
+        5280.3,
+        5938.95,
+        5984.6
+      ],
+      "exact": false,
+      "baselineMedian": 7879.5,
+      "candidateMedian": 5953.950000000001,
+      "changePercent": -24.43746430611079,
+      "noisePercent": 5.0,
+      "pValue": 0.0021645021645021645,
+      "u": 0.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 26.71870042515387,
+      "candidateSpreadPercent": 17.920036278437,
+      "verdict": "improved"
+    },
+    "timing/standard-4096/down-dispatch/kiloCycles": {
+      "baseline": [
+        15734.27,
+        17307.515,
+        13930.585,
+        15013.814999999999,
+        14843.150000000001,
+        16282.075
+      ],
+      "candidate": [
+        11786.68,
+        11998.45,
+        10966.42,
+        10294.470000000001,
+        11613.03,
+        11729.195
+      ],
+      "exact": false,
+      "baselineMedian": 15374.0425,
+      "candidateMedian": 11671.1125,
+      "changePercent": -24.085597525829662,
+      "noisePercent": 5.0,
+      "pValue": 0.0021645021645021645,
+      "u": 0.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 21.96514026808499,
+      "candidateSpreadPercent": 14.599979222203535,
+      "verdict": "improved"
+    },
+    "timing/standard-4096/down-paint/wallUs": {
+      "baseline": [
+        8385.0,
+        6595.85,
+        9356.0,
+        8697.75,
+        8882.55,
+        8064.4
+      ],
+      "candidate": [
+        10553.900000000001,
+        10071.650000000001,
+        10880.75,
+        11164.1,
+        10522.05,
+        10427.0
+      ],
+      "exact": false,
+      "baselineMedian": 8541.375,
+      "candidateMedian": 10537.975,
+      "changePercent": 23.375627460449877,
+      "noisePercent": 5.0,
+      "pValue": 0.0021645021645021645,
+      "u": 36.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 32.315054660403035,
+      "candidateSpreadPercent": 10.366792481477692,
+      "verdict": "regressed"
+    },
+    "timing/standard-4096/down-paint/kiloCycles": {
+      "baseline": [
+        3163.46,
+        4010.2650000000003,
+        3599.085,
+        3447.29,
+        3365.6549999999997,
+        3575.835
+      ],
+      "candidate": [
+        3094.4,
+        3468.85,
+        3231.325,
+        3356.175,
+        3442.6,
+        3326.4350000000004
+      ],
+      "exact": false,
+      "baselineMedian": 3511.5625,
+      "candidateMedian": 3341.3050000000003,
+      "changePercent": -4.848482691109723,
+      "noisePercent": 5.0,
+      "pValue": 0.13203463203463203,
+      "u": 8.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 24.1147637269734,
+      "candidateSpreadPercent": 11.206699178913622,
+      "verdict": "within-noise"
+    },
+    "timing/standard-4096/end-home-dispatch/wallUs": {
+      "baseline": [
+        7670.75,
+        9226.6,
+        7508.9,
+        7785.0,
+        7535.950000000001,
+        8327.95
+      ],
+      "candidate": [
+        6372.95,
+        6296.4,
+        5942.7,
+        5744.0,
+        6232.15,
+        6077.55
+      ],
+      "exact": false,
+      "baselineMedian": 7727.875,
+      "candidateMedian": 6154.85,
+      "changePercent": -20.355207608818716,
+      "noisePercent": 5.0,
+      "pValue": 0.0021645021645021645,
+      "u": 0.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 22.22732639956004,
+      "candidateSpreadPercent": 10.2187705630519,
+      "verdict": "improved"
+    },
+    "timing/standard-4096/end-home-dispatch/kiloCycles": {
+      "baseline": [
+        14977.885,
+        17176.98,
+        14464.71,
+        15272.795,
+        14759.92,
+        16381.67
+      ],
+      "candidate": [
+        12507.035,
+        12161.925,
+        11510.23,
+        11025.005000000001,
+        11830.89,
+        11900.95
+      ],
+      "exact": false,
+      "baselineMedian": 15125.34,
+      "candidateMedian": 11865.92,
+      "changePercent": -21.549399881258868,
+      "noisePercent": 5.0,
+      "pValue": 0.0021645021645021645,
+      "u": 0.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 17.93196053774659,
+      "candidateSpreadPercent": 12.489802729160477,
+      "verdict": "improved"
+    },
+    "timing/standard-4096/end-home-paint/wallUs": {
+      "baseline": [
+        8875.85,
+        7452.299999999999,
+        8994.1,
+        8716.400000000001,
+        9058.25,
+        8252.0
+      ],
+      "candidate": [
+        10126.25,
+        10208.85,
+        10529.45,
+        10859.75,
+        10304.85,
+        10473.2
+      ],
+      "exact": false,
+      "baselineMedian": 8796.125,
+      "candidateMedian": 10389.025000000001,
+      "changePercent": 18.10911054583697,
+      "noisePercent": 5.0,
+      "pValue": 0.0021645021645021645,
+      "u": 36.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 18.25747132970485,
+      "candidateSpreadPercent": 7.060335305767383,
+      "verdict": "regressed"
+    },
+    "timing/standard-4096/end-home-paint/kiloCycles": {
+      "baseline": [
+        3145.895,
+        4078.025,
+        3601.185,
+        3620.745,
+        3487.71,
+        3665.06
+      ],
+      "candidate": [
+        3178.03,
+        3373.94,
+        3600.085,
+        3618.045,
+        3580.425,
+        3323.14
+      ],
+      "exact": false,
+      "baselineMedian": 3610.965,
+      "candidateMedian": 3477.1825,
+      "changePercent": -3.7048960596405722,
+      "noisePercent": 5.0,
+      "pValue": 0.24025974025974026,
+      "u": 10.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 25.81387523833657,
+      "candidateSpreadPercent": 12.65435449534213,
+      "verdict": "within-noise"
+    },
+    "timing/standard-4096/hover-dispatch/wallUs": {
+      "baseline": [
+        281.1,
+        250.45,
+        244.75,
+        262.1,
+        277.35,
+        289.0
+      ],
+      "candidate": [
+        266.1,
+        249.60000000000002,
+        268.70000000000005,
+        250.95,
+        265.7,
+        282.95000000000005
+      ],
+      "exact": false,
+      "baselineMedian": 269.725,
+      "candidateMedian": 265.9,
+      "changePercent": -1.4181110390212415,
+      "noisePercent": 5.0,
+      "pValue": 0.9372294372294372,
+      "u": 17.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 16.405598294559272,
+      "candidateSpreadPercent": 12.542309138773986,
+      "verdict": "within-noise"
+    },
+    "timing/standard-4096/hover-dispatch/kiloCycles": {
+      "baseline": [
+        547.7,
+        478.54,
+        476.45000000000005,
+        513.77,
+        539.4200000000001,
+        568.86
+      ],
+      "candidate": [
+        524.45,
+        493.11,
+        524.1500000000001,
+        486.825,
+        514.27,
+        549.895
+      ],
+      "exact": false,
+      "baselineMedian": 526.595,
+      "candidateMedian": 519.21,
+      "changePercent": -1.4024060236044744,
+      "noisePercent": 5.0,
+      "pValue": 1.0,
+      "u": 18.0,
+      "rankDirection": "none",
+      "baselineSpreadPercent": 17.548590472754196,
+      "candidateSpreadPercent": 12.147300706843087,
+      "verdict": "within-noise"
+    },
+    "timing/standard-4096/hover-paint/wallUs": {
+      "baseline": [
+        16399.949999999997,
+        16406.5,
+        16503.85,
+        16378.25,
+        16420.0,
+        16370.5
+      ],
+      "candidate": [
+        16401.6,
+        16450.5,
+        16399.5,
+        16466.25,
+        16409.7,
+        16380.0
+      ],
+      "exact": false,
+      "baselineMedian": 16403.225,
+      "candidateMedian": 16405.65,
+      "changePercent": 0.014783678209639994,
+      "noisePercent": 5.0,
+      "pValue": 0.6991341991341992,
+      "u": 21.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 0.8129498924754038,
+      "candidateSpreadPercent": 0.5257335125398871,
+      "verdict": "within-noise"
+    },
+    "timing/standard-4096/hover-paint/kiloCycles": {
+      "baseline": [
+        3555.77,
+        3669.745,
+        3849.4849999999997,
+        3847.79,
+        4015.755,
+        3859.965
+      ],
+      "candidate": [
+        3680.7250000000004,
+        3552.785,
+        3991.105,
+        3744.0950000000003,
+        3980.325,
+        3849.885
+      ],
+      "exact": false,
+      "baselineMedian": 3848.6375,
+      "candidateMedian": 3796.9900000000002,
+      "changePercent": -1.3419684238902607,
+      "noisePercent": 5.0,
+      "pValue": 1.0,
+      "u": 18.0,
+      "rankDirection": "none",
+      "baselineSpreadPercent": 11.951892065698578,
+      "candidateSpreadPercent": 11.54388081085281,
+      "verdict": "within-noise"
+    },
+    "timing/standard-4096/open/wallUs": {
+      "baseline": [
+        82088.9,
+        105996.6,
+        85834.2,
+        86012.2,
+        81204.5,
+        89531.7
+      ],
+      "candidate": [
+        76978.5,
+        87569.5,
+        74401.0,
+        76581.6,
+        77284.2,
+        76817.8
+      ],
+      "exact": false,
+      "baselineMedian": 85923.2,
+      "candidateMedian": 76898.15,
+      "changePercent": -10.503624166697701,
+      "noisePercent": 5.0,
+      "pValue": 0.025974025974025976,
+      "u": 4.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 28.853790361625276,
+      "candidateSpreadPercent": 17.12459922637931,
+      "verdict": "improved"
+    },
+    "timing/standard-4096/open/kiloCycles": {
+      "baseline": [
+        160435.69,
+        205925.72,
+        166939.05,
+        167251.42,
+        157970.82,
+        172523.26
+      ],
+      "candidate": [
+        151196.99,
+        171570.37,
+        144846.93,
+        148438.73,
+        151246.1,
+        149598.2
+      ],
+      "exact": false,
+      "baselineMedian": 167095.235,
+      "candidateMedian": 150397.595,
+      "changePercent": -9.992888187386061,
+      "noisePercent": 5.0,
+      "pValue": 0.025974025974025976,
+      "u": 4.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 28.69914273737369,
+      "candidateSpreadPercent": 17.768528811913516,
+      "verdict": "improved"
+    },
+    "timing/standard-4096/wheel-dispatch/wallUs": {
+      "baseline": [
+        7943.1,
+        9083.7,
+        7397.25,
+        8033.35,
+        7995.65,
+        8332.0
+      ],
+      "candidate": [
+        5924.5,
+        5980.65,
+        5500.299999999999,
+        5348.4,
+        5617.549999999999,
+        5891.25
+      ],
+      "exact": false,
+      "baselineMedian": 8014.5,
+      "candidateMedian": 5754.4,
+      "changePercent": -28.20013725123215,
+      "noisePercent": 5.0,
+      "pValue": 0.0021645021645021645,
+      "u": 0.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 21.042485495040246,
+      "candidateSpreadPercent": 10.987244543305993,
+      "verdict": "improved"
+    },
+    "timing/standard-4096/wheel-dispatch/kiloCycles": {
+      "baseline": [
+        15700.64,
+        16940.55,
+        14214.915,
+        15563.310000000001,
+        15429.779999999999,
+        16304.325
+      ],
+      "candidate": [
+        11665.724999999999,
+        11583.185000000001,
+        10513.93,
+        10447.564999999999,
+        10834.59,
+        11490.275000000001
+      ],
+      "exact": false,
+      "baselineMedian": 15631.975,
+      "candidateMedian": 11162.4325,
+      "changePercent": -28.592308393533127,
+      "noisePercent": 5.0,
+      "pValue": 0.0021645021645021645,
+      "u": 0.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 17.436280444409604,
+      "candidateSpreadPercent": 10.91303351666404,
+      "verdict": "improved"
+    },
+    "timing/standard-4096/wheel-paint/wallUs": {
+      "baseline": [
+        8667.4,
+        7474.6,
+        9153.7,
+        8470.900000000001,
+        8673.3,
+        8262.9
+      ],
+      "candidate": [
+        10685.2,
+        10571.099999999999,
+        11086.25,
+        11219.150000000001,
+        11027.7,
+        10671.2
+      ],
+      "exact": false,
+      "baselineMedian": 8569.150000000001,
+      "candidateMedian": 10856.45,
+      "changePercent": 26.692262359743957,
+      "noisePercent": 5.0,
+      "pValue": 0.0021645021645021645,
+      "u": 36.0,
+      "rankDirection": "higher",
+      "baselineSpreadPercent": 19.594708926789707,
+      "candidateSpreadPercent": 5.969262512147183,
+      "verdict": "regressed"
+    },
+    "timing/standard-4096/wheel-paint/kiloCycles": {
+      "baseline": [
+        3365.955,
+        3796.59,
+        3345.495,
+        3532.825,
+        3449.385,
+        3461.96
+      ],
+      "candidate": [
+        3059.865,
+        3361.665,
+        3135.115,
+        3202.285,
+        3341.005,
+        3183.8199999999997
+      ],
+      "exact": false,
+      "baselineMedian": 3455.6725,
+      "candidateMedian": 3193.0525,
+      "changePercent": -7.59967849962635,
+      "noisePercent": 5.0,
+      "pValue": 0.004329004329004329,
+      "u": 1.0,
+      "rankDirection": "lower",
+      "baselineSpreadPercent": 13.05375437053136,
+      "candidateSpreadPercent": 9.45177068025033,
+      "verdict": "improved"
+    }
+  }
+}
