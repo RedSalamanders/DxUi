@@ -1,7 +1,7 @@
 # Described-menu row layout, 2026-09-30
 
 Plan item: "evaluate one formatted layout per described row"
-([memory plan](../../../../Specs/Plans/WIP/MenuDescriptionMemory_2026-09-27.md)). Library scope; no consumer pin changes.
+([memory plan](../../../../Specs/Plans/Done/MenuDescriptionMemory_2026-09-27.md)). Library scope; no consumer pin changes.
 
 ## Question and decision
 

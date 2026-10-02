@@ -221,9 +221,9 @@ lowers the layout tables' 16,384-entry ceiling so a window can reach it; the Gri
 production ceiling. Fixtures that move a control between hosts are shared in `Tests/Controls/DxUiTestMovedControls.h`. Each
 test was also run against a temporary mutation of the library (a switch compiled into a scratch build and never committed) and
 fails at the assertion that names the defect. The reviewed table of 33 pairs of a mutant and a test, the x64 Debug, Release
-and ASan Debug logs and receipts, and the limits (a pixel test cannot see a cache eviction order or the surrogate guard;
-native ARM64 execution awaits CI) are in
-[the verification packet](../../Measurements/GridTextOverflow/2026-09-30/verification/README.md).
+and ASan Debug logs and receipts, and the limits (a pixel test cannot see a cache eviction order or the surrogate guard)
+are in [the verification packet](../../Measurements/GridTextOverflow/2026-09-30/verification/README.md). CI's native ARM64
+Debug, Release and ASan Debug jobs run the same suites; workflow run 36951713344 passed them with no capability skip.
 
 `validate-test-port.ps1` enforces the original case count, unique origins, explicit exclusion reasons and retained/renamed entrypoints. Tooling regression tests verify that deleting a retained case or its disposition fails.
 `test.ps1` also runs the deterministic advisory fixture in `Tools/tests/Test-ConsumerUpdate.ps1`.

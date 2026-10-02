@@ -4,7 +4,7 @@
 one serial A1/B1/B2/A2 set on a single hosted x64 runner: the `paired-benchmark` job of workflow run
 [36345251201](https://github.com/RedSalamanders/DxUi/actions/runs/36345251201). This is the hosted
 measurement in step one of the
-[memory optimization plan](../../../../Specs/Plans/WIP/MenuDescriptionMemory_2026-09-27.md).
+[memory optimization plan](../../../../Specs/Plans/Done/MenuDescriptionMemory_2026-09-27.md).
 
 - A is `e47c836`, main after #27 and before #24. B is `6f769ab`, #24 merged. Their library sources
   differ only by #24's change.

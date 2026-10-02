@@ -146,7 +146,7 @@ matched September 21 Release pairs against `78b3de3`
 ([common-scene investigation](../../Measurements/MenuDescriptions/2026-09-21/README.md)), clean-round median
 private bytes had risen by 823,296, 1,175,552 and 1,175,552 bytes (+3.23%, +4.56%, +4.51%). The waiver accepted up to
 1,175,552 bytes (+4.6%) on the default x64 Release WARP fixture while an
-[optimization plan](../Plans/WIP/MenuDescriptionMemory_2026-09-27.md) investigated. The scene opens no menu, and
+[optimization plan](../Plans/Done/MenuDescriptionMemory_2026-09-27.md) investigated. The scene opens no menu, and
 outside menu popups the change adds no allocation.
 
 On 2026-09-30 the waiver is removed, because the plan's repeated paired runs of `e47c836` against `6f769ab` are within

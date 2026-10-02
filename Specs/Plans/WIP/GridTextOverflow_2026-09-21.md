@@ -73,8 +73,9 @@ fresh grid; theme changes create none; font or density changes create them again
 rows except while the scrollbar thumb is dragged, so the fractional-offset check uses a dragged thumb. One hook was added for
 the ceiling test, `Grid::DebugSetTextLayoutEntryLimit` (and its getter), diagnostics only, with the production limit
 unchanged at 16,384; the API revision stays 2. Docs and the gallery were reviewed: no behavior or pixel changes, so nothing
-is regenerated. Remaining: native ARM64 execution of these tests, native assistive-technology acceptance, and the consumer
-items below.
+is regenerated. CI's native ARM64 Debug, Release and ASan Debug jobs have since run these tests: in workflow run
+36951713344 (2 October) Grid, MultilineText, Rendering, Accessibility and Embedded pass with no capability skip. Remaining:
+native assistive-technology acceptance and the consumer items below.
 
 ## September 27 gallery and paired benchmark
 

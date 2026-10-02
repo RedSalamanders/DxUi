@@ -1,6 +1,7 @@
 # Described-menu common-scene memory optimization
 
-Status: **ACTIVE**. Library scope; consumer adoption stays separate.
+Status: **DONE** (2 October 2026). The waiver is removed and one layout per described row is merged (#37). Library scope;
+consumer adoption stays separate.
 Baseline: `e47c836` (main before #24). Candidate: `6f769ab` (#24 merged), then later main.
 
 ## Goal
@@ -51,8 +52,8 @@ the sharing was built for. A layout costs about 17 KB plus about 30 bytes a char
 row only where a label repeats in about seven rows of one popup. The tests, ten mutants and the decision to drop the
 sharing are in the packet; a hybrid that keeps main's sharing for such rows was not built, because it needs a second
 drawing and measuring path for a case that only the synthetic fixtures exercise. The rise where every row repeats one
-label is a measured cost that the packet leaves to the developer, with its options. This is open-menu live heap, not
-the waived common-scene flag; the items below still apply.
+label is a measured cost, which the developer accepted on 2 October (the packet's option 1); the change merged as #37.
+This is open-menu live heap, not the waived common-scene flag.
 
 On 27 September the first
 [hosted paired set](../../../Measurements/MenuDescriptions/2026-09-27/paired-hosted/README.md) compared
@@ -62,7 +63,7 @@ same-source controls and are runner noise. One hosted set cannot remove the waiv
 sets below decide it.
 
 On 30 September a local set of six runs per side confirmed it: clean private memory +0.36% (p = 0.70). The waiver is
-removed from the performance contract. The one-layout-per-row evaluation remains, and this plan closes after it.
+removed from the performance contract. On 2 October the one-layout-per-row change merged (#37), and this plan closes.
 
 ## Execution
 
@@ -96,11 +97,16 @@ removed from the performance contract. The one-layout-per-row evaluation remains
   the contract and all pixels are kept, and live bytes fall by a third for every menu whose labels differ and rise up to
   7% where one label repeats in every row. On 2 October 2026 the developer accepted that cost (the packet's option 1):
   real menus have distinct labels, and neither the hybrid that keeps sharing repeated labels nor the rejection is built.
-- [ ] Close out. When repeated paired runs are within the bands, remove the waiver. If the difference
+- [x] Close out. When repeated paired runs are within the bands, remove the waiver. If the difference
   proves to be measurement variation, present that evidence for a developer decision; never change
   a threshold or baseline instead. Update the contract, the
-  [described-menu plan](MenuDescriptions_2026-09-21.md) and `docs/performance.md`, then move this
+  [described-menu plan](../WIP/MenuDescriptions_2026-09-21.md) and `docs/performance.md`, then move this
   plan to Done.
+  Outcome: the hosted and local paired sets are within the bands, so on 30 September the waiver left the
+  [performance contract](../../Core/Core_PerformanceAndResources.md), the described-menu plan and `docs/performance.md`,
+  with no threshold or baseline changed. The one-layout-per-row change merged on 2 October as #37 (`c544bfc`), after its
+  pull request's hosted paired set (workflow run 36951713344, base `b05f6c2`, six runs per side) found Default,
+  MultilineGrid and MultilineGridDistinct within the noise budget with no regressed metric.
 
 ## Rules
 
