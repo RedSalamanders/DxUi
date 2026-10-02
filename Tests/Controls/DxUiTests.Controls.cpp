@@ -1218,11 +1218,14 @@ void TestControlsThatFocusThemselvesLeaveAControlTheFocusCallbackDestroyed()
         return add.operator()<Slider>(root);
     }, [&](WindowHost& host, Control& slider) { static_cast<void>(slider.OnMouseDown(host, center, false, 0u)); });
     // A swatch takes the focus only where the application made it focusable, as a clickable swatch.
-    RequireFocusReplacementLeavesControlAlone("ColorSwatch press", [&](Panel& root) {
+    RequireFocusReplacementLeavesControlAlone("ColorSwatch press",
+                                              [&](Panel& root)
+    {
         auto* swatch = add.operator()<ColorSwatch>(root, 0xFF2266AAu);
         swatch->SetFocusable(true);
         return swatch;
-    }, [&](WindowHost& host, Control& swatch) { static_cast<void>(swatch.OnMouseDown(host, center, false, 0u)); });
+    },
+                                              [&](WindowHost& host, Control& swatch) { static_cast<void>(swatch.OnMouseDown(host, center, false, 0u)); });
 
     const auto addMenuBar = [&](Panel& root)
     {
