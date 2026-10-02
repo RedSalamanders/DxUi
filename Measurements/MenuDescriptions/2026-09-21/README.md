@@ -16,7 +16,7 @@ submenu navigation and the memory probes. Final native interaction/ARM64 validat
 resource acceptance remain pending. The user requested attribution before deciding on
 the additional memory. On 2026-09-27 the user directed a waiver for the repeated clean
 private-memory increase, recorded in the [performance contract](../../../Specs/Core/Core_PerformanceAndResources.md);
-a [WIP plan](../../../Specs/Plans/WIP/MenuDescriptionMemory_2026-09-27.md) works to optimize it.
+a [WIP plan](../../../Specs/Plans/Done/MenuDescriptionMemory_2026-09-27.md) works to optimize it.
 
 ## Common-scene investigation
 
