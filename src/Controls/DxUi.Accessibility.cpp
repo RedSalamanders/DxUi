@@ -2291,6 +2291,50 @@ AccessibilityNavigationTarget MakeNavigationTarget(
     return target;
 }
 
+// The first and the last of the fragments a control exposes of its own, which are the children of its element: a tree's items, a
+// grid's headers and then its rows, a text field's reveal button. A control with none has no children of its own.
+std::optional<AccessibilityNavigationTarget> FirstControlFragmentTarget(const AccessibilityControlNavigationSnapshot& controlRecord) noexcept
+{
+    if (! controlRecord.treeItems.empty())
+    {
+        return MakeNavigationTarget(AccessibilityFragmentKind::TreeItem, controlRecord.path, controlRecord.treeItems.front().itemId);
+    }
+    if (! controlRecord.gridVisibleColumns.empty())
+    {
+        return MakeNavigationTarget(AccessibilityFragmentKind::GridHeader, controlRecord.path, 0u, 0u, controlRecord.gridVisibleColumns.front());
+    }
+    if (! controlRecord.gridVisibleRowIds.empty())
+    {
+        return MakeNavigationTarget(AccessibilityFragmentKind::GridRow, controlRecord.path, 0u, controlRecord.gridVisibleRowIds.front());
+    }
+    if (controlRecord.hasPasswordRevealButton)
+    {
+        return MakeNavigationTarget(AccessibilityFragmentKind::TextFieldPasswordRevealButton, controlRecord.path);
+    }
+    return std::nullopt;
+}
+
+std::optional<AccessibilityNavigationTarget> LastControlFragmentTarget(const AccessibilityControlNavigationSnapshot& controlRecord) noexcept
+{
+    if (! controlRecord.treeItems.empty())
+    {
+        return MakeNavigationTarget(AccessibilityFragmentKind::TreeItem, controlRecord.path, controlRecord.treeItems.back().itemId);
+    }
+    if (! controlRecord.gridVisibleRowIds.empty())
+    {
+        return MakeNavigationTarget(AccessibilityFragmentKind::GridRow, controlRecord.path, 0u, controlRecord.gridVisibleRowIds.back());
+    }
+    if (! controlRecord.gridVisibleColumns.empty())
+    {
+        return MakeNavigationTarget(AccessibilityFragmentKind::GridHeader, controlRecord.path, 0u, 0u, controlRecord.gridVisibleColumns.back());
+    }
+    if (controlRecord.hasPasswordRevealButton)
+    {
+        return MakeNavigationTarget(AccessibilityFragmentKind::TextFieldPasswordRevealButton, controlRecord.path);
+    }
+    return std::nullopt;
+}
+
 std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(const AccessibilitySnapshot& snapshot,
                                                                              AccessibilityFragmentKind kind,
                                                                              const ControlPath& path,
@@ -2313,7 +2357,11 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                     {
                         return MakeControlNavigationTarget(snapshot.semanticControlOrder[1u]);
                     }
-                    return std::nullopt;
+                    // The root stands for its only control, whose own fragments (a tree's items, a grid's headers and rows, a
+                    // field's reveal button) are therefore the root's children. A control that has other semantic controls below
+                    // it (a status root) is a panel, which has no fragments of its own, so the two never both apply.
+                    const AccessibilityControlNavigationSnapshot* const collapsed = ResolveSnapshotControlRecord(snapshot, kind, path);
+                    return collapsed ? FirstControlFragmentTarget(*collapsed) : std::nullopt;
                 }
                 if (! snapshot.semanticControlOrder.empty())
                 {
@@ -2323,22 +2371,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
             }
             if (kind == AccessibilityFragmentKind::Control && controlRecord)
             {
-                if (! controlRecord->treeItems.empty())
-                {
-                    return MakeNavigationTarget(AccessibilityFragmentKind::TreeItem, path, controlRecord->treeItems.front().itemId);
-                }
-                if (! controlRecord->gridVisibleColumns.empty())
-                {
-                    return MakeNavigationTarget(AccessibilityFragmentKind::GridHeader, path, 0u, 0u, controlRecord->gridVisibleColumns.front());
-                }
-                if (! controlRecord->gridVisibleRowIds.empty())
-                {
-                    return MakeNavigationTarget(AccessibilityFragmentKind::GridRow, path, 0u, controlRecord->gridVisibleRowIds.front());
-                }
-                if (controlRecord->hasPasswordRevealButton)
-                {
-                    return MakeNavigationTarget(AccessibilityFragmentKind::TextFieldPasswordRevealButton, path);
-                }
+                return FirstControlFragmentTarget(*controlRecord);
             }
             if (kind == AccessibilityFragmentKind::GridRow && controlRecord && SnapshotContainsGridRow(*controlRecord, gridRowId) &&
                 controlRecord->gridColumnCount > 0u)
@@ -2355,7 +2388,8 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                     {
                         return MakeControlNavigationTarget(snapshot.semanticControlOrder.back());
                     }
-                    return std::nullopt;
+                    const AccessibilityControlNavigationSnapshot* const collapsed = ResolveSnapshotControlRecord(snapshot, kind, path);
+                    return collapsed ? LastControlFragmentTarget(*collapsed) : std::nullopt;
                 }
                 if (! snapshot.semanticControlOrder.empty())
                 {
@@ -2365,22 +2399,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
             }
             if (kind == AccessibilityFragmentKind::Control && controlRecord)
             {
-                if (! controlRecord->treeItems.empty())
-                {
-                    return MakeNavigationTarget(AccessibilityFragmentKind::TreeItem, path, controlRecord->treeItems.back().itemId);
-                }
-                if (! controlRecord->gridVisibleRowIds.empty())
-                {
-                    return MakeNavigationTarget(AccessibilityFragmentKind::GridRow, path, 0u, controlRecord->gridVisibleRowIds.back());
-                }
-                if (! controlRecord->gridVisibleColumns.empty())
-                {
-                    return MakeNavigationTarget(AccessibilityFragmentKind::GridHeader, path, 0u, 0u, controlRecord->gridVisibleColumns.back());
-                }
-                if (controlRecord->hasPasswordRevealButton)
-                {
-                    return MakeNavigationTarget(AccessibilityFragmentKind::TextFieldPasswordRevealButton, path);
-                }
+                return LastControlFragmentTarget(*controlRecord);
             }
             if (kind == AccessibilityFragmentKind::GridRow && controlRecord && SnapshotContainsGridRow(*controlRecord, gridRowId) &&
                 controlRecord->gridColumnCount > 0u)
@@ -4321,6 +4340,7 @@ private:
     [[nodiscard]] IRawElementProviderFragmentRoot* CreateRootProvider() noexcept;
     [[nodiscard]] IRawElementProviderFragment* CreateRootFragmentProvider() noexcept;
     [[nodiscard]] IRawElementProviderFragment* CreateChildProvider(const ControlPath& path) noexcept;
+    [[nodiscard]] IRawElementProviderFragment* CreateControlProvider(const ControlPath& path) noexcept;
     [[nodiscard]] IRawElementProviderFragment* CreateTextFieldPasswordRevealButtonProvider(const ControlPath& path) noexcept;
     [[nodiscard]] IRawElementProviderFragment* CreateTreeItemProvider(const ControlPath& path, uint64_t itemId) noexcept;
     [[nodiscard]] IRawElementProviderFragment* CreateGridHeaderProvider(const ControlPath& path, size_t columnIndex) noexcept;
@@ -4386,6 +4406,43 @@ private:
 
     static_cast<void>(target->rootProvider.query_to(root.put()));
     return root;
+}
+
+// The element of the control at `path`, as a client reaches it. When the published snapshot's collapsed semantic root stands for
+// that control, the element is the window's canonical root element and no other: the control has no second element, so what
+// reports through it (an event, a selection container, a containing grid, the enclosing element of a text range) is one that
+// UI Automation reaches from the window. Otherwise it is a provider of its own, which takes a reference of `target` (borrowed
+// here). Null when out of memory.
+[[nodiscard]] wil::com_ptr_nothrow<IRawElementProviderSimple> CreateControlElement(WindowHostAccessibilityTarget* target,
+                                                                                   HWND hwnd,
+                                                                                   const ControlPath& path) noexcept
+{
+    wil::com_ptr_nothrow<IRawElementProviderSimple> element;
+    if (! target)
+    {
+        return element;
+    }
+
+    const auto snapshot = target->snapshot.load(std::memory_order_acquire);
+    if (snapshot && SnapshotPathIsCollapsedSemanticRoot(*snapshot, path))
+    {
+        if (const auto root = AcquireCanonicalRootProvider(target))
+        {
+            static_cast<void>(root.query_to(element.put()));
+        }
+        return element;
+    }
+
+    static_cast<void>(target->AddRef());
+    auto* provider = new (std::nothrow) AccessibilityProvider(target, hwnd, path);
+    if (! provider)
+    {
+        static_cast<void>(target->Release());
+        return element;
+    }
+
+    element.attach(static_cast<IRawElementProviderSimple*>(provider));
+    return element;
 }
 
 HRESULT AccessibilityTextRangeProvider::QueryInterface(REFIID riid, void** ppvObject) noexcept
@@ -4744,23 +4801,14 @@ HRESULT AccessibilityTextRangeProvider::GetEnclosingElement(IRawElementProviderS
         return UIA_E_ELEMENTNOTAVAILABLE;
     }
 
-    WindowHostAccessibilityTarget* target = _target;
-    if (target)
+    // The field's element: the window's own when the field is the one control the window's root stands for.
+    wil::com_ptr_nothrow<IRawElementProviderSimple> element = CreateControlElement(_target, _hwnd, record->path);
+    if (! element)
     {
-        static_cast<void>(target->AddRef());
-    }
-
-    auto* provider = new (std::nothrow) AccessibilityProvider(target, _hwnd, record->path);
-    if (! provider)
-    {
-        if (target)
-        {
-            static_cast<void>(target->Release());
-        }
         return E_OUTOFMEMORY;
     }
 
-    *outElement = static_cast<IRawElementProviderSimple*>(provider);
+    *outElement = element.detach();
     return S_OK;
 }
 
@@ -6466,9 +6514,7 @@ HRESULT AccessibilityProvider::ElementProviderFromPoint(double x, double y, IRaw
         case AccessibilityFragmentKind::GridHeader: *outProvider = CreateGridHeaderProvider(hit->path, hit->gridColumnIndex); return S_OK;
         case AccessibilityFragmentKind::GridRow: *outProvider = CreateGridRowProvider(hit->path, hit->gridRowId); return S_OK;
         case AccessibilityFragmentKind::GridCell: *outProvider = CreateGridCellProvider(hit->path, hit->gridRowId, hit->gridColumnIndex); return S_OK;
-        case AccessibilityFragmentKind::Control:
-            *outProvider = SnapshotPathIsCollapsedSemanticRoot(*snapshot, hit->path) ? CreateRootFragmentProvider() : CreateChildProvider(hit->path);
-            return S_OK;
+        case AccessibilityFragmentKind::Control: *outProvider = CreateControlProvider(hit->path); return S_OK;
         case AccessibilityFragmentKind::Root: *outProvider = CreateRootFragmentProvider(); return S_OK;
     }
 
@@ -6507,10 +6553,7 @@ HRESULT AccessibilityProvider::GetFocus(IRawElementProviderFragment** outProvide
     {
         case AccessibilityFragmentKind::TreeItem: *outProvider = CreateTreeItemProvider(focusedFragment.path, focusedFragment.treeItemId); return S_OK;
         case AccessibilityFragmentKind::GridRow: *outProvider = CreateGridRowProvider(focusedFragment.path, focusedFragment.gridRowId); return S_OK;
-        case AccessibilityFragmentKind::Control:
-            *outProvider =
-                SnapshotPathIsCollapsedSemanticRoot(*snapshot, focusedFragment.path) ? CreateRootFragmentProvider() : CreateChildProvider(focusedFragment.path);
-            return S_OK;
+        case AccessibilityFragmentKind::Control: *outProvider = CreateControlProvider(focusedFragment.path); return S_OK;
         case AccessibilityFragmentKind::Root:
         case AccessibilityFragmentKind::GridHeader:
         case AccessibilityFragmentKind::GridCell:
@@ -7588,18 +7631,14 @@ HRESULT AccessibilityProvider::get_SelectionContainer(IRawElementProviderSimple*
         return UIA_E_NOTSUPPORTED;
     }
 
-    WindowHostAccessibilityTarget* target = AddRefTarget();
-    auto* provider                        = new (std::nothrow) AccessibilityProvider(target, _hwnd, _path);
-    if (! provider)
+    // The tree's or grid's own element: the window's root element when that is the one control it stands for.
+    wil::com_ptr_nothrow<IRawElementProviderSimple> container = CreateControlElement(_target, _hwnd, _path);
+    if (! container)
     {
-        if (target)
-        {
-            static_cast<void>(target->Release());
-        }
         return E_OUTOFMEMORY;
     }
 
-    *outContainer = static_cast<IRawElementProviderSimple*>(provider);
+    *outContainer = container.detach();
     return S_OK;
 }
 
@@ -7806,18 +7845,14 @@ HRESULT AccessibilityProvider::get_ContainingGrid(IRawElementProviderSimple** ou
         return UIA_E_NOTSUPPORTED;
     }
 
-    WindowHostAccessibilityTarget* target = AddRefTarget();
-    auto* provider                        = new (std::nothrow) AccessibilityProvider(target, _hwnd, _path);
-    if (! provider)
+    // The grid's own element: the window's root element when that is the one control it stands for.
+    wil::com_ptr_nothrow<IRawElementProviderSimple> grid = CreateControlElement(_target, _hwnd, _path);
+    if (! grid)
     {
-        if (target)
-        {
-            static_cast<void>(target->Release());
-        }
         return E_OUTOFMEMORY;
     }
 
-    *outContainingGrid = static_cast<IRawElementProviderSimple*>(provider);
+    *outContainingGrid = grid.detach();
     return S_OK;
 }
 
@@ -8660,6 +8695,18 @@ IRawElementProviderFragment* AccessibilityProvider::CreateChildProvider(const Co
     return MakeProvider<IRawElementProviderFragment, AccessibilityProvider>(_hwnd, path);
 }
 
+// The element of the control at `path`, which is the window's root element when a collapsed semantic root stands for it.
+IRawElementProviderFragment* AccessibilityProvider::CreateControlProvider(const ControlPath& path) noexcept
+{
+    const wil::com_ptr_nothrow<IRawElementProviderSimple> element = CreateControlElement(_target, _hwnd, path);
+    wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
+    if (element)
+    {
+        static_cast<void>(element.query_to(fragment.put()));
+    }
+    return fragment.detach();
+}
+
 IRawElementProviderFragment* AccessibilityProvider::CreateTextFieldPasswordRevealButtonProvider(const ControlPath& path) noexcept
 {
     return MakeProvider<IRawElementProviderFragment, AccessibilityProvider>(_hwnd, path, AccessibilityFragmentKind::TextFieldPasswordRevealButton);
@@ -8693,7 +8740,9 @@ IRawElementProviderFragment* AccessibilityProvider::CreateProviderFromNavigation
         {
             return MakeProvider<IRawElementProviderFragment, AccessibilityProvider>(_hwnd);
         }
-        case AccessibilityFragmentKind::Control: return CreateChildProvider(navigationTarget.path);
+        // A control's element, which is the window's root element when a collapsed semantic root stands for the control: the
+        // parent of the control's fragments (its tree items, grid headers and rows, reveal button) is a Control target.
+        case AccessibilityFragmentKind::Control: return CreateControlProvider(navigationTarget.path);
         case AccessibilityFragmentKind::TextFieldPasswordRevealButton: return CreateTextFieldPasswordRevealButtonProvider(navigationTarget.path);
         case AccessibilityFragmentKind::TreeItem: return CreateTreeItemProvider(navigationTarget.path, navigationTarget.treeItemId);
         case AccessibilityFragmentKind::GridHeader: return CreateGridHeaderProvider(navigationTarget.path, navigationTarget.gridColumnIndex);
@@ -8892,21 +8941,8 @@ AccessibilityTextUnitSpan GetEnclosingAccessibilityTextUnitSpan(std::wstring_vie
     const auto snapshot = target.get()->snapshot.load(std::memory_order_acquire);
     if (! host || ! FindWindowHostControlPath(snapshot.get(), host->GetRoot(), control, path))
         return {};
-    wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
-    if (snapshot && SnapshotPathIsCollapsedSemanticRoot(*snapshot, path))
-    {
-        const auto root = AcquireCanonicalRootProvider(target.get());
-        if (! root || FAILED(root.query_to(provider.put())))
-            return {};
-        return provider;
-    }
-    auto* raw = new (std::nothrow) AccessibilityProvider(target.get(), hwnd, path);
-    if (! raw)
-        return {};
-    // The provider adopts the retained target and survives UIA reentrancy without borrowing the control.
-    static_cast<void>(target.release());
-    provider.attach(raw);
-    return provider;
+    // The provider retains the target and survives UIA reentrancy without borrowing the control.
+    return CreateControlElement(target.get(), hwnd, path);
 }
 
 namespace
@@ -8968,12 +9004,11 @@ bool AnnounceWindowHostFocus(HWND hwnd) noexcept
 // which ends the raising.
 void RaiseTreeSelectionEvents(WindowHostAccessibilityTarget& target, HWND hwnd, const std::vector<TreeSelectionChange>& changes) noexcept
 {
-    const auto connected    = [&]() noexcept { return target.host.load(std::memory_order_acquire) != nullptr; };
-    const auto makeProvider = [&](const ControlPath& path, const uint64_t* itemId) noexcept -> wil::com_ptr_nothrow<IRawElementProviderSimple>
+    const auto connected        = [&]() noexcept { return target.host.load(std::memory_order_acquire) != nullptr; };
+    const auto makeItemProvider = [&](const ControlPath& path, uint64_t itemId) noexcept -> wil::com_ptr_nothrow<IRawElementProviderSimple>
     {
         static_cast<void>(target.AddRef());
-        AccessibilityProvider* const raw = itemId ? new (std::nothrow) AccessibilityProvider(&target, hwnd, path, *itemId, AccessibilityProvider::TreeItemTag{})
-                                                  : new (std::nothrow) AccessibilityProvider(&target, hwnd, path);
+        AccessibilityProvider* const raw = new (std::nothrow) AccessibilityProvider(&target, hwnd, path, itemId, AccessibilityProvider::TreeItemTag{});
         if (! raw)
         {
             static_cast<void>(target.Release());
@@ -8983,21 +9018,9 @@ void RaiseTreeSelectionEvents(WindowHostAccessibilityTarget& target, HWND hwnd, 
         provider.attach(static_cast<IRawElementProviderSimple*>(raw));
         return provider;
     };
-    // The tree itself. A collapsed semantic root is reported through the canonical root provider, as clients see it.
-    const auto makeContainer = [&](const ControlPath& path) noexcept -> wil::com_ptr_nothrow<IRawElementProviderSimple>
-    {
-        if (const auto snapshot = target.snapshot.load(std::memory_order_acquire); snapshot && SnapshotPathIsCollapsedSemanticRoot(*snapshot, path))
-        {
-            wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
-            if (const auto root = AcquireCanonicalRootProvider(&target); root && SUCCEEDED(root.query_to(provider.put())))
-                return provider;
-            return {};
-        }
-        return makeProvider(path, nullptr);
-    };
     const auto raiseItem = [&](const ControlPath& path, uint64_t itemId, bool selected, EVENTID eventId) noexcept
     {
-        const wil::com_ptr_nothrow<IRawElementProviderSimple> item = makeProvider(path, &itemId);
+        const wil::com_ptr_nothrow<IRawElementProviderSimple> item = makeItemProvider(path, itemId);
         if (! item || ! connected())
             return;
         static_cast<void>(
@@ -9012,7 +9035,8 @@ void RaiseTreeSelectionEvents(WindowHostAccessibilityTarget& target, HWND hwnd, 
             return;
         if (change.invalidated)
         {
-            if (const wil::com_ptr_nothrow<IRawElementProviderSimple> container = makeContainer(change.path))
+            // The tree itself: its own element, or the window's when a collapsed semantic root stands for it, as clients see it.
+            if (const wil::com_ptr_nothrow<IRawElementProviderSimple> container = CreateControlElement(&target, hwnd, change.path))
                 static_cast<void>(UiaRaiseAutomationEvent(container.get(), UIA_Selection_InvalidatedEventId));
             continue;
         }
@@ -9088,21 +9112,20 @@ bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, 
         return false;
     }
 
-    auto* provider = new (std::nothrow) AccessibilityProvider(target, hwnd, controlPath);
+    // The event comes from the field's element, which is the window's own when the field is the one control its root stands for.
+    const wil::com_ptr_nothrow<IRawElementProviderSimple> provider = CreateControlElement(target, hwnd, controlPath);
     if (! provider)
     {
         static_cast<void>(target->Release());
         return false;
     }
-    const auto releaseProvider = wil::scope_exit([&] { static_cast<void>(provider->Release()); });
+    const auto releaseTarget = wil::scope_exit([&] { static_cast<void>(target->Release()); });
 
     switch (kind)
     {
-        case TextInputAutomationEventKind::TextChanged:
-            static_cast<void>(UiaRaiseAutomationEvent(static_cast<IRawElementProviderSimple*>(provider), UIA_Text_TextChangedEventId));
-            return true;
+        case TextInputAutomationEventKind::TextChanged: static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_Text_TextChangedEventId)); return true;
         case TextInputAutomationEventKind::TextSelectionChanged:
-            static_cast<void>(UiaRaiseAutomationEvent(static_cast<IRawElementProviderSimple*>(provider), UIA_Text_TextSelectionChangedEventId));
+            static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_Text_TextSelectionChangedEventId));
             return true;
         case TextInputAutomationEventKind::ActiveTextPositionChanged:
         {
@@ -9122,18 +9145,17 @@ bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, 
                     static_cast<void>(target->Release());
                 }
             }
-            static_cast<void>(UiaRaiseActiveTextPositionChangedEvent(static_cast<IRawElementProviderSimple*>(provider), activeRange.get()));
+            static_cast<void>(UiaRaiseActiveTextPositionChangedEvent(provider.get(), activeRange.get()));
             return true;
         }
         case TextInputAutomationEventKind::TextEditCompositionChanged:
         {
             unique_safearray changedData(SafeArrayCreateVector(VT_BSTR, 0u, 0u));
-            static_cast<void>(
-                UiaRaiseTextEditTextChangedEvent(static_cast<IRawElementProviderSimple*>(provider), TextEditChangeType_Composition, changedData.get()));
+            static_cast<void>(UiaRaiseTextEditTextChangedEvent(provider.get(), TextEditChangeType_Composition, changedData.get()));
             return true;
         }
         case TextInputAutomationEventKind::TextEditConversionTargetChanged:
-            static_cast<void>(UiaRaiseAutomationEvent(static_cast<IRawElementProviderSimple*>(provider), UIA_TextEdit_ConversionTargetChangedEventId));
+            static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_TextEdit_ConversionTargetChangedEventId));
             return true;
         default: return false;
     }

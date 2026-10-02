@@ -411,8 +411,10 @@ and more than 20 changed items, or a selected item that left the tree, raise one
 instead; items named one by one also raise the `IsSelected` property change, and a republish that changed no
 selection, or rows that only moved, raise nothing. A tree without multi-select reports what it always did and raises none
 of these. The events are raised with the same publish that raises focus changes (window hosts after the focus
-announcement, embedded hosts from `UpdateAccessibility`). In a window whose only semantic control is the tree, the
-existing item navigation does not reach the root, so clients do not receive item-level events there.
+announcement, embedded hosts from `UpdateAccessibility`). They reach a client subscribed to the window in a window whose
+only semantic control is the tree as in any other: the window's root element stands for the tree, is the parent of its
+items, and is where the invalidation is raised (see the collapsed semantic root in
+[Input and accessibility](UI_InputAndAccessibility.md)).
 
 ### Localized built-in text
 
