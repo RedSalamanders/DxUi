@@ -52,7 +52,7 @@ Normative text lives in [Controls and layout](../../UI/UI_ControlsAndLayout.md#t
   next `NotifyDataChanged`/`SetModel`, as the single selection always did; `ITreeModel` exposes only visible rows, so a
   hidden selected row cannot be told from a removed one.
 - Events follow WPF's selector rules (one new selected item: `ElementSelected`; otherwise per-item added/removed; over
-  20 or a vanished item: `Selection_Invalidated`).
+  20, or a vanished item unless one new item became the selection: `Selection_Invalidated`).
 - Membership tests in the set are linear in its size (Grid's too); Ctrl+A on a very large tree costs an O(n) walk of the
   visible rows for every gesture that changes membership, as `NotifyDataChanged` already does per call.
 
@@ -100,7 +100,7 @@ Branch `improve/tree-multi-select`, tested on the final tree (every command Powe
 | `TestTreeMultiSelectContextMenuExpanderAndDoubleClickKeepTheSelectionRules` | Right-click on a selected row keeps the set, the expander and a modified double-click leave it alone | right-click replacing; expander selecting; Ctrl double-click toggling |
 | `TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent` | `SetSelectedItemIds`, `SetFocusedItemId`, switching the mode both ways | setter selecting; focus lost on disabling; invisible ids kept |
 | Accessibility `TestAccessibilityTreeMultiSelectExposesSelectionPatternsAndItemState` | `CanSelectMultiple`, `GetSelection` in order, per-item `IsSelected`, only the focused item has keyboard focus, Select, AddToSelection (not a toggle), RemoveFromSelection, SetFocus | `CanSelectMultiple` false; single `GetSelection`; Select adding; focus equal to selection |
-| `TestAccessibilityTreeMultiSelectRaisesSelectionEvents` | An in-process client hears `ElementSelected`, per-item added and removed with the `IsSelected` change, one `Selection_Invalidated` over 20 items or for a vanished item, nothing for moved rows or (until single selections raised them) a single-select tree | no events; one new item not reported as selected; no threshold; removal events for a replacement |
+| `TestAccessibilityTreeMultiSelectRaisesSelectionEvents` | An in-process client hears `ElementSelected`, per-item added and removed with the `IsSelected` change, one `Selection_Invalidated` over 20 items or for a vanished item (none when one new item became the selection), nothing for moved rows or (until single selections raised them) a single-select tree | no events; one new item not reported as selected; no threshold; removal events for a replacement |
 | Embedded `TestEmbeddedTreeMultiSelect` | Pointer and key modifiers, `CanSelectMultiple`, the selection and its actions through an embedded view | Ctrl or Shift click replacing; Ctrl+A; `CanSelectMultiple`; AddToSelection |
 
 - Falsification: 52 single-point mutants (37 in `Tree`, 15 in UI Automation), each a run-time switch in a throwaway

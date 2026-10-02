@@ -5541,6 +5541,22 @@ void RunTreeMultiSelectSelectionEventsTest(bool fillsItsWindow)
                  {{L"Selected", item(3u)}, {L"IsSelected:true", item(3u)}, {L"IsSelected:false", item(2u)}},
                  "selecting in a tree without multi-select");
     requireHeard(hear(0u, [&] { tree->SetMultiSelectEnabled(true); }), {}, "turning multi-select on again");
+
+    // A selection that becomes one new item while a selected item leaves the tree: the new item's being selected says the others
+    // left it, so the item that has no element needs no event and the one still in the tree reports only its IsSelected change.
+    requireHeard(hear(2u, [&] { tree->SetSelectedItemIds(std::vector<uint64_t>{1u, 3u}); }),
+                 {{L"Added", item(1u)}, {L"IsSelected:true", item(1u)}},
+                 "adding an item to the selection again");
+    requireHeard(hear(3u,
+                      [&]
+    {
+        model.SetVisibleItems({TreeItemData{.id = 1u, .text = item(1u)}, TreeItemData{.id = 2u, .text = item(2u)}});
+        tree->SetSelectedItemIds(std::vector<uint64_t>{2u});
+        tree->NotifyDataChanged();
+    }),
+                 {{L"Selected", item(2u)}, {L"IsSelected:true", item(2u)}, {L"IsSelected:false", item(1u)}},
+                 "selecting one item as a selected item leaves the tree");
+    RequireTreeIds(tree->GetSelectedItemIds(), {2u}, "the item the application chose is the whole selection");
 }
 
 void TestAccessibilityTreeMultiSelectRaisesSelectionEvents()
@@ -6719,9 +6735,10 @@ void ExpectHeard(SingleControlClient& walk, const std::vector<std::wstring>& hea
 // The selection events of a tree with a single selection, as a client subscribed to the window hears them from the library: a
 // click, a key or the application moving the selection to another item is that item being selected (which says that the other
 // left the selection; each item whose state changed also reports its IsSelected change); clearing the selection removes its
-// item; a republish that changed no selection is silent; and a selected item that leaves the tree cannot be named, so the tree's
-// selection is invalidated. The tree fills the window, whose element stands for it, or has a button beside it: a client hears
-// the same events, from the same items and the same tree, in both.
+// item; a republish that changed no selection is silent; and a selected item that leaves the tree has no element to name, so it
+// is left to the item that became the selection in the same change, or else the tree's selection is invalidated. The tree fills
+// the window, whose element stands for it, or has a button beside it: a client hears the same events, from the same items and
+// the same tree, in both.
 void ExpectClientHearsSingleSelectionTreeEvents(AttachedHostWindow& window, DxUi::Tree& tree, MutableTreeModel& model)
 {
     SingleControlClient walk(window, UiaTest::SelectionEventsSubscription());
@@ -6765,17 +6782,19 @@ void ExpectClientHearsSingleSelectionTreeEvents(AttachedHostWindow& window, DxUi
 
     ExpectHeard(walk, hear(0u, [&] { window.Host().RefreshAccessibilitySnapshot(); }), {}, "republishing an unchanged selection");
 
-    // An item that left the tree cannot be named, even when another became the selection in the same change.
+    // An item that left the tree cannot be named, but when another became the selection in the same change, that item's being
+    // selected says the other left it, as for a grid's row out of view.
     ExpectHeard(walk,
-                hear(1u,
+                hear(2u,
                      [&]
     {
         model.SetVisibleItems({DxUi::TreeItemData{.id = 1u, .text = L"Général"}, DxUi::TreeItemData{.id = 2u, .text = L"Volets"}});
         tree.SetSelectedItemId(1u);
         tree.NotifyDataChanged();
     }),
-                {L"Invalidated Tree 'Catégories'"},
+                {item(L"Selected", L"Général"), item(L"IsSelected:true", L"Général")},
                 "selecting an item as the selected one leaves the tree");
+    Require(tree.GetSelectedItemId() == 1u, "the tree selects the item the application chose");
     ExpectHeard(walk,
                 hear(1u,
                      [&]
