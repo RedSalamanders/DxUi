@@ -172,9 +172,10 @@ Tests/Embedded/EmbeddedUiaBridge.h is the application's side as a test plays it:
 window, and uses COM threading as the view's providers do) has the view's root element for its only child, with the view's
 site adapted to it. Tests/Embedded/EmbeddedUiaTests.h attaches views of one tree or one grid to it and subscribes an
 in-process UIA client (Tests/Support/UiaTestClient.h, also used by the control suites) to the window: the client walks from
-the application's element to the control's parts and back, and hears the events the view raises on publishing a change
-and the events raised on the parts. An embedded view's root is never collapsed into its only control: the root element is
-the application element's child, and the control's element is the root's.
+the application's element to the control's parts and back, and hears the events the view raises on publishing a change,
+among them the selection events of a tree (one selected item or several) and of a grid's rows, which UpdateAccessibility
+raises for every change of a selection since the last update. An embedded view's root is never collapsed into its only
+control: the root element is the application element's child, and the control's element is the root's.
 
 Native consumers may include `DxUi/NativeMenuInterop.h` to adapt borrowed HMENU resources,
 `DxUi/FocusRestore.h` for owned-window focus transitions, and `DxUi/PointerInput.h` for pointer

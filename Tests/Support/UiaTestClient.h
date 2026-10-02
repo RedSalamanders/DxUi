@@ -22,6 +22,8 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <compare>
+#include <cstddef>
 #include <cstdlib>
 #include <functional>
 #include <iostream>
@@ -61,6 +63,9 @@ struct HeardEvent
     std::wstring name;
     std::wstring automationId;
     std::wstring value;
+
+    [[nodiscard]] auto operator<=>(const HeardEvent&) const = default;
+    [[nodiscard]] bool operator==(const HeardEvent&) const  = default;
 };
 
 [[nodiscard]] inline std::wstring ControlTypeName(long controlType)
@@ -288,6 +293,42 @@ public:
     void Settle(ULONGLONG durationMs = 500u) const
     {
         static_cast<void>(WaitUntil(durationMs, [] { return false; }));
+    }
+
+    // Waits until no event has arrived for `quietMs` (for at most `deadlineMs`). An in-process client hears an event again a
+    // moment after the first time (about 60 ms apart when several were raised at once), so a step that ends here leaves no repeat
+    // to be heard by the next one.
+    void WaitOutTheStream(ULONGLONG quietMs = 500u, ULONGLONG deadlineMs = 10000u) const
+    {
+        size_t arrived        = _recorder->Events().size();
+        ULONGLONG lastArrival = GetTickCount64();
+        static_cast<void>(WaitUntil(deadlineMs,
+                                    [&]
+        {
+            if (const size_t now = _recorder->Events().size(); now != arrived)
+            {
+                arrived     = now;
+                lastArrival = GetTickCount64();
+            }
+            return GetTickCount64() - lastArrival >= quietMs;
+        }));
+    }
+
+    // Where the events heard so far end, for DistinctSince.
+    [[nodiscard]] size_t Mark() const
+    {
+        return _recorder->Events().size();
+    }
+
+    // The events heard after `mark`, each once and in a fixed order: UI Automation delivers to a client on threads of its own, so
+    // two events raised one after the other may arrive in either order, and it may deliver one twice.
+    [[nodiscard]] std::vector<HeardEvent> DistinctSince(size_t mark) const
+    {
+        std::vector<HeardEvent> events = _recorder->Events();
+        events.erase(events.begin(), events.begin() + static_cast<ptrdiff_t>((std::min)(mark, events.size())));
+        std::ranges::sort(events);
+        events.erase(std::ranges::unique(events).begin(), events.end());
+        return events;
     }
 
     [[nodiscard]] std::vector<HeardEvent> Events() const
@@ -710,4 +751,92 @@ private:
     std::atomic<bool> _finished{false};
     std::jthread _thread; // Last: it joins before the state it uses is destroyed.
 };
+
+// What a client subscribes to for the selection events of a tree or grid: the four events of the Selection and SelectionItem
+// patterns and the SelectionItem IsSelected property.
+[[nodiscard]] inline Subscription SelectionEventsSubscription()
+{
+    Subscription subscription;
+    subscription.automationEvents = {UIA_SelectionItem_ElementSelectedEventId,
+                                     UIA_SelectionItem_ElementAddedToSelectionEventId,
+                                     UIA_SelectionItem_ElementRemovedFromSelectionEventId,
+                                     UIA_Selection_InvalidatedEventId};
+    subscription.properties       = {UIA_SelectionItemIsSelectedPropertyId};
+    return subscription;
+}
+
+// A selection event as a test names it: what it says ("Selected", "Added", "Removed", "Invalidated", or "IsSelected:true" and
+// "IsSelected:false" for the property change), then the control type and name of the element it came from, as in
+// "Selected TreeItem 'Volets'". Empty for any other event.
+[[nodiscard]] inline std::wstring DescribeSelectionEvent(const HeardEvent& heard)
+{
+    std::wstring what;
+    if (heard.kind == EventKind::Automation)
+    {
+        switch (heard.id)
+        {
+            case UIA_SelectionItem_ElementSelectedEventId: what = L"Selected"; break;
+            case UIA_SelectionItem_ElementAddedToSelectionEventId: what = L"Added"; break;
+            case UIA_SelectionItem_ElementRemovedFromSelectionEventId: what = L"Removed"; break;
+            case UIA_Selection_InvalidatedEventId: what = L"Invalidated"; break;
+            default: return {};
+        }
+    }
+    else if (heard.kind == EventKind::Property && heard.id == UIA_SelectionItemIsSelectedPropertyId)
+    {
+        what = L"IsSelected:" + heard.value;
+    }
+    else
+    {
+        return {};
+    }
+    return what + L" " + ControlTypeName(heard.controlType) + L" '" + heard.name + L"'";
+}
+
+// The selection events a client hears for `action`: the different ones that arrived once at least `expected` had (or the wait
+// for them ran out) and the stream of events then stopped, so that a repeat of one does not reach the next step. Described by
+// DescribeSelectionEvent and sorted, for a comparison with what a test expects.
+[[nodiscard]] inline std::vector<std::wstring> HearSelectionEvents(Client& client, size_t expected, const std::function<void()>& action)
+{
+    client.WaitOutTheStream();
+    const size_t mark    = client.Mark();
+    const auto described = [&]
+    {
+        std::vector<std::wstring> texts;
+        for (const HeardEvent& heard : client.DistinctSince(mark))
+        {
+            if (std::wstring text = DescribeSelectionEvent(heard); ! text.empty())
+                texts.push_back(std::move(text));
+        }
+        std::ranges::sort(texts);
+        texts.erase(std::ranges::unique(texts).begin(), texts.end());
+        return texts;
+    };
+    action();
+    if (expected != 0u)
+        static_cast<void>(client.WaitUntil(Client::kNotificationDeadlineMs, [&] { return described().size() >= expected; }));
+    client.WaitOutTheStream();
+    return described();
+}
+
+// The events `expected` lists, sorted as HearSelectionEvents sorts what it heard.
+[[nodiscard]] inline std::vector<std::wstring> SortedEvents(std::vector<std::wstring> expected)
+{
+    std::ranges::sort(expected);
+    return expected;
+}
+
+// For a failure report: each event, its non-ASCII characters as '?'.
+[[nodiscard]] inline std::string DescribeEventList(const std::vector<std::wstring>& events)
+{
+    std::string text;
+    for (const std::wstring& event : events)
+    {
+        text += " [";
+        for (const wchar_t unit : event)
+            text += unit < 0x80 ? static_cast<char>(unit) : '?';
+        text += "]";
+    }
+    return text.empty() ? std::string(" nothing") : text;
+}
 } // namespace UiaTest

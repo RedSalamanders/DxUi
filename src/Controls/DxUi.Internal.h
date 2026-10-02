@@ -401,6 +401,12 @@ void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t
 // when the system's focus event is answered: each call sets `enteredEvent` on arrival and waits, for at most five seconds
 // and never indefinitely, for `releaseEvent`. Null events clear the gate and return once the calls it held have left it.
 void DebugSetAccessibilityFocusResolutionGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent) noexcept;
+// Runs `hook` with `context` on the raising thread after each UI Automation selection event a host raises (an item's IsSelected
+// change or selection event, or the invalidation of a tree's or grid's selection), since something else can run while they are
+// raised (an outgoing call of UI Automation's in a single-threaded apartment dispatches messages): a test hides, removes or
+// disconnects the control from it. A null hook clears it.
+using AccessibilitySelectionEventHookForTest = void (*)(void* context) noexcept;
+void DebugSetAccessibilitySelectionEventHookForTest(AccessibilitySelectionEventHookForTest hook, void* context) noexcept;
 // Counting starts at zero when enabled and covers every record, table slot and tree node a provider call or event
 // examines to resolve a control on the calling thread; it is off (and free) otherwise.
 void DebugSetAccessibilityResolutionCountingForTest(bool enabled) noexcept;
