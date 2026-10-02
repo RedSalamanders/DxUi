@@ -1,0 +1,143 @@
+DirectWrite single-layout probe (probe.cpp), 2026-10-01; build: cl /std:c++latest /EHsc /utf-8 /O2 /MD probe.cpp /link d3d11.lib d2d1.lib dwrite.lib dxgi.lib ole32.lib user32.lib uuid.lib
+
+=== probe.exe pixels
+Segoe UI Variable available: 0
+short                    sep: P h=17.2910 lines=1 | S h=14.6309 lines=1 || single: hp=17.2910(1) hs=14.6309(1) spacer=3.7090(size 2.7885) ok=1 total=35.6309 expected=35.6309
+french-wrap              sep: P h=51.8730 lines=3 | S h=29.2617 lines=2 || single: hp=51.8730(3) hs=29.2617(2) spacer=3.1270(size 2.3510) ok=1 total=84.2617 expected=84.2617
+french-fixture           sep: P h=17.2910 lines=1 | S h=14.6309 lines=1 || single: hp=17.2910(1) hs=14.6309(1) spacer=3.7090(size 2.7885) ok=1 total=35.6309 expected=35.6309
+emoji                    sep: P h=17.2910 lines=1 | S h=14.6309 lines=1 || single: hp=17.2910(1) hs=14.6309(1) spacer=3.7090(size 2.7885) ok=1 total=35.6309 expected=35.6309
+hebrew                   sep: P h=17.2910 lines=1 | S h=14.6309 lines=1 || single: hp=17.2910(1) hs=14.6309(1) spacer=3.7090(size 2.7885) ok=1 total=35.6309 expected=35.6309
+rtl-rtl-punct            sep: P h=17.2910 lines=1 | S h=14.6309 lines=1 || single: hp=17.2910(1) hs=14.6309(1) spacer=3.7090(size 2.7885) ok=1 total=35.6309 expected=35.6309
+arabic                   sep: P h=17.2910 lines=1 | S h=14.6309 lines=1 || single: hp=17.2910(1) hs=14.6309(1) spacer=3.7090(size 2.7885) ok=1 total=35.6309 expected=35.6309
+mixed-bidi               sep: P h=17.2910 lines=1 | S h=14.6309 lines=1 || single: hp=17.2910(1) hs=14.6309(1) spacer=3.7090(size 2.7885) ok=1 total=35.6309 expected=35.6309
+cjk                      sep: P h=17.4116 lines=1 | S h=14.6309 lines=1 || single: hp=17.4116(1) hs=14.6309(1) spacer=3.5884(size 2.6979) ok=1 total=35.6309 expected=35.6309
+thai                     sep: P h=17.2910 lines=1 | S h=14.6309 lines=1 || single: hp=17.2910(1) hs=14.6309(1) spacer=3.7090(size 2.7885) ok=1 total=35.6309 expected=35.6309
+marks                    sep: P h=17.2910 lines=1 | S h=14.6309 lines=1 || single: hp=17.2910(1) hs=14.6309(1) spacer=3.7090(size 2.7885) ok=1 total=35.6309 expected=35.6309
+empty-primary            sep: P h=17.2910 lines=1 | S h=14.6309 lines=1 || single: hp=17.2910(1) hs=14.6309(1) spacer=3.7090(size 2.7885) ok=1 total=35.6309 expected=35.6309
+long-token               sep: P h=51.8730 lines=3 | S h=43.8926 lines=3 || single: hp=51.8730(3) hs=43.8926(3) spacer=3.1270(size 2.3510) ok=1 total=98.8926 expected=98.8926
+multi-paragraph-primary  sep: P h=34.5820 lines=2 | S h=29.2617 lines=2 || single: hp=34.5820(2) hs=29.2617(2) spacer=3.4180(size 2.5698) ok=1 total=67.2617 expected=67.2617
+narrow                   sep: P h=69.1641 lines=4 | S h=58.5234 lines=4 || single: hp=69.1641(4) hs=58.5234(4) spacer=3.8359(size 2.8840) ok=1 total=131.5234 expected=131.5234
+pixel comparisons: 240, differing: 0
+
+=== probe.exe fonts
+Segoe UI Variable available: 0
+Segoe UI 13 / Segoe UI 11 (as DxUi resolves here)    calibrated=1 comparisons=20 differing=0
+Segoe UI 13 / Consolas 11                            calibrated=1 comparisons=20 differing=0
+Segoe UI 13 / Cambria 11 italic                      calibrated=1 comparisons=20 differing=0
+Segoe UI 13 / Segoe UI 11 semibold                   calibrated=1 comparisons=20 differing=0
+Arial 13 / Times New Roman 11                        calibrated=1 comparisons=20 differing=0
+Consolas 12 / Segoe UI 18                            calibrated=1 comparisons=20 differing=0
+Cambria 15 bold / Arial 9                            calibrated=1 comparisons=20 differing=0
+font pair comparisons: 140, differing: 0
+
+=== probe.exe heights
+Segoe UI Variable available: 0
+heights: 588 cases; primary height bit mismatches=0; secondary=0; line count mismatches=0; total height off=0
+
+=== probe.exe tabs
+Segoe UI Variable available: 0
+incremental tab stop body=52.0000 small=44.0000
+tab in secondary, default tab stops: 0 px differ
+tab in secondary, layout tab stop set to Small's: 0 px differ
+
+=== probe.exe brush
+Segoe UI Variable available: 0
+shared mutable brush vs dedicated brushes: 0 px differ (ink 156000)
+
+=== probe.exe edges
+Segoe UI Variable available: 0
+secondary trailing newline   sepP h=17.2910 l=1 sepS h=29.2617 l=2 | single hp=17.2910(1) hs=29.2617(2) spacerOk=1 pixels differ=0
+secondary leading newline    sepP h=17.2910 l=1 sepS h=29.2617 l=2 | single hp=17.2910(1) hs=29.2617(2) spacerOk=1 pixels differ=0
+secondary only newlines      sepP h=17.2910 l=1 sepS h=43.8926 l=3 | single hp=17.2910(1) hs=43.8926(3) spacerOk=1 pixels differ=0
+secondary CRLF               sepP h=17.2910 l=1 sepS h=43.8926 l=3 | single hp=17.2910(1) hs=43.8926(3) spacerOk=1 pixels differ=0
+secondary U+2028             sepP h=17.2910 l=1 sepS h=58.5234 l=4 | single hp=17.2910(1) hs=58.5234(4) spacerOk=1 pixels differ=0
+primary U+2028               sepP h=34.5820 l=2 sepS h=14.6309 l=1 | single hp=34.5820(2) hs=14.6309(1) spacerOk=1 pixels differ=0
+primary trailing CR          sepP h=34.5820 l=2 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=478
+secondary NBSP lead          sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+secondary tabs only          sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+secondary zero width         sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+rtl then ltr punct           sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+ltr then rtl                 sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+arabic digits                sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+numbers neutrals             sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+unterminated RLO in label    sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+unterminated RLE in label    sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+unterminated LRO in rtl label sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+unterminated RLI in label    sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+unterminated FSI in label    sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+RLO in description only      sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+rtl label, ltr desc, trailing neutrals sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+arabic label digits end      sepP h=17.2910 l=1 sepS h=14.6309 l=1 | single hp=17.2910(1) hs=14.6309(1) spacerOk=1 pixels differ=0
+
+=== probe.exe reflow
+Segoe UI Variable available: 0
+reflow 396->380: hp=34.5820 vs 34.5820 hs=29.2617 vs 29.2617 pixels differ=0
+reflow 300->284: hp=51.8730 vs 51.8730 hs=43.8926 vs 43.8926 pixels differ=0
+reflow 250->234: hp=51.8730 vs 51.8730 hs=43.8926 vs 43.8926 pixels differ=0
+reflow comparisons 3 bad 0
+
+=== probe.exe memory
+Segoe UI Variable available: 0
+
+rows=12 primary=repeated
+  separate (no sharing)                        median live bytes   454650.0  (min 454650 max 454650)  per row 37887.5
+  main: shared identical text                  median live bytes   250146.0  (min 250146 max 250146)  per row 20845.5
+  single layout per row                        median live bytes   254970.0  (min 254970 max 254970)  per row 21247.5
+  single layout + secondary drawing effect     median live bytes   254970.0  (min 254970 max 254970)  per row 21247.5
+
+rows=24 primary=repeated
+  separate (no sharing)                        median live bytes   909534.0  (min 909534 max 909534)  per row 37897.2
+  main: shared identical text                  median live bytes   481446.0  (min 481446 max 481446)  per row 20060.2
+  single layout per row                        median live bytes   510174.0  (min 510174 max 510174)  per row 21257.2
+  single layout + secondary drawing effect     median live bytes   510174.0  (min 510174 max 510174)  per row 21257.2
+
+rows=48 primary=repeated
+  separate (no sharing)                        median live bytes  1819781.0  (min 1819781 max 1819781)  per row 37912.1
+  main: shared identical text                  median live bytes   944525.0  (min 944525 max 944525)  per row 19677.6
+  single layout per row                        median live bytes  1021061.0  (min 1021061 max 1021061)  per row 21272.1
+  single layout + secondary drawing effect     median live bytes  1021061.0  (min 1021061 max 1021061)  per row 21272.1
+
+rows=12 primary=distinct
+  separate (no sharing)                        median live bytes   455260.0  (min 455260 max 455260)  per row 37938.3
+  main: shared identical text                  median live bytes   460636.0  (min 460636 max 460636)  per row 38386.3
+  single layout per row                        median live bytes   255800.0  (min 255800 max 255800)  per row 21316.7
+  single layout + secondary drawing effect     median live bytes   255800.0  (min 255800 max 255800)  per row 21316.7
+
+rows=24 primary=distinct
+  separate (no sharing)                        median live bytes   910924.0  (min 910924 max 910924)  per row 37955.2
+  main: shared identical text                  median live bytes   921676.0  (min 921676 max 921676)  per row 38403.2
+  single layout per row                        median live bytes   512144.0  (min 512144 max 512144)  per row 21339.3
+  single layout + secondary drawing effect     median live bytes   512144.0  (min 512144 max 512144)  per row 21339.3
+
+rows=48 primary=distinct
+  separate (no sharing)                        median live bytes  1822731.0  (min 1822731 max 1822731)  per row 37973.6
+  main: shared identical text                  median live bytes  1844235.0  (min 1844235 max 1844235)  per row 38421.6
+  single layout per row                        median live bytes  1025311.0  (min 1025311 max 1025311)  per row 21360.6
+  single layout + secondary drawing effect     median live bytes  1025311.0  (min 1025311 max 1025311)  per row 21360.6
+
+=== probe.exe steps
+Segoe UI Variable available: 0
+  V0 one layout, P\n\nS, no overrides              248744  per row  20728.7
+  V1 + description size override                   252776  per row  21064.7
+  V2 + spacer size                                 254024  per row  21168.7
+  V3 + drawing effect                              254024  per row  21168.7
+  V4 + GetLineMetrics                              254024  per row  21168.7
+  primary-only layout (12)                         226986  per row  18915.5
+  secondary-only layout, small format (12)         227226  per row  18935.5
+
+=== probe.exe chars
+Segoe UI Variable available: 0
+     1 characters:   12110.7 bytes per layout
+    10 characters:   17872.7 bytes per layout
+    25 characters:   18257.7 bytes per layout
+    50 characters:   18912.7 bytes per layout
+   100 characters:   20456.7 bytes per layout
+   200 characters:   23666.7 bytes per layout
+   400 characters:   29655.7 bytes per layout
+   800 characters:   41758.7 bytes per layout
+
+=== probe.exe timing
+Segoe UI Variable available: 0
+separate        : prepare 48 rows median 1.045 ms (min 1.025)
+single          : prepare 48 rows median 2.393 ms (min 2.276)
+single + guess  : prepare 48 rows median 1.199 ms (min 1.184)

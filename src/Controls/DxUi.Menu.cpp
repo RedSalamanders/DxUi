@@ -8,12 +8,10 @@
 #include <exception>
 #include <format>
 #include <limits>
-#include <map>
 #include <mutex>
 #include <new>
 #include <shellscalingapi.h>
 #include <system_error>
-#include <tuple>
 #include <utility>
 #include <wil/win32_helpers.h>
 #include <wincodec.h>
@@ -976,14 +974,30 @@ struct MenuItemLayoutRects
            (item.kind == MenuItemKind::Standard || item.kind == MenuItemKind::Toggle || item.kind == MenuItemKind::Radio || item.kind == MenuItemKind::Info);
 }
 
+// The size of one field of a described row, as its layout reports it.
+struct MenuFieldMetrics
+{
+    float height     = 0.0f;
+    UINT32 lineCount = 0u;
+};
+
+// A described row's two fields share one DirectWrite layout, because the shaping storage a layout keeps is mostly per layout
+// (about 17 KB), not per character: its text is the label, an empty spacer paragraph and the description, and the description
+// range carries the small text format's font. Two separate layouts drew the label at the row's text origin and the description
+// kDescriptionGapDip below the label's height rounded up to whole DIPs; the spacer paragraph, whose font size
+// MeasureMenuDescriptionRow calibrates, keeps exactly that distance. Only the layout's own line heights are summed, so the
+// rounded heights equal those of two separate layouts.
 struct MenuDescriptionLayout
 {
-    wil::com_ptr<IDWriteTextLayout> primary;
-    wil::com_ptr<IDWriteTextLayout> secondary;
-    DWRITE_TEXT_METRICS primaryMetrics{};
-    DWRITE_TEXT_METRICS secondaryMetrics{};
-    float heightDip    = 0.0f;
-    float textWidthDip = 0.0f;
+    wil::com_ptr<IDWriteTextLayout> layout;
+    DWRITE_TEXT_RANGE description{};   // The description's text positions.
+    UINT32 spacerPosition = 0u;        // The spacer paragraph's newline: the first text position after the label's own newline.
+    float spacerSizeDip   = 0.0f;      // The font size that gives the spacer paragraph its height.
+    MenuFieldMetrics primaryMetrics;   // The label's lines (spacer and description excluded).
+    MenuFieldMetrics secondaryMetrics; // The description's lines.
+    float heightDip              = 0.0f;
+    float textWidthDip           = 0.0f;
+    ID2D1Brush* descriptionBrush = nullptr; // The brush bound as the description range's drawing effect. Identity only: the layout owns it.
 };
 
 [[nodiscard]] int RoundToIntSaturated(double value) noexcept
@@ -1091,6 +1105,11 @@ struct MenuPopup
     // What DebugGetContextMenuResources reports for this popup while it lives: itself and the layouts its rows hold.
     Detail::LiveResourceCount livePopup{Detail::LiveResource::MenuPopup, 1u};
     Detail::LiveResourceCount liveRowLayouts;
+    // The brush every described row's layout carries as the drawing effect of its description, so a row is one layout drawn by
+    // one call: paint sets its color for each row just before that row's draw. It belongs to one Direct2D device, which it
+    // keeps alive, so a new device gets a new brush and the layouts carry that one from their next draw.
+    wil::com_ptr<ID2D1SolidColorBrush> descriptionBrush;
+    wil::com_ptr<ID2D1Device> descriptionBrushDevice;
     uint64_t descriptionPreparationCount = 0;
     const MenuFlyoutItem* items          = nullptr;
     size_t itemCount                     = 0;
@@ -2462,6 +2481,186 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
     return D2D1::SizeF(width, totalHeight);
 }
 
+// How the small text format's font differs from the body format's: what a row layout built from the body format must override
+// on the description range for DirectWrite to shape the description as a layout made from the small format would.
+struct MenuDescriptionFont
+{
+    std::wstring family;
+    std::wstring locale;
+    wil::com_ptr<IDWriteFontCollection> collection;
+    float size                  = 0.0f;
+    float tabStop               = 0.0f;
+    DWRITE_FONT_WEIGHT weight   = DWRITE_FONT_WEIGHT_NORMAL;
+    DWRITE_FONT_STYLE style     = DWRITE_FONT_STYLE_NORMAL;
+    DWRITE_FONT_STRETCH stretch = DWRITE_FONT_STRETCH_NORMAL;
+    bool overridesFamily        = false;
+    bool overridesCollection    = false;
+    bool overridesLocale        = false;
+    bool overridesSize          = false;
+    bool overridesWeight        = false;
+    bool overridesStyle         = false;
+    bool overridesStretch       = false;
+    bool overridesTabStop       = false;
+};
+
+[[nodiscard]] bool ReadMenuFormatNames(IDWriteTextFormat& format, std::wstring& family, std::wstring& locale)
+{
+    family.assign(static_cast<size_t>(format.GetFontFamilyNameLength()) + 1u, L'\0');
+    locale.assign(static_cast<size_t>(format.GetLocaleNameLength()) + 1u, L'\0');
+    if (FAILED(format.GetFontFamilyName(family.data(), static_cast<UINT32>(family.size()))) ||
+        FAILED(format.GetLocaleName(locale.data(), static_cast<UINT32>(locale.size()))))
+        return false;
+    family.resize(std::wcslen(family.c_str()));
+    locale.resize(std::wcslen(locale.c_str()));
+    return true;
+}
+
+// Every property a DirectWrite layout holds per range is read back from the formats rather than assumed, so a host that
+// configures its small format differently still gets the small format's description. Properties a layout holds for all its text
+// (alignment, wrapping, directions, line spacing) come from the body format: the host creates both formats alike, and a test
+// holds them to it.
+[[nodiscard]] bool ReadMenuDescriptionFont(IDWriteTextFormat& bodyFormat, IDWriteTextFormat& smallFormat, MenuDescriptionFont& font)
+{
+    std::wstring bodyFamily;
+    std::wstring bodyLocale;
+    wil::com_ptr<IDWriteFontCollection> bodyCollection;
+    if (! ReadMenuFormatNames(bodyFormat, bodyFamily, bodyLocale) || ! ReadMenuFormatNames(smallFormat, font.family, font.locale) ||
+        FAILED(bodyFormat.GetFontCollection(bodyCollection.put())) || FAILED(smallFormat.GetFontCollection(font.collection.put())))
+        return false;
+    font.size                = smallFormat.GetFontSize();
+    font.tabStop             = smallFormat.GetIncrementalTabStop();
+    font.weight              = smallFormat.GetFontWeight();
+    font.style               = smallFormat.GetFontStyle();
+    font.stretch             = smallFormat.GetFontStretch();
+    font.overridesFamily     = font.family != bodyFamily;
+    font.overridesLocale     = font.locale != bodyLocale;
+    font.overridesCollection = font.collection.get() != bodyCollection.get();
+    font.overridesSize       = font.size != bodyFormat.GetFontSize();
+    font.overridesWeight     = font.weight != bodyFormat.GetFontWeight();
+    font.overridesStyle      = font.style != bodyFormat.GetFontStyle();
+    font.overridesStretch    = font.stretch != bodyFormat.GetFontStretch();
+    font.overridesTabStop    = font.tabStop != bodyFormat.GetIncrementalTabStop();
+    return true;
+}
+
+// The spacer paragraph's font size before any measurement. Font metrics scale with the size, so one measurement at any size
+// tells what size gives the wanted height.
+constexpr float kDescriptionSpacerReferenceSizeDip = kDescriptionGapDip;
+// How far the spacer's height may be from the wanted one, in DIPs. DirectWrite reports heights as floats: the calibration
+// reaches them to a few millionths, and this is far below what shifts a glyph onto another device pixel.
+constexpr float kDescriptionSpacerToleranceDip = 1.0f / 8192.0f;
+
+// What preparing a popup's described rows carries from one row to the next.
+struct MenuDescriptionPreparation
+{
+    MenuDescriptionFont font;
+    // The spacer size the last row settled on. A row whose label is as tall starts from it and needs no correction, so the
+    // first measurement confirms it and the row's layout is computed once.
+    float spacerSizeDip = kDescriptionSpacerReferenceSizeDip;
+    std::vector<DWRITE_LINE_METRICS> lines; // Scratch for the measurements.
+};
+
+// Creates the row's layout: the label, the spacer paragraph and the description, wrapped at textWidthDip. The caller measures it.
+[[nodiscard]] bool CreateMenuDescriptionLayout(IDWriteFactory& factory,
+                                               IDWriteTextFormat& bodyFormat,
+                                               const MenuDescriptionFont& font,
+                                               float spacerSizeDip,
+                                               std::wstring_view primary,
+                                               std::wstring_view secondary,
+                                               float textWidthDip,
+                                               MenuDescriptionLayout& row)
+{
+    // One newline ends the label's paragraph and one is the spacer paragraph. A label never ends in a carriage return that the
+    // first newline would join into a line break of its own: DecodeMenuItemText trims its trailing white space.
+    constexpr size_t kSeparatorLength = 2u;
+    if (primary.size() > (std::numeric_limits<UINT32>::max)() || secondary.size() > (std::numeric_limits<UINT32>::max)() - primary.size() - kSeparatorLength)
+        return false;
+    std::wstring text;
+    text.reserve(primary.size() + kSeparatorLength + secondary.size());
+    text.append(primary).append(L"\n\n").append(secondary);
+
+    wil::com_ptr<IDWriteTextLayout> layout;
+    const DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_NONE, 0, 0};
+    if (FAILED(factory.CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), &bodyFormat, textWidthDip, 1000000.0f, layout.put())) ||
+        FAILED(layout->SetWordWrapping(DWRITE_WORD_WRAPPING_EMERGENCY_BREAK)) || FAILED(layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR)) ||
+        FAILED(layout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING)) || FAILED(layout->SetTrimming(&trimming, nullptr)))
+        return false;
+
+    const UINT32 spacerPosition = static_cast<UINT32>(primary.size()) + 1u;
+    const DWRITE_TEXT_RANGE description{spacerPosition + 1u, static_cast<UINT32>(secondary.size())};
+    if ((font.overridesFamily && FAILED(layout->SetFontFamilyName(font.family.c_str(), description))) ||
+        (font.overridesCollection && FAILED(layout->SetFontCollection(font.collection.get(), description))) ||
+        (font.overridesLocale && FAILED(layout->SetLocaleName(font.locale.c_str(), description))) ||
+        (font.overridesSize && FAILED(layout->SetFontSize(font.size, description))) ||
+        (font.overridesWeight && FAILED(layout->SetFontWeight(font.weight, description))) ||
+        (font.overridesStyle && FAILED(layout->SetFontStyle(font.style, description))) ||
+        (font.overridesStretch && FAILED(layout->SetFontStretch(font.stretch, description))) ||
+        // A tab stop is a property of the whole layout; only the description can hold a tab, since the label ends at the first one.
+        (font.overridesTabStop && FAILED(layout->SetIncrementalTabStop(font.tabStop))) ||
+        FAILED(layout->SetFontSize(spacerSizeDip, DWRITE_TEXT_RANGE{spacerPosition, 1u})))
+        return false;
+
+    row.layout           = std::move(layout);
+    row.description      = description;
+    row.spacerPosition   = spacerPosition;
+    row.spacerSizeDip    = spacerSizeDip;
+    row.descriptionBrush = nullptr;
+    return true;
+}
+
+// Measures the row's layout at its current width and sizes the spacer paragraph so that the description begins where a layout
+// of its own would be drawn: kDescriptionGapDip below the label's height rounded up to whole DIPs. The heights are the sums of
+// the layout's line heights, as a separate layout reports its own, so the rounded heights agree with two separate layouts'.
+// False when DirectWrite cannot report the lines or the spacer cannot reach its height. `lines` is scratch.
+[[nodiscard]] bool MeasureMenuDescriptionRow(MenuDescriptionLayout& row, std::vector<DWRITE_LINE_METRICS>& lines)
+{
+    IDWriteTextLayout* const layout = row.layout.get();
+    // The first pass may find the spacer at another height: its size was chosen for another label height or none. The
+    // correction is exact to the float, so the second pass confirms it; the rest is margin.
+    for (int pass = 0; pass < 4; ++pass)
+    {
+        UINT32 lineCount = 0u;
+        static_cast<void>(layout->GetLineMetrics(nullptr, 0u, &lineCount)); // Reports the count with E_NOT_SUFFICIENT_BUFFER.
+        lines.assign(lineCount, DWRITE_LINE_METRICS{});
+        if (lineCount == 0u || FAILED(layout->GetLineMetrics(lines.data(), lineCount, &lineCount)))
+            return false;
+        MenuFieldMetrics primary;
+        MenuFieldMetrics secondary;
+        float spacerHeight = 0.0f;
+        UINT32 position    = 0u;
+        for (const DWRITE_LINE_METRICS& line : lines)
+        {
+            if (position < row.spacerPosition)
+            {
+                primary.height += line.height;
+                ++primary.lineCount;
+            }
+            else if (position == row.spacerPosition)
+                spacerHeight = line.height;
+            else
+            {
+                secondary.height += line.height;
+                ++secondary.lineCount;
+            }
+            position += line.length;
+        }
+        if (! (spacerHeight > 0.0f))
+            return false;
+        const float wantedHeight = std::ceil(primary.height) - primary.height + kDescriptionGapDip;
+        if (std::abs(spacerHeight - wantedHeight) <= kDescriptionSpacerToleranceDip)
+        {
+            row.primaryMetrics   = primary;
+            row.secondaryMetrics = secondary;
+            row.heightDip        = 2.0f * kDescriptionPaddingDip + std::ceil(primary.height) + kDescriptionGapDip + std::ceil(secondary.height);
+            return true;
+        }
+        row.spacerSizeDip *= wantedHeight / spacerHeight;
+        if (! (row.spacerSizeDip > 0.0f) || FAILED(layout->SetFontSize(row.spacerSizeDip, DWRITE_TEXT_RANGE{row.spacerPosition, 1u})))
+            return false;
+    }
+    return false;
+}
+
 [[nodiscard]] bool PrepareMenuDescriptionLayouts(MenuPopup& popup, float contentWidthDip) noexcept
 {
     const bool hasDescriptions = std::any_of(popup.items, popup.items + popup.itemCount, HasMenuDescription);
@@ -2472,18 +2671,14 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
     }
     try
     {
-        std::vector<MenuDescriptionLayout> prepared(popup.itemCount);
-        struct PreparedText
-        {
-            wil::com_ptr<IDWriteTextLayout> layout;
-            DWRITE_TEXT_METRICS metrics{};
-        };
-        // Preparation-local interning: identical text/font/width shares native
-        // shaping storage only within this popup. No global cache or row identity.
-        std::map<std::tuple<FontRole, float, std::wstring>, PreparedText, std::less<>> textLayouts;
-        auto* factory = popup.host.GetWriteFactory();
-        if (! factory)
+        auto* factory     = popup.host.GetWriteFactory();
+        auto* bodyFormat  = popup.host.GetTextFormat(FontRole::Body);
+        auto* smallFormat = popup.host.GetTextFormat(FontRole::Small);
+        MenuDescriptionPreparation preparation;
+        if (! factory || ! bodyFormat || ! smallFormat || ! ReadMenuDescriptionFont(*bodyFormat, *smallFormat, preparation.font))
             return false;
+        std::vector<MenuDescriptionLayout> prepared(popup.itemCount);
+        size_t layoutCount = 0u;
         for (size_t i = 0; i < popup.itemCount; ++i)
         {
             const auto& item = popup.items[i];
@@ -2496,37 +2691,14 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
             const float textWidth     = (std::max)(1.0f,
                                                    contentWidthDip - kTextLeftPaddingDip - kAccelRightPaddingDip -
                                                        (popup.hasSubmenuItems ? kChevronAreaWidthDip : 0.0f) - reservedAccel);
-            const auto prepare        = [&](std::wstring_view text, FontRole role, wil::com_ptr<IDWriteTextLayout>& layout, DWRITE_TEXT_METRICS& metrics)
-            {
-                const auto cached = textLayouts.find(std::tuple{role, textWidth, text});
-                if (cached != textLayouts.end())
-                {
-                    layout  = cached->second.layout;
-                    metrics = cached->second.metrics;
-                    return true;
-                }
-                auto* format = popup.host.GetTextFormat(role);
-                if (! format || text.size() > (std::numeric_limits<UINT32>::max)())
-                    return false;
-                if (FAILED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, textWidth, 1000000.0f, &layout)) ||
-                    FAILED(layout->SetWordWrapping(DWRITE_WORD_WRAPPING_EMERGENCY_BREAK)) ||
-                    FAILED(layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR)) || FAILED(layout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING)))
-                    return false;
-                const DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_NONE, 0, 0};
-                if (FAILED(layout->SetTrimming(&trimming, nullptr)) || FAILED(layout->GetMetrics(&metrics)))
-                    return false;
-                textLayouts.try_emplace(std::tuple{role, textWidth, std::wstring(text)}, PreparedText{layout, metrics});
-                return true;
-            };
-            if (! prepare(label.displayText, FontRole::Body, row.primary, row.primaryMetrics) ||
-                ! prepare(item.secondaryText, FontRole::Small, row.secondary, row.secondaryMetrics))
+            if (! CreateMenuDescriptionLayout(
+                    *factory, *bodyFormat, preparation.font, preparation.spacerSizeDip, label.displayText, item.secondaryText, textWidth, row) ||
+                ! MeasureMenuDescriptionRow(row, preparation.lines))
                 return false;
-            row.textWidthDip = textWidth;
-            row.heightDip = 2.0f * kDescriptionPaddingDip + std::ceil(row.primaryMetrics.height) + kDescriptionGapDip + std::ceil(row.secondaryMetrics.height);
+            preparation.spacerSizeDip = row.spacerSizeDip;
+            row.textWidthDip          = textWidth;
+            ++layoutCount;
         }
-        size_t layoutCount = 0u;
-        for (const MenuDescriptionLayout& row : prepared)
-            layoutCount += (row.primary ? 1u : 0u) + (row.secondary ? 1u : 0u);
         popup.descriptionLayouts = std::move(prepared);
         popup.liveRowLayouts     = Detail::LiveResourceCount(Detail::LiveResource::MenuRowLayout, layoutCount);
         popup.RebuildItemOffsets();
@@ -2561,17 +2733,22 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
         // scrollbar changes only their width: do not allocate a second full set
         // while the first set is still alive. A failed reflow rejects opening
         // or dismisses the existing popup through the caller's failure path.
-        for (auto& row : popup.descriptionLayouts)
+        try
         {
-            if (! row.primary)
-                continue;
-            // Shared layouts may occur in several rows: use the original width,
-            // never repeatedly subtract from the same native object's width.
-            const float textWidth = (std::max)(1.0f, row.textWidthDip - kScrollbarThicknessDip);
-            if (FAILED(row.primary->SetMaxWidth(textWidth)) || FAILED(row.secondary->SetMaxWidth(textWidth)) ||
-                FAILED(row.primary->GetMetrics(&row.primaryMetrics)) || FAILED(row.secondary->GetMetrics(&row.secondaryMetrics)))
-                return false;
-            row.heightDip = 2.0f * kDescriptionPaddingDip + std::ceil(row.primaryMetrics.height) + kDescriptionGapDip + std::ceil(row.secondaryMetrics.height);
+            std::vector<DWRITE_LINE_METRICS> lines;
+            for (auto& row : popup.descriptionLayouts)
+            {
+                if (! row.layout)
+                    continue;
+                // The width is absolute, from the width the row was prepared at: never subtracted from the layout's own.
+                const float textWidth = (std::max)(1.0f, row.textWidthDip - kScrollbarThicknessDip);
+                if (FAILED(row.layout->SetMaxWidth(textWidth)) || ! MeasureMenuDescriptionRow(row, lines))
+                    return false;
+            }
+        }
+        catch (const std::bad_alloc&)
+        {
+            return false;
         }
         popup.RebuildItemOffsets();
         popup.contentHeightDip = popup.itemOffsetsDip.back() + kMenuPaddingBottomDip;
@@ -2730,11 +2907,42 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
 // Paint menu content (called from WM_PAINT via ControlHost)
 // ---------------------------------------------------------------------------
 
-// Draws a described row's two prepared fields, in the colors of the row's label and secondary text. False leaves a plain
-// row to the caller. Color glyphs (emoji) render as in plain rows; like the Grid, no clip to the fractional layout box.
+// The brush that draws a row's description in `color`: the popup's one brush, recolored here (Direct2D resolves a brush's color
+// when the draw is issued, so each row's draw keeps its own) and bound to the row's layout the first time it draws with it.
+// Null when the brush cannot be made or bound; the row then draws nothing, like a null brush from the host.
+[[nodiscard]] ID2D1SolidColorBrush* BindMenuDescriptionBrush(ID2D1DeviceContext& dc,
+                                                             MenuPopup& popup,
+                                                             MenuDescriptionLayout& row,
+                                                             const D2D1_COLOR_F& color) noexcept
+{
+    wil::com_ptr<ID2D1Device> device;
+    dc.GetDevice(device.put());
+    if (! device)
+        return nullptr;
+    if (! popup.descriptionBrush || popup.descriptionBrushDevice.get() != device.get())
+    {
+        wil::com_ptr<ID2D1SolidColorBrush> brush;
+        if (FAILED(dc.CreateSolidColorBrush(color, brush.put())) || ! brush)
+            return nullptr;
+        popup.descriptionBrush       = std::move(brush);
+        popup.descriptionBrushDevice = std::move(device);
+    }
+    popup.descriptionBrush->SetColor(color);
+    if (row.descriptionBrush != popup.descriptionBrush.get())
+    {
+        if (FAILED(row.layout->SetDrawingEffect(popup.descriptionBrush.get(), row.description)))
+            return nullptr;
+        row.descriptionBrush = popup.descriptionBrush.get();
+    }
+    return popup.descriptionBrush.get();
+}
+
+// Draws a described row's layout: the label in primaryColor and the description in secondaryColor, at the row's text origin,
+// where two separate layouts drew them a measured gap apart. False leaves a plain row to the caller. Color glyphs (emoji)
+// render as in plain rows; like the Grid, no clip to the fractional layout box.
 [[nodiscard]] bool DrawMenuDescription(ControlHost& host,
                                        ID2D1DeviceContext& dc,
-                                       const MenuPopup& popup,
+                                       MenuPopup& popup,
                                        size_t index,
                                        const MenuItemLayoutRects& layout,
                                        const D2D1_COLOR_F& primaryColor,
@@ -2745,18 +2953,11 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
         return false;
     }
     // GetSolidBrush can return null; like every other draw here, skip rather than pass it.
-    const auto& row = popup.descriptionLayouts[index];
-    if (auto* primaryBrush = host.GetSolidBrush(primaryColor); primaryBrush && row.primary)
+    auto& row = popup.descriptionLayouts[index];
+    if (auto* primaryBrush = host.GetSolidBrush(primaryColor); primaryBrush && row.layout && BindMenuDescriptionBrush(dc, popup, row, secondaryColor))
     {
         dc.DrawTextLayout(
-            D2D1::Point2F(layout.textRectDip.left, layout.textRectDip.top), row.primary.get(), primaryBrush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-    }
-    if (auto* secondaryBrush = host.GetSolidBrush(secondaryColor); secondaryBrush && row.secondary)
-    {
-        dc.DrawTextLayout(D2D1::Point2F(layout.secondaryTextRectDip.left, layout.secondaryTextRectDip.top),
-                          row.secondary.get(),
-                          secondaryBrush,
-                          D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+            D2D1::Point2F(layout.textRectDip.left, layout.textRectDip.top), row.layout.get(), primaryBrush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
     }
     return true;
 }
@@ -6251,11 +6452,21 @@ bool DebugGetContextMenuPopupItemLayout(HWND hwnd, size_t itemIndex, ContextMenu
     outState.secondaryTextRectDip    = layout.secondaryTextRectDip;
     if (! popup->descriptionLayouts.empty())
     {
-        outState.primaryLineCount        = popup->descriptionLayouts[itemIndex].primaryMetrics.lineCount;
-        outState.secondaryLineCount      = popup->descriptionLayouts[itemIndex].secondaryMetrics.lineCount;
-        const auto& row                  = popup->descriptionLayouts[itemIndex];
-        outState.primaryLayoutWidthDip   = row.primary ? row.primary->GetMaxWidth() : 0.0f;
-        outState.secondaryLayoutWidthDip = row.secondary ? row.secondary->GetMaxWidth() : 0.0f;
+        const auto& row             = popup->descriptionLayouts[itemIndex];
+        outState.primaryLineCount   = row.primaryMetrics.lineCount;
+        outState.secondaryLineCount = row.secondaryMetrics.lineCount;
+        // One layout holds both fields, so both wrap at its width.
+        outState.primaryLayoutWidthDip   = row.layout ? row.layout->GetMaxWidth() : 0.0f;
+        outState.secondaryLayoutWidthDip = outState.primaryLayoutWidthDip;
+        if (row.layout)
+        {
+            // Where DirectWrite starts the description: the top of the line that holds its first character.
+            float pointX = 0.0f;
+            float pointY = 0.0f;
+            DWRITE_HIT_TEST_METRICS hit{};
+            if (SUCCEEDED(row.layout->HitTestTextPosition(row.description.startPosition, FALSE, &pointX, &pointY, &hit)))
+                outState.descriptionOffsetDip = hit.top;
+        }
     }
     outState.hasBitmapIcon = popup->items[itemIndex].iconBitmap != nullptr;
     return outState.itemRectDip.right > outState.itemRectDip.left && outState.itemRectDip.bottom > outState.itemRectDip.top;
@@ -6284,6 +6495,18 @@ bool DebugSetContextMenuPopupBackdropCapture(HWND hwnd, const WindowHostBitmapCa
     popup->backdropSnapshot.cachedDevice = nullptr;
     popup->usesAppBackdropBlur           = true;
     popup->host.Invalidate();
+    return true;
+}
+
+bool DebugSimulateContextMenuPopupDeviceLoss(HWND hwnd) noexcept
+{
+    auto* popup = reinterpret_cast<MenuPopup*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    if (! popup || popup->hwnd != hwnd || GetWindowThreadProcessId(hwnd, nullptr) != GetCurrentThreadId())
+    {
+        return false;
+    }
+
+    popup->host.DebugSimulateDeviceLoss();
     return true;
 }
 

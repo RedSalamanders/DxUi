@@ -7,6 +7,9 @@ Application adoption measurements belong in their application's repository.
 - [Described native menus, 2026-09-21](MenuDescriptions/2026-09-21/README.md): wrapped French
   entries, menu/UIA lifecycle coverage, stage and open/close memory attribution; resource
   acceptance and native platform/consumer handoff remain open.
+- [Described-menu row layout, 2026-09-30](MenuDescriptions/2026-09-30/row-layout/README.md): one formatted layout per
+  described row against main's two shared layouts; byte-identical captures and gallery sheets, live heap a third lower
+  where labels differ and up to 7% higher where every row repeats one label.
 - [Grid native CI, 2026-09-21](GridTextOverflow/2026-09-21/native-ci/README.md): six native profiles,
   retained accessibility classification retry and explicit ARM64 Menu capability skips; resource approval remains open.
 - [Grid multiline verification, 2026-09-30](GridTextOverflow/2026-09-30/verification/README.md): x64 Debug, Release and

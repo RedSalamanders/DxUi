@@ -8,7 +8,7 @@ One entry per plan, separated by blank lines, so that changes to different plans
 
 - **ACTIVE**: [Described native menu entries](MenuDescriptions_2026-09-21.md). Merged to main (#24); the memory waiver is removed (30 September) and directed input restoration passed. The consumer pin handoff remains.
 
-- **ACTIVE**: [Described-menu memory optimization](MenuDescriptionMemory_2026-09-27.md). The waived increase reproduces neither hosted nor locally (six runs per side), so the waiver is removed; the one-layout-per-row evaluation remains.
+- **ACTIVE**: [Described-menu memory optimization](MenuDescriptionMemory_2026-09-27.md). The waived increase reproduces neither hosted nor locally (six runs per side), so the waiver is removed. One layout per described row is implemented (#37): about a third less open-menu live heap wherever labels differ, and up to 7% more where one label repeats in every row, a cost the developer accepted. The close-out remains.
 
 Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md`,
 `../Done/RedSalamanderMigration.md` and `../Done/EditorConsumerControls_2026-09-20.md`. Further ARM64 and ASan qualification is

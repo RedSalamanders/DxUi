@@ -11,7 +11,9 @@ Every supported capability has executable evidence and a truthful status in `cap
 The opt-in `MenuResourceScaling` control suite characterizes described-menu memory
 without bitmap capture. It rotates and reverses cases across 32 cycles, varying
 0/1/2/4/8/12 descriptions in a fixed twelve-entry menu and comparing plain/described
-12/24/48-entry menus. All cases must retain the same window extent; report DPI and
+12/24/48-entry menus. Fixture v5 adds described 12/24/48-entry menus whose captions
+all differ, because the native layouts a menu holds can depend on whether captions
+repeat (every earlier case repeats one caption in every row). All cases must retain the same window extent; report DPI and
 before/rendered/closed process and handle counters. The caller's item vector is
 already built at the before sample. Object `sizeof` values exclude native resources
 and dynamic allocations. Process-private deltas are not per-entry allocation sizes.
@@ -32,7 +34,10 @@ Interactive tests below). A blocked activation path can leave a
 temporary 1-by-1 HWND despite correct internal layout, invalidating the measurement.
 Do not change the general activation guard or count failed v2/v3 samples as passes.
 `MenuTextLayoutResources` separately measures creation, metric computation and
-release for twelve primary layouts, twelve secondary layouts and their pairs.
+release for twelve primary layouts, twelve secondary layouts, their pairs (what a
+described row held before it held one layout) and twelve rows of one formatted
+layout each (the label, a spacer paragraph and the description in one layout, which
+is what a described row holds now; fixture v2 adds this mode).
 It uses the same French strings and Body/Small formats, at a declared 396-DIP
 width, with no popup, semantic tree or paint. The 32 rotated cycles distinguish
 native layout costs from the rest of a menu; they are not a substitute for actual

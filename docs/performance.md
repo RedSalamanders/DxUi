@@ -228,18 +228,30 @@ not a measurement of one entry's allocation. Treat this as attribution evidence,
 not a substitute for the required matched-source performance comparison.
 
 `./test.ps1 -Configuration Release -Suites MenuTextLayoutResources` isolates the
-native text-layout path: twelve Body labels, twelve Small descriptions and their
-pairs, sampled before creation, before/after metrics and after release. It uses
-32 rotated cycles without popup, semantic tree or paint and does not take focus.
-Compare its live-heap deltas with the whole-menu probe; private-memory changes
-still include allocator retention and cannot identify an individual allocation.
+native text-layout path: twelve Body labels, twelve Small descriptions, their
+pairs (what a described row held before it held one layout) and twelve rows of one
+formatted layout each (what it holds now), sampled before creation, before/after
+metrics and after release. It uses 32 rotated cycles without popup, semantic tree
+or paint and does not take focus. Compare its live-heap deltas with the whole-menu
+probe; private-memory changes still include allocator retention and cannot identify
+an individual allocation. Fixture v5 of `MenuResourceScaling` also opens described
+menus whose captions all differ, which the earlier cases (one caption in every row)
+cannot show.
 
 The [popup-local sharing experiment](../Measurements/MenuDescriptions/2026-09-23/popup-text-sharing/README.md)
 compares separate, combined and shared native layouts. Sharing equal text/font/width
 reduces duplicate shaping storage; unique captions do not have the same saving.
 Its text-only evidence is separate from whole-menu and common-scene acceptance.
 The same packet retains a matched whole-menu comparison: twelve repeated-caption
-rows use 575,310 versus 367,894 live heap bytes. The
+rows use 575,310 versus 367,894 live heap bytes. A described row now holds the one
+formatted layout that experiment called combined, instead of shared layouts, so the
+saving no longer depends on repeated captions. The
+[row-layout packet](../Measurements/MenuDescriptions/2026-09-30/row-layout/README.md)
+measures it against that sharing in the whole menu (Release x64, `MenuResourceScaling`
+v5, open minus before): rows with distinct captions use 33.7% (twelve), 36.6% (24) and
+38.2% (48 rows) fewer live heap bytes, and rows that all repeat one caption use 1.6%,
+4.8% and 6.9% more. Its captures and the gallery sheets are byte-identical to main's.
+It is live heap in an open menu, not the common-scene flag below. The
 [six-profile native qualification](../Measurements/MenuDescriptions/2026-09-23/native-ci-sharing/README.md)
 passes functionally with explicit ARM64 desktop skips. Its common-scene timing flags compare two
 described-menu builds, not the feature against unchanged main; the matched pairs against main never
