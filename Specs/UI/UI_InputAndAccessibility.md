@@ -111,7 +111,7 @@ acquiring client a fresh element for what it now shows. A window's element acqui
 it stands for the window, and is gone in the same way once a control collapses into it. An element's focus or
 invocation that runs a focus-changed callback which rebuilds the controls ends there and reports the element gone:
 `Button::Invoke` does not touch the button the callback destroyed, and the callback's own focus choice stands. So does
-a selection action (Select, AddToSelection, or the focus of a grid row, a grid cell or a single-selection tree item)
+a selection action (Select, AddToSelection, or the focus of a grid row or a grid cell, which selects it)
 whose selection delegate rebuilds the controls: the destroyed grid or tree is never focused. Every control that focuses
 itself from an input handler (a press, a double click, a context menu, a mnemonic, a key or tab press that selects a
 tab, removing the tab that held the focus) stops there when the focus callbacks destroyed it, and touches nothing of

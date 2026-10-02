@@ -2969,15 +2969,19 @@ void TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus()
     {
         for (const Action action : {Action::Select, Action::AddToSelection, Action::SetFocus})
         {
+            // A tree item's focus selects silently, as SetFocusedItemId does, so no delegate runs to replace anything.
+            if (tree && action == Action::SetFocus)
+                continue;
             const std::string name = std::format("{} {}",
                                                  tree ? "tree item" : "grid row",
                                                  action == Action::Select ? "Select" : (action == Action::AddToSelection ? "AddToSelection" : "SetFocus"));
-            AttachedHostWindow window;
+            // The models and delegates outlive the window, whose controls may still hold them when a check fails.
             MultiRowGridModel gridModel(4u);
             MutableTreeModel treeModel;
             treeModel.SetVisibleItems({TreeItemData{.id = 10u, .text = L"General"}, TreeItemData{.id = 20u, .text = L"Viewers"}});
             ReplacingGridDelegate gridDelegate;
             ReplacingTreeDelegate treeDelegate;
+            AttachedHostWindow window;
             auto root   = std::make_unique<Panel>();
             auto* label = root->AddChild<Label>(L"Rows");
             label->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 24.0f));
@@ -2987,7 +2991,7 @@ void TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus()
                 view->SetBounds(D2D1::RectF(0.0f, 28.0f, 240.0f, 160.0f));
                 view->SetModel(&treeModel);
                 view->SetDelegate(&treeDelegate);
-                // A tree that selects one item selects what UI Automation focuses; adding to a selection needs several.
+                // Adding to a selection needs a tree that selects several items.
                 view->SetMultiSelectEnabled(action == Action::AddToSelection);
             }
             else
@@ -3041,7 +3045,8 @@ void TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus()
             }
             window.PumpMessages();
             Require(replacements == 1, std::format("{}: the selection's delegate replaced the controls", name).c_str());
-            Require(hr == UIA_E_ELEMENTNOTAVAILABLE, std::format("{}: the action reports its element gone (hr=0x{:08X})", name, static_cast<uint32_t>(hr)).c_str());
+            Require(hr == UIA_E_ELEMENTNOTAVAILABLE,
+                    std::format("{}: the action reports its element gone (hr=0x{:08X})", name, static_cast<uint32_t>(hr)).c_str());
             Require(window.Host().GetFocusControl() == nullptr, std::format("{}: nothing of the replaced controls is focused", name).c_str());
         }
     }

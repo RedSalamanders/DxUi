@@ -1165,8 +1165,9 @@ void TestComboBoxInputLeavesAComboBoxTheFocusCallbackDestroyed()
     const D2D1_POINT_2F text = D2D1::Point2F(40.0f, 56.0f);
     RequireFocusReplacementLeavesControlAlone(
         "ComboBox press", add(false), [&](WindowHost& host, Control& combo) { static_cast<void>(combo.OnMouseDown(host, text, false, 0u)); });
-    RequireFocusReplacementLeavesControlAlone(
-        "editable ComboBox double click", add(true), [&](WindowHost& host, Control& combo) { static_cast<void>(combo.OnMouseDoubleClick(host, text, false, 0u)); });
+    RequireFocusReplacementLeavesControlAlone("editable ComboBox double click", add(true), [&](WindowHost& host, Control& combo) {
+        static_cast<void>(combo.OnMouseDoubleClick(host, text, false, 0u));
+    });
     RequireFocusReplacementLeavesControlAlone(
         "editable ComboBox context menu", add(true), [&](WindowHost& host, Control& combo) { static_cast<void>(combo.OnContextMenu(host, false, text)); });
 }

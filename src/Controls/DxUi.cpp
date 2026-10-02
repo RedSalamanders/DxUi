@@ -564,7 +564,7 @@ bool Control::OnMnemonic(ControlHost& host)
 
 bool FocusControlAndSurvive(ControlHost& host, Control& control, bool takeNativeFocus) noexcept
 {
-    const std::weak_ptr<int> lifetime = control.GetLifetimeToken();
+    const std::weak_ptr<int> lifetime = GetControlLifetimeToken(control);
     if (takeNativeFocus)
     {
         if (const HWND hwnd = host.GetHwnd())

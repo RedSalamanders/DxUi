@@ -1189,38 +1189,40 @@ void TestControlsThatFocusThemselvesLeaveAControlTheFocusCallbackDestroyed()
         return control;
     };
 
-    RequireFocusReplacementLeavesControlAlone(
-        "Button press", [&](Panel& root) { return add.operator()<Button>(root, L"Pressed"); },
-        [&](WindowHost& host, Control& button) { static_cast<void>(button.OnMouseDown(host, center, false, 0u)); });
-    RequireFocusReplacementLeavesControlAlone(
-        "Button right press", [&](Panel& root) { return add.operator()<Button>(root, L"Pressed"); },
-        [&](WindowHost& host, Control& button) { static_cast<void>(button.OnMouseDown(host, center, true, 0u)); });
-    RequireFocusReplacementLeavesControlAlone(
-        "Button invoke", [&](Panel& root) { return add.operator()<Button>(root, L"Invoked"); },
-        [&](WindowHost& host, Control& button) { static_cast<void>(static_cast<Button&>(button).Invoke(host, true)); });
-    RequireFocusReplacementLeavesControlAlone(
-        "Toggle mnemonic", [&](Panel& root) { return add.operator()<Toggle>(root, L"Toggled"); },
-        [&](WindowHost& host, Control& toggle) { static_cast<void>(toggle.OnMnemonic(host)); });
-    RequireFocusReplacementLeavesControlAlone(
-        "RadioButton mnemonic", [&](Panel& root) { return add.operator()<RadioButton>(root, L"Chosen"); },
-        [&](WindowHost& host, Control& radio) { static_cast<void>(radio.OnMnemonic(host)); });
-    RequireFocusReplacementLeavesControlAlone(
-        "PageIndicator press",
-        [&](Panel& root)
+    RequireFocusReplacementLeavesControlAlone("Button press", [&](Panel& root) {
+        return add.operator()<Button>(root, L"Pressed");
+    }, [&](WindowHost& host, Control& button) { static_cast<void>(button.OnMouseDown(host, center, false, 0u)); });
+    RequireFocusReplacementLeavesControlAlone("Button right press", [&](Panel& root) {
+        return add.operator()<Button>(root, L"Pressed");
+    }, [&](WindowHost& host, Control& button) { static_cast<void>(button.OnMouseDown(host, center, true, 0u)); });
+    RequireFocusReplacementLeavesControlAlone("Button invoke", [&](Panel& root) {
+        return add.operator()<Button>(root, L"Invoked");
+    }, [&](WindowHost& host, Control& button) { static_cast<void>(static_cast<Button&>(button).Invoke(host, true)); });
+    RequireFocusReplacementLeavesControlAlone("Toggle mnemonic", [&](Panel& root) {
+        return add.operator()<Toggle>(root, L"Toggled");
+    }, [&](WindowHost& host, Control& toggle) { static_cast<void>(toggle.OnMnemonic(host)); });
+    RequireFocusReplacementLeavesControlAlone("RadioButton mnemonic", [&](Panel& root) {
+        return add.operator()<RadioButton>(root, L"Chosen");
+    }, [&](WindowHost& host, Control& radio) { static_cast<void>(radio.OnMnemonic(host)); });
+    RequireFocusReplacementLeavesControlAlone("PageIndicator press",
+                                              [&](Panel& root)
     {
         auto* indicator = root.AddChild<PageIndicator>();
         indicator->SetBounds(D2D1::RectF(0.0f, 40.0f, 200.0f, 40.0f + PageIndicator::kStripHeightDip));
         indicator->SetPageCount(4);
         return indicator;
     },
-        [&](WindowHost& host, Control& indicator)
+                                              [&](WindowHost& host, Control& indicator)
     { static_cast<void>(indicator.OnMouseDown(host, static_cast<PageIndicator&>(indicator).DotCenter(2), false, 0u)); });
-    RequireFocusReplacementLeavesControlAlone(
-        "Slider press", [&](Panel& root) { return add.operator()<Slider>(root); },
-        [&](WindowHost& host, Control& slider) { static_cast<void>(slider.OnMouseDown(host, center, false, 0u)); });
-    RequireFocusReplacementLeavesControlAlone(
-        "ColorSwatch press", [&](Panel& root) { return add.operator()<ColorSwatch>(root, 0xFF2266AAu); },
-        [&](WindowHost& host, Control& swatch) { static_cast<void>(swatch.OnMouseDown(host, center, false, 0u)); });
+    RequireFocusReplacementLeavesControlAlone("Slider press", [&](Panel& root) {
+        return add.operator()<Slider>(root);
+    }, [&](WindowHost& host, Control& slider) { static_cast<void>(slider.OnMouseDown(host, center, false, 0u)); });
+    // A swatch takes the focus only where the application made it focusable, as a clickable swatch.
+    RequireFocusReplacementLeavesControlAlone("ColorSwatch press", [&](Panel& root) {
+        auto* swatch = add.operator()<ColorSwatch>(root, 0xFF2266AAu);
+        swatch->SetFocusable(true);
+        return swatch;
+    }, [&](WindowHost& host, Control& swatch) { static_cast<void>(swatch.OnMouseDown(host, center, false, 0u)); });
 
     const auto addMenuBar = [&](Panel& root)
     {
@@ -1252,14 +1254,12 @@ void TestControlsThatFocusThemselvesLeaveAControlTheFocusCallbackDestroyed()
         return tabs;
     };
     const auto centerOf = [](const D2D1_RECT_F& rect) { return D2D1::Point2F((rect.left + rect.right) * 0.5f, (rect.top + rect.bottom) * 0.5f); };
-    RequireFocusReplacementLeavesControlAlone("TabControl tab press",
-                                              addTabs,
-                                              [&](WindowHost& host, Control& tabs)
-    { static_cast<void>(tabs.OnMouseDown(host, centerOf(static_cast<TabControl&>(tabs).DebugGetTabRect(1u)), false, 0u)); });
-    RequireFocusReplacementLeavesControlAlone("TabControl close press",
-                                              addTabs,
-                                              [&](WindowHost& host, Control& tabs)
-    { static_cast<void>(tabs.OnMouseDown(host, centerOf(static_cast<TabControl&>(tabs).DebugGetCloseButtonRect(0u)), false, 0u)); });
+    RequireFocusReplacementLeavesControlAlone("TabControl tab press", addTabs, [&](WindowHost& host, Control& tabs) {
+        static_cast<void>(tabs.OnMouseDown(host, centerOf(static_cast<TabControl&>(tabs).DebugGetTabRect(1u)), false, 0u));
+    });
+    RequireFocusReplacementLeavesControlAlone("TabControl close press", addTabs, [&](WindowHost& host, Control& tabs) {
+        static_cast<void>(tabs.OnMouseDown(host, centerOf(static_cast<TabControl&>(tabs).DebugGetCloseButtonRect(0u)), false, 0u));
+    });
     RequireFocusReplacementLeavesControlAlone(
         "TabControl End", addTabs, [&](WindowHost& host, Control& tabs) { static_cast<void>(tabs.OnKeyDown(host, VK_END, 0u)); });
     RequireFocusReplacementLeavesControlAlone("TabControl removing the focused tab",

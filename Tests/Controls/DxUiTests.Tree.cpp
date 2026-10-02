@@ -2436,7 +2436,6 @@ void TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent()
     Require(log.selectionSetChangedCount == 3u, "only the Shift+Down and the two removals reported a set");
 }
 
-
 // A tree press or double click on an item that focuses the tree, given a focus callback that replaces every control,
 // touches the destroyed tree no further (AddressSanitizer catches one that does).
 void TestTreeInputLeavesATreeTheFocusCallbackDestroyed()

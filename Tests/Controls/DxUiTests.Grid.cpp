@@ -3386,7 +3386,8 @@ void TestGridInputLeavesAGridTheFocusCallbackDestroyed()
         return grid;
     };
     const D2D1_POINT_2F cell = D2D1::Point2F(60.0f, 120.0f);
-    RequireFocusReplacementLeavesControlAlone("Grid press", add, [&](WindowHost& host, Control& grid) { static_cast<void>(grid.OnMouseDown(host, cell, false, 0u)); });
+    RequireFocusReplacementLeavesControlAlone(
+        "Grid press", add, [&](WindowHost& host, Control& grid) { static_cast<void>(grid.OnMouseDown(host, cell, false, 0u)); });
     RequireFocusReplacementLeavesControlAlone(
         "Grid double click", add, [&](WindowHost& host, Control& grid) { static_cast<void>(grid.OnMouseDoubleClick(host, cell, false, 0u)); });
 }

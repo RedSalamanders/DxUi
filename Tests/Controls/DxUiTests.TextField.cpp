@@ -1824,15 +1824,15 @@ void TestTextFieldInputLeavesAFieldTheFocusCallbackDestroyed()
     for (const bool multiline : {false, true})
     {
         const std::string_view lines = multiline ? "multiline " : "";
-        RequireFocusReplacementLeavesControlAlone(std::format("{}TextField press", lines),
-                                                  add(multiline),
-                                                  [&](WindowHost& host, Control& field) { static_cast<void>(field.OnMouseDown(host, text, false, 0u)); });
-        RequireFocusReplacementLeavesControlAlone(std::format("{}TextField double click", lines),
-                                                  add(multiline),
-                                                  [&](WindowHost& host, Control& field) { static_cast<void>(field.OnMouseDoubleClick(host, text, false, 0u)); });
-        RequireFocusReplacementLeavesControlAlone(std::format("{}TextField context menu", lines),
-                                                  add(multiline),
-                                                  [&](WindowHost& host, Control& field) { static_cast<void>(field.OnContextMenu(host, false, text)); });
+        RequireFocusReplacementLeavesControlAlone(std::format("{}TextField press", lines), add(multiline), [&](WindowHost& host, Control& field) {
+            static_cast<void>(field.OnMouseDown(host, text, false, 0u));
+        });
+        RequireFocusReplacementLeavesControlAlone(std::format("{}TextField double click", lines), add(multiline), [&](WindowHost& host, Control& field) {
+            static_cast<void>(field.OnMouseDoubleClick(host, text, false, 0u));
+        });
+        RequireFocusReplacementLeavesControlAlone(std::format("{}TextField context menu", lines), add(multiline), [&](WindowHost& host, Control& field) {
+            static_cast<void>(field.OnContextMenu(host, false, text));
+        });
     }
 }
 

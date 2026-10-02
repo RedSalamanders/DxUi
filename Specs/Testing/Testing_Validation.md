@@ -360,8 +360,10 @@ read-only, and requires no caret pixel outside the text viewport: on a partly vi
 viewport, and restored.
 
 `TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus` has a grid's and a tree's selection delegate replace every
-control while a UI Automation Select, AddToSelection or SetFocus runs on a row or an item: the action reports its element gone
-and nothing is left focused. Each control that focuses itself from an input handler gets the same test from
+control while a UI Automation Select or AddToSelection runs on a row or an item, or SetFocus on a row (which selects it; a tree
+item's focus selects silently): the action reports its element gone and nothing is left focused. Before the fix the grid's
+own selection went on refreshing the destroyed grid, which crashed the Debug test. Each control that focuses itself from an
+input handler gets the same test from
 `RequireFocusReplacementLeavesControlAlone` (`DxUiTestHelpers.h`), whose host's focus-changed callback replaces every control
 the first time that control gains the focus: a button's press, right press and `Invoke`, a toggle's and a radio button's
 mnemonic, a page indicator's, a slider's and a color swatch's press, a menu bar's press and mnemonic, a tab control's tab

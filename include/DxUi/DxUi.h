@@ -3763,7 +3763,8 @@ private:
     [[nodiscard]] HitInfo HitTestPoint(PointDip pointDip) const noexcept;
     void ClampScrollOffsets(bool normalizeVertical = true) noexcept;
     void EnsureColumnWidths() const;
-    void SelectRow(size_t rowIndex, UINT modifiers);
+    // False when the selection's delegate destroyed this grid, which its caller then leaves alone.
+    [[nodiscard]] bool SelectRow(size_t rowIndex, UINT modifiers);
     [[nodiscard]] std::optional<size_t> ResolveCheckboxToggleColumn(size_t rowIndex) const;
     [[nodiscard]] bool ToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnIndex);
     [[nodiscard]] std::optional<size_t> FindNearestVisibleRow(std::span<const GridGroupDesc> groups, size_t preferredRowIndex) const noexcept;
