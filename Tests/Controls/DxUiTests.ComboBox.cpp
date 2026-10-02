@@ -1146,10 +1146,37 @@ void TestComboBoxRainbowPopupUsesAccentDerivedHighlight()
                      "high-contrast combo popup selected row falls back to the shared inactive selection fill");
 }
 
+// A combo box press, double click or context menu that focuses the combo box, given a focus callback that replaces every
+// control, touches the destroyed combo box no further (AddressSanitizer catches one that does).
+void TestComboBoxInputLeavesAComboBoxTheFocusCallbackDestroyed()
+{
+    using namespace DxUi;
+    const auto add = [](bool editable)
+    {
+        return [editable](Panel& root)
+        {
+            auto* combo = root.AddChild<ComboBox>();
+            combo->SetBounds(D2D1::RectF(0.0f, 40.0f, 240.0f, 72.0f));
+            combo->SetItems({ComboBox::Item{L"one", L"One"}, ComboBox::Item{L"two", L"Two"}});
+            combo->SetEditable(editable);
+            return combo;
+        };
+    };
+    const D2D1_POINT_2F text = D2D1::Point2F(40.0f, 56.0f);
+    RequireFocusReplacementLeavesControlAlone(
+        "ComboBox press", add(false), [&](WindowHost& host, Control& combo) { static_cast<void>(combo.OnMouseDown(host, text, false, 0u)); });
+    RequireFocusReplacementLeavesControlAlone("editable ComboBox double click", add(true), [&](WindowHost& host, Control& combo) {
+        static_cast<void>(combo.OnMouseDoubleClick(host, text, false, 0u));
+    });
+    RequireFocusReplacementLeavesControlAlone(
+        "editable ComboBox context menu", add(true), [&](WindowHost& host, Control& combo) { static_cast<void>(combo.OnContextMenu(host, false, text)); });
+}
+
 } // namespace
 
 void RunComboBoxTests()
 {
+    DXUI_RUN_TEST(TestComboBoxInputLeavesAComboBoxTheFocusCallbackDestroyed);
     DXUI_RUN_TEST(TestComboRightClickInvokesContextMenuWithoutOpeningPopup);
     DXUI_RUN_TEST(TestComboBoxClosesOnFocusLoss);
     DXUI_RUN_TEST(TestComboBoxSecondClickTogglesPopupClosed);

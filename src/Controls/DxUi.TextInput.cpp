@@ -1237,7 +1237,10 @@ bool TextField::InvokePasswordRevealButton(ControlHost& host)
         SetPasswordRevealState(PasswordRevealState::Visible);
     }
     ResetCaretBlink(host);
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     host.SyncTextInput(this);
     Invalidate(host);
     return true;
@@ -1752,7 +1755,10 @@ bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBu
         return true;
     }
 
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     _passwordRevealKeyboardFocused = false;
     if (_masked && _maskLengthPolicy == PasswordMaskLengthPolicy::Concealed && _passwordRevealState != PasswordRevealState::Visible && ! _multiline)
     {
@@ -1843,7 +1849,10 @@ bool TextField::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool 
         return OnMouseDown(host, point, rightButton, modifiers);
     }
 
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     const D2D1_RECT_F textRect     = GetTextRect();
     const std::wstring displayText = GetDisplayText();
     size_t hitIndex                = 0u;
@@ -2607,7 +2616,10 @@ bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT /*modifiers*/)
 bool TextField::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     host.SyncTextInput(this);
     ResetCaretBlink(host);
     Invalidate(host);

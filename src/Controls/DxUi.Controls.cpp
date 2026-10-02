@@ -2136,20 +2136,10 @@ bool Button::Invoke(ControlHost& host, bool focusSelf)
         return false;
     }
 
-    if (focusSelf)
+    // A button a focus callback destroyed does not run the invocation it was asked for.
+    if (focusSelf && ! FocusControlAndSurvive(host, *this, true))
     {
-        // Native focus and the host's focus-changed callback may rebuild the controls and destroy this button: nothing
-        // touches it once its lifetime ended, and the invocation it was asked for does not happen.
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        if (const HWND hwnd = host.GetHwnd())
-        {
-            SetFocus(hwnd);
-            if (lifetime.expired())
-                return false;
-        }
-        host.SetFocusControl(this);
-        if (lifetime.expired())
-            return false;
+        return false;
     }
 
     if ((_variant == ButtonVariant::DropDown || _variant == ButtonVariant::Selector) && _onDropDownClick)
@@ -2332,15 +2322,17 @@ bool Button::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButto
 
     if (rightButton)
     {
-        if (const HWND hwnd = host.GetHwnd())
+        if (! FocusControlAndSurvive(host, *this, true))
         {
-            SetFocus(hwnd);
+            return true;
         }
-        host.SetFocusControl(this);
         return Control::OnContextMenu(host, false, point);
     }
 
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     _pressed         = true;
     _pressedDropDown = dropDownPoint;
     Invalidate(host);
@@ -2888,12 +2880,10 @@ bool Toggle::OnMnemonic(ControlHost& host)
         return false;
     }
 
-    if (const HWND hwnd = host.GetHwnd())
+    if (FocusControlAndSurvive(host, *this, true))
     {
-        SetFocus(hwnd);
+        ApplyCheckedState(host, ! _checked, true);
     }
-    host.SetFocusControl(this);
-    ApplyCheckedState(host, ! _checked, true);
     return true;
 }
 
@@ -3153,12 +3143,10 @@ bool RadioButton::OnMnemonic(ControlHost& host)
         return false;
     }
 
-    if (const HWND hwnd = host.GetHwnd())
+    if (FocusControlAndSurvive(host, *this, true))
     {
-        SetFocus(hwnd);
+        SelectSelf(host);
     }
-    host.SetFocusControl(this);
-    SelectSelf(host);
     return true;
 }
 
@@ -3676,7 +3664,10 @@ bool PageIndicator::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rig
     {
         return false;
     }
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     _pressed      = true;
     _pressedIndex = hit;
     Invalidate(host);
@@ -5004,7 +4995,10 @@ bool Slider::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButto
         return false;
     }
 
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     _dragInitialValue          = _value;
     _dragging                  = true;
     const D2D1_POINT_2F center = GetThumbCenter();
@@ -5966,8 +5960,7 @@ bool MenuBar::ActivateMnemonic(ControlHost& host, wchar_t mnemonic)
 {
     if (const std::optional<size_t> match = FindMnemonicItem(mnemonic); match.has_value())
     {
-        host.SetFocusControl(this);
-        return ActivateItem(host, match.value(), true);
+        return ! FocusControlAndSurvive(host, *this) || ActivateItem(host, match.value(), true);
     }
     return false;
 }
@@ -6137,7 +6130,10 @@ bool MenuBar::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButt
         return false;
     }
 
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     _selectedIndex = hit;
     _pressedIndex  = hit;
     InvalidateIfInteractive(host);
@@ -6548,7 +6544,11 @@ void TabControl::RemoveTab(size_t index) noexcept
     {
         if (Control* focused = host->GetFocusControl(); focused && ControlBelongsToBranch(children[index].get(), focused))
         {
-            host->SetFocusControl(this);
+            // The focus callbacks may destroy this control, or change its tabs.
+            if (! FocusControlAndSurvive(*host, *this) || index >= _tabs.size() || index >= children.size())
+            {
+                return;
+            }
         }
     }
 
@@ -7178,11 +7178,11 @@ void TabControl::SyncLayout() noexcept
     RequestInvalidate();
 }
 
-void TabControl::SelectTab(ControlHost& host, size_t index, bool focusSelf) noexcept
+bool TabControl::SelectTab(ControlHost& host, size_t index, bool focusSelf) noexcept
 {
     if (index >= _tabs.size() || ! _tabs[index].visible)
     {
-        return;
+        return true;
     }
 
     const bool changed = _selectedIndex != index;
@@ -7191,24 +7191,23 @@ void TabControl::SelectTab(ControlHost& host, size_t index, bool focusSelf) noex
     selectPerf.SetValue1(changed ? 1u : 0u);
     if (! changed)
     {
-        if (focusSelf)
-        {
-            host.SetFocusControl(this);
-        }
-        return;
+        return ! focusSelf || FocusControlAndSurvive(host, *this);
     }
 
     _selectedIndex = index;
-    if (focusSelf)
+    if (focusSelf && ! FocusControlAndSurvive(host, *this))
     {
-        host.SetFocusControl(this);
+        return false;
     }
     SyncLayout();
     const std::function<void(size_t)> onSelectionChanged = _onSelectionChanged;
-    if (changed && onSelectionChanged)
+    if (onSelectionChanged)
     {
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         onSelectionChanged(index);
+        return ! lifetime.expired();
     }
+    return true;
 }
 
 void TabControl::CloseTab(ControlHost& host, size_t index) noexcept
@@ -7521,14 +7520,17 @@ bool TabControl::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightB
         case HeaderPart::CloseButton:
             host.CaptureMouse(this);
             _closePressedIndex = hit.index;
-            if (IsFocusable())
+            if (IsFocusable() && ! FocusControlAndSurvive(host, *this))
             {
-                host.SetFocusControl(this);
+                return true;
             }
             Invalidate(host);
             return true;
         case HeaderPart::Tab:
-            SelectTab(host, hit.index, IsFocusable());
+            if (! SelectTab(host, hit.index, IsFocusable()))
+            {
+                return true;
+            }
             host.CaptureMouse(this);
             _pressedTabIndex = hit.index;
             if (_tabReorderingEnabled)
@@ -7636,7 +7638,7 @@ bool TabControl::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightBut
 
     if (pressedTab.has_value() && hit.part == HeaderPart::Tab && hit.index == pressedTab.value())
     {
-        SelectTab(host, hit.index, IsFocusable());
+        static_cast<void>(SelectTab(host, hit.index, IsFocusable()));
         return true;
     }
 
@@ -7702,10 +7704,10 @@ bool TabControl::OnKeyDown(ControlHost& host, UINT virtualKey, UINT /*modifiers*
     };
     switch (virtualKey)
     {
-        case VK_HOME: SelectTab(host, firstVisible(), true); return true;
-        case VK_END: SelectTab(host, lastVisible(), true); return true;
-        case VK_LEFT: SelectTab(host, findVisible(current, rightToLeft ? 1 : -1), true); return true;
-        case VK_RIGHT: SelectTab(host, findVisible(current, rightToLeft ? -1 : 1), true); return true;
+        case VK_HOME: static_cast<void>(SelectTab(host, firstVisible(), true)); return true;
+        case VK_END: static_cast<void>(SelectTab(host, lastVisible(), true)); return true;
+        case VK_LEFT: static_cast<void>(SelectTab(host, findVisible(current, rightToLeft ? 1 : -1), true)); return true;
+        case VK_RIGHT: static_cast<void>(SelectTab(host, findVisible(current, rightToLeft ? -1 : 1), true)); return true;
         default: return false;
     }
 }
@@ -8093,7 +8095,10 @@ bool ColorSwatch::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool right
         return false;
     }
 
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     _pressed = PointInRect(GetHitBounds(), point);
     Invalidate(host);
     return _pressed;

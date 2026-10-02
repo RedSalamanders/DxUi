@@ -1,8 +1,8 @@
 # Fixes kept from the codex branches
 
-- **Status**: ACTIVE (review done; the provider-lifetime and caret fixes are in main with their tests (#55); per-entry
-  elements for ordinary menus and the snapshot pre-sizing are ported and measured, and await the developer's acceptance
-  of their measured cost; the focus-callback audit remains)
+- **Status**: ACTIVE (review done; the provider-lifetime and caret fixes are in main with their tests (#55), and so is
+  the focus-callback audit (#57); per-entry elements for ordinary menus and the snapshot pre-sizing are ported and
+  measured, and await the developer's acceptance of their measured cost; the wider delegate audit remains)
 - **Owner**: DxUi accessibility (`src/Controls/DxUi.Accessibility.cpp`), `Button` and `TextField`. RedSalamander's
   `codex/fileops-ui-i26` branch is the consumer that met these bugs.
 - **Why**: four branches on GitHub were never merged and have no pull request: `codex/multiline-caret-viewport`, which
@@ -61,9 +61,19 @@ The oracles of `49c963f`, run against main: a queued `Select` of a stale text ra
 - [x] Measure `65b0257` on a large menu before taking it; leave it out unless a paired run shows a gain. Taken: rebuilt
   on main, a paired run at 4,096 rows saves 24% of a Down (7.9 to 6.0 ms), 28% of a wheel notch and 0.97 MB of the open
   menu, and 10% to 13% of a key at 128 rows.
-- [ ] Audit the other controls that focus themselves and go on using `this` (about 25 `SetFocusControl(this)` call
+- [x] Audit the other controls that focus themselves and go on using `this` (about 25 `SetFocusControl(this)` call
   sites), and the UI Automation actions that select a grid row before focusing the grid, for the same focus-callback or
-  delegate rebuild, as a follow-up.
+  delegate rebuild, as a follow-up (#57). 28 call sites focused their own control and 25 went on using it; all now go
+  through `FocusControlAndSurvive` and stop when a focus callback destroyed the control. `TabControl::SelectTab` reports
+  whether its focus and selection callbacks left the control alive. UI Automation's Select, AddToSelection and grid-row
+  and grid-cell focus check that their control survived the selection's delegate, and `Grid::SelectRow`, which they
+  share with a press, a double click and the arrow keys, stops after a delegate that destroyed its grid, as Ctrl+A and
+  RemoveFromSelection do. Each path has a replacement test that AddressSanitizer fails against the old library.
+- [ ] An application delegate that destroys its control in the middle of an input handler is a wider class than the
+  focus callbacks, and only partly covered. Grid's group toggles, row activation, checkbox toggles, sorting and context
+  menus, and the selection changes `SetModel`, `SetSelectionMode`, `NotifyDataChanged` and `ApplyGroupLayout` report,
+  still keep using the grid after its delegate (`docs/controls.md` tells applications to post a rebuild from them).
+  Audit the delegate and callback call sites of the controls that keep running after them, as the focus sites were.
 - [ ] Keep the four codex branches until RedSalamander's `codex/fileops-ui-i26` pins a DxUi main.
 
 ## Validation

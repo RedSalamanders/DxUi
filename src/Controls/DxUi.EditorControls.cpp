@@ -560,7 +560,10 @@ bool Splitter::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBut
     {
         return false;
     }
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     _dragging             = true;
     _dragStartPositionDip = _positionDip;
     _dragPointerOffsetDip = PointerAxis(point) - _positionDip;
@@ -1820,7 +1823,10 @@ bool ColorPicker::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool right
     {
         return false;
     }
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     host.CaptureMouse(this);
     UpdateFromPoint(host, point);
     return true;

@@ -1175,6 +1175,107 @@ void TestScrollPanelChildCallbacksCanClearChildrenSafely()
     Require(captureState.mouseMoveCount == 0u, "cleared hovered child is not reused for mouse-move");
 }
 
+// Each handler that focuses its own control, given a focus callback that replaces every control, touches the destroyed
+// control no further (AddressSanitizer catches a handler that does).
+void TestControlsThatFocusThemselvesLeaveAControlTheFocusCallbackDestroyed()
+{
+    using namespace DxUi;
+    const D2D1_RECT_F bounds   = D2D1::RectF(0.0f, 40.0f, 360.0f, 120.0f);
+    const D2D1_POINT_2F center = D2D1::Point2F(180.0f, 80.0f);
+    const auto add             = [&]<typename TControl, typename... TArgs>(Panel& root, TArgs&&... args) -> TControl*
+    {
+        auto* control = root.AddChild<TControl>(std::forward<TArgs>(args)...);
+        control->SetBounds(bounds);
+        return control;
+    };
+
+    RequireFocusReplacementLeavesControlAlone("Button press", [&](Panel& root) {
+        return add.operator()<Button>(root, L"Pressed");
+    }, [&](WindowHost& host, Control& button) { static_cast<void>(button.OnMouseDown(host, center, false, 0u)); });
+    RequireFocusReplacementLeavesControlAlone("Button right press", [&](Panel& root) {
+        return add.operator()<Button>(root, L"Pressed");
+    }, [&](WindowHost& host, Control& button) { static_cast<void>(button.OnMouseDown(host, center, true, 0u)); });
+    RequireFocusReplacementLeavesControlAlone("Button invoke", [&](Panel& root) {
+        return add.operator()<Button>(root, L"Invoked");
+    }, [&](WindowHost& host, Control& button) { static_cast<void>(static_cast<Button&>(button).Invoke(host, true)); });
+    RequireFocusReplacementLeavesControlAlone("Toggle mnemonic", [&](Panel& root) {
+        return add.operator()<Toggle>(root, L"Toggled");
+    }, [&](WindowHost& host, Control& toggle) { static_cast<void>(toggle.OnMnemonic(host)); });
+    RequireFocusReplacementLeavesControlAlone("RadioButton mnemonic", [&](Panel& root) {
+        return add.operator()<RadioButton>(root, L"Chosen");
+    }, [&](WindowHost& host, Control& radio) { static_cast<void>(radio.OnMnemonic(host)); });
+    RequireFocusReplacementLeavesControlAlone("PageIndicator press",
+                                              [&](Panel& root)
+    {
+        auto* indicator = root.AddChild<PageIndicator>();
+        indicator->SetBounds(D2D1::RectF(0.0f, 40.0f, 200.0f, 40.0f + PageIndicator::kStripHeightDip));
+        indicator->SetPageCount(4);
+        return indicator;
+    },
+                                              [&](WindowHost& host, Control& indicator)
+    { static_cast<void>(indicator.OnMouseDown(host, static_cast<PageIndicator&>(indicator).DotCenter(2), false, 0u)); });
+    RequireFocusReplacementLeavesControlAlone("Slider press", [&](Panel& root) {
+        return add.operator()<Slider>(root);
+    }, [&](WindowHost& host, Control& slider) { static_cast<void>(slider.OnMouseDown(host, center, false, 0u)); });
+    // A swatch takes the focus only where the application made it focusable, as a clickable swatch.
+    RequireFocusReplacementLeavesControlAlone("ColorSwatch press",
+                                              [&](Panel& root)
+    {
+        auto* swatch = add.operator()<ColorSwatch>(root, 0xFF2266AAu);
+        swatch->SetFocusable(true);
+        return swatch;
+    },
+                                              [&](WindowHost& host, Control& swatch) { static_cast<void>(swatch.OnMouseDown(host, center, false, 0u)); });
+
+    const auto addMenuBar = [&](Panel& root)
+    {
+        auto* menu = root.AddChild<MenuBar>();
+        menu->SetBounds(D2D1::RectF(0.0f, 40.0f, 360.0f, 68.0f));
+        menu->SetItems({MenuBarItem{.text = L"File", .mnemonic = L'F', .enabled = true}, MenuBarItem{.text = L"Edit", .mnemonic = L'E', .enabled = true}});
+        menu->SetOnOpenItem([](size_t, POINT, bool) {});
+        return menu;
+    };
+    RequireFocusReplacementLeavesControlAlone("MenuBar press",
+                                              addMenuBar,
+                                              [&](WindowHost& host, Control& menu)
+    {
+        RECT itemPx{};
+        Require(static_cast<MenuBar&>(menu).TryGetItemScreenRect(host, 1u, itemPx), "MenuBar press: the second item has a rectangle");
+        const D2D1_POINT_2F item = D2D1::Point2F(static_cast<float>(itemPx.left + itemPx.right) * 0.5f, 54.0f);
+        static_cast<void>(menu.OnMouseDown(host, item, false, 0u));
+    });
+    RequireFocusReplacementLeavesControlAlone(
+        "MenuBar mnemonic", addMenuBar, [&](WindowHost& host, Control& menu) { static_cast<void>(static_cast<MenuBar&>(menu).ActivateMnemonic(host, L'E')); });
+
+    const auto addTabs = [&](Panel& root)
+    {
+        auto* tabs = root.AddChild<TabControl>();
+        tabs->SetBounds(D2D1::RectF(0.0f, 40.0f, 640.0f, 220.0f));
+        tabs->AddTab<Button>(L"Alpha", L"Alpha content");
+        tabs->AddTab<Button>(L"Bravo", L"Bravo content");
+        tabs->SetTabClosable(0u, true);
+        return tabs;
+    };
+    const auto centerOf = [](const D2D1_RECT_F& rect) { return D2D1::Point2F((rect.left + rect.right) * 0.5f, (rect.top + rect.bottom) * 0.5f); };
+    RequireFocusReplacementLeavesControlAlone("TabControl tab press", addTabs, [&](WindowHost& host, Control& tabs) {
+        static_cast<void>(tabs.OnMouseDown(host, centerOf(static_cast<TabControl&>(tabs).DebugGetTabRect(1u)), false, 0u));
+    });
+    RequireFocusReplacementLeavesControlAlone("TabControl close press", addTabs, [&](WindowHost& host, Control& tabs) {
+        static_cast<void>(tabs.OnMouseDown(host, centerOf(static_cast<TabControl&>(tabs).DebugGetCloseButtonRect(0u)), false, 0u));
+    });
+    RequireFocusReplacementLeavesControlAlone(
+        "TabControl End", addTabs, [&](WindowHost& host, Control& tabs) { static_cast<void>(tabs.OnKeyDown(host, VK_END, 0u)); });
+    RequireFocusReplacementLeavesControlAlone("TabControl removing the focused tab",
+                                              addTabs,
+                                              [&](WindowHost& host, Control& tabs)
+    {
+        // Focus inside the first tab's content: removing that tab moves the focus to the tab control itself.
+        auto& tabControl = static_cast<TabControl&>(tabs);
+        host.SetFocusControl(tabControl.GetChildren()[0].get());
+        tabControl.RemoveTab(0u);
+    });
+}
+
 } // namespace
 
 void RunControlTests()
@@ -1196,6 +1297,7 @@ void RunControlTests()
     DXUI_RUN_TEST(TestToggleMouseActivationOnlyFiresToggledCallbackWithUpdatedState);
     DXUI_RUN_TEST(TestToggleMouseActivationCanReplaceRootSafely);
     DXUI_RUN_TEST(TestMenuBarActivationCanReplaceRootSafely);
+    DXUI_RUN_TEST(TestControlsThatFocusThemselvesLeaveAControlTheFocusCallbackDestroyed);
     DXUI_RUN_TEST(TestColorSwatchStoresConfiguredArgbAndEmptyState);
     DXUI_RUN_TEST(TestTagPickerWrapsBadgesInsideInputFrame);
     DXUI_RUN_TEST(TestTagPickerSuggestionsTrackSelectedBadges);

@@ -146,6 +146,10 @@ stack->ApplyLayout();
 ```
 
 Grid and Tree borrow model/delegate pointers; retain these until the controls are destroyed or pointers are cleared.
+You may rebuild or replace the controls from the host's focus-changed callback, or from a grid's or a tree's selection
+delegate: a control that focused itself, and a selection made by a click, a key or UI Automation, touches nothing of a
+control the callback destroyed. Post a rebuild from Grid's other delegate calls (row activation, checkbox and group
+toggles, sorting, context menus) to a later message instead; the grid does not yet stop using itself after them.
 Grid models provide row/column counts, column descriptors, cell data and stable-row lookup. Tree models provide
 the visible item sequence with IDs, depth and expansion state. Supply actual populated data, stable identity and
 notifications; a factory-created empty control does not demonstrate interaction.
