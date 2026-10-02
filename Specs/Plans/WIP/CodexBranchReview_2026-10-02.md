@@ -1,8 +1,8 @@
 # Fixes kept from the codex branches
 
 - **Status**: ACTIVE (review done; the provider-lifetime and caret fixes are in main with their tests (#55), and so is
-  the focus-callback audit (#57); per-entry elements for ordinary menus and the snapshot pre-sizing are ported and
-  measured, and await the developer's acceptance of their measured cost; the wider delegate audit remains)
+  the focus-callback audit (#57); per-entry elements for ordinary menus and the snapshot pre-sizing are in #56, whose
+  measured cost the developer accepted; the wider delegate audit remains)
 - **Owner**: DxUi accessibility (`src/Controls/DxUi.Accessibility.cpp`), `Button` and `TextField`. RedSalamander's
   `codex/fileops-ui-i26` branch is the consumer that met these bugs.
 - **Why**: four branches on GitHub were never merged and have no pull request: `codex/multiline-caret-viewport`, which
@@ -52,12 +52,12 @@ The oracles of `49c963f`, run against main: a queued `Select` of a stale text ra
   before a control collapsed into it, and the caret-viewport test in the Embedded suite. All but the queued `Select` fail
   against main before the port, and each of ten single-point reversions of the fixes (nine of the provider fix, one of the caret clip) fails one of them (reverting the
   `Button::Invoke` check crashes the test with an access violation on the destroyed button).
-- [ ] Decide with the developer whether ordinary menus get per-entry elements (`15be545`, `d45c361`): it changes the
+- [x] Decide with the developer whether ordinary menus get per-entry elements (`15be545`, `d45c361`): it changes the
   contract in `UI_InputAndAccessibility.md` and the menu resource budgets, so it needs paired menu resource runs. The
-  developer chose to adopt them on 2 October; `improve/ordinary-menu-accessibility` ports them with the contract change
-  and three paired sets ([packet](../../../Measurements/PlainMenuUia/2026-10-02/README.md)): about 1.6 KB of live heap
-  per open command row, and 0.3 ms plus 1.4 to 2.6 µs per row for each key or wheel notch that moves the rows. The
-  developer's acceptance of that measured cost, or another of the packet's options, closes this item.
+  developer chose to adopt them on 2 October, and #56 ports them with the contract change and three paired sets
+  ([packet](../../../Measurements/PlainMenuUia/2026-10-02/README.md)): about 1.6 KB of live heap per open command row,
+  and 0.3 ms plus 1.4 to 2.6 µs per row for each key or wheel notch that moves the rows. The developer accepted that
+  measured cost the same day, and the [performance contract](../../Core/Core_PerformanceAndResources.md) records it.
 - [x] Measure `65b0257` on a large menu before taking it; leave it out unless a paired run shows a gain. Taken: rebuilt
   on main, a paired run at 4,096 rows saves 24% of a Down (7.9 to 6.0 ms), 28% of a wheel notch and 0.97 MB of the open
   menu, and 10% to 13% of a key at 128 rows.

@@ -28,6 +28,7 @@ Limits):
 
 These are confirmed degradations of menus without descriptions, which the
 [performance contract](../../../Specs/Core/Core_PerformanceAndResources.md) leaves to the developer: see Options.
+**Decision: on 2 October 2026 the developer accepted them (option 1).** The contract records the accepted envelope.
 
 ## Sources and environment
 
@@ -152,7 +153,7 @@ values are exact). It is in the final code.
 
 The cost is linear in the row count and paid by every menu without descriptions, screen reader or not:
 
-1. **Accept it** (what this branch does). At ordinary sizes, 12 to 48 rows, an open menu holds 20 to 92 KB more and a
+1. **Accept it** (what this branch does; chosen). At ordinary sizes, 12 to 48 rows, an open menu holds 20 to 92 KB more and a
    key takes about 0.3 ms more, what a described menu of that size already costs. A long menu pays more: 6.1 ms a key at
    4,096 rows, about a third of a 60 Hz frame.
 2. **Optimize further first** (not built). The per-row time is the snapshot builder's: about 20 type checks and three

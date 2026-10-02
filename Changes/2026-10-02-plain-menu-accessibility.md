@@ -12,7 +12,8 @@
     menu holds about 1.6 KB more live heap per command row and 1.9 to 2.0 KB per radio row (+19,967 bytes for twelve
     commands, +6.39 MB for 4,096), all returned on close. A key or wheel notch that moves the rows takes about 0.3 ms
     plus 1.4 to 2.6 µs per row more: Down takes 340 µs instead of 38 for twelve rows, 635 instead of 38 for 128 and
-    6.1 ms instead of 38 µs for 4,096, where opening takes 77 ms instead of 60. Described menus are unchanged.
+    6.1 ms instead of 38 µs for 4,096, where opening takes 77 ms instead of 60. Described menus are unchanged. The
+    developer accepted this cost on 2 October 2026; `Core_PerformanceAndResources.md` records the envelope.
   - **Tests.** `TestPlainMenuAccessibilityInvokesAndDisconnects`, `TestPlainMenuAccessibilityScrollsFocusedRow` and
     `TestMenuNativeFocusSelectsNoRowAndRestoresTheChosenOne` join the described-menu group, which runs in the Menu and
     the nonactivating NewControls lanes.
