@@ -167,7 +167,18 @@ The cost is linear in the row count and paid by every menu without descriptions,
 
 ## Tests
 
-PENDING
+Three tests join the described-menu group (`RunMenuDescriptionTests`), so they run in the Menu lane and in the
+nonactivating NewControls lane; `Specs/Testing/Testing_Validation.md` describes them.
+`TestPlainMenuAccessibilityInvokesAndDisconnects` reads a plain popup's rows through its provider and invokes one,
+`TestPlainMenuAccessibilityScrollsFocusedRow` checks the offscreen rows of a long plain menu, and
+`TestMenuNativeFocusSelectsNoRowAndRestoresTheChosenOne` gives a plain and a described popup native focus.
+
+With main's `DxUi.Menu.cpp` and `DxUi.Accessibility.cpp` under them (x64 Debug, NewControls lane), each fails: "every row
+of the open plain menu is published", "the long menu exposes its first and last rows" and "the chosen row is UIA's focus
+again". Two single-point reversions each fail their test: `IsOffscreen` without the scrolled-away rule fails "a row the
+viewport cuts off is offscreen, without a rectangle", and the `WM_SETFOCUS` handling kept to described popups fails
+"native focus selects no row of a plain or described menu". The pre-sizing changes no behavior, and the snapshot and
+accessibility tests of every suite run on it.
 
 ## Limits
 
