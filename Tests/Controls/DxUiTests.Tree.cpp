@@ -2436,10 +2436,35 @@ void TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent()
     Require(log.selectionSetChangedCount == 3u, "only the Shift+Down and the two removals reported a set");
 }
 
+
+// A tree press or double click on an item that focuses the tree, given a focus callback that replaces every control,
+// touches the destroyed tree no further (AddressSanitizer catches one that does).
+void TestTreeInputLeavesATreeTheFocusCallbackDestroyed()
+{
+    using namespace DxUi;
+    MutableTreeModel model;
+    model.SetVisibleItems({TreeItemData{.id = 10u, .text = L"General"}, TreeItemData{.id = 20u, .text = L"Viewers"}});
+    RecordingTreeDelegate delegate;
+    const auto add = [&](Panel& root)
+    {
+        auto* tree = root.AddChild<Tree>();
+        tree->SetBounds(D2D1::RectF(0.0f, 40.0f, 240.0f, 200.0f));
+        tree->SetModel(&model);
+        tree->SetDelegate(&delegate);
+        return tree;
+    };
+    const auto firstItem = [](Control& tree) { return D2D1::Point2F(60.0f, tree.GetBounds().top + 8.0f); };
+    RequireFocusReplacementLeavesControlAlone(
+        "Tree press", add, [&](WindowHost& host, Control& tree) { static_cast<void>(tree.OnMouseDown(host, firstItem(tree), false, 0u)); });
+    RequireFocusReplacementLeavesControlAlone(
+        "Tree double click", add, [&](WindowHost& host, Control& tree) { static_cast<void>(tree.OnMouseDoubleClick(host, firstItem(tree), false, 0u)); });
+}
+
 } // namespace
 
 void RunTreeTests()
 {
+    DXUI_RUN_TEST(TestTreeInputLeavesATreeTheFocusCallbackDestroyed);
     DXUI_RUN_TEST(TestTreeLocalizedEmptyStateRepaintsWithoutSelectionChange);
     DXUI_RUN_TEST(TestTreeIconFontAndReorderReleaseEdgeCases);
     DXUI_RUN_TEST(TestTreePointerSelectionNotifiesDelegate);

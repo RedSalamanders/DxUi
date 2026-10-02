@@ -2532,7 +2532,8 @@ private:
     [[nodiscard]] bool IsCloseButtonVisible(size_t index) const noexcept;
     [[nodiscard]] HeaderHitInfo HitTestHeader(D2D1_POINT_2F point) const noexcept;
     void ScrollHeaderBy(float deltaDip) noexcept;
-    void SelectTab(ControlHost& host, size_t index, bool focusSelf) noexcept;
+    // False when the focus or selection callbacks destroyed this control, which its caller then leaves alone.
+    [[nodiscard]] bool SelectTab(ControlHost& host, size_t index, bool focusSelf) noexcept;
     void CloseTab(ControlHost& host, size_t index) noexcept;
     void ReorderTab(size_t fromIndex, size_t toIndex) noexcept;
     void UpdateDragReorder(ControlHost& host, D2D1_POINT_2F point) noexcept;

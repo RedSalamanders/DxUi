@@ -2929,6 +2929,124 @@ void TestNativeAccessibilityPostedSelectRejectsReplacement()
             "queued stale selection leaves replacement text and selection unchanged");
 }
 
+// A UI Automation action that selects a grid row or a tree item and then focuses its control reports the element gone when
+// the selection's delegate replaced every control, and neither focuses nor touches the destroyed control
+// (AddressSanitizer catches an action that does).
+void TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus()
+{
+    using namespace DxUi;
+    struct ReplacingGridDelegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridSelectionChanged;
+        std::function<void()> onSelection;
+        void OnGridSelectionChanged(Grid& /*sender*/) override
+        {
+            if (onSelection)
+                onSelection();
+        }
+    };
+    struct ReplacingTreeDelegate final : ITreeDelegate
+    {
+        std::function<void()> onSelection;
+        void OnTreeSelectionChanged(uint64_t /*itemId*/) override
+        {
+            if (onSelection)
+                onSelection();
+        }
+        void OnTreeSelectionSetChanged(std::span<const uint64_t> /*selectedItemIds*/) override
+        {
+            if (onSelection)
+                onSelection();
+        }
+    };
+    enum class Action
+    {
+        Select,
+        AddToSelection,
+        SetFocus
+    };
+    for (const bool tree : {false, true})
+    {
+        for (const Action action : {Action::Select, Action::AddToSelection, Action::SetFocus})
+        {
+            const std::string name = std::format("{} {}",
+                                                 tree ? "tree item" : "grid row",
+                                                 action == Action::Select ? "Select" : (action == Action::AddToSelection ? "AddToSelection" : "SetFocus"));
+            AttachedHostWindow window;
+            MultiRowGridModel gridModel(4u);
+            MutableTreeModel treeModel;
+            treeModel.SetVisibleItems({TreeItemData{.id = 10u, .text = L"General"}, TreeItemData{.id = 20u, .text = L"Viewers"}});
+            ReplacingGridDelegate gridDelegate;
+            ReplacingTreeDelegate treeDelegate;
+            auto root   = std::make_unique<Panel>();
+            auto* label = root->AddChild<Label>(L"Rows");
+            label->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 24.0f));
+            if (tree)
+            {
+                auto* view = root->AddChild<Tree>();
+                view->SetBounds(D2D1::RectF(0.0f, 28.0f, 240.0f, 160.0f));
+                view->SetModel(&treeModel);
+                view->SetDelegate(&treeDelegate);
+                // A tree that selects one item selects what UI Automation focuses; adding to a selection needs several.
+                view->SetMultiSelectEnabled(action == Action::AddToSelection);
+            }
+            else
+            {
+                auto* view = root->AddChild<Grid>();
+                view->SetBounds(D2D1::RectF(0.0f, 28.0f, 360.0f, 200.0f));
+                view->SetModel(&gridModel);
+                view->SetDelegate(&gridDelegate);
+            }
+            window.Host().SetRoot(std::move(root));
+            int replacements   = 0;
+            const auto replace = [&]
+            {
+                if (replacements++ == 0)
+                    window.Host().SetRoot(std::make_unique<Panel>());
+            };
+            gridDelegate.onSelection = replace;
+            treeDelegate.onSelection = replace;
+
+            wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+            rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+            Require(rootProvider != nullptr, std::format("{}: the window exposes its provider", name).c_str());
+            auto labelProvider = GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 48.0f, 12.0f, "selection replacement label provider");
+            wil::com_ptr_nothrow<IRawElementProviderFragment> viewProvider;
+            RequireSucceeded(labelProvider->Navigate(NavigateDirection_NextSibling, viewProvider.put()), "the label's sibling is the view");
+            wil::com_ptr_nothrow<IRawElementProviderFragment> element;
+            RequireSucceeded(viewProvider->Navigate(NavigateDirection_FirstChild, element.put()), "the view exposes its first child");
+            if (! tree)
+            {
+                // The grid's first child is its column header; the first row follows it.
+                wil::com_ptr_nothrow<IRawElementProviderFragment> row;
+                RequireSucceeded(element->Navigate(NavigateDirection_NextSibling, row.put()), "the column header is followed by the first row");
+                element = row;
+            }
+            Require(element != nullptr, std::format("{}: the element exists", name).c_str());
+
+            HRESULT hr = E_FAIL;
+            if (action == Action::SetFocus)
+            {
+                hr = element->SetFocus();
+            }
+            else
+            {
+                wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+                RequireSucceeded(element.query_to(simple.put()), "the element exposes its properties");
+                wil::com_ptr_nothrow<IUnknown> patternUnknown;
+                RequireSucceeded(simple->GetPatternProvider(UIA_SelectionItemPatternId, patternUnknown.put()), "the element is a selection item");
+                wil::com_ptr_nothrow<ISelectionItemProvider> pattern;
+                RequireSucceeded(patternUnknown.query_to(pattern.put()), "the element exposes ISelectionItemProvider");
+                hr = action == Action::Select ? pattern->Select() : pattern->AddToSelection();
+            }
+            window.PumpMessages();
+            Require(replacements == 1, std::format("{}: the selection's delegate replaced the controls", name).c_str());
+            Require(hr == UIA_E_ELEMENTNOTAVAILABLE, std::format("{}: the action reports its element gone (hr=0x{:08X})", name, static_cast<uint32_t>(hr)).c_str());
+            Require(window.Host().GetFocusControl() == nullptr, std::format("{}: nothing of the replaced controls is focused", name).c_str());
+        }
+    }
+}
+
 void TestNativeAccessibilityPostedInvokeRejectsReplacement()
 {
     using namespace DxUi;
@@ -7587,6 +7705,7 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestNativeAccessibilityCollapsedRootRetiresAfterCallbackReplacement);
     DXUI_RUN_TEST(TestNativeAccessibilityPostedSelectRejectsReplacement);
     DXUI_RUN_TEST(TestNativeAccessibilityPostedInvokeRejectsReplacement);
+    DXUI_RUN_TEST(TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus);
     DXUI_RUN_TEST(TestSingleTreeWindowElementIsTheParentOfItsItems);
     DXUI_RUN_TEST(TestSingleTreeWindowReplacementTreeGetsItemElementsOfItsOwn);
     DXUI_RUN_TEST(TestTreeBesideAnotherControlIsTheParentOfItsItems);

@@ -3543,7 +3543,10 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         return false;
     }
 
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     const HitInfo hit = HitTestPoint(MakePointDip(point));
     UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);
@@ -3725,7 +3728,10 @@ bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
         return false;
     }
 
-    host.SetFocusControl(this);
+    if (! FocusControlAndSurvive(host, *this))
+    {
+        return true;
+    }
     const HitInfo hit = HitTestPoint(MakePointDip(point));
     UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);

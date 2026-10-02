@@ -555,15 +555,27 @@ bool Control::OnMnemonic(ControlHost& host)
 
     if (IsFocusable())
     {
-        if (const HWND hwnd = host.GetHwnd())
-        {
-            SetFocus(hwnd);
-        }
-        host.SetFocusControl(this);
+        static_cast<void>(FocusControlAndSurvive(host, *this, true));
         return true;
     }
 
     return false;
+}
+
+bool FocusControlAndSurvive(ControlHost& host, Control& control, bool takeNativeFocus) noexcept
+{
+    const std::weak_ptr<int> lifetime = control.GetLifetimeToken();
+    if (takeNativeFocus)
+    {
+        if (const HWND hwnd = host.GetHwnd())
+        {
+            SetFocus(hwnd);
+            if (lifetime.expired())
+                return false;
+        }
+    }
+    host.SetFocusControl(&control);
+    return ! lifetime.expired();
 }
 
 size_t Control::GetLogicalChildCount() const noexcept

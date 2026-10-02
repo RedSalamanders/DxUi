@@ -2395,3 +2395,35 @@ protected:
 private:
     TrackingControlState* _state = nullptr;
 };
+
+// A control that focuses itself in an input handler leaves itself alone once the focus callbacks destroyed it. `make`
+// adds the control under a root panel beside a focused button and returns it; the host's focus-changed callback replaces
+// the whole tree the first time that control gains the focus, and `input` then runs the handler under test against it.
+// A handler that touched the destroyed control is caught by AddressSanitizer; every build checks that the replacement
+// happened and left nothing focused.
+template <typename Make, typename Input> void RequireFocusReplacementLeavesControlAlone(std::string_view name, Make&& make, Input&& input)
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* before = root->AddChild<Button>(L"Focused before");
+    before->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 24.0f));
+    Control* const target = make(*root);
+    host.SetRoot(std::move(root));
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 480.0f, 360.0f));
+    host.SetFocusControl(before);
+    Require(host.GetFocusControl() == before, std::format("{}: the button is focused first", name).c_str());
+    bool replaced = false;
+    host.SetOnFocusChanged([&](Control* focused)
+    {
+        if (focused == target && ! replaced)
+        {
+            replaced = true;
+            host.SetRoot(std::make_unique<Panel>());
+        }
+    });
+    input(host, *target);
+    host.SetOnFocusChanged({});
+    Require(replaced, std::format("{}: focusing the control ran the callback that replaced the controls", name).c_str());
+    Require(host.GetFocusControl() == nullptr, std::format("{}: nothing of the replaced controls stays focused", name).c_str());
+}
