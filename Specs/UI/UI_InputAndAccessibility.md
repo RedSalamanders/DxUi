@@ -22,8 +22,12 @@ order; full-value access must not require duplicate hidden announcements. Repeat
 does not produce repeated notifications. Application navigation supplies its own stable target and
 stale-completion policy; the library does not choose the destination or steal focus on completion.
 
-Described native menus expose full per-entry names and MenuItem roles, exact command invocation
-and acknowledged checked state. Modal and asynchronous menu tracking both activate the root popup
+Every entry of a native menu is a UI Automation element, whether or not any entry has a description:
+full per-entry names (`accessibleName`, or the decoded label followed by its description) and
+MenuItem roles, exact command invocation and acknowledged checked state. A popup publishes those
+elements whether or not a client listens, and each keyboard move or scroll republishes them, at a
+cost that grows with the number of entries ([measurement](../../Measurements/PlainMenuUia/2026-10-02/README.md)).
+Modal and asynchronous menu tracking both activate the root popup
 for native keyboard dispatch; submenus never activate. Dismissal restores the previously focused
 owner control while the menu still owns focus. Logical entry navigation does not change that
 session's native focus target. Native activation of a popup never selects an entry: it restores only a row
@@ -34,9 +38,8 @@ submenus, independently of their activation style. The rule belongs to the popup
 MenuItem role: other controls with that role keep ordinary UIA focus transfer, and embedded host
 focus stays with its bridge. Bounds follow the visible scrolled row geometry and DPI reflow; a row
 whose bounds change republishes the provider snapshot even without a focus change, so hit testing
-and BoundingRectangle match the scrolled rows. Per-entry elements, and therefore `accessibleName`,
-exist only in a popup with at least one described entry; a popup without described entries keeps its
-existing tree and exposes no per-entry elements. Posted UIA
+and BoundingRectangle match the scrolled rows. A row the viewport scrolls away stays an element,
+reports `IsOffscreen` and no rectangle, and its UIA focus scrolls it into view. Posted UIA
 actions carry popup-instance identity so HWND reuse cannot dispatch an old action into a new menu;
 retained providers disconnect on teardown. Implementation and validation are tracked in the
 [menu description plan](../Plans/WIP/MenuDescriptions_2026-09-21.md).
@@ -48,7 +51,7 @@ cursor the window under the pointer chooses when that window belongs to the menu
 arrow. That window is messaged from a posted message, outside the menu's own handlers, so its `WM_SETCURSOR`
 handling may close the menu. The cursor is chosen once more when the menu takes or moves capture, and the window under
 the pointer chooses again as soon as the menu closes. These are one-shot reads of the pointer; an idle menu never polls
-it. A described menu's layouts and accessibility proxies exist only while it is open: closing it returns them, even
+it. A menu's row layouts and accessibility proxies exist only while it is open: closing it returns them, even
 while a client still holds its row elements. `DebugGetContextMenuResources` counts them exactly (popups, row text
 layouts and the accessibility records of menu-popup snapshots, wherever held), so a test asserts that a closed menu
 holds none, whatever the renderer and allocator keep.

@@ -6220,7 +6220,15 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
         case UIA_IsEnabledPropertyId: *outValue = VariantFromBool(record->controlVisible && record->controlEnabled); return S_OK;
         case UIA_IsKeyboardFocusablePropertyId: *outValue = VariantFromBool(record->controlVisible && record->controlFocusable); return S_OK;
         case UIA_HasKeyboardFocusPropertyId: *outValue = VariantFromBool(record->controlVisible && record->controlHasFocus); return S_OK;
-        case UIA_IsOffscreenPropertyId: *outValue = VariantFromBool(! record->controlVisible); return S_OK;
+        case UIA_IsOffscreenPropertyId:
+        {
+            // A menu keeps a row its viewport scrolled away as a semantic element, so that UIA focus can reveal it, and
+            // publishes no visible rectangle for it: that row is offscreen.
+            const bool scrolledAway = record->controlVisible && _target && _target->menuPopup &&
+                                      ! FindSnapshotFragmentBounds(*snapshot, AccessibilityFragmentKind::Control, record->path, 0u, 0u, 0u).has_value();
+            *outValue = VariantFromBool(! record->controlVisible || scrolledAway);
+            return S_OK;
+        }
         case UIA_IsPasswordPropertyId: *outValue = VariantFromBool(record->controlVisible && record->controlIsPassword); return S_OK;
         case UIA_ValueValuePropertyId:
             if (record->controlVisible && record->controlSupportsValue)
