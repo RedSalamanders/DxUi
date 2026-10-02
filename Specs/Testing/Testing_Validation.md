@@ -350,6 +350,24 @@ and the canonical identity of the element (the parent of an item, and its fragme
 root provider is). The twin with a second control passed before the fix; the single-control tests failed, with no child below
 the window's element and with no item event heard while an event raised on the window's element itself was.
 
+The Accessibility suite also holds a window-host element to the control it was created for when the controls are rebuilt under
+it. `TestNativeAccessibilityProvidersRejectReplacementAtSamePath` replaces a button and a text field at their paths, by
+replacing their children and by replacing the root: every call on the old elements and their text range, their runtime id
+included, reports `UIA_E_ELEMENTNOTAVAILABLE` and changes nothing of the replacements, while a fresh element reaches them with a
+new runtime id. `TestNativeAccessibilityPostedInvokeRejectsReplacement` and `…PostedSelectRejectsReplacement` queue an action from
+another thread (`DebugSetAccessibilityUiActionPostedEventForTest` says when it is queued) and replace the control before the
+window's thread runs it: the queued action is refused and reaches neither control. A window whose only control collapses into
+its element is held the same way: `TestNativeAccessibilityCollapsedRootRetiresAfterCallbackReplacement` has the button's own
+action replace it, after which the retained element invokes nothing and a fresh one invokes the replacement once, and
+`TestNativeAccessibilityRootRetiresWhenAControlCollapsesIntoIt` retires a root acquired while the window held no control.
+`TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction` rebuilds the controls from the focus-changed callback that an
+element's `SetFocus` or `Invoke` runs: the element reports itself gone, its button's action does not run, and the callback's
+focus choice stands. These tests come from the `codex/fileops-ui-qualified` branch; all but the queued `Select` failed against
+the library before its port ([plan](../Plans/WIP/CodexBranchReview_2026-10-02.md)), as did the Embedded suite's
+`TestMultilineCaretViewport`, which renders a multiline field's caret on a WARP surface at 96, 144 and 192 DPI, editable and
+read-only, and requires no caret pixel outside the text viewport: on a partly visible bottom line, scrolled above and below the
+viewport, and restored.
+
 The [selection events](../UI/UI_InputAndAccessibility.md#selection-events) are the library's own, heard from the right sender (an
 item or a row, and the control's element for the invalidation of a selection) by a client subscribed to the window, again for a
 control that fills its window and for its twin beside a button or a label. A test step drives a change through the window's own

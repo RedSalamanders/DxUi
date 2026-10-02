@@ -2138,11 +2138,18 @@ bool Button::Invoke(ControlHost& host, bool focusSelf)
 
     if (focusSelf)
     {
+        // Native focus and the host's focus-changed callback may rebuild the controls and destroy this button: nothing
+        // touches it once its lifetime ended, and the invocation it was asked for does not happen.
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         if (const HWND hwnd = host.GetHwnd())
         {
             SetFocus(hwnd);
+            if (lifetime.expired())
+                return false;
         }
         host.SetFocusControl(this);
+        if (lifetime.expired())
+            return false;
     }
 
     if ((_variant == ButtonVariant::DropDown || _variant == ButtonVariant::Selector) && _onDropDownClick)
