@@ -30,7 +30,9 @@ cost that grows with the number of entries ([measurement](../../Measurements/Pla
 Modal and asynchronous menu tracking both activate the root popup
 for native keyboard dispatch; submenus never activate. Dismissal restores the previously focused
 owner control while the menu still owns focus. Logical entry navigation does not change that
-session's native focus target. Native activation of a popup never selects an entry: it restores only a row
+session's native focus target. It scrolls a popup only as far as the chosen row needs, except that reaching the
+first or last navigable row (Home, End or a wrapping arrow) also shows the menu's edge: its padding and any header or
+separator before or after that row, when they fit with it. Native activation of a popup never selects an entry: it restores only a row
 that keyboard or UIA navigation already chose, so a pointer-opened menu has no keyboard target and
 publishes no transient focus. Explicit UIA focus of any focusable row in a native menu popup,
 including non-command rows such as sliders, follows the session rule for both root menus and

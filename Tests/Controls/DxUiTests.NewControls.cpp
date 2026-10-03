@@ -1,6 +1,7 @@
 #include "DxUiTestHelpers.h"
 
 #include <chrono>
+#include <cmath>
 #include <fstream>
 #include <limits>
 #include <string>
@@ -1916,6 +1917,12 @@ void TestContextMenuPopupScrollsOversizedContent()
             return;
         }
 
+        if (std::fabs(popupState.scrollOffsetDip - (popupState.contentHeightDip - popupState.visibleHeightDip)) > 0.01f)
+        {
+            driverFailure = "oversized context menu End scrolls the menu's bottom padding into view with the last item";
+            return;
+        }
+
         const float endOffset = popupState.scrollOffsetDip;
         RECT popupRect{};
         GetWindowRect(popupHwnd, &popupRect);
@@ -1926,6 +1933,15 @@ void TestContextMenuPopupScrollsOversizedContent()
                 popupHwnd, [endOffset](const ContextMenuPopupDebugState& state) { return state.scrollOffsetDip < endOffset; }, popupState))
         {
             driverFailure = "oversized context menu mouse wheel scrolls back toward earlier items";
+            return;
+        }
+
+        PostMessageW(popupHwnd, WM_KEYDOWN, VK_HOME, 0);
+        if (! WaitForContextMenuPopupState(popupHwnd, [](const ContextMenuPopupDebugState& state) {
+            return state.keyboardIndex == std::optional<size_t>{0u} && state.scrollOffsetDip == 0.0f;
+        }, popupState))
+        {
+            driverFailure = "oversized context menu Home scrolls the menu's top padding into view with the first item";
             return;
         }
     });

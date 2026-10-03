@@ -1301,13 +1301,22 @@ struct MenuPopup
             return;
         }
 
-        if (itemRect.bottom - itemRect.top > menuHeightDip || itemRect.top < scrollOffsetDip)
+        // Before the first navigable row and after the last there is only padding, headers and separators, so reaching
+        // either row (Home, End or a wrapping arrow) brings that edge of the menu into view with it when both fit.
+        float revealTop    = FindFirstNavigableItem() == index ? 0.0f : itemRect.top;
+        float revealBottom = FindLastNavigableItem() == index ? (std::max)(itemRect.bottom, contentHeightDip) : itemRect.bottom;
+        if (revealBottom - revealTop > menuHeightDip)
         {
-            scrollOffsetDip = itemRect.top;
+            revealTop    = itemRect.top;
+            revealBottom = itemRect.bottom;
         }
-        else if (itemRect.bottom > (scrollOffsetDip + menuHeightDip))
+        if (revealBottom - revealTop > menuHeightDip || revealTop < scrollOffsetDip)
         {
-            scrollOffsetDip = itemRect.bottom - menuHeightDip;
+            scrollOffsetDip = revealTop;
+        }
+        else if (revealBottom > (scrollOffsetDip + menuHeightDip))
+        {
+            scrollOffsetDip = revealBottom - menuHeightDip;
         }
         ClampScrollOffset();
     }

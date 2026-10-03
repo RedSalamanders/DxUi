@@ -74,7 +74,11 @@ The oracles of `49c963f`, run against main: a queued `Select` of a stale text ra
   menus, and the selection changes `SetModel`, `SetSelectionMode`, `NotifyDataChanged` and `ApplyGroupLayout` report,
   still keep using the grid after its delegate (`docs/controls.md` tells applications to post a rebuild from them).
   Audit the delegate and callback call sites of the controls that keep running after them, as the focus sites were.
-- [ ] Keep the four codex branches until RedSalamander's `codex/fileops-ui-i26` pins a DxUi main.
+- [ ] Keep the four codex branches until RedSalamander's `codex/fileops-ui-i26` pins a DxUi main. On 3 October the
+  developer had `codex/grid-line-clamp`, `codex/fileops-ui-qualified` and `codex/menu-description-layout` deleted: each is
+  contained in `codex/multiline-caret-viewport`, so no commit was lost. That branch stays while RedSalamander pins its tip
+  `19ca44d` (`master`, `codex/fileops-ui-i26`). Once RedSalamander#110, which pins DxUi main, merges, tag `19ca44d` as
+  `archive/redsalamander-pin-19ca44d`, so older RedSalamander commits still restore, and delete the branch.
 
 ## Validation
 
