@@ -248,6 +248,15 @@ so it holds on a software renderer (WARP, or the Basic Render Driver of a GPU-le
 The process heap is printed beside it for diagnosis only: a software renderer's surfaces and caches share it and swing by
 up to about 3 MB between identical open/close cycles.
 
+A menu without descriptions has the same elements. `TestPlainMenuAccessibilityInvokesAndDisconnects` reads a plain popup's
+rows through its provider: a radio row's Toggle state, a disabled command's `IsEnabled` and refused Invoke, an information
+row with no Invoke, and a command's exact name, MenuItem role and retained bounds. It then focuses and invokes that command
+and asserts that the closed popup returned every record. `TestPlainMenuAccessibilityScrollsFocusedRow` checks that a row
+the viewport cuts off is offscreen without a rectangle until UIA focus scrolls it in, and that the first row then is.
+`TestMenuNativeFocusSelectsNoRowAndRestoresTheChosenOne` gives a plain and a described popup native focus with nothing
+chosen (no row is selected), then again after a Down (the chosen row is UIA's focus again). They are in the described-menu
+group, so they run in the Menu lane and in the nonactivating NewControls lane.
+
 Fixtures that take real focus can lose it to another application: the desktop application hosting a developer's
 session took the foreground back 30-95 ms after each test window activated. Windows then sends the window
 `WM_ACTIVATEAPP` (FALSE), `WM_ACTIVATE` (inactive) and `WM_KILLFOCUS`, and the host releases its native text session,

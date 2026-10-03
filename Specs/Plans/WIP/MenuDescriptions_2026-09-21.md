@@ -3,6 +3,18 @@
 Status: **ACTIVE**. Library scope supporting independently qualified consumer adoption.
 Baseline: `78b3de389a189c7f86f611787e0489fb6d474218`.
 
+## October 2 menus without descriptions
+
+A menu without descriptions now gives every row a UI Automation element, as a described menu does; until then a
+screen reader found no row in it (RedSalamander's destination-menu test, 27 September). The change ports the
+`codex/menu-description-layout` correction (`15be545`, `d45c361`) and its snapshot pre-sizing (`65b0257`). The
+statements below that per-entry elements exist only in described popups describe the implementation before it. The
+[plain-menu packet](../../../Measurements/PlainMenuUia/2026-10-02/README.md) measures its cost against main: about
+1.6 KB of live heap per open command row, and 0.3 ms plus 1.4 to 2.6 µs per row for each key or wheel notch that moves
+the rows. The developer accepted that cost on 2 October, and the
+[performance contract](../../Core/Core_PerformanceAndResources.md) records it. Described menus are unchanged. The consumer
+handoff remains open.
+
 ## September 30 one layout per row
 
 A described row now holds one DirectWrite layout for its label and its description, instead of two that a popup
