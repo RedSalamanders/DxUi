@@ -202,24 +202,27 @@ false and every paint is identical. Restoring motion resumes the sweep at the ne
 ### Slider
 
 Painted chrome and pointer geometry are independent. The gray chrome disc is ink only. Hit testing may be larger than any
-painted disc so a fat finger can grab the thumb. Neither layer is sized from the other.
+painted disc so a fat finger can grab the thumb. Neither layer is sized from the other. While a touch contact drags the
+slider, a translucent touch halo paints the 48 DIP grab area, so feedback shows around the finger that covers the thumb.
 
 ```
   cross-axis (horizontal slider, DIP)
 
-  48  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  hit band (unpainted)
-  20  ████████ chrome disc (fixed) ████████
-  16                                           hovered inner thumb
-  12                                           pressed inner thumb
-   6  ══════════════════════════════════════    track and rest inner thumb
+  48  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  hit band (unpainted); touch halo while a touch drags
+  24  ████████ chrome disc (fixed) ████████
+  20                                           hovered inner thumb
+  16                                           pressed inner thumb
+  14                                           resting inner thumb
+   6  ══════════════════════════════════════    track
    0
 ```
 
 | Layer | Rest | Hover | Pressed | Role |
 | --- | --- | --- | --- | --- |
 | Track | 6 DIP capsule | — | — | Paint. Fill and remainder share that thickness with no extra stroke. Inset 12 DIP from each end. |
-| Inner thumb | 6 DIP | 16 DIP | 12 DIP | Paint. Accent fill matching the track. Rest equals the track so the chrome reads as a gray ring; hover grows the inner until a thin chrome rim remains. |
-| Chrome disc | 20 DIP | 20 DIP | 20 DIP | Paint. Opaque gray disc under the inner thumb. It does not scale with hover or press and is not the hit target. |
+| Inner thumb | 14 DIP | 20 DIP | 16 DIP | Paint. Accent fill matching the track: visible at rest, with a thin chrome rim on hover and clear pressed feedback. |
+| Chrome disc | 24 DIP | 24 DIP | 24 DIP | Paint. Opaque gray disc under the inner thumb. It does not scale with hover or press and is not the hit target. |
+| Touch halo | — | — | 48 DIP while a touch drags | Paint. The accent at 24% opacity under the chrome disc. It grows from the disc to the grab area as the drag begins and shrinks away after the release; a cancelled drag removes it at once. High contrast draws it as an opaque 2 DIP accent ring. It may paint beyond the control's bounds. A mouse or pen drag never shows it. |
 | Hit band | 48 DIP | 48 DIP | 48 DIP | Pointer only. Centered on the track. Clipped to control bounds when the control is shorter. Not painted. |
 | Thumb grab | 24 DIP radius from thumb center | same | same | Pointer only. Half the hit band. A contact in this circle drags from the current value; a contact on the track outside it seeks. |
 

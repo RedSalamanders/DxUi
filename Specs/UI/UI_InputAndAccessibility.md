@@ -196,7 +196,11 @@ verification supplements synthetic tests.
 EmbeddedHost dispatches pointer Down/Move/Up/Wheel/Leave/Cancel, keyboard down/up and character events to its retained
 tree, with stale-focus/capture pruning. A second Down on the same control within the system double-click interval and a
 16 DIP slop calls `OnMouseDoubleClick` (word selection, row activation) instead of `OnMouseDown`. Pointer Down/Move/Up/Wheel switch the host to pointer modality so keyboard-only
-focus chrome does not appear on a touch. Hit-testing stays valid while the cached surface is paint-dirty. A changed interaction revision makes a new hit
+focus chrome does not appear on a touch. They also record the event's `PointerEvent::device` (the mouse when the
+application names none), which `ControlHost::GetPointerDevice` reports to the control that handles it. A window host
+records the device of each mouse message it handles from the thread's extra message information: Windows marks a message
+it promoted from a touch or pen contact with 0xFF515700 in the upper 24 of its low 32 bits and sets 0x80 for touch
+(`PointerDeviceFromMessageExtraInfo`), and anything else is the mouse. Hit-testing stays valid while the cached surface is paint-dirty. A changed interaction revision makes a new hit
 incoherent until the next preparation. A drag already captured continues when some other control's bounds change and
 the captured control stays in the tree and unmoved, with it and every ancestor enabled and visible. Moving, hiding,
 disabling or removing the captured control, hiding or disabling an ancestor, or resizing the view, cancels that drag.
@@ -213,8 +217,10 @@ ComboBox/PopupLayer overlays or host-owned menu services.
 
 Slider::SetOnChange reports Preview while dragging and exactly one Commit on accepted release, including an
 unchanged final value. Capture loss, Escape, hiding or detach reports Cancel and restores the initial value. Keyboard
-steps report Commit. Hover and press ease painted chrome only: a 6 DIP track, inner thumb 6→16 DIP hover and 16→12 DIP
-pressed, inside a fixed 20 DIP gray chrome disc. The 48 DIP hit band and 24 DIP grab radius do not change with hover or press. Keyboard steps and
+steps report Commit. Hover and press ease painted chrome only: a 6 DIP track, inner thumb 14→20 DIP hover and 20→16 DIP
+pressed, inside a fixed 24 DIP gray chrome disc. A drag that a touch contact began (`ControlHost::GetPointerDevice` at the
+press) also eases in a 48 DIP touch halo and eases it out after the release; Cancel removes it at once. The 48 DIP hit
+band and 24 DIP grab radius do not change with hover, press or the halo. Keyboard steps and
 RequestValue ease the painted thumb to the committed value, then stop requesting ticks. Pointer drags and SetValue snap
 the painted position so live acknowledgement cannot lag. Reduced motion snaps every visual and requests no slider ticks.
 SetValue updates from externally acknowledged state without firing an input callback, including snapping a pending

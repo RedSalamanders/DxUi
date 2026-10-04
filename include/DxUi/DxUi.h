@@ -518,6 +518,21 @@ enum class InputModality : uint8_t
     Keyboard,
 };
 
+// The device behind a pointer event: the mouse, or a touch or pen contact that Windows promotes to mouse messages. A
+// control reads it from ControlHost::GetPointerDevice while it handles the event, to give a finger the feedback it needs.
+enum class PointerDevice : uint8_t
+{
+    Mouse,
+    Touch,
+    Pen,
+};
+
+// The device of a mouse message, from GetMessageExtraInfo() read while that message is handled. Windows marks a message
+// it generated for a touch or pen contact with 0xFF515700 in the upper 24 bits of the low 32, and sets 0x80 for touch;
+// anything else is the mouse. An application that forwards its own window's mouse messages to an EmbeddedHost fills
+// PointerEvent::device with it.
+[[nodiscard]] PointerDevice PointerDeviceFromMessageExtraInfo(LPARAM extraInfo) noexcept;
+
 enum class FlowDirection : uint8_t
 {
     LeftToRight,
@@ -2250,6 +2265,9 @@ public:
     [[nodiscard]] D2D1_RECT_F DebugGetFillRect() const noexcept;
     [[nodiscard]] float DebugGetHoverAnimationProgress() const noexcept;
     [[nodiscard]] float DebugGetPressAnimationProgress() const noexcept;
+    // The touch halo, shown while a touch contact drags the slider: its painted rectangle and transition progress.
+    [[nodiscard]] D2D1_RECT_F DebugGetTouchHaloRect() const noexcept;
+    [[nodiscard]] float DebugGetTouchHaloProgress() const noexcept;
     [[nodiscard]] double DebugGetDisplayedValue() const noexcept;
 #endif
 
@@ -2281,6 +2299,7 @@ private:
     [[nodiscard]] D2D1_RECT_F GetThumbRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetInnerThumbRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetHaloRect() const noexcept;
+    [[nodiscard]] D2D1_RECT_F GetTouchHaloRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetFillRect() const noexcept;
     void UpdateValueFromPoint(ControlHost& host, D2D1_POINT_2F point) noexcept;
 
@@ -2301,7 +2320,10 @@ private:
     SliderOrientation _orientation      = SliderOrientation::Horizontal;
     VisualTransitionState _hoverTransition{};
     VisualTransitionState _pressTransition{};
-    bool _dragging                                            = false;
+    VisualTransitionState _touchTransition{};
+    bool _dragging = false;
+    // The drag began with a touch contact, so the touch halo shows until it ends.
+    bool _touchDragging                                       = false;
     bool _valueAnimationActive                                = false;
     float _dragThumbPointerOffsetDip                          = 0.0f;
     static constexpr uint64_t _interactionAnimationDurationMs = 100u;
@@ -4473,6 +4495,9 @@ public:
     [[nodiscard]] std::optional<PointDip> ScreenPointToDipPoint(POINT screenPointPx) const noexcept;
     [[nodiscard]] POINT DipPointToScreenPoint(D2D1_POINT_2F pointDip) const noexcept;
     [[nodiscard]] InputModality GetInputModality() const noexcept;
+    // The device of the pointer event being handled, kept until the next one: the window host reads it from each mouse
+    // message, an embedded host from PointerEvent::device.
+    [[nodiscard]] PointerDevice GetPointerDevice() const noexcept;
     [[nodiscard]] bool IsKeyboardFocusVisible() const noexcept;
     [[nodiscard]] PresentationMode GetPresentationMode() const noexcept
     {
@@ -4498,6 +4523,8 @@ public:
 
     LRESULT HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bool& handled) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
+    // The device of the pointer events a test dispatches straight to a control, which no message or PointerEvent carries.
+    void DebugSetPointerDevice(PointerDevice device) noexcept;
     [[nodiscard]] uint64_t DebugGetInvalidateCount() const noexcept;
     // UI Automation focus-changed events this host raised itself (the window's own focus event is the system's).
     [[nodiscard]] uint64_t DebugGetFocusAnnouncementCount() const noexcept;
@@ -4629,6 +4656,7 @@ private:
     void RememberPointerDownDip(Control* target, D2D1_POINT_2F pointDip) noexcept;
     void UpdateModifierStateForKey(UINT virtualKey, bool keyDown, bool systemKey) noexcept;
     void SetInputModality(InputModality modality) noexcept;
+    void SetPointerDevice(PointerDevice device) noexcept;
     [[nodiscard]] D2D1_POINT_2F PointFromLParam(LPARAM lp) const noexcept;
     [[nodiscard]] UINT GetModifierState() const noexcept;
     static bool AnimationTickThunk(void* context, uint64_t nowTickMs) noexcept;
@@ -4790,6 +4818,7 @@ private:
     std::function<void(Control* control)> _onFocusChanged;
     UINT _modifierState                = 0u;
     InputModality _inputModality       = InputModality::Pointer;
+    PointerDevice _pointerDevice       = PointerDevice::Mouse;
     PresentationMode _presentationMode = PresentationMode::HwndSwapChain;
     bool _smokeOverlayVisible          = false;
     std::atomic_bool _detachInProgress{false};

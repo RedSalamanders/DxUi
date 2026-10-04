@@ -472,6 +472,7 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
             event.action == PointerAction::Wheel)
         {
             _host.SetInputModality(InputModality::Pointer);
+            _host.SetPointerDevice(event.device);
         }
         const auto point = D2D1::Point2F(event.xPixels * 96 / _state->dpi, event.yPixels * 96 / _state->dpi);
         if (event.action == PointerAction::Cancel)

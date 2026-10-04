@@ -44,6 +44,8 @@ struct PointerEvent
     float yPixels        = 0;
     UINT modifiers       = 0;
     float wheelDelta     = 0;
+    // The contact's device; a touch drag shows touch feedback (PointerDeviceFromMessageExtraInfo for mouse messages).
+    PointerDevice device = PointerDevice::Mouse;
 };
 // Owned snapshot for an application-side text service; never pass this C++ record across a plugin ABI.
 // The revision belongs to this EmbeddedHost instance and is invalidated by any view change.

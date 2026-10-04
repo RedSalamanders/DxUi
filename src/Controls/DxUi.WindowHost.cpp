@@ -2005,9 +2005,28 @@ POINT ControlHost::DipPointToScreenPoint(D2D1_POINT_2F pointDip) const noexcept
     return pointPx;
 }
 
+PointerDevice PointerDeviceFromMessageExtraInfo(LPARAM extraInfo) noexcept
+{
+    // MI_WP_SIGNATURE under SIGNATURE_MASK ("System Events and Mouse Messages"); the touch bit tells touch from pen.
+    constexpr ULONG_PTR kSignatureMask       = 0xFFFFFF00u;
+    constexpr ULONG_PTR kPenOrTouchSignature = 0xFF515700u;
+    constexpr ULONG_PTR kTouchBit            = 0x80u;
+    const auto info                          = static_cast<ULONG_PTR>(extraInfo);
+    if ((info & kSignatureMask) != kPenOrTouchSignature)
+    {
+        return PointerDevice::Mouse;
+    }
+    return (info & kTouchBit) != 0u ? PointerDevice::Touch : PointerDevice::Pen;
+}
+
 InputModality ControlHost::GetInputModality() const noexcept
 {
     return _inputModality;
+}
+
+PointerDevice ControlHost::GetPointerDevice() const noexcept
+{
+    return _pointerDevice;
 }
 
 bool ControlHost::IsKeyboardFocusVisible() const noexcept
@@ -2190,6 +2209,11 @@ std::optional<std::wstring> ControlHost::ReadTextFromClipboard() const noexcept
 }
 
 #if DXUI_ENABLE_DIAGNOSTICS
+void ControlHost::DebugSetPointerDevice(PointerDevice device) noexcept
+{
+    SetPointerDevice(device);
+}
+
 uint64_t ControlHost::DebugGetInvalidateCount() const noexcept
 {
     return _debugInvalidateCount;
@@ -2412,6 +2436,12 @@ LRESULT ControlHost::HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bo
 
     CancelStaleCapture();
     PruneStaleInteractionState();
+    if (msg >= WM_MOUSEFIRST && msg <= WM_MOUSELAST)
+    {
+        // A touch or pen contact promoted to this mouse message says so in the extra information of the message being
+        // handled now, and the control that handles it reads the device from the host.
+        SetPointerDevice(PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo()));
+    }
 
     LRESULT accessibilityResult = 0;
     if (TryHandleWindowHostAccessibilityMessage(hwnd, msg, wp, lp, accessibilityResult))
@@ -4360,6 +4390,11 @@ void ControlHost::SetInputModality(InputModality modality) noexcept
     {
         Invalidate();
     }
+}
+
+void ControlHost::SetPointerDevice(PointerDevice device) noexcept
+{
+    _pointerDevice = device;
 }
 
 void ControlHost::UpdateModifierStateForKey(UINT virtualKey, bool keyDown, bool /*systemKey*/) noexcept

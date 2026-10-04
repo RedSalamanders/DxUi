@@ -730,6 +730,7 @@ struct GalleryScene
     ExposedButton* pressedButton       = nullptr;
     Slider* hoverSlider                = nullptr;
     Slider* pressedSlider              = nullptr;
+    Slider* touchSlider                = nullptr;
     Control* focusedControl            = nullptr;
     Grid* grid                         = nullptr;
     std::optional<D2D1_POINT_2F> tooltipOrigin;
@@ -1000,6 +1001,12 @@ void AddComboItems(ComboBox& combo)
         scene.pressedSlider = scene.root->AddChild<Slider>();
         scene.pressedSlider->SetValue(54.0);
         scene.pressedSlider->SetBounds(CenterIn(tile.content, 270.0f, 48.0f));
+    }
+    {
+        const Tile tile   = flow.Next(*scene.root, L"Slider / Touch pressed");
+        scene.touchSlider = scene.root->AddChild<Slider>();
+        scene.touchSlider->SetValue(40.0);
+        scene.touchSlider->SetBounds(CenterIn(tile.content, 270.0f, 48.0f));
     }
     {
         const Tile tile = flow.Next(*scene.root, L"Slider / Vertical");
@@ -1299,6 +1306,15 @@ void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx)
         const D2D1_POINT_2F thumbCenter = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
         scene.pressedSlider->OnHoverChanged(window.Host(), true);
         static_cast<void>(scene.pressedSlider->OnMouseDown(window.Host(), thumbCenter, false, 0));
+    }
+    if (scene.touchSlider)
+    {
+        // A finger on the thumb: the press a touch contact makes, with the halo around it.
+        const D2D1_RECT_F thumb         = scene.touchSlider->DebugGetThumbRect();
+        const D2D1_POINT_2F thumbCenter = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
+        window.Host().DebugSetPointerDevice(PointerDevice::Touch);
+        static_cast<void>(scene.touchSlider->OnMouseDown(window.Host(), thumbCenter, false, 0));
+        window.Host().DebugSetPointerDevice(PointerDevice::Mouse);
     }
     if (scene.focusedControl)
     {

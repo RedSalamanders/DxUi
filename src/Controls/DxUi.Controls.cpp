@@ -204,10 +204,10 @@ constexpr float kTooltipFallbackLineHeightDip    = 18.0f;
 constexpr float kTooltipPreferredTextHeightDip   = 256.0f;
 constexpr float kMenuBarItemCornerRadiusDip      = 4.0f;
 constexpr float kSliderTrackThicknessDip         = 6.0f;
-constexpr float kSliderThumbDiameterDip          = 6.0f;
-constexpr float kSliderThumbHoverDiameterDip     = 16.0f;
-constexpr float kSliderThumbPressedDiameterDip   = 12.0f;
-constexpr float kSliderChromeDiameterDip         = 20.0f;
+constexpr float kSliderThumbDiameterDip          = 14.0f;
+constexpr float kSliderThumbHoverDiameterDip     = 20.0f;
+constexpr float kSliderThumbPressedDiameterDip   = 16.0f;
+constexpr float kSliderChromeDiameterDip         = 24.0f;
 constexpr float kSliderTrackInsetDip             = 12.0f;
 constexpr float kSliderHitExtentDip              = 48.0f;
 constexpr float kSliderTickLengthDip             = 6.0f;
@@ -220,6 +220,12 @@ constexpr float kTabHeaderGapDip                 = 4.0f;
 constexpr float kTabHeaderMinWidthDip            = 72.0f;
 constexpr float kTabHeaderCloseButtonSizeDip     = 16.0f;
 constexpr float kTabHeaderOverflowButtonWidthDip = 24.0f;
+
+// A touch drag shows the 48 DIP grab area as a translucent accent halo, so feedback shows around the finger that covers
+// the thumb. High contrast keeps system colors opaque and draws it as a ring.
+constexpr float kSliderTouchHaloDiameterDip  = kSliderHitExtentDip;
+constexpr float kSliderTouchHaloOpacity      = 0.24f;
+constexpr float kSliderTouchHaloRingWidthDip = 2.0f;
 
 [[nodiscard]] wchar_t NormalizeMnemonicChar(wchar_t ch) noexcept
 {
@@ -4694,12 +4700,19 @@ void Slider::SnapVisualTransitions() noexcept
     _pressTransition.target        = pressTarget;
     _pressTransition.startTickMs   = 0u;
     _pressTransition.active        = false;
+    const float touchTarget        = (_dragging && _touchDragging) ? 1.0f : 0.0f;
+    _touchTransition.progress      = touchTarget;
+    _touchTransition.startProgress = touchTarget;
+    _touchTransition.target        = touchTarget;
+    _touchTransition.startTickMs   = 0u;
+    _touchTransition.active        = false;
 }
 
 void Slider::SyncInteractionVisuals(ControlHost& host) noexcept
 {
     BeginVisualTransition(host, _hoverTransition, (IsHovered() || _dragging) ? 1.0f : 0.0f);
     BeginVisualTransition(host, _pressTransition, _dragging ? 1.0f : 0.0f);
+    BeginVisualTransition(host, _touchTransition, (_dragging && _touchDragging) ? 1.0f : 0.0f);
 }
 
 void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChanged, bool animatePosition) noexcept
@@ -4826,6 +4839,15 @@ D2D1_RECT_F Slider::GetHaloRect() const noexcept
     return D2D1::RectF(center.x - radius, center.y - radius, center.x + radius, center.y + radius);
 }
 
+D2D1_RECT_F Slider::GetTouchHaloRect() const noexcept
+{
+    // Grows from the chrome disc to the grab area as the touch transition runs, and shrinks back after the drag.
+    const D2D1_POINT_2F center = GetThumbCenter();
+    const float diameter       = std::lerp(ResolveHaloDiameter(GetBounds()), kSliderTouchHaloDiameterDip, _touchTransition.progress);
+    const float radius         = diameter * 0.5f;
+    return D2D1::RectF(center.x - radius, center.y - radius, center.x + radius, center.y + radius);
+}
+
 D2D1_RECT_F Slider::GetHitBounds() const noexcept
 {
     const D2D1_RECT_F bounds = Control::GetHitBounds();
@@ -4940,6 +4962,23 @@ void Slider::Paint(ControlHost& host) const
         }
     }
 
+    if (_touchTransition.progress > 0.0f)
+    {
+        const D2D1_RECT_F touchHalo = GetTouchHaloRect();
+        const float touchRadius     = (touchHalo.right - touchHalo.left) * 0.5f;
+        if (theme.highContrast)
+        {
+            const float ringRadius = touchRadius - (kSliderTouchHaloRingWidthDip * 0.5f);
+            DrawEllipseWithColor(host, D2D1::Ellipse(center, ringRadius, ringRadius), theme.accent, kSliderTouchHaloRingWidthDip);
+        }
+        else
+        {
+            D2D1_COLOR_F haloColor = theme.accent;
+            haloColor.a            = kSliderTouchHaloOpacity * _touchTransition.progress;
+            FillEllipseWithColor(host, D2D1::Ellipse(center, touchRadius, touchRadius), haloColor);
+        }
+    }
+
     const D2D1_RECT_F chrome         = GetHaloRect();
     const float chromeRadius         = (chrome.right - chrome.left) * 0.5f;
     const D2D1_ELLIPSE chromeEllipse = D2D1::Ellipse(center, chromeRadius, chromeRadius);
@@ -4966,10 +5005,11 @@ bool Slider::Tick(ControlHost& host, uint64_t nowTickMs)
     {
         const bool hoverWasActive = _hoverTransition.active;
         const bool pressWasActive = _pressTransition.active;
+        const bool touchWasActive = _touchTransition.active;
         const bool valueWasActive = _valueAnimationActive;
         SnapVisualTransitions();
         SnapDisplayedValue();
-        if (hoverWasActive || pressWasActive || valueWasActive)
+        if (hoverWasActive || pressWasActive || touchWasActive || valueWasActive)
         {
             Invalidate(host);
         }
@@ -4978,14 +5018,16 @@ bool Slider::Tick(ControlHost& host, uint64_t nowTickMs)
 
     const float hoverBefore   = _hoverTransition.progress;
     const float pressBefore   = _pressTransition.progress;
+    const float touchBefore   = _touchTransition.progress;
     const bool hoverAnimating = AdvanceVisualTransition(_hoverTransition, nowTickMs, EasingCurve::FastDecelerate);
     const bool pressAnimating = AdvanceVisualTransition(_pressTransition, nowTickMs, EasingCurve::FastDecelerate);
+    const bool touchAnimating = AdvanceVisualTransition(_touchTransition, nowTickMs, EasingCurve::FastDecelerate);
     const bool valueAnimating = AdvanceValueAnimation(host, nowTickMs);
-    if (_hoverTransition.progress != hoverBefore || _pressTransition.progress != pressBefore)
+    if (_hoverTransition.progress != hoverBefore || _pressTransition.progress != pressBefore || _touchTransition.progress != touchBefore)
     {
         Invalidate(host);
     }
-    return hoverAnimating || pressAnimating || valueAnimating;
+    return hoverAnimating || pressAnimating || touchAnimating || valueAnimating;
 }
 
 bool Slider::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
@@ -5001,6 +5043,7 @@ bool Slider::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButto
     }
     _dragInitialValue          = _value;
     _dragging                  = true;
+    _touchDragging             = host.GetPointerDevice() == PointerDevice::Touch;
     const D2D1_POINT_2F center = GetThumbCenter();
     // Grab uses the unpainted 48 DIP hit band, not the painted halo or inner thumb.
     const float grabRadius = kSliderHitExtentDip * 0.5f;
@@ -5043,6 +5086,7 @@ bool Slider::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     if (life.expired())
         return true;
     _dragging                  = false;
+    _touchDragging             = false;
     _dragThumbPointerOffsetDip = 0.0f;
     host.ReleaseMouseCapture();
     SyncInteractionVisuals(host);
@@ -5123,6 +5167,7 @@ void Slider::OnCaptureLost(ControlHost& host)
     if (_dragging)
     {
         _dragging                  = false;
+        _touchDragging             = false;
         _dragThumbPointerOffsetDip = 0.0f;
         _value                     = ClampValue(_dragInitialValue);
         SnapDisplayedValue();
@@ -5166,6 +5211,16 @@ float Slider::DebugGetHoverAnimationProgress() const noexcept
 float Slider::DebugGetPressAnimationProgress() const noexcept
 {
     return _pressTransition.progress;
+}
+
+D2D1_RECT_F Slider::DebugGetTouchHaloRect() const noexcept
+{
+    return GetTouchHaloRect();
+}
+
+float Slider::DebugGetTouchHaloProgress() const noexcept
+{
+    return _touchTransition.progress;
 }
 
 double Slider::DebugGetDisplayedValue() const noexcept

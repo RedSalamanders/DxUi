@@ -29,7 +29,9 @@ views sharing the pool and bind both to the same model.
 
 Pass view-local physical pixel coordinates to `DispatchPointer`. Convert application screen/client coordinates
 through the actual displayed viewport transform, including animation offsets. Pass Move/Down/Up/Wheel/Leave/Cancel
-and the appropriate modifiers. A paint-dirty view still accepts hit-tested pointer gestures while its geometry is
+and the appropriate modifiers. Set `device` to the contact's device so a touch drag gets touch feedback (a slider's touch
+halo): for a mouse message your window received, `PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())` while you
+handle it. An event that names no device is the mouse. A paint-dirty view still accepts hit-tested pointer gestures while its geometry is
 coherent; Prepare before composition, and after bounds, tree, visibility or enabled changes that bump the interaction
 revision. Cancel on capture loss.
 Captured drag continuation may update a draft between paints; tree, bounds or availability changes cancel capture.
