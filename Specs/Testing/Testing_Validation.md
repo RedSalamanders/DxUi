@@ -187,6 +187,16 @@ receipts, and `test.ps1` prints each under its suite with the test it belongs to
 shows which tests a missing capability left unrun; a skip is not proof of that capability, and an interactive run
 (`test.ps1 -Interactive`, see below) fails on one. CI defines all six native jobs;
 their fresh receipts establish execution results.
+
+The validation workflow runs once per change: for every pull request on its merge ref, for every push to main and by
+hand. A push to another branch starts nothing, since its pull request validates the same code; a run started by hand
+validates a branch that has none. Its `native-scope` job decides whether the six native jobs run
+(`Tools/NativeScope.psm1`): always for a push to main and a manual run, because consumers adopt the main commit whose
+latest push run succeeded, and for a pull request unless every path it changes is documentation (Markdown, `Specs`,
+`Changes`, `Measurements`, `docs`, `.agents`, `LICENSE` and the formatting and gallery workflows), which the validation
+job still checks. Any other path, including one the rules do not name, runs them, and so does a scope job that fails. A
+documentation-only pull request reports the native jobs skipped under their unexpanded matrix name, so no required check
+names a native job; its merge to main runs all six.
 Physical touch, a human IME session and screen-reader interaction are manual adoption checks, not implied by synthetic
 messages or a green foundation suite.
 
