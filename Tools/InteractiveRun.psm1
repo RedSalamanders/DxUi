@@ -219,7 +219,8 @@ function Invoke-DxUiInteractiveLease {
     # A result left by an earlier run must never be taken for this run's.
     if (Test-Path -LiteralPath $result -PathType Leaf) { Remove-Item -LiteralPath $result }
     [IO.File]::WriteAllText($plan, (New-DxUiLeasePlanText -Runs $Runs), [Text.UTF8Encoding]::new($false))
-    & $Executable --run "--plan=$plan" "--result=$result" "--label=$Label" "--estimate=$EstimateSeconds" "--confirm-timeout=$ConfirmSeconds" "--child-timeout=$ChildTimeoutSeconds"
+    # Native stdout is progress for the person, not part of this function's returned object.
+    & $Executable --run "--plan=$plan" "--result=$result" "--label=$Label" "--estimate=$EstimateSeconds" "--confirm-timeout=$ConfirmSeconds" "--child-timeout=$ChildTimeoutSeconds" | Out-Host
     $exit = $LASTEXITCODE
     $parsed = if (Test-Path -LiteralPath $result -PathType Leaf) { Read-DxUiLeaseResult -Text ([IO.File]::ReadAllText($result)) }
     return [pscustomobject]@{ ExitCode = $exit; Result = $parsed; ResultPath = $result; PlanPath = $plan }

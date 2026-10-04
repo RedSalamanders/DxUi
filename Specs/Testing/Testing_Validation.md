@@ -527,6 +527,17 @@ ran, not for this lease.
 
 ## Independent library workloads
 
+The described-menu test and `FocusEventClient` use `CUIAutomation8` on a dedicated MTA thread with two-second provider connection and
+three-second provider transaction timeouts. Desktop-wide subscription must not give an unrelated provider an
+unbounded wait. Setup still has its separate 20-second allowance, and the expected DxUi focus events must arrive
+within three seconds; a setup timeout or a missing event fails rather than skips. The described-menu test prints
+its setup stage, readiness and HRESULT so a stalled call is distinct from an API failure. Test-window creation
+failures print their Win32 error before ending the run.
+
+The PowerShell desktop lease wrapper streams executable progress to the host separately from its structured
+return value. Successful and failed children retain their exit codes and result data even when the executable
+prints restoration diagnostics.
+
 The complex benchmark uses the same synthetic scene as `DxUi.EmbeddedControls.exe --complex-ui`, with no application
 services, settings or checkout. EmbeddedTests covers the sample's slider/progress preview and cancellation binding.
 Measurements include the scene, benchmark and graphics-helper hashes. Changed fixture identities cannot establish

@@ -7165,6 +7165,7 @@ void TestDescribedMenuRaisesFocusChangesForKeyboardRows()
     std::atomic<bool> ready{false};
     std::atomic<bool> finished{false};
     std::atomic<HRESULT> setup{E_PENDING};
+    std::atomic<const char*> setupStage{"initialize COM"};
     std::jthread client([&]
     {
         const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -7177,13 +7178,25 @@ void TestDescribedMenuRaisesFocusChangesForKeyboardRows()
         wil::com_ptr_nothrow<IUIAutomationCacheRequest> cache;
         HRESULT hr = initialized;
         if (SUCCEEDED(hr))
-            hr = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(automation.put()));
+        {
+            setupStage.store("create UIA client");
+            hr = CreateFocusAutomationClient(automation.put());
+        }
         if (SUCCEEDED(hr))
+        {
+            setupStage.store("create cache request");
             hr = automation->CreateCacheRequest(cache.put());
+        }
         if (SUCCEEDED(hr))
+        {
+            setupStage.store("cache row names");
             hr = cache->AddProperty(UIA_NamePropertyId);
+        }
         if (SUCCEEDED(hr))
+        {
+            setupStage.store("subscribe focus changes");
             hr = automation->AddFocusChangedEventHandler(cache.get(), observer.get());
+        }
         setup.store(hr);
         ready.store(true);
         if (SUCCEEDED(hr))
@@ -7210,7 +7223,9 @@ void TestDescribedMenuRaisesFocusChangesForKeyboardRows()
         // wait for it here, pumping, as long as its setup was allowed, and fail instead of hanging in the join.
         Require(waitUntil(kClientSetupAllowanceMs, [&] { return finished.load(); }), "the UIA focus client thread ends");
     });
-    Require(waitUntil(kClientSetupAllowanceMs, [&] { return ready.load(); }) && SUCCEEDED(setup.load()), "subscribe UIA focus changes");
+    const bool subscribed = waitUntil(kClientSetupAllowanceMs, [&] { return ready.load(); });
+    std::cout << std::format("    [UIA] setup ready={} stage={} HRESULT=0x{:08X}\n", subscribed, setupStage.load(), static_cast<unsigned long>(setup.load()));
+    Require(subscribed && SUCCEEDED(setup.load()), "subscribe UIA focus changes");
 
     const std::vector<MenuFlyoutItem> items{
         {.text = L"Première", .commandId = 9201, .secondaryText = L"Archives familiales", .accessibleName = L"Première destination"},
