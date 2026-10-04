@@ -10,6 +10,11 @@ Application adoption measurements belong in their application's repository.
 - [Described-menu row layout, 2026-09-30](MenuDescriptions/2026-09-30/row-layout/README.md): one formatted layout per
   described row against main's two shared layouts; byte-identical captures and gallery sheets, live heap a third lower
   where labels differ and up to 7% higher where every row repeats one label.
+- [Menu rows without descriptions as UI Automation elements, 2026-10-02](PlainMenuUia/2026-10-02/README.md): three
+  sets of six interleaved runs per side (x64 Release, nonactivating harness) of main, the port of an element for every
+  row of every menu and the port with pre-sized snapshots: about 1.6 KB of live heap per open command row and 0.3 ms plus
+  1.4 to 2.6 µs per row for each key or wheel notch that moves the rows (6.1 ms at 4,096 rows, where pre-sizing saves
+  24%); described menus are unchanged.
 - [Grid native CI, 2026-09-21](GridTextOverflow/2026-09-21/native-ci/README.md): six native profiles,
   retained accessibility classification retry and explicit ARM64 Menu capability skips; resource approval remains open.
 - [Grid multiline verification, 2026-09-30](GridTextOverflow/2026-09-30/verification/README.md): x64 Debug, Release and

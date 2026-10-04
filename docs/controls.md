@@ -47,14 +47,15 @@ and a constrained menu scrolls. Secondary text is literal Unicode. Primary text 
 mnemonic rules: double an ampersand to display it literally. Do not use the shortcut column for
 parent locations or other descriptive text.
 
-Supply `accessibleName` when the complete spoken identity differs from the two displayed fields.
-Otherwise UIA exposes the decoded primary label followed by its secondary text. Per-entry UIA
-elements exist only in a popup (root or submenu) with at least one described entry, so
-`accessibleName` is ignored in a popup without one; plain menus keep their existing behavior.
-A menu opened by the pointer starts without a keyboard selection, like a plain menu. Command IDs remain
+Supply `accessibleName` when the complete spoken identity differs from the displayed fields.
+Otherwise UIA exposes the decoded primary label, followed by its secondary text when there is one. Every entry
+of every menu popup (root or submenu, described or not) is a UIA element: MenuItem/Invoke for commands and the
+acknowledged checked state, and a row scrolled out of view reports `IsOffscreen` until UIA focus scrolls it in.
+A menu opened by the pointer starts without a keyboard selection. Command IDs remain
 the selection authority; repeated primary labels are supported. Description layout is prepared on
-open/DPI reflow and reused during paint. Described menu entries expose native MenuItem/Invoke and
-the acknowledged checked state. Queued invocations expire with that popup instance.
+open/DPI reflow and reused during paint. Queued invocations expire with that popup instance. The elements cost
+memory and time in every menu, screen reader or not, and more in a long menu: see the
+[measurement](../Measurements/PlainMenuUia/2026-10-02/README.md).
 A described row holds one native text layout for both fields (the label, a spacer paragraph and the
 description), which costs one layout's shaping storage where two layouts cost two; the description starts a fixed
 gap below the label as before. Commands and accessible names stay independent of it, and scrollbar/DPI reflow

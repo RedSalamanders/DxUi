@@ -1301,13 +1301,22 @@ struct MenuPopup
             return;
         }
 
-        if (itemRect.bottom - itemRect.top > menuHeightDip || itemRect.top < scrollOffsetDip)
+        // Before the first navigable row and after the last there is only padding, headers and separators, so reaching
+        // either row (Home, End or a wrapping arrow) brings that edge of the menu into view with it when both fit.
+        float revealTop    = FindFirstNavigableItem() == index ? 0.0f : itemRect.top;
+        float revealBottom = FindLastNavigableItem() == index ? (std::max)(itemRect.bottom, contentHeightDip) : itemRect.bottom;
+        if (revealBottom - revealTop > menuHeightDip)
         {
-            scrollOffsetDip = itemRect.top;
+            revealTop    = itemRect.top;
+            revealBottom = itemRect.bottom;
         }
-        else if (itemRect.bottom > (scrollOffsetDip + menuHeightDip))
+        if (revealBottom - revealTop > menuHeightDip || revealTop < scrollOffsetDip)
         {
-            scrollOffsetDip = itemRect.bottom - menuHeightDip;
+            scrollOffsetDip = revealTop;
+        }
+        else if (revealBottom > (scrollOffsetDip + menuHeightDip))
+        {
+            scrollOffsetDip = revealBottom - menuHeightDip;
         }
         ClampScrollOffset();
     }
@@ -2280,7 +2289,7 @@ static LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             return 0;
         }
 
-        if (msg == WM_SETFOCUS && ! popup->descriptionLayouts.empty())
+        if (msg == WM_SETFOCUS)
         {
             // Native activation restores only a row that keyboard or UIA navigation chose. The host's
             // first-focusable fallback would otherwise make row 0 the keyboard target of a pointer-opened
@@ -3316,7 +3325,7 @@ public:
 };
 
 // ---------------------------------------------------------------------------
-// Accessible described menus use the same retained row identities and geometry.
+// Every menu row is a UI Automation element, with the row's retained identity and geometry.
 // ---------------------------------------------------------------------------
 
 template <typename Base> class MenuAccessibilityItem final : public Base
@@ -3355,8 +3364,6 @@ private:
 [[nodiscard]] bool PopulateMenuAccessibility(MenuContentControl& content, MenuPopup& popup) noexcept
 try
 {
-    if (popup.descriptionLayouts.empty())
-        return true;
     for (size_t i = 0; i < popup.itemCount; ++i)
     {
         const auto& item = popup.items[i];
@@ -3405,8 +3412,6 @@ catch (const std::bad_alloc&)
 
 void SynchronizeMenuAccessibility(MenuPopup& popup) noexcept
 {
-    if (popup.descriptionLayouts.empty())
-        return;
     auto* root = dynamic_cast<MenuContentControl*>(popup.host.GetRoot());
     if (! root || root->GetChildren().size() != popup.itemCount)
         return;

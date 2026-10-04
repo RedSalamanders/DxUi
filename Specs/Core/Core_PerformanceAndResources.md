@@ -156,6 +156,26 @@ the bands. A local set of six runs per side
 -0.50% and -0.70%, and pair three's unaccepted dirty-round +8.67% did not repeat. Described menus now carry no memory
 envelope, and the regular investigation bands and exact budgets apply to them.
 
+### Accepted UI Automation elements of menus without descriptions
+
+On 2026-10-02 the developer accepted the measured cost of a UI Automation element for every row of a menu without
+descriptions (#56), which lets a screen reader read, focus and invoke an ordinary menu. A popup publishes its rows'
+elements whether or not a client listens. Three local sets of six interleaved runs per side, x64 Release, in a
+nonactivating harness ([packet](../../Measurements/PlainMenuUia/2026-10-02/README.md)), measured the final code against
+`265c280`, with UI Automation clients listening throughout:
+
+- **Memory.** An open menu holds about 1.6 KB more live heap per command row and 1.9 to 2.0 KB per radio row, linear from
+  12 to 4,096 rows: +19,967 bytes for twelve commands, +76,287 for 48 and +6.39 MB for 4,096. Closing returns all of it.
+- **Keyboard and scrolling.** A key or wheel notch that moves the rows rebuilds the popup's snapshot and raises a focus
+  change. Down takes about 0.3 ms more at twelve rows (38 to 340 µs), 0.6 ms more at 128 and 6.1 ms more at 4,096.
+- **Opening and pointer.** Opening 4,096 rows takes 77 ms instead of 60. A pointer move costs 4 µs more at twelve rows
+  and 236 µs more at 4,096.
+
+The accepted envelope is those recorded costs on that fixture. Described menus already paid them and are unchanged.
+The snapshot pre-sizing taken with the change makes every host's snapshot cheaper to build. A larger cost per row, any
+cost for a menu that opens no popup, and any change to the complex-UI benchmark remain regressions that need developer
+advice. The regular investigation bands and exact budgets still apply to everything else.
+
 ### I26 accepted multiline Grid memory tradeoff
 
 On 2026-09-23 the user explicitly accepted the measured V11 multiline Grid process-memory
