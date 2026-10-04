@@ -98,3 +98,11 @@ Closing validation on the final tree:
   restored dependencies) against this tree, A1, B1, B2, A2 three times, six runs per side on an identical benchmark
   fixture, is within the noise budget with no regressed and no improved metric, memory included (smallest attainable
   p 0.0022), while its same-binary controls drifted by 5 to 15% (33% on clean prepare p95). Nothing was rebaselined.
+
+After merging main `dd5c534` on 4 October, the merged tree was validated again: `validate.ps1` and `format.ps1 -Check`
+pass, the 19 suites pass in x64 Debug and x64 Release, and ARM64 Debug, Release and ASan Debug build. In x64 ASan Debug
+18 suites passed, Grid, Tree and Accessibility included, and NewControls stopped once in
+`TestMenuChoosesTheCursorWhenItOpensAndCloses`, a menu test that places the physical pointer: its popup had already
+closed when the test read its rectangle. This change does not touch menus, the test passed in x64 Debug and Release, and
+the whole suite passed under ASan when run again, that test included. CI's paired x64 Release benchmark compares the
+pull request with main.
