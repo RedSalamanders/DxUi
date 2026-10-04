@@ -1036,7 +1036,13 @@ void Grid::SetModel(IGridModel* model) noexcept
     ClampScrollOffsets();
     if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
     {
+        // The delegate may rebuild the controls and destroy this grid.
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         _delegate->OnGridSelectionChanged(*this);
+        if (lifetime.expired())
+        {
+            return;
+        }
     }
     RefreshAccessibilitySnapshot();
 }
@@ -1086,7 +1092,13 @@ void Grid::SetSelectionMode(GridSelectionMode mode) noexcept
     }
     if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
     {
+        // The delegate may rebuild the controls and destroy this grid.
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         _delegate->OnGridSelectionChanged(*this);
+        if (lifetime.expired())
+        {
+            return;
+        }
     }
     RefreshAccessibilitySnapshot();
 }
@@ -1428,7 +1440,13 @@ void Grid::NotifyDataChanged()
     ClampScrollOffsets();
     if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
     {
+        // The delegate may rebuild the controls and destroy this grid.
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         _delegate->OnGridSelectionChanged(*this);
+        if (lifetime.expired())
+        {
+            return;
+        }
     }
     RefreshAccessibilitySnapshot();
 }
@@ -3597,7 +3615,13 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
                     ClampScrollOffsets();
                     if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
                     {
+                        // The delegate may rebuild the controls and destroy this grid.
+                        const std::weak_ptr<int> lifetime = GetLifetimeToken();
                         _delegate->OnGridSelectionChanged(*this);
+                        if (lifetime.expired())
+                        {
+                            return true;
+                        }
                     }
                     Invalidate(host);
                 }
@@ -4014,12 +4038,21 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         }
 
         ClampScrollOffsets();
+        // The selection's delegate may rebuild the controls and destroy this grid, and UI Automation event delivery may too.
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
         {
             _delegate->OnGridSelectionChanged(*this);
+            if (lifetime.expired())
+            {
+                return true;
+            }
         }
         RefreshAccessibilitySnapshot();
-        Invalidate(host);
+        if (! lifetime.expired())
+        {
+            Invalidate(host);
+        }
         return true;
     };
 
@@ -4205,8 +4238,12 @@ bool Grid::OnSelectAll(ControlHost& host)
             return true;
         }
     }
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
-    Invalidate(host);
+    if (! lifetime.expired())
+    {
+        Invalidate(host);
+    }
     return true;
 }
 
@@ -4413,8 +4450,10 @@ bool Grid::SelectRow(size_t rowIndex, UINT modifiers)
             return false;
         }
     }
+    // UI Automation event delivery can dispatch a message that destroys this grid too.
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
-    return true;
+    return ! lifetime.expired();
 }
 
 std::wstring Grid::BuildSelectionTsv() const
@@ -5169,7 +5208,14 @@ bool Grid::ToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnI
     if (_delegate)
     {
         _delegate->OnGridCheckboxToggled(*this, rowIndex, columnIndex, ! cellData.checked);
+        // A model change that moved the selection runs the selection's delegate, which may rebuild the controls and destroy
+        // this grid, and so may UI Automation event delivery while it publishes.
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         NotifyDataChanged();
+        if (lifetime.expired())
+        {
+            return true;
+        }
     }
     Invalidate(host);
     return true;

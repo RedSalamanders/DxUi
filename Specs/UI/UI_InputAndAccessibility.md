@@ -1,7 +1,7 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-10-01
+Last reviewed: 2026-10-03
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -115,8 +115,12 @@ a selection action (Select, AddToSelection, or the focus of a grid row or a grid
 whose selection delegate rebuilds the controls: the destroyed grid or tree is never focused. Every control that focuses
 itself from an input handler (a press, a double click, a context menu, a mnemonic, a key or tab press that selects a
 tab, removing the tab that held the focus) stops there when the focus callbacks destroyed it, and touches nothing of
-its own. A republish that adds, removes or replaces
-a semantic control raises StructureChanged (ChildrenInvalidated) on the window's element, so a client navigates again.
+its own. A grid input that changes the selection (a click, a key, Ctrl+A, or collapsing the group of a selected row by
+a key or a press on its header) likewise touches nothing of a grid its selection delegate destroyed, and neither do a
+checkbox toggle whose model change moves the selection and the application's own model changes (`NotifyDataChanged`,
+`SetModel`, `SetSelectionMode`); a tree's `NotifyDataChanged` calls its delegate last. A republish that adds, removes
+or replaces a semantic control raises StructureChanged (ChildrenInvalidated) on the window's element, so a client
+navigates again.
 Structural changes alone (`AddChild`, `ClearChildren`) republish the tree at the next focus, size, pointer or state
 change, or through `RefreshAccessibilitySnapshot`. An event about a control comes from that control's element; only
 the control a collapsed semantic root stands for reports through the window's element.
@@ -411,4 +415,15 @@ Something can run while the events are raised: an outgoing call of UI Automation
 dispatches messages, and a message can hide, remove or replace the control, or disconnect its host. The raising then ends:
 the events left are dropped once the host is disconnected (or an embedded view's root is gone), or once the control is no
 longer the one published at its path, and never reach an element that is gone. The providers that raise them never touch a
+control.
+
+The control that called a native publish treats it as a reentrancy boundary too: before touching itself again or
+calling a pending delegate, it checks that its lifetime survived the publish. Tree and Grid selection helpers that
+allow their input callers to continue report whether the control survived both its delegate and accessibility
+publishing, and so do Tree's selection requests (Select, AddToSelection and RemoveFromSelection), which return false
+for a tree that did not survive them. A handled input (including select-all and keyboard group collapse) remains
+handled when the control is destroyed, but performs no subsequent focus, capture, activation or invalidation. Tree
+model reconciliation does not call its pending selection-set delegate once publishing has destroyed the tree, and a
+multi-select mode change does not invalidate after that destruction. A provider's own identity checks and the event
+raiser's checks protect their continuations independently; retaining a provider or snapshot does not retain the
 control.

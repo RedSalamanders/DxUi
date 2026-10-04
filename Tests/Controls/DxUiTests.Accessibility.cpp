@@ -7591,6 +7591,310 @@ void TestSelectionEventsEndWhenTheControlLeavesWhileTheyAreRaised()
         [](SelectionGridWindow& test, std::unique_ptr<DxUi::Panel>&) { test.window.Host().Detach(); });
 }
 
+// A listening client makes the host raise real selection events. The existing interruption hook plays the message that
+// replaces the controls during the first raise; the input/request that published them must then stop using its control.
+// Allocate the replacement first so its address cannot be the removed control's, and check only the host afterward.
+void ExpectRootReplacementDuringSelectionPublish(AttachedHostWindow& window, const char* scenario, const std::function<void()>& action)
+{
+    std::cerr << "    [UIA publish lifetime] " << scenario << '\n';
+    SingleControlClient walk(window, UiaTest::SelectionEventsSubscription());
+    auto replacement                   = std::make_unique<DxUi::Panel>();
+    DxUi::Panel* const replacementRoot = replacement.get();
+    uint64_t replacementInvalidations  = 0u;
+    UiaTest::SelectionEventInterruption interruption([&]
+    {
+        window.Host().SetRoot(std::move(replacement));
+        replacementInvalidations = window.Host().DebugGetInvalidateCount();
+    });
+    action();
+    Require(interruption.Events() == 1u, "the first selection event replaced the root and ended the raising");
+    Require(window.Host().GetRoot() == replacementRoot, "the replacement root survives the original selection handler");
+    Require(window.Host().GetFocusControl() == nullptr, "the selection handler never focuses a destroyed control");
+    Require(window.Host().GetCapturedControl() == nullptr, "the selection handler never captures a destroyed control");
+    Require(window.Host().DebugGetInvalidateCount() == replacementInvalidations, "a destroyed control never invalidates the replacement after its publish");
+}
+
+struct SelectionPublishTreeWindow final
+{
+    SelectionPublishTreeWindow(bool fillsItsWindow, bool multiSelect)
+    {
+        SizeClientAreaInDips(window, 280.0f, 200.0f);
+        model.SetVisibleItems({DxUi::TreeItemData{.id = 1u, .text = L"Général", .hasChildren = true, .expanded = true},
+                               DxUi::TreeItemData{.id = 2u, .text = L"Volets", .depth = 1u},
+                               DxUi::TreeItemData{.id = 3u, .text = L"Afficheurs"}});
+        const auto configure = [&](DxUi::Tree& control)
+        {
+            control.SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 96.0f));
+            control.SetModel(&model);
+            control.SetDelegate(&delegate);
+            control.SetMultiSelectEnabled(multiSelect);
+            control.SetSelectedItemId(2u);
+            control.SetReorderEnabled(true);
+            tree = &control;
+        };
+        if (fillsItsWindow)
+        {
+            auto control = std::make_unique<DxUi::Tree>();
+            configure(*control);
+            window.Host().SetRoot(std::move(control));
+        }
+        else
+        {
+            auto panel = std::make_unique<DxUi::Panel>();
+            configure(*panel->AddChild<DxUi::Tree>());
+            panel->AddChild<DxUi::Button>(L"Appliquer")->SetBounds(D2D1::RectF(0.0f, 104.0f, 120.0f, 136.0f));
+            window.Host().SetRoot(std::move(panel));
+        }
+    }
+
+    MutableTreeModel model;
+    RecordingTreeDelegate delegate;
+    AttachedHostWindow window;
+    DxUi::Tree* tree = nullptr;
+};
+
+void TestTreeSelectionPublishReplacementStopsRequests()
+{
+    enum class Request
+    {
+        Select,
+        Add,
+        Remove
+    };
+    for (const bool fillsItsWindow : {false, true})
+    {
+        for (const bool multiSelect : {false, true})
+        {
+            for (const Request request : {Request::Select, Request::Add, Request::Remove})
+            {
+                // Without multi-select there is no selection to remove an item from.
+                if (! multiSelect && request == Request::Remove)
+                    continue;
+                SelectionPublishTreeWindow test(fillsItsWindow, multiSelect);
+                const char* const scenario =
+                    request == Request::Select ? "Tree Select" : (request == Request::Add ? "Tree AddToSelection" : "Tree RemoveFromSelection");
+                ExpectRootReplacementDuringSelectionPublish(test.window,
+                                                            scenario,
+                                                            [&]
+                {
+                    bool survived = true;
+                    switch (request)
+                    {
+                        case Request::Select: survived = test.tree->RequestSelectVisibleItem(2u); break;
+                        case Request::Add: survived = test.tree->RequestAddVisibleItemToSelection(2u); break;
+                        case Request::Remove: survived = test.tree->RequestRemoveVisibleItemFromSelection(1u); break;
+                    }
+                    Require(! survived, "a tree selection request reports that its accessibility publish destroyed the tree");
+                });
+            }
+        }
+    }
+}
+
+void TestTreeSelectionPublishReplacementStopsPointerHandlers()
+{
+    enum class Action
+    {
+        Press,
+        Expander,
+        DoubleClickLeaf,
+        DoubleClickGroup,
+        ContextMenu
+    };
+    for (const bool fillsItsWindow : {false, true})
+    {
+        for (const bool multiSelect : {false, true})
+        {
+            for (const Action action : {Action::Press, Action::Expander, Action::DoubleClickLeaf, Action::DoubleClickGroup, Action::ContextMenu})
+            {
+                // A multi-select expander moves focus alone: it changes no selection and raises no selection event.
+                if (multiSelect && action == Action::Expander)
+                    continue;
+                SelectionPublishTreeWindow test(fillsItsWindow, multiSelect);
+                const size_t index = action == Action::Expander || action == Action::DoubleClickGroup ? 0u : 2u;
+                const auto metrics = test.tree->GetItemLayoutMetrics(test.window.Host(), index);
+                const auto rect    = action == Action::Expander ? metrics.expanderRect : metrics.textRect;
+                const auto point   = D2D1::Point2F((rect.left + rect.right) * 0.5f, (rect.top + rect.bottom) * 0.5f);
+                ExpectRootReplacementDuringSelectionPublish(test.window,
+                                                            "Tree pointer handler",
+                                                            [&]
+                {
+                    bool handled = false;
+                    switch (action)
+                    {
+                        case Action::Press:
+                        case Action::Expander: handled = test.tree->OnMouseDown(test.window.Host(), point, false, 0u); break;
+                        case Action::DoubleClickLeaf:
+                        case Action::DoubleClickGroup: handled = test.tree->OnMouseDoubleClick(test.window.Host(), point, false, 0u); break;
+                        case Action::ContextMenu: handled = test.tree->OnContextMenu(test.window.Host(), false, point); break;
+                    }
+                    Require(handled, "the pointer input remains handled when selection publishing destroys its tree");
+                });
+                Require(test.delegate.toggleCount == 0u && test.delegate.invokedCount == 0u && test.delegate.contextMenuCount == 0u,
+                        "a destroyed tree neither expands nor invokes nor opens a context menu after publishing selection");
+            }
+        }
+    }
+}
+
+// A press on a row of a multi-selection keeps the selection for a drag (it changes no selection, so it raises no selection
+// event); the release of a click that never became a drag then selects that row alone, and publishing that may destroy the tree.
+void TestTreeSelectionPublishReplacementStopsReorderClick()
+{
+    for (const bool fillsItsWindow : {false, true})
+    {
+        SelectionPublishTreeWindow test(fillsItsWindow, true);
+        test.tree->SetSelectedItemIds(std::array<uint64_t, 2>{2u, 3u});
+        const auto metrics = test.tree->GetItemLayoutMetrics(test.window.Host(), 2u);
+        const auto point   = D2D1::Point2F((metrics.textRect.left + metrics.textRect.right) * 0.5f, (metrics.textRect.top + metrics.textRect.bottom) * 0.5f);
+        Require(test.tree->OnMouseDown(test.window.Host(), point, false, 0u), "the press on a row of the multi-selection is handled");
+        Require(test.window.Host().GetCapturedControl() == test.tree, "the press armed a row drag");
+        ExpectRootReplacementDuringSelectionPublish(test.window, "Tree click on a row of a multi-selection", [&] {
+            Require(! test.tree->OnMouseUp(test.window.Host(), point, false, 0u), "a click that never became a drag reports unhandled");
+        });
+        Require(test.delegate.reorderCount == 0u, "a tree destroyed while publishing its collapsed selection commits no reorder");
+    }
+}
+
+void TestTreeSelectionPublishReplacementStopsKeyboardHandlers()
+{
+    for (const bool fillsItsWindow : {false, true})
+    {
+        for (const bool multiSelect : {false, true})
+        {
+            for (const bool typeAhead : {false, true})
+            {
+                SelectionPublishTreeWindow test(fillsItsWindow, multiSelect);
+                ExpectRootReplacementDuringSelectionPublish(test.window,
+                                                            typeAhead ? "Tree type-ahead" : "Tree arrow key",
+                                                            [&]
+                {
+                    const bool handled = typeAhead ? test.tree->OnChar(test.window.Host(), L'A', 0u) : test.tree->OnKeyDown(test.window.Host(), VK_DOWN, 0u);
+                    Require(handled, "the keyboard input remains handled when selection publishing destroys its tree");
+                });
+            }
+        }
+    }
+}
+
+void TestTreeSelectionPublishReplacementStopsSelectAll()
+{
+    for (const bool fillsItsWindow : {false, true})
+    {
+        SelectionPublishTreeWindow test(fillsItsWindow, true);
+        ExpectRootReplacementDuringSelectionPublish(test.window, "Tree SelectAll", [&] {
+            Require(test.tree->OnSelectAll(test.window.Host()), "SelectAll remains handled when its publish destroys the tree");
+        });
+    }
+}
+
+void TestTreeSelectionPublishReplacementStopsModeChange()
+{
+    for (const bool fillsItsWindow : {false, true})
+    {
+        SelectionPublishTreeWindow test(fillsItsWindow, true);
+        test.tree->SetSelectedItemIds(std::array<uint64_t, 2>{1u, 2u});
+        ExpectRootReplacementDuringSelectionPublish(test.window, "Tree multi-select disabled", [&] { test.tree->SetMultiSelectEnabled(false); });
+    }
+}
+
+void TestTreeDataChangedPublishReplacementSkipsSelectionDelegate()
+{
+    for (const bool fillsItsWindow : {false, true})
+    {
+        SelectionPublishTreeWindow test(fillsItsWindow, true);
+        test.tree->SetSelectedItemIds(std::array<uint64_t, 2>{1u, 2u});
+        test.model.SetVisibleItems({DxUi::TreeItemData{.id = 2u, .text = L"Volets"}, DxUi::TreeItemData{.id = 3u, .text = L"Afficheurs"}});
+        ExpectRootReplacementDuringSelectionPublish(test.window, "Tree NotifyDataChanged", [&] { test.tree->NotifyDataChanged(); });
+        Require(test.delegate.selectionSetChangedCount == 0u, "model reconciliation never calls the selection delegate after its publish destroyed the tree");
+    }
+}
+
+void TestGridSelectionPublishReplacementStopsInput()
+{
+    enum class Action
+    {
+        Press,
+        DoubleClick,
+        Key
+    };
+    for (const bool fillsItsWindow : {false, true})
+    {
+        for (const Action action : {Action::Press, Action::DoubleClick, Action::Key})
+        {
+            RecordingGridDelegate delegate;
+            SelectionGridWindow test(fillsItsWindow);
+            test.grid->SetDelegate(&delegate);
+            Require(test.grid->RequestSelectRow(0u, 0u), "the grid initially selects its first row");
+            const auto rect = test.grid->GetVisibleCellRect(1u, 0u);
+            Require(rect.has_value(), "the grid's next row has a visible cell");
+            const auto point = D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f);
+            ExpectRootReplacementDuringSelectionPublish(test.window,
+                                                        "Grid selection input",
+                                                        [&]
+            {
+                bool handled = false;
+                switch (action)
+                {
+                    case Action::Press: handled = test.grid->OnMouseDown(test.window.Host(), point, false, 0u); break;
+                    case Action::DoubleClick: handled = test.grid->OnMouseDoubleClick(test.window.Host(), point, false, 0u); break;
+                    case Action::Key: handled = test.grid->OnKeyDown(test.window.Host(), VK_DOWN, 0u); break;
+                }
+                Require(handled, "the input remains handled when selection publishing destroys its grid");
+            });
+            Require(delegate.rowActivatedCount == 0u, "a grid destroyed during selection publishing never activates its row");
+        }
+    }
+}
+
+void TestGridSelectionPublishReplacementStopsSelectAll()
+{
+    for (const bool fillsItsWindow : {false, true})
+    {
+        SelectionGridWindow test(fillsItsWindow);
+        ExpectRootReplacementDuringSelectionPublish(test.window, "Grid SelectAll", [&] {
+            Require(test.grid->OnSelectAll(test.window.Host()), "SelectAll remains handled when its publish destroys the grid");
+        });
+    }
+}
+
+void TestGridGroupSelectionPublishReplacementStopsKeyboardHandler()
+{
+    for (const bool fillsItsWindow : {false, true})
+    {
+        GroupedGridModel model(4u);
+        model.SetGroups({GroupedGridModel::Group{.stableId = 10u, .title = L"First", .startRowIndex = 0u, .rowCount = 2u},
+                         GroupedGridModel::Group{.stableId = 20u, .title = L"Second", .startRowIndex = 2u, .rowCount = 2u}});
+        CollapsibleGroupedGridDelegate delegate(model);
+        AttachedHostWindow window;
+        SizeClientAreaInDips(window, 280.0f, 240.0f);
+        std::unique_ptr<DxUi::Control> root;
+        DxUi::Grid* grid = nullptr;
+        if (fillsItsWindow)
+        {
+            auto control = std::make_unique<DxUi::Grid>();
+            grid         = control.get();
+            root         = std::move(control);
+        }
+        else
+        {
+            auto panel = std::make_unique<DxUi::Panel>();
+            grid       = panel->AddChild<DxUi::Grid>();
+            panel->AddChild<DxUi::Button>(L"Apply")->SetBounds(D2D1::RectF(0.0f, 188.0f, 120.0f, 220.0f));
+            root = std::move(panel);
+        }
+        grid->SetModel(&model);
+        grid->SetDelegate(&delegate);
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 180.0f));
+        grid->GetSelectionModel().SetSingle(model.GetStableRowId(0u));
+        window.Host().SetRoot(std::move(root));
+        ExpectRootReplacementDuringSelectionPublish(window, "Grid keyboard group collapse", [&] {
+            Require(grid->OnKeyDown(window.Host(), VK_LEFT, 0u), "group collapse remains handled when publishing destroys the grid");
+        });
+        Require(model.IsGroupCollapsed(10u) && delegate.groupToggleCount == 1u, "the model acknowledged the collapse before event-time replacement");
+    }
+}
+
 // A text field is the window's element in the same way, and the text events the library raises for it (its native text-input
 // session raises them whenever it synchronizes, without the window holding the foreground) and the elements its text ranges name
 // come from that element. The twin has the field beside a button.
@@ -7722,6 +8026,16 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow);
     DXUI_RUN_TEST(TestGridBesideAnotherControlRowAndCellEventsReachAClientSubscribedToTheWindow);
     DXUI_RUN_TEST(TestSelectionEventsEndWhenTheControlLeavesWhileTheyAreRaised);
+    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementStopsRequests);
+    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementStopsPointerHandlers);
+    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementStopsReorderClick);
+    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementStopsKeyboardHandlers);
+    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementStopsSelectAll);
+    DXUI_RUN_TEST(TestTreeSelectionPublishReplacementStopsModeChange);
+    DXUI_RUN_TEST(TestTreeDataChangedPublishReplacementSkipsSelectionDelegate);
+    DXUI_RUN_TEST(TestGridSelectionPublishReplacementStopsInput);
+    DXUI_RUN_TEST(TestGridSelectionPublishReplacementStopsSelectAll);
+    DXUI_RUN_TEST(TestGridGroupSelectionPublishReplacementStopsKeyboardHandler);
     DXUI_RUN_TEST(TestSingleTextFieldWindowElementRaisesTheFieldsTextEvents);
     DXUI_RUN_TEST(TestTextFieldBesideAnotherControlRaisesItsTextEventsFromItsOwnElement);
     DXUI_RUN_TEST(TestSingleTextFieldWindowElementEnclosesTheFieldsTextRanges);

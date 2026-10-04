@@ -3354,7 +3354,8 @@ public:
     // Selection by the user's action, as UI Automation does: Select replaces the selection with the item; with
     // multi-select Add and Remove change only that item's membership (Add also makes it the focused item). Each notifies
     // the delegate. False for an index that is not a visible row, and for Remove without multi-select; Add without it
-    // selects the item like Select.
+    // selects the item like Select. Each is also false when the tree did not survive the request: its delegate, or a
+    // message dispatched while the tree published the new selection to UI Automation, destroyed it.
     bool RequestSelectVisibleItem(size_t visibleIndex) noexcept;
     bool RequestAddVisibleItemToSelection(size_t visibleIndex) noexcept;
     bool RequestRemoveVisibleItemFromSelection(size_t visibleIndex) noexcept;
@@ -3464,7 +3465,8 @@ private:
     [[nodiscard]] bool SelectVisibleIndex(size_t visibleIndex, bool notifyDelegate);
     // Lands a selection gesture on a visible row: updates the focused item and, with multi-select, the selection set by
     // `mode`, then notifies the delegate (OnTreeSelectionChanged for the focused item, then OnTreeSelectionSetChanged once
-    // if the set changed). False when the index is not a row or the delegate destroyed the tree.
+    // if the set changed). False when the index is not a row, or when the delegate or the accessibility publish that
+    // follows it (UI Automation event delivery dispatches messages) destroyed the tree.
     [[nodiscard]] bool SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyDelegate);
     [[nodiscard]] std::vector<uint64_t> CollectVisibleItemIds() const;
     // Drops selected items that are no longer visible rows and puts the rest in visible order (multi-select only).
@@ -3763,7 +3765,8 @@ private:
     [[nodiscard]] HitInfo HitTestPoint(PointDip pointDip) const noexcept;
     void ClampScrollOffsets(bool normalizeVertical = true) noexcept;
     void EnsureColumnWidths() const;
-    // False when the selection's delegate destroyed this grid, which its caller then leaves alone.
+    // False when the selection's delegate, or the accessibility publish that follows it, destroyed this grid, which its
+    // caller then leaves alone.
     [[nodiscard]] bool SelectRow(size_t rowIndex, UINT modifiers);
     [[nodiscard]] std::optional<size_t> ResolveCheckboxToggleColumn(size_t rowIndex) const;
     [[nodiscard]] bool ToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnIndex);

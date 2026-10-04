@@ -3372,8 +3372,6 @@ void TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves
     tight.EndPaint();
 }
 
-// A grid press or double click that focuses the grid, given a focus callback that replaces every control, touches the
-// destroyed grid no further (AddressSanitizer catches one that does).
 // A grid whose selection delegate replaces every control stops using itself after the click, the arrow key or the
 // Ctrl+A that changed its selection (AddressSanitizer catches one that does not).
 void TestGridSelectionDelegateReplacementStopsTheInput()
@@ -3420,6 +3418,145 @@ void TestGridSelectionDelegateReplacementStopsTheInput()
     run("Grid Ctrl+A", [](WindowHost& host, Grid& grid) { static_cast<void>(grid.OnSelectAll(host)); });
 }
 
+// Collapsing the group of the selected row, by the Left key or a press on the group's header, changes the selection too: a
+// grid whose selection delegate then replaces every control neither reads itself again (AddressSanitizer catches one that
+// does) nor invalidates the replacement.
+void TestGridGroupCollapseSelectionDelegateReplacementStopsTheInput()
+{
+    using namespace DxUi;
+    struct ReplacingDelegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridGroupToggled;
+        using IGridDelegate::OnGridSelectionChanged;
+        explicit ReplacingDelegate(GroupedGridModel& groups) : model(&groups)
+        {
+        }
+        void OnGridGroupToggled(uint64_t groupStableId, bool collapsed) override
+        {
+            Require(model->SetGroupCollapsed(groupStableId, collapsed), "the delegate collapses the requested group");
+        }
+        void OnGridSelectionChanged(Grid& /*sender*/) override
+        {
+            if (onSelection)
+                onSelection();
+        }
+        GroupedGridModel* model = nullptr;
+        std::function<void()> onSelection;
+    };
+    const auto run = [](std::string_view name, auto&& input)
+    {
+        // The model and the delegate outlive the host, whose grid still holds them when a check fails.
+        GroupedGridModel model(6u);
+        model.SetGroups({
+            GroupedGridModel::Group{.stableId = 10u, .title = L"Favorites", .startRowIndex = 0u, .rowCount = 2u},
+            GroupedGridModel::Group{.stableId = 20u, .title = L"Folders", .startRowIndex = 3u, .rowCount = 2u},
+        });
+        ReplacingDelegate delegate(model);
+        WindowHost host;
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
+        grid->SetRowHeightDip(24.0f);
+        grid->SetHeaderHeightDip(32.0f);
+        grid->SetModel(&model);
+        grid->SetDelegate(&delegate);
+        grid->GetSelectionModel().SetSingle(model.GetStableRowId(0u));
+        host.SetRoot(std::move(root));
+        bool replaced          = false;
+        uint64_t invalidations = 0u;
+        delegate.onSelection   = [&]
+        {
+            if (! replaced)
+            {
+                replaced = true;
+                host.SetRoot(std::make_unique<Panel>());
+                invalidations = host.DebugGetInvalidateCount();
+            }
+        };
+        Require(input(host, *grid), std::format("{}: the collapse is handled", name).c_str());
+        Require(replaced && model.IsGroupCollapsed(10u),
+                std::format("{}: the group collapsed and the selection's delegate replaced the controls", name).c_str());
+        Require(host.DebugGetInvalidateCount() == invalidations, std::format("{}: the destroyed grid never invalidates the replacement", name).c_str());
+    };
+    run("Grid Left in a group", [](WindowHost& host, Grid& grid) { return grid.OnKeyDown(host, VK_LEFT, 0u); });
+    run("Grid group header press", [](WindowHost& host, Grid& grid) { return grid.OnMouseDown(host, D2D1::Point2F(40.0f, 46.0f), false, 0u); });
+}
+
+// A model change that changes the selection runs the selection's delegate too: the application's own (NotifyDataChanged,
+// SetModel, SetSelectionMode), and a checkbox toggle whose delegate takes the selected row away, as a list of things to do
+// drops one that is done. A grid whose selection delegate then replaces every control neither reads itself again
+// (AddressSanitizer catches one that does) nor invalidates the replacement.
+void TestGridSelectionDelegateReplacementDuringModelChangesStopsTheGrid()
+{
+    using namespace DxUi;
+    struct ReplacingDelegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridCheckboxToggled;
+        using IGridDelegate::OnGridSelectionChanged;
+        void OnGridCheckboxToggled(size_t /*rowIndex*/, size_t /*columnIndex*/, bool /*checked*/) override
+        {
+            if (onCheckbox)
+                onCheckbox();
+        }
+        void OnGridSelectionChanged(Grid& /*sender*/) override
+        {
+            if (onSelection)
+                onSelection();
+        }
+        std::function<void()> onCheckbox;
+        std::function<void()> onSelection;
+    };
+    const auto run = [](std::string_view name, auto&& change)
+    {
+        // The model and the delegate outlive the host, whose grid still holds them when a check fails.
+        CheckboxGridModel model(1u);
+        model.SetRows({CheckboxGridModel::Row{.label = L"Alpha"}, CheckboxGridModel::Row{.label = L"Beta"}, CheckboxGridModel::Row{.label = L"Gamma"}});
+        ReplacingDelegate delegate;
+        WindowHost host;
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 360.0f, 240.0f));
+        grid->SetModel(&model);
+        grid->SetSelectionMode(GridSelectionMode::Extended);
+        grid->GetSelectionModel().SetSingle(model.GetStableRowId(2u));
+        grid->SetDelegate(&delegate);
+        host.SetRoot(std::move(root));
+        delegate.onCheckbox    = [&] { model.SetRows({CheckboxGridModel::Row{.label = L"Alpha"}, CheckboxGridModel::Row{.label = L"Beta"}}); };
+        bool replaced          = false;
+        uint64_t invalidations = 0u;
+        delegate.onSelection   = [&]
+        {
+            if (! replaced)
+            {
+                replaced = true;
+                host.SetRoot(std::make_unique<Panel>());
+                invalidations = host.DebugGetInvalidateCount();
+            }
+        };
+        change(host, *grid, model);
+        Require(replaced, std::format("{}: the selection's delegate replaced the controls", name).c_str());
+        Require(host.DebugGetInvalidateCount() == invalidations, std::format("{}: the destroyed grid never invalidates the replacement", name).c_str());
+    };
+    run("Grid::NotifyDataChanged",
+        [](WindowHost& /*host*/, Grid& grid, CheckboxGridModel& model)
+    {
+        model.SetRows({CheckboxGridModel::Row{.label = L"Alpha"}, CheckboxGridModel::Row{.label = L"Beta"}});
+        grid.NotifyDataChanged();
+    });
+    run("Grid::SetModel", [](WindowHost& /*host*/, Grid& grid, CheckboxGridModel& /*model*/) { grid.SetModel(nullptr); });
+    run("Grid::SetSelectionMode",
+        [](WindowHost& /*host*/, Grid& grid, CheckboxGridModel& model)
+    {
+        grid.GetSelectionModel().Toggle(model.GetStableRowId(0u));
+        grid.SetSelectionMode(GridSelectionMode::Single);
+    });
+    run("Grid checkbox Space", [](WindowHost& host, Grid& grid, CheckboxGridModel& /*model*/) {
+        Require(grid.OnKeyDown(host, VK_SPACE, 0u), "Space on the selected row toggles its checkbox");
+    });
+}
+
+// A grid press or double click that focuses the grid, given a focus callback that replaces every control, touches the
+// destroyed grid no further (AddressSanitizer catches one that does).
 void TestGridInputLeavesAGridTheFocusCallbackDestroyed()
 {
     using namespace DxUi;
@@ -3444,6 +3581,8 @@ void RunGridTests()
 {
     DXUI_RUN_TEST(TestGridInputLeavesAGridTheFocusCallbackDestroyed);
     DXUI_RUN_TEST(TestGridSelectionDelegateReplacementStopsTheInput);
+    DXUI_RUN_TEST(TestGridGroupCollapseSelectionDelegateReplacementStopsTheInput);
+    DXUI_RUN_TEST(TestGridSelectionDelegateReplacementDuringModelChangesStopsTheGrid);
     DXUI_RUN_TEST(TestSortCycle);
     DXUI_RUN_TEST(TestVisibleSpan);
     DXUI_RUN_TEST(TestSelectionModel);

@@ -63,9 +63,11 @@ The oracles of `49c963f`, run against main: a queued `Select` of a stale text ra
   grid-cell and single-selection tree-item focus check that their control survived the selection's delegate. Each path
   has a replacement test that AddressSanitizer would fail.
 - [ ] An application delegate that destroys its control in the middle of an input handler is a wider class than the
-  focus callbacks, and only partly covered. Grid calls `OnGridGroupToggled` and `OnGridSelectionChanged` during a press
-  and then keeps using itself, with no lifetime check anywhere in `DxUi.Grid.cpp`. Audit the delegate and callback
-  call sites of the controls that keep running after them, as the focus sites were.
+  focus callbacks, and only partly covered. Grid's selection delegate is now checked wherever the grid goes on after
+  it, and Tree's selection callbacks already were
+  ([selection publish lifetime](../Done/SelectionPublishLifetime_2026-10-03.md)); Grid's group and checkbox delegates are
+  still followed by uses of the grid (its row-activation, sort and context-menu calls end their handlers). Audit those
+  and the other controls' delegate and callback call sites that keep running after them, as the focus sites were.
 - [ ] Keep the four codex branches until RedSalamander's `codex/fileops-ui-i26` pins a DxUi main.
 
 ## Validation
