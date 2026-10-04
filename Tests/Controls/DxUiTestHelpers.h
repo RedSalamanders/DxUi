@@ -628,6 +628,11 @@ inline wil::unique_hwnd CreateClipboardOwnerWindowForTest()
 {
     HWND hwnd =
         CreateWindowExW(0, L"STATIC", L"DxUiTestsClipboardOwner", WS_OVERLAPPED, -32000, -32000, 16, 16, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
+    if (! hwnd)
+    {
+        const DWORD error = GetLastError();
+        std::cerr << "    [WINDOW] create clipboard owner failed: Win32 error " << error << '\n';
+    }
     Require(hwnd != nullptr, "clipboard owner window created");
     return wil::unique_hwnd(hwnd);
 }
@@ -797,10 +802,21 @@ public:
     explicit AttachedHostWindow(DxUi::WindowHost::PresentationMode presentationMode = DxUi::WindowHost::PresentationMode::HwndSwapChain)
     {
         EnableMotionForTest(_host);
-        static_cast<void>(EnsureWindowClass());
+        const ATOM windowClass = EnsureWindowClass();
+        if (windowClass == 0)
+        {
+            const DWORD error = GetLastError();
+            std::cerr << "    [WINDOW] register attached host class failed: Win32 error " << error << '\n';
+        }
+        Require(windowClass != 0, "attached host window class registered");
         const DWORD exStyle = DxUiTestWindowsCanActivateFlag() ? 0u : WS_EX_NOACTIVATE;
         HWND hwnd           = CreateWindowExW(
             exStyle, kWindowClassName, L"DxUiTestsHost", WS_OVERLAPPED, -32000, -32000, 320, 200, nullptr, nullptr, GetModuleHandleW(nullptr), this);
+        if (! hwnd)
+        {
+            const DWORD error = GetLastError();
+            std::cerr << "    [WINDOW] create attached host failed: Win32 error " << error << '\n';
+        }
         Require(hwnd != nullptr, "attached host window created");
         _hwnd.reset(hwnd);
         Require(_host.Attach(_hwnd.get(), DxUi::WindowHost::AttachOptions{.presentationMode = presentationMode}), "attached host window host attached");

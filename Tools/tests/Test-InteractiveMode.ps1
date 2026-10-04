@@ -287,4 +287,23 @@ Invoke-TestCase 'test.ps1 -Interactive refuses in a CI job before it builds or r
     Assert-True (-not $run.Output.Contains('Interactive run:') -and -not $run.Output.Contains('Running ') -and -not $run.Output.Contains('== ')) 'and nothing ran: no tooling test, no build, no suite'
     Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles)) -join "`n") 'no log or receipt was written'
 }
+Invoke-FixtureCase 'lease console output cannot replace the result object or hide a failed child' { param($fixture)
+    $fake = Join-Path $fixture 'lease.ps1'
+    @'
+param([Parameter(ValueFromRemainingArguments)][string[]] $Arguments)
+$resultPath = ($Arguments | Where-Object { $_ -like '--result=*' }) -replace '^--result=', ''
+$exitCode = if (($Arguments | Where-Object { $_ -like '--label=*' }) -eq '--label=failed') { 1 } else { 0 }
+"state: completed`nexit: $exitCode`nconfirmation: started`nchild: Menu launched=1 exit=$exitCode seconds=1 timedout=0 interrupted=0`n" | Set-Content -LiteralPath $resultPath
+'[LEASE] suite output'
+'Restoration: foreground=restored focus=restored cursor=restored'
+$global:LASTEXITCODE = $exitCode
+'@
+    | Set-Content -LiteralPath $fake
+    foreach ($case in @(@{ Label = 'passed'; Exit = 0 }, @{ Label = 'failed'; Exit = 1 })) {
+        $answer = @(Invoke-DxUiInteractiveLease -Executable $fake -Runs @([pscustomobject]@{ Name = 'Menu'; CommandLine = 'unused.exe'; Log = 'unused.log' }) -Label $case.Label -EstimateSeconds 1 -WorkDirectory $fixture)
+        Assert-Equal 1 $answer.Count 'only the structured result is returned'
+        Assert-Equal $case.Exit $answer[0].ExitCode 'the executable exit code is preserved'
+        Assert-Equal $case.Exit $answer[0].Result.Children[0].ExitCode 'the child result is preserved'
+    }
+}
 Complete-TestRun 'Interactive mode'

@@ -294,6 +294,12 @@ thread takes the foreground for its own window that long after a window of the p
 reports how often it did, and says so when no window of the process ever held the foreground (Windows keeps it with the
 application the user is working in, so there was nothing to take and no takeover was exercised). It needs real focus, so
 `--no-activate` rejects it, and it is an opt-in check that a suite survives a thief, not part of `test.ps1`.
+`TestMenuChoosesTheCursorWhenItOpensAndCloses` (NewControls and Menu) plays its attempts the same way. Its windows
+never activate in the nonactivating lane, but its menu activates its popup, and another application that takes the
+foreground dismisses the menu as designed, under AddressSanitizer before the test has read the popup. The owner, a
+top-level window of the same thread, counts the `WM_ACTIVATEAPP` (FALSE). Every attempt puts the physical cursor back,
+a failing one included, and one whose expectation failed prints `[MENU CURSOR]` with how often its owner lost the
+foreground and which process holds it.
 
 Tooltip timer fixtures decide nothing by wall-clock time. A native tooltip's show and hide deadlines are on the UI thread's
 animation dispatcher clock. A tick moves that clock by the time since the previous tick, but by no more than the dispatcher's
@@ -520,6 +526,17 @@ does, and its receipts are that evidence. The six runs of 2026-09-30 ran under R
 ran, not for this lease.
 
 ## Independent library workloads
+
+The described-menu test and `FocusEventClient` use `CUIAutomation8` on a dedicated MTA thread with two-second provider connection and
+three-second provider transaction timeouts. Desktop-wide subscription must not give an unrelated provider an
+unbounded wait. Setup still has its separate 20-second allowance, and the expected DxUi focus events must arrive
+within three seconds; a setup timeout or a missing event fails rather than skips. The described-menu test prints
+its setup stage, readiness and HRESULT so a stalled call is distinct from an API failure. Test-window creation
+failures print their Win32 error before ending the run.
+
+The PowerShell desktop lease wrapper streams executable progress to the host separately from its structured
+return value. Successful and failed children retain their exit codes and result data even when the executable
+prints restoration diagnostics.
 
 The complex benchmark uses the same synthetic scene as `DxUi.EmbeddedControls.exe --complex-ui`, with no application
 services, settings or checkout. EmbeddedTests covers the sample's slider/progress preview and cancellation binding.

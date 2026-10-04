@@ -11,6 +11,21 @@
 #include <vector>
 #include <wrl/implements.h>
 
+// Focus subscriptions inspect the desktop, including unrelated providers. Keep each provider request shorter than
+// the client's setup allowance; the test still requires its own focus events within the notification deadline.
+[[nodiscard]] inline HRESULT CreateFocusAutomationClient(IUIAutomation** result) noexcept
+{
+    wil::com_ptr_nothrow<IUIAutomation2> automation;
+    HRESULT hr = CoCreateInstance(CLSID_CUIAutomation8, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(automation.put()));
+    if (SUCCEEDED(hr))
+        hr = automation->put_ConnectionTimeout(2000);
+    if (SUCCEEDED(hr))
+        hr = automation->put_TransactionTimeout(3000);
+    if (SUCCEEDED(hr))
+        hr = automation.query_to(result);
+    return hr;
+}
+
 class FocusNameRecorder final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
                                                                     IUIAutomationFocusChangedEventHandler,
                                                                     Microsoft::WRL::FtmBase>
@@ -149,7 +164,7 @@ private:
         wil::com_ptr_nothrow<IUIAutomationCacheRequest> cache;
         HRESULT hr = initialized;
         if (SUCCEEDED(hr))
-            hr = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(automation.put()));
+            hr = CreateFocusAutomationClient(automation.put());
         if (SUCCEEDED(hr))
             hr = automation->CreateCacheRequest(cache.put());
         if (SUCCEEDED(hr))

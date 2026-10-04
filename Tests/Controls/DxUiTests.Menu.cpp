@@ -7165,6 +7165,7 @@ void TestDescribedMenuRaisesFocusChangesForKeyboardRows()
     std::atomic<bool> ready{false};
     std::atomic<bool> finished{false};
     std::atomic<HRESULT> setup{E_PENDING};
+    std::atomic<const char*> setupStage{"initialize COM"};
     std::jthread client([&]
     {
         const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -7177,13 +7178,25 @@ void TestDescribedMenuRaisesFocusChangesForKeyboardRows()
         wil::com_ptr_nothrow<IUIAutomationCacheRequest> cache;
         HRESULT hr = initialized;
         if (SUCCEEDED(hr))
-            hr = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(automation.put()));
+        {
+            setupStage.store("create UIA client");
+            hr = CreateFocusAutomationClient(automation.put());
+        }
         if (SUCCEEDED(hr))
+        {
+            setupStage.store("create cache request");
             hr = automation->CreateCacheRequest(cache.put());
+        }
         if (SUCCEEDED(hr))
+        {
+            setupStage.store("cache row names");
             hr = cache->AddProperty(UIA_NamePropertyId);
+        }
         if (SUCCEEDED(hr))
+        {
+            setupStage.store("subscribe focus changes");
             hr = automation->AddFocusChangedEventHandler(cache.get(), observer.get());
+        }
         setup.store(hr);
         ready.store(true);
         if (SUCCEEDED(hr))
@@ -7210,7 +7223,9 @@ void TestDescribedMenuRaisesFocusChangesForKeyboardRows()
         // wait for it here, pumping, as long as its setup was allowed, and fail instead of hanging in the join.
         Require(waitUntil(kClientSetupAllowanceMs, [&] { return finished.load(); }), "the UIA focus client thread ends");
     });
-    Require(waitUntil(kClientSetupAllowanceMs, [&] { return ready.load(); }) && SUCCEEDED(setup.load()), "subscribe UIA focus changes");
+    const bool subscribed = waitUntil(kClientSetupAllowanceMs, [&] { return ready.load(); });
+    std::cout << std::format("    [UIA] setup ready={} stage={} HRESULT=0x{:08X}\n", subscribed, setupStage.load(), static_cast<unsigned long>(setup.load()));
+    Require(subscribed && SUCCEEDED(setup.load()), "subscribe UIA focus changes");
 
     const std::vector<MenuFlyoutItem> items{
         {.text = L"Première", .commandId = 9201, .secondaryText = L"Archives familiales", .accessibleName = L"Première destination"},
@@ -7923,13 +7938,15 @@ void TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside()
 // set before the menu took capture (a resize cursor at the owner's edge) would otherwise stay, since a captured pointer
 // sends no WM_SETCURSOR. Closing lets that window choose again after the arrow shown over the menu. The physical
 // cursor is placed over that window for the test and restored afterwards.
+//
+// The menu activates its popup, and an application that takes the foreground from it dismisses the menu as designed:
+// the desktop application hosting a developer's session takes it back tens of milliseconds after a test window
+// activates, and under AddressSanitizer that can land before the test has read the popup. Each attempt therefore plays
+// the whole sequence with windows of its own under RunUntilForegroundHeld and records its first failed expectation; the
+// attempt whose owner kept the foreground decides, so a regression still fails, and every attempt puts the cursor back.
 void TestMenuChoosesTheCursorWhenItOpensAndCloses()
 {
     using namespace DxUi;
-    AttachedHostWindow owner;
-    SetWindowPos(owner.Hwnd(), nullptr, 100, 100, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
-    ShowWindow(owner.Hwnd(), SW_SHOWNOACTIVATE);
-    owner.PumpMessages();
     static constexpr wchar_t kTextWindowClass[] = L"DxUiTests.MenuCursorTextWindow";
     WNDCLASSEXW textClass{};
     textClass.cbSize        = sizeof(textClass);
@@ -7938,57 +7955,109 @@ void TestMenuChoosesTheCursorWhenItOpensAndCloses()
     textClass.hCursor       = LoadCursorW(nullptr, IDC_IBEAM);
     textClass.lpszClassName = kTextWindowClass;
     Require(RegisterClassExW(&textClass) != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS, "register the text-cursor window class");
-    wil::unique_hwnd textWindow(CreateWindowExW(
-        WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, kTextWindowClass, L"", WS_POPUP | WS_VISIBLE, 100, 520, 240, 120, nullptr, nullptr, textClass.hInstance, nullptr));
-    Require(textWindow != nullptr, "create the text-cursor window");
-    // The physical cursor must meet this window, whatever else is on the desktop; it is never activated.
-    Require(SetWindowPos(textWindow.get(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) != FALSE, "raise the text-cursor window");
-    owner.PumpMessages();
-    RECT textRect{};
-    Require(GetWindowRect(textWindow.get(), &textRect) != FALSE, "read the text-cursor window rectangle");
-    const POINT overText{(textRect.left + textRect.right) / 2, (textRect.top + textRect.bottom) / 2};
-    if (WindowFromPoint(overText) != textWindow.get())
+
+    std::string skip;
+    std::string failure;
+    const ForegroundRunResult run = RunUntilForegroundHeld([&]() -> ForegroundAttempt
     {
-        SkipDxUiTest("another window covers the menu cursor test window");
-        return;
-    }
-    ScopedMenuPointerFixture pointer(owner.Hwnd());
-    if (! pointer.AlignCursor(overText))
-    {
-        SkipDxUiTest("the menu open-and-close cursor test places the physical cursor");
-        return;
-    }
-    // Let the moves the placement generated arrive before the owner's own cursor is set.
-    for (int round = 0; round < 5; ++round)
-    {
+        failure.clear();
+        AttachedHostWindow owner;
+        SetWindowPos(owner.Hwnd(), nullptr, 100, 100, 360, 240, SWP_NOZORDER | SWP_NOACTIVATE);
+        ShowWindow(owner.Hwnd(), SW_SHOWNOACTIVATE);
         owner.PumpMessages();
-        Sleep(10);
+        wil::unique_hwnd textWindow(CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
+                                                    kTextWindowClass,
+                                                    L"",
+                                                    WS_POPUP | WS_VISIBLE,
+                                                    100,
+                                                    520,
+                                                    240,
+                                                    120,
+                                                    nullptr,
+                                                    nullptr,
+                                                    textClass.hInstance,
+                                                    nullptr));
+        Require(textWindow != nullptr, "create the text-cursor window");
+        // The physical cursor must meet this window, whatever else is on the desktop; it is never activated.
+        Require(SetWindowPos(textWindow.get(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) != FALSE, "raise the text-cursor window");
+        owner.PumpMessages();
+        RECT textRect{};
+        Require(GetWindowRect(textWindow.get(), &textRect) != FALSE, "read the text-cursor window rectangle");
+        const POINT overText{(textRect.left + textRect.right) / 2, (textRect.top + textRect.bottom) / 2};
+        if (WindowFromPoint(overText) != textWindow.get())
+        {
+            skip = "another window covers the menu cursor test window";
+            return ForegroundAttempt{};
+        }
+        ScopedMenuPointerFixture pointer(owner.Hwnd());
+        if (! pointer.AlignCursor(overText))
+        {
+            skip = "the menu open-and-close cursor test places the physical cursor";
+            return ForegroundAttempt{};
+        }
+        // Let the moves the placement generated arrive before the owner's own cursor is set.
+        for (int round = 0; round < 5; ++round)
+        {
+            owner.PumpMessages();
+            Sleep(10);
+        }
+
+        // The owner is new with this attempt, so a foreground it lost was lost during it. An attempt whose expectation failed
+        // also says who held the foreground then, so a failure that no takeover explains shows what the test saw.
+        const auto finish = [&]
+        {
+            if (! failure.empty())
+            {
+                const HWND holder = GetForegroundWindow();
+                std::cerr << "    [MENU CURSOR] " << failure << "; the owner lost the foreground " << owner.ForegroundLossCount() << " time(s), and "
+                          << (holder ? DescribeThreadProcessForTest(GetWindowThreadProcessId(holder, nullptr)) : std::string("no window")) << " holds it\n"
+                          << std::flush;
+            }
+            return ForegroundAttempt{owner.ForegroundLossCount() != 0u, owner.LastForegroundThiefThreadId()};
+        };
+        const auto expect = [&](bool condition, const char* message)
+        {
+            if (! condition && failure.empty())
+                failure = message;
+            return condition;
+        };
+        const HCURSOR arrow      = LoadCursorW(nullptr, IDC_ARROW);
+        const HCURSOR textCursor = LoadCursorW(nullptr, IDC_IBEAM);
+        SetCursor(LoadCursorW(nullptr, IDC_SIZEWE));
+        const std::vector<MenuFlyoutItem> items{{.text = L"Ouvrir", .commandId = 9311}, {.text = L"Fermer", .commandId = 9312}};
+        const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "cursor menu anchor maps to screen");
+        bool closed        = false;
+        if (! expect(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&closed](std::optional<int>) noexcept { closed = true; }),
+                     "cursor menu opens"))
+            return finish();
+        const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
+        const HWND popup   = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Ouvrir");
+        if (! expect(popup != nullptr, "cursor menu appears"))
+            return finish();
+        owner.PumpMessages(); // The forward is posted.
+        expect(GetCursor() == textCursor, "an opening menu lets the window under the pointer choose its cursor");
+
+        RECT popupRect{};
+        if (! expect(GetWindowRect(popup, &popupRect) != FALSE, "read the menu popup rectangle"))
+            return finish();
+        const POINT overMenu{(popupRect.left + popupRect.right) / 2, popupRect.top + 14};
+        static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_MOUSEMOVE, 0, overMenu));
+        expect(GetCursor() == arrow, "the arrow shows over the open menu");
+        SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
+        owner.PumpMessages();
+        expect(closed && WaitForWindowDestroyed(popup, std::chrono::milliseconds(2000)), "the cursor menu closes");
+        owner.PumpMessages();
+        expect(GetCursor() == textCursor, "a closing menu lets the window under the pointer choose its cursor again");
+        return finish();
+    });
+    if (! skip.empty())
+    {
+        SkipDxUiTest(skip.c_str());
+        return;
     }
-
-    const HCURSOR arrow      = LoadCursorW(nullptr, IDC_ARROW);
-    const HCURSOR textCursor = LoadCursorW(nullptr, IDC_IBEAM);
-    SetCursor(LoadCursorW(nullptr, IDC_SIZEWE));
-    const std::vector<MenuFlyoutItem> items{{.text = L"Ouvrir", .commandId = 9311}, {.text = L"Fermer", .commandId = 9312}};
-    const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "cursor menu anchor maps to screen");
-    bool closed        = false;
-    Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&closed](std::optional<int>) noexcept { closed = true; }),
-            "cursor menu opens");
-    const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
-    const HWND popup   = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Ouvrir");
-    Require(popup != nullptr, "cursor menu appears");
-    owner.PumpMessages(); // The forward is posted.
-    Require(GetCursor() == textCursor, "an opening menu lets the window under the pointer choose its cursor");
-
-    RECT popupRect{};
-    Require(GetWindowRect(popup, &popupRect) != FALSE, "read the menu popup rectangle");
-    const POINT overMenu{(popupRect.left + popupRect.right) / 2, popupRect.top + 14};
-    static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_MOUSEMOVE, 0, overMenu));
-    Require(GetCursor() == arrow, "the arrow shows over the open menu");
-    SendMessageW(popup, WM_KEYDOWN, VK_ESCAPE, 0);
-    owner.PumpMessages();
-    Require(closed && WaitForWindowDestroyed(popup, std::chrono::milliseconds(2000)), "the cursor menu closes");
-    owner.PumpMessages();
-    Require(GetCursor() == textCursor, "a closing menu lets the window under the pointer choose its cursor again");
+    if (! ForegroundHeldOrSkip(run, "the menu open-and-close cursor test"))
+        return;
+    Require(failure.empty(), failure.c_str());
 }
 
 // A window under the pointer may close the menu from its WM_SETCURSOR handling (focus-follows-mouse activation,
