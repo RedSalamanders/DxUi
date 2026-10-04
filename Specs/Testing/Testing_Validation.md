@@ -294,6 +294,11 @@ thread takes the foreground for its own window that long after a window of the p
 reports how often it did, and says so when no window of the process ever held the foreground (Windows keeps it with the
 application the user is working in, so there was nothing to take and no takeover was exercised). It needs real focus, so
 `--no-activate` rejects it, and it is an opt-in check that a suite survives a thief, not part of `test.ps1`.
+`TestMenuChoosesTheCursorWhenItOpensAndCloses` (NewControls and Menu) plays its attempts the same way. Its windows
+never activate in the nonactivating lane, but its menu activates its popup, and another application that takes the
+foreground dismisses the menu as designed, under AddressSanitizer before the test has read the popup. The owner, a
+top-level window of the same thread, counts the `WM_ACTIVATEAPP` (FALSE). Every attempt puts the physical cursor back,
+a failing one included.
 
 Tooltip timer fixtures decide nothing by wall-clock time. A native tooltip's show and hide deadlines are on the UI thread's
 animation dispatcher clock. A tick moves that clock by the time since the previous tick, but by no more than the dispatcher's
