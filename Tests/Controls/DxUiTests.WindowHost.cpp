@@ -3653,6 +3653,60 @@ void TestWindowHostWorksWithoutOptionalSdkDebugLayer()
     Require(host.GetTextFormat(DxUi::FontRole::Body) != nullptr, "native graphics and text initialize with or without the optional D3D SDK debug layer");
 }
 
+// Windows marks a mouse message it promoted from a touch or pen contact in the thread's extra message information, and the
+// host reads it for each mouse message it handles: a slider that such a message drags shows its touch halo, and the next
+// message from the mouse says the mouse again. SetMessageExtraInfo stands in for the input system, so no input is injected.
+void TestWindowHostReadsThePointerDeviceOfEachMouseMessage()
+{
+    using namespace DxUi;
+
+    Require(PointerDeviceFromMessageExtraInfo(0) == PointerDevice::Mouse, "no extra information is the mouse");
+    Require(PointerDeviceFromMessageExtraInfo(static_cast<LPARAM>(0xFF515780u)) == PointerDevice::Touch, "the signature with the touch bit is touch");
+    Require(PointerDeviceFromMessageExtraInfo(static_cast<LPARAM>(0xFF515700u)) == PointerDevice::Pen, "the signature without it is a pen");
+    Require(PointerDeviceFromMessageExtraInfo(static_cast<LPARAM>(0xFF5157FFu)) == PointerDevice::Touch, "the bits below the touch bit do not matter");
+    Require(PointerDeviceFromMessageExtraInfo(static_cast<LPARAM>(0xFF51577Fu)) == PointerDevice::Pen, "nor do they with it clear");
+    Require(PointerDeviceFromMessageExtraInfo(static_cast<LPARAM>(0x00515780u)) == PointerDevice::Mouse, "a near signature is the mouse");
+    Require(PointerDeviceFromMessageExtraInfo(static_cast<LPARAM>(0x12345678u)) == PointerDevice::Mouse, "and so is an application's own value");
+    Require(PointerDeviceFromMessageExtraInfo(static_cast<LPARAM>(static_cast<LONG>(0xFF515780u))) == PointerDevice::Touch,
+            "a sign-extended value is read in its low 32 bits");
+
+    WindowHost host;
+    ThemePalette theme  = MakeDefaultThemePalette(false);
+    theme.reducedMotion = true;
+    host.SetTheme(theme);
+    auto root    = std::make_unique<Panel>();
+    auto* slider = root->AddChild<Slider>();
+    slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 48.0f));
+    slider->SetValue(50.0);
+    host.SetRoot(std::move(root));
+    // A host without a window has no client area to lay its root out to.
+    static_cast<Panel*>(host.GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 64.0f));
+    const D2D1_RECT_F thumb = slider->DebugGetThumbRect();
+    const LPARAM point      = MAKELPARAM(static_cast<int>((thumb.left + thumb.right) * 0.5f), static_cast<int>((thumb.top + thumb.bottom) * 0.5f));
+
+    struct ExtraInfoRestore final
+    {
+        LPARAM previous = 0;
+        ~ExtraInfoRestore()
+        {
+            static_cast<void>(SetMessageExtraInfo(previous));
+        }
+    } restore{SetMessageExtraInfo(static_cast<LPARAM>(0xFF515780u))};
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, point, handled));
+    Require(handled && host.GetPointerDevice() == PointerDevice::Touch, "the host reads a touch contact from the message it handles");
+    RequireFloatNear(slider->DebugGetTouchHaloProgress(), 1.0f, 0.0001f, "and the slider that contact drags shows its touch halo");
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, point, handled));
+    RequireFloatNear(slider->DebugGetTouchHaloProgress(), 0.0f, 0.0001f, "until the contact lifts");
+
+    static_cast<void>(SetMessageExtraInfo(0));
+    handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, point, handled));
+    Require(handled && host.GetPointerDevice() == PointerDevice::Mouse, "the next message, from the mouse, says so");
+    RequireFloatNear(slider->DebugGetTouchHaloProgress(), 0.0f, 0.0001f, "and its drag shows no touch halo");
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, point, handled));
+}
+
 void RunWindowHostTests()
 {
     DXUI_RUN_TEST(TestWindowHostWorksWithoutOptionalSdkDebugLayer);
@@ -3700,6 +3754,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostSpaceTogglesFocusedCheckboxAndReturnInvokesDefaultButton);
     DXUI_RUN_TEST(TestWindowHostMixedDialogKeyboardFlowKeepsCommandsOnFocusedControls);
     DXUI_RUN_TEST(TestWindowHostMixedDialogMouseFlowKeepsCommandsOnHitControls);
+    DXUI_RUN_TEST(TestWindowHostReadsThePointerDeviceOfEachMouseMessage);
     DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedTreeContextMenu);
     DXUI_RUN_TEST(TestWindowHostShiftF10InvokesFocusedTreeContextMenu);
     DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedGridContextMenu);

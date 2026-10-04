@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [Slider touch thumb and halo](SliderTouchHalo_2026-10-04.md). The slider takes the visible thumb of the touch review and shows a translucent 48 DIP halo while a touch contact drags it; hosts report each pointer event's device. The design system is republished with it; the hosted paired benchmark and consumer adoption remain.
+
 - **ACTIVE**: [Bounded grid text and clipping](GridTextOverflow_2026-09-21.md). Merged to main (#22); gallery regenerated, design system republished and the paired multiline benchmark within the accepted V11 envelope; the multiline-cell verification suites are archived for x64 and pass on CI's native ARM64 jobs. Consumer qualification remains before explicit pin adoption.
 
 - **ACTIVE**: [TreeReorder_2026-09-21.md](TreeReorder_2026-09-21.md). Drag-reorder and multi-select are both in `Tree` (#35); the gallery is regenerated and the design system republished with them. RedPrism's pin bump remains. Not a second tree in the app.

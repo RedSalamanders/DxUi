@@ -1142,8 +1142,8 @@ void TestSliderTouchFriendlyGeometry()
     const D2D1_RECT_F halo  = slider.DebugGetHaloRect();
     const D2D1_RECT_F hit   = slider.GetHitBounds();
     RequireFloatNear(track.bottom - track.top, 6.0f, 0.01f, "slider track is 6 DIP thick");
-    RequireFloatNear(thumb.right - thumb.left, 6.0f, 0.01f, "slider inner thumb matches the 6 DIP track at rest");
-    RequireFloatNear(halo.right - halo.left, 20.0f, 0.01f, "slider chrome disc is 20 DIP");
+    RequireFloatNear(thumb.right - thumb.left, 14.0f, 0.01f, "slider accent thumb stays clearly visible at rest");
+    RequireFloatNear(halo.right - halo.left, 24.0f, 0.01f, "slider chrome disc is 24 DIP");
     Require(track.left >= 11.5f && (220.0f - track.right) >= 11.5f, "slider track insets leave room for the inner thumb");
     RequireFloatNear(hit.bottom - hit.top, 48.0f, 0.01f, "slider pointer band is 48 DIP in a 48 DIP control");
     RequireFloatNear((hit.top + hit.bottom) * 0.5f, 24.0f, 0.01f, "slider pointer band stays centered on the track");

@@ -68,14 +68,16 @@ body { margin: 0; background: var(--windowBackground); color: var(--text); font:
 .dx-menu .dx-item .label .sub { display: block; color: var(--subduedText); font-size: 11px; }
 .dx-sep { height: 1px; background: var(--borderDefault); margin: 4px 0; }
 
-/* Slider: 6 track, 20 disc, accent thumb 6/16/12 */
-.dx-slider { position: relative; width: 180px; height: 20px; }
-.dx-slider .rail { position: absolute; left: 0; right: 0; top: 7px; height: 6px; border-radius: 3px; background: var(--border); }
-.dx-slider .fill { position: absolute; left: 0; top: 7px; height: 6px; border-radius: 3px; background: var(--accent); }
-.dx-slider .disc { position: absolute; top: 0; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: var(--buttonFill); border: 1px solid var(--borderDefault); box-sizing: border-box; display: grid; place-items: center; }
-.dx-slider .disc::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
-.dx-slider.is-hover .disc::after { width: 16px; height: 16px; }
-.dx-slider.is-pressed .disc::after { width: 12px; height: 12px; background: var(--accentPressed); }
+/* Slider: 6 track, 24 disc, accent thumb 14/20/16, 48 touch halo at 24% accent */
+.dx-slider { position: relative; width: 180px; height: 24px; }
+.dx-slider .rail { position: absolute; left: 0; right: 0; top: 9px; height: 6px; border-radius: 3px; background: var(--border); }
+.dx-slider .fill { position: absolute; left: 0; top: 9px; height: 6px; border-radius: 3px; background: var(--accent); }
+.dx-slider .disc { position: absolute; top: 0; width: 24px; height: 24px; margin-left: -12px; border-radius: 50%; background: var(--buttonFill); border: 1px solid var(--borderDefault); box-sizing: border-box; display: grid; place-items: center; }
+.dx-slider .disc::after { content: ""; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); }
+.dx-slider.is-hover .disc::after { width: 20px; height: 20px; }
+.dx-slider.is-pressed .disc::after { width: 16px; height: 16px; background: var(--accentPressed); }
+.dx-slider.is-touch { margin: 12px 0; }
+.dx-slider.is-touch .disc { box-shadow: 0 0 0 12px color-mix(in srgb, var(--accent) 24%, transparent); }
 
 /* ProgressBar: 2 DIP track, 4 indeterminate */
 /* ResolveProgressBarVisualStyle: track = Blend(windowBackground, inputFill, 0.14 light / 0.20 dark), fill = selectionFill */

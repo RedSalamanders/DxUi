@@ -375,8 +375,8 @@ void TestSliderHoverAndPressAnimationRequestsTicksUntilSettled()
 
     const float restThumbWidth = slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left;
     const float restHaloWidth  = slider->DebugGetHaloRect().right - slider->DebugGetHaloRect().left;
-    RequireFloatNear(restThumbWidth, 6.0f, 0.01f, "slider inner thumb matches the 6 DIP track at rest");
-    RequireFloatNear(restHaloWidth, 20.0f, 0.01f, "slider chrome disc is 20 DIP at rest");
+    RequireFloatNear(restThumbWidth, 14.0f, 0.01f, "slider accent thumb is visible at rest");
+    RequireFloatNear(restHaloWidth, 24.0f, 0.01f, "slider chrome disc is 24 DIP at rest");
     RequireFloatNear(slider->GetHitBounds().bottom - slider->GetHitBounds().top, 48.0f, 0.01f, "slider hit band stays 48 DIP at rest");
 
     const uint64_t hoverStartTickMs = ::GetTickCount64();
@@ -393,8 +393,8 @@ void TestSliderHoverAndPressAnimationRequestsTicksUntilSettled()
                      "slider chrome disc does not scale while the inner thumb grows");
     Require(slider->Tick(host, hoverStartTickMs + 140u), "slider hover animation requests one final repaint when the transition settles");
     RequireFloatNear(slider->DebugGetHoverAnimationProgress(), 1.0f, 0.0001f, "slider hover animation settles at fully hovered progress");
-    RequireFloatNear(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left, 16.0f, 0.01f, "slider inner thumb settles at 16 DIP when hovered");
-    RequireFloatNear(slider->DebugGetHaloRect().right - slider->DebugGetHaloRect().left, 20.0f, 0.01f, "slider chrome disc stays 20 DIP when hovered");
+    RequireFloatNear(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left, 20.0f, 0.01f, "slider inner thumb settles at 20 DIP when hovered");
+    RequireFloatNear(slider->DebugGetHaloRect().right - slider->DebugGetHaloRect().left, 24.0f, 0.01f, "slider chrome disc stays 24 DIP when hovered");
     RequireFloatNear(slider->GetHitBounds().bottom - slider->GetHitBounds().top, 48.0f, 0.01f, "slider hit band does not grow with the painted thumb");
     Require(! slider->Tick(host, hoverStartTickMs + 200u), "settled slider hover animation stops requesting ticks");
 
@@ -407,10 +407,82 @@ void TestSliderHoverAndPressAnimationRequestsTicksUntilSettled()
     Require(slider->DebugGetThumbRect().right - slider->DebugGetThumbRect().left < hoverThumbWidth,
             "slider inner thumb shrinks while the press animation is in flight");
     RequireFloatNear(slider->DebugGetHaloRect().right - slider->DebugGetHaloRect().left,
-                     20.0f,
+                     24.0f,
                      0.01f,
-                     "slider chrome disc stays 20 DIP while pressed so it does not read as the 48 DIP hit band");
+                     "slider chrome disc stays 24 DIP while pressed so it does not read as the 48 DIP hit band");
     Require(slider->OnMouseUp(host, D2D1::Point2F(110.0f, 24.0f), false, 0), "slider press ends the pointer gesture");
+}
+
+// A touch contact that drags the slider grows a translucent halo from the chrome disc to the 48 DIP grab area, around the
+// finger that covers the thumb, and the halo shrinks away when the drag ends. A mouse drag never shows it, a cancelled drag
+// removes it at once, and neither the chrome disc nor the hit band changes with it.
+void TestSliderTouchDragShowsTouchHaloUntilItEnds()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+
+    EnableMotionForTest(host);
+    auto root    = std::make_unique<Panel>();
+    auto* slider = root->AddChild<Slider>();
+    slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 48.0f));
+    slider->SetValue(50.0);
+    host.SetRoot(std::move(root));
+    const auto width           = [](const D2D1_RECT_F& rect) { return rect.right - rect.left; };
+    const D2D1_RECT_F thumb    = slider->DebugGetThumbRect();
+    const D2D1_POINT_2F center = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
+
+    host.DebugSetPointerDevice(PointerDevice::Mouse);
+    uint64_t startTickMs = ::GetTickCount64();
+    Require(slider->OnMouseDown(host, center, false, 0), "a mouse press starts a drag");
+    static_cast<void>(slider->Tick(host, startTickMs + 200u));
+    RequireFloatNear(slider->DebugGetTouchHaloProgress(), 0.0f, 0.0001f, "a mouse drag shows no touch halo");
+    RequireFloatNear(width(slider->DebugGetTouchHaloRect()), width(slider->DebugGetHaloRect()), 0.01f, "an idle touch halo is no larger than the chrome disc");
+    Require(slider->OnMouseUp(host, center, false, 0), "the mouse drag ends");
+    static_cast<void>(slider->Tick(host, startTickMs + 400u));
+
+    host.DebugSetPointerDevice(PointerDevice::Touch);
+    startTickMs = ::GetTickCount64();
+    Require(slider->OnMouseDown(host, center, false, 0), "a touch press starts a drag");
+    Require(slider->Tick(host, startTickMs + 40u), "the touch halo animates on the first tick");
+    Require(slider->DebugGetTouchHaloProgress() > 0.0f && slider->DebugGetTouchHaloProgress() < 1.0f, "the touch halo grows in flight");
+    Require(width(slider->DebugGetTouchHaloRect()) > width(slider->DebugGetHaloRect()) && width(slider->DebugGetTouchHaloRect()) < 48.0f,
+            "between the chrome disc and the grab area");
+    static_cast<void>(slider->Tick(host, startTickMs + 200u));
+    RequireFloatNear(slider->DebugGetTouchHaloProgress(), 1.0f, 0.0001f, "the touch halo settles while the contact drags");
+    RequireFloatNear(width(slider->DebugGetTouchHaloRect()), 48.0f, 0.01f, "at the 48 DIP grab area");
+    RequireFloatNear(width(slider->DebugGetHaloRect()), 24.0f, 0.01f, "the chrome disc does not grow with it");
+    RequireFloatNear(slider->GetHitBounds().bottom - slider->GetHitBounds().top, 48.0f, 0.01f, "and neither does the hit band");
+    const D2D1_POINT_2F dragged = D2D1::Point2F(center.x + 30.0f, center.y);
+    Require(slider->OnMouseMove(host, dragged, 0), "the contact drags the thumb");
+    const D2D1_RECT_F followed = slider->DebugGetTouchHaloRect();
+    RequireFloatNear((followed.left + followed.right) * 0.5f,
+                     (slider->DebugGetThumbRect().left + slider->DebugGetThumbRect().right) * 0.5f,
+                     0.01f,
+                     "the halo follows the thumb");
+
+    startTickMs = ::GetTickCount64();
+    Require(slider->OnMouseUp(host, dragged, false, 0), "the touch drag ends");
+    Require(slider->Tick(host, startTickMs + 40u), "the touch halo animates out");
+    Require(slider->DebugGetTouchHaloProgress() < 1.0f, "the touch halo shrinks once the contact lifts");
+    static_cast<void>(slider->Tick(host, startTickMs + 200u));
+    RequireFloatNear(slider->DebugGetTouchHaloProgress(), 0.0f, 0.0001f, "and is gone once the drag ended");
+    Require(! slider->Tick(host, startTickMs + 400u), "a settled touch halo requests no ticks");
+
+    startTickMs = ::GetTickCount64();
+    Require(slider->OnMouseDown(host, center, false, 0), "another touch press starts a drag");
+    static_cast<void>(slider->Tick(host, startTickMs + 200u));
+    RequireFloatNear(slider->DebugGetTouchHaloProgress(), 1.0f, 0.0001f, "with its touch halo");
+    slider->OnCaptureLost(host);
+    RequireFloatNear(slider->DebugGetTouchHaloProgress(), 0.0f, 0.0001f, "a cancelled touch drag removes the halo at once");
+
+    // A touch on the track away from the thumb seeks: the thumb moves under the finger and shows the halo there.
+    startTickMs = ::GetTickCount64();
+    Require(slider->OnMouseDown(host, D2D1::Point2F(20.0f, 24.0f), false, 0), "a touch on the track seeks");
+    static_cast<void>(slider->Tick(host, startTickMs + 200u));
+    RequireFloatNear(slider->DebugGetTouchHaloProgress(), 1.0f, 0.0001f, "and shows the halo around the thumb it moved");
+    Require(slider->OnMouseUp(host, D2D1::Point2F(20.0f, 24.0f), false, 0), "the seek drag ends");
+    host.DebugSetPointerDevice(PointerDevice::Mouse);
 }
 
 void TestSliderReducedMotionSnapsInteractionAndValueAnimation()
@@ -442,6 +514,16 @@ void TestSliderReducedMotionSnapsInteractionAndValueAnimation()
     RequireFloatNear(static_cast<float>(slider->GetValue()), 5.0f, 0.0001f, "reduced-motion slider keyboard steps update the model immediately");
     RequireFloatNear(static_cast<float>(slider->DebugGetDisplayedValue()), 5.0f, 0.0001f, "reduced-motion slider keyboard steps snap the painted thumb");
     Require(! slider->Tick(host, 80u), "reduced-motion slider keyboard steps do not request animation ticks");
+
+    const D2D1_RECT_F thumb    = slider->DebugGetThumbRect();
+    const D2D1_POINT_2F center = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
+    host.DebugSetPointerDevice(PointerDevice::Touch);
+    Require(slider->OnMouseDown(host, center, false, 0), "reduced-motion slider still accepts a touch drag");
+    RequireFloatNear(slider->DebugGetTouchHaloProgress(), 1.0f, 0.0001f, "reduced-motion touch halo snaps in");
+    Require(slider->OnMouseUp(host, center, false, 0), "reduced-motion touch drag ends");
+    RequireFloatNear(slider->DebugGetTouchHaloProgress(), 0.0f, 0.0001f, "reduced-motion touch halo snaps out");
+    Require(! slider->Tick(host, 160u), "reduced-motion touch halo does not request animation ticks");
+    host.DebugSetPointerDevice(PointerDevice::Mouse);
 }
 
 void TestSliderKeyboardStepsAnimateDisplayedThumb()
@@ -1311,6 +1393,7 @@ void RunAnimationTests()
     DXUI_RUN_TEST(TestButtonHoverAnimationRequestsTicksUntilSettled);
     DXUI_RUN_TEST(TestButtonReducedMotionSnapsInteractionAnimation);
     DXUI_RUN_TEST(TestSliderHoverAndPressAnimationRequestsTicksUntilSettled);
+    DXUI_RUN_TEST(TestSliderTouchDragShowsTouchHaloUntilItEnds);
     DXUI_RUN_TEST(TestSliderReducedMotionSnapsInteractionAndValueAnimation);
     DXUI_RUN_TEST(TestSliderKeyboardStepsAnimateDisplayedThumb);
     DXUI_RUN_TEST(TestTextFieldTickTracksFocusedCaretAnimation);

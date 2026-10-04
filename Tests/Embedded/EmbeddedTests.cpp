@@ -462,6 +462,27 @@ __declspec(noinline) static void TestPointerGesturesOnPaintDirtyView(GraphicsFix
     Check(scene.enabled, "a second contact on the still-dirty view activates again");
 }
 
+// The application says which device a contact came from (PointerEvent::device): a touch contact that drags the slider shows
+// its touch halo until it lifts, and an event that names no device is the mouse, whose drag shows none.
+__declspec(noinline) static void TestEmbeddedTouchDragShowsTheSliderTouchHalo(GraphicsFixture& gpu)
+{
+    EmbeddedScene scene;
+    Hr(scene.Initialize(gpu.device.get()), "touch halo scene");
+    Hr(scene.view.Prepare(480, 240), "prepare touch halo scene");
+    const D2D1_RECT_F thumb = scene.slider->DebugGetThumbRect();
+    const float x           = (thumb.left + thumb.right) * 0.5f;
+    const float y           = (thumb.top + thumb.bottom) * 0.5f;
+    Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, x, y, 0u, 0.0f, DxUi::PointerDevice::Touch}), "a touch contact grabs the slider");
+    Check(scene.view.Controls().GetPointerDevice() == DxUi::PointerDevice::Touch, "the host keeps the device of the event it handles");
+    Check(scene.slider->DebugGetTouchHaloProgress() == 1.0f, "the slider shows its touch halo while the contact drags (reduced motion snaps it)");
+    Check(scene.view.DispatchPointer({DxUi::PointerAction::Up, x, y, 0u, 0.0f, DxUi::PointerDevice::Touch}), "the contact lifts");
+    Check(scene.slider->DebugGetTouchHaloProgress() == 0.0f, "and the halo is gone");
+    Check(scene.view.DispatchPointer({DxUi::PointerAction::Down, x, y}), "a press that names no device grabs the slider");
+    Check(scene.view.Controls().GetPointerDevice() == DxUi::PointerDevice::Mouse, "an event that names no device is the mouse");
+    Check(scene.slider->DebugGetTouchHaloProgress() == 0.0f, "whose drag shows no touch halo");
+    static_cast<void>(scene.view.DispatchPointer({DxUi::PointerAction::Up, x, y}));
+}
+
 // Host ticks dirty a view only through control invalidation: an idle root or an unchanged caret phase leaves a
 // clean prepared view clean; a blink-phase flip prepares exactly once.
 __declspec(noinline) static void TestTickDirtying(GraphicsFixture& gpu)
@@ -589,6 +610,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestHiddenViewReleasesGridLayouts(gpu);
     TestEmbeddedMultilineGridFrenchCells(gpu);
     TestPointerGesturesOnPaintDirtyView(gpu);
+    TestEmbeddedTouchDragShowsTheSliderTouchHalo(gpu);
     TestTickDirtying(gpu);
     TestCacheBounds(gpu);
     EmbeddedScene scene;
