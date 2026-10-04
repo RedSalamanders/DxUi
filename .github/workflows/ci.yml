@@ -1,6 +1,10 @@
 name: DxUi validation
 on:
+  # A pull request is validated on its merge ref, so a push validates only main: a push to a pull request's branch would run
+  # everything again on the same code. Consumers adopt the main commit whose latest push run succeeded
+  # (Tools/ConsumerUpdate.psm1). Start a run by hand to validate a branch that has no pull request.
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -33,7 +37,26 @@ jobs:
       # five validators and the tooling tests and reports every failure before it fails.
       - shell: pwsh
         run: ./validate.ps1
+  # Whether this run needs the six native jobs (Tools/Get-NativeScope.ps1). A push to main and a manual run always do; a pull
+  # request does unless every path it changes is documentation, which the validation job above checks. When this job fails,
+  # the native jobs run anyway: nothing passes unbuilt because its scope could not be read. A documentation-only pull request
+  # reports them skipped under their unexpanded matrix name, so no required check may name a native job.
+  native-scope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      native: ${{ steps.scope.outputs.native }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # The merge ref and its parents: the first is the base the merge ref was made on.
+          fetch-depth: 2
+      - id: scope
+        shell: pwsh
+        run: ./Tools/Get-NativeScope.ps1
   native:
+    needs: native-scope
+    if: ${{ !cancelled() && needs.native-scope.outputs.native != 'false' }}
     strategy:
       fail-fast: false
       matrix:

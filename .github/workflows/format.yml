@@ -1,6 +1,8 @@
 name: C++ formatting
 on:
+  # Pull requests are checked on their merge ref, so a push checks only main.
   push:
+    branches: [main]
     paths: ['src/**', 'include/**', 'Tests/**', 'Samples/**', '.clang-format', 'format.ps1', 'Tools/Install-ClangFormat.ps1', '.github/workflows/format.yml']
   pull_request:
     paths: ['src/**', 'include/**', 'Tests/**', 'Samples/**', '.clang-format', 'format.ps1', 'Tools/Install-ClangFormat.ps1', '.github/workflows/format.yml']

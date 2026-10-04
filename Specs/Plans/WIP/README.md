@@ -10,6 +10,8 @@ One entry per plan, separated by blank lines, so that changes to different plans
 
 - **ACTIVE**: [Fixes kept from the codex branches](CodexBranchReview_2026-10-02.md). The unmerged `codex/*` branches are reviewed against main; the native provider-lifetime gaps and the multiline caret clip are in main (#55) and the focus-callback audit is done (#57); per-entry elements for ordinary menus and the snapshot pre-sizing are in #56, whose measured cost the developer accepted on 2 October, and the wider delegate audit remains.
 
+- **ACTIVE**: [CI run scope](CiRunScope_2026-10-04.md). The validation workflow runs once per change (pushes validate main alone), and a documentation-only pull request skips the six native jobs; the hosted behavior remains to be observed.
+
 Completed records are `../Done/SharedLibraryReadiness_2026-09-09.md`,
 `../Done/RedSalamanderMigration.md` and `../Done/EditorConsumerControls_2026-09-20.md`. Further ARM64 and ASan qualification is
 user-deferred to RedSalamander's `DxUi_DeferredPlatformQualification_2026-09-13.md`.
