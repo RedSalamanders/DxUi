@@ -5,7 +5,8 @@
   `RunUntilForegroundHeld` with windows of its own, records its first failed expectation and lets the attempt whose
   owner kept the foreground decide, so a regression still fails; a takeover in every attempt records a capability skip
   that names the application. Every attempt puts the physical cursor back, where a failure used to end the process
-  with the pointer moved.
+  with the pointer moved, and an attempt whose expectation failed prints `[MENU CURSOR]` with how often its owner lost
+  the foreground and which process holds it.
   - **Evidence.** A takeover simulated after the menu appears (`SimulateForegroundTheftForTest` on the popup and the
     owner) fails the test as it was, with the same message. With the change, a takeover in the first attempt repeats it
     and passes, one in every attempt records the skip, and a menu that closes itself with nobody taking the foreground

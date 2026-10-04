@@ -298,7 +298,8 @@ application the user is working in, so there was nothing to take and no takeover
 never activate in the nonactivating lane, but its menu activates its popup, and another application that takes the
 foreground dismisses the menu as designed, under AddressSanitizer before the test has read the popup. The owner, a
 top-level window of the same thread, counts the `WM_ACTIVATEAPP` (FALSE). Every attempt puts the physical cursor back,
-a failing one included.
+a failing one included, and one whose expectation failed prints `[MENU CURSOR]` with how often its owner lost the
+foreground and which process holds it.
 
 Tooltip timer fixtures decide nothing by wall-clock time. A native tooltip's show and hide deadlines are on the UI thread's
 animation dispatcher clock. A tick moves that clock by the time since the previous tick, but by no more than the dispatcher's

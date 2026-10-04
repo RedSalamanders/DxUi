@@ -7987,9 +7987,20 @@ void TestMenuChoosesTheCursorWhenItOpensAndCloses()
             Sleep(10);
         }
 
-        // The owner is new with this attempt, so a foreground it lost was lost during it.
-        const auto foreground = [&] { return ForegroundAttempt{owner.ForegroundLossCount() != 0u, owner.LastForegroundThiefThreadId()}; };
-        const auto expect     = [&](bool condition, const char* message)
+        // The owner is new with this attempt, so a foreground it lost was lost during it. An attempt whose expectation failed
+        // also says who held the foreground then, so a failure that no takeover explains shows what the test saw.
+        const auto finish = [&]
+        {
+            if (! failure.empty())
+            {
+                const HWND holder = GetForegroundWindow();
+                std::cerr << "    [MENU CURSOR] " << failure << "; the owner lost the foreground " << owner.ForegroundLossCount() << " time(s), and "
+                          << (holder ? DescribeThreadProcessForTest(GetWindowThreadProcessId(holder, nullptr)) : std::string("no window")) << " holds it\n"
+                          << std::flush;
+            }
+            return ForegroundAttempt{owner.ForegroundLossCount() != 0u, owner.LastForegroundThiefThreadId()};
+        };
+        const auto expect = [&](bool condition, const char* message)
         {
             if (! condition && failure.empty())
                 failure = message;
@@ -8003,17 +8014,17 @@ void TestMenuChoosesTheCursorWhenItOpensAndCloses()
         bool closed        = false;
         if (! expect(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [&closed](std::optional<int>) noexcept { closed = true; }),
                      "cursor menu opens"))
-            return foreground();
+            return finish();
         const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
         const HWND popup   = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Ouvrir");
         if (! expect(popup != nullptr, "cursor menu appears"))
-            return foreground();
+            return finish();
         owner.PumpMessages(); // The forward is posted.
         expect(GetCursor() == textCursor, "an opening menu lets the window under the pointer choose its cursor");
 
         RECT popupRect{};
         if (! expect(GetWindowRect(popup, &popupRect) != FALSE, "read the menu popup rectangle"))
-            return foreground();
+            return finish();
         const POINT overMenu{(popupRect.left + popupRect.right) / 2, popupRect.top + 14};
         static_cast<void>(SendCapturedMouseMessageForMenuSuite(popup, WM_MOUSEMOVE, 0, overMenu));
         expect(GetCursor() == arrow, "the arrow shows over the open menu");
@@ -8022,7 +8033,7 @@ void TestMenuChoosesTheCursorWhenItOpensAndCloses()
         expect(closed && WaitForWindowDestroyed(popup, std::chrono::milliseconds(2000)), "the cursor menu closes");
         owner.PumpMessages();
         expect(GetCursor() == textCursor, "a closing menu lets the window under the pointer choose its cursor again");
-        return foreground();
+        return finish();
     });
     if (! skip.empty())
     {
