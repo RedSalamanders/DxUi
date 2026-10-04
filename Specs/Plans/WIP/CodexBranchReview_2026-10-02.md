@@ -70,10 +70,13 @@ The oracles of `49c963f`, run against main: a queued `Select` of a stale text ra
   share with a press, a double click and the arrow keys, stops after a delegate that destroyed its grid, as Ctrl+A and
   RemoveFromSelection do. Each path has a replacement test that AddressSanitizer fails against the old library.
 - [ ] An application delegate that destroys its control in the middle of an input handler is a wider class than the
-  focus callbacks, and only partly covered. Grid's group toggles, row activation, checkbox toggles, sorting and context
-  menus, and the selection changes `SetModel`, `SetSelectionMode`, `NotifyDataChanged` and `ApplyGroupLayout` report,
-  still keep using the grid after its delegate (`docs/controls.md` tells applications to post a rebuild from them).
-  Audit the delegate and callback call sites of the controls that keep running after them, as the focus sites were.
+  focus callbacks, and only partly covered. Grid's selection delegate is now checked wherever the grid goes on after
+  it, and Tree's selection callbacks already were
+  ([selection publish lifetime](../Done/SelectionPublishLifetime_2026-10-03.md)). Grid's group toggles (a press or a
+  key on a group, `ApplyGroupLayout`) and checkbox toggles are still followed by uses of the grid; its row-activation,
+  sort and context-menu calls end their handlers, and `docs/controls.md` still tells applications to post a rebuild
+  from all of them. Audit those and the other controls' delegate and callback call sites that keep running after
+  them, as the focus sites were.
 - [ ] Keep the four codex branches until RedSalamander's `codex/fileops-ui-i26` pins a DxUi main. On 3 October the
   developer had `codex/grid-line-clamp`, `codex/fileops-ui-qualified` and `codex/menu-description-layout` deleted: each is
   contained in `codex/multiline-caret-viewport`, so no commit was lost. That branch stays while RedSalamander pins its tip

@@ -493,7 +493,12 @@ void Tree::NotifyDataChanged()
     {
         ClearTreeExpansionAnimation();
     }
+    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
+    if (selfLifetime.expired())
+    {
+        return;
+    }
     if (! previousSelection.empty())
     {
         static_cast<void>(NotifySelectionSetChanged(previousSelection));
@@ -528,8 +533,12 @@ void Tree::SetMultiSelectEnabled(bool enabled) noexcept
         }
         _selection.Clear();
     }
+    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
-    RequestInvalidate();
+    if (! selfLifetime.expired())
+    {
+        RequestInvalidate();
+    }
 }
 
 void Tree::SetSelectedItemId(std::optional<uint64_t> itemId) noexcept
@@ -2019,8 +2028,10 @@ bool Tree::SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyD
             return false;
         }
     }
+    // UI Automation event delivery can dispatch a message that destroys this tree too.
+    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
-    return true;
+    return ! selfLifetime.expired();
 }
 
 std::vector<uint64_t> Tree::CollectVisibleItemIds() const
@@ -2124,8 +2135,10 @@ bool Tree::RequestRemoveVisibleItemFromSelection(size_t visibleIndex) noexcept
     {
         return false;
     }
+    // UI Automation event delivery can dispatch a message that destroys this tree too.
+    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
-    return true;
+    return ! selfLifetime.expired();
 }
 
 bool Tree::OnSelectAll(ControlHost& host)
@@ -2162,8 +2175,12 @@ bool Tree::OnSelectAll(ControlHost& host)
             return true;
         }
     }
+    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     RefreshAccessibilitySnapshot();
-    Invalidate(host);
+    if (! selfLifetime.expired())
+    {
+        Invalidate(host);
+    }
     return true;
 }
 

@@ -392,7 +392,23 @@ press, close press and End key and the removal of the tab that held the focus (t
 picker's press (EditorControls), a combo box's press, double click and context menu (ComboBox), a single-line and a
 multiline text field's (TextField), and a grid's and a tree's press and double click (Grid, Tree). A handler that went on
 using its destroyed control is caught by AddressSanitizer; every build checks that the replacement happened and left
-nothing focused.
+nothing focused. `TestGridGroupCollapseSelectionDelegateReplacementStopsTheInput` (Grid) has the selection delegate replace
+every control while a Left key or a press on a group's header collapses the group of the selected row, and
+`TestGridSelectionDelegateReplacementDuringModelChangesStopsTheGrid` while `NotifyDataChanged`, `SetModel`,
+`SetSelectionMode` or a checkbox toggle (Space) whose delegate removes the selected row changes the selection.
+
+The accessibility publish that follows a selection is a reentrancy boundary of its own. With a client listening, the
+Accessibility suite's `TestTreeSelectionPublishReplacement*`, `TestTreeDataChangedPublishReplacementSkipsSelectionDelegate`,
+`TestGridSelectionPublishReplacement*` and `TestGridGroupSelectionPublishReplacementStopsKeyboardHandler` replace the window's
+root at the first selection event that publish raises (`UiaTest::SelectionEventInterruption`): a tree's Select,
+AddToSelection and RemoveFromSelection requests, press, expander, double click, context menu, release of a click on a
+multi-selection, arrow key, type-ahead, Ctrl+A, multi-select change and model reconciliation, and a grid's press, double
+click, Down, Ctrl+A and keyboard group collapse, each for a control that fills its window and for its twin beside a button.
+The request reports the tree gone, the input stays handled, nothing is focused, captured, activated or invalidated after
+the replacement, and the model change calls no selection-set delegate. Each failed against the library before its guard
+(AddressSanitizer, or the result, capture or invalidation check), as did the two delegate tests above, except the release
+of a click on a multi-selection, which the library already stopped; each of the fourteen guards removed on its own fails
+a named test ([plan](../Plans/Done/SelectionPublishLifetime_2026-10-03.md)).
 
 The [selection events](../UI/UI_InputAndAccessibility.md#selection-events) are the library's own, heard from the right sender (an
 item or a row, and the control's element for the invalidation of a selection) by a client subscribed to the window, again for a
