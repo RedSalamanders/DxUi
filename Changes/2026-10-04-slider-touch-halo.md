@@ -13,6 +13,6 @@
     that drags a slider. Embedded: `PointerEvent::device` reaching the host and the slider. The geometry checks of
     Animation and NewControls follow the new thumb.
   - **Gallery and design system.** A new `Slider / Touch pressed` tile, and every sheet regenerated. The Slider
-    guideline, preview and tokens follow; the published design system is republished after the merge.
+    guideline, preview and tokens follow, and the published design system is republished with them.
   - Specified in `UI_ControlsAndLayout.md` and `UI_InputAndAccessibility.md`, with `docs/controls.md` and
     `docs/hosting.md`.

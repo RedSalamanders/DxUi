@@ -27,38 +27,38 @@
       "files": {
         "theme-controls-light.png": {
           "name": "theme-controls-light.png",
-          "blob": "ea2c1e27e6a83463e31f8c9178b3c711",
-          "size": 349720,
+          "blob": "c07a046ba5b110b806e425d248cb7ac6",
+          "size": 357475,
           "type": "image/png"
         },
         "theme-controls-dark.png": {
           "name": "theme-controls-dark.png",
-          "blob": "1fe297bdc9e6c9814ee3fe5af1a3b360",
-          "size": 351847,
+          "blob": "d8b026afef3121cdd74cc98928226f83",
+          "size": 357747,
           "type": "image/png"
         },
         "theme-controls-high-contrast.png": {
           "name": "theme-controls-high-contrast.png",
-          "blob": "ad65304545d0c62a25f764f2a1c2803d",
-          "size": 346122,
+          "blob": "fe6fa3369254145c30234de0f87300c8",
+          "size": 352929,
           "type": "image/png"
         },
         "theme-controls-rainbow-light.png": {
           "name": "theme-controls-rainbow-light.png",
-          "blob": "37a016a516e69edbfafdf91ab3625c95",
-          "size": 351133,
+          "blob": "5a973cefb2db14c546f10713995b27c2",
+          "size": 359171,
           "type": "image/png"
         },
         "theme-controls-rainbow-dark.png": {
           "name": "theme-controls-rainbow-dark.png",
-          "blob": "6e0dae1fe022513fe9ae9ffdc043aafa",
-          "size": 353195,
+          "blob": "64df56dfd896c36d02ef2a40b3377259",
+          "size": 359454,
           "type": "image/png"
         },
         "embedded-controls.png": {
           "name": "embedded-controls.png",
-          "blob": "74c23e6cccb551e5df9adddef5086d87",
-          "size": 6375,
+          "blob": "b590e095ecb829d431720733b885f4aa",
+          "size": 6622,
           "type": "image/png"
         }
       }
@@ -71,8 +71,8 @@
   },
   "lastChange": {
     "by": "eric-jesover",
-    "at": "2026-10-01T21:48:19Z",
-    "via": "Claude Code · RedSalamanders/DxUi@docs/gallery-tree-grid",
-    "note": "Tree multi-select from PR 35: its guideline, preview and preview styles; gallery sheets regenerated from 448e924, with the Tree multi-select tile, by the Publish docs gallery workflow."
+    "at": "2026-10-04T11:58:30Z",
+    "via": "Claude Code · RedSalamanders/DxUi@improve/slider-touch-thumb",
+    "note": "Slider touch thumb and halo: its guideline, preview, preview styles and tokens; gallery sheets regenerated from b1099d2, with the Slider / Touch pressed tile."
   }
 }
