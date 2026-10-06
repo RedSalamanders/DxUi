@@ -3949,6 +3949,17 @@ struct AccessibilityControlIdentity
     uint64_t value = 0u;
 };
 
+// Internal event providers may be retained by UIA after delivery. They need the control's identity, not the
+// complete snapshot whose prepared rows would otherwise remain charged until the window closes.
+[[nodiscard]] AccessibilityControlIdentity CapturePublishedControlIdentity(WindowHostAccessibilityTarget* target, const ControlPath& path) noexcept
+{
+    if (! target)
+        return {};
+    const auto snapshot = target->snapshot.load(std::memory_order_acquire);
+    const auto* record  = snapshot ? FindControlNavigationRecord(*snapshot, path) : nullptr;
+    return record ? AccessibilityControlIdentity{record->controlLifetime, record->controlIdentity} : AccessibilityControlIdentity{};
+}
+
 [[nodiscard]] AccessibilityControlIdentity CaptureWindowHostControlIdentity(WindowHostAccessibilityTarget* target,
                                                                             const ControlPath& path,
                                                                             bool hasControl) noexcept
@@ -4110,6 +4121,18 @@ public:
     struct GridHeaderTag
     {
     };
+
+    struct EventTag
+    {
+    };
+
+    AccessibilityProvider(WindowHostAccessibilityTarget* target, const ControlPath& path, EventTag) noexcept
+        : _target(target),
+          _path(path),
+          _kind(AccessibilityFragmentKind::Control),
+          _identity(CapturePublishedControlIdentity(target, path))
+    {
+    }
 
     // Root identity follows the retained target, not an initial control path. Root guards only read the
     // current snapshot; holding its creation snapshot would pin a superseded complete row graph forever.
@@ -5381,6 +5404,13 @@ HRESULT AccessibilityTextRangeProvider::DispatchBoundingRectanglesToWindowThread
     }
     if (path)
     {
+        if (! original && identity.value != 0u)
+        {
+            const auto* now = FindControlNavigationRecord(*snapshot, *path);
+            const bool same = now && now->controlIdentity == identity.value && ! identity.lifetime.expired() &&
+                              ! identity.lifetime.owner_before(now->controlLifetime) && ! now->controlLifetime.owner_before(identity.lifetime);
+            return same ? snapshot : nullptr;
+        }
         const auto* before = original ? FindControlNavigationRecord(*original, *path) : nullptr;
         const auto* now    = FindControlNavigationRecord(*snapshot, *path);
         if (! before || ! now || before->controlLifetime.expired() || before->controlLifetime.owner_before(now->controlLifetime) ||
@@ -6127,8 +6157,9 @@ HRESULT AccessibilityProvider::GetRuntimeId(SAFEARRAY** outRuntimeId) noexcept
     {
         if (! outRuntimeId)
             return E_POINTER;
-        *outRuntimeId = nullptr;
-        if (! CaptureSnapshot())
+        *outRuntimeId       = nullptr;
+        const auto snapshot = CaptureSnapshot();
+        if (! snapshot)
             return UIA_E_ELEMENTNOTAVAILABLE;
         RuntimeIdValueBuffer values{};
         size_t count = 0;
@@ -6142,7 +6173,7 @@ HRESULT AccessibilityProvider::GetRuntimeId(SAFEARRAY** outRuntimeId) noexcept
             return E_INVALIDARG;
         if (_kind != AccessibilityFragmentKind::Root)
         {
-            const auto* record = FindControlNavigationRecord(*_snapshot, _path);
+            const auto* record = FindControlNavigationRecord(*snapshot, _path);
             if (! record || ! AppendRuntimeIdValue(values, count, static_cast<LONG>(record->controlIdentity)) ||
                 ! AppendRuntimeIdValue(values, count, static_cast<LONG>(record->controlIdentity >> 32)))
                 return E_INVALIDARG;
@@ -9387,7 +9418,7 @@ void RaiseEmbeddedAccessibilityChanges(WindowHostAccessibilityTarget& target, co
             before->controlHasFocus == record.controlHasFocus)
             continue;
         static_cast<void>(target.AddRef());
-        auto* raw = new (std::nothrow) AccessibilityProvider(&target, nullptr, record.path);
+        auto* raw = new (std::nothrow) AccessibilityProvider(&target, record.path, AccessibilityProvider::EventTag{});
         if (! raw)
         {
             static_cast<void>(target.Release());

@@ -2,6 +2,9 @@
 
 ## Implementation checklist
 
+- [ ] Qualify the internal embedded property-event lifetime repair. RedPrism's diagnostic r206 retains three row epochs while idle (2,832,029 resident/reserved bytes, 944,015 in the current epoch, zero releasing bytes). Internal property-event providers currently pin full creation snapshots; the draft uses weak control identity and current snapshot reads, preserving public retained-provider ownership. Library and exact-pin consumer requalification remain due.
+- [ ] Exercise real embedded UIA event re-entry and held-client delivery in the consumer, then complete charged-source adoption and large-row costs before activating production.
+
 - [x] Isolate work from the consumer's exact `271bd54be24eadf3f03ba5221d1be7be069860f2` pin. The unrelated dirty native checkout is preserved.
 - [x] Review a deterministic library-only 10,000-row /1,024-unit-name counting model and draft an opt-in snapshot benchmark with complete offscreen-name/navigation/disconnection checks.
 - [x] Unchanged-library Release baseline r1 completes all 12 raw snapshot rounds, full offscreen-name/navigation and disconnection checks. Source/executable/fixture inputs and all executable/PDB/library product copies are retained and readback verified before production changes. Each changed snapshot performs 10,000 item reads /20,004 model-count reads, 20,016 C++ allocations and 41,924,539 allocation bytes; the displayed rounds take approximately 8 ms. Full raw observations remain authoritative.

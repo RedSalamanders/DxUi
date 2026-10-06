@@ -348,6 +348,11 @@ non-root providers keep their creation snapshot for control-lifetime validation 
 they never access a replacement control merely because its path or row IDs are unchanged. Keeping only the root
 alive must not retain a superseded prepared source after publication.
 
+Internal embedded property-event providers retain the target and the published control's weak lifetime/identity,
+then resolve properties against the current coherent snapshot. UIA can retain these event providers after delivery;
+they must not pin complete creation snapshots or prepared row epochs. Replacing the control invalidates them even
+when its path is reused. Public row providers and text ranges keep their existing creation-snapshot ownership.
+
 Hide, zero-size suspension, device replacement and detach disconnect the target before destroying controls. Old
 provider actions return UIA_E_ELEMENTNOTAVAILABLE after disconnect/root replacement, and a reattachment has a new
 identity. A surviving reference never accesses a replaced control by path. The application is responsible for
