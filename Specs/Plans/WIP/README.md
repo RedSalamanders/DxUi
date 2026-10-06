@@ -19,3 +19,5 @@ RedXe retains its separately owned hardware, real IME and assistive-technology g
 
 Plans never override normative contracts. Completed plans move to Done after
 validation and normative closeout.
+
+- **ACTIVE**: [Prepared Tree accessibility](PreparedTreeAccessibility_2026-10-06.md). Optional immutable snapshot rows, bounded viewport capture and native reentrant notification delivery are library-qualified in x64 Debug/Release/ASan, all ARM64 builds and paired Release common scenes. Consumer charged-source adoption and activation remain open.

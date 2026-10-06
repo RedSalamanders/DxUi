@@ -39,6 +39,7 @@
     "win32-host",
     "native-text-input",
     "native-accessibility",
+    "prepared-tree-accessibility",
     "control-gallery",
     "embedded-text-state",
     "application-text-services",

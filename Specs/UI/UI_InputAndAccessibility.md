@@ -287,6 +287,28 @@ remains a separate gate; no UIA bridge is claimed by this text-service sample.
 
 ### Shared embedded UI Automation providers
 
+#### Optional prepared Tree row source
+
+`ITreeModel::CapturePreparedAccessibilityRows()` may return an immutable shared source for the complete current
+visible-row semantics, including offscreen rows. The default implementation returns null; null keeps the existing
+row-by-row capture through `GetVisibleItemCount()` and `GetVisibleItem()`. The source count must equal the model's
+visible item count or it is discarded in favor of that same fallback. `GetItem(visibleIndex)` and
+`FindItem(itemId)` are bounded, allocation-free reads returning an empty optional for a missing row. A row view
+contains visible index, ID, borrowed text, depth, `hasChildren`, and `expanded`.
+
+The source's shared identity is the semantic epoch used by accessibility snapshot comparison. Preserve identity only
+while the ordered visible-row sequence and each row's ID, text, depth, child presence, and expanded state are all
+unchanged. Any change to those fields, including reordering or replacement with the same count and IDs, requires a
+new shared identity. Selection is independent of row semantics and does not require replacing the source. On an
+identity change, the snapshot treats the Tree children as changed; it does not walk the source to diff rows.
+
+Text storage is borrowed from the source and must stay valid through every read for as long as a shared source
+reference remains readable. Consumers own bounded, allocation-free source queries and capture, preparation and
+admission, and arranging final source destruction on the appropriate lane, including releases by foreign retained
+readers. Capture only retains an already prepared source; it does not construct, copy, or traverse rows. DxUi does
+not create a row-preparation worker or define the consumer's preparation lane. These requirements define source ownership and
+semantics; they do not establish a performance qualification or change the supported-capabilities record.
+
 EmbeddedHost exposes lazy AttachAccessibility, UpdateAccessibility, GetAccessibilityProvider and
 DisconnectAccessibility methods. The low-level bridge reuses the native provider/pattern implementation. The
 application supplies a module-local EmbeddedAccessibilitySite for parent/sibling navigation, fragment-root identity,
@@ -309,6 +331,22 @@ focus state. Changed active snapshots raise applicable property, text, focus and
 clients listen. Hidden controls leave navigation; background modal views must be disconnected by the application.
 ActionCompleted allows the application to post one coalesced refresh/focus/navigation operation, without reentering
 the tree inside an accessibility callback.
+
+Native WindowHost structure invalidation uses one lazily created thread-pool work object per accessibility target.
+The owner retains its canonical root and published snapshot in a single replaceable pending slot; one delivery and
+one pending generation may be retained. A later publication replaces that pending generation instead of growing a
+queue. Delivery runs in an MTA without borrowing controls or dereferencing the host, so a real UIA callback can
+read the current snapshot and synchronously invoke an owner action while the owner pumps messages. A successor
+is submitted only for a new explicit publication received during delivery. Work creation/COM initialization
+failure is logged; no retry timer or polling is introduced. Disconnected targets are checked before delivery, and
+surviving providers still enforce their ordinary stale-target guards. Teardown does not wait for a UIA client:
+each submitted callback retains its target until return, and closing the work object defers its reclamation until
+outstanding callbacks finish. Embedded hosting continues to use its supplied STA/site contract and owns no worker.
+
+The canonical root resolves the current published snapshot and does not retain its creation snapshot. Retained
+non-root providers keep their creation snapshot for control-lifetime validation and borrowed-source ownership;
+they never access a replacement control merely because its path or row IDs are unchanged. Keeping only the root
+alive must not retain a superseded prepared source after publication.
 
 Hide, zero-size suspension, device replacement and detach disconnect the target before destroying controls. Old
 provider actions return UIA_E_ELEMENTNOTAVAILABLE after disconnect/root replacement, and a reattachment has a new

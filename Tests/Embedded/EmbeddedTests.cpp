@@ -116,6 +116,11 @@ static void Hr(HRESULT hr, const char* text)
 #include "EmbeddedTextInputTests.h"
 #include "GridSelectionBenchmark.h"
 #include "LocalizedLayoutTests.h"
+#include "PreparedTreeAccessibilityBenchmark.h"
+#if DXUI_TEST_HAS_PREPARED_TREE_ROWS
+#include "PreparedTreeAccessibilitySemantics.h"
+#include "PreparedTreeRootLifetimeTests.h"
+#endif
 
 // Hidden and zero-extent views hold no surface; the next visible sized preparation reallocates exactly one and
 // reproduces the previous pixels. Device replacement while hidden keeps working without a surface.
@@ -312,6 +317,26 @@ __declspec(noinline) static void TestCacheBounds(GraphicsFixture& gpu)
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static int RunFunctionalTests()
 {
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-prepared-tree-accessibility")
+    {
+#if DXUI_TEST_HAS_PREPARED_TREE_ROWS
+        GraphicsFixture gpu;
+        Hr(gpu.Create(), "prepared Tree semantics WARP device");
+        TestPreparedTreeAccessibilitySemantics(gpu);
+        TestPreparedTreeRootDoesNotRetainSupersededSource(gpu);
+        return 0;
+#else
+        Check(false, "prepared Tree semantics requires the optional source API");
+#endif
+    }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--benchmark-tree-accessibility")
+    {
+        GraphicsFixture gpu;
+        Hr(gpu.Create(), "large Tree benchmark WARP device");
+        RunPreparedTreeAccessibilityBenchmark(gpu, false);
+        RunPreparedTreeAccessibilityBenchmark(gpu, true);
+        return 0;
+    }
     // The opt-in grid selection measurement is dispatched here, not in BenchmarkMain.h, whose hash identifies the complex-UI fixture.
     if ((__argc == 3 || __argc == 4) && std::wstring_view(__wargv[1]) == L"--benchmark-grid-selection")
     {
@@ -333,6 +358,10 @@ __declspec(noinline) static int RunFunctionalTests()
     Hr(gpu.Create(), "supplied WARP device");
     TestEmbeddedTextInput(gpu);
     TestEmbeddedAccessibility(gpu);
+#if DXUI_TEST_HAS_PREPARED_TREE_ROWS
+    TestPreparedTreeAccessibilitySemantics(gpu);
+    TestPreparedTreeRootDoesNotRetainSupersededSource(gpu);
+#endif
     TestLocalizedShortViewport(gpu,
                                [](DxUi::Button& action) { action.SetMultiline(true); },
                                [](const auto& sizes, float width, auto& bounds, float& height)

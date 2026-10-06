@@ -1,0 +1,2 @@
+- Add optional immutable prepared Tree accessibility rows with complete offscreen Unicode names and bounded snapshot capture; existing models retain their fallback behavior.
+  - Coalesce native structure notifications on one reusable delivery slot so a real UIA callback can invoke an owner action without blocking publication. Canonical roots no longer retain superseded creation snapshots.

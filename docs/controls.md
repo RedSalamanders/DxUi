@@ -38,6 +38,17 @@ Set bounds, visibility, enabled state and content before preparation. Mutate con
 | NumericStepper | Set range, `SetStep` / `SetLargeStep`, `SetDecimals`, an optional `SetLabel` / `SetUnit` with widths, and handle `SetOnChange(NumericStepperChange)`: typing previews, Enter, focus loss, the buttons and Up/Down (Shift: large step) commit, Escape cancels, and an edit whose text no longer parses reverts with a cancel. `SetValue` is silent. The step buttons are named "Increase" / "Decrease" for UI Automation; supply localized names with `SetStepButtonNames`. Preferred height is `kDefaultHeightDip` (32). |
 | ColorPicker | Size it to `kDefaultWidthDip` x `kDefaultHeightDip` (316 x 236), supply captions through `SetLabels`, open it with `SetColor` and handle `SetOnChange(ColorPickerChange)`. Feed eyedropper results through `SampleColor`; OK or Enter commit, Cancel or Escape restore the current color. For translated captions set `Labels::channelLabelWidthDip`, `hexLabelWidthDip` and `swatchWidthDip` (up to 4,096 DIPs; widen the picker for wider swatches), and name the channel step buttons with `Labels::increaseRed` … `decreaseBlue` (whole phrases). |
 
+## Prepared Tree accessibility
+
+For large Tree models, optionally return already prepared immutable rows from
+`ITreeModel::CapturePreparedAccessibilityRows()`. This keeps complete offscreen names available while a changed
+accessibility snapshot retains one source instead of copying every label. The default null result preserves the
+existing model path. Keep the source's ordered IDs, text, depth, child presence and expansion state coherent;
+publish a new shared source when any of those change. Selection does not require a new source. Its borrowed text
+must remain valid through retained foreign readers, and the consumer owns preparation, admission and final
+destruction. See the [Tree usage and lifetime contract](../Specs/DesignSystem/components/Tree/README.md#optional-prepared-accessibility-rows)
+and [library qualification](../Measurements/PreparedTreeAccessibility/2026-10-06/README.md).
+
 ## Described native menu entries
 
 The in-progress [menu description qualification](../Specs/Plans/WIP/MenuDescriptions_2026-09-21.md)

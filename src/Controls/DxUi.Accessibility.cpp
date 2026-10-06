@@ -502,6 +502,7 @@ struct AccessibilityControlNavigationSnapshot
     std::wstring passwordRevealButtonAccessibleName;
     std::optional<size_t> selectedTreeVisibleIndex;
     std::vector<AccessibilityTreeItemSnapshotRecord> treeItems;
+    std::shared_ptr<const IPreparedTreeAccessibilityRows> preparedTreeRows;
     std::vector<AccessibilityGridHeaderSnapshotRecord> gridHeaders;
     std::vector<AccessibilityGridRowSnapshotRecord> gridRows;
     std::vector<AccessibilityGridCellStateSnapshotRecord> gridCells;
@@ -677,6 +678,8 @@ void AppendAccessibilitySnapshotNavigation(
                                                                                            size_t gridColumnIndex,
                                                                                            NavigateDirection direction) noexcept;
 
+void CALLBACK DeliverNativeStructureInvalidation(PTP_CALLBACK_INSTANCE instance, void* context, PTP_WORK) noexcept;
+
 struct WindowHostAccessibilityTarget final
 {
     explicit WindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept : hwnd(hwnd), host(host)
@@ -753,6 +756,15 @@ struct WindowHostAccessibilityTarget final
     // what it changed. Set and consumed under the accessibility mutex; never held past that publish.
     std::shared_ptr<const AccessibilitySnapshot> diffBaseline;
     wil::com_ptr_nothrow<IRawElementProviderSimple> rootProvider;
+    // One reusable notification slot. Event handlers may synchronously invoke an owner action: raising the
+    // event on that owner would prevent its message pump from acknowledging the action. The work owns a
+    // target reference until it returns and never borrows controls or the host; teardown never joins it.
+    std::mutex structureNotificationMutex;
+    bool structureNotificationPending   = false;
+    bool structureNotificationScheduled = false;
+    wil::com_ptr_nothrow<IRawElementProviderSimple> structureNotificationProvider;
+    std::shared_ptr<const AccessibilitySnapshot> structureNotificationSnapshot;
+    wil::unique_threadpool_work_nowait structureNotificationWork;
 };
 
 [[nodiscard]] UiaRect EmbeddedScreenBounds(const AccessibilitySnapshot& snapshot, const D2D1_RECT_F& bounds) noexcept
@@ -830,6 +842,8 @@ struct WindowHostSnapshotChanges
         const AccessibilityControlNavigationSnapshot& now = after.controlNavigationRecords[index];
         if (! AreControlPathsEqual(old.path, now.path) || ! SameControlLifetime(old.controlLifetime, now.controlLifetime))
             return false;
+        if ((old.preparedTreeRows || now.preparedTreeRows) && old.preparedTreeRows != now.preparedTreeRows)
+            return false; // A complete immutable row source is also the Tree's semantic epoch.
     }
     return true;
 }
@@ -1258,7 +1272,9 @@ void AppendTreeAccessibilityPointHits(const Tree& tree,
         const std::optional<D2D1_RECT_F> rowRect = tree.GetVisibleItemHitRect(visibleIndex);
         if (! rowRect)
         {
-            continue;
+            // Starting at the first viewport row, the first absent rectangle is beyond the viewport (or
+            // an empty content extent). Offscreen semantic rows remain available from the held source.
+            break;
         }
         if (rowRect->bottom < treeHitBounds.top)
         {
@@ -1702,21 +1718,31 @@ void AppendAccessibilitySnapshotNavigation(
             if (const auto* model = tree->GetModel())
             {
                 record.treeVisibleItemCount = model->GetVisibleItemCount();
-                record.treeItems.reserve(record.treeVisibleItemCount);
+                record.preparedTreeRows     = model->CapturePreparedAccessibilityRows();
+                if (record.preparedTreeRows && record.preparedTreeRows->GetCount() != record.treeVisibleItemCount)
+                    record.preparedTreeRows.reset(); // Invalid optional source: capture current model semantics.
                 const std::optional<uint64_t> selectedItemId = tree->GetSelectedItemId();
-                for (size_t visibleIndex = 0u; visibleIndex < record.treeVisibleItemCount; ++visibleIndex)
+                if (record.preparedTreeRows)
                 {
-                    TreeItemData item{};
-                    model->GetVisibleItem(visibleIndex, item);
-                    record.treeItems.push_back(AccessibilityTreeItemSnapshotRecord{.visibleIndex = visibleIndex,
-                                                                                   .itemId       = item.id,
-                                                                                   .text         = item.text,
-                                                                                   .depth        = item.depth,
-                                                                                   .hasChildren  = item.hasChildren,
-                                                                                   .expanded     = item.expanded});
-                    if (selectedItemId && selectedItemId.value() == item.id)
+                    const auto selected = selectedItemId ? record.preparedTreeRows->FindItem(selectedItemId.value()) : std::nullopt;
+                    if (selected && selected->itemId == selectedItemId.value() && selected->visibleIndex < record.treeVisibleItemCount)
+                        record.selectedTreeVisibleIndex = selected->visibleIndex;
+                }
+                else
+                {
+                    record.treeItems.reserve(record.treeVisibleItemCount);
+                    for (size_t visibleIndex = 0u; visibleIndex < record.treeVisibleItemCount; ++visibleIndex)
                     {
-                        record.selectedTreeVisibleIndex = visibleIndex;
+                        TreeItemData item{};
+                        model->GetVisibleItem(visibleIndex, item);
+                        record.treeItems.push_back(AccessibilityTreeItemSnapshotRecord{.visibleIndex = visibleIndex,
+                                                                                       .itemId       = item.id,
+                                                                                       .text         = item.text,
+                                                                                       .depth        = item.depth,
+                                                                                       .hasChildren  = item.hasChildren,
+                                                                                       .expanded     = item.expanded});
+                        if (selectedItemId && selectedItemId.value() == item.id)
+                            record.selectedTreeVisibleIndex = visibleIndex;
                     }
                 }
             }
@@ -1976,27 +2002,37 @@ const AccessibilityGridRowSnapshotRecord* FindSnapshotGridRowRecord(const Access
     return nullptr;
 }
 
-const AccessibilityTreeItemSnapshotRecord* FindSnapshotTreeItemRecordByVisibleIndex(const AccessibilityControlNavigationSnapshot& record,
-                                                                                    size_t treeVisibleIndex) noexcept
+std::optional<TreeAccessibilityItemView> FindSnapshotTreeItemRecordByVisibleIndex(const AccessibilityControlNavigationSnapshot& record,
+                                                                                  size_t treeVisibleIndex) noexcept
 {
-    if (! record.isTree || treeVisibleIndex >= record.treeItems.size())
+    if (! record.isTree || treeVisibleIndex >= record.treeVisibleItemCount)
     {
-        return nullptr;
+        return std::nullopt;
     }
-
+    if (record.preparedTreeRows)
+    {
+        const auto item = record.preparedTreeRows->GetItem(treeVisibleIndex);
+        return item && item->visibleIndex == treeVisibleIndex ? item : std::nullopt;
+    }
     const AccessibilityTreeItemSnapshotRecord& item = record.treeItems[treeVisibleIndex];
-    return item.visibleIndex == treeVisibleIndex ? &item : nullptr;
+    return item.visibleIndex == treeVisibleIndex
+               ? std::optional<TreeAccessibilityItemView>{{item.visibleIndex, item.itemId, item.text, item.depth, item.hasChildren, item.expanded}}
+               : std::nullopt;
 }
 
-const AccessibilityTreeItemSnapshotRecord* FindSnapshotTreeItemRecord(const AccessibilityControlNavigationSnapshot& record, uint64_t itemId) noexcept
+std::optional<TreeAccessibilityItemView> FindSnapshotTreeItemRecord(const AccessibilityControlNavigationSnapshot& record, uint64_t itemId) noexcept
 {
     if (! record.isTree)
     {
-        return nullptr;
+        return std::nullopt;
     }
-
+    if (record.preparedTreeRows)
+    {
+        const auto item = record.preparedTreeRows->FindItem(itemId);
+        return item && item->itemId == itemId && item->visibleIndex < record.treeVisibleItemCount ? item : std::nullopt;
+    }
     const auto item = std::ranges::find(record.treeItems, itemId, &AccessibilityTreeItemSnapshotRecord::itemId);
-    return item != record.treeItems.end() ? &*item : nullptr;
+    return item != record.treeItems.end() ? FindSnapshotTreeItemRecordByVisibleIndex(record, item->visibleIndex) : std::nullopt;
 }
 
 const AccessibilityGridHeaderSnapshotRecord* FindSnapshotGridHeaderRecord(const AccessibilityControlNavigationSnapshot& record, size_t gridColumnIndex) noexcept
@@ -2019,7 +2055,7 @@ const AccessibilityGridHeaderSnapshotRecord* FindSnapshotGridHeaderRecord(const 
 
 bool SnapshotContainsTreeItem(const AccessibilityControlNavigationSnapshot& record, uint64_t itemId) noexcept
 {
-    return FindSnapshotTreeItemRecord(record, itemId) != nullptr;
+    return FindSnapshotTreeItemRecord(record, itemId).has_value();
 }
 
 bool SnapshotSupportsSelectionProvider(const AccessibilityControlNavigationSnapshot& record) noexcept
@@ -2034,7 +2070,7 @@ bool SnapshotTreeItemIsSelected(const AccessibilityControlNavigationSnapshot& re
         return false;
     }
 
-    const AccessibilityTreeItemSnapshotRecord* selected = FindSnapshotTreeItemRecordByVisibleIndex(record, record.selectedTreeVisibleIndex.value());
+    const auto selected = FindSnapshotTreeItemRecordByVisibleIndex(record, record.selectedTreeVisibleIndex.value());
     return selected && selected->itemId == itemId;
 }
 
@@ -2210,8 +2246,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                                                                              NavigateDirection direction) noexcept
 {
     const AccessibilityControlNavigationSnapshot* controlRecord = FindControlNavigationRecord(snapshot, path);
-    const AccessibilityTreeItemSnapshotRecord* treeItem =
-        kind == AccessibilityFragmentKind::TreeItem && controlRecord ? FindSnapshotTreeItemRecord(*controlRecord, treeItemId) : nullptr;
+    const auto treeItem = kind == AccessibilityFragmentKind::TreeItem && controlRecord ? FindSnapshotTreeItemRecord(*controlRecord, treeItemId) : std::nullopt;
     switch (direction)
     {
         case NavigateDirection_FirstChild:
@@ -2233,9 +2268,9 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
             }
             if (kind == AccessibilityFragmentKind::Control && controlRecord)
             {
-                if (! controlRecord->treeItems.empty())
+                if (const auto first = FindSnapshotTreeItemRecordByVisibleIndex(*controlRecord, 0))
                 {
-                    return MakeNavigationTarget(AccessibilityFragmentKind::TreeItem, path, controlRecord->treeItems.front().itemId);
+                    return MakeNavigationTarget(AccessibilityFragmentKind::TreeItem, path, first->itemId);
                 }
                 if (! controlRecord->gridVisibleColumns.empty())
                 {
@@ -2275,9 +2310,11 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
             }
             if (kind == AccessibilityFragmentKind::Control && controlRecord)
             {
-                if (! controlRecord->treeItems.empty())
+                if (controlRecord->treeVisibleItemCount)
                 {
-                    return MakeNavigationTarget(AccessibilityFragmentKind::TreeItem, path, controlRecord->treeItems.back().itemId);
+                    const auto last = FindSnapshotTreeItemRecordByVisibleIndex(*controlRecord, controlRecord->treeVisibleItemCount - 1u);
+                    return last ? std::optional<AccessibilityNavigationTarget>{MakeNavigationTarget(AccessibilityFragmentKind::TreeItem, path, last->itemId)}
+                                : std::nullopt;
                 }
                 if (! controlRecord->gridVisibleRowIds.empty())
                 {
@@ -2330,9 +2367,11 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
                     return MakeControlNavigationTarget(snapshot.semanticControlOrder[ordinal.value() + 1u]);
                 }
             }
-            else if (treeItem && (treeItem->visibleIndex + 1u) < controlRecord->treeItems.size())
+            else if (treeItem && (treeItem->visibleIndex + 1u) < controlRecord->treeVisibleItemCount)
             {
-                return MakeNavigationTarget(AccessibilityFragmentKind::TreeItem, path, controlRecord->treeItems[treeItem->visibleIndex + 1u].itemId);
+                const auto next = FindSnapshotTreeItemRecordByVisibleIndex(*controlRecord, treeItem->visibleIndex + 1u);
+                return next ? std::optional<AccessibilityNavigationTarget>{MakeNavigationTarget(AccessibilityFragmentKind::TreeItem, path, next->itemId)}
+                            : std::nullopt;
             }
             else if (kind == AccessibilityFragmentKind::GridHeader && controlRecord)
             {
@@ -2378,7 +2417,10 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
             }
             else if (treeItem && treeItem->visibleIndex > 0u)
             {
-                return MakeNavigationTarget(AccessibilityFragmentKind::TreeItem, path, controlRecord->treeItems[treeItem->visibleIndex - 1u].itemId);
+                const auto previous = FindSnapshotTreeItemRecordByVisibleIndex(*controlRecord, treeItem->visibleIndex - 1u);
+                return previous
+                           ? std::optional<AccessibilityNavigationTarget>{MakeNavigationTarget(AccessibilityFragmentKind::TreeItem, path, previous->itemId)}
+                           : std::nullopt;
             }
             else if (kind == AccessibilityFragmentKind::GridHeader && controlRecord)
             {
@@ -4069,10 +4111,9 @@ public:
     {
     };
 
-    AccessibilityProvider(WindowHostAccessibilityTarget* target, HWND hwnd) noexcept
-        : _target(target),
-          _hwnd(hwnd),
-          _snapshot(CaptureProviderCreationSnapshot(target, hwnd))
+    // Root identity follows the retained target, not an initial control path. Root guards only read the
+    // current snapshot; holding its creation snapshot would pin a superseded complete row graph forever.
+    AccessibilityProvider(WindowHostAccessibilityTarget* target, HWND hwnd) noexcept : _target(target), _hwnd(hwnd)
     {
     }
 
@@ -5456,7 +5497,7 @@ AccessibilityPatternQueryResult AccessibilityProvider::QueryPattern(Accessibilit
         const std::shared_ptr<const AccessibilitySnapshot> snapshot = CaptureSnapshot();
         const AccessibilityControlNavigationSnapshot* record =
             (snapshot && snapshot->alive && snapshot->hasRetainedRoot) ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
-        const AccessibilityTreeItemSnapshotRecord* item = record ? FindSnapshotTreeItemRecord(*record, _treeItemId) : nullptr;
+        const auto item = record ? FindSnapshotTreeItemRecord(*record, _treeItemId) : std::nullopt;
         return (item && item->hasChildren) ? makeResult(static_cast<IExpandCollapseProvider*>(this)) : AccessibilityPatternQueryResult{};
     }
 
@@ -5766,7 +5807,7 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
         const std::shared_ptr<const AccessibilitySnapshot> snapshot = CaptureSnapshot();
         const AccessibilityControlNavigationSnapshot* record =
             (snapshot && snapshot->alive && snapshot->hasRetainedRoot) ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
-        const AccessibilityTreeItemSnapshotRecord* item = record ? FindSnapshotTreeItemRecord(*record, _treeItemId) : nullptr;
+        const auto item = record ? FindSnapshotTreeItemRecord(*record, _treeItemId) : std::nullopt;
         if (! record || ! item)
         {
             return UIA_E_ELEMENTNOTAVAILABLE;
@@ -6165,7 +6206,7 @@ HRESULT AccessibilityProvider::get_BoundingRectangle(UiaRect* outRect) noexcept
         if (_kind == AccessibilityFragmentKind::TreeItem)
         {
             const auto* record = FindControlNavigationRecord(*snapshot, _path);
-            const auto* item   = record ? FindSnapshotTreeItemRecord(*record, _treeItemId) : nullptr;
+            const auto item    = record ? FindSnapshotTreeItemRecord(*record, _treeItemId) : std::nullopt;
             if (! item)
                 return UIA_E_ELEMENTNOTAVAILABLE;
             visibleIndex = item->visibleIndex;
@@ -6221,7 +6262,7 @@ HRESULT AccessibilityProvider::get_BoundingRectangle(UiaRect* outRect) noexcept
     if (_kind == AccessibilityFragmentKind::TreeItem)
     {
         const AccessibilityControlNavigationSnapshot* record = FindControlNavigationRecord(*snapshot, _path);
-        const AccessibilityTreeItemSnapshotRecord* item      = record ? FindSnapshotTreeItemRecord(*record, _treeItemId) : nullptr;
+        const auto item                                      = record ? FindSnapshotTreeItemRecord(*record, _treeItemId) : std::nullopt;
         if (! item)
         {
             return UIA_E_ELEMENTNOTAVAILABLE;
@@ -6365,7 +6406,7 @@ HRESULT AccessibilityProvider::ElementProviderFromPoint(double x, double y, IRaw
         case AccessibilityFragmentKind::TreeItem:
         {
             const AccessibilityControlNavigationSnapshot* record = FindControlNavigationRecord(*snapshot, hit->path);
-            const AccessibilityTreeItemSnapshotRecord* item      = record ? FindSnapshotTreeItemRecordByVisibleIndex(*record, hit->treeVisibleIndex) : nullptr;
+            const auto item = record ? FindSnapshotTreeItemRecordByVisibleIndex(*record, hit->treeVisibleIndex) : std::nullopt;
             if (! item)
             {
                 return UIA_E_ELEMENTNOTAVAILABLE;
@@ -7134,8 +7175,7 @@ HRESULT AccessibilityProvider::GetSelection(SAFEARRAY** outSelection) noexcept
         {
             if (record->selectedTreeVisibleIndex)
             {
-                const AccessibilityTreeItemSnapshotRecord* selectedItem =
-                    FindSnapshotTreeItemRecordByVisibleIndex(*record, record->selectedTreeVisibleIndex.value());
+                const auto selectedItem = FindSnapshotTreeItemRecordByVisibleIndex(*record, record->selectedTreeVisibleIndex.value());
                 if (! selectedItem)
                 {
                     return UIA_E_ELEMENTNOTAVAILABLE;
@@ -7569,7 +7609,7 @@ HRESULT AccessibilityProvider::get_ExpandCollapseState(ExpandCollapseState* outS
         *outState = record->controlDisclosureExpanded.value() ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed;
         return S_OK;
     }
-    const AccessibilityTreeItemSnapshotRecord* item = record ? FindSnapshotTreeItemRecord(*record, _treeItemId) : nullptr;
+    const auto item = record ? FindSnapshotTreeItemRecord(*record, _treeItemId) : std::nullopt;
     if (! item)
     {
         return UIA_E_ELEMENTNOTAVAILABLE;
@@ -8824,6 +8864,52 @@ bool AnnounceWindowHostFocus(HWND hwnd) noexcept
 
 // Clients learn that semantic controls were added, removed or replaced, so they drop elements that now report
 // UIA_E_ELEMENTNOTAVAILABLE and navigate again.
+void CALLBACK DeliverNativeStructureInvalidation(PTP_CALLBACK_INSTANCE instance, void* context, PTP_WORK) noexcept
+{
+    auto* target                 = static_cast<WindowHostAccessibilityTarget*>(context);
+    constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
+    wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> retained(target);
+    static_cast<void>(CallbackMayRunLong(instance));
+    const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    const auto uninitialize   = wil::scope_exit([&]() noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    wil::com_ptr_nothrow<IRawElementProviderSimple> root;
+    std::shared_ptr<const AccessibilitySnapshot> snapshot;
+    {
+        const std::scoped_lock lock(target->structureNotificationMutex);
+        target->structureNotificationPending = false;
+        root                                 = std::move(target->structureNotificationProvider);
+        snapshot                             = std::move(target->structureNotificationSnapshot);
+    }
+    if (SUCCEEDED(initialized))
+    {
+        const auto current = target->snapshot.load(std::memory_order_acquire);
+        if (root && snapshot && target->host.load(std::memory_order_acquire) && current && current->alive && UiaClientsAreListening())
+            static_cast<void>(UiaRaiseStructureChangedEvent(root.get(), StructureChangeType_ChildrenInvalidated, nullptr, 0));
+    }
+    else
+    {
+        Debug::Error(L"DxUi: structure notification COM initialization failed ({:08X})", initialized);
+    }
+    {
+        const std::scoped_lock lock(target->structureNotificationMutex);
+        if (target->structureNotificationPending)
+        {
+            // One successor at most, handed off after delivery. Each callback retains its own target; the
+            // predecessor can release its reference even if the successor finishes immediately.
+            static_cast<void>(target->AddRef());
+            SubmitThreadpoolWork(target->structureNotificationWork.get());
+        }
+        else
+        {
+            target->structureNotificationScheduled = false;
+        }
+    }
+}
+
 void RaiseWindowHostStructureInvalidated(HWND hwnd) noexcept
 {
     if (! hwnd || ! UiaClientsAreListening())
@@ -8833,8 +8919,28 @@ void RaiseWindowHostStructureInvalidated(HWND hwnd) noexcept
     if (! target)
         return;
     wil::com_ptr_nothrow<IRawElementProviderSimple> root;
-    if (const auto fragmentRoot = AcquireCanonicalRootProvider(target.get()); fragmentRoot && SUCCEEDED(fragmentRoot.query_to(root.put())))
-        static_cast<void>(UiaRaiseStructureChangedEvent(root.get(), StructureChangeType_ChildrenInvalidated, nullptr, 0));
+    const auto fragmentRoot = AcquireCanonicalRootProvider(target.get());
+    if (! fragmentRoot || FAILED(fragmentRoot.query_to(root.put())))
+        return;
+    const auto snapshot = target.get()->snapshot.load(std::memory_order_acquire);
+    const std::scoped_lock lock(target.get()->structureNotificationMutex);
+    target.get()->structureNotificationPending = true;
+    if (! target.get()->structureNotificationWork)
+    {
+        target.get()->structureNotificationWork.reset(CreateThreadpoolWork(DeliverNativeStructureInvalidation, target.get(), nullptr));
+        if (! target.get()->structureNotificationWork)
+        {
+            Debug::Error(L"DxUi: structure notification work creation failed ({:08X})", HRESULT_FROM_WIN32(GetLastError()));
+            return; // Keep the dirty slot for the next explicit semantic publication; no owner wait or polling.
+        }
+    }
+    target.get()->structureNotificationProvider = std::move(root);
+    target.get()->structureNotificationSnapshot = snapshot;
+    if (target.get()->structureNotificationScheduled)
+        return;
+    target.get()->structureNotificationScheduled = true;
+    static_cast<void>(target.get()->AddRef());
+    SubmitThreadpoolWork(target.get()->structureNotificationWork.get());
 }
 } // namespace
 
@@ -9265,6 +9371,8 @@ void RaiseEmbeddedAccessibilityChanges(WindowHostAccessibilityTarget& target, co
             structureChanged = true;
             continue;
         }
+        if ((before->preparedTreeRows || record.preparedTreeRows) && before->preparedTreeRows != record.preparedTreeRows)
+            structureChanged = true;
         const bool nameChanged  = before->controlAccessibleName != record.controlAccessibleName;
         const bool helpChanged  = before->controlAccessibleHelpText != record.controlAccessibleHelpText;
         const bool textChanged  = before->controlAccessibleText != record.controlAccessibleText;

@@ -9,6 +9,8 @@
 #include <thread>
 #include <wrl/implements.h>
 
+#include "PreparedTreeAccessibilityEvents.h"
+
 namespace
 {
 
@@ -5528,6 +5530,8 @@ void TestAccessibilityLookupTablesAgreeWithAScanOfTheRecords()
 
 void RunAccessibilityTests()
 {
+    DXUI_RUN_TEST(TestPreparedTreeSourceReplacementNotifiesReentrantNativeClient);
+    DXUI_RUN_TEST(TestPreparedTreeSourceBurstRetiresIntermediateSourcesDuringNativeCallback);
     DXUI_RUN_TEST(TestNumericStepperStepButtonsAreNamedForAutomation);
     DXUI_RUN_TEST(TestWindowHostStaleElementCannotActOnAReplacementControl);
     DXUI_RUN_TEST(TestWindowHostReplacedTreeItemsGetNewRuntimeIds);

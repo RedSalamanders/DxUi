@@ -1,0 +1,26 @@
+TREE_ACCESSIBILITY_COST round=0 prepared=0 supported=1 rows=10000 name_units=1024 us=10023.200 allocations=20016 allocation_bytes=41924555 count_calls=22 item_calls=10000 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=1 prepared=0 supported=1 rows=10000 name_units=1024 us=9978.900 allocations=20016 allocation_bytes=41924555 count_calls=22 item_calls=10000 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=2 prepared=0 supported=1 rows=10000 name_units=1024 us=9215.400 allocations=20016 allocation_bytes=41924555 count_calls=22 item_calls=10000 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=3 prepared=0 supported=1 rows=10000 name_units=1024 us=8537.000 allocations=20016 allocation_bytes=41924555 count_calls=22 item_calls=10000 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=4 prepared=0 supported=1 rows=10000 name_units=1024 us=8910.700 allocations=20016 allocation_bytes=41924555 count_calls=22 item_calls=10000 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=5 prepared=0 supported=1 rows=10000 name_units=1024 us=8944.600 allocations=20016 allocation_bytes=41924555 count_calls=22 item_calls=10000 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=6 prepared=0 supported=1 rows=10000 name_units=1024 us=8737.600 allocations=20016 allocation_bytes=41924555 count_calls=22 item_calls=10000 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=7 prepared=0 supported=1 rows=10000 name_units=1024 us=8682.100 allocations=20016 allocation_bytes=41924555 count_calls=22 item_calls=10000 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=8 prepared=0 supported=1 rows=10000 name_units=1024 us=9261.200 allocations=20016 allocation_bytes=41924555 count_calls=22 item_calls=10000 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=9 prepared=0 supported=1 rows=10000 name_units=1024 us=8626.700 allocations=20016 allocation_bytes=41924555 count_calls=22 item_calls=10000 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=10 prepared=0 supported=1 rows=10000 name_units=1024 us=8355.800 allocations=20016 allocation_bytes=41924555 count_calls=22 item_calls=10000 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=11 prepared=0 supported=1 rows=10000 name_units=1024 us=8337.800 allocations=20016 allocation_bytes=41924555 count_calls=22 item_calls=10000 lookup_calls=0
+TREE_ACCESSIBILITY_COST summary rounds=12 semantic_checks=passed
+TREE_ACCESSIBILITY_COST round=0 prepared=1 supported=1 rows=10000 name_units=1024 us=9.300 allocations=15 allocation_bytes=4516 count_calls=22 item_calls=0 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=1 prepared=1 supported=1 rows=10000 name_units=1024 us=4.400 allocations=15 allocation_bytes=4516 count_calls=22 item_calls=0 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=2 prepared=1 supported=1 rows=10000 name_units=1024 us=2.800 allocations=15 allocation_bytes=4516 count_calls=22 item_calls=0 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=3 prepared=1 supported=1 rows=10000 name_units=1024 us=2.400 allocations=15 allocation_bytes=4516 count_calls=22 item_calls=0 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=4 prepared=1 supported=1 rows=10000 name_units=1024 us=2.000 allocations=15 allocation_bytes=4516 count_calls=22 item_calls=0 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=5 prepared=1 supported=1 rows=10000 name_units=1024 us=2.200 allocations=15 allocation_bytes=4516 count_calls=22 item_calls=0 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=6 prepared=1 supported=1 rows=10000 name_units=1024 us=2.200 allocations=15 allocation_bytes=4516 count_calls=22 item_calls=0 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=7 prepared=1 supported=1 rows=10000 name_units=1024 us=2.300 allocations=15 allocation_bytes=4516 count_calls=22 item_calls=0 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=8 prepared=1 supported=1 rows=10000 name_units=1024 us=2.200 allocations=15 allocation_bytes=4516 count_calls=22 item_calls=0 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=9 prepared=1 supported=1 rows=10000 name_units=1024 us=4.200 allocations=15 allocation_bytes=4516 count_calls=22 item_calls=0 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=10 prepared=1 supported=1 rows=10000 name_units=1024 us=3.200 allocations=15 allocation_bytes=4516 count_calls=22 item_calls=0 lookup_calls=0
+TREE_ACCESSIBILITY_COST round=11 prepared=1 supported=1 rows=10000 name_units=1024 us=34.300 allocations=15 allocation_bytes=4516 count_calls=22 item_calls=0 lookup_calls=0
+TREE_ACCESSIBILITY_COST summary rounds=12 semantic_checks=passed
