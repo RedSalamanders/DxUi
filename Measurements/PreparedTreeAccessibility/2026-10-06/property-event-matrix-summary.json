@@ -1,0 +1,181 @@
+{
+  "schema": 1,
+  "source": {
+    "repository": "DxUi",
+    "branch": "codex/p1-prepared-tree-accessibility",
+    "commit": "36c0ff66bd7574038ed2e255f79847a81bf054c7",
+    "pushed": true
+  },
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-prepared-tree-property-event-matrix",
+  "benchmarkInputs": {
+    "Tests/Controls/PreparedTreeAccessibilityEvents.h": "0698F8290F7B1540F7CA98B09D77E7E2F4BA9095AD5086CBA82D2397D850542C",
+    "Tests/Embedded/PreparedTreeAccessibilitySemantics.h": "3E31ED6887FE4D75E13228803A4A7271F1D9100FB44E1FD4AE9586F760765BF6",
+    "Tests/Embedded/PreparedTreeRootLifetimeTests.h": "52AA1E4EE15D2174C989C11246EB7A9BAF776A5DDD91B71E799CCB2A4BC7B230",
+    "Tests/Support/PreparedTreeSemanticFixture.h": "09704EA7FCBE7944FCF4E084D4C0678BA5E46E9284C099AF50391E2CBEAE61DD",
+    "Tests/Embedded/PreparedTreeAccessibilityFixture.h": "0494CF3AF7ED90D4B52816E2983C565F952AC2A6C063DE7C53DB596579F7A8E7"
+  },
+  "scope": "Library functional and configuration qualification for the internal embedded property-event provider lifetime repair. No consumer adoption, paired performance result for this source, production activation, or native ARM64 runtime is claimed.",
+  "matrix": [
+    {
+      "attempt": "matrix-r8",
+      "platform": "x64",
+      "configuration": "Debug",
+      "kind": "Test",
+      "childStartedUtc": "2026-10-06T06:22:29.7339847Z",
+      "childExitedUtc": "2026-10-06T06:25:06.6731747Z",
+      "childExitCode": 0,
+      "suiteReceiptCount": 20,
+      "allSuiteReceiptsPassed": true,
+      "originalHelperPassed": true,
+      "sourceFiles": 200,
+      "productFiles": 10,
+      "diagnosticFiles": 43,
+      "result": ".build/prepared-tree-proof/matrix-r8/x64/Debug/Test/result.json"
+    },
+    {
+      "attempt": "matrix-r9",
+      "platform": "x64",
+      "configuration": "Release",
+      "kind": "Test",
+      "childStartedUtc": "2026-10-06T06:26:16.0753082Z",
+      "childExitedUtc": "2026-10-06T06:29:39.9961149Z",
+      "childExitCode": 0,
+      "suiteReceiptCount": 20,
+      "allSuiteReceiptsPassed": true,
+      "originalHelperPassed": true,
+      "sourceFiles": 200,
+      "productFiles": 10,
+      "diagnosticFiles": 43,
+      "result": ".build/prepared-tree-proof/matrix-r9/x64/Release/Test/result.json"
+    },
+    {
+      "attempt": "matrix-r10",
+      "platform": "x64",
+      "configuration": "ASan Debug",
+      "kind": "Test",
+      "childStartedUtc": "2026-10-06T06:30:57.0031160Z",
+      "childExitedUtc": "2026-10-06T06:35:24.5389778Z",
+      "childExitCode": 0,
+      "suiteReceiptCount": 20,
+      "allSuiteReceiptsPassed": true,
+      "asanActualUseAfterFreeProbeDetected": true,
+      "asanUseAfterFreeProofSha256": "0D11AFE456A1702C7841659815DAA612F30C676B9CD3A7C14081169B6BCAA141",
+      "originalHelperPassed": false,
+      "originalHelperFailure": "The recorder could not hash a concurrently shared ARM64 ASan build log; actual child and suite results were retained.",
+      "independentSupplementVerified": true,
+      "suiteReceipts": [
+        "Foundation", "Embedded", "Grid", "Theme", "Control", "Menu", "MenuExitLifetime", "NewControls", "EditorControls", "TextField", "NativeTextInput", "MultilineText", "ReadOnly", "ComboBox", "Tree", "Tooltip", "Rendering", "Animation", "Accessibility", "WindowHost"
+      ],
+      "result": ".build/prepared-tree-proof/matrix-r10/x64/ASan Debug/Test/result.json"
+    },
+    {
+      "attempt": "matrix-r11",
+      "platform": "ARM64",
+      "configuration": "Debug",
+      "kind": "Build",
+      "childStartedUtc": "2026-10-06T06:35:00.1267014Z",
+      "childExitedUtc": "2026-10-06T06:35:06.6883231Z",
+      "childExitCode": 0,
+      "originalHelperPassed": false,
+      "originalHelperFailure": "The recorder could not read a concurrently shared x64 ASan accessibility test log; actual child result was retained.",
+      "independentSupplementVerified": true,
+      "nativeArmRuntimeClaim": false,
+      "result": ".build/prepared-tree-proof/matrix-r11/ARM64/Debug/Build/result.json"
+    },
+    {
+      "attempt": "matrix-r12",
+      "platform": "ARM64",
+      "configuration": "Release",
+      "kind": "Build",
+      "childStartedUtc": "2026-10-06T06:35:09.7846531Z",
+      "childExitedUtc": "2026-10-06T06:35:16.4281151Z",
+      "childExitCode": 0,
+      "originalHelperPassed": true,
+      "controllerAccepted": false,
+      "controllerRejection": "The controller rejected the singleton diagnostic as a bad diagnostic list.",
+      "independentSupplementVerified": true,
+      "nativeArmRuntimeClaim": false,
+      "result": ".build/prepared-tree-proof/matrix-r12/ARM64/Release/Build/result.json"
+    },
+    {
+      "attempt": "matrix-r13",
+      "platform": "ARM64",
+      "configuration": "ASan Debug",
+      "kind": "Build",
+      "childStartedUtc": "2026-10-06T06:35:19.5431898Z",
+      "childExitedUtc": "2026-10-06T06:35:26.4729744Z",
+      "childExitCode": 0,
+      "originalHelperPassed": true,
+      "independentSupplementVerified": true,
+      "nativeArmRuntimeClaim": false,
+      "result": ".build/prepared-tree-proof/matrix-r13/ARM64/ASan Debug/Build/result.json"
+    }
+  ],
+  "independentActualChildSupplement": {
+    "artifact": ".build/prepared-tree-proof/property-event-supplement-r1",
+    "completedUtc": "2026-10-06T06:42:14.836587+00:00",
+    "scope": "Fresh readback supplement; original failures preserved; existing actual children only",
+    "verifiedCopies": 908,
+    "copyManifestSha256": "EBB63A9DD1AFFB70304926BC908E66D39A49A29B1B83A9939AE505F6A54897EE",
+    "sourceFilesPerAttempt": 200,
+    "productFilesPerAttempt": 10,
+    "diagnosticFilesByAttempt": {
+      "matrix-r10": 44,
+      "matrix-r11": 1,
+      "matrix-r12": 1,
+      "matrix-r13": 1
+    },
+    "attempts": [
+      {
+        "attempt": "matrix-r10",
+        "actualChildExitCode": 0,
+        "originalValidationPassed": false,
+        "supplementVerified": true,
+        "suiteReceiptCount": 20,
+        "allSuiteReceiptsPassed": true,
+        "nativeArmRuntimeClaim": false
+      },
+      {
+        "attempt": "matrix-r11",
+        "actualChildExitCode": 0,
+        "originalValidationPassed": false,
+        "supplementVerified": true,
+        "nativeArmRuntimeClaim": false
+      },
+      {
+        "attempt": "matrix-r12",
+        "actualChildExitCode": 0,
+        "originalValidationPassed": true,
+        "supplementVerified": true,
+        "nativeArmRuntimeClaim": false
+      },
+      {
+        "attempt": "matrix-r13",
+        "actualChildExitCode": 0,
+        "originalValidationPassed": true,
+        "supplementVerified": true,
+        "nativeArmRuntimeClaim": false
+      }
+    ],
+    "result": ".build/prepared-tree-proof/property-event-supplement-r1/result.json",
+    "copyManifest": ".build/prepared-tree-proof/property-event-supplement-r1/copy-manifest.json"
+  },
+  "historicalPairedQualification": {
+    "sourceCommit": "5f1ccdb6b5decde9f8ef6137e8b646dba51555c4",
+    "releaseSceneSets": 3,
+    "confirmedRegressions": 0,
+    "measurement": "Measurements/PreparedTreeAccessibility/2026-10-06/paired-summary.json",
+    "appliesToCurrentSource": false
+  },
+  "consumerQualification": {
+    "exactPinInteractionAt": "r208",
+    "passedInteractions": 18,
+    "totalInteractions": 18,
+    "retry": "failed",
+    "newFixturesExecuted": false,
+    "actualConsumerQualificationComplete": false,
+    "productionActivation": false
+  },
+  "currentSourcePairedNonRegressionComplete": false
+}

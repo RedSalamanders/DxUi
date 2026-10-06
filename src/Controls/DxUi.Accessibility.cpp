@@ -763,6 +763,10 @@ struct WindowHostAccessibilityTarget final
     bool structureNotificationPending   = false;
     bool structureNotificationScheduled = false;
     wil::com_ptr_nothrow<IRawElementProviderSimple> structureNotificationProvider;
+    // Embedded public providers belong to the owner's STA. Resolve a COM-marshalled proxy in the delivery
+    // apartment; never pass the raw provider to a worker. The owner revokes the registration on disconnect.
+    wil::com_ptr_nothrow<IGlobalInterfaceTable> structureNotificationGit;
+    DWORD structureNotificationCookie = 0;
     std::shared_ptr<const AccessibilitySnapshot> structureNotificationSnapshot;
     wil::unique_threadpool_work_nowait structureNotificationWork;
 };
@@ -8908,17 +8912,29 @@ void CALLBACK DeliverNativeStructureInvalidation(PTP_CALLBACK_INSTANCE instance,
             CoUninitialize();
     });
     wil::com_ptr_nothrow<IRawElementProviderSimple> root;
+    wil::com_ptr_nothrow<IGlobalInterfaceTable> git;
+    DWORD cookie = 0;
     std::shared_ptr<const AccessibilitySnapshot> snapshot;
     {
         const std::scoped_lock lock(target->structureNotificationMutex);
         target->structureNotificationPending = false;
         root                                 = std::move(target->structureNotificationProvider);
         snapshot                             = std::move(target->structureNotificationSnapshot);
+        git                                  = target->structureNotificationGit;
+        cookie                               = target->structureNotificationCookie;
     }
     if (SUCCEEDED(initialized))
     {
-        const auto current = target->snapshot.load(std::memory_order_acquire);
-        if (root && snapshot && target->host.load(std::memory_order_acquire) && current && current->alive && UiaClientsAreListening())
+        if (git && cookie != 0)
+            static_cast<void>(git->GetInterfaceFromGlobal(cookie, IID_PPV_ARGS(root.put())));
+        bool alive = false;
+        {
+            const auto current = target->snapshot.load(std::memory_order_acquire);
+            alive              = current && current->alive;
+        }
+        // An embedded invalidation carries no historical property values. Its canonical root resolves the
+        // current epoch on each provider call; a held client callback must not pin intermediate row graphs.
+        if (root && (target->embedded || snapshot) && target->host.load(std::memory_order_acquire) && alive && UiaClientsAreListening())
             static_cast<void>(UiaRaiseStructureChangedEvent(root.get(), StructureChangeType_ChildrenInvalidated, nullptr, 0));
     }
     else
@@ -9381,6 +9397,53 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
 
 namespace
 {
+void QueueEmbeddedStructureInvalidation(WindowHostAccessibilityTarget& target) noexcept
+{
+    // Registration occurs on the provider's STA. The GIT is itself agile; delivery resolves a valid proxy on
+    // its MTA. Neither provider calls nor UIA/client delivery occur while the notification slot is locked.
+    wil::com_ptr_nothrow<IGlobalInterfaceTable> git;
+    DWORD cookie = 0;
+    if (! target.structureNotificationGit)
+    {
+        HRESULT result = CoCreateInstance(CLSID_StdGlobalInterfaceTable, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(git.put()));
+        if (SUCCEEDED(result))
+            result = git->RegisterInterfaceInGlobal(target.rootProvider.get(), __uuidof(IRawElementProviderSimple), &cookie);
+        if (FAILED(result))
+        {
+            Debug::Error(L"DxUi: embedded structure notification marshalling failed ({:08X})", result);
+            return; // No synchronous fallback. A later explicit semantic publication may retry.
+        }
+    }
+    const auto revokeUnused = wil::scope_exit([&]() noexcept
+    {
+        if (cookie != 0)
+            static_cast<void>(git->RevokeInterfaceFromGlobal(cookie));
+    });
+    const std::scoped_lock lock(target.structureNotificationMutex);
+    if (! target.structureNotificationWork)
+    {
+        target.structureNotificationWork.reset(CreateThreadpoolWork(DeliverNativeStructureInvalidation, &target, nullptr));
+        if (! target.structureNotificationWork)
+        {
+            Debug::Error(L"DxUi: embedded structure notification work creation failed ({:08X})", HRESULT_FROM_WIN32(GetLastError()));
+            return;
+        }
+    }
+    if (git)
+    {
+        target.structureNotificationGit    = std::move(git);
+        target.structureNotificationCookie = std::exchange(cookie, 0);
+    }
+    target.structureNotificationSnapshot.reset();
+    target.structureNotificationPending = true;
+    if (! target.structureNotificationScheduled)
+    {
+        target.structureNotificationScheduled = true;
+        static_cast<void>(target.AddRef());
+        SubmitThreadpoolWork(target.structureNotificationWork.get());
+    }
+}
+
 void RaiseEmbeddedAccessibilityChanges(WindowHostAccessibilityTarget& target, const std::shared_ptr<const AccessibilitySnapshot>& previous) noexcept
 {
     const auto current = target.snapshot.load(std::memory_order_acquire);
@@ -9480,7 +9543,7 @@ void RaiseEmbeddedAccessibilityChanges(WindowHostAccessibilityTarget& target, co
         }
     }
     if (connected() && structureChanged)
-        static_cast<void>(UiaRaiseStructureChangedEvent(root.get(), StructureChangeType_ChildrenInvalidated, nullptr, 0));
+        QueueEmbeddedStructureInvalidation(target);
 }
 } // namespace
 
@@ -9575,6 +9638,17 @@ void EmbeddedHost::DisconnectAccessibility() noexcept
     target->host.store(nullptr, std::memory_order_release);
     target->snapshot.store(nullptr, std::memory_order_release);
     target->site.reset();
+    wil::com_ptr_nothrow<IGlobalInterfaceTable> git;
+    DWORD cookie = 0;
+    {
+        const std::scoped_lock lock(target->structureNotificationMutex);
+        target->structureNotificationPending = false;
+        target->structureNotificationSnapshot.reset();
+        git    = std::move(target->structureNotificationGit);
+        cookie = std::exchange(target->structureNotificationCookie, 0);
+    }
+    if (git && cookie != 0)
+        static_cast<void>(git->RevokeInterfaceFromGlobal(cookie));
     auto provider = std::move(target->rootProvider);
     if (provider)
         static_cast<void>(UiaDisconnectProvider(provider.get()));

@@ -341,7 +341,17 @@ is submitted only for a new explicit publication received during delivery. Work 
 failure is logged; no retry timer or polling is introduced. Disconnected targets are checked before delivery, and
 surviving providers still enforce their ordinary stale-target guards. Teardown does not wait for a UIA client:
 each submitted callback retains its target until return, and closing the work object defers its reclamation until
-outstanding callbacks finish. Embedded hosting continues to use its supplied STA/site contract and owns no worker.
+outstanding callbacks finish.
+
+Embedded structure invalidation uses the same bounded, coalesced delivery protocol. The canonical provider stays
+in its supplied STA/site apartment. The owner registers that provider in the COM Global Interface Table once;
+delivery resolves a marshalled proxy in its MTA before calling UIA. No raw embedded provider crosses apartments.
+This invalidation carries no historical property values, so the slot and held delivery retain no row snapshot;
+provider reads resolve the current coherent epoch. Disconnect clears pending work and revokes the registration on
+the owner before releasing the canonical provider. Already resolved proxies enforce the disconnected target
+guards, and teardown never joins client delivery. Registration/work creation failure logs the failed delivery and
+allows a later explicit semantic publication to retry; there is no synchronous delivery fallback. Property/text/
+focus events retain their separate event contracts. See the [COM apartment interface contract](https://learn.microsoft.com/en-us/windows/win32/com/accessing-interfaces-across-apartments).
 
 The canonical root resolves the current published snapshot and does not retain its creation snapshot. Retained
 non-root providers keep their creation snapshot for control-lifetime validation and borrowed-source ownership;
