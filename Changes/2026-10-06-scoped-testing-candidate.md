@@ -1,0 +1,1 @@
+- Keep PrePush obligations local for uncommitted inputs or a candidate that changes during GitHub coverage discovery.
