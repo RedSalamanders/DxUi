@@ -330,6 +330,9 @@ and their acceptance criteria remain library-owned. The runnable complex sample 
 `Samples/ComplexUi/ComplexUiScene.h` scene. Every fixture change requires a new identity and matched fixture hashes.
 A harness-only change (assertions or receipt fields) keeps the workload identity but changes the fixture hash, so the
 matched baseline is measured with the final harness on the previous implementation before the candidate is compared.
+Renamed benchmark headers MUST also overlay any existing legacy include paths in the older measured tree with the
+current payload. Those aliases exist only in the temporary overlay and are restored with it; recorded current inputs
+and the older entrypoint must reach the same fixture bytes.
 
 Application-specific adoption reports, configurations, endpoint workloads and budgets belong in that application's
 repository. Do not store them in DxUi docs or use them as a substitute for independent library evidence. Conversely,

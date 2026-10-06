@@ -128,6 +128,30 @@ Invoke-FixtureCase 'the harness overlay leaves identical files alone, stamps wha
     Assert-True (Test-SameStamp $past (Join-Path $target 'performance.ps1')) 'an untouched file keeps its stamp through the restore'
 }
 
+Invoke-FixtureCase 'original include names receive the current renamed fixture and restore their historical inputs' {
+    param($root)
+    $source = Join-Path $root 'harness'
+    $target = Join-Path $root 'old-revision'
+    $backup = Join-Path $root 'backup'
+    $paths = @('Tests/Embedded/Embedded.Tests.BenchmarkMain.h', 'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h', 'Tests/Support/Support.Tests.HeapDiagnostic.h')
+    $legacy = @('Tests/Embedded/BenchmarkMain.h', 'Tests/Embedded/ComplexUiBenchmark.h', 'Tests/Support/HeapDiagnostic.h')
+    Set-FixtureFile $source $paths[0] "current driver`n"
+    Set-FixtureFile $source $paths[1] "#include `"../Support/Support.Tests.HeapDiagnostic.h`"`ncurrent workload`n"
+    Set-FixtureFile $source $paths[2] "current allocation probe`n"
+    foreach ($path in $legacy) { Set-FixtureFile $target $path "historical $path`n" }
+    Set-FixtureFile $target 'Tests/Embedded/EmbeddedTests.cpp' "#include `"ComplexUiBenchmark.h`"`n#include `"BenchmarkMain.h`"`n"
+    $records = @(Copy-HarnessOverlay -Source $source -Target $target -Paths $paths -BackupDirectory $backup)
+    for ($i = 0; $i -lt $paths.Count; $i++) {
+        Assert-Equal ([IO.File]::ReadAllText((Join-Path $source $paths[$i]))) ([IO.File]::ReadAllText((Join-Path $target $legacy[$i]))) 'the original include reaches the current payload'
+        Assert-Equal ([IO.File]::ReadAllText((Join-Path $source $paths[$i]))) ([IO.File]::ReadAllText((Join-Path $target $paths[$i]))) 'the recorded current path reaches that same payload'
+    }
+    Assert-True (Test-Path -LiteralPath (Join-Path $target 'Tests/Support/Support.Tests.HeapDiagnostic.h')) 'the renamed transitive include resolves in the old revision'
+    Restore-HarnessOverlay -Target $target -Records $records -BackupDirectory $backup
+    foreach ($path in $legacy) { Assert-Equal "historical $path`n" ([IO.File]::ReadAllText((Join-Path $target $path))) 'historical contents return exactly' }
+    foreach ($path in $paths) { Assert-True (-not (Test-Path -LiteralPath (Join-Path $target $path))) 'temporary renamed inputs are removed' }
+    Assert-Equal "#include `"ComplexUiBenchmark.h`"`n#include `"BenchmarkMain.h`"`n" ([IO.File]::ReadAllText((Join-Path $target 'Tests/Embedded/EmbeddedTests.cpp'))) 'the old entrypoint is preserved'
+}
+
 Invoke-FixtureCase 'a restore keeps a directory that gained other files' {
     param($root)
     $source = Join-Path $root 'harness'

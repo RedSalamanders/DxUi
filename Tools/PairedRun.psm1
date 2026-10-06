@@ -9,6 +9,13 @@ $script:PathComparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase
 # The measurement driver and its comparator; the compiled benchmark inputs come from the comparator module, which also
 # hashes them into every receipt.
 $script:HarnessScripts = @('performance.ps1', 'Tools/Compare-Performance.ps1', 'Tools/PerformanceComparison.psm1')
+# Old revisions compile their original include names. Overlay the current payload
+# at those existing paths too, so renaming a fixture cannot leave an old fixture in use.
+$script:HarnessLegacyInputs = [ordered]@{
+    'Tests/Embedded/Embedded.Tests.BenchmarkMain.h' = 'Tests/Embedded/BenchmarkMain.h'
+    'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h' = 'Tests/Embedded/ComplexUiBenchmark.h'
+    'Tests/Support/Support.Tests.HeapDiagnostic.h' = 'Tests/Support/HeapDiagnostic.h'
+}
 
 function Get-PairedHarness {
     <# The files copied from this checkout onto both trees, so one driver, one comparator and one fixture measure them. #>
@@ -79,8 +86,18 @@ function Copy-HarnessOverlay {
     $same = Test-SamePath $Source $Target
     $records = [Collections.Generic.List[object]]::new()
     try {
-        foreach ($path in $Paths) {
-            $from = Join-Path $Source $path
+        $inputs = foreach ($path in $Paths) {
+            [ordered]@{ source = $path; target = $path }
+            if (-not $same -and $script:HarnessLegacyInputs.Contains($path)) {
+                $legacy = $script:HarnessLegacyInputs[$path]
+                if (Test-Path -LiteralPath (Join-Path $Target $legacy) -PathType Leaf) {
+                    [ordered]@{ source = $path; target = $legacy }
+                }
+            }
+        }
+        foreach ($inputFile in $inputs) {
+            $path = $inputFile.target
+            $from = Join-Path $Source $inputFile.source
             $to = Join-Path $Target $path
             if (-not (Test-Path -LiteralPath $from -PathType Leaf)) { throw "Missing benchmark harness input: $path" }
             $action = if ($same) { 'unchanged' }

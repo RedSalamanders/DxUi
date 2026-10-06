@@ -94,8 +94,8 @@ foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver'))
     $moduleProject.SelectSingleNode('//m:IntDir',$ns).InnerText = '$(MSBuildProjectDirectory)\obj\' + $moduleName + '\'
     $compileItems = $moduleProject.SelectSingleNode('//m:ItemGroup[m:ClCompile]',$ns)
     $compileItems.RemoveAll()
-    $sources = @('NativeModule.cpp')
-    if ($moduleName -eq 'NativeModuleDriver') { $sources += 'Driver.cpp' }
+    $sources = @('ConsumerModules.Tests.NativeModule.cpp')
+    if ($moduleName -eq 'NativeModuleDriver') { $sources += 'ConsumerModules.Tests.Driver.cpp' }
     foreach ($source in $sources) {
         $item = $moduleProject.CreateElement('ClCompile',$ns.LookupNamespace('m'))
         $item.SetAttribute('Include',$source)
