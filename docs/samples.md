@@ -22,7 +22,7 @@ The [sample host](../Samples/EmbeddedControls/Main.cpp) owns its WARP device, fi
 It blocks on messages while idle. These examples demonstrate embedding at 96 DPI; full IME/UIA bridging, adaptive
 layout, hardware presentation pacing and physical touch validation remain separate integration work.
 
-The [benchmark](../Tests/Embedded/ComplexUiBenchmark.h) uses that exact complex scene, with deterministic clean/dirty
+The [benchmark](../Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h) uses that exact complex scene, with deterministic clean/dirty
 updates and GPU completion measurement. Run [performance.ps1](../performance.ps1) for FPS and memory receipts;
 opening the interactive sample is not itself a benchmark. See [measurement instructions](performance.md) and
 [retained independent evidence](../Measurements/README.md).

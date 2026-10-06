@@ -30,6 +30,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   validation:
+    needs: windows-tooling
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -37,6 +39,23 @@ jobs:
       # five validators and the tooling tests and reports every failure before it fails.
       - shell: pwsh
         run: ./validate.ps1
+      # Keep the existing validation check as the acceptance surface for both host qualifications.
+      - if: ${{ always() }}
+        shell: pwsh
+        env:
+          WINDOWS_TOOLING_RESULT: ${{ needs.windows-tooling.result }}
+        run: |
+          if ($env:WINDOWS_TOOLING_RESULT -ne 'success') { throw "Windows tooling did not pass: $env:WINDOWS_TOOLING_RESULT" }
+  # Windows discovery/path/process branches need their own host qualification, once rather than once per native profile.
+  windows-tooling:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - shell: pwsh
+        run: ./validate.ps1
+      - shell: pwsh
+        run: ./Tools/tests/Test-AsanRuntime.ps1
   # Whether this run needs the six native jobs (Tools/Get-NativeScope.ps1). A push to main and a manual run always do; a pull
   # request does unless every path it changes is documentation, which the validation job above checks. When this job fails,
   # the native jobs run anyway: nothing passes unbuilt because its scope could not be read. A documentation-only pull request
@@ -89,7 +108,8 @@ jobs:
       # watchdog cannot reach (Foundation, Embedded, the consumer) while the job still has time to upload its logs.
       - shell: pwsh
         timeout-minutes: 25
-        run: ./test.ps1 -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
+        # Tooling has one qualification per host. Native runner/filter/watchdog checks remain per profile.
+        run: ./test.ps1 -Full -SkipTooling -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
       - shell: pwsh
         timeout-minutes: 15
         run: ./test-consumer.ps1 -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
@@ -100,7 +120,8 @@ jobs:
       - name: Characterize menu resource scaling without capture
         if: ${{ !cancelled() && matrix.platform == 'x64' && matrix.configuration == 'Release' }}
         shell: pwsh
-        run: ./test.ps1 -Configuration Release -Platform x64 -SkipBuild -Suites MenuResourceScaling,MenuTextLayoutResources
+        # The hosted runner owns its desktop; local foreground fixtures still require the person's lease.
+        run: ./test.ps1 -Configuration Release -Platform x64 -SkipBuild -SkipTooling -Suites MenuResourceScaling,MenuTextLayoutResources
       # x64 Release also publishes into this checkout's docs/gallery, uploaded below for review. The manual "Publish
       # docs gallery" workflow regenerates it and commits it to a branch.
       - shell: pwsh

@@ -15,7 +15,7 @@ for a modest selection in a long list, which this record's all-or-half selection
 the refinement is left as it was recorded, with a note where it is wrong or superseded.
 
 The opt-in `DxUi.EmbeddedTests.exe --benchmark-grid-selection <report.json>` (fixture `dxui-grid-selection-v1`,
-[`GridSelectionBenchmark.h`](../../../Tests/Embedded/GridSelectionBenchmark.h)) measured both builds. It is synthetic and
+[`GridSelectionBenchmark.h`](../../../Tests/Embedded/Embedded.Tests.GridSelectionBenchmark.h)) measured both builds. It is synthetic and
 library-owned: no consumer repository, plugin, settings or service, and only the public `Grid` and `GridSelectionModel`
 interfaces, so one source measures any revision. Its report has five parts:
 

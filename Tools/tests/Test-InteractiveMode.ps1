@@ -79,7 +79,7 @@ function Get-OutputFiles {
 }
 
 Invoke-TestCase 'the interactive suites are the suites DxUi.ControlTests.exe runs with real focus' {
-    $runner = [IO.File]::ReadAllText((Join-Path $repository 'Tests/Controls/DxUiTests.cpp'))
+    $runner = [IO.File]::ReadAllText((Join-Path $repository 'Tests/Controls/DxUi.Tests.Runner.cpp'))
     $lambda = [regex]::Match($runner, '(?s)suiteCanActivate\s*=\s*\[\]\(const char\* name\) noexcept\s*\{(.*?)\};')
     Assert-True $lambda.Success 'the runner decides which suites may activate windows'
     $activating = Get-NamesIn $lambda.Groups[1].Value '_stricmp\(name, "(\w+)"\)'
@@ -195,7 +195,7 @@ Invoke-TestCase 'what is wrong with a finished lease is said in a message' {
     Assert-True ($problems.Count -eq 1 -and $problems[0].Contains('focus, cursor failed') -and $problems[0].Contains('WindowsTerminal.exe')) "a part that was not given back is named, with the window: $problems"
 }
 Invoke-TestCase 'the exit codes of the lease are the ones the PowerShell side reads' {
-    $header = [IO.File]::ReadAllText((Join-Path $repository 'Tests/Support/InteractiveLease.h'))
+    $header = [IO.File]::ReadAllText((Join-Path $repository 'Tests/Support/Support.Tests.InteractiveLease.h'))
     $namespace = [regex]::Match($header, '(?s)namespace LeaseExit\s*\{(.*?)\} // namespace LeaseExit')
     Assert-True $namespace.Success 'the exit codes are in one namespace'
     $cpp = [ordered]@{}
@@ -224,9 +224,11 @@ Invoke-TestCase 'an interactive run is settled before anything is built or run' 
     $refusal = $text.IndexOf('Get-DxUiInteractiveRefusal')
     $selection = $text.IndexOf('Resolve-DxUiInteractiveSuites')
     Assert-True ($selection -gt 0 -and $refusal -gt $selection) 'the suites are checked first, then the environment'
-    foreach ($later in @('Test-ConsumerUpdate.ps1', 'Invoke-ToolingTests.ps1', "'build.ps1'", 'performance.ps1', 'Test-TestWatchdog.ps1')) {
+    foreach ($later in @('Invoke-ToolingTests.ps1', "'build.ps1'", 'performance.ps1', 'Test-TestWatchdog.ps1')) {
         Assert-True ($text.IndexOf($later) -gt $refusal) "$later runs after the refusal"
     }
+    $tooling = Get-Content (Join-Path $repository 'Tools/tests/Invoke-ToolingTests.ps1') -Raw
+    Assert-True ($tooling.Contains('Test-ConsumerUpdate.ps1')) 'consumer-update checks remain in the portable tooling aggregation'
     $nativeCheck = $text.IndexOf('Test-DxUiDesktopAvailable')
     Assert-True ($nativeCheck -gt $text.IndexOf("'build.ps1'") -and $nativeCheck -lt $text.IndexOf('performance.ps1')) 'the native desktop check follows the build and comes before the benchmark and the suites'
     Assert-True ($text.IndexOf('Invoke-DxUiInteractiveLease') -gt $text.IndexOf('performance.ps1')) 'the lease starts after everything else the run checks, so the desktop is held only for the suites'

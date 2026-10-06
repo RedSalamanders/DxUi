@@ -66,7 +66,7 @@ Invoke-TestCase 'no runner calls a test directly, so the filter can select every
 Invoke-TestCase 'without the filter a suite runs every test its runner registers' {
     $run = Invoke-Runner $grid
     Assert-Equal 0 $run.Exit 'the unfiltered Grid suite passes'
-    $source = [IO.File]::ReadAllText((Join-Path $repo 'Tests/Controls/DxUiTests.Grid.cpp'))
+    $source = [IO.File]::ReadAllText((Join-Path $repo 'Tests/Controls/DxUi.Tests.Grid.cpp'))
     $registered = @([regex]::Matches($source, '(?m)^    DXUI_RUN_TEST\((\w+)\);\r?$') | ForEach-Object { $_.Groups[1].Value })
     Assert-True ($registered.Count -gt 0) 'the Grid runner registers tests with DXUI_RUN_TEST'
     Assert-Equal ($registered -join ',') ($run.Started -join ',') 'every registered Grid test starts, in order'

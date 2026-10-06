@@ -292,7 +292,7 @@ and in a random order it cannot (a binary search is only as cheap as the first),
 after Ctrl+A and after each way back from it (Clear, a click, a Shift+click, a data change), counted exactly by the executable's
 allocation hook, the time and C++ heap bytes of the selection model's mutators, and `PreserveOrdered` over 200,000 rows with a
 few to 5,000 clicked. It also reports how many rows the default complex-UI scene's Grid holds selected. Its entry is dispatched
-outside `BenchmarkMain.h`, so the complex-UI fixture's hashed inputs are unchanged. Compare it only between builds of one
+outside `Embedded.Tests.BenchmarkMain.h`, so the complex-UI fixture's hashed inputs are unchanged. Compare it only between builds of one
 harness, as an interleaved paired set (a record of three builds runs them as A, B, C, C, B, A); it supplements the default
 benchmark for a change to selection and does not replace it.
 
@@ -330,6 +330,9 @@ and their acceptance criteria remain library-owned. The runnable complex sample 
 `Samples/ComplexUi/ComplexUiScene.h` scene. Every fixture change requires a new identity and matched fixture hashes.
 A harness-only change (assertions or receipt fields) keeps the workload identity but changes the fixture hash, so the
 matched baseline is measured with the final harness on the previous implementation before the candidate is compared.
+Renamed benchmark headers MUST also overlay any existing legacy include paths in the older measured tree with the
+current payload. Those aliases exist only in the temporary overlay and are restored with it; recorded current inputs
+and the older entrypoint must reach the same fixture bytes.
 
 Application-specific adoption reports, configurations, endpoint workloads and budgets belong in that application's
 repository. Do not store them in DxUi docs or use them as a substitute for independent library evidence. Conversely,

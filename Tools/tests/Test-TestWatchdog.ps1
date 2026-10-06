@@ -179,7 +179,7 @@ Invoke-TestCase 'test.ps1 surfaces the timeout: the exit code and the TIMEOUT li
 Invoke-TestCase 'every driver thread of the Menu suite starts with the guard that closes its menu when it fails' {
     # A blocking ContextMenu::Show returns only when the menu closes and the driver thread closes it, so a driver that gives up
     # before it has a popup would leave the owner thread hanging: the guard first, before the driver's first wait.
-    $source = [IO.File]::ReadAllText((Join-Path $repo 'Tests/Controls/DxUiTests.Menu.cpp'))
+    $source = [IO.File]::ReadAllText((Join-Path $repo 'Tests/Controls/DxUi.Tests.Menu.cpp'))
     $drivers = [regex]::Matches($source, '(?m)^([ ]*)std::thread driver\(\[&\]\r?\n\1\{\r?\n(?<first>[^\r\n]*)')
     Assert-True ($drivers.Count -gt 0) 'the scan finds the driver threads'
     Assert-Equal ([regex]::Matches($source, 'std::thread driver\(').Count) $drivers.Count 'the scan sees every driver thread'

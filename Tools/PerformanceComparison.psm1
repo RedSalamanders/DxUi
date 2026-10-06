@@ -16,7 +16,7 @@ $script:Metrics = [ordered]@{
 $script:Invariant = [Globalization.CultureInfo]::InvariantCulture
 # The compiled inputs performance.ps1 hashes into a receipt's benchmarkSha256, in that hash's order. A paired run copies
 # them, with the driver and this comparator, onto both trees.
-$script:BenchmarkInputs = @('Tests/Embedded/BenchmarkMain.h', 'Tests/Embedded/ComplexUiBenchmark.h', 'Tests/Support/HeapDiagnostic.h',
+$script:BenchmarkInputs = @('Tests/Embedded/Embedded.Tests.BenchmarkMain.h', 'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h', 'Tests/Support/Support.Tests.HeapDiagnostic.h',
     'Samples/ComplexUi/ComplexUiScene.h', 'Samples/EmbeddedControls/GraphicsFixture.h')
 # The library inputs a receipt's sourceFingerprint covers.
 $script:FingerprintPaths = @('src', 'include', 'Build', 'Directory.Build.props', 'Directory.Build.targets', 'vcpkg.json', 'vcpkg-tool.json')

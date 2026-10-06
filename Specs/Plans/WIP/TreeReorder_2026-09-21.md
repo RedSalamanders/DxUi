@@ -69,7 +69,7 @@ Normative text lives in [Controls and layout](../../UI/UI_ControlsAndLayout.md#t
 - The embedded selection events (`EmbeddedHost::UpdateAccessibility` raising the same `RaiseTreeSelectionEvents`, now
   `RaiseSelectionEvents`) were
   proved on the window-host path only, for lack of a UI Automation client that reaches an embedded host's provider.
-  `Tests/Embedded/EmbeddedUiaBridge.h` is that harness now, and
+  `Tests/Embedded/Embedded.Tests.EmbeddedUiaBridge.h` is that harness now, and
   `TestEmbeddedMultiSelectTreeRaisesItsSelectionEventsToAClientOfTheApplicationsWindow` hears the selected, added, removed
   and invalidated events an embedded view raises, and silence for a publish that changed no selection.
   `TestEmbeddedTreeMultiSelect` still proves the patterns, the state and the callbacks.

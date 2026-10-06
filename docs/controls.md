@@ -105,7 +105,7 @@ slider->SetOnChange([&model](DxUi::SliderChange change) {
 Keep preview separate from durable application commands. An asynchronous backend acknowledgement is separate from
 local intent. Keep model/callback captures alive, and do not reuse borrowed control pointers after root replacement.
 The [embedded scene](../Samples/EmbeddedControls/EmbeddedScene.h) is a complete typed event example;
-[embedded tests](../Tests/Embedded/EmbeddedTests.cpp) cover drag cancellation and root changes during callbacks.
+[embedded tests](../Tests/Embedded/Embedded.Tests.Embedded.cpp) cover drag cancellation and root changes during callbacks.
 
 ## Layout and data-backed controls
 
@@ -177,8 +177,8 @@ A grid keeps its layouts only while it paints: hidden (itself, under a hidden pa
 embedded view), removed from its host or given another model, it returns them all, and showing it shapes only the cells
 it then shows.
 See [the benchmark model](../Samples/ComplexUi/ComplexUiScene.h),
-[grid tests](../Tests/Controls/DxUiTests.Grid.cpp), [tree tests](../Tests/Controls/DxUiTests.Tree.cpp), and
-[gallery construction](../Tests/Controls/DxUiTests.Gallery.cpp) for concrete configurations and variants.
+[grid tests](../Tests/Controls/DxUi.Tests.Grid.cpp), [tree tests](../Tests/Controls/DxUi.Tests.Tree.cpp), and
+[gallery construction](../Tests/Controls/DxUi.Tests.Gallery.cpp) for concrete configurations and variants.
 
 When overriding `OnFocusChanged` in a derived control, call the base implementation before
 handling application-specific detail. It acknowledges `HasFocus`, which drives visible focus and
@@ -240,5 +240,5 @@ drag can carry it. After a model change call `NotifyDataChanged`: selected rows 
 selection (a collapsed group deselects the rows it hides, and expanding it does not reselect them). `SetSelectedItemIds`
 restores a selection without a callback. The selection is a `GridSelectionModel`, so Ctrl+click, Shift+click and Ctrl+A
 follow Grid; Ctrl with a movement key moves the focus and Ctrl+Space toggles it, as in a list view. The
-[gallery](gallery/README.md) shows a tree with several rows selected, and the [tree tests](../Tests/Controls/DxUiTests.Tree.cpp)
+[gallery](gallery/README.md) shows a tree with several rows selected, and the [tree tests](../Tests/Controls/DxUi.Tests.Tree.cpp)
 cover each gesture.

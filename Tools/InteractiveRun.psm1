@@ -26,7 +26,7 @@ $script:LeaseOverheadSeconds = 20
 # What a run's environment says about who is there. A CI job has no one at its desktop, and its hosted desktop is not a person's.
 $script:CiVariables = @('CI', 'GITHUB_ACTIONS', 'TF_BUILD', 'APPVEYOR', 'BUILDKITE', 'JENKINS_URL', 'TEAMCITY_VERSION')
 
-# The exit codes of DxUi.InteractiveLease.exe (DxUi::TestSupport::LeaseExit in Tests/Support/InteractiveLease.h).
+# The exit codes of DxUi.InteractiveLease.exe (DxUi::TestSupport::LeaseExit in Tests/Support/Support.Tests.InteractiveLease.h).
 $script:LeaseExit = [ordered]@{
     Passed = 0; ChildFailed = 1; Usage = 2; NoDesktop = 20; Declined = 21; Busy = 22; NoWarning = 23; LaunchFailed = 24; NotRestored = 25; Interrupted = 26
 }

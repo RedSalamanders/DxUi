@@ -62,3 +62,5 @@ Start with [AGENTS.md](AGENTS.md), [spec authority](Specs/README.md), and [activ
 Every repository tool is a PowerShell 7 script: build, test, formatting, the validators and the tooling tests.
 Historical source attribution is in [the import archive](Specs/Done/SourceImport/README.md); this repository is the root and home
 of DxUi, with no upstream source tree and no dependency on either application checkout.
+
+Affected iteration, full local coverage, exact reuse and pending PR obligations are described in [the testing guide](Tests/README.md).

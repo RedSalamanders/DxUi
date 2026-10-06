@@ -80,3 +80,7 @@ DxUi's own suites that take real focus (`Menu`, `NativeTextInput` and the two me
 `test.ps1 -Interactive`, which refuses without an interactive desktop, asks first, warns while it runs and restores the foreground
 window, keyboard focus and pointer however the run ends. Run it, or any of those suites, only when the person at the desktop has
 agreed to the time; otherwise leave them out of `-Suites`.
+
+## Scoped testing policy (2026-10-05)
+
+The user's accepted workflow replaces unconditional full-test iteration. Use `Test-Changes.ps1 -Explain` and the affected default while editing; use `-Mode PrePush` to account for full local/PR coverage without duplicate identical obligations. A forthcoming enabled CI gate is pending acceptance, never an already passed result. Explicit Full remains available. Active native test files use `Scope.Tests.Something.h/.cpp` and the native file inventory. Follow [Specs/Testing/Testing_Validation.md](Specs/Testing/Testing_Validation.md) and [the test guide](Tests/README.md). Focus-taking work requires agreement to the time; no scoped pass closes that gate. Build/runtime/platform qualification still applies to changed behavior, with exact prior evidence reusable only under the owning contract.
