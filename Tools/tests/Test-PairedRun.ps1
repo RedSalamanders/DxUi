@@ -205,10 +205,10 @@ Invoke-TestCase 'repetitions repeat the interleaved pass and keep every pass its
 Invoke-TestCase 'only an overlay that changed a compiled input forbids reusing a build' {
     $records = @(
         [ordered]@{ path = 'performance.ps1'; action = 'replaced' }
-        [ordered]@{ path = 'Tests/Embedded/ComplexUiBenchmark.h'; action = 'replaced' }
+        [ordered]@{ path = 'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h'; action = 'replaced' }
         [ordered]@{ path = 'Samples/ComplexUi/ComplexUiScene.h'; action = 'created' }
-        [ordered]@{ path = 'Tests/Embedded/BenchmarkMain.h'; action = 'unchanged' })
-    Assert-Equal 'Tests/Embedded/ComplexUiBenchmark.h Samples/ComplexUi/ComplexUiScene.h' (@(Get-OverlayCompiledChanges $records) -join ' ') 'compiled changes'
+        [ordered]@{ path = 'Tests/Embedded/Embedded.Tests.BenchmarkMain.h'; action = 'unchanged' })
+    Assert-Equal 'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h Samples/ComplexUi/ComplexUiScene.h' (@(Get-OverlayCompiledChanges $records) -join ' ') 'compiled changes'
     Assert-Equal 0 @(Get-OverlayCompiledChanges @($records[0], $records[3])).Count 'scripts and unchanged inputs need no rebuild'
 }
 

@@ -1,6 +1,6 @@
 # What test.ps1 tells the developer about a suite's run: which tests a missing capability skipped, and when its executable exits
 # nonzero, its exit code, the TIMEOUT line when the runner's watchdog ended it (a hung test the runner cannot unwind; see
-# Tests/Support/TestWatchdog.h) and the last lines of its log.
+# Tests/Support/Support.Tests.TestWatchdog.h) and the last lines of its log.
 Set-StrictMode -Version Latest
 
 # The exit code of a run the watchdog ended, as DxUi.ControlTests.exe returns it (timeout(1)'s code).

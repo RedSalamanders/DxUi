@@ -22,3 +22,5 @@ suites, only when the person at the desktop has agreed to the time; leave them o
 Validate changed guidance with `validate-skills.ps1` and `validate-specs.ps1`. For source/build work run the affected
 `test.ps1` configurations and the additional validation named by the contract. Supported capabilities are recorded
 in `capabilities.json`; library tests do not replace consumer product qualification or deferred native-platform/IME/AT coverage.
+
+Ordinary iteration uses `Test-Changes.ps1 -Explain` followed by the affected default. Full/PrePush are explicit; use the owning scoped-testing contract to account for matching CI obligations and exact local evidence instead of repeating unchanged identical tests. Pending CI or foreground/platform acceptance is not a repository pass.

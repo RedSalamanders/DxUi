@@ -121,12 +121,12 @@ Invoke-FixtureCase 'a malformed command line is a usage error before anything is
 }
 Invoke-TestCase 'the confirmation defaults to Cancel, and cancels itself when nobody answers' {
     # The self-test proves each answer; what no run can observe is which button is the default, so that is read from the source.
-    $dialog = [IO.File]::ReadAllText((Join-Path $repo 'Tests/InteractiveLease/Confirmation.h'))
+    $dialog = [IO.File]::ReadAllText((Join-Path $repo 'Tests/InteractiveLease/InteractiveLease.Tests.Confirmation.h'))
     Assert-True ($dialog -match 'nDefaultButton\s*=\s*IDCANCEL;') 'Cancel is the default button: a key pressed by accident as the dialog appears cannot start a takeover'
     Assert-True ($dialog -match 'TDF_ALLOW_DIALOG_CANCELLATION') 'and Esc and the close button cancel'
     Assert-True ($dialog -match 'dwCommonButtons\s*=\s*TDCBF_CANCEL_BUTTON;') 'with a Cancel button of its own'
     Assert-True ($dialog -match 'Confirmation::TimedOut;\s*SendMessageW\(dialog, TDM_CLICK_BUTTON, IDCANCEL') 'a confirmation that runs out of time clicks Cancel'
-    $main = [IO.File]::ReadAllText((Join-Path $repo 'Tests/InteractiveLease/Main.cpp'))
+    $main = [IO.File]::ReadAllText((Join-Path $repo 'Tests/InteractiveLease/InteractiveLease.Tests.Runner.cpp'))
     Assert-True ($main -match 'unsigned confirmSeconds\s*=\s*120u;') 'the lease waits two minutes for an answer unless told otherwise'
     $module = [IO.File]::ReadAllText((Join-Path $repo 'Tools/InteractiveRun.psm1'))
     Assert-True ($module -match '\[int\] \$ConfirmSeconds = 120') 'and so does the script that starts it, which never passes a longer time'
@@ -135,8 +135,8 @@ Invoke-TestCase 'the confirmation defaults to Cancel, and cancels itself when no
 Invoke-TestCase 'the lease ends only the processes it started' {
     # The repository's rule for every tool: never end an application that was launched independently, never find one by name. The
     # lease starts its children itself, ends exactly them through their job or handle, and has no way to name anything else.
-    $sources = foreach ($path in @('Tests/InteractiveLease/Main.cpp', 'Tests/InteractiveLease/ChildProcess.h', 'Tests/InteractiveLease/Confirmation.h', 'Tests/InteractiveLease/WarningBanner.h',
-            'Tests/Support/DesktopLease.h', 'Tests/Support/InteractiveLease.h')) { [pscustomobject]@{ Path = $path; Text = [IO.File]::ReadAllText((Join-Path $repo $path)) } }
+    $sources = foreach ($path in @('Tests/InteractiveLease/InteractiveLease.Tests.Runner.cpp', 'Tests/InteractiveLease/InteractiveLease.Tests.ChildProcess.h', 'Tests/InteractiveLease/InteractiveLease.Tests.Confirmation.h', 'Tests/InteractiveLease/InteractiveLease.Tests.WarningBanner.h',
+            'Tests/Support/Support.Tests.DesktopLease.h', 'Tests/Support/Support.Tests.InteractiveLease.h')) { [pscustomobject]@{ Path = $path; Text = [IO.File]::ReadAllText((Join-Path $repo $path)) } }
     foreach ($source in $sources) {
         foreach ($match in [regex]::Matches($source.Text, 'TerminateProcess\(([^,]+),')) {
             Assert-Equal 'process.hProcess' $match.Groups[1].Value.Trim() "$($source.Path) ends only the process it created"

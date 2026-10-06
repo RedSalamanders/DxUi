@@ -45,7 +45,7 @@ native CI run executes them.
   `TestGridMultilineTrimmedCellsPaintTheSameAfterDeviceLoss` (the pixels before and after each of several losses are equal
   and no layout is made again); `TestGridMultilineMovedBetweenHostsMatchesAFreshOne` (a grid moved to a host with another
   device, dpi, theme and density arranges and paints its cells like one created there, through the shared moved-control
-  fixtures in `Tests/Controls/DxUiTestMovedControls.h`).
+  fixtures in `Tests/Controls/Controls.Tests.DxUiTestMovedControls.h`).
 - Accessibility: `TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues` (Name, Value and ValuePattern of trimmed
   cells, a 100,000-unit one included, equal the model's units, in a left-to-right and a right-to-left grid) and
   `TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport` (a cell the viewport cuts keeps its whole Name and Value
@@ -106,7 +106,7 @@ Main `6f769ab` (#27's disclosure UIA setup allowance and #24's described native 
 into this slice. Both branches changed the complex-UI benchmark. The merged harness keeps every
 multiline scenario and main's `--benchmark-retention` mode. Every fixture now records main's
 memory phases; the retention fixtures take their hidden phase after the scroll passes. Grid heap
-walks call main's shared `Tests/Support/HeapDiagnostic.h`, which samples every heap before writing,
+walks call main's shared `Tests/Support/Support.Tests.HeapDiagnostic.h`, which samples every heap before writing,
 and `performance.ps1` hashes that helper as a benchmark input. Harness hashes therefore differ from
 every earlier grid receipt, so the paired multiline benchmark must measure both sides on this
 harness. The merge changes C++ test code, so it needs its own native CI run; the pull request

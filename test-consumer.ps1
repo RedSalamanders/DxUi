@@ -83,8 +83,8 @@ if ($LASTEXITCODE -ne 0) { throw 'The relocated independent complex sample faile
 if ($LASTEXITCODE -ne 0) { throw 'The relocated text-service consumer failed.' }
 # Independently link the same archive into an executable and two plugin-like DLLs. No DxUi C++
 # state crosses their C ABI; native class dispatch and animation must remain in the owning module.
-Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/NativeModule.cpp') -Destination $consumer
-Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/Driver.cpp') -Destination $consumer
+Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/ConsumerModules.Tests.NativeModule.cpp') -Destination $consumer
+Copy-Item -LiteralPath (Join-Path $checkout 'Tests/ConsumerModules/ConsumerModules.Tests.Driver.cpp') -Destination $consumer
 foreach ($moduleName in @('NativeModuleA','NativeModuleB','NativeModuleDriver')) {
     $moduleProject = [xml]$project
     $ns = [Xml.XmlNamespaceManager]::new($moduleProject.NameTable)

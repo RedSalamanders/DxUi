@@ -180,7 +180,7 @@ Release, 320 in Debug where the debug STL allocates container proxies; clean rou
 surface payload and replacement peak, process private bytes and working set
 with sampled peaks and private-byte growth. Source commit/content fingerprint, executable/fixture hashes, compiler,
 machine, CPU, OS, WARP binary version, active power policy, native architecture and configuration make the comparison
-auditable. The fixture fingerprint covers the minimal benchmark entry (`BenchmarkMain.h`), benchmark, shared
+auditable. The fixture fingerprint covers the minimal benchmark entry (`Embedded.Tests.BenchmarkMain.h`), benchmark, shared
 sample scene and graphics helper; receipts declare `workloadOwner: DxUi`. Functional tests run in a separate
 non-inlined function so their stack frame is not part of benchmark entry. Changes to those inputs invalidate earlier fixture comparisons, so measure a fresh baseline with the final harness on the previous implementation before comparing a candidate. `-SkipBuild` is recorded; the caller is responsible for matching existing binaries to the recorded sources.
 
@@ -269,7 +269,7 @@ a full selection that draw alike), times `IsSelected` per call over selections o
 an order a processor learns and in a random one it cannot, counts the C++ heap bytes a selection model holds after Ctrl+A
 and after each way back from it, times the selection model's mutators with their C++ heap bytes and `PreserveOrdered` over
 a long list, and reports how many rows the default complex-UI scene's Grid
-holds selected (none). Its entry is dispatched outside `BenchmarkMain.h`, so the complex-UI fixture's hashed inputs do not change.
+holds selected (none). Its entry is dispatched outside `Embedded.Tests.BenchmarkMain.h`, so the complex-UI fixture's hashed inputs do not change.
 Compare builds of the one harness as an interleaved A, B, B, A set (A, B, C, C, B, A for three). The
 [record of the sorted selection copy](../Measurements/GridSelection/2026-10-01/README.md) does so, ten runs per side
 twice and then for three builds: `IsSelected` costs 9 to 16 ns from 1,500 to 1,000,000 selected ids when a processor can

@@ -90,7 +90,7 @@ Keep each module loaded while its hosts, windows, callbacks or UI-thread resourc
 
 Call `Detach()` before the caller-owned HWND and borrowed application state are destroyed. Do not call native
 `Attach(HWND)` on `EmbeddedHost::Controls()`. The
-[native fixtures](../Tests/Controls/DxUiTestHelpers.h) show real window creation, forwarding and teardown.
+[native fixtures](../Tests/Controls/Controls.Tests.DxUiTestHelpers.h) show real window creation, forwarding and teardown.
 
 ## Device recovery and ownership
 
@@ -165,15 +165,15 @@ size matches Prepare's pixel size; GetAccessibilityProvider returns an owned COM
 preparation/placement/focus with UpdateAccessibility; unchanged updates allocate nothing. Hide/detach/device loss
 disconnect surviving providers. Keep provider code mapped while external COM references may survive.
 
-Tests/Embedded/EmbeddedAccessibilityTests.h is an executable example using only public control/hosting interfaces:
+Tests/Embedded/Embedded.Tests.EmbeddedAccessibility.h is an executable example using only public control/hosting interfaces:
 toggle, slider and Unicode field patterns; negative-origin 144-DPI geometry; COM cross-apartment marshaling; parent
 and focus callbacks; distinct identities after replacement; and cleanup. It is a synthetic component example,
 not a screen-reader acceptance claim or completed RedXe adapter.
 
-Tests/Embedded/EmbeddedUiaBridge.h is the application's side as a test plays it: a window whose UIA provider (it hosts the
+Tests/Embedded/Embedded.Tests.EmbeddedUiaBridge.h is the application's side as a test plays it: a window whose UIA provider (it hosts the
 window, and uses COM threading as the view's providers do) has the view's root element for its only child, with the view's
-site adapted to it. Tests/Embedded/EmbeddedUiaTests.h attaches views of one tree or one grid to it and subscribes an
-in-process UIA client (Tests/Support/UiaTestClient.h, also used by the control suites) to the window: the client walks from
+site adapted to it. Tests/Embedded/Embedded.Tests.EmbeddedUia.h attaches views of one tree or one grid to it and subscribes an
+in-process UIA client (Tests/Support/Support.Tests.UiaTestClient.h, also used by the control suites) to the window: the client walks from
 the application's element to the control's parts and back, and hears the events the view raises on publishing a change,
 among them the selection events of a tree (one selected item or several) and of a grid's rows, which UpdateAccessibility
 raises for every change of a selection since the last update. An embedded view's root is never collapsed into its only

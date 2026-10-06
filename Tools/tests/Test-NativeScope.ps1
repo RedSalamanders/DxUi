@@ -60,7 +60,7 @@ Invoke-TestCase 'documentation alone leaves the native jobs out, whichever kind 
 }
 
 Invoke-TestCase 'every other path needs the native jobs, a path the rules do not know included' {
-    $paths = @('src/Controls/DxUi.Grid.cpp', 'include/DxUi/DxUi.h', 'Tests/Controls/DxUiTests.Grid.cpp', 'Tests/Support/UiaTestClient.h',
+    $paths = @('src/Controls/DxUi.Grid.cpp', 'include/DxUi/DxUi.h', 'Tests/Controls/DxUi.Tests.Grid.cpp', 'Tests/Support/Support.Tests.UiaTestClient.h',
         'Samples/ComplexUi/ComplexUiScene.h', 'Build/DxUi.Consumer.props', 'Directory.Build.props', 'DxUi.sln', 'vcpkg.json',
         'vcpkg-configuration.json', 'capabilities.json', 'test.ps1', 'test-consumer.ps1', 'build.ps1', 'gallery.ps1', 'vcpkg-install.ps1',
         'validate.ps1', 'Tools/SuiteFailure.psm1', 'Tools/NativeScope.psm1', 'Tools/Get-NativeScope.ps1', 'Tools/tests/Test-NativeScope.ps1',
@@ -179,7 +179,12 @@ Invoke-TestCase 'the native jobs follow the scope job, and run when it cannot de
     $native = Get-WorkflowJob 'native'
     Assert-True ($native -cmatch '(?m)^    needs: native-scope\s*$') 'the native jobs wait for the scope'
     Assert-True $native.Contains("if: `${{ !cancelled() && needs.native-scope.outputs.native != 'false' }}") 'and are left out only by a decision: a failed scope runs them, a cancelled run does not'
-    foreach ($job in @('validation', 'paired-benchmark')) { Assert-True (-not ((Get-WorkflowJob $job) -cmatch '(?m)^    needs:')) "$job needs no other job, so the native scope cannot skip it" }
+    $validation = Get-WorkflowJob 'validation'
+    Assert-True ($validation -cmatch '(?m)^    needs: windows-tooling\s*$') 'the existing validation check accounts for the Windows qualification'
+    Assert-True $validation.Contains('if: ${{ !cancelled() }}') 'validation also runs after a Windows failure, independently of native scope'
+    Assert-True $validation.Contains('Windows tooling did not pass:') 'Windows failure cannot leave the existing validation check green'
+    Assert-True (-not ((Get-WorkflowJob 'windows-tooling') -cmatch '(?m)^    needs:')) 'Windows tooling is independent of native scope'
+    Assert-True (-not ((Get-WorkflowJob 'paired-benchmark') -cmatch '(?m)^    needs:')) 'the paired benchmark is independent of native scope'
 }
 
 Invoke-TestCase 'the scope scripts parse and are strict' {

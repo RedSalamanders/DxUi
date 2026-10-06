@@ -292,7 +292,7 @@ and in a random order it cannot (a binary search is only as cheap as the first),
 after Ctrl+A and after each way back from it (Clear, a click, a Shift+click, a data change), counted exactly by the executable's
 allocation hook, the time and C++ heap bytes of the selection model's mutators, and `PreserveOrdered` over 200,000 rows with a
 few to 5,000 clicked. It also reports how many rows the default complex-UI scene's Grid holds selected. Its entry is dispatched
-outside `BenchmarkMain.h`, so the complex-UI fixture's hashed inputs are unchanged. Compare it only between builds of one
+outside `Embedded.Tests.BenchmarkMain.h`, so the complex-UI fixture's hashed inputs are unchanged. Compare it only between builds of one
 harness, as an interleaved paired set (a record of three builds runs them as A, B, C, C, B, A); it supplements the default
 benchmark for a change to selection and does not replace it.
 

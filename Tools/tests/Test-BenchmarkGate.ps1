@@ -36,8 +36,8 @@ Invoke-TestCase 'every library, build, benchmark and measurement path is measure
         'src/Controls/DxUi.Grid.cpp' = 'library input'; 'include/DxUi/DxUi.h' = 'library input'; 'Build/DxUi.Consumer.props' = 'library input'
         'Directory.Build.props' = 'library input'; 'Directory.Build.targets' = 'library input'; 'vcpkg.json' = 'library input'; 'vcpkg-tool.json' = 'library input'
         'performance.ps1' = 'benchmark harness'; 'Tools/Compare-Performance.ps1' = 'benchmark harness'; 'Tools/PerformanceComparison.psm1' = 'benchmark harness'
-        'Tests/Embedded/ComplexUiBenchmark.h' = 'benchmark harness'; 'Samples/ComplexUi/ComplexUiScene.h' = 'benchmark harness'
-        'Tests/Embedded/EmbeddedTests.cpp' = 'benchmark executable'; 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' = 'benchmark executable'; 'Tests/Support/TestWatchdog.h' = 'benchmark executable'
+        'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h' = 'benchmark harness'; 'Samples/ComplexUi/ComplexUiScene.h' = 'benchmark harness'
+        'Tests/Embedded/Embedded.Tests.Embedded.cpp' = 'benchmark executable'; 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' = 'benchmark executable'; 'Tests/Support/Support.Tests.TestWatchdog.h' = 'benchmark executable'
         'Samples/EmbeddedControls/EmbeddedScene.h' = 'fixture or sample compiled into it'
         'DxUi.sln' = 'build or restore'; 'build.ps1' = 'build or restore'; 'vcpkg-install.ps1' = 'build or restore'; 'vcpkg-configuration.json' = 'build or restore'
         'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'
@@ -57,7 +57,7 @@ Invoke-TestCase 'documentation, specifications, measurements, other tests and ot
     $paths = @('README.md', 'AGENTS.md', 'CHANGELOG.md', 'Changes/2026-10-01-hosted-paired-benchmark.md', 'docs/performance.md', 'docs/gallery/light.png',
         'Specs/Core/Core_PerformanceAndResources.md', 'Specs/DesignSystem/components/Tree/preview.html', 'Specs/Plans/WIP/README.md', 'Measurements/GridSelection/2026-10-01/README.md',
         'Measurements/GridSelection/2026-10-01/summary.receipt.txt', '.agents/skills/performance-resources/SKILL.md', 'capabilities.json',
-        'Tests/Controls/DxUiTests.Grid.cpp', 'Tests/Foundation/FoundationTests.cpp', 'Tests/ConsumerModules/Consumer.cpp', 'Tools/tests/Test-PairedRun.ps1',
+        'Tests/Controls/DxUi.Tests.Grid.cpp', 'Tests/Foundation/Foundation.Tests.Foundation.cpp', 'Tests/ConsumerModules/Consumer.cpp', 'Tools/tests/Test-PairedRun.ps1',
         'Tools/Validation.psm1', 'Tools/Changelog.psm1', 'Tools/Commit-Gallery.ps1', 'Tools/ConsumerUpdate.psm1', 'Tools/README.md', 'test.ps1', 'test-consumer.ps1',
         'validate.ps1', 'validate-specs.ps1', 'format.ps1', 'gallery.ps1', '.clang-format', '.github/workflows/format.yml', '.github/workflows/gallery.yml',
         # Markdown is never compiled, even inside a measured directory.
@@ -115,8 +115,8 @@ function Get-LocalIncludes([string] $Root, [string] $File) {
 Invoke-TestCase 'everything the benchmark executable includes is measured, so a new header cannot escape the rules' {
     $pending = [Collections.Generic.Queue[string]]::new()
     $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-    $pending.Enqueue('Tests/Embedded/EmbeddedTests.cpp')
-    [void]$seen.Add('Tests/Embedded/EmbeddedTests.cpp')
+    $pending.Enqueue('Tests/Embedded/Embedded.Tests.Embedded.cpp')
+    [void]$seen.Add('Tests/Embedded/Embedded.Tests.Embedded.cpp')
     while ($pending.Count) {
         $file = $pending.Dequeue()
         Assert-True (Get-BenchmarkScope -ChangedPaths @($file)).Relevant "$file is compiled into the benchmark executable and must be measured"

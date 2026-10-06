@@ -714,9 +714,11 @@ function Test-DxUiTestPort([Parameter(Mandatory)][string] $Root) {
         $identity = "('$file', '$test')"
         if ($seen.Contains("$file`0$test")) { $errors.Add("Duplicate test origin: $identity") }
         [void]$seen.Add("$file`0$test")
-        $parts = @($file.Split('/') | Where-Object { $_ -and $_ -ne '.' })
-        $path = Get-FullPath (Join-DataPath $Root $file)
-        if ($file.StartsWith('/') -or $parts -contains '..' -or -not (Test-UnderPath $path $controls) -or -not [IO.File]::Exists($path)) {
+        # The origin identity stays immutable when an owned source is renamed.
+        $currentFile = [string](Get-JsonValue $case 'currentFile' $file)
+        $parts = @($currentFile.Split('/') | Where-Object { $_ -and $_ -ne '.' })
+        $path = Get-FullPath (Join-DataPath $Root $currentFile)
+        if ($currentFile.StartsWith('/') -or $parts -contains '..' -or -not (Test-UnderPath $path $controls) -or -not [IO.File]::Exists($path)) {
             $errors.Add("Invalid owned test source: $(($parts) -join '/')")
             continue
         }

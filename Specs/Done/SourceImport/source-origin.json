@@ -254,126 +254,126 @@
       "source": "Tests/DxUiTests/DxUiTestHelpers.h",
       "originalSha256": "57d90c796aecef7f6737224753f63b08ff295d93921368910f32445884228cfd",
       "originalBytes": 69848,
-      "currentPath": "Tests/Controls/DxUiTestHelpers.h",
+      "currentPath": "Tests/Controls/Controls.Tests.DxUiTestHelpers.h",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.Accessibility.cpp",
       "originalSha256": "108248272d46459573f52df60de02c7019a7b46becd88aa77c71c0d656b4895b",
       "originalBytes": 385756,
-      "currentPath": "Tests/Controls/DxUiTests.Accessibility.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.Accessibility.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.Animation.cpp",
       "originalSha256": "7ebc53144aa62b853c509dfc8afa318d3c2c624868f063c789226e5b29410c54",
       "originalBytes": 60367,
-      "currentPath": "Tests/Controls/DxUiTests.Animation.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.Animation.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.ComboBox.cpp",
       "originalSha256": "529eed7a881254adb87b9c2c70a653873f7ed2a91af24ee9e800875eed4e1c35",
       "originalBytes": 65043,
-      "currentPath": "Tests/Controls/DxUiTests.ComboBox.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.ComboBox.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.Controls.cpp",
       "originalSha256": "4d7d1224a59ca17abc362e3302438fc980c7af452f320cc44657c5931a885311",
       "originalBytes": 93324,
-      "currentPath": "Tests/Controls/DxUiTests.Controls.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.Controls.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.cpp",
       "originalSha256": "347ddacb0660f6c393dd1e8d2cf215def430d41e4af4b7ea4561c8b853c70ce0",
       "originalBytes": 9860,
-      "currentPath": "Tests/Controls/DxUiTests.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.Runner.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.Gallery.cpp",
       "originalSha256": "5aef760c09ba00d5b60f19bd81ad85cd2082741b615a134767c4981face3c4f6",
       "originalBytes": 86340,
-      "currentPath": "Tests/Controls/DxUiTests.Gallery.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.Gallery.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.Grid.cpp",
       "originalSha256": "e4c20dd90854ba245ee6cb5aac26370572d40cbd845a194532da7b478cc91327",
       "originalBytes": 95860,
-      "currentPath": "Tests/Controls/DxUiTests.Grid.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.Grid.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.Menu.cpp",
       "originalSha256": "f5a9de66c12456446b459b79cc4b148e987e41691cefd759edb1114b8275ba2c",
       "originalBytes": 286055,
-      "currentPath": "Tests/Controls/DxUiTests.Menu.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.Menu.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.MultilineText.cpp",
       "originalSha256": "d08cad734d94431ca65c0d67e8812e69521d83b6a2a080e1c7f43c56808ce26b",
       "originalBytes": 217014,
-      "currentPath": "Tests/Controls/DxUiTests.MultilineText.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.MultilineText.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.NativeTextInput.cpp",
       "originalSha256": "20c16184c047d63b42e589673e674867ffd7e438728d471adebeb60f50884e6e",
       "originalBytes": 346923,
-      "currentPath": "Tests/Controls/DxUiTests.NativeTextInput.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.NativeTextInput.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.NewControls.cpp",
       "originalSha256": "0f869d55331b9a06e622751eb19919a646f9e1d75b5e2095f4a3264168ecb01e",
       "originalBytes": 85635,
-      "currentPath": "Tests/Controls/DxUiTests.NewControls.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.NewControls.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.ReadOnly.cpp",
       "originalSha256": "54c1a2a5fe41c6c288125edafcd4d0087df262d1d37201654e231dc42c327308",
       "originalBytes": 96684,
-      "currentPath": "Tests/Controls/DxUiTests.ReadOnly.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.ReadOnly.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.Rendering.cpp",
       "originalSha256": "e204d9531ebe89e392caa2ab9d1390df029f42e8ad1453926f61d25d039df8b8",
       "originalBytes": 85601,
-      "currentPath": "Tests/Controls/DxUiTests.Rendering.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.Rendering.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.TextField.cpp",
       "originalSha256": "d5ecf0feb54fc0ec51b1acff5a13b331c00867036b7ac09ca65a93e8931ecda9",
       "originalBytes": 118234,
-      "currentPath": "Tests/Controls/DxUiTests.TextField.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.TextField.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.Theme.cpp",
       "originalSha256": "d2448b67221285e3bbb35ce3a84b861099a3a9cb150509f577e05d0807ed52ee",
       "originalBytes": 213299,
-      "currentPath": "Tests/Controls/DxUiTests.Theme.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.Theme.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.Tooltip.cpp",
       "originalSha256": "841b3be3c3303be8cf3069df7ee0b8e4044c9c7ab6dd620dd4707d89bfbeab38",
       "originalBytes": 20313,
-      "currentPath": "Tests/Controls/DxUiTests.Tooltip.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.Tooltip.cpp",
       "disposition": "owned"
     },
     {
       "source": "Tests/DxUiTests/DxUiTests.Tree.cpp",
       "originalSha256": "95ee7b4f5a4c1f42c5c1e02968666518e8f9b23445e1a622ba080769bc31e2f5",
       "originalBytes": 66784,
-      "currentPath": "Tests/Controls/DxUiTests.Tree.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.Tree.cpp",
       "disposition": "owned"
     },
     {
@@ -387,7 +387,7 @@
       "source": "Tests/DxUiTests/DxUiTests.WindowHost.cpp",
       "originalSha256": "58b2c05740da2d3307a10fe8682d76f579724e7f764fe9ece65943d37438c783",
       "originalBytes": 198374,
-      "currentPath": "Tests/Controls/DxUiTests.WindowHost.cpp",
+      "currentPath": "Tests/Controls/DxUi.Tests.WindowHost.cpp",
       "disposition": "owned"
     },
     {
@@ -406,7 +406,7 @@
     },
     {
       "source": "Common/TestWindowActivationGuard.h",
-      "currentPath": "Tests/Support/TestWindowActivationGuard.h",
+      "currentPath": "Tests/Support/Support.Tests.TestWindowActivationGuard.h",
       "disposition": "owned",
       "originalSha256": "963bffca9a8edf6718f6cd1ae3a862bdb854d9992b63755f0f605e8714ebb08b",
       "originalBytes": 4371
