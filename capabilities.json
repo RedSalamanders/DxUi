@@ -36,6 +36,7 @@
     "slider-preview-commit-cancel",
     "editor-controls",
     "embedded-d3d11",
+    "embedded-interaction-layout",
     "win32-host",
     "native-text-input",
     "native-accessibility",

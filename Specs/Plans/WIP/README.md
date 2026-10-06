@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [Embedded interaction layout](EmbeddedInteractionLayout_2026-10-06.md). Explicit caller-arranged hit geometry between frames; preserve deferred painting, failure/capture safety and full consumer qualification.
+
 - **ACTIVE**: [Bounded grid text and clipping](GridTextOverflow_2026-09-21.md). Merged to main (#22); gallery regenerated, design system republished and the paired multiline benchmark within the accepted V11 envelope. Consumer qualification remains before explicit pin adoption.
 
 - **HOLD**: [TreeReorder_2026-09-21.md](TreeReorder_2026-09-21.md). Drag-reorder is in `Tree`. Multi-select remains. Not a second tree in the app.

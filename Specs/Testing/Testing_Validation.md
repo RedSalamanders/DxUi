@@ -6,6 +6,11 @@ Last reviewed: 2026-10-01
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
 
+The Embedded suite registers `TestInteractionLayoutWithoutPaint`: literal hit coordinates/model values and resource
+counters independently qualify the optional caller-arranged interaction boundary, rapid gestures without paint,
+capture cancellation/continuation, unavailable/full-failure transitions, cross-thread refusal and deferred text/UIA
+geometry publication. It preserves every preceding assertion; consumer pin adoption requires actual host tests.
+
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
 
 The opt-in `MenuResourceScaling` control suite characterizes described-menu memory

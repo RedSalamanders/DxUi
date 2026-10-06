@@ -113,6 +113,7 @@ static void Hr(HRESULT hr, const char* text)
 }
 #include "ComplexUiBenchmark.h"
 #include "EmbeddedAccessibilityTests.h"
+#include "EmbeddedInteractionLayoutTests.h"
 #include "EmbeddedTextInputTests.h"
 #include "GridSelectionBenchmark.h"
 #include "LocalizedLayoutTests.h"
@@ -379,6 +380,10 @@ __declspec(noinline) static int RunFunctionalTests()
     TestSurfaceLifetime(gpu);
     TestHiddenViewReleasesGridLayouts(gpu);
     TestPointerGesturesOnPaintDirtyView(gpu);
+    std::cout << "BEGIN TestInteractionLayoutWithoutPaint\n";
+    const auto beforeInteractionChecks = checks;
+    TestInteractionLayoutWithoutPaint(gpu);
+    std::cout << "PASS TestInteractionLayoutWithoutPaint checks=" << checks - beforeInteractionChecks << '\n';
     TestTickDirtying(gpu);
     TestCacheBounds(gpu);
     EmbeddedScene scene;

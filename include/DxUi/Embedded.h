@@ -102,13 +102,18 @@ public:
     [[nodiscard]] bool NeedsPreparation() const noexcept;
     [[nodiscard]] bool NeedsAnimation() const noexcept;
     bool AdvanceAnimation(uint64_t nowTickMs) noexcept;
-    // Physical pixel size and DPI. Changed text/layout/raster work happens only here, never in Composite.
+    // Physical pixel size and DPI. Text shaping and raster work happen only here, never in Composite.
     // S_FALSE means hidden, zero-sized or already prepared; failure disables interaction until preparation succeeds.
     HRESULT Prepare(UINT widthPixels, UINT heightPixels, float dpi = 96.0f) noexcept;
+    // After the caller finishes arranging live control bounds, acknowledge interaction changes without painting.
+    // Only the last successfully painted extent/DPI is accepted. Initial/failed preparation, resize, hide and
+    // device replacement still require Prepare. S_FALSE means unchanged or unavailable; dispatch stays disabled
+    // when unavailable. Does not publish accessibility/text geometry or change surface/preparation statistics.
+    HRESULT PrepareInteraction(UINT widthPixels, UINT heightPixels, float dpi = 96.0f) noexcept;
     // Host binds its render target. This binds all other required pipeline state and issues one premultiplied-alpha draw.
     // Context must be the immediate context of the supplied device. No allocation, rasterization or readback occurs.
     HRESULT Composite(ID3D11DeviceContext* context, const D3D11_VIEWPORT& viewport) noexcept;
-    // Prepare dirty content before starting a new hit-tested gesture. Captured continuation remains live
+    // Prepare, or arrange and PrepareInteraction, before a gesture after interaction geometry changes. Captured continuation remains live
     // until geometry/tree/availability changes, which cancels capture and requires preparation.
     bool DispatchPointer(const PointerEvent& event) noexcept;
     bool DispatchKey(UINT virtualKey, bool down, UINT modifiers = 0) noexcept;

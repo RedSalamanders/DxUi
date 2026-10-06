@@ -91,6 +91,7 @@ struct EmbeddedHost::State
     UINT width = 0, height = 0;
     float dpi    = 96;
     bool visible = true, dirty = true, coherent = false;
+    bool interactionLayoutAvailable      = false;
     bool zeroSized                       = false;
     bool animationSuspended              = false;
     uint64_t revision                    = 0;
@@ -193,10 +194,11 @@ void EmbeddedHost::ReleaseSurface() noexcept
     s.bitmap.reset();
     s.view.reset();
     s.texture.reset();
-    s.width = s.height   = 0;
-    s.stats.surfaceBytes = 0;
-    s.coherent           = false;
-    s.dirty              = true;
+    s.width = s.height           = 0;
+    s.stats.surfaceBytes         = 0;
+    s.coherent                   = false;
+    s.interactionLayoutAvailable = false;
+    s.dirty                      = true;
 }
 void EmbeddedHost::SetVisible(bool visible) noexcept
 {
@@ -266,14 +268,16 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     }
     if (! std::isfinite(dpi) || dpi < 48 || dpi > 768 || width > D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION || height > D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION)
     {
-        s.coherent = false;
+        s.coherent                   = false;
+        s.interactionLayoutAvailable = false;
         CancelPointer();
         return E_INVALIDARG;
     }
     const uint64_t bytes = uint64_t(width) * height * 4;
     if (bytes > 64ull * 1024 * 1024)
     {
-        s.coherent = false;
+        s.coherent                   = false;
+        s.interactionLayoutAvailable = false;
         CancelPointer();
         return E_OUTOFMEMORY;
     }
@@ -286,7 +290,8 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         CancelPointer();
     if (! s.dirty && s.coherent && width == s.width && height == s.height && dpi == s.dpi)
         return S_FALSE;
-    s.coherent = false;
+    s.coherent                   = false;
+    s.interactionLayoutAvailable = false;
     try
     {
         if (width != s.width || height != s.height || ! s.texture)
@@ -355,6 +360,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         RETURN_IF_FAILED(dc->EndDraw());
         s.preparedInteractionRevision = interactionRevision;
         s.coherent                    = interactionRevision == _host._interactionRevision;
+        s.interactionLayoutAvailable  = true;
         s.dirty                       = s.revision != revision;
         ++s.stats.preparations;
         if (s.dirty && s.callbacks.requestPreparation)
@@ -369,6 +375,48 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     {
         return E_FAIL;
     }
+}
+HRESULT EmbeddedHost::PrepareInteraction(UINT width, UINT height, float dpi) noexcept
+{
+    if (! _state || ! _state->graphics)
+        return E_UNEXPECTED;
+    auto& s = *_state;
+    if (s.graphics->_state->thread != GetCurrentThreadId())
+        return RPC_E_WRONG_THREAD;
+    if (! std::isfinite(dpi) || dpi < 48 || dpi > 768)
+    {
+        s.coherent                   = false;
+        s.interactionLayoutAvailable = false;
+        CancelPointer();
+        return E_INVALIDARG;
+    }
+    // Layout may be acknowledged between frames, but never rehabilitate a failed paint, an unpainted device,
+    // or geometry with a different pixel-to-DIP mapping. Those need the ordinary full preparation boundary.
+    if (! s.visible || s.zeroSized || ! s.interactionLayoutAvailable || ! s.bitmap || ! width || ! height || width != s.width || height != s.height ||
+        dpi != s.dpi)
+    {
+        s.coherent                   = false;
+        s.interactionLayoutAvailable = false;
+        CancelPointer();
+        return S_FALSE;
+    }
+    if (s.coherent && s.preparedInteractionRevision == _host._interactionRevision)
+        return S_FALSE;
+    const auto revision = _host._interactionRevision;
+    if (! CapturedDragContinues())
+        CancelPointer();
+    // A cancellation callback may itself change the tree or bounds. The caller has not arranged that state yet.
+    if (revision != _host._interactionRevision)
+    {
+        s.coherent = false;
+        return HRESULT_FROM_WIN32(ERROR_RETRY);
+    }
+    s.preparedInteractionRevision = revision;
+    s.coherent                    = true;
+    // The cached pixels/text geometry and accessibility snapshot still belong to the previous frame.
+    // Do not clear dirty or publish either; the application's next frame must call Prepare.
+    s.dirty = true;
+    return S_OK;
 }
 HRESULT EmbeddedHost::Composite(ID3D11DeviceContext* context, const D3D11_VIEWPORT& viewport) noexcept
 {
@@ -728,7 +776,8 @@ HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputSta
     }
     catch (const std::bad_alloc&)
     {
-        _state->coherent = false;
+        _state->coherent                   = false;
+        _state->interactionLayoutAvailable = false;
         MarkDirty();
         return E_OUTOFMEMORY;
     }
@@ -737,7 +786,8 @@ HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputSta
         // Consumer callbacks can throw after changing text. Suppress interaction until the next prepare
         // publishes a coherent control state; never let an exception escape this noexcept input boundary.
         _host.ClearNativeTextInputCompositionState();
-        _state->coherent = false;
+        _state->coherent                   = false;
+        _state->interactionLayoutAvailable = false;
         MarkDirty();
         return E_FAIL;
     }

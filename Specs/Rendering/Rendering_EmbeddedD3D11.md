@@ -91,8 +91,23 @@ on the next preparation. The check resolves the capture through the live tree be
 control is only released. Moving the captured control itself, hiding or disabling it or an ancestor, removing it, and
 any change of the view's size or DPI, cancels capture and disables input until prepare succeeds. A second Down on the
 same control within the system double-click interval and a 16 DIP slop is
-`OnMouseDoubleClick`. This prevents new hit rectangles from being used with an old texture. Keyboard continuation uses the
-same prepared interaction revision. A consumer must call Prepare between independent hit-tested gestures.
+`OnMouseDoubleClick`. Ordinary dispatch refuses an unacknowledged bounds revision. Keyboard continuation uses the
+same prepared interaction revision. After interaction geometry changes, a consumer calls Prepare before the next
+independent hit-tested gesture, or finishes arranging every live control bound and calls PrepareInteraction at the
+last successfully painted width, height and DPI. PrepareInteraction only acknowledges that layout; it does no
+painting, resource creation, cache trimming or accessibility/text-geometry publication, and changes none of the
+surface/preparation/composition counters. Dirty pixels remain scheduled for the next full Prepare before composition.
+The caller must not acknowledge a partial arrangement or rely on painting to finish its hit geometry.
+
+This optional boundary cannot enable initial, failed, hidden, zero-sized or replaced-device preparation. A changed
+extent/DPI requires full Prepare; PrepareInteraction returns S_FALSE and disables dispatch until then. At the accepted
+extent it returns S_OK after a changed interaction revision, or S_FALSE when already current. Wrong-thread calls fail
+without mutation. The ordinary capture rules apply: a still-live captured control with unchanged bounds and enabled,
+visible ancestors survives sibling layout; moved, removed, hidden or disabled capture is canceled. A cancellation
+callback changing interaction geometry prevents acknowledgement (ERROR_RETRY); the caller must arrange that new
+state explicitly. A failed paint or a text-import exception cannot be rehabilitated through this boundary. Text-input bounds and
+UIA snapshot publication still require clean full preparation. Qualification is tracked in the
+[interaction layout plan](../Plans/WIP/EmbeddedInteractionLayout_2026-10-06.md).
 
 A hidden or zero-extent view holds no surface. SetVisible(false) and a zero-sized Prepare release the texture, shader
 view and D2D target, report `surfaceBytes` 0, cancel pointer/text input and disconnect accessibility. Both states

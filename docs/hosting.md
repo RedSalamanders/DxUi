@@ -31,8 +31,14 @@ Pass view-local physical pixel coordinates to `DispatchPointer`. Convert applica
 through the actual displayed viewport transform, including animation offsets. Pass Move/Down/Up/Wheel/Leave/Cancel
 and the appropriate modifiers. A paint-dirty view still accepts hit-tested pointer gestures while its geometry is
 coherent; Prepare before composition, and after bounds, tree, visibility or enabled changes that bump the interaction
-revision. Cancel on capture loss.
-Captured drag continuation may update a draft between paints; tree, bounds or availability changes cancel capture.
+revision. A host that arranges all live bounds itself can instead call
+`PrepareInteraction(widthPixels, heightPixels, dpi)` between gestures, at the last successfully painted extent/DPI.
+It acknowledges input geometry without painting or publishing text/UIA bounds. Pixels stay dirty for the next
+frame's full `Prepare`. Initial/failed preparation, hide/zero extent, device replacement and a changed size/DPI still
+require full preparation. Do not acknowledge a partial layout or geometry that only painting computes. Cancel on capture loss.
+Captured drag continuation may update a draft between paints. Moving, removing, hiding or disabling the captured
+control or its ancestors cancels capture; arranging only a sibling preserves it when its bounds and availability
+are unchanged. A view resize or DPI change still requires full preparation and cancels capture.
 
 Use `DispatchKey` and `DispatchCharacter` for basic keyboard/character input. Those methods are not a complete
 embedded IME, text-store or UI Automation bridge: the consumer must supply the integrations described in

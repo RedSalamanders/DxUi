@@ -1,0 +1,1 @@
+- Add an explicit embedded interaction layout boundary for caller-arranged bounds between frames, preserving deferred painting, capture cancellation and full preparation after failure, size/DPI or device changes.
