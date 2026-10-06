@@ -107,7 +107,7 @@ visible ancestors survives sibling layout; moved, removed, hidden or disabled ca
 callback changing interaction geometry prevents acknowledgement (ERROR_RETRY); the caller must arrange that new
 state explicitly. A failed paint or a text-import exception cannot be rehabilitated through this boundary. Text-input bounds and
 UIA snapshot publication still require clean full preparation. Qualification is tracked in the
-[interaction layout plan](../Plans/WIP/EmbeddedInteractionLayout_2026-10-06.md).
+[interaction layout qualification](../Plans/Done/EmbeddedInteractionLayout_2026-10-06.md).
 
 A hidden or zero-extent view holds no surface. SetVisible(false) and a zero-sized Prepare release the texture, shader
 view and D2D target, report `surfaceBytes` 0, cancel pointer/text input and disconnect accessibility. Both states

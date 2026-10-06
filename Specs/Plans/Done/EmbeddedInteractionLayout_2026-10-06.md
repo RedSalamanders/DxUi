@@ -12,10 +12,33 @@
 - [x] Qualify literal state transitions, capture safety, wrong-thread calls, failed preparation and hidden/device/extent cases in the 158 independent checks, preserving existing assertions.
 - [x] Pass full `validate.ps1` and `format.ps1 -Check` after the final test fixture repair; validation/format logs `interaction-layout-validate-r2.log` and `interaction-layout-format-r2.log` are preserved under `.build`.
 - [x] Review paired Release common-scene measurements against the retained API-3 baseline and retain every noisy round/control; six runs per side are within the existing noise/resource budget.
-- [ ] Qualify the RedPrism pin, unchanged interactions, no-paint publication invariant and fresh largest-row owner measurements.
-- [ ] Publish normative/usage documentation and complete the library delivery; consumer G1 remains separately owned.
+- [x] Qualify the RedPrism pin, unchanged interactions, no-paint publication invariant and fresh largest-row owner measurements: consumer `c4bd328` pins library `8e89940` and passes the complete matrix described below.
+- [x] Publish normative/usage documentation and complete the library delivery; consumer G1 remains separately owned.
 
-Status: **ACTIVE.** The six library build/test gates and paired measurement passed for the recorded source. RedPrism pin qualification, application G1 and consumer closeout remain open.
+Status: **DONE for the optional library interaction boundary.** The six library gates, paired Default scene, normative/usage documentation and RedPrism pin qualification pass. Application G1, native/production activation, external-client acceptance and native ARM64 runtime remain owned by the consumer's active P1 plan.
+
+## Consumer qualification and closeout
+
+RedPrism commit `c4bd3288e11db0380d95a2b7f48f4fc287df99e8` adopts pushed library
+`8e8994079e82f79e6765e6a885c03fc687957591`. Its full x64 Debug r240, Release r241 and real ASan Debug r242 gates,
+Release analysis r237 and three ARM64 r33 cross-builds pass on the identical 858-input freeze
+`79546F7D5FDF9EA013C93B8A6FA54735DD6F726DD7A489F92E554652AA8E4F60`. Strict registry r23 preserves every predecessor
+and verifies 10,031 named application controls / 89 stages, including all 20 rapid-interaction checks, both new
+no-paint publication controls, 16 inherited-visibility checks and three diagnostic CLI controls. The real ASan
+detection probe and 8,055 worker-stress controls pass; all source/product/log archives are readback verified.
+
+Quiet hardware r7 and WARP r8 each retain eleven 10,000-layer publication/rename trials with 1,024-unit names and
+nine inclusive timing kinds. Result application maxima are 346 / 372 microseconds; full preparation remains
+7,754 / 8,737 microseconds. All initial boundaries remain included. These hidden embedded-STA measurements qualify
+the integration and demonstrate its remaining preparation cost; they do not qualify visible-frame G1 or external
+UIA RPC. The 37-copy cost supplement preserves the prelaunch helper failure and original bytes, with manifest
+`3EA2BEBB901A6BFF1814A061D08F49AB41F81FD510E344CEC697A55DFF385F46`.
+
+The consumer owns the detailed evidence in `Specs/TestRuns/P1LayerRowsCosts_2026-10-06.md`. Only its skill's
+qualification wording changed after runtime qualification; all 857 other frozen inputs remain byte-identical,
+and fresh skills/format validation passes. Its original failed r234 interaction and r236 I/O receipts remain
+preserved; neither is reclassified as a passing attempt. This library closeout does not enable production rows
+or close RedPrism P1.
 
 ## Prepared-tree matrix receipts
 
