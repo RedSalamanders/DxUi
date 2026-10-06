@@ -2,15 +2,16 @@
 
 ## Implementation checklist
 
-- [ ] Qualify the embedded structure-delivery repair. The exact-pin RedPrism r211 dump proves that a real agile
-  UIA handler executes inline on the publishing STA and blocks inside its nested client read. The draft queues
-  structure invalidation, uses a GIT-marshalled proxy on the MTA, holds no historical row snapshot and revokes on
-  owner disconnect. Debug `matrix-r15` passes all 20 suites on 200 readback-verified inputs, with ten products and
-  43 diagnostics archived ([checkpoint](../../../Measurements/PreparedTreeAccessibility/2026-10-06/embedded-structure-debug.json)); consumer held-client/re-entry and the complete matrix
-  remain required. The owned failed fixture/dump and earlier results stay preserved.
+- [x] Qualify the DxUi embedded structure-delivery library matrix for pushed source
+  `cd645ea2375725ed7a899bb6e681ef41d0a3000d`: x64 Debug, Release and ASan Debug each pass all 20 requested
+  suites; ARM64 Debug, Release and ASan Debug cross-builds exit 0. All six helpers report `validationPassed: true`;
+  each round readback-verifies 200 source files and ten products. The ASan capability probe separately reports the
+  expected heap-use-after-free. Exact UTCs, manifest hashes and limits are recorded in the
+  [matrix summary](../../../Measurements/PreparedTreeAccessibility/2026-10-06/embedded-structure-matrix-summary.json).
+  RedPrism held-client/re-entry and current-source paired scenes remain pending; prior failed receipts remain intact.
 - [x] Qualify the internal embedded property-event lifetime repair as a library change. The pushed source `36c0ff66bd7574038ed2e255f79847a81bf054c7` has passing x64 Debug/Release/ASan Debug test suites and ARM64 Debug/Release/ASan Debug cross-builds; the independent readback supplement preserves the original helper failures and verifies their actual-child evidence.
 - [ ] Complete exact-pin consumer qualification: real embedded UIA event re-entry and held-client delivery, charged-source admission/retirement and large-row host fixtures. Consumer r211 passes interaction/retry/edit and provider16/capacity12, then stalls during embedded notification publication. Its dump proves inline owner delivery; shape and the full current consumer matrix remain unexecuted. Production activation remains open.
-- [ ] Run and review matched paired complex-UI non-regression for source `36c0ff66bd7574038ed2e255f79847a81bf054c7`. The older `5f1ccdb6b5decde9f8ef6137e8b646dba51555c4` paired result remains historical evidence only.
+- [ ] Run and review matched paired complex-UI non-regression for source `cd645ea2375725ed7a899bb6e681ef41d0a3000d`. The older `5f1ccdb6b5decde9f8ef6137e8b646dba51555c4` paired result remains historical evidence only and does not qualify this source.
 
 - [x] Isolate work from the consumer's exact `271bd54be24eadf3f03ba5221d1be7be069860f2` pin. The unrelated dirty native checkout is preserved.
 - [x] Review a deterministic library-only 10,000-row /1,024-unit-name counting model and draft an opt-in snapshot benchmark with complete offscreen-name/navigation/disconnection checks.
@@ -22,9 +23,9 @@
 - [x] Update lasting contracts, public usage, capability evidence and changelog; commit and push the verified library step as `5f1ccdb6b5decde9f8ef6137e8b646dba51555c4` on `codex/p1-prepared-tree-accessibility` (upstream synchronized).
 - [ ] Qualify RedPrism's admitted source/retirement ownership and actual large-row host matrix before adopting the new pin or activating its prepared rows.
 
-Status: **ACTIVE; the library functional/configuration qualification is complete for pushed source `36c0ff66bd7574038ed2e255f79847a81bf054c7` (x64 Debug/Release/real ASan Debug suites and ARM64 Debug/Release/ASan Debug cross-builds). The paired Release scene qualification recorded below is the earlier `5f1ccdb6b5decde9f8ef6137e8b646dba51555c4` result and is preserved unchanged; paired non-regression for `36c0ff66bd7574038ed2e255f79847a81bf054c7` remains unchecked. Exact-pin consumer event/re-entry, charged-source retirement and large-row qualification also remain unchecked. No production activation, consumer pin adoption or native ARM64 runtime is claimed. See [the 2026-10-06 property-event matrix supplement](../../../Measurements/PreparedTreeAccessibility/2026-10-06/property-event-qualification.md).**
+Status: **ACTIVE; the embedded structure-delivery library matrix is complete for pushed source `cd645ea2375725ed7a899bb6e681ef41d0a3000d` (x64 Debug/Release/ASan Debug suites and ARM64 Debug/Release/ASan Debug cross-builds). The earlier paired Release scene qualification belongs to `5f1ccdb6b5decde9f8ef6137e8b646dba51555c4`; it does not qualify the current source. Current-source paired scenes and exact-pin RedPrism client event/re-entry, charged-source retirement and large-row qualification remain open. RedPrism r212 build exits 0; focused r213 exits 5 at the interaction fixture quit closeout before reaching notification or shape. The managed consumer uses this exact pin for qualification. Production activation, completed consumer qualification, native ARM64 runtime and P1 completion remain unclaimed. See the [structure-delivery matrix summary](../../../Measurements/PreparedTreeAccessibility/2026-10-06/embedded-structure-matrix-summary.json) and [property-event matrix supplement](../../../Measurements/PreparedTreeAccessibility/2026-10-06/property-event-qualification.md).**
 
-The original `5f1ccdb6b5decde9f8ef6137e8b646dba51555c4` paired qualification sentence in the checklist above and its `paired-summary.json` are retained verbatim as historical evidence. They do not establish paired non-regression for the later source `36c0ff66bd7574038ed2e255f79847a81bf054c7`.
+The original `5f1ccdb6b5decde9f8ef6137e8b646dba51555c4` paired qualification and its `paired-summary.json` are retained as historical evidence. They do not establish paired non-regression for `36c0ff66bd7574038ed2e255f79847a81bf054c7` or current source `cd645ea2375725ed7a899bb6e681ef41d0a3000d`.
 
 ## Scope and current evidence
 

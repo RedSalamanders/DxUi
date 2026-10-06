@@ -5,3 +5,5 @@
 
   Qualification is tracked in `Specs/Plans/WIP/PreparedTreeAccessibility_2026-10-06.md`; actual consumer callbacks,
   the complete configuration matrix and current paired measurements remain required before adoption closes.
+
+  - Recorded the x64 Debug/Release/real ASan test matrix and three ARM64 cross-builds for the pushed structure-delivery source, including independent readback of 1,394 archived files. Current-source paired scenes and RedPrism client qualification remain open.
