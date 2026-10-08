@@ -1,0 +1,15 @@
+Hosted paired benchmark provenance
+Pull request: #69
+Workflow run: 37853717305
+Workflow attempt: 1
+Job: 113573240610 (paired-benchmark (pull request), x64 Release)
+Artifact: 11584535018 (paired-benchmark-x64-Release)
+Artifact ZIP: 158955 bytes
+Artifact ZIP SHA-256: 3ceb547cbdfb22357513cd1f2a169aca09f02529d9b6822a07a1526b961cd50f
+Raw reports source: D:\RedSalamander.Perf\evidence\dxui-ci-docs-37853717305\paired\attempt1\paired\20261008T223107Z-bea676a1f841\reports
+Baseline merge parent: bea676a1f8418141f61cab9326b9b910e89a14b4
+Baseline source fingerprint: 41423433DDF45EFBBBAFA7B35D9A16D2F9D057E4271779D4D8EAC4955C481051
+Candidate merge ref: cc6690c34939b476f51d57757532e469482cfe4d
+Candidate source fingerprint: F826386B05B760C3E8FFFFEEB857B3F889398C1E10CD57AEBBB048D20AD5E54F
+Runner: runnervmfi6oq (shared hosted x64 Release)
+Report run: 20261008T223107Z-bea676a1f841
