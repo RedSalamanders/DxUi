@@ -2,6 +2,8 @@
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
 
+- **ACTIVE**: [Production review of the 25 September - 4 October merges](ProductionReview_2026-10-05.md). Adversarially verified review of #21-#65, revalidated at `e5ebbb5` with #66 and #67 reviewed too: memory-safety, keyboard, accessibility, tooling and CI defects with fixes and failing tests, simplification proposals (non-reentrant accessibility publication, a Grid focused row, one UIA action helper, ownership-safe tree mutation) and the developer's open questions. No fix has started.
+
 - **ACTIVE**: [Scoped testing](ScopedTesting_2026-10-05.md). Native test naming, affected iteration, exact local reuse and local/PR coverage coordination across the library and consumers.
 
 - **ACTIVE**: [UI composition improvements for the three consumers](ConsumerUiImprovements_2026-10-04.md). Proposed intrinsic sizing/forms, variable-height lists, overlay sessions, read-only Markdown help, reusable motion and theme authoring, grounded in RedSalamander, RedXe and RedPrism. Includes proposed APIs, staged implementation, resource evidence and separate consumer adoption gates; no new capability is implemented yet.
