@@ -1,0 +1,38 @@
+caret viewport visible dpi=96 readOnly=0 inside=34 outside=0 caret=54.6143,80,97.291
+caret viewport partial-bottom dpi=96 readOnly=0 inside=16 outside=0 caret=54.0049,97.291,114.582
+caret viewport offscreen-above dpi=96 readOnly=0 inside=0 outside=0 caret=54.0049,45.418,62.709
+caret viewport offscreen-below-selected dpi=96 readOnly=0 inside=0 outside=0 caret=75.9233,218.328,235.619
+caret viewport restored dpi=96 readOnly=0 inside=17 outside=0 caret=48,80,97.291
+caret viewport visible dpi=96 readOnly=1 inside=34 outside=0 caret=54.6143,80,97.291
+caret viewport partial-bottom dpi=96 readOnly=1 inside=16 outside=0 caret=54.0049,97.291,114.582
+caret viewport offscreen-above dpi=96 readOnly=1 inside=0 outside=0 caret=54.0049,45.418,62.709
+caret viewport offscreen-below-selected dpi=96 readOnly=1 inside=0 outside=0 caret=75.9233,218.328,235.619
+caret viewport restored dpi=96 readOnly=1 inside=17 outside=0 caret=48,80,97.291
+caret viewport visible dpi=144 readOnly=0 inside=52 outside=0 caret=54.6143,80,97.291
+caret viewport partial-bottom dpi=144 readOnly=0 inside=24 outside=0 caret=54.0049,97.291,114.582
+caret viewport offscreen-above dpi=144 readOnly=0 inside=0 outside=0 caret=54.0049,45.418,62.709
+caret viewport offscreen-below-selected dpi=144 readOnly=0 inside=0 outside=0 caret=75.9233,218.328,235.619
+caret viewport restored dpi=144 readOnly=0 inside=26 outside=0 caret=48,80,97.291
+caret viewport visible dpi=144 readOnly=1 inside=52 outside=0 caret=54.6143,80,97.291
+caret viewport partial-bottom dpi=144 readOnly=1 inside=24 outside=0 caret=54.0049,97.291,114.582
+caret viewport offscreen-above dpi=144 readOnly=1 inside=0 outside=0 caret=54.0049,45.418,62.709
+caret viewport offscreen-below-selected dpi=144 readOnly=1 inside=0 outside=0 caret=75.9233,218.328,235.619
+caret viewport restored dpi=144 readOnly=1 inside=26 outside=0 caret=48,80,97.291
+caret viewport visible dpi=192 readOnly=0 inside=70 outside=0 caret=54.6143,80,97.291
+caret viewport partial-bottom dpi=192 readOnly=0 inside=30 outside=0 caret=54.0049,97.291,114.582
+caret viewport offscreen-above dpi=192 readOnly=0 inside=0 outside=0 caret=54.0049,45.418,62.709
+caret viewport offscreen-below-selected dpi=192 readOnly=0 inside=0 outside=0 caret=75.9233,218.328,235.619
+caret viewport restored dpi=192 readOnly=0 inside=35 outside=0 caret=48,80,97.291
+caret viewport visible dpi=192 readOnly=1 inside=70 outside=0 caret=54.6143,80,97.291
+caret viewport partial-bottom dpi=192 readOnly=1 inside=30 outside=0 caret=54.0049,97.291,114.582
+caret viewport offscreen-above dpi=192 readOnly=1 inside=0 outside=0 caret=54.0049,45.418,62.709
+caret viewport offscreen-below-selected dpi=192 readOnly=1 inside=0 outside=0 caret=75.9233,218.328,235.619
+caret viewport restored dpi=192 readOnly=1 inside=35 outside=0 caret=48,80,97.291
+Embedded multiline grid cell 0,0: twin ink from 17, changed inside or on rows the twin leaves blank 0, marker pixels 12
+Embedded multiline grid cell 0,1: twin ink from 236, changed inside or on rows the twin leaves blank 0, marker pixels 14
+Embedded multiline grid row 1: ink rows 29 at clamp 2, 43 at clamp 3
+Embedded multiline grid at 144 dpi: layouts created by the change 0, retained 8
+Embedded multiline grid at 192 dpi: layouts created by the change 0, retained 8
+Embedded multiline grid at 96 dpi: layouts created by the change 0, retained 8
+Embedded multiline grid at 192 dpi: layouts created by the change 0, retained 8
+PASS 3430 checks; 1000 warm composites 24339 us; C++ allocations 0; changed toggle pixels 13291

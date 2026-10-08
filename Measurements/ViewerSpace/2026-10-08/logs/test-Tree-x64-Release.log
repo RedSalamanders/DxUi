@@ -1,0 +1,109 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Tree
+  [START] TestTreeInputLeavesATreeTheFocusCallbackDestroyed
+  [DONE] TestTreeInputLeavesATreeTheFocusCallbackDestroyed (0.006 s)
+  [START] TestTreeLocalizedEmptyStateRepaintsWithoutSelectionChange
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeLocalizedEmptyStateRepaintsWithoutSelectionChange (0.292 s)
+  [START] TestTreeIconFontAndReorderReleaseEdgeCases
+  [DONE] TestTreeIconFontAndReorderReleaseEdgeCases (0.000 s)
+  [START] TestTreePointerSelectionNotifiesDelegate
+  [DONE] TestTreePointerSelectionNotifiesDelegate (0.000 s)
+  [START] TestTreeDragReorderReportsDropAndEscapeCancels
+  [DONE] TestTreeDragReorderReportsDropAndEscapeCancels (0.000 s)
+  [START] TestTreeDragReorderRejectsItsOwnSubtreeAndFollowsModelChanges
+  [DONE] TestTreeDragReorderRejectsItsOwnSubtreeAndFollowsModelChanges (0.000 s)
+  [START] TestTreeExpanderClickRequestsToggle
+  [DONE] TestTreeExpanderClickRequestsToggle (0.001 s)
+  [START] TestTreeExpanderReResolvesStableItemAfterSelectionReorder
+  [DONE] TestTreeExpanderReResolvesStableItemAfterSelectionReorder (0.000 s)
+  [START] TestTreeSelectionDelegateCanReplaceRootSafely
+  [DONE] TestTreeSelectionDelegateCanReplaceRootSafely (0.000 s)
+  [START] TestTreeKeyboardRightAndLeftHandleExpansionAndParentTraversal
+  [DONE] TestTreeKeyboardRightAndLeftHandleExpansionAndParentTraversal (0.000 s)
+  [START] TestTreeTypeaheadSelectsVisibleMatch
+  [DONE] TestTreeTypeaheadSelectsVisibleMatch (0.000 s)
+  [START] TestTreeTypeaheadFallsBackToSingleCharacterAfterPrefixMiss
+  [DONE] TestTreeTypeaheadFallsBackToSingleCharacterAfterPrefixMiss (0.000 s)
+  [START] TestTypeaheadUsesInvariantCaseMappingUnderTurkishLocale
+  [DONE] TestTypeaheadUsesInvariantCaseMappingUnderTurkishLocale (0.044 s)
+  [START] TestTreeDoubleClickInvokesLeafItem
+  [DONE] TestTreeDoubleClickInvokesLeafItem (0.000 s)
+  [START] TestTreePageDownAdvancesByVisibleRows
+  [DONE] TestTreePageDownAdvancesByVisibleRows (0.000 s)
+  [START] TestTreePageUpRetreatsByVisibleRows
+  [DONE] TestTreePageUpRetreatsByVisibleRows (0.000 s)
+  [START] TestTreeHomeAndEndNavigateToBoundaries
+  [DONE] TestTreeHomeAndEndNavigateToBoundaries (0.000 s)
+  [START] TestTreePageAndBoundaryKeysClampAtExtremes
+  [DONE] TestTreePageAndBoundaryKeysClampAtExtremes (0.000 s)
+  [START] TestTreeMouseWheelScrollAffectsLaterHitTesting
+  [DONE] TestTreeMouseWheelScrollAffectsLaterHitTesting (0.000 s)
+  [START] TestTreeScrollbarThumbGutterDragThroughWindowHost
+  [DONE] TestTreeScrollbarThumbGutterDragThroughWindowHost (0.000 s)
+  [START] TestTreeLargeWheelDeltaUsesFullMagnitude
+  [DONE] TestTreeLargeWheelDeltaUsesFullMagnitude (0.000 s)
+  [START] TestTreeAccumulatesPartialWheelDelta
+  [DONE] TestTreeAccumulatesPartialWheelDelta (0.000 s)
+  [START] TestTreeScrollbarFeedbackFollowsHoverAndDragState
+  [DONE] TestTreeScrollbarFeedbackFollowsHoverAndDragState (0.000 s)
+  [START] TestTreeRowsStraddlingTheViewportEdgesPaintOnlyInsideIt
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeRowsStraddlingTheViewportEdgesPaintOnlyInsideIt (0.139 s)
+  [START] TestTreeFocusVisualsRespectKeyboardFocusVisibilityAndHighContrast
+  [DONE] TestTreeFocusVisualsRespectKeyboardFocusVisibilityAndHighContrast (0.000 s)
+  [START] TestTreeSelectedRowUsesRainbowOnlyInRainbowMode
+  [DONE] TestTreeSelectedRowUsesRainbowOnlyInRainbowMode (0.000 s)
+  [START] TestTreeNotifyDataChangedClearsMissingSelection
+  [DONE] TestTreeNotifyDataChangedClearsMissingSelection (0.000 s)
+  [START] TestTreeRightClickInvokesContextMenuForHitItem
+  [DONE] TestTreeRightClickInvokesContextMenuForHitItem (0.000 s)
+  [START] TestTreeKeyboardContextMenuBringsOffscreenSelectionIntoViewBeforeAnchoring
+  [DONE] TestTreeKeyboardContextMenuBringsOffscreenSelectionIntoViewBeforeAnchoring (0.000 s)
+  [START] TestTreeLayoutMetricsReserveSpaceForIconAndBadge
+  [DONE] TestTreeLayoutMetricsReserveSpaceForIconAndBadge (0.055 s)
+  [START] TestTreeLayoutMetricsOmitOptionalAdornmentRectsWhenUnused
+  [DONE] TestTreeLayoutMetricsOmitOptionalAdornmentRectsWhenUnused (0.000 s)
+  [START] TestTreeRowMetricsClampToSegoeVariableBodyLineHeight
+  [DONE] TestTreeRowMetricsClampToSegoeVariableBodyLineHeight (0.000 s)
+  [START] TestTreeCompactDensityShrinksRowMetrics
+  [DONE] TestTreeCompactDensityShrinksRowMetrics (0.000 s)
+  [START] TestTreeHoveredClippedTextShowsFullTextTooltip
+  [DONE] TestTreeHoveredClippedTextShowsFullTextTooltip (0.000 s)
+  [START] TestTreeMultiSelectIsOptInAndSingleSelectIsUnchanged
+  [DONE] TestTreeMultiSelectIsOptInAndSingleSelectIsUnchanged (0.000 s)
+  [START] TestTreeCtrlAndShiftClickBuildTheSelectionInVisibleOrder
+  [DONE] TestTreeCtrlAndShiftClickBuildTheSelectionInVisibleOrder (0.000 s)
+  [START] TestTreeCtrlAndShiftClickThroughTheHostMessages
+  [DONE] TestTreeCtrlAndShiftClickThroughTheHostMessages (0.000 s)
+  [START] TestTreeKeyboardExtendsTogglesAndSelectsAll
+  [DONE] TestTreeKeyboardExtendsTogglesAndSelectsAll (0.000 s)
+  [START] TestTreeKeyboardGesturesThroughTheHostMessages
+  [DONE] TestTreeKeyboardGesturesThroughTheHostMessages (0.000 s)
+  [START] TestTreeKeyboardGesturesStartFromTheFirstRowWhenNothingIsFocused
+  [DONE] TestTreeKeyboardGesturesStartFromTheFirstRowWhenNothingIsFocused (0.000 s)
+  [START] TestTreeGroupKeysFollowTheModifierRulesAndLeaveTheSelectionWhenTheyExpand
+  [DONE] TestTreeGroupKeysFollowTheModifierRulesAndLeaveTheSelectionWhenTheyExpand (0.000 s)
+  [START] TestTreeSelectionCallbacksFireOncePerChangeAndSeeTheFinishedSelection
+  [DONE] TestTreeSelectionCallbacksFireOncePerChangeAndSeeTheFinishedSelection (0.000 s)
+  [START] TestTreeSelectionSetCallbackMayDestroyTheTree
+  [DONE] TestTreeSelectionSetCallbackMayDestroyTheTree (0.000 s)
+  [START] TestTreeMultiSelectionSurvivesModelChangesExpandCollapseAndScrolling
+  [DONE] TestTreeMultiSelectionSurvivesModelChangesExpandCollapseAndScrolling (0.000 s)
+  [START] TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeMultiSelectPaintsEverySelectedRowWithTheSelectionColors (0.031 s)
+  [START] TestTreeDragReorderKeepsItsSourceAndTheMultiSelection
+  [DONE] TestTreeDragReorderKeepsItsSourceAndTheMultiSelection (0.062 s)
+  [START] TestTreeMultiSelectContextMenuExpanderAndDoubleClickKeepTheSelectionRules
+  [DONE] TestTreeMultiSelectContextMenuExpanderAndDoubleClickKeepTheSelectionRules (0.000 s)
+  [START] TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent
+  [DONE] TestTreeSelectionSettersAndModeSwitchKeepTheSelectionCoherent (0.000 s)
+[DONE] Tree (0.634 s)
+All DxUi tests passed.

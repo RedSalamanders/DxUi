@@ -1005,6 +1005,11 @@ void Grid::SetModel(IGridModel* model) noexcept
     // Non-owning pointer assignment. Caller responsible for model lifetime.
     const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
     ReleaseCellTextResources(); // Also returns tables the old model grew.
+    ++_modelAssignmentGeneration;
+    if (_modelAssignmentGeneration == 0u)
+    {
+        ++_modelAssignmentGeneration;
+    }
     _model                            = model;
     _lastPaintHadAnimatedVisibleCells = false;
     _animatedVisibleCellStateValid    = false;

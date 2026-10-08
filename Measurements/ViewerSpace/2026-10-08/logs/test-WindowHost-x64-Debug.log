@@ -1,0 +1,262 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] WindowHost
+  [START] TestWindowHostWorksWithoutOptionalSdkDebugLayer
+D3D11 WARP optional debug-layer probe: 0x0
+  [DONE] TestWindowHostWorksWithoutOptionalSdkDebugLayer (0.245 s)
+  [START] TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies
+  [DONE] TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies (0.000 s)
+  [START] TestWindowHostKeyboardInputMarksFocusVisible
+  [DONE] TestWindowHostKeyboardInputMarksFocusVisible (0.000 s)
+  [START] TestWindowHostPointerInputClearsKeyboardFocusVisible
+  [DONE] TestWindowHostPointerInputClearsKeyboardFocusVisible (0.000 s)
+  [START] TestWindowHostRejectsForeignThreadDetachUntilOwnerDetaches
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostRejectsForeignThreadDetachUntilOwnerDetaches (0.022 s)
+  [START] TestWindowHostDetachKeepsSharedGraphicsAttachmentUntilControlTreeDestroyed
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostDetachKeepsSharedGraphicsAttachmentUntilControlTreeDestroyed (0.006 s)
+  [START] TestWindowHostEmitsFrameStageMetricsForCaptureRender
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostEmitsFrameStageMetricsForCaptureRender (0.130 s)
+  [START] TestWindowHostBlocksLayoutMutationDuringRender
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostBlocksLayoutMutationDuringRender (0.201 s)
+  [START] TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads
+  [DONE] TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads (0.002 s)
+  [START] TestWindowHostMouseMoveUpdatesHoverTarget
+  [DONE] TestWindowHostMouseMoveUpdatesHoverTarget (0.000 s)
+  [START] TestWindowHostMouseLeaveOverForeignPopupClearsHover
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostMouseLeaveOverForeignPopupClearsHover (0.096 s)
+  [START] TestWindowHostMouseLeaveWithForeignCaptureClearsHover
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostMouseLeaveWithForeignCaptureClearsHover (0.013 s)
+  [START] TestWindowHostTabTraversal
+  [DONE] TestWindowHostTabTraversal (0.001 s)
+  [START] TestWindowHostShiftTabTraversal
+  [DONE] TestWindowHostShiftTabTraversal (0.000 s)
+  [START] TestWindowHostNativeFocusLossRetainsLogicalFocusForTraversal
+  [DONE] TestWindowHostNativeFocusLossRetainsLogicalFocusForTraversal (0.000 s)
+  [START] TestWindowHostFocusGainTurnEndsWithItsMessageOrTheLossOfFocusOrItsLimit
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostFocusGainTurnEndsWithItsMessageOrTheLossOfFocusOrItsLimit (0.615 s)
+  [START] TestWindowHostFocusMoveInTheGainTurnOfAWindowNoGetFocusHasBegunOnIsLeftToTheSystem
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostFocusMoveInTheGainTurnOfAWindowNoGetFocusHasBegunOnIsLeftToTheSystem (0.171 s)
+  [START] TestWindowHostFocusMoveAfterAGetFocusCallHasBegunIsAnnouncedByTheHost
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostFocusMoveAfterAGetFocusCallHasBegunIsAnnouncedByTheHost (0.094 s)
+  [START] TestWindowHostFocusMoveInTheGainTurnOfAWindowGetFocusHasBegunOnBeforeIsAnnouncedByTheHost
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostFocusMoveInTheGainTurnOfAWindowGetFocusHasBegunOnBeforeIsAnnouncedByTheHost (0.111 s)
+  [START] TestWindowHostFocusMovesOutsideTheGainTurnAreTheHosts
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostFocusMovesOutsideTheGainTurnAreTheHosts (0.701 s)
+  [START] TestWindowHostGetFocusHeldBeforeItCountsReportsTheMoveTheHostLeftToTheSystem
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostGetFocusHeldBeforeItCountsReportsTheMoveTheHostLeftToTheSystem (0.108 s)
+  [START] TestWindowHostGainOfAWindowAskedBeforeIsAnnouncedWhenItsTurnEnds
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostGainOfAWindowAskedBeforeIsAnnouncedWhenItsTurnEnds (0.111 s)
+  [START] TestWindowHostEndOfAGainTurnAnnouncesOnlyWhatNothingElseReports
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostEndOfAGainTurnAnnouncesOnlyWhatNothingElseReports (0.094 s)
+  [START] TestWindowHostEarlierGainsTurnEndMessageDoesNotEndALaterTurn
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostEarlierGainsTurnEndMessageDoesNotEndALaterTurn (0.096 s)
+  [START] TestDxUiPrivateMessagesAreRegisteredDistinctAndNeverWmNull
+  [DONE] TestDxUiPrivateMessagesAreRegisteredDistinctAndNeverWmNull (0.000 s)
+  [START] TestWindowHostLeavesApplicationMessagesAtDxUisFormerValuesToTheApplication
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostLeavesApplicationMessagesAtDxUisFormerValuesToTheApplication (0.008 s)
+  [START] TestWindowHostReturnInvokesDefaultButtonWhenFocusedControlDoesNotOwnEnter
+  [DONE] TestWindowHostReturnInvokesDefaultButtonWhenFocusedControlDoesNotOwnEnter (0.000 s)
+  [START] TestWindowHostReturnInvokesDefaultButtonWhenNoControlIsFocused
+  [DONE] TestWindowHostReturnInvokesDefaultButtonWhenNoControlIsFocused (0.000 s)
+  [START] TestWindowHostReturnDoesNotInvokeDefaultButtonWhenFocusedControlOwnsEnter
+  [DONE] TestWindowHostReturnDoesNotInvokeDefaultButtonWhenFocusedControlOwnsEnter (0.000 s)
+  [START] TestButtonKeyboardActivationCanReplaceRootSafely
+  [DONE] TestButtonKeyboardActivationCanReplaceRootSafely (0.000 s)
+  [START] TestWindowHostSpaceAndReturnInvokeFocusedButtonWithoutDefaultButtonFallback
+  [DONE] TestWindowHostSpaceAndReturnInvokeFocusedButtonWithoutDefaultButtonFallback (0.000 s)
+  [START] TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement
+  [DONE] TestWindowHostPointerDispatchDoesNotReuseTargetAfterRootReplacement (0.000 s)
+  [START] TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement
+  [DONE] TestWindowHostHoverEnterDoesNotReuseTargetAfterRootReplacement (0.000 s)
+  [START] TestWindowHostDpiChangedIsHandled
+  [DONE] TestWindowHostDpiChangedIsHandled (0.000 s)
+  [START] TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow (0.161 s)
+  [START] TestWindowHostAttachedWindowsRenderAcrossUiThreads
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostAttachedWindowsRenderAcrossUiThreads (0.218 s)
+  [START] TestWindowHostEscapeInvokesCancelButton
+  [DONE] TestWindowHostEscapeInvokesCancelButton (0.000 s)
+  [START] TestWindowHostEscapeClosesComboPopupBeforeCancelButton
+  [DONE] TestWindowHostEscapeClosesComboPopupBeforeCancelButton (0.000 s)
+  [START] TestWindowHostMenuKeyInvokesFocusedButtonContextMenu
+  [DONE] TestWindowHostMenuKeyInvokesFocusedButtonContextMenu (0.000 s)
+  [START] TestWindowHostShiftF10InvokesFocusedToggleContextMenu
+  [DONE] TestWindowHostShiftF10InvokesFocusedToggleContextMenu (0.000 s)
+  [START] TestWindowHostMenuKeyInvokesFocusedCheckboxContextMenu
+  [DONE] TestWindowHostMenuKeyInvokesFocusedCheckboxContextMenu (0.000 s)
+  [START] TestWindowHostSpaceAndReturnToggleFocusedToggleWithoutDefaultButtonFallback
+  [DONE] TestWindowHostSpaceAndReturnToggleFocusedToggleWithoutDefaultButtonFallback (0.000 s)
+  [START] TestWindowHostSpaceTogglesFocusedCheckboxAndReturnInvokesDefaultButton
+  [DONE] TestWindowHostSpaceTogglesFocusedCheckboxAndReturnInvokesDefaultButton (0.000 s)
+  [START] TestWindowHostMixedDialogKeyboardFlowKeepsCommandsOnFocusedControls
+  [DONE] TestWindowHostMixedDialogKeyboardFlowKeepsCommandsOnFocusedControls (0.000 s)
+  [START] TestWindowHostMixedDialogMouseFlowKeepsCommandsOnHitControls
+  [DONE] TestWindowHostMixedDialogMouseFlowKeepsCommandsOnHitControls (0.002 s)
+  [START] TestWindowHostReadsThePointerDeviceOfEachMouseMessage
+  [DONE] TestWindowHostReadsThePointerDeviceOfEachMouseMessage (0.001 s)
+  [START] TestWindowHostMenuKeyInvokesFocusedTreeContextMenu
+  [DONE] TestWindowHostMenuKeyInvokesFocusedTreeContextMenu (0.000 s)
+  [START] TestWindowHostShiftF10InvokesFocusedTreeContextMenu
+  [DONE] TestWindowHostShiftF10InvokesFocusedTreeContextMenu (0.000 s)
+  [START] TestWindowHostMenuKeyInvokesFocusedGridContextMenu
+  [DONE] TestWindowHostMenuKeyInvokesFocusedGridContextMenu (0.000 s)
+  [START] TestWindowHostShiftF10InvokesFocusedGridContextMenu
+  [DONE] TestWindowHostShiftF10InvokesFocusedGridContextMenu (0.000 s)
+  [START] TestWindowHostMenuKeyInvokesFocusedTextFieldContextMenu
+  [DONE] TestWindowHostMenuKeyInvokesFocusedTextFieldContextMenu (0.000 s)
+  [START] TestWindowHostMenuKeyInvokesFocusedComboContextMenu
+  [DONE] TestWindowHostMenuKeyInvokesFocusedComboContextMenu (0.000 s)
+  [START] TestWindowHostSetRootClearsDestroyedTreeInteractionState
+  [DONE] TestWindowHostSetRootClearsDestroyedTreeInteractionState (0.000 s)
+  [START] TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot
+  [DONE] TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot (0.000 s)
+  [START] TestWindowHostProcessExitDetachAbandonsRetainedControlObserversBeforeNativeTeardown
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostProcessExitDetachAbandonsRetainedControlObserversBeforeNativeTeardown (0.092 s)
+  [START] TestProcessExitShutdownMarshalsForeignWindowHostDetachToOwnerThread
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestProcessExitShutdownMarshalsForeignWindowHostDetachToOwnerThread (0.018 s)
+  [START] TestWindowHostClearChildrenPrunesDestroyedTreeInteractionState
+  [DONE] TestWindowHostClearChildrenPrunesDestroyedTreeInteractionState (0.000 s)
+  [START] TestWindowHostKeyDownCallbackDisablingFocusPrunesBeforePostDispatchSync
+  [DONE] TestWindowHostKeyDownCallbackDisablingFocusPrunesBeforePostDispatchSync (0.000 s)
+  [START] TestWindowHostCharCallbackDisablingFocusPrunesBeforePostDispatchSync
+  [DONE] TestWindowHostCharCallbackDisablingFocusPrunesBeforePostDispatchSync (0.000 s)
+  [START] TestWindowHostFocusLossCallbackRevalidatesRequestedFocusTarget
+  [DONE] TestWindowHostFocusLossCallbackRevalidatesRequestedFocusTarget (0.000 s)
+  [START] TestWindowHostIgnoresObserverButtonsOutsideInstalledRoot
+  [DONE] TestWindowHostIgnoresObserverButtonsOutsideInstalledRoot (0.000 s)
+  [START] TestWindowHostIgnoresFocusAndCaptureOutsideInstalledRoot
+  [DONE] TestWindowHostIgnoresFocusAndCaptureOutsideInstalledRoot (0.000 s)
+  [START] TestWindowHostCaptureLossClearsPressedButtonState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostCaptureLossClearsPressedButtonState (0.008 s)
+  [START] TestWindowHostResetInteractionStateNotifiesCapturedControl
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostResetInteractionStateNotifiesCapturedControl (0.006 s)
+  [START] TestWindowHostRedundantCaptureDoesNotCancelMouseDownCapture
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostRedundantCaptureDoesNotCancelMouseDownCapture (0.007 s)
+  [START] TestWindowHostRenderSurvivesForcedNullSolidBrushes
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostRenderSurvivesForcedNullSolidBrushes (0.205 s)
+  [START] TestWindowHostEditorControlsSurviveForcedNullSolidBrushes
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostEditorControlsSurviveForcedNullSolidBrushes (0.153 s)
+  [START] TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag (0.009 s)
+  [START] TestWindowHostSmokeOverlayRendersBelowRootOverlay
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostSmokeOverlayRendersBelowRootOverlay (0.123 s)
+  [START] TestWindowHostOverlayHitTestingPrecedesContentHitTesting
+  [DONE] TestWindowHostOverlayHitTestingPrecedesContentHitTesting (0.000 s)
+  [START] TestWindowHostEscapeClosesMouseOpenedComboPopupBeforeCancelButton
+  [DONE] TestWindowHostEscapeClosesMouseOpenedComboPopupBeforeCancelButton (0.000 s)
+  [START] TestWindowHostTabTraversalIncludesComboBox
+  [DONE] TestWindowHostTabTraversalIncludesComboBox (0.000 s)
+  [START] TestWindowHostTabTraversalStaysConsistentAcrossFieldComboTreeGridAndButtons
+  [DONE] TestWindowHostTabTraversalStaysConsistentAcrossFieldComboTreeGridAndButtons (0.000 s)
+  [START] TestWindowHostGroupedListNavigationKeepsTreeTypeaheadAndGridSelectionVisible
+  [DONE] TestWindowHostGroupedListNavigationKeepsTreeTypeaheadAndGridSelectionVisible (0.001 s)
+  [START] TestWindowHostAltDownOpensComboPopup
+  [DONE] TestWindowHostAltDownOpensComboPopup (0.000 s)
+  [START] TestWindowHostAltUpClosesComboPopup
+  [DONE] TestWindowHostAltUpClosesComboPopup (0.000 s)
+  [START] TestWindowHostMnemonicActivatesButton
+  [DONE] TestWindowHostMnemonicActivatesButton (0.000 s)
+  [START] TestWindowHostLabelMnemonicTargetsField
+  [DONE] TestWindowHostLabelMnemonicTargetsField (0.000 s)
+  [START] TestWindowHostUnknownMnemonicRemainsUnhandled
+  [DONE] TestWindowHostUnknownMnemonicRemainsUnhandled (0.000 s)
+  [START] TestWindowHostHiddenAnimationTickDropsSubscriptionUntilShown
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostHiddenAnimationTickDropsSubscriptionUntilShown (0.011 s)
+  [START] TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostRestoreFromMinimizeRearmsSuspendedAnimation (0.029 s)
+  [START] TestNoninteractiveWindowActivationBlockerRejectsFocusStealing
+  [DONE] TestNoninteractiveWindowActivationBlockerRejectsFocusStealing (0.064 s)
+[DONE] WindowHost (3.947 s)
+All DxUi tests passed.

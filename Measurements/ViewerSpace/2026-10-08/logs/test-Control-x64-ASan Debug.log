@@ -1,0 +1,81 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Control
+  [START] TestLocalizedActionLayout
+  [DONE] TestLocalizedActionLayout (0.093 s)
+LOCALIZED_LAYOUT round=0 layouts=24000 us=13372 checksum=1.21933e+07
+LOCALIZED_LAYOUT round=1 layouts=24000 us=13467 checksum=1.21933e+07
+LOCALIZED_LAYOUT round=2 layouts=24000 us=13864 checksum=1.21933e+07
+LOCALIZED_LAYOUT round=3 layouts=24000 us=14674 checksum=1.21933e+07
+LOCALIZED_LAYOUT round=4 layouts=24000 us=13337 checksum=1.21933e+07
+  [START] TestMeasuredActionsFailureAndDirectionContracts
+  [DONE] TestMeasuredActionsFailureAndDirectionContracts (0.007 s)
+  [START] TestScrollPanelChildCallbacksCanClearChildrenSafely
+  [DONE] TestScrollPanelChildCallbacksCanClearChildrenSafely (0.000 s)
+  [START] TestGroupedGridHeaderClickTogglesCollapsedStateAndRehomesSelection
+  [DONE] TestGroupedGridHeaderClickTogglesCollapsedStateAndRehomesSelection (0.002 s)
+  [START] TestToggleLayoutMetricsReserveTextLaneWhenLabelIsPresent
+  [DONE] TestToggleLayoutMetricsReserveTextLaneWhenLabelIsPresent (0.000 s)
+  [START] TestToggleStateLabelsReserveTextLaneWithoutPrimaryLabel
+  [DONE] TestToggleStateLabelsReserveTextLaneWithoutPrimaryLabel (0.000 s)
+  [START] TestToggleStateLabelsFollowCheckedState
+  [DONE] TestToggleStateLabelsFollowCheckedState (0.000 s)
+  [START] TestFocusRingPaintPathsHandleMissingDeviceContext
+  [DONE] TestFocusRingPaintPathsHandleMissingDeviceContext (0.683 s)
+  [START] TestScrollPanelThumbGutterDragThroughWindowHost
+  [DONE] TestScrollPanelThumbGutterDragThroughWindowHost (0.001 s)
+  [START] TestMenuBarLayoutCacheRecomputesHitRectsAfterLayoutInvalidations
+  [DONE] TestMenuBarLayoutCacheRecomputesHitRectsAfterLayoutInvalidations (0.002 s)
+  [START] TestTabControlHeaderCacheRecomputesRectsAfterLayoutInvalidations
+  [DONE] TestTabControlHeaderCacheRecomputesRectsAfterLayoutInvalidations (0.002 s)
+  [START] TestTabControlBodyDragReleaseOverCloseButtonDoesNotCloseTab
+  [DONE] TestTabControlBodyDragReleaseOverCloseButtonDoesNotCloseTab (0.001 s)
+  [START] TestTabControlReorderingPolicyPreservesStableHostIndices
+  [DONE] TestTabControlReorderingPolicyPreservesStableHostIndices (0.001 s)
+  [START] TestTabControlReorderingReportsStableMove
+  [DONE] TestTabControlReorderingReportsStableMove (0.001 s)
+  [START] TestToggleMouseActivationOnlyFiresToggledCallbackWithUpdatedState
+  [DONE] TestToggleMouseActivationOnlyFiresToggledCallbackWithUpdatedState (0.000 s)
+  [START] TestToggleMouseActivationCanReplaceRootSafely
+  [DONE] TestToggleMouseActivationCanReplaceRootSafely (0.000 s)
+  [START] TestMenuBarActivationCanReplaceRootSafely
+  [DONE] TestMenuBarActivationCanReplaceRootSafely (0.001 s)
+  [START] TestControlsThatFocusThemselvesLeaveAControlTheFocusCallbackDestroyed
+  [DONE] TestControlsThatFocusThemselvesLeaveAControlTheFocusCallbackDestroyed (0.006 s)
+  [START] TestColorSwatchStoresConfiguredArgbAndEmptyState
+  [DONE] TestColorSwatchStoresConfiguredArgbAndEmptyState (0.000 s)
+  [START] TestTagPickerWrapsBadgesInsideInputFrame
+  [DONE] TestTagPickerWrapsBadgesInsideInputFrame (0.002 s)
+  [START] TestTagPickerSuggestionsTrackSelectedBadges
+  [DONE] TestTagPickerSuggestionsTrackSelectedBadges (0.001 s)
+  [START] TestTagPickerKeyboardNavigationCommitsFilteredSuggestionOnEnter
+  [DONE] TestTagPickerKeyboardNavigationCommitsFilteredSuggestionOnEnter (0.001 s)
+  [START] TestToggleRightClickInvokesContextMenuWithoutChangingState
+  [DONE] TestToggleRightClickInvokesContextMenuWithoutChangingState (0.001 s)
+  [START] TestCheckboxRightClickInvokesContextMenuWithoutChangingState
+  [DONE] TestCheckboxRightClickInvokesContextMenuWithoutChangingState (0.001 s)
+  [START] TestMnemonicTextIndexUsesExplicitAmpersandMnemonic
+  [DONE] TestMnemonicTextIndexUsesExplicitAmpersandMnemonic (0.000 s)
+  [START] TestMnemonicTextIndexTreatsEscapedAmpersandAsLiteralDisplayText
+  [DONE] TestMnemonicTextIndexTreatsEscapedAmpersandAsLiteralDisplayText (0.000 s)
+  [START] TestGridCheckboxCellClickTogglesThroughDelegate
+  [DONE] TestGridCheckboxCellClickTogglesThroughDelegate (0.001 s)
+  [START] TestDisabledGridCheckboxCellClickSelectsWithoutTogglingAndInvalidates
+  [DONE] TestDisabledGridCheckboxCellClickSelectsWithoutTogglingAndInvalidates (0.001 s)
+  [START] TestGridCheckboxCellTextClickDoesNotToggle
+  [DONE] TestGridCheckboxCellTextClickDoesNotToggle (0.000 s)
+  [START] TestGridSpaceTogglesActiveCheckboxColumnAcrossRows
+  [DONE] TestGridSpaceTogglesActiveCheckboxColumnAcrossRows (0.001 s)
+  [START] TestGridSpaceOnDisabledCheckboxColumnIsHandledWithoutToggling
+  [DONE] TestGridSpaceOnDisabledCheckboxColumnIsHandledWithoutToggling (0.001 s)
+  [START] TestDedicatedCheckboxColumnCentersIndicatorAndToggles
+  [DONE] TestDedicatedCheckboxColumnCentersIndicatorAndToggles (0.000 s)
+  [START] TestToggleMetricsMatchPreferencesWidthBudget
+  [DONE] TestToggleMetricsMatchPreferencesWidthBudget (0.000 s)
+  [START] TestMnemonicTextIndexFindsFirstCaseInsensitiveMatch
+  [DONE] TestMnemonicTextIndexFindsFirstCaseInsensitiveMatch (0.000 s)
+  [START] TestMnemonicTextIndexReturnsNoMatchWhenAbsent
+  [DONE] TestMnemonicTextIndexReturnsNoMatchWhenAbsent (0.000 s)
+  [START] TestThroughputGraphHonorsMotionRainbowAndHighContrastContracts
+  [DONE] TestThroughputGraphHonorsMotionRainbowAndHighContrastContracts (0.000 s)
+[DONE] Control (0.811 s)
+All DxUi tests passed.

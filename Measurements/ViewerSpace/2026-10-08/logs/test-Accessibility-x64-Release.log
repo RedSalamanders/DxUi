@@ -1,0 +1,800 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction
+    [UIA focus reentry] invoke=0 result=0x80040201 replacements=1 originalActions=0 replacementActions=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [UIA focus reentry] invoke=1 result=0x80040201 replacements=1 originalActions=0 replacementActions=0
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction (0.020 s)
+  [START] TestNativeAccessibilityProvidersRejectReplacementAtSamePath
+    [UIA lifetime] replaceRoot=0 property=0x80040201 invoke=0x80040201 focus=0x80040201 value=0x80040201 rangeText=0x80040201 select=0x80040201 clone=0x80040201 runtimeId=0x80040201 replacementInvocations=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA lifetime] replaceRoot=1 property=0x80040201 invoke=0x80040201 focus=0x80040201 value=0x80040201 rangeText=0x80040201 select=0x80040201 clone=0x80040201 runtimeId=0x80040201 replacementInvocations=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityProvidersRejectReplacementAtSamePath (0.296 s)
+  [START] TestNativeAccessibilityRootRetiresWhenAControlCollapsesIntoIt
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityRootRetiresWhenAControlCollapsesIntoIt (0.005 s)
+  [START] TestNativeAccessibilityCollapsedRootRetiresAfterCallbackReplacement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityCollapsedRootRetiresAfterCallbackReplacement (0.005 s)
+  [START] TestNativeAccessibilityPostedSelectRejectsReplacement
+    [UIA lifetime] posted-select result=0x80040201
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityPostedSelectRejectsReplacement (0.075 s)
+  [START] TestNativeAccessibilityPostedInvokeRejectsReplacement
+    [UIA lifetime] posted-invoke result=0x80040201 original=0 replacement=0
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilityPostedInvokeRejectsReplacement (0.022 s)
+  [START] TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNativeAccessibilitySelectionDelegateReplacementStopsTheFocus (0.030 s)
+  [START] TestSingleTreeWindowElementIsTheParentOfItsItems
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleTreeWindowElementIsTheParentOfItsItems (2.072 s)
+  [START] TestSingleTreeWindowReplacementTreeGetsItemElementsOfItsOwn
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleTreeWindowReplacementTreeGetsItemElementsOfItsOwn (0.813 s)
+  [START] TestTreeBesideAnotherControlIsTheParentOfItsItems
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeBesideAnotherControlIsTheParentOfItsItems (1.147 s)
+  [START] TestSingleGridWindowElementIsTheParentOfItsHeadersRowsAndCells
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleGridWindowElementIsTheParentOfItsHeadersRowsAndCells (2.739 s)
+  [START] TestGridBesideAnotherControlIsTheParentOfItsHeadersRowsAndCells
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridBesideAnotherControlIsTheParentOfItsHeadersRowsAndCells (1.613 s)
+  [START] TestSingleMaskedFieldWindowElementIsTheParentOfItsRevealButton
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleMaskedFieldWindowElementIsTheParentOfItsRevealButton (1.106 s)
+  [START] TestSingleTreeWindowItemEventsReachAClientSubscribedToTheWindow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleTreeWindowItemEventsReachAClientSubscribedToTheWindow (9.202 s)
+  [START] TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeBesideAnotherControlItemEventsReachAClientSubscribedToTheWindow (9.152 s)
+  [START] TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleGridWindowRowAndCellEventsReachAClientSubscribedToTheWindow (21.003 s)
+  [START] TestGridBesideAnotherControlRowAndCellEventsReachAClientSubscribedToTheWindow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridBesideAnotherControlRowAndCellEventsReachAClientSubscribedToTheWindow (20.943 s)
+  [START] TestSelectionEventsEndWhenTheControlLeavesWhileTheyAreRaised
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSelectionEventsEndWhenTheControlLeavesWhileTheyAreRaised (0.658 s)
+  [START] TestTreeSelectionPublishReplacementStopsRequests
+    [UIA publish lifetime] Tree Select
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree AddToSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree Select
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree AddToSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree RemoveFromSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree Select
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree AddToSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree Select
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree AddToSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree RemoveFromSelection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeSelectionPublishReplacementStopsRequests (2.297 s)
+  [START] TestTreeSelectionPublishReplacementStopsPointerHandlers
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree pointer handler
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeSelectionPublishReplacementStopsPointerHandlers (3.931 s)
+  [START] TestTreeSelectionPublishReplacementStopsReorderClick
+    [UIA publish lifetime] Tree click on a row of a multi-selection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree click on a row of a multi-selection
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeSelectionPublishReplacementStopsReorderClick (0.390 s)
+  [START] TestTreeSelectionPublishReplacementStopsKeyboardHandlers
+    [UIA publish lifetime] Tree arrow key
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree type-ahead
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree arrow key
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree type-ahead
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree arrow key
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree type-ahead
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree arrow key
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree type-ahead
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeSelectionPublishReplacementStopsKeyboardHandlers (1.822 s)
+  [START] TestTreeSelectionPublishReplacementStopsSelectAll
+    [UIA publish lifetime] Tree SelectAll
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree SelectAll
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeSelectionPublishReplacementStopsSelectAll (0.437 s)
+  [START] TestTreeSelectionPublishReplacementStopsModeChange
+    [UIA publish lifetime] Tree multi-select disabled
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree multi-select disabled
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeSelectionPublishReplacementStopsModeChange (0.434 s)
+  [START] TestTreeDataChangedPublishReplacementSkipsSelectionDelegate
+    [UIA publish lifetime] Tree NotifyDataChanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Tree NotifyDataChanged
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTreeDataChangedPublishReplacementSkipsSelectionDelegate (0.454 s)
+  [START] TestGridSelectionPublishReplacementStopsInput
+    [UIA publish lifetime] Grid selection input
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Grid selection input
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Grid selection input
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Grid selection input
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Grid selection input
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Grid selection input
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridSelectionPublishReplacementStopsInput (1.326 s)
+  [START] TestGridSelectionPublishReplacementStopsSelectAll
+    [UIA publish lifetime] Grid SelectAll
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Grid SelectAll
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridSelectionPublishReplacementStopsSelectAll (0.435 s)
+  [START] TestGridGroupSelectionPublishReplacementStopsKeyboardHandler
+    [UIA publish lifetime] Grid keyboard group collapse
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [UIA publish lifetime] Grid keyboard group collapse
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridGroupSelectionPublishReplacementStopsKeyboardHandler (0.472 s)
+  [START] TestSingleTextFieldWindowElementRaisesTheFieldsTextEvents
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleTextFieldWindowElementRaisesTheFieldsTextEvents (0.311 s)
+  [START] TestTextFieldBesideAnotherControlRaisesItsTextEventsFromItsOwnElement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTextFieldBesideAnotherControlRaisesItsTextEventsFromItsOwnElement (0.636 s)
+  [START] TestSingleTextFieldWindowElementEnclosesTheFieldsTextRanges
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSingleTextFieldWindowElementEnclosesTheFieldsTextRanges (0.331 s)
+  [START] TestTextFieldBesideAnotherControlEnclosesItsTextRangesInItsOwnElement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTextFieldBesideAnotherControlEnclosesItsTextRangesInItsOwnElement (0.616 s)
+  [START] TestNumericStepperStepButtonsAreNamedForAutomation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNumericStepperStepButtonsAreNamedForAutomation (0.007 s)
+  [START] TestWindowHostStaleElementCannotActOnAReplacementControl
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostStaleElementCannotActOnAReplacementControl (0.006 s)
+  [START] TestWindowHostReplacedTreeItemsGetNewRuntimeIds
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostReplacedTreeItemsGetNewRuntimeIds (0.006 s)
+  [START] TestWindowHostRebuildRaisesStructureInvalidation
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostRebuildRaisesStructureInvalidation (1.144 s)
+  [START] TestCollapsedStatusRootChildEventComesFromTheChild
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestCollapsedStatusRootChildEventComesFromTheChild (0.093 s)
+  [START] TestWindowHostFocusCallbackThatRemovesTheControlLeavesNoFocus
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostFocusCallbackThatRemovesTheControlLeavesNoFocus (0.007 s)
+  [START] TestWindowHostRuntimeIdsNeverRepeatAcrossRebuilds
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostRuntimeIdsNeverRepeatAcrossRebuilds (0.007 s)
+  [START] TestWindowHostPublishSkipsAFocusedControlItsPanelRemoved
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostPublishSkipsAFocusedControlItsPanelRemoved (0.008 s)
+  [START] TestRootlessHostKeepsFocusAfterItsCallback
+  [DONE] TestRootlessHostKeepsFocusAfterItsCallback (0.000 s)
+  [START] TestDisclosureButtonExpandCollapsePreservesAcknowledgedState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDisclosureButtonExpandCollapsePreservesAcknowledgedState (0.007 s)
+  [START] TestDisclosureNotifiesNativeAutomationClient
+    [UIA] disclosure subscription stage=AddPropertyChangedEventHandlerNativeArray ready=1 hr=0x0 elapsedMs=78 elementFromHandleMs=62 subscribeMs=0 longestOwnerPumpMs=0 allowanceMs=20000
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDisclosureNotifiesNativeAutomationClient (0.142 s)
+  [START] TestAccessibilityTextUnitHelperSharesGraphemeWordLineAndFallbackPolicy
+  [DONE] TestAccessibilityTextUnitHelperSharesGraphemeWordLineAndFallbackPolicy (0.000 s)
+  [START] TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement
+    [TRACE] attached host dtor: begin
+Concurrent traversal: 1790545 traversals, 55 reads of replaced elements
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement (1.348 s)
+  [START] TestAttachedWindowHostWmGetObjectReturnsAccessibilityProvider
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAttachedWindowHostWmGetObjectReturnsAccessibilityProvider (0.008 s)
+  [START] TestAccessibilityRootRuntimeIdIncludesProviderSpecificValues
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityRootRuntimeIdIncludesProviderSpecificValues (0.006 s)
+  [START] TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns (0.006 s)
+  [START] TestAccessibilityProviderRefreshesButtonSemanticProperties
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderRefreshesButtonSemanticProperties (0.005 s)
+  [START] TestAccessibilityProviderRefreshesLabelAssociations
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderRefreshesLabelAssociations (0.005 s)
+  [START] TestAccessibilityProviderExposesDirectSemanticRootControls
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesDirectSemanticRootControls (0.093 s)
+  [START] TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderIdentityRetiresAcrossSameHwndReattach (0.006 s)
+  [START] TestAccessibilityLabelOnlyRootDoesNotUseDirectSemanticRootCollapse
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityLabelOnlyRootDoesNotUseDirectSemanticRootCollapse (0.005 s)
+  [START] TestAccessibilityDirectSemanticRootMatchesUiAutomationClientTree
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityDirectSemanticRootMatchesUiAutomationClientTree (0.007 s)
+  [START] TestAccessibilityDirectSemanticRootTreeSelectionMatchesUiAutomationClientTree
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityDirectSemanticRootTreeSelectionMatchesUiAutomationClientTree (0.006 s)
+  [START] TestAccessibilityProviderReportsFocusedControl
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderReportsFocusedControl (0.103 s)
+  [START] TestAccessibilityProviderMasksPasswordTextFieldValue
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderMasksPasswordTextFieldValue (0.007 s)
+  [START] TestAccessibilityProviderExposesMaskedRevealButton
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesMaskedRevealButton (0.081 s)
+  [START] TestAccessibilityProviderExposesTextPatternForTextField
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesTextPatternForTextField (0.074 s)
+  [START] TestAccessibilityTextFieldSimpleRangeBoundingRectanglesUseCaretGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldSimpleRangeBoundingRectanglesUseCaretGeometry (0.076 s)
+  [START] TestAccessibilityTextFieldMultilineRangeFromPointUsesNativeHitTest
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldMultilineRangeFromPointUsesNativeHitTest (0.105 s)
+  [START] TestAccessibilityTextRangeFromPointDispatchesToWindowThread
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextRangeFromPointDispatchesToWindowThread (0.165 s)
+  [START] TestAccessibilityTextFieldMultilineSameLineRangeBoundingRectanglesUseCaretGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldMultilineSameLineRangeBoundingRectanglesUseCaretGeometry (0.072 s)
+  [START] TestAccessibilityTextFieldMultilineRangeBoundingRectanglesUseLineCaretGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldMultilineRangeBoundingRectanglesUseLineCaretGeometry (0.064 s)
+  [START] TestAccessibilityTextFieldWrappedRangeBoundingRectanglesUseVisualLineGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldWrappedRangeBoundingRectanglesUseVisualLineGeometry (0.069 s)
+  [START] TestAccessibilityTextFieldWrappedCrossLineRangeBoundingRectanglesUseVisualLineGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldWrappedCrossLineRangeBoundingRectanglesUseVisualLineGeometry (0.067 s)
+  [START] TestAccessibilityTextFieldWrappedLineMovementUsesVisualLines
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldWrappedLineMovementUsesVisualLines (0.074 s)
+  [START] TestAccessibilityTextRangeEndpointLineMovementDispatchesToWindowThread
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextRangeEndpointLineMovementDispatchesToWindowThread (0.260 s)
+  [START] TestAccessibilityTextRangeSpanLineMovementDispatchesToWindowThread
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextRangeSpanLineMovementDispatchesToWindowThread (0.152 s)
+  [START] TestAccessibilityTextFieldSingleLineMixedBiDiRangeBoundingRectanglesUseDirectWriteGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldSingleLineMixedBiDiRangeBoundingRectanglesUseDirectWriteGeometry (0.066 s)
+  [START] TestAccessibilityTextFieldMultilineMixedBiDiRangeBoundingRectanglesUseDirectWriteGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextFieldMultilineMixedBiDiRangeBoundingRectanglesUseDirectWriteGeometry (0.064 s)
+  [START] TestAccessibilityEditableComboBoxSingleLineMixedBiDiRangeBoundingRectanglesUseDirectWriteGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityEditableComboBoxSingleLineMixedBiDiRangeBoundingRectanglesUseDirectWriteGeometry (0.074 s)
+  [START] TestAccessibilityProviderExposesTextPatternForEditableComboBox
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesTextPatternForEditableComboBox (0.080 s)
+  [START] TestAccessibilityTextRangeSelectDispatchesToWindowThread
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextRangeSelectDispatchesToWindowThread (0.159 s)
+  [START] TestAccessibilityTimedOutTextRangeSelectDoesNotExecuteLater
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTimedOutTextRangeSelectDoesNotExecuteLater (0.204 s)
+  [START] TestAccessibilityTakenTextRangeSelectExecutesOnlyOnce
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTakenTextRangeSelectExecutesOnlyOnce (0.184 s)
+  [START] TestAccessibilityDestroyWithPendingDispatchReturnsCancelled
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityDestroyWithPendingDispatchReturnsCancelled (0.078 s)
+  [START] TestAccessibilityTextRangeBoundingRectanglesDispatchesToWindowThread
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextRangeBoundingRectanglesDispatchesToWindowThread (0.155 s)
+  [START] TestAccessibilityTextRangeBoundingRectanglesTimeoutKeepsLateHandlerStorageAlive
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTextRangeBoundingRectanglesTimeoutKeepsLateHandlerStorageAlive (0.133 s)
+  [START] TestAccessibilityProviderExposesNativeImeTextEditRanges
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesNativeImeTextEditRanges (0.076 s)
+  [START] TestAccessibilityNativeTextInputRaisesTextAndTextEditEventCounters
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityNativeTextInputRaisesTextAndTextEditEventCounters (0.086 s)
+  [START] TestAccessibilityGridSnapshotRebuildMeetsTenThousandRowSelectionBudget
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityGridSnapshotRebuildMeetsTenThousandRowSelectionBudget (0.009 s)
+  [START] TestAccessibilityProvidersResolveTheirControlWithoutScanningTheTree
+    [TRACE] attached host dtor: begin
+Accessibility resolution: Navigate (245 buttons) examined 5.69919 on average, 17 at most, over 246 calls
+Accessibility resolution: Navigate (1,960 buttons) examined 5.76033 on average, 21 at most, over 1961 calls
+Accessibility resolution: GetPropertyValue (1,960 buttons) examined 3.45765 on average, 15 at most, over 1960 calls
+Accessibility resolution: get_BoundingRectangle (1,960 buttons) examined 3.44796 on average, 11 at most, over 1960 calls
+Accessibility resolution: GetPatternProvider (1,960 buttons) examined 3.45765 on average, 15 at most, over 1960 calls
+Accessibility resolution: event path (1,960 buttons) examined 16.9561 on average, 17 at most, over 1960 calls
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProvidersResolveTheirControlWithoutScanningTheTree (0.018 s)
+  [START] TestAccessibilityLookupTablesAgreeWithAScanOfTheRecords
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityLookupTablesAgreeWithAScanOfTheRecords (0.070 s)
+  [START] TestAccessibilityProviderExposesTreeAndGridMetadata
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesTreeAndGridMetadata (0.008 s)
+  [START] TestAccessibilityTreeItemProviderKeepsStableIdentityAcrossReorder
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTreeItemProviderKeepsStableIdentityAcrossReorder (0.006 s)
+  [START] TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesTreeItemSelectionAndExpandCollapsePatterns (0.007 s)
+  [START] TestAccessibilityTreeMultiSelectExposesSelectionPatternsAndItemState
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTreeMultiSelectExposesSelectionPatternsAndItemState (0.006 s)
+  [START] TestAccessibilityTreeMultiSelectRaisesSelectionEvents
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTreeMultiSelectRaisesSelectionEvents (9.672 s)
+  [START] TestAccessibilityTreeMultiSelectRaisesSelectionEventsWhenItFillsItsWindow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTreeMultiSelectRaisesSelectionEventsWhenItFillsItsWindow (9.694 s)
+  [START] TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityOffscreenSelectedGridRowPatternRemainsUsable (0.008 s)
+  [START] TestAccessibilityTrimmedMultilineGridCellKeepsCompleteNameAndValue
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityTrimmedMultilineGridCellKeepsCompleteNameAndValue (0.195 s)
+  [START] TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues (0.349 s)
+  [START] TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport
+UIA scrolled (0, 0), cell 0,0: bounds (-31972, -31919) 308 x 64, visible part (-31972, -31919) 308 x 64, whole cell 400 x 64 DIP
+    [TRACE] attached host dtor: begin
+UIA scrolled (0, 0), cell 1,0: bounds (-31972, -31855) 308 x 54, visible part (-31972, -31855) 308 x 54, whole cell 400 x 64 DIP
+UIA scrolled (64, 40), cell 1,0: bounds (-31972, -31919) 308 x 64, visible part (-31972, -31919) 308 x 64, whole cell 400 x 64 DIP
+UIA scrolled (64, 40), cell 2,0: bounds (-31972, -31855) 308 x 54, visible part (-31972, -31855) 308 x 54, whole cell 400 x 64 DIP
+UIA scrolled (128, 0), cell 2,0: bounds (-31972, -31919) 308 x 64, visible part (-31972, -31919) 308 x 64, whole cell 400 x 64 DIP
+UIA scrolled (128, 0), cell 3,0: bounds (-31972, -31855) 308 x 54, visible part (-31972, -31855) 308 x 54, whole cell 400 x 64 DIP
+UIA scrolled (0, 300), cell 0,0: bounds (-31972, -31919) 100 x 64, visible part (-31972, -31919) 100 x 64, whole cell 400 x 64 DIP
+UIA scrolled (0, 300), cell 0,1: bounds (-31872, -31919) 208 x 64, visible part (-31872, -31919) 208 x 64, whole cell 400 x 64 DIP
+UIA scrolled (0, 300), cell 1,0: bounds (-31972, -31855) 100 x 54, visible part (-31972, -31855) 100 x 54, whole cell 400 x 64 DIP
+UIA scrolled (0, 300), cell 1,1: bounds (-31872, -31855) 208 x 54, visible part (-31872, -31855) 208 x 54, whole cell 400 x 64 DIP
+UIA scrolled (128, 380), cell 2,0: bounds (-31972, -31919) 20 x 64, visible part (-31972, -31919) 20 x 64, whole cell 400 x 64 DIP
+UIA scrolled (128, 380), cell 2,1: bounds (-31952, -31919) 288 x 64, visible part (-31952, -31919) 288 x 64, whole cell 400 x 64 DIP
+UIA scrolled (128, 380), cell 3,0: bounds (-31972, -31855) 20 x 54, visible part (-31972, -31855) 20 x 54, whole cell 400 x 64 DIP
+UIA scrolled (128, 380), cell 3,1: bounds (-31952, -31855) 288 x 54, visible part (-31952, -31855) 288 x 54, whole cell 400 x 64 DIP
+UIA under a dragged thumb, cell 0,0: bounds (-31972, -31919) 308 x 31, visible part (-31972, -31919) 308 x 31, whole cell 400 x 64 DIP
+UIA under a dragged thumb, cell 1,0: bounds (-31972, -31888) 308 x 64, visible part (-31972, -31888) 308 x 64, whole cell 400 x 64 DIP
+UIA under a dragged thumb, cell 2,0: bounds (-31972, -31824) 308 x 23, visible part (-31972, -31824) 308 x 23, whole cell 400 x 64 DIP
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport (0.348 s)
+  [START] TestAccessibilityProviderExposesGridRowSelectionPatterns
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesGridRowSelectionPatterns (0.009 s)
+  [START] TestGridUiaPatternSupportsBoundedOffscreenGetItem
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternSupportsBoundedOffscreenGetItem (0.092 s)
+  [START] TestGridUiaPatternStopsWhenCellReadReplacesItsControl
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternStopsWhenCellReadReplacesItsControl (0.007 s)
+  [START] TestGridUiaPatternStopsWhenCellReadShrinksItsModel
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternStopsWhenCellReadShrinksItsModel (0.007 s)
+  [START] TestGridUiaPatternKeepsNestedSameAddressPublication
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternKeepsNestedSameAddressPublication (0.009 s)
+  [START] TestGridUiaPatternStopsPointHitsAfterModelReplacement
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternStopsPointHitsAfterModelReplacement (0.007 s)
+  [START] TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment (0.007 s)
+  [START] TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary (0.007 s)
+  [START] TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure (0.007 s)
+  [START] TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren (0.007 s)
+  [START] TestAccessibilityProviderExposesGridCellToggleAndRangePatterns
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesGridCellToggleAndRangePatterns (0.036 s)
+  [START] TestAccessibilityProviderExposesSliderRangeValuePattern
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesSliderRangeValuePattern (0.006 s)
+  [START] TestAccessibilityProviderExposesSplitterRangeValuePattern
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityProviderExposesSplitterRangeValuePattern (0.009 s)
+  [START] TestAccessibilityStatusRootExposesChildrenAndNonFocusingInvoke
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityStatusRootExposesChildrenAndNonFocusingInvoke (0.007 s)
+[DONE] Accessibility (111.056 s)
+All DxUi tests passed.

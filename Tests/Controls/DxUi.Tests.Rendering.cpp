@@ -2589,6 +2589,79 @@ void TestAttachedHostSameSizeRepaintDoesNotResizeSwapChain()
 #endif
 }
 
+void TestAttachedHostFirstPartialPaintPresentsFullAfterCreateAndResize()
+{
+    using namespace DxUi;
+
+    constexpr std::array presentationModes{WindowHost::PresentationMode::HwndSwapChain, WindowHost::PresentationMode::CompositionSwapChain};
+    for (const WindowHost::PresentationMode presentationMode : presentationModes)
+    {
+        AttachedHostWindow window(presentationMode);
+        auto root   = std::make_unique<Panel>();
+        auto* label = root->AddChild<Label>(L"first frame remains complete");
+        label->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 32.0f));
+        window.Host().SetRoot(std::move(root));
+
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+#ifdef _DEBUG
+        const RECT dirtyRect{4, 4, 28, 28};
+        const uint64_t initialFullPresentCount    = window.Host().DebugGetFullPresentAttemptCount();
+        const uint64_t initialPartialPresentCount = window.Host().DebugGetPartialPresentAttemptCount();
+
+        // Drive the first native render before dispatching the window's queued full invalidation.
+        window.Host().DebugRenderDirtyRectForTest(dirtyRect);
+        Require(window.Host().DebugGetFullPresentAttemptCount() == initialFullPresentCount + 1u,
+                "new flip-model swap chain's first partial invalidation uses a full present");
+        Require(window.Host().DebugGetPartialPresentAttemptCount() == initialPartialPresentCount,
+                "new flip-model swap chain never receives a partial first present");
+
+        const HRESULT firstPresentResult = window.Host().DebugGetLastPresentResult();
+        Require(firstPresentResult == S_OK || firstPresentResult == DXGI_STATUS_OCCLUDED,
+                "full first presentation succeeds or reports occlusion without an invalid dirty presentation");
+        window.Host().DebugRenderDirtyRectForTest(dirtyRect);
+        if (firstPresentResult == S_OK)
+        {
+            Require(window.Host().DebugGetPartialPresentAttemptCount() == initialPartialPresentCount + 1u,
+                    "successful full first present releases the partial-present restriction");
+        }
+        else
+        {
+            Require(window.Host().DebugGetFullPresentAttemptCount() == initialFullPresentCount + 2u,
+                    "failed or occluded first present keeps the next attempt full");
+            Require(window.Host().DebugGetPartialPresentAttemptCount() == initialPartialPresentCount,
+                    "failed or occluded first present does not release the partial-present restriction");
+        }
+
+        SetWindowPos(window.Hwnd(), nullptr, 0, 0, 420, 240, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+        const RECT resizedDirtyRect{4, 4, 28, 28};
+        const uint64_t beforeResizeFullPresentCount    = window.Host().DebugGetFullPresentAttemptCount();
+        const uint64_t beforeResizePartialPresentCount = window.Host().DebugGetPartialPresentAttemptCount();
+        window.Host().DebugRenderDirtyRectForTest(resizedDirtyRect);
+        Require(window.Host().DebugGetFullPresentAttemptCount() == beforeResizeFullPresentCount + 1u,
+                "resized flip-model swap chain's first partial invalidation uses a full present");
+        Require(window.Host().DebugGetPartialPresentAttemptCount() == beforeResizePartialPresentCount,
+                "resized flip-model swap chain never receives a partial first present");
+
+        const HRESULT resizedFirstPresentResult = window.Host().DebugGetLastPresentResult();
+        Require(resizedFirstPresentResult == S_OK || resizedFirstPresentResult == DXGI_STATUS_OCCLUDED,
+                "full post-resize presentation succeeds or reports occlusion without an invalid dirty presentation");
+        window.Host().DebugRenderDirtyRectForTest(resizedDirtyRect);
+        if (resizedFirstPresentResult == S_OK)
+        {
+            Require(window.Host().DebugGetPartialPresentAttemptCount() == beforeResizePartialPresentCount + 1u,
+                    "successful full post-resize present releases the partial-present restriction");
+        }
+        else
+        {
+            Require(window.Host().DebugGetFullPresentAttemptCount() == beforeResizeFullPresentCount + 2u,
+                    "failed or occluded post-resize present keeps the next attempt full");
+            Require(window.Host().DebugGetPartialPresentAttemptCount() == beforeResizePartialPresentCount,
+                    "failed or occluded post-resize present does not release the partial-present restriction");
+        }
+#endif
+    }
+}
+
 void TestAttachedHostResizeDoesNotFlushD2DInWrongState()
 {
     using namespace DxUi;
@@ -2751,6 +2824,7 @@ void RunRenderingTests()
     DXUI_RUN_TEST(TestAttachedComboBoxPopupScrollingStaysStable);
     DXUI_RUN_TEST(TestAttachedComboBoxPopupLongRunScrollingStaysStable);
     DXUI_RUN_TEST(TestAttachedHostSameSizeRepaintDoesNotResizeSwapChain);
+    DXUI_RUN_TEST(TestAttachedHostFirstPartialPaintPresentsFullAfterCreateAndResize);
     DXUI_RUN_TEST(TestAttachedHostResizeDoesNotFlushD2DInWrongState);
     DXUI_RUN_TEST(TestAttachedHostRecoversAfterSimulatedDeviceLoss);
 }

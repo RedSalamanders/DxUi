@@ -1,0 +1,9 @@
+#pragma once
+
+void TestGridUiaPatternSupportsBoundedOffscreenGetItem();
+void TestGridUiaPatternStopsWhenCellReadReplacesItsControl();
+void TestGridUiaPatternStopsWhenCellReadShrinksItsModel();
+void TestGridUiaPatternKeepsNestedSameAddressPublication();
+void TestGridUiaPatternStopsPointHitsAfterModelReplacement();
+void TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment();
+void TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary();

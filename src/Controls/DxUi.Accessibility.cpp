@@ -121,6 +121,12 @@ constexpr size_t kAccessibilityMaxMaterializedOffscreenSelectedRows = 256u;
 class AccessibilityProvider;
 class AccessibilityTextRangeProvider;
 
+struct ControlPath
+{
+    uint32_t depth = 0u;
+    std::array<uint16_t, kAccessibilityMaxDepth> indices{};
+};
+
 enum class AccessibilityUiActionKind : uint8_t
 {
     SetFocus,
@@ -138,6 +144,7 @@ enum class AccessibilityUiActionKind : uint8_t
     MoveTextRangeEndpointByVisualLine,
     ResolveTextRangeBounds,
     ResolveTextRangeFromPoint,
+    GetGridItem,
 };
 
 struct AccessibilityUiActionRequest
@@ -158,7 +165,14 @@ struct AccessibilityUiActionRequest
     size_t textRangeTextLength  = 0u;
     std::vector<D2D1_RECT_F> textRangeBoundsDip;
     float textRangeDipToPixelScale = 1.0f;
-    HRESULT result                 = static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
+    ControlPath gridControlPath{};
+    uint64_t gridControlIdentity           = 0u;
+    const IGridModel* gridModelIdentity    = nullptr;
+    uint64_t gridModelAssignmentGeneration = 0u;
+    int gridRowIndex                       = -1;
+    int gridColumnIndex                    = -1;
+    uint64_t gridRowId                     = 0u;
+    HRESULT result                         = static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
 };
 
 struct AccessibilityUiActionDispatch
@@ -360,12 +374,6 @@ constexpr void NotifySelectionEventRaisedForTest() noexcept
 }
 #endif
 
-struct ControlPath
-{
-    uint32_t depth = 0u;
-    std::array<uint16_t, kAccessibilityMaxDepth> indices{};
-};
-
 [[nodiscard]] bool AreControlPathsEqual(const ControlPath& left, const ControlPath& right) noexcept
 {
     if (left.depth != right.depth)
@@ -499,24 +507,26 @@ struct AccessibilityControlNavigationSnapshot
     std::optional<size_t> controlTextCompositionEnd;
     std::optional<size_t> controlTextConversionTargetStart;
     std::optional<size_t> controlTextConversionTargetEnd;
-    double controlRangeValue         = 0.0;
-    double controlRangeMinimum       = 0.0;
-    double controlRangeMaximum       = 0.0;
-    double controlRangeSmallChange   = 0.0;
-    double controlRangeLargeChange   = 0.0;
-    bool isGrid                      = false;
-    bool isTree                      = false;
-    bool gridCanSelectMultiple       = false;
-    bool treeCanSelectMultiple       = false;
-    bool hasPasswordRevealButton     = false;
-    bool passwordRevealButtonEnabled = false;
-    bool treeIsEnabled               = false;
-    bool treeHasFocus                = false;
-    bool gridIsEnabled               = false;
-    bool gridHasFocus                = false;
-    size_t gridRowCount              = 0u;
-    size_t gridColumnCount           = 0u;
-    size_t treeVisibleItemCount      = 0u;
+    double controlRangeValue               = 0.0;
+    double controlRangeMinimum             = 0.0;
+    double controlRangeMaximum             = 0.0;
+    double controlRangeSmallChange         = 0.0;
+    double controlRangeLargeChange         = 0.0;
+    bool isGrid                            = false;
+    bool isTree                            = false;
+    const IGridModel* gridModelIdentity    = nullptr;
+    uint64_t gridModelAssignmentGeneration = 0u;
+    bool gridCanSelectMultiple             = false;
+    bool treeCanSelectMultiple             = false;
+    bool hasPasswordRevealButton           = false;
+    bool passwordRevealButtonEnabled       = false;
+    bool treeIsEnabled                     = false;
+    bool treeHasFocus                      = false;
+    bool gridIsEnabled                     = false;
+    bool gridHasFocus                      = false;
+    size_t gridRowCount                    = 0u;
+    size_t gridColumnCount                 = 0u;
+    size_t treeVisibleItemCount            = 0u;
     std::wstring passwordRevealButtonAccessibleName;
     // The tree's selected (focused) item. With multi-select it is the focused item, which need not be selected:
     // selectedTreeItemIds holds the selection, in visible order.
@@ -627,6 +637,7 @@ struct AccessibilitySnapshot
     DWORD windowThreadId          = 0u;
     bool alive                    = false;
     bool hasRetainedRoot          = false;
+    bool modelCallbacksValid      = true;
     bool hasCollapsedSemanticRoot = false;
     float pixelsToDipScale        = 1.0f;
     std::wstring windowName;
@@ -699,6 +710,17 @@ void AppendAccessibilitySnapshotNavigation(
                                                                                            size_t gridColumnIndex,
                                                                                            NavigateDirection direction) noexcept;
 
+constexpr size_t kAccessibilityRequestedGridRowLimit = 16u;
+
+struct RequestedGridRow
+{
+    ControlPath path{};
+    uint64_t controlIdentity           = 0u;
+    const IGridModel* modelIdentity    = nullptr;
+    uint64_t modelAssignmentGeneration = 0u;
+    uint64_t rowId                     = 0u;
+};
+
 struct WindowHostAccessibilityTarget final
 {
     explicit WindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept : hwnd(hwnd), host(host)
@@ -766,6 +788,10 @@ struct WindowHostAccessibilityTarget final
     EmbeddedAccessibilityPlacement placement{};
     std::atomic<ControlHost*> host{nullptr};
     std::atomic<std::shared_ptr<const AccessibilitySnapshot>> snapshot;
+    // UIA Grid.GetItem may request an offscreen row. Retain only a small recent set in published snapshots so a client
+    // can query returned cells without copying the whole model or touching controls from its thread.
+    std::array<RequestedGridRow, kAccessibilityRequestedGridRowLimit> requestedGridRows{};
+    size_t requestedGridRowCount = 0u;
     // Calls of a provider's GetFocus (the fragment root's, for the system's focus event) that have begun. Each counts
     // itself, then reads the snapshot; a publish stores the snapshot, then reads the count, so a call the count does
     // not include reads the snapshot after the store: see RefreshWindowHostAccessibilitySnapshot. All four operations are
@@ -776,6 +802,8 @@ struct WindowHostAccessibilityTarget final
     std::shared_ptr<const AccessibilitySnapshot> diffBaseline;
     wil::com_ptr_nothrow<IRawElementProviderSimple> rootProvider;
 };
+
+[[nodiscard]] bool AppendRequestedGridRows(ControlHost& host, WindowHostAccessibilityTarget& target, AccessibilitySnapshot& snapshot);
 
 [[nodiscard]] UiaRect EmbeddedScreenBounds(const AccessibilitySnapshot& snapshot, const D2D1_RECT_F& bounds) noexcept
 {
@@ -883,22 +911,34 @@ struct WindowHostSnapshotChanges
 
 WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAccessibilityTarget& target, ControlHost& host)
 {
-    auto snapshot              = std::make_shared<AccessibilitySnapshot>();
-    snapshot->hwnd             = target.hwnd;
-    snapshot->buildThreadId    = GetCurrentThreadId();
-    snapshot->windowThreadId   = target.hwnd ? GetWindowThreadProcessId(target.hwnd, nullptr) : 0u;
-    snapshot->alive            = true;
-    snapshot->embedded         = target.embedded;
-    snapshot->placement        = target.placement;
-    snapshot->pixelsToDipScale = USER_DEFAULT_SCREEN_DPI / host.GetDpi();
-    const Control* const root  = host.GetRoot();
-    snapshot->hasRetainedRoot  = root != nullptr;
+    const std::shared_ptr<const AccessibilitySnapshot> publicationBefore = target.snapshot.load(std::memory_order_acquire);
+    auto snapshot                                                        = std::make_shared<AccessibilitySnapshot>();
+    snapshot->hwnd                                                       = target.hwnd;
+    snapshot->buildThreadId                                              = GetCurrentThreadId();
+    snapshot->windowThreadId                                             = target.hwnd ? GetWindowThreadProcessId(target.hwnd, nullptr) : 0u;
+    snapshot->alive                                                      = true;
+    snapshot->embedded                                                   = target.embedded;
+    snapshot->placement                                                  = target.placement;
+    snapshot->pixelsToDipScale                                           = USER_DEFAULT_SCREEN_DPI / host.GetDpi();
+    const Control* const root                                            = host.GetRoot();
+    const std::weak_ptr<int> rootLifetime                                = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
+    snapshot->hasRetainedRoot                                            = root != nullptr;
     // Sized once: a menu's rows make thousands of records, which growing vectors would move again and again.
     const size_t semanticControls = CountAccessibilitySnapshotNavigation(root, ControlPath{});
     snapshot->semanticControlOrder.reserve(semanticControls);
     snapshot->controlsByAddress.reserve(semanticControls);
     snapshot->controlNavigationRecords.reserve(semanticControls);
     AppendAccessibilitySnapshotNavigation(host, root, root, ControlPath{}, *snapshot);
+    if (! snapshot->modelCallbacksValid || target.ResolveHost() != &host || host.GetRoot() != root || (root && rootLifetime.expired()))
+    {
+        // A model callback replaced the controls while this snapshot was being composed. A nested publish owns the
+        // replacement; never continue through the retired root or overwrite that newer snapshot.
+        return {};
+    }
+    if (! AppendRequestedGridRows(host, target, *snapshot))
+    {
+        return {};
+    }
     if (root && ! target.embedded)
     {
         ControlPath collapsedRootPath{};
@@ -908,6 +948,10 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
                                              AreControlPathsEqual(snapshot->semanticControlOrder.front(), collapsedRootPath);
     }
     AppendAccessibilitySnapshotPointHits(host, root, ControlPath{}, *snapshot);
+    if (! snapshot->modelCallbacksValid)
+    {
+        return {};
+    }
     IndexAccessibilitySnapshot(*snapshot);
 
     // The host prunes a focused control that left the tree only at its next message, so find it by pointer before
@@ -963,6 +1007,13 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     }
     if (target.menuPopup)
         snapshot->liveMenuRecords = Detail::LiveResourceCount(Detail::LiveResource::MenuAccessibilityRecord, snapshot->controlNavigationRecords.size());
+    // Model callbacks in both navigation capture and focused-fragment resolution can reenter SetModel/NotifyDataChanged
+    // and publish a newer snapshot on this recursive UI-thread path. The nested publication is authoritative; never let
+    // this older capture overwrite it when it unwinds.
+    if (! snapshot->modelCallbacksValid || target.snapshot.load(std::memory_order_acquire) != publicationBefore)
+    {
+        return {};
+    }
     WindowHostSnapshotChanges changes{};
     std::shared_ptr<const AccessibilitySnapshot> previous = target.snapshot.load(std::memory_order_acquire);
     if (! previous || ! previous->alive)
@@ -1034,7 +1085,7 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
     TControl* current = root;
     for (uint32_t depth = 0u; depth < path.depth; ++depth)
     {
-        auto* panel = dynamic_cast<Panel*>(current);
+        const auto* panel = dynamic_cast<const Panel*>(current);
         if (! panel)
         {
             return nullptr;
@@ -1329,16 +1380,26 @@ void AppendTreeAccessibilityPointHits(const Tree& tree,
     }
 }
 
-void AppendGridAccessibilityPointHits(const Grid& grid,
-                                      const ControlPath& path,
-                                      AccessibilitySnapshot& snapshot,
-                                      const AccessibilityPointHitBuildContext& context)
+void AppendGridAccessibilityPointHits(
+    ControlHost& host, const Grid& grid, const ControlPath& path, AccessibilitySnapshot& snapshot, const AccessibilityPointHitBuildContext& context)
 {
     const auto* model = grid.GetModel();
     if (! model)
     {
         return;
     }
+    const uint64_t modelAssignmentGeneration = grid.GetModelAssignmentGeneration();
+    const std::weak_ptr<int> gridLifetime    = GetControlLifetimeToken(grid);
+    const Control* const root                = host.GetRoot();
+    const std::weak_ptr<int> rootLifetime    = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
+    const auto gridCaptureIsCurrent          = [&]() noexcept
+    {
+        if (gridLifetime.expired() || ! root || rootLifetime.expired() || host.GetRoot() != root)
+        {
+            return false;
+        }
+        return ResolveControlAtPath(root, path) == &grid && grid.GetModel() == model && grid.GetModelAssignmentGeneration() == modelAssignmentGeneration;
+    };
 
     const size_t visibleColumnCount = grid.GetVisibleColumnCount();
     std::vector<size_t> visibleColumns;
@@ -1369,6 +1430,11 @@ void AppendGridAccessibilityPointHits(const Grid& grid,
         }
 
         const uint64_t rowId = model->GetStableRowId(rowIndex.value());
+        if (! gridCaptureIsCurrent())
+        {
+            snapshot.modelCallbacksValid = false;
+            return;
+        }
         for (const size_t columnIndex : visibleColumns)
         {
             if (const std::optional<D2D1_RECT_F> cellRect = grid.GetVisibleCellRect(rowIndex.value(), columnIndex))
@@ -1386,6 +1452,10 @@ void AppendGridAccessibilityPointHits(const Grid& grid,
 
 void AppendAccessibilitySnapshotPointHits(ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot)
 {
+    if (! snapshot.modelCallbacksValid)
+    {
+        return;
+    }
     AppendAccessibilitySnapshotPointHits(host, current, basePath, snapshot, AccessibilityPointHitBuildContext{});
     AppendAccessibilityPointHit(snapshot, AccessibilityFragmentKind::Root, ControlPath{}, host.GetClientBoundsDip());
 }
@@ -1393,7 +1463,7 @@ void AppendAccessibilitySnapshotPointHits(ControlHost& host, const Control* curr
 void AppendAccessibilitySnapshotPointHits(
     ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot, const AccessibilityPointHitBuildContext& context)
 {
-    if (! current || ! current->IsVisible())
+    if (! snapshot.modelCallbacksValid || ! current || ! current->IsVisible())
     {
         return;
     }
@@ -1428,6 +1498,10 @@ void AppendAccessibilitySnapshotPointHits(
             }
 
             AppendAccessibilitySnapshotPointHits(host, children[index].get(), childPath, snapshot, childContext);
+            if (! snapshot.modelCallbacksValid)
+            {
+                return;
+            }
         }
     }
 
@@ -1447,7 +1521,11 @@ void AppendAccessibilitySnapshotPointHits(
     }
     else if (const auto* grid = dynamic_cast<const Grid*>(current))
     {
-        AppendGridAccessibilityPointHits(*grid, basePath, snapshot, context);
+        AppendGridAccessibilityPointHits(host, *grid, basePath, snapshot, context);
+        if (! snapshot.modelCallbacksValid)
+        {
+            return;
+        }
     }
 
     AppendTransformedAccessibilityPointHit(snapshot, AccessibilityFragmentKind::Control, basePath, current->GetHitBounds(), context);
@@ -1827,8 +1905,39 @@ void AppendAccessibilitySnapshotNavigation(
             record.gridHasFocus                  = grid->HasFocus();
             if (const auto* model = grid->GetModel())
             {
-                record.gridRowCount    = model->GetRowCount();
+                const uint64_t modelAssignmentGeneration = grid->GetModelAssignmentGeneration();
+                const std::weak_ptr<int> gridLifetime    = GetControlLifetimeToken(*grid);
+                const std::weak_ptr<int> rootLifetime    = root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{};
+                const auto gridCaptureIsCurrent          = [&]() noexcept
+                {
+                    if (gridLifetime.expired() || (root && (rootLifetime.expired() || host.GetRoot() != root)))
+                    {
+                        return false;
+                    }
+                    const Control* const currentRoot = host.GetRoot();
+                    if (! currentRoot || ResolveControlAtPath(currentRoot, basePath) != current)
+                    {
+                        return false;
+                    }
+                    return grid->GetModel() == model && grid->GetModelAssignmentGeneration() == modelAssignmentGeneration;
+                };
+                const auto stopIfGridCaptureChanged = [&]() noexcept
+                {
+                    if (gridCaptureIsCurrent())
+                    {
+                        return false;
+                    }
+                    snapshot.modelCallbacksValid = false;
+                    return true;
+                };
+                record.gridModelIdentity             = model;
+                record.gridModelAssignmentGeneration = modelAssignmentGeneration;
+                record.gridRowCount                  = model->GetRowCount();
+                if (stopIfGridCaptureChanged())
+                    return;
                 record.gridColumnCount = model->GetColumnCount();
+                if (stopIfGridCaptureChanged())
+                    return;
 
                 const size_t visibleColumnCount = grid->GetVisibleColumnCount();
                 record.gridVisibleColumns.reserve(visibleColumnCount);
@@ -1839,6 +1948,8 @@ void AppendAccessibilitySnapshotNavigation(
                     {
                         record.gridVisibleColumns.push_back(columnIndex.value());
                         const GridColumnDesc columnDesc = model->GetColumn(columnIndex.value());
+                        if (stopIfGridCaptureChanged())
+                            return;
                         record.gridHeaders.push_back(AccessibilityGridHeaderSnapshotRecord{
                             .columnIndex = columnIndex.value(), .gridHeaderName = std::wstring(GetGridHeaderAccessibleName(columnDesc))});
                     }
@@ -1853,6 +1964,8 @@ void AppendAccessibilitySnapshotNavigation(
                     if (const std::optional<size_t> rowIndex = grid->GetVisibleRowAt(visibleRowIndex))
                     {
                         const uint64_t rowId = model->GetStableRowId(rowIndex.value());
+                        if (stopIfGridCaptureChanged())
+                            return;
                         record.gridVisibleRows.push_back(rowIndex.value());
                         record.gridVisibleRowIds.push_back(rowId);
                         record.gridRows.push_back(AccessibilityGridRowSnapshotRecord{
@@ -1871,6 +1984,8 @@ void AppendAccessibilitySnapshotNavigation(
                     {
                         GridCellData cellData{};
                         model->GetCellData(rowIndex, columnIndex, cellData);
+                        if (stopIfGridCaptureChanged())
+                            return;
 
                         std::wstring helpText;
                         std::wstring accessibleText = BuildGridCellAccessibleText(cellData);
@@ -1911,6 +2026,8 @@ void AppendAccessibilitySnapshotNavigation(
                 for (const uint64_t rowId : selection)
                 {
                     const std::optional<size_t> selectedRowIndex = model->FindRowByStableId(rowId);
+                    if (stopIfGridCaptureChanged())
+                        return;
                     if (selectedRowIndex)
                     {
                         record.selectedGridRowIds.push_back(rowId);
@@ -1922,6 +2039,8 @@ void AppendAccessibilitySnapshotNavigation(
                             {
                                 GridCellData cellData{};
                                 model->GetCellData(selectedRowIndex.value(), columnIndex, cellData);
+                                if (stopIfGridCaptureChanged())
+                                    return;
                                 std::wstring accessibleText = BuildGridCellAccessibleText(cellData);
                                 if (! accessibleText.empty())
                                 {
@@ -2068,6 +2187,254 @@ const AccessibilityGridRowSnapshotRecord* FindSnapshotGridRowRecord(const Access
     }
 
     return nullptr;
+}
+
+void RemoveRequestedGridRow(WindowHostAccessibilityTarget& target, size_t requestIndex) noexcept
+{
+    if (requestIndex >= target.requestedGridRowCount)
+    {
+        return;
+    }
+    for (size_t index = requestIndex + 1u; index < target.requestedGridRowCount; ++index)
+    {
+        target.requestedGridRows[index - 1u] = target.requestedGridRows[index];
+    }
+    --target.requestedGridRowCount;
+    target.requestedGridRows[target.requestedGridRowCount] = {};
+}
+
+void RememberRequestedGridRow(WindowHostAccessibilityTarget& target,
+                              const ControlPath& path,
+                              uint64_t controlIdentity,
+                              const IGridModel* modelIdentity,
+                              uint64_t modelAssignmentGeneration,
+                              uint64_t rowId) noexcept
+{
+    size_t existingIndex = target.requestedGridRowCount;
+    for (size_t index = 0u; index < target.requestedGridRowCount; ++index)
+    {
+        const RequestedGridRow& existing = target.requestedGridRows[index];
+        if (existing.controlIdentity == controlIdentity && existing.modelIdentity == modelIdentity &&
+            existing.modelAssignmentGeneration == modelAssignmentGeneration && existing.rowId == rowId && AreControlPathsEqual(existing.path, path))
+        {
+            existingIndex = index;
+            break;
+        }
+    }
+
+    if (existingIndex == 0u && existingIndex < target.requestedGridRowCount)
+    {
+        return;
+    }
+    if (existingIndex < target.requestedGridRowCount)
+    {
+        const RequestedGridRow promoted = target.requestedGridRows[existingIndex];
+        for (size_t index = existingIndex; index > 0u; --index)
+        {
+            target.requestedGridRows[index] = target.requestedGridRows[index - 1u];
+        }
+        target.requestedGridRows[0u] = promoted;
+        return;
+    }
+
+    const size_t lastIndex = std::min(target.requestedGridRowCount, kAccessibilityRequestedGridRowLimit - 1u);
+    for (size_t index = lastIndex; index > 0u; --index)
+    {
+        target.requestedGridRows[index] = target.requestedGridRows[index - 1u];
+    }
+    target.requestedGridRows[0u] = RequestedGridRow{.path                      = path,
+                                                    .controlIdentity           = controlIdentity,
+                                                    .modelIdentity             = modelIdentity,
+                                                    .modelAssignmentGeneration = modelAssignmentGeneration,
+                                                    .rowId                     = rowId};
+    target.requestedGridRowCount = std::min(target.requestedGridRowCount + 1u, kAccessibilityRequestedGridRowLimit);
+}
+
+bool AppendRequestedGridRows(ControlHost& host, WindowHostAccessibilityTarget& target, AccessibilitySnapshot& snapshot)
+{
+    if (target.ResolveHost() != &host)
+    {
+        return false;
+    }
+    const Control* const originalRoot             = host.GetRoot();
+    const std::weak_ptr<int> originalRootLifetime = originalRoot ? GetControlLifetimeToken(*originalRoot) : std::weak_ptr<int>{};
+    const auto rootStillCurrent                   = [&]() noexcept
+    { return target.ResolveHost() == &host && host.GetRoot() == originalRoot && (! originalRoot || ! originalRootLifetime.expired()); };
+    size_t requestIndex = 0u;
+    while (requestIndex < target.requestedGridRowCount)
+    {
+        const RequestedGridRow request = target.requestedGridRows[requestIndex];
+        const auto recordIterator      = std::ranges::find_if(snapshot.controlNavigationRecords, [&](const AccessibilityControlNavigationSnapshot& record) {
+            return AreControlPathsEqual(record.path, request.path);
+        });
+        AccessibilityControlNavigationSnapshot* const record = recordIterator != snapshot.controlNavigationRecords.end() ? &*recordIterator : nullptr;
+        if (! record || ! record->isGrid || record->controlIdentity != request.controlIdentity || ! request.modelIdentity ||
+            record->gridModelIdentity != request.modelIdentity || record->gridModelAssignmentGeneration != request.modelAssignmentGeneration)
+        {
+            RemoveRequestedGridRow(target, requestIndex);
+            continue;
+        }
+
+        // Model methods are application callbacks and can synchronously rebuild or detach the host. Re-resolve the grid,
+        // its lifetime, and its model identity after every callback before touching either object again.
+        const auto resolveLiveGrid = [&]() noexcept -> Grid*
+        {
+            ControlHost* const currentHost = target.ResolveHost();
+            if (currentHost != &host)
+            {
+                return nullptr;
+            }
+            Control* const currentRoot = const_cast<Control*>(currentHost->GetRoot());
+            Grid* const currentGrid    = currentRoot ? dynamic_cast<Grid*>(ResolveControlAtPath(currentRoot, request.path)) : nullptr;
+            if (! currentGrid || currentGrid->GetModel() != request.modelIdentity ||
+                currentGrid->GetModelAssignmentGeneration() != request.modelAssignmentGeneration)
+            {
+                return nullptr;
+            }
+            const std::weak_ptr<int> lifetime = GetControlLifetimeToken(*currentGrid);
+            const bool sameLifetime =
+                ! record->controlLifetime.expired() && ! record->controlLifetime.owner_before(lifetime) && ! lifetime.owner_before(record->controlLifetime);
+            return sameLifetime ? currentGrid : nullptr;
+        };
+
+        Grid* grid = resolveLiveGrid();
+        if (! grid)
+        {
+            RemoveRequestedGridRow(target, requestIndex);
+            return false;
+        }
+        const IGridModel* const model        = request.modelIdentity;
+        const std::optional<size_t> rowIndex = model->FindRowByStableId(request.rowId);
+        grid                                 = resolveLiveGrid();
+        if (! grid)
+        {
+            RemoveRequestedGridRow(target, requestIndex);
+            return false;
+        }
+        const size_t currentRowCount = model->GetRowCount();
+        grid                         = resolveLiveGrid();
+        if (! grid || ! rowIndex || rowIndex.value() >= currentRowCount)
+        {
+            RemoveRequestedGridRow(target, requestIndex);
+            return false;
+        }
+        if (currentRowCount != record->gridRowCount)
+        {
+            RemoveRequestedGridRow(target, requestIndex);
+            return false;
+        }
+
+        const size_t existingCellCount = static_cast<size_t>(
+            std::ranges::count_if(record->gridCells, [&](const AccessibilityGridCellStateSnapshotRecord& cell) { return cell.rowId == request.rowId; }));
+        if (FindSnapshotGridRowRecord(*record, request.rowId) && existingCellCount == record->gridColumnCount)
+        {
+            ++requestIndex;
+            continue;
+        }
+        std::erase_if(record->gridCells, [&](const AccessibilityGridCellStateSnapshotRecord& cell) { return cell.rowId == request.rowId; });
+        std::erase_if(record->gridRows, [&](const AccessibilityGridRowSnapshotRecord& row) { return row.rowId == request.rowId; });
+
+        const size_t currentColumnCount = model->GetColumnCount();
+        grid                            = resolveLiveGrid();
+        if (! grid || currentColumnCount != record->gridColumnCount)
+        {
+            RemoveRequestedGridRow(target, requestIndex);
+            return false;
+        }
+        const uint64_t currentRowId = model->GetStableRowId(rowIndex.value());
+        grid                        = resolveLiveGrid();
+        if (! grid || currentRowId != request.rowId)
+        {
+            RemoveRequestedGridRow(target, requestIndex);
+            return false;
+        }
+
+        // These rows are absent from the ordinary visible/selected snapshot. Avoid geometry helpers here: they may
+        // query the model again and add no useful data to this bounded single-row request.
+        AccessibilityGridRowSnapshotRecord rowRecord{.rowIndex = rowIndex.value(), .rowId = request.rowId, .gridRowOffscreen = true};
+        std::vector<AccessibilityGridCellStateSnapshotRecord> requestedCells;
+        requestedCells.reserve(currentColumnCount);
+        bool rowReadSucceeded = true;
+        for (size_t columnIndex = 0u; columnIndex < currentColumnCount; ++columnIndex)
+        {
+            const size_t rowCountBeforeRead = model->GetRowCount();
+            grid                            = resolveLiveGrid();
+            if (! grid || rowCountBeforeRead != record->gridRowCount || rowIndex.value() >= rowCountBeforeRead)
+            {
+                rowReadSucceeded = false;
+                break;
+            }
+            const uint64_t rowIdBeforeRead = model->GetStableRowId(rowIndex.value());
+            grid                           = resolveLiveGrid();
+            if (! grid || rowIdBeforeRead != request.rowId)
+            {
+                rowReadSucceeded = false;
+                break;
+            }
+            GridCellData cellData{};
+            model->GetCellData(rowIndex.value(), columnIndex, cellData);
+            grid = resolveLiveGrid();
+            if (! grid)
+            {
+                rowReadSucceeded = false;
+                break;
+            }
+            const size_t rowCountAfterRead = model->GetRowCount();
+            grid                           = resolveLiveGrid();
+            if (! grid || rowCountAfterRead != record->gridRowCount || rowIndex.value() >= rowCountAfterRead)
+            {
+                rowReadSucceeded = false;
+                break;
+            }
+            const uint64_t rowIdAfterCellCallback = model->GetStableRowId(rowIndex.value());
+            grid                                  = resolveLiveGrid();
+            if (! grid || rowIdAfterCellCallback != request.rowId)
+            {
+                rowReadSucceeded = false;
+                break;
+            }
+            std::wstring accessibleText = BuildGridCellAccessibleText(cellData);
+            if (! accessibleText.empty())
+            {
+                if (! rowRecord.gridRowAccessibleName.empty())
+                {
+                    rowRecord.gridRowAccessibleName.append(L" | ");
+                }
+                rowRecord.gridRowAccessibleName.append(accessibleText);
+            }
+            std::wstring helpText;
+            if (! cellData.tooltipText.empty() && cellData.tooltipText != cellData.text && cellData.tooltipText != accessibleText)
+            {
+                helpText = cellData.tooltipText;
+            }
+            requestedCells.push_back(AccessibilityGridCellStateSnapshotRecord{.rowIndex                   = rowIndex.value(),
+                                                                              .rowId                      = request.rowId,
+                                                                              .columnIndex                = columnIndex,
+                                                                              .gridCellControlTypeId      = GetGridCellControlTypeId(cellData),
+                                                                              .gridCellAccessibleText     = std::move(accessibleText),
+                                                                              .gridCellHelpText           = std::move(helpText),
+                                                                              .gridCellEnabled            = cellData.enabled,
+                                                                              .gridCellOffscreen          = true,
+                                                                              .gridCellChecked            = cellData.checked,
+                                                                              .gridCellSupportsToggle     = GridCellSupportsTogglePattern(cellData),
+                                                                              .gridCellSupportsValue      = GridCellSupportsValuePattern(cellData),
+                                                                              .gridCellSupportsRangeValue = GridCellSupportsRangeValuePattern(cellData),
+                                                                              .gridCellRangeValue         = GetGridCellRangeValue(cellData)});
+        }
+        if (! rowReadSucceeded)
+        {
+            RemoveRequestedGridRow(target, requestIndex);
+            return false;
+        }
+        record->gridCells.reserve(record->gridCells.size() + requestedCells.size());
+        for (AccessibilityGridCellStateSnapshotRecord& cell : requestedCells)
+        {
+            record->gridCells.push_back(std::move(cell));
+        }
+        record->gridRows.push_back(std::move(rowRecord));
+        ++requestIndex;
+    }
+    return rootStillCurrent();
 }
 
 const AccessibilityTreeItemSnapshotRecord* FindSnapshotTreeItemRecordByVisibleIndex(const AccessibilityControlNavigationSnapshot& record,
@@ -2338,6 +2705,7 @@ enum class AccessibilityPatternKind
     TextEdit,
     RangeValue,
     Selection,
+    Grid,
     Table,
     SelectionItem,
     ExpandCollapse,
@@ -2381,6 +2749,10 @@ std::optional<AccessibilityPatternKind> PatternKindFromInterfaceId(REFIID riid) 
     {
         return AccessibilityPatternKind::Selection;
     }
+    if (riid == __uuidof(IGridProvider))
+    {
+        return AccessibilityPatternKind::Grid;
+    }
     if (riid == __uuidof(ITableProvider))
     {
         return AccessibilityPatternKind::Table;
@@ -2415,6 +2787,7 @@ std::optional<AccessibilityPatternKind> PatternKindFromPatternId(PATTERNID patte
         case UIA_TextEditPatternId: return AccessibilityPatternKind::TextEdit;
         case UIA_RangeValuePatternId: return AccessibilityPatternKind::RangeValue;
         case UIA_SelectionPatternId: return AccessibilityPatternKind::Selection;
+        case UIA_GridPatternId: return AccessibilityPatternKind::Grid;
         case UIA_TablePatternId: return AccessibilityPatternKind::Table;
         case UIA_SelectionItemPatternId: return AccessibilityPatternKind::SelectionItem;
         case UIA_ExpandCollapsePatternId: return AccessibilityPatternKind::ExpandCollapse;
@@ -3975,14 +4348,17 @@ HRESULT SetTreeItemRuntimeId(SAFEARRAY** outArray, const ControlPath& path, uint
     return BuildRuntimeId(outArray, std::span<const LONG>(values.data(), valueCount));
 }
 
-HRESULT SetGridRowRuntimeId(SAFEARRAY** outArray, const ControlPath& path, uint64_t rowId, uint64_t controlIdentity) noexcept
+HRESULT SetGridRowRuntimeId(
+    SAFEARRAY** outArray, const ControlPath& path, uint64_t rowId, uint64_t controlIdentity, uint64_t modelAssignmentGeneration) noexcept
 {
     RuntimeIdValueBuffer values{};
     size_t valueCount = 0u;
     if (! AppendFragmentRuntimeIdPrefix(values, valueCount, path, controlIdentity) ||
         ! AppendRuntimeIdValue(values, valueCount, kAccessibilityRuntimeIdGridRow) ||
         ! AppendRuntimeIdValue(values, valueCount, static_cast<LONG>(rowId & 0xFFFFFFFFull)) ||
-        ! AppendRuntimeIdValue(values, valueCount, static_cast<LONG>((rowId >> 32u) & 0xFFFFFFFFull)))
+        ! AppendRuntimeIdValue(values, valueCount, static_cast<LONG>((rowId >> 32u) & 0xFFFFFFFFull)) ||
+        ! AppendRuntimeIdValue(values, valueCount, static_cast<LONG>(modelAssignmentGeneration & 0xFFFFFFFFull)) ||
+        ! AppendRuntimeIdValue(values, valueCount, static_cast<LONG>((modelAssignmentGeneration >> 32u) & 0xFFFFFFFFull)))
     {
         return E_INVALIDARG;
     }
@@ -4014,7 +4390,8 @@ HRESULT SetGridHeaderRuntimeId(SAFEARRAY** outArray, const ControlPath& path, si
     return BuildRuntimeId(outArray, std::span<const LONG>(values.data(), valueCount));
 }
 
-HRESULT SetGridCellRuntimeId(SAFEARRAY** outArray, const ControlPath& path, uint64_t rowId, size_t columnIndex, uint64_t controlIdentity) noexcept
+HRESULT SetGridCellRuntimeId(
+    SAFEARRAY** outArray, const ControlPath& path, uint64_t rowId, size_t columnIndex, uint64_t controlIdentity, uint64_t modelAssignmentGeneration) noexcept
 {
     if (! outArray)
     {
@@ -4032,7 +4409,9 @@ HRESULT SetGridCellRuntimeId(SAFEARRAY** outArray, const ControlPath& path, uint
         ! AppendRuntimeIdValue(values, valueCount, kAccessibilityRuntimeIdGridCell) ||
         ! AppendRuntimeIdValue(values, valueCount, static_cast<LONG>(rowId & 0xFFFFFFFFull)) ||
         ! AppendRuntimeIdValue(values, valueCount, static_cast<LONG>((rowId >> 32u) & 0xFFFFFFFFull)) ||
-        ! AppendRuntimeIdValue(values, valueCount, static_cast<LONG>(columnIndex)))
+        ! AppendRuntimeIdValue(values, valueCount, static_cast<LONG>(columnIndex)) ||
+        ! AppendRuntimeIdValue(values, valueCount, static_cast<LONG>(modelAssignmentGeneration & 0xFFFFFFFFull)) ||
+        ! AppendRuntimeIdValue(values, valueCount, static_cast<LONG>((modelAssignmentGeneration >> 32u) & 0xFFFFFFFFull)))
     {
         return E_INVALIDARG;
     }
@@ -4325,6 +4704,13 @@ private:
     return target && target->embedded ? CaptureAccessibilitySnapshot(target, hwnd) : nullptr;
 }
 
+[[nodiscard]] uint64_t CaptureGridModelAssignmentGeneration(WindowHostAccessibilityTarget* target, HWND hwnd, const ControlPath& path) noexcept
+{
+    const auto snapshot                                        = CaptureAccessibilitySnapshot(target, hwnd);
+    const AccessibilityControlNavigationSnapshot* const record = snapshot ? FindControlNavigationRecord(*snapshot, path) : nullptr;
+    return record && record->isGrid ? record->gridModelAssignmentGeneration : 0u;
+}
+
 class AccessibilityProvider final : public IRawElementProviderSimple,
                                     public IRawElementProviderFragment,
                                     public IRawElementProviderFragmentRoot,
@@ -4335,6 +4721,7 @@ class AccessibilityProvider final : public IRawElementProviderSimple,
                                     public IValueProvider,
                                     public IRangeValueProvider,
                                     public ISelectionProvider,
+                                    public IGridProvider,
                                     public ISelectionItemProvider,
                                     public IExpandCollapseProvider,
                                     public IGridItemProvider,
@@ -4408,18 +4795,27 @@ public:
           _snapshot(CaptureProviderCreationSnapshot(target, hwnd)),
           _path(path),
           _kind(kind),
-          _gridRowId(gridRowId)
+          _gridRowId(gridRowId),
+          _gridModelAssignmentGeneration(kind == AccessibilityFragmentKind::GridRow ? CaptureGridModelAssignmentGeneration(target, hwnd, path) : 0u)
     {
     }
 
-    AccessibilityProvider(WindowHostAccessibilityTarget* target, HWND hwnd, const ControlPath& path, uint64_t gridRowId, size_t gridColumnIndex) noexcept
+    AccessibilityProvider(WindowHostAccessibilityTarget* target,
+                          HWND hwnd,
+                          const ControlPath& path,
+                          uint64_t gridRowId,
+                          size_t gridColumnIndex,
+                          const IGridModel* gridModelIdentity,
+                          uint64_t gridModelAssignmentGeneration) noexcept
         : _target(target),
           _hwnd(hwnd),
           _snapshot(CaptureProviderCreationSnapshot(target, hwnd)),
           _path(path),
           _kind(AccessibilityFragmentKind::GridCell),
           _gridRowId(gridRowId),
-          _gridColumnIndex(gridColumnIndex)
+          _gridColumnIndex(gridColumnIndex),
+          _gridModelIdentity(gridModelIdentity),
+          _gridModelAssignmentGeneration(gridModelAssignmentGeneration)
     {
     }
 
@@ -4436,6 +4832,9 @@ public:
     HRESULT STDMETHODCALLTYPE GetPatternProvider(PATTERNID patternId, IUnknown** outProvider) noexcept override;
     HRESULT STDMETHODCALLTYPE GetPropertyValue(PROPERTYID propertyId, VARIANT* outValue) noexcept override;
     HRESULT STDMETHODCALLTYPE get_HostRawElementProvider(IRawElementProviderSimple** outProvider) noexcept override;
+    HRESULT STDMETHODCALLTYPE GetItem(int row, int column, IRawElementProviderSimple** outProvider) noexcept override;
+    HRESULT STDMETHODCALLTYPE get_RowCount(int* outCount) noexcept override;
+    HRESULT STDMETHODCALLTYPE get_ColumnCount(int* outCount) noexcept override;
 
     HRESULT STDMETHODCALLTYPE Navigate(NavigateDirection direction, IRawElementProviderFragment** outProvider) noexcept override;
     HRESULT STDMETHODCALLTYPE GetRuntimeId(SAFEARRAY** outRuntimeId) noexcept override;
@@ -4545,17 +4944,20 @@ private:
     HRESULT ExecuteAddToSelectionOnWindowThread() noexcept;
     HRESULT ExecuteRemoveFromSelectionOnWindowThread() noexcept;
     HRESULT ExecuteExpandOnWindowThread(bool expanded) noexcept;
+    HRESULT ExecuteGetGridItemOnWindowThread(AccessibilityUiActionRequest& request) noexcept;
 
     std::atomic<ULONG> _referenceCount{1u};
     WindowHostAccessibilityTarget* _target = nullptr;
     HWND _hwnd                             = nullptr;
     std::shared_ptr<const AccessibilitySnapshot> _snapshot;
     ControlPath _path{};
-    AccessibilityFragmentKind _kind        = AccessibilityFragmentKind::Root;
-    uint64_t _treeItemId                   = 0u;
-    uint64_t _gridRowId                    = 0u;
-    size_t _gridColumnIndex                = 0u;
-    AccessibilityControlIdentity _identity = CaptureWindowHostElementIdentity(_target, _path, _kind);
+    AccessibilityFragmentKind _kind         = AccessibilityFragmentKind::Root;
+    uint64_t _treeItemId                    = 0u;
+    uint64_t _gridRowId                     = 0u;
+    size_t _gridColumnIndex                 = 0u;
+    const IGridModel* _gridModelIdentity    = nullptr;
+    uint64_t _gridModelAssignmentGeneration = 0u;
+    AccessibilityControlIdentity _identity  = CaptureWindowHostElementIdentity(_target, _path, _kind);
 };
 
 [[nodiscard]] wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> AcquireCanonicalRootProvider(WindowHostAccessibilityTarget* target) noexcept
@@ -5675,7 +6077,20 @@ std::shared_ptr<const AccessibilitySnapshot> AccessibilityTextRangeProvider::Cap
 std::shared_ptr<const AccessibilitySnapshot> AccessibilityProvider::CaptureSnapshot() const noexcept
 {
     if (_kind != AccessibilityFragmentKind::Root || ! _target || _target->embedded)
-        return GuardedElementSnapshot(_target, _hwnd, _snapshot, _kind == AccessibilityFragmentKind::Root ? nullptr : &_path, _identity);
+    {
+        auto snapshot = GuardedElementSnapshot(_target, _hwnd, _snapshot, _kind == AccessibilityFragmentKind::Root ? nullptr : &_path, _identity);
+        if (snapshot && (_kind == AccessibilityFragmentKind::GridCell || _kind == AccessibilityFragmentKind::GridRow))
+        {
+            const AccessibilityControlNavigationSnapshot* const record = FindControlNavigationRecord(*snapshot, _path);
+            if (! record || ! record->isGrid || _gridModelAssignmentGeneration == 0u ||
+                record->gridModelAssignmentGeneration != _gridModelAssignmentGeneration ||
+                (_kind == AccessibilityFragmentKind::GridCell && record->gridModelIdentity != _gridModelIdentity))
+            {
+                return nullptr;
+            }
+        }
+        return snapshot;
+    }
     // A window's root element that stands for the semantic control collapsed into it is that control's element, and lives
     // as long as that control stays collapsed into it, as every element lives with its control: neither a retained root
     // nor an action queued on it reaches a control that replaced it, and the window gives newly acquiring clients a fresh
@@ -5824,6 +6239,7 @@ AccessibilityPatternQueryResult AccessibilityProvider::QueryPattern(Accessibilit
             case AccessibilityPatternKind::Text:
             case AccessibilityPatternKind::TextEdit:
             case AccessibilityPatternKind::Selection:
+            case AccessibilityPatternKind::Grid:
             case AccessibilityPatternKind::Table:
             case AccessibilityPatternKind::SelectionItem:
             case AccessibilityPatternKind::ExpandCollapse: return {};
@@ -5886,6 +6302,7 @@ AccessibilityPatternQueryResult AccessibilityProvider::QueryPattern(Accessibilit
             return record->controlSupportsRangeValue ? makeResult(static_cast<IRangeValueProvider*>(this)) : AccessibilityPatternQueryResult{};
         case AccessibilityPatternKind::Selection:
             return record->controlSupportsSelection ? makeResult(static_cast<ISelectionProvider*>(this)) : AccessibilityPatternQueryResult{};
+        case AccessibilityPatternKind::Grid: return record->isGrid ? makeResult(static_cast<IGridProvider*>(this)) : AccessibilityPatternQueryResult{};
         case AccessibilityPatternKind::Table:
             return record->controlSupportsTable ? makeResult(static_cast<ITableProvider*>(this)) : AccessibilityPatternQueryResult{};
         case AccessibilityPatternKind::SelectionItem:
@@ -6004,6 +6421,138 @@ HRESULT AccessibilityProvider::GetPatternProvider(PATTERNID patternId, IUnknown*
         AddRef();
     }
 
+    return S_OK;
+}
+
+HRESULT AccessibilityProvider::GetItem(int row, int column, IRawElementProviderSimple** outProvider) noexcept
+{
+    try
+    {
+        if (outProvider)
+        {
+            *outProvider = nullptr;
+        }
+        if (! outProvider)
+        {
+            return E_POINTER;
+        }
+
+        std::shared_ptr<const AccessibilitySnapshot> snapshot = CaptureSnapshot();
+        if (! snapshot)
+        {
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+        const AccessibilityControlNavigationSnapshot* record = ResolveSnapshotControlRecord(*snapshot, _kind, _path);
+        if (! record || ! record->isGrid)
+        {
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+        if (row < 0 || column < 0 || static_cast<size_t>(row) >= record->gridRowCount || static_cast<size_t>(column) >= record->gridColumnCount)
+        {
+            return E_INVALIDARG;
+        }
+
+        const ControlPath gridPath                   = record->path;
+        const uint64_t gridControlIdentity           = record->controlIdentity;
+        const IGridModel* const gridModelIdentity    = record->gridModelIdentity;
+        const uint64_t gridModelAssignmentGeneration = record->gridModelAssignmentGeneration;
+        if (! gridModelIdentity)
+        {
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+        const auto cachedRow = std::ranges::find(record->gridRows, static_cast<size_t>(row), &AccessibilityGridRowSnapshotRecord::rowIndex);
+        uint64_t rowId       = cachedRow != record->gridRows.end() ? cachedRow->rowId : 0u;
+        const bool cellCached =
+            cachedRow != record->gridRows.end() && FindSnapshotGridCellRecord(*snapshot, gridPath, rowId, static_cast<size_t>(column)).has_value();
+        if (! cellCached)
+        {
+            if (_target && _target->embedded && ! IsCurrentThreadWindowThread())
+            {
+                return RPC_E_WRONG_THREAD;
+            }
+
+            AccessibilityUiActionRequest request{};
+            request.provider                      = this;
+            request.kind                          = AccessibilityUiActionKind::GetGridItem;
+            request.gridControlPath               = gridPath;
+            request.gridControlIdentity           = gridControlIdentity;
+            request.gridModelIdentity             = gridModelIdentity;
+            request.gridModelAssignmentGeneration = gridModelAssignmentGeneration;
+            request.gridRowIndex                  = row;
+            request.gridColumnIndex               = column;
+            const HRESULT hr = IsCurrentThreadWindowThread() ? ExecuteGetGridItemOnWindowThread(request) : DispatchActionToWindowThread(request);
+            if (FAILED(hr))
+            {
+                return hr;
+            }
+            rowId    = request.gridRowId;
+            snapshot = CaptureSnapshot();
+            if (! snapshot)
+            {
+                return UIA_E_ELEMENTNOTAVAILABLE;
+            }
+            record = FindControlNavigationRecord(*snapshot, gridPath);
+            if (! record || ! record->isGrid || record->controlIdentity != gridControlIdentity || record->gridModelIdentity != gridModelIdentity ||
+                record->gridModelAssignmentGeneration != gridModelAssignmentGeneration ||
+                ! FindSnapshotGridCellRecord(*snapshot, gridPath, rowId, static_cast<size_t>(column)))
+            {
+                return UIA_E_ELEMENTNOTAVAILABLE;
+            }
+        }
+        wil::com_ptr_nothrow<IRawElementProviderFragment> cellProvider;
+        cellProvider.attach(CreateGridCellProvider(gridPath, rowId, static_cast<size_t>(column)));
+        return cellProvider ? cellProvider->QueryInterface(IID_PPV_ARGS(outProvider)) : E_OUTOFMEMORY;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return E_OUTOFMEMORY;
+    }
+    catch (const std::exception&)
+    {
+        Debug::Error(L"UIA Grid.GetItem model callback raised std::exception");
+        return E_FAIL;
+    }
+}
+
+HRESULT AccessibilityProvider::get_RowCount(int* outCount) noexcept
+{
+    if (! outCount)
+    {
+        return E_POINTER;
+    }
+    *outCount                                                   = 0;
+    const std::shared_ptr<const AccessibilitySnapshot> snapshot = CaptureSnapshot();
+    if (! snapshot)
+    {
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    }
+    const AccessibilityControlNavigationSnapshot* record = ResolveSnapshotControlRecord(*snapshot, _kind, _path);
+    if (! record || ! record->isGrid)
+    {
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    }
+    *outCount = static_cast<int>((std::min)(record->gridRowCount, static_cast<size_t>((std::numeric_limits<int>::max)())));
+    return S_OK;
+}
+
+HRESULT AccessibilityProvider::get_ColumnCount(int* outCount) noexcept
+{
+    if (! outCount)
+    {
+        return E_POINTER;
+    }
+    *outCount                                                   = 0;
+    const std::shared_ptr<const AccessibilitySnapshot> snapshot = CaptureSnapshot();
+    if (! snapshot)
+    {
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    }
+    const AccessibilityControlNavigationSnapshot* record = ResolveSnapshotControlRecord(*snapshot, _kind, _path);
+    if (! record || ! record->isGrid)
+    {
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    }
+    *outCount = static_cast<int>((std::min)(record->gridColumnCount, static_cast<size_t>((std::numeric_limits<int>::max)())));
     return S_OK;
 }
 
@@ -6176,7 +6725,7 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
         const AccessibilityGridCellStateSnapshotRecord* cellRecord    = cell ? cell->cellRecord : nullptr;
         if (! cell || ! cellRecord)
         {
-            return S_OK;
+            return UIA_E_ELEMENTNOTAVAILABLE;
         }
 
         switch (propertyId)
@@ -6440,6 +6989,12 @@ HRESULT AccessibilityProvider::GetRuntimeId(SAFEARRAY** outRuntimeId) noexcept
                AppendRuntimeIdValue(values, count, static_cast<LONG>(_gridRowId)) && AppendRuntimeIdValue(values, count, static_cast<LONG>(_gridRowId >> 32)) &&
                AppendRuntimeIdValue(values, count, static_cast<LONG>(_gridColumnIndex))))
             return E_INVALIDARG;
+        if ((_kind == AccessibilityFragmentKind::GridRow || _kind == AccessibilityFragmentKind::GridCell) &&
+            ! (AppendRuntimeIdValue(values, count, static_cast<LONG>(_gridModelAssignmentGeneration)) &&
+               AppendRuntimeIdValue(values, count, static_cast<LONG>(_gridModelAssignmentGeneration >> 32))))
+        {
+            return E_INVALIDARG;
+        }
         if (_kind != AccessibilityFragmentKind::Root)
         {
             const auto* record = FindControlNavigationRecord(*_snapshot, _path);
@@ -6470,11 +7025,11 @@ HRESULT AccessibilityProvider::GetRuntimeId(SAFEARRAY** outRuntimeId) noexcept
     }
     if (_kind == AccessibilityFragmentKind::GridRow)
     {
-        return SetGridRowRuntimeId(outRuntimeId, _path, _gridRowId, _identity.value);
+        return SetGridRowRuntimeId(outRuntimeId, _path, _gridRowId, _identity.value, _gridModelAssignmentGeneration);
     }
     if (_kind == AccessibilityFragmentKind::GridCell)
     {
-        return SetGridCellRuntimeId(outRuntimeId, _path, _gridRowId, _gridColumnIndex, _identity.value);
+        return SetGridCellRuntimeId(outRuntimeId, _path, _gridRowId, _gridColumnIndex, _identity.value, _gridModelAssignmentGeneration);
     }
     if (_kind == AccessibilityFragmentKind::TextFieldPasswordRevealButton)
     {
@@ -8349,6 +8904,148 @@ HRESULT AccessibilityProvider::DispatchActionToWindowThread(AccessibilityUiActio
     return DispatchAccessibilityUiActionToWindowThread(_hwnd, request);
 }
 
+HRESULT AccessibilityProvider::ExecuteGetGridItemOnWindowThread(AccessibilityUiActionRequest& request) noexcept
+{
+    try
+    {
+        const auto snapshot = CaptureSnapshot();
+        if (! snapshot || request.gridRowIndex < 0 || request.gridColumnIndex < 0 || ! request.gridModelIdentity || request.gridModelAssignmentGeneration == 0u)
+        {
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+
+        const AccessibilityControlNavigationSnapshot* const record = FindControlNavigationRecord(*snapshot, request.gridControlPath);
+        if (! record || ! record->isGrid || record->controlIdentity != request.gridControlIdentity || record->gridModelIdentity != request.gridModelIdentity ||
+            record->gridModelAssignmentGeneration != request.gridModelAssignmentGeneration ||
+            static_cast<size_t>(request.gridRowIndex) >= record->gridRowCount || static_cast<size_t>(request.gridColumnIndex) >= record->gridColumnCount)
+        {
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+
+        ControlHost* const host = ResolveHost();
+        if (! host || ! _target)
+        {
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+        if (_target->embedded)
+        {
+            const Control* const liveRoot = host->GetRoot();
+            if (_target->threadId != GetCurrentThreadId() || ! liveRoot || ! SameControlLifetime(_target->rootLifetime, GetControlLifetimeToken(*liveRoot)) ||
+                snapshot->placement.viewport.left != _target->placement.viewport.left || snapshot->placement.viewport.top != _target->placement.viewport.top ||
+                snapshot->placement.viewport.width != _target->placement.viewport.width ||
+                snapshot->placement.viewport.height != _target->placement.viewport.height ||
+                snapshot->placement.hasKeyboardFocus != _target->placement.hasKeyboardFocus)
+            {
+                return UIA_E_ELEMENTNOTAVAILABLE;
+            }
+        }
+        const AccessibilityControlIdentity identity{record->controlLifetime, record->controlIdentity};
+        const auto resolveLiveGrid = [&]() noexcept -> Grid*
+        {
+            if (_target->ResolveHost() != host)
+            {
+                return nullptr;
+            }
+            Control* const root = const_cast<Control*>(host->GetRoot());
+            Grid* const grid    = root ? dynamic_cast<Grid*>(ResolveIdentifiedControlAtPath(root, request.gridControlPath, identity)) : nullptr;
+            return grid && grid->GetModel() == request.gridModelIdentity && grid->GetModelAssignmentGeneration() == request.gridModelAssignmentGeneration
+                       ? grid
+                       : nullptr;
+        };
+
+        Grid* grid = resolveLiveGrid();
+        if (! grid)
+        {
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+        const IGridModel* const model = request.gridModelIdentity;
+        const size_t rowCount         = model->GetRowCount();
+        grid                          = resolveLiveGrid();
+        if (! grid || static_cast<size_t>(request.gridRowIndex) >= rowCount)
+        {
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+        const size_t columnCount = model->GetColumnCount();
+        grid                     = resolveLiveGrid();
+        if (! grid || static_cast<size_t>(request.gridColumnIndex) >= columnCount || columnCount != record->gridColumnCount)
+        {
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+        const uint64_t rowId = model->GetStableRowId(static_cast<size_t>(request.gridRowIndex));
+        grid                 = resolveLiveGrid();
+        if (! grid)
+        {
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+        const std::optional<size_t> resolvedRow = model->FindRowByStableId(rowId);
+        grid                                    = resolveLiveGrid();
+        if (! grid || ! resolvedRow || resolvedRow.value() != static_cast<size_t>(request.gridRowIndex))
+        {
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+
+        RememberRequestedGridRow(*_target, request.gridControlPath, request.gridControlIdentity, model, request.gridModelAssignmentGeneration, rowId);
+        request.gridRowId = rowId;
+        if (_target->embedded)
+        {
+            // Embedded providers already require owner-thread access for uncached materialization. Publish the requested
+            // row into the same bounded immutable snapshot without changing focus or selection.
+            static_cast<void>(PublishWindowHostAccessibilitySnapshot(*_target, *host));
+        }
+        else
+        {
+            const HRESULT publishResult = RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+            if (FAILED(publishResult))
+            {
+                return publishResult;
+            }
+        }
+
+        // Embedded providers retain their creation snapshot as an identity guard, but a successful request must adopt the
+        // current target publication that now contains the requested row. Validate its root/control/placement below before
+        // returning a cell tied to that publication.
+        const auto published = _target->embedded ? CaptureAccessibilitySnapshot(_target, _hwnd) : CaptureSnapshot();
+        const AccessibilityControlNavigationSnapshot* const publishedRecord =
+            published ? FindControlNavigationRecord(*published, request.gridControlPath) : nullptr;
+        if (_target->embedded && published)
+        {
+            const Control* const currentRoot = host->GetRoot();
+            if (! currentRoot || ! SameControlLifetime(_target->rootLifetime, GetControlLifetimeToken(*currentRoot)) ||
+                published->placement.viewport.left != snapshot->placement.viewport.left ||
+                published->placement.viewport.top != snapshot->placement.viewport.top ||
+                published->placement.viewport.width != snapshot->placement.viewport.width ||
+                published->placement.viewport.height != snapshot->placement.viewport.height ||
+                published->placement.hasKeyboardFocus != snapshot->placement.hasKeyboardFocus ||
+                _target->placement.viewport.left != snapshot->placement.viewport.left || _target->placement.viewport.top != snapshot->placement.viewport.top ||
+                _target->placement.viewport.width != snapshot->placement.viewport.width ||
+                _target->placement.viewport.height != snapshot->placement.viewport.height ||
+                _target->placement.hasKeyboardFocus != snapshot->placement.hasKeyboardFocus)
+            {
+                return UIA_E_ELEMENTNOTAVAILABLE;
+            }
+        }
+        const auto cell =
+            published ? FindSnapshotGridCellRecord(*published, request.gridControlPath, rowId, static_cast<size_t>(request.gridColumnIndex)) : std::nullopt;
+        if (! publishedRecord || ! publishedRecord->isGrid || publishedRecord->controlIdentity != request.gridControlIdentity ||
+            ! SameControlLifetime(record->controlLifetime, publishedRecord->controlLifetime) || publishedRecord->gridModelIdentity != model ||
+            publishedRecord->gridModelAssignmentGeneration != request.gridModelAssignmentGeneration || ! cell ||
+            cell->rowIndex != static_cast<size_t>(request.gridRowIndex))
+        {
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+        return S_OK;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return E_OUTOFMEMORY;
+    }
+    catch (const std::exception&)
+    {
+        Debug::Error(L"UIA Grid.GetItem model callback raised std::exception on the owner thread");
+        return E_FAIL;
+    }
+}
+
 HRESULT AccessibilityProvider::ExecuteUiThreadAction(AccessibilityUiActionRequest& request) noexcept
 {
     if (! CaptureSnapshot())
@@ -8362,6 +9059,7 @@ HRESULT AccessibilityProvider::ExecuteUiThreadAction(AccessibilityUiActionReques
         case AccessibilityUiActionKind::SetRangeValue: return ExecuteSetRangeValueOnWindowThread(request.numberValue);
         case AccessibilityUiActionKind::ResolveTextRangeFromPoint:
             return ExecuteResolveTextRangeFromPointOnWindowThread(request.textRangePoint, request.textRangeResultStart, request.textRangeTextLength);
+        case AccessibilityUiActionKind::GetGridItem: return ExecuteGetGridItemOnWindowThread(request);
         case AccessibilityUiActionKind::Select: return ExecuteSelectOnWindowThread();
         case AccessibilityUiActionKind::AddToSelection: return ExecuteAddToSelectionOnWindowThread();
         case AccessibilityUiActionKind::RemoveFromSelection: return ExecuteRemoveFromSelectionOnWindowThread();
@@ -8998,7 +9696,14 @@ IRawElementProviderFragment* AccessibilityProvider::CreateGridRowProvider(const 
 
 IRawElementProviderFragment* AccessibilityProvider::CreateGridCellProvider(const ControlPath& path, uint64_t rowId, size_t columnIndex) noexcept
 {
-    return MakeProvider<IRawElementProviderFragment, AccessibilityProvider>(_hwnd, path, rowId, columnIndex);
+    const auto snapshot = CaptureSnapshot();
+    const auto cell     = snapshot ? FindSnapshotGridCellRecord(*snapshot, path, rowId, columnIndex) : std::nullopt;
+    if (! cell || ! cell->controlRecord->gridModelIdentity || cell->controlRecord->gridModelAssignmentGeneration == 0u)
+    {
+        return nullptr;
+    }
+    return MakeProvider<IRawElementProviderFragment, AccessibilityProvider>(
+        _hwnd, path, rowId, columnIndex, cell->controlRecord->gridModelIdentity, cell->controlRecord->gridModelAssignmentGeneration);
 }
 
 IRawElementProviderFragment* AccessibilityProvider::CreateProviderFromNavigationTarget(const AccessibilityNavigationTarget& navigationTarget) noexcept
@@ -9539,29 +10244,39 @@ void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept
     }
 }
 
-void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept
+HRESULT RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept
 {
     if (! host)
-        return;
+        return S_FALSE;
     if (! hwnd)
-        return; // EmbeddedHost::UpdateAccessibility publishes after coherent preparation.
+        return S_FALSE; // EmbeddedHost::UpdateAccessibility publishes after coherent preparation.
 
     WindowHostSnapshotChanges changes{};
     uint64_t focusResolutions = 0u;
+    try
     {
-        const std::scoped_lock lock(GetAccessibilityTargetMutex());
-        auto* target = static_cast<WindowHostAccessibilityTarget*>(GetPropW(hwnd, kWindowHostPropName));
-        if (! target || target->host.load(std::memory_order_acquire) != host)
         {
-            return;
-        }
+            const std::scoped_lock lock(GetAccessibilityTargetMutex());
+            auto* target = static_cast<WindowHostAccessibilityTarget*>(GetPropW(hwnd, kWindowHostPropName));
+            if (! target || target->host.load(std::memory_order_acquire) != host)
+                return S_FALSE;
 
-        changes = PublishWindowHostAccessibilitySnapshot(*target, *host);
-        // Read after the publish stored the snapshot. A call of GetFocus counts itself before it loads the snapshot, all
-        // four operations sequentially consistent, so a call this read does not count loads the snapshot after the
-        // store and reports the element the host just focused, while one it counts may have loaded the snapshot before.
-        if (changes.focusMoved)
-            focusResolutions = target->focusResolutions.load(std::memory_order_seq_cst);
+            changes = PublishWindowHostAccessibilitySnapshot(*target, *host);
+            // Read after the publish stored the snapshot. A call of GetFocus counts itself before it loads the snapshot, all
+            // four operations sequentially consistent, so a call this read does not count loads the snapshot after the
+            // store and reports the element the host just focused, while one it counts may have loaded the snapshot before.
+            if (changes.focusMoved)
+                focusResolutions = target->focusResolutions.load(std::memory_order_seq_cst);
+        }
+    }
+    catch (const std::bad_alloc&)
+    {
+        return E_OUTOFMEMORY;
+    }
+    catch (const std::exception&)
+    {
+        Debug::Error(L"UIA window snapshot model callback raised std::exception");
+        return E_FAIL;
     }
     // Raised outside the publish lock: clients may call back into these providers from other threads.
     if (changes.structureChanged)
@@ -9585,6 +10300,7 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexce
     }
     // After the focus move, as a list view reports its focus and then its selection.
     RaiseWindowHostSelectionChanges(hwnd, changes.selections);
+    return S_OK;
 }
 
 void BeginWindowHostFocusGain(HWND hwnd, ControlHost* host) noexcept

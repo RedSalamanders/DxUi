@@ -375,7 +375,9 @@ void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept;
 // the foreground's keyboard focus. While the window itself gains focus, the system's focus event reports it; a move
 // later in the turn of the gain is left to that event only in a window whose fragment-root GetFocus no call has ever
 // begun on, because the first such call reports the moved-to element (see ReporterOfFocusMove).
-void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
+// Returns callback/allocation failures so COM callers that requested a snapshot can return a failing HRESULT instead of
+// allowing an exception through this noexcept boundary.
+HRESULT RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept;
 // A window host begins to gain focus, before it publishes anything: records how many fragment-root GetFocus calls had
 // begun, which says whether UI Automation will ask for what the gain focuses or restores (none had) or answer without
 // asking (see EndWindowHostFocusGainTurn), and starts the gain with no announcement made.

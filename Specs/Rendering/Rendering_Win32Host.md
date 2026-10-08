@@ -39,6 +39,11 @@ errors keep their normal failure behavior. This handles the [documented optional
 without preventing ordinary control rendering and text layout. Native tests report the raw WARP debug-layer probe
 and require the host to initialize with or without that SDK component.
 
+For a native flip-model swap chain, the first back-buffer contents are undefined. WindowHost creates or resizes the
+chain with a pending full-frame presentation, so an initial partial WM_PAINT is rendered and presented as a full frame.
+The pending state clears only when both EndDraw and Present return S_OK; an occluded status or any failure keeps the
+next render full. EmbeddedHost does not own or present a swap chain and is unaffected by this rule.
+
 The native menu modal loop processes pointer/keyboard input and pending paints for its own popup windows before
 ordinary posted owner-window traffic. Input feedback cannot depend on the entire owner queue becoming empty.
 An idle menu still blocks on messages; this policy adds no timer, polling or synchronous repaint during dispatch.

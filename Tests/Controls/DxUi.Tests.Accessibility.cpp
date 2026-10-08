@@ -3,6 +3,7 @@
 #include "../Support/Support.Tests.UiaTestClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
+#include "Scope.Tests.GridUiaPattern.h"
 
 #include <array>
 #include <atomic>
@@ -8103,6 +8104,13 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityMultilineGridCellsExposeTheirExactUnicodeValues);
     DXUI_RUN_TEST(TestAccessibilityClippedMultilineGridCellBoundsFollowTheViewport);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesGridRowSelectionPatterns);
+    DXUI_RUN_TEST(TestGridUiaPatternSupportsBoundedOffscreenGetItem);
+    DXUI_RUN_TEST(TestGridUiaPatternStopsWhenCellReadReplacesItsControl);
+    DXUI_RUN_TEST(TestGridUiaPatternStopsWhenCellReadShrinksItsModel);
+    DXUI_RUN_TEST(TestGridUiaPatternKeepsNestedSameAddressPublication);
+    DXUI_RUN_TEST(TestGridUiaPatternStopsPointHitsAfterModelReplacement);
+    DXUI_RUN_TEST(TestGridUiaPatternInvalidatesProvidersAfterSameAddressModelAssignment);
+    DXUI_RUN_TEST(TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure);
     DXUI_RUN_TEST(TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesGridCellToggleAndRangePatterns);

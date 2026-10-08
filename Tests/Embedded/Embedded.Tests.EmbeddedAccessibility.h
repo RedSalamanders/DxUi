@@ -104,6 +104,105 @@ public:
     }
 };
 
+class EmbeddedGridGetItemModel final : public DxUi::IGridModel
+{
+public:
+    [[nodiscard]] size_t GetRowCount() const noexcept override
+    {
+        return 2000u;
+    }
+    [[nodiscard]] size_t GetColumnCount() const noexcept override
+    {
+        return 2u;
+    }
+    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t columnIndex) const override
+    {
+        return {.id = columnIndex == 0u ? L"name" : L"details", .title = columnIndex == 0u ? L"Name" : L"Details", .widthDip = 180.0f};
+    }
+    void GetCellData(size_t rowIndex, size_t columnIndex, DxUi::GridCellData& outCell) const override
+    {
+        outCell.text = L"embedded-row-" + std::to_wstring(rowIndex) + (columnIndex == 0u ? L"-name" : L"-details");
+    }
+    [[nodiscard]] uint64_t GetStableRowId(size_t rowIndex) const noexcept override
+    {
+        return static_cast<uint64_t>(rowIndex) + 1u;
+    }
+    [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+    {
+        return rowId > 0u && rowId <= GetRowCount() ? std::optional<size_t>(static_cast<size_t>(rowId - 1u)) : std::nullopt;
+    }
+};
+
+static void TestEmbeddedGridOffscreenGetItem(GraphicsFixture& gpu)
+{
+    EmbeddedScene scene;
+    Hr(scene.Initialize(gpu.device.get()), "embedded GridPattern scene");
+    auto& view       = scene.view;
+    auto rootControl = std::make_unique<DxUi::Panel>();
+    auto* grid       = rootControl->AddChild<DxUi::Grid>();
+    grid->SetBounds(D2D1::RectF(0, 0, 560, 280));
+    grid->SetAccessibleName(L"Virtual results");
+    EmbeddedGridGetItemModel model;
+    grid->SetModel(&model);
+    view.Controls().SetRoot(std::move(rootControl));
+    Hr(view.Prepare(720, 510, 96), "prepare embedded GridPattern scene");
+
+    auto site = std::make_shared<TestEmbeddedAccessibilitySite>();
+    const DxUi::EmbeddedAccessibilityPlacement placement{{0, 0, 720, 510}, true};
+    Hr(view.AttachAccessibility(site, 0x4752494455494131ull, placement), "attach embedded GridPattern accessibility");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    Hr(view.GetAccessibilityProvider(root.put()), "get embedded GridPattern root");
+    site->root = root.get();
+    wil::com_ptr_nothrow<IRawElementProviderFragment> rootFragment;
+    Hr(root.query_to(rootFragment.put()), "embedded root exposes the Fragment provider interface");
+    wil::com_ptr_nothrow<IRawElementProviderFragment> gridFragment;
+    Hr(rootFragment->Navigate(NavigateDirection_FirstChild, gridFragment.put()), "navigate to embedded grid");
+    Check(bool(gridFragment), "embedded root exposes its grid control");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> gridSimple;
+    Hr(gridFragment.query_to(gridSimple.put()), "embedded grid is a simple provider");
+    wil::com_ptr_nothrow<IUnknown> gridPatternUnknown;
+    Hr(gridSimple->GetPatternProvider(UIA_GridPatternId, gridPatternUnknown.put()), "embedded grid advertises GridPattern");
+    wil::com_ptr_nothrow<IGridProvider> gridPattern;
+    Hr(gridPatternUnknown.query_to(gridPattern.put()), "embedded GridPattern supports IGridProvider");
+
+    wil::com_ptr_nothrow<IRawElementProviderSimple> offscreenCell;
+    Hr(gridPattern->GetItem(1500, 1, offscreenCell.put()), "embedded owner-thread GetItem materializes an offscreen row");
+    VARIANT name{};
+    VariantInit(&name);
+    Hr(offscreenCell->GetPropertyValue(UIA_NamePropertyId, &name), "embedded offscreen cell Name");
+    Check(name.vt == VT_BSTR && std::wstring_view(name.bstrVal, SysStringLen(name.bstrVal)) == L"embedded-row-1500-details",
+          "embedded GetItem returns the requested row from its newly published snapshot");
+    VariantClear(&name);
+    wil::com_ptr_nothrow<IGridItemProvider> gridItem;
+    Hr(offscreenCell.query_to(gridItem.put()), "embedded offscreen cell exposes GridItemPattern");
+    int row    = -1;
+    int column = -1;
+    Hr(gridItem->get_Row(&row), "embedded GridItem row");
+    Hr(gridItem->get_Column(&column), "embedded GridItem column");
+    Check(row == 1500 && column == 1, "embedded GridItem coordinates match GetItem");
+
+    // This intentionally calls the provider pointer directly from another initialized thread: it is an implementation
+    // concurrency probe for the embedded adapter's early owner-thread rejection, not a marshaled UI Automation client.
+    IRawElementProviderSimple* foreignCell = nullptr;
+    HRESULT foreignResult                  = E_PENDING;
+    std::thread foreignClient([&]
+    {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        if (FAILED(initialized))
+        {
+            foreignResult = initialized;
+            return;
+        }
+        const auto uninitialize = wil::scope_exit([&]() noexcept { CoUninitialize(); });
+        foreignResult           = gridPattern->GetItem(1501, 0, &foreignCell);
+    });
+    foreignClient.join();
+    Check(foreignResult == RPC_E_WRONG_THREAD && foreignCell == nullptr, "embedded offscreen cache miss remains owner-thread-only for a foreign COM caller");
+
+    site->root = nullptr;
+    view.Detach();
+}
+
 struct EmbeddedSelectionTreeDelegate final : DxUi::ITreeDelegate
 {
     size_t sets = 0;
@@ -218,6 +317,7 @@ static void TestEmbeddedTreeMultiSelect(GraphicsFixture& gpu)
 static void TestEmbeddedAccessibility(GraphicsFixture& gpu)
 {
     TestEmbeddedDisclosureAccessibility(gpu);
+    TestEmbeddedGridOffscreenGetItem(gpu);
     TestEmbeddedTreeMultiSelect(gpu);
     EmbeddedScene scene;
     Hr(scene.Initialize(gpu.device.get(), {}, true), "UIA supplied-device scene");

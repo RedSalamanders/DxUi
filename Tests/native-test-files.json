@@ -11,6 +11,8 @@
   "Tests/Controls/Controls.Tests.TextInputServices.h",
   "Tests/Controls/DxUi.Tests.Accessibility.cpp",
   "Tests/Controls/DxUi.Tests.Animation.cpp",
+  "Tests/Controls/Scope.Tests.GridUiaPattern.cpp",
+  "Tests/Controls/Scope.Tests.GridUiaPattern.h",
   "Tests/Controls/DxUi.Tests.ComboBox.cpp",
   "Tests/Controls/DxUi.Tests.Controls.cpp",
   "Tests/Controls/DxUi.Tests.EditorControls.cpp",

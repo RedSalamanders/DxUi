@@ -1,0 +1,76 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] InteractiveLease
+  [START] TestDesktopLeaseLeavesAnUntouchedDesktopAlone
+  [DONE] TestDesktopLeaseLeavesAnUntouchedDesktopAlone (0.000 s)
+  [START] TestDesktopLeaseGivesBackTheForegroundWindowAndItsFocus
+  [DONE] TestDesktopLeaseGivesBackTheForegroundWindowAndItsFocus (0.000 s)
+  [START] TestDesktopLeaseGivesBackThePointerLast
+  [DONE] TestDesktopLeaseGivesBackThePointerLast (0.000 s)
+  [START] TestDesktopLeaseRetriesAForegroundTheSystemRefusesOnce
+  [DONE] TestDesktopLeaseRetriesAForegroundTheSystemRefusesOnce (0.000 s)
+  [START] TestDesktopLeaseReportsAForegroundItCannotRestore
+  [DONE] TestDesktopLeaseReportsAForegroundItCannotRestore (0.000 s)
+  [START] TestDesktopLeaseDoesNotTrustACallThatReportsSuccess
+  [DONE] TestDesktopLeaseDoesNotTrustACallThatReportsSuccess (0.000 s)
+  [START] TestDesktopLeaseDoesNotActivateAWindowThatIsGone
+  [DONE] TestDesktopLeaseDoesNotActivateAWindowThatIsGone (0.000 s)
+  [START] TestDesktopLeaseReportsAPointerItCannotRestore
+  [DONE] TestDesktopLeaseReportsAPointerItCannotRestore (0.000 s)
+  [START] TestDesktopLeaseWithAnUnreadablePointer
+  [DONE] TestDesktopLeaseWithAnUnreadablePointer (0.000 s)
+  [START] TestDesktopLeaseRecordsNothingWhenThereIsNoForegroundWindow
+  [DONE] TestDesktopLeaseRecordsNothingWhenThereIsNoForegroundWindow (0.000 s)
+  [START] TestDesktopLeaseRestoreIsRepeatableAndNeedsACapture
+  [DONE] TestDesktopLeaseRestoreIsRepeatableAndNeedsACapture (0.000 s)
+  [START] TestDesktopLeaseKeepsAFocusWindowThatAlreadyHasIt
+  [DONE] TestDesktopLeaseKeepsAFocusWindowThatAlreadyHasIt (0.000 s)
+  [START] TestDesktopLeaseReportsAFocusItCannotRestore
+  [DONE] TestDesktopLeaseReportsAFocusItCannotRestore (0.000 s)
+  [START] TestInteractiveDesktopCheckAcceptsAnActiveSession
+  [DONE] TestInteractiveDesktopCheckAcceptsAnActiveSession (0.000 s)
+  [START] TestInteractiveDesktopCheckNamesEachReasonToRefuse
+  [DONE] TestInteractiveDesktopCheckNamesEachReasonToRefuse (0.000 s)
+  [START] TestInteractiveDesktopCheckStopsAtTheFirstReason
+  [DONE] TestInteractiveDesktopCheckStopsAtTheFirstReason (0.000 s)
+  [START] TestWin32BackendReadsTheDesktopWithoutChangingIt
+  [DONE] TestWin32BackendReadsTheDesktopWithoutChangingIt (0.016 s)
+  [START] TestLeaseRefusesWhenThereIsNoDesktopAndTouchesNothing
+  [DONE] TestLeaseRefusesWhenThereIsNoDesktopAndTouchesNothing (0.000 s)
+  [START] TestLeaseRefusesWhenAnotherRunHoldsIt
+  [DONE] TestLeaseRefusesWhenAnotherRunHoldsIt (0.000 s)
+  [START] TestLeaseDoesNotTakeTheDesktopWhenTheAnswerIsCancel
+  [DONE] TestLeaseDoesNotTakeTheDesktopWhenTheAnswerIsCancel (0.000 s)
+  [START] TestLeaseCancelsWhenNobodyAnswers
+  [DONE] TestLeaseCancelsWhenNobodyAnswers (0.000 s)
+  [START] TestLeaseRunsEachChildAndRestoresAfterThem
+  [DONE] TestLeaseRunsEachChildAndRestoresAfterThem (0.000 s)
+  [START] TestLeaseRestoresAfterAFailingChild
+  [DONE] TestLeaseRestoresAfterAFailingChild (0.000 s)
+  [START] TestLeaseRestoresAfterTheWatchdogEndsAChild
+  [DONE] TestLeaseRestoresAfterTheWatchdogEndsAChild (0.000 s)
+  [START] TestLeaseRestoresAfterAChildTheLeaseEnded
+  [DONE] TestLeaseRestoresAfterAChildTheLeaseEnded (0.000 s)
+  [START] TestLeaseRestoresWhenAChildCannotBeStarted
+  [DONE] TestLeaseRestoresWhenAChildCannotBeStarted (0.000 s)
+  [START] TestLeaseRestoresWhenTheRunIsStopped
+  [DONE] TestLeaseRestoresWhenTheRunIsStopped (0.000 s)
+  [START] TestLeaseRestoresWhenTheConfirmationIsStopped
+  [DONE] TestLeaseRestoresWhenTheConfirmationIsStopped (0.000 s)
+  [START] TestLeaseRunsNothingWhenTheWarningCannotBeShown
+  [DONE] TestLeaseRunsNothingWhenTheWarningCannotBeShown (0.000 s)
+  [START] TestLeaseReportsADesktopItCouldNotRestore
+  [DONE] TestLeaseReportsADesktopItCouldNotRestore (0.000 s)
+  [START] TestLeaseReleasesTheSessionOnEveryPath
+  [DONE] TestLeaseReleasesTheSessionOnEveryPath (0.000 s)
+  [START] TestLeaseResultNamesEveryFact
+  [DONE] TestLeaseResultNamesEveryFact (0.000 s)
+  [START] TestLeasePlanFileParsing
+  [DONE] TestLeasePlanFileParsing (0.000 s)
+  [START] TestLeaseDurationTextIsApproximate
+  [DONE] TestLeaseDurationTextIsApproximate (0.000 s)
+  [START] TestConfirmationCountdownEndsInACancellation
+  [DONE] TestConfirmationCountdownEndsInACancellation (0.000 s)
+  [START] TestLeaseExitCodesAreDistinctAndStable
+  [DONE] TestLeaseExitCodesAreDistinctAndStable (0.000 s)
+[DONE] InteractiveLease (0.020 s)
+All DxUi tests passed.
