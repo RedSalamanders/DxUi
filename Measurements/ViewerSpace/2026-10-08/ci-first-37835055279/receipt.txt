@@ -1,0 +1,8 @@
+Hosted paired benchmark provenance
+Pull request: #69
+Workflow run: 37835055279
+Job: 113509851836
+Artifact: 11576126309 (paired-benchmark-x64-Release)
+Artifact ZIP SHA-256: 9c56ad66f6399a711343e1d3d5d82a5a8c0fced2f19e269333d5c0b542f12873
+Raw reports source: D:\RedSalamander.Perf\runs\dxui-ci-first-37835055279\artifacts\dxui-paired\paired\20261008T195216Z-bea676a1f841\reports
+Run timestamp: 2026-10-08T19:52:16Z (report completed 2026-10-08T20:06:23Z)
