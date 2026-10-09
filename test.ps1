@@ -14,11 +14,13 @@ minutes. The lease refuses where there is no interactive desktop (a CI job, a se
 (Cancel is the default button and the answer when nobody answers in two minutes), shows a warning while the suites run, and puts the
 foreground window, its keyboard focus and the pointer position back however the run ends: a failing suite, the watchdog's exit code
 124 and Ctrl+C included. A suite that records a capability skip fails the run, since an interactive run exists to run what other runs
-skip. Run it only when the person at the desktop has agreed to the time. Without -Interactive the lease is never used.
+skip. Run it only when the person at the desktop has agreed to the time. Ordinary local calls without -Interactive do not use the
+lease. Foreground suites on verified hosted Windows runners use the separately guarded hosted lease mode.
 .PARAMETER SkipTooling
 Leaves independent tooling tests to the selected Tooling scope or the CI validation job. Native runner/watchdog checks remain.
 .PARAMETER Full
-Runs the complete noninteractive gate; ordinary calls use Test-Changes affected iteration.
+Runs the full normal scopes, adding foreground suites on verified hosted Windows runners; ordinary calls use Test-Changes affected
+iteration.
 #>
 [CmdletBinding()]
 param(
@@ -62,7 +64,7 @@ if (-not $Interactive -and -not $verifiedHostedRunner -and @($Suites | Where-Obj
 # -Interactive is settled before anything is built or run: its suites must need the desktop, and there must be one to take.
 if ($Interactive) {
     $Suites = @(Resolve-DxUiInteractiveSuites -Suites $Suites -Requested $PSBoundParameters.ContainsKey('Suites'))
-    $refusal = if ($verifiedHostedRunner) { $null } else { Get-DxUiInteractiveRefusal }
+    $refusal = Get-DxUiInteractiveRefusal
     if ($refusal) { throw "Interactive tests need an interactive desktop, and there is none: $refusal." }
 }
 $hostedForegroundLease = Test-DxUiHostedForegroundLeaseRequired -Suites $Suites -VerifiedHostedRunner $verifiedHostedRunner
@@ -151,8 +153,8 @@ try {
     $lease = $null
     $leaseProblems = @()
     if ($foregroundLeaseRequired) {
-        # Every suite of the run under one lease: one confirmation, one warning, one restoration. The suites run before any of them is
-        # reported, and are reported below exactly as a run without -Interactive reports them.
+        # Every selected foreground suite runs under one lease: local confirmation or verified hosted authorization, one warning,
+        # one restoration. The suites run before any of them is reported, and are reported below like suites without a lease.
         $label = "$($leaseSuites -join ', ') ($Platform $Configuration)"
         $estimate = Get-DxUiInteractiveEstimateSeconds -Suites $leaseSuites -Configuration $Configuration
         $plan = @(foreach ($name in $leaseSuites) {

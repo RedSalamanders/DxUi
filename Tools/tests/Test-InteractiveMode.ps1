@@ -344,14 +344,19 @@ Invoke-FixtureCase 'test.ps1 -Interactive refuses in a CI job before it builds o
     Assert-True ($null -ne (Get-DxUiInteractiveRefusal -Environment @{ CI = 'true' } -UserInteractive $true -OnWindows $true)) 'a CI environment is refused'
     New-RefusalFixture $fixture
     $before = Get-OutputFiles $fixture
-    $run = Invoke-TestScript @('-Interactive') @{ CI = 'true' } $fixture
-    Assert-True $run.Exited 'the refusal ended the run'
-    Assert-True ($run.Exit -ne 0) 'with a failing exit code'
-    # On Windows the CI variable is the reason; where this runs on another system (CI's validation job is Ubuntu) there is no desktop at all.
-    $reason = if ($IsWindows) { 'CI is set' } else { 'this is not Windows' }
-    Assert-True ((Get-FlatText $run.Output).Contains('Interactive tests need an interactive desktop, and there is none') -and (Get-FlatText $run.Output).Contains($reason)) "saying why: $($run.Output)"
-    Assert-True (-not $run.Output.Contains('Interactive run:') -and -not $run.Output.Contains('Running ') -and -not $run.Output.Contains('== ')) 'and nothing ran: no tooling test, no build, no suite'
-    Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles $fixture)) -join "`n") 'no log or receipt was written'
+    foreach ($environment in @(
+        @{ CI = 'true' },
+        @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' }
+    )) {
+        $run = Invoke-TestScript @('-Interactive') $environment $fixture
+        Assert-True $run.Exited 'the refusal ended the run'
+        Assert-True ($run.Exit -ne 0) 'with a failing exit code'
+        # Even a verified hosted runner uses its distinct hosted mode; -Interactive still requires a person.
+        $reason = if ($IsWindows) { 'CI is set' } else { 'this is not Windows' }
+        Assert-True ((Get-FlatText $run.Output).Contains('Interactive tests need an interactive desktop, and there is none') -and (Get-FlatText $run.Output).Contains($reason)) "saying why: $($run.Output)"
+        Assert-True (-not $run.Output.Contains('Interactive run:') -and -not $run.Output.Contains('Running ') -and -not $run.Output.Contains('== ')) 'and nothing ran: no tooling test, no build, no suite'
+        Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles $fixture)) -join "`n") 'no log or receipt was written'
+    }
 }
 Invoke-FixtureCase 'lease console output cannot replace the result object or hide a failed child' { param($fixture)
     $fake = Join-Path $fixture 'lease.ps1'

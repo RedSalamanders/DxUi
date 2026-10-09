@@ -1737,3 +1737,10 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   private-desktop warning/confirmation, no-dialog runtime-failure routing and rejection of unverified hosted markers.
   No personal desktop takeover occurred. The local packet retains these results; all six final-source CI profiles,
   a current verified paired study and A/A timing/memory policy qualification remain distinct pending obligations.
+- Committed follow-up `d43e36a` passed clean native-filesystem Linux validation 54. Its six-profile PrePush accounting
+  deferred matching obligations to concrete pending CI, with foreground/hardware gates explicit. CI run 38004170296
+  exposed a hosted/local guard mixup: explicit `-Interactive` bypassed the CI refusal when all hosted markers matched.
+  The lead independently checked the failed Windows job and restored unconditional person-facing refusal in that
+  branch; hosted foreground authorization remains the separate implicit runner mode. The fixture now executes both
+  ordinary CI and fully identified hosted environments and verifies no output or child work. All 21 InteractiveMode
+  cases and complete Windows validation 55 passed. The failed CI job is retained; native jobs continue for launch proof.
