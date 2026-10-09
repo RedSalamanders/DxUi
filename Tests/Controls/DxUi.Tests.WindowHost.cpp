@@ -23,6 +23,46 @@
 namespace
 {
 
+void TestWindowHostCaptionMessagesReachApplicationAndDefaultHandling()
+{
+    using namespace DxUi;
+
+    std::array<unsigned, 3> delivered{};
+    AttachedHostWindow window;
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"editor text");
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 44.0f));
+    window.Host().SetRoot(std::move(root));
+
+    for (const bool focusEditor : {false, true})
+    {
+        window.Host().SetFocusControl(focusEditor ? field : nullptr, false);
+        delivered.fill(0u);
+        window.SetApplicationMessageHandler([&](UINT message, WPARAM, LPARAM, LRESULT& result)
+        {
+            const auto index = message == WM_SETTEXT ? 0u : message == WM_GETTEXTLENGTH ? 1u : 2u;
+            if (message != WM_SETTEXT && message != WM_GETTEXTLENGTH && message != WM_GETTEXT)
+                return false;
+            ++delivered[index];
+            result = 100 + index;
+            return true;
+        });
+        wchar_t caption[32]{};
+        Require(SendMessageW(window.Hwnd(), WM_SETTEXT, 0, reinterpret_cast<LPARAM>(L"host caption")) == 100 &&
+                    SendMessageW(window.Hwnd(), WM_GETTEXTLENGTH, 0, 0) == 101 &&
+                    SendMessageW(window.Hwnd(), WM_GETTEXT, std::size(caption), reinterpret_cast<LPARAM>(caption)) == 102,
+                "application caption handlers receive all three messages with and without logical editor focus");
+        Require(delivered == std::array<unsigned, 3>{1u, 1u, 1u}, "caption handling reaches the application exactly once per message");
+        window.SetApplicationMessageHandler({});
+        Require(SetWindowTextW(window.Hwnd(), L"host caption") != FALSE && SendMessageW(window.Hwnd(), WM_GETTEXTLENGTH, 0, 0) == 12,
+                "default caption handling sets and measures the host title with and without logical editor focus");
+        Require(SendMessageW(window.Hwnd(), WM_GETTEXT, std::size(caption), reinterpret_cast<LPARAM>(caption)) == 12 &&
+                    std::wstring_view(caption) == L"host caption" && field->GetText() == L"editor text",
+                "default caption reads preserve the editor's independent text");
+    }
+}
+
 void TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies()
 {
     using namespace DxUi;
@@ -5383,6 +5423,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestNativeMenuBarRefreshMutableCallbackRetainsState);
     DXUI_RUN_TEST(TestWindowHostFocusChangedMutableCallbackRetainsState);
     DXUI_RUN_TEST(TestWindowHostLogicalEditorFocusCanAvoidNativeActivation);
+    DXUI_RUN_TEST(TestWindowHostCaptionMessagesReachApplicationAndDefaultHandling);
     DXUI_RUN_TEST(TestWindowHostEscapeClosesComboPopupBeforeCancelButton);
     DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedButtonContextMenu);
     DXUI_RUN_TEST(TestWindowHostShiftF10InvokesFocusedToggleContextMenu);

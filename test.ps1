@@ -81,6 +81,13 @@ if ($Interactive) {
     $noDesktop = Test-DxUiDesktopAvailable -Executable $leaseExecutable
     if ($noDesktop) { throw "Interactive tests need an interactive desktop, and there is none: $noDesktop." }
 }
+if ($verifiedHostedRunner -and @($Suites | Where-Object { Test-DxUiInteractiveSuite $_ }).Count) {
+    # Owning a hosted runner is authorization, not evidence that its input desktop is usable. This read-only
+    # probe diagnoses the environment; foreground suites still execute and retain their failures or skips.
+    $hostedDesktopRefusal = Test-DxUiDesktopAvailable -Executable $leaseExecutable
+    if ($hostedDesktopRefusal) { Write-Warning "Hosted foreground desktop preflight: $hostedDesktopRefusal" }
+    else { Write-Host 'Hosted foreground desktop preflight passed; suite execution must still qualify focus and rendering.' }
+}
 # The runner's --test contract (single tests, unknown names) and its watchdog (a hung test ends the run, named) are checked
 # against the executable this run is about to use; an interactive run needs the second most, since the watchdog is what bounds a
 # hung test while the suites hold the person's desktop.

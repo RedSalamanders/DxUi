@@ -111,7 +111,7 @@ Invoke-FixtureCase 'Full identity requires the harness while PlatformOnly skips 
         Set-FixtureFile $root $relative 'fixture input'
     }
     Set-FixtureFile $root 'Tools/VisualStudio.psm1' @'
-function Get-DxUiVisualStudioInstallation { 'C:\missing-visual-studio-fixture' }
+function Get-DxUiVisualStudioInstallation { Join-Path $PSScriptRoot 'missing-visual-studio-fixture' }
 Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
 '@
     $full = Get-PerformanceToolIdentities -Root $root -Platform x64 -Configuration Debug
@@ -127,8 +127,8 @@ Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
 }
 
 Invoke-TestCase 'expanded MSBuild project identity normalizes only roots and line endings and validates XML' {
-    $candidateRoot = 'Z:\candidate\DxUi'
-    $baselineRoot = 'C:\baseline\DxUi'
+    $candidateRoot = Join-Path ([IO.Path]::GetTempPath()) 'DxUi-candidate-fixture'
+    $baselineRoot = Join-Path ([IO.Path]::GetTempPath()) 'DxUi-baseline-fixture'
     $candidate = @(
         '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">',
         "  <!-- imported from '$candidateRoot\Directory.Build.props' -->",
@@ -158,8 +158,8 @@ Invoke-TestCase 'expanded MSBuild project identity normalizes only roots and lin
 }
 
 Invoke-TestCase 'resolved compiler identity is stable across equivalent source roots and changes with effective options' {
-    $leftRoot = 'C:\fixture\left'
-    $rightRoot = 'D:\checkout\right'
+    $leftRoot = Join-Path ([IO.Path]::GetTempPath()) 'DxUi-left-fixture'
+    $rightRoot = Join-Path ([IO.Path]::GetTempPath()) 'DxUi-right-fixture'
     $leftItems = @([ordered]@{ Identity='Controls\Panel.cpp'; AdditionalIncludeDirectories="$leftRoot\include;$leftRoot\.build\generated";
         AdditionalOptions='/utf-8 /Zc:preprocessor'; PreprocessorDefinitions='UNICODE;NOMINMAX'; LanguageStandard='stdcpplatest';
         RuntimeLibrary='MultiThreadedDLL'; Optimization='MaxSpeed'; FullPath="$leftRoot\src\Controls\Panel.cpp"; ModifiedTime='2026-10-08T10:00:00Z' })

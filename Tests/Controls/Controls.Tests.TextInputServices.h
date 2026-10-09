@@ -693,7 +693,12 @@ void TestApplicationTextServiceRetirementPreservesForeignFocusAndReentrantWinner
         const uint32_t foregroundLossCount = window.ForegroundLossCount();
         activationSucceeded                = TryActivateDxUiTestWindow(window.Hwnd());
         if (! activationSucceeded)
+        {
+            std::cerr << "[TRACE] application TSF activation failed: target=" << window.Hwnd() << " foreground=" << GetForegroundWindow()
+                      << " active=" << GetActiveWindow() << " focus=" << GetFocus() << " visible=" << IsWindowVisible(window.Hwnd())
+                      << " exStyle=" << GetWindowLongPtrW(window.Hwnd(), GWL_EXSTYLE) << '\n';
             return ForegroundAttempt{window.ForegroundLossCount() != foregroundLossCount, window.LastForegroundThiefThreadId()};
+        }
 
         TextInputServices services;
         attachSucceeded    = SUCCEEDED(services.Attach(window.Hwnd()));

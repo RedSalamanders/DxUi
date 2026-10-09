@@ -481,6 +481,10 @@ Invoke-FixtureCase 'both judges are bound to the exact same retained receipt byt
     $baseCommit = (& git -C $repository rev-parse HEAD).Trim()
     $baseLines = @(& git -C $repository show "${baseCommit}:Tools/PerformanceComparison.psm1")
     $baseJudgeText = ($baseLines -join "`n") + "`n"
+    $baseJudgeModule = New-Module -Name "DxUiFixtureBaseJudge_$([guid]::NewGuid().ToString('N'))" -ScriptBlock ([scriptblock]::Create($baseJudgeText))
+    $baseJudgeVersion = if ($baseJudgeModule.ExportedFunctions.ContainsKey('Get-PairedPerformanceJudgeVersion')) {
+        & $baseJudgeModule { Get-PairedPerformanceJudgeVersion }
+    } else { 'legacy-unversioned' }
     $candidateJudgeText = [IO.File]::ReadAllText((Join-Path $repository 'Tools/PerformanceComparison.psm1')) -replace "`r`n","`n"
     $sha = [Security.Cryptography.SHA256]::Create()
     try {
@@ -494,7 +498,7 @@ Invoke-FixtureCase 'both judges are bound to the exact same retained receipt byt
             migratedJudge=[ordered]@{schemaVersion=2;method='independent-paired-block-sign-flip-holm';status='within-noise-budget';metrics=(Copy-JsonValue $judgeMetrics)}} }
     $retainedBlockSchedule = Copy-JsonValue $schedule.Blocks
     $summary = [ordered]@{studyVersion=2;studyPurpose='regression-qualification';blocks=12;seed=$schedule.Seed;order=$schedule.Order;
-        baseline=[ordered]@{commit=$baseCommit};judgeProvenance=[ordered]@{status='available';baselineCommit=$baseCommit;baseJudgeSha256=$baseJudgeHash;candidateJudgeSha256=$candidateJudgeHash;baseJudgeVersion='legacy-unversioned';candidateJudgeVersion=(Get-PairedPerformanceJudgeVersion)};
+        baseline=[ordered]@{commit=$baseCommit};judgeProvenance=[ordered]@{status='available';baselineCommit=$baseCommit;baseJudgeSha256=$baseJudgeHash;candidateJudgeSha256=$candidateJudgeHash;baseJudgeVersion=$baseJudgeVersion;candidateJudgeVersion=(Get-PairedPerformanceJudgeVersion)};
         blockSchedule=(Copy-JsonValue $retainedBlockSchedule);steps=$steps;scenarios=@($scenario)}
     $approvedJudgeVersion = Get-PairedPerformanceJudgeVersion
     Assert-True (Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid 'all receipt hashes and explicitly approved judge identity match both decisions'
@@ -503,6 +507,9 @@ Invoke-FixtureCase 'both judges are bound to the exact same retained receipt byt
     Assert-True $unapproved.reason.Contains('not explicitly approved') 'the failure states that policy approval is absent'
     $wrongVersion = Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion 'dxui-other-judge-v1'
     Assert-True (-not $wrongVersion.valid) 'the same source hash with a different approved version is rejected'
+    $wrongBaseVersion = Copy-JsonValue $summary
+    $wrongBaseVersion.judgeProvenance.baseJudgeVersion = 'dxui-wrong-base-v1'
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $wrongBaseVersion -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'an incorrect immutable base version is rejected'
     $calibrationSummary = Copy-JsonValue $summary
     $calibrationSummary.studyPurpose = 'aa-calibration'
     $calibrationGate = Get-BenchmarkConclusion -Summary $calibrationSummary -ReportsDirectory $root -RequireQualifiedPolicy

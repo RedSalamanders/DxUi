@@ -1612,3 +1612,41 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   does not publish scoped receipts; no stale scoped build receipt was reused or relabelled. Debug45's desktop
   confirmation also timed out before any child ran, leaving foreground, focus and pointer unchanged. Remaining
   native profile obligations will be accounted against the concrete committed PR and its actual CI coverage.
+- The first clean candidate, `ffc64c8`, is published as draft PR #70, with all six native CI profiles started.
+  Its four relocated x64 consumer cases passed: Debug, Release, ASan Debug and ASan Debug with STL annotations
+  disabled. Each checked API revision 4, rendering, twelve EXE/DLL ownership probes and ten rejected pin/build
+  mismatches. Their receipts remain bound to that exact commit.
+- Ubuntu CI exposed three host-path assumptions in PerformancePolicy fixtures. Windows CI also exposed the
+  dual-judge fixture's hardcoded legacy version after HEAD acquired a versioned judge. The lead independently
+  retrieved the failed job log, replaced fixture roots with native temporary paths and derived the immutable
+  base version from its actual source. An added rejection assertion retains strict base-version verification.
+  The isolated correction passed PerformancePolicy 8/8 and BenchmarkGate 44/44 on Windows; complete Windows
+  validation 47 and native-filesystem Linux validation 48 passed, using independently digest-checked portable
+  PowerShell 7.6.6 for Linux. An initial WSL mounted-drive attempt failed Git-object cleanup and attempted to
+  pass Linux paths to an inherited Windows powershell.exe; the native-filesystem, Linux-only PATH run resolves
+  those environment artifacts without changing the affected production tools. Production
+  provenance checks, judge source, policy approval and thresholds are unchanged. Final CI must qualify the
+  corrected committed candidate; the failed first validation run is retained as a failure.
+- All three first-candidate x64 CI profiles passed the nineteen noninteractive scopes and Menu with zero skips,
+  then failed the same stale caption-fallback fixture after the revised IMM cases completed. The lead verified
+  the logs and the contract: HWND caption messages must reach the application window procedure. The fixture
+  now checks EM_GETSEL's default edit-message fallback, separately asserts caption-message decline, and reads
+  the title through the real HWND route. A noninteractive WindowHost regression covers all three caption
+  messages, application overrides, default HWND behavior and independent editor text, with and without logical
+  native-editor focus. Iteration 48 passed the whole noninteractive x64 Debug WindowHost suite with zero skips,
+  its fresh canonical build, five validators and formatting. The lead independently recomputed its current
+  build/run receipt identities and verified the executable hash; the
+  [retained follow-up](../../../Measurements/Review-2026-10-09/ToolingPortability48/README.md) preserves them.
+  No production caption routing or IME guard was changed; final-source CI remains required.
+- First-candidate ARM64 Debug and ASan Debug likewise passed the nineteen noninteractive suites with zero
+  skips, but failed the oversized-menu first-frame assertion and the application TSF activation assertion.
+  The lead verified the logs and rejected an unproven shared unavailable-desktop diagnosis. The follow-up
+  logs the last popup state, visibility and observed foreground on timeout, and native activation state on
+  failure. Hosted foreground runs also reuse the lease's read-only desktop probe for diagnosis. Both suites
+  still execute, and their failures/skips retain their existing gate meaning; no skip approval, timing-budget
+  relaxation or production focus change was introduced. Those diagnostics supersede iteration 48's exact
+  source identity and require fresh final-source CI qualification.
+- The diagnostic C++ changes compiled in canonical x64 Debug and WindowHost passed again with zero skips.
+  Complete Windows validation 49 passed after the hosted read-only-probe guard fixture was updated; all eighteen
+  InteractiveMode cases still require desktop takeover to remain exclusively inside the restoring lease path.
+  The fixture portability/caption correction and failure diagnostics are a focused follow-up to draft PR #70.

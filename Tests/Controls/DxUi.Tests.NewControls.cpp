@@ -2125,7 +2125,15 @@ void TestContextMenuPopupScrollsOversizedContent()
             return state.hasScrollbar && state.contentHeightDip > state.visibleHeightDip && state.renderCount > 0u;
         }, popupState))
         {
-            driverFailure = "oversized context menu exposes scrollbar state after its initial frame renders";
+            driverFailure = std::format("oversized context menu exposes scrollbar state after its initial frame renders: window={} visible={} "
+                                        "foreground={} scrollbar={} contentHeight={} visibleHeight={} renderCount={}",
+                                        IsWindow(popupHwnd),
+                                        IsWindowVisible(popupHwnd),
+                                        reinterpret_cast<uintptr_t>(GetForegroundWindow()),
+                                        popupState.hasScrollbar,
+                                        popupState.contentHeightDip,
+                                        popupState.visibleHeightDip,
+                                        popupState.renderCount);
             return;
         }
 

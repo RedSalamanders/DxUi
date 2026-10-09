@@ -23,6 +23,15 @@ separates exact result reuse, ARM64 cross-builds and unresolved desktop/platform
 correction supersedes its exact compiled-source identity; [all six fresh builds](BuildQualification45/README.md),
 validators and formatting passed afterward. Current-source runtime qualification remains separate.
 
+[Four relocated x64 consumer cases](ConsumerQualification46/README.md) passed at the first committed candidate
+`ffc64c8`, including both ASan annotation modes, API revision 4, rendering, twelve ownership probes and ten
+rejections per profile. Their reports, artifact hashes and captures were independently verified. A subsequent
+tooling-fixture correction requires separate exact-source CI accounting; consumer product adoption remains open.
+
+[The portability follow-up](ToolingPortability48/README.md) preserves first-candidate CI failures and successful
+complete Windows/Linux tooling validation after fixture repairs. Its native CI failures remain recorded failures;
+the corrected caption regression requires fresh final-source execution.
+
 [The completed accessibility scheduling study](AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/README.md)
 retains 48 successful serial processes, 672 raw observations and stable pre/post identities. The lead independently
 recomputed its six block effects, exact sign-flip probabilities and Holm correction from the raw logs. It measures

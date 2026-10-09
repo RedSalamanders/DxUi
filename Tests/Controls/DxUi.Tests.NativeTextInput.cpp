@@ -6509,9 +6509,15 @@ void TestNativeTextInputBackendEditMessagesFallBackWithoutTextInput()
     Require(SetWindowTextW(window.Hwnd(), L"fallback-title") != FALSE, "native edit-message fallback test sets a host window title");
 
     bool handled         = true;
-    const LRESULT length = window.Host().HandleMessage(window.Hwnd(), WM_GETTEXTLENGTH, 0, 0, handled);
+    const LRESULT result = window.Host().HandleMessage(window.Hwnd(), EM_GETSEL, 0, 0, handled);
     Require(handled, "native edit-message shim dispatches default handling without a focused native text input");
-    Require(length == 14, "native edit-message shim returns the default window-proc value when it declines a message");
+    Require(result == DefWindowProcW(window.Hwnd(), EM_GETSEL, 0, 0),
+            "native edit-message shim returns the default window-proc value when it declines an edit message");
+
+    handled = true;
+    Require(window.Host().HandleMessage(window.Hwnd(), WM_GETTEXTLENGTH, 0, 0, handled) == 0 && ! handled,
+            "caption messages remain available to the application's window procedure without an editor");
+    Require(SendMessageW(window.Hwnd(), WM_GETTEXTLENGTH, 0, 0) == 14, "default caption handling reads the HWND title through the application route");
 }
 
 void TestNativeTextInputBackendClearWithoutSelectionLeavesTextAndClipboardUnchanged()

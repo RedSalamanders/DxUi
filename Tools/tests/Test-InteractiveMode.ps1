@@ -19,12 +19,15 @@ function Get-NamesIn([string] $Text, [string] $Pattern) {
 }
 
 # Whether a node of test.ps1 sits in the body of an `if` whose condition names $Interactive.
-function Test-GuardedByInteractive($Node) {
+function Test-GuardedByInteractive($Node, [switch] $AllowHostedProbe) {
     for ($parent = $Node.Parent; $null -ne $parent; $parent = $parent.Parent) {
         if ($parent -isnot [Management.Automation.Language.IfStatementAst]) { continue }
         foreach ($clause in $parent.Clauses) {
             $body = $clause.Item2
             if ($body.Extent.StartOffset -le $Node.Extent.StartOffset -and $Node.Extent.EndOffset -le $body.Extent.EndOffset -and $clause.Item1.Extent.Text -match '\$Interactive\b') { return $true }
+            if ($AllowHostedProbe -and $Node.GetCommandName() -eq 'Test-DxUiDesktopAvailable' -and
+                $body.Extent.StartOffset -le $Node.Extent.StartOffset -and $Node.Extent.EndOffset -le $body.Extent.EndOffset -and
+                $clause.Item1.Extent.Text -match '\$verifiedHostedRunner\b') { return $true }
         }
     }
     return $false
@@ -236,10 +239,10 @@ Invoke-TestCase 'the exit codes of the lease are the ones the PowerShell side re
     }
     Assert-True ((Get-DxUiLeaseExitMeaning -ExitCode 77).Contains('unexpected exit code 77')) 'an exit code it does not know is said to be unexpected'
 }
-Invoke-TestCase 'the lease is reached only through -Interactive' {
+Invoke-TestCase 'desktop takeover requires -Interactive; only the read-only probe also permits a verified hosted runner' {
     $calls = Get-CommandCalls @('Invoke-DxUiInteractiveLease', 'Test-DxUiDesktopAvailable', 'Resolve-DxUiInteractiveSuites')
     Assert-True ($calls.Count -ge 3) 'test.ps1 uses each of them'
-    foreach ($call in $calls) { Assert-True (Test-GuardedByInteractive $call) "$($call.GetCommandName()) is called only inside an if (`$Interactive) at line $($call.Extent.StartLineNumber)" }
+    foreach ($call in $calls) { Assert-True (Test-GuardedByInteractive $call -AllowHostedProbe) "$($call.GetCommandName()) has the required desktop authorization guard at line $($call.Extent.StartLineNumber)" }
     $text = [IO.File]::ReadAllText($testScript)
     Assert-True $text.Contains('DxUi.InteractiveLease.exe') 'test.ps1 names the lease executable'
     foreach ($other in Get-ChildItem -LiteralPath $repository -Filter '*.ps1' | Where-Object { $_.Name -ne 'test.ps1' }) {
