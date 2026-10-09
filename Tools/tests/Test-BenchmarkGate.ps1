@@ -457,7 +457,7 @@ Invoke-FixtureCase 'the migrated gate independently rejects historic, candidate-
     Assert-Equal 'inconclusive' $old.Conclusion 'historic judge cannot pass migration'
     Assert-Equal 'policy-review-required' $old.PolicyStatus 'legacy is explicitly read-only'
     $candidateClaim = Copy-JsonValue $legacy
-    $candidateClaim.studyVersion = 2
+    $candidateClaim.studyVersion = 3
     $candidateClaim.studyPurpose = 'regression-qualification'
     $candidateClaim.acceptancePolicy = [ordered]@{ trusted=$true; status='trusted'; policySha256='candidate-asserted' }
     $candidateClaim.scenarios = @()
@@ -470,7 +470,8 @@ Invoke-FixtureCase 'the migrated gate independently rejects historic, candidate-
 Invoke-FixtureCase 'both judges are bound to the exact same retained receipt bytes' {
     param($root)
     $steps = @(); $hashes = @()
-    $schedule = Get-RandomizedPairedBlockSchedule -Blocks 12 -Seed 1729
+    $schedule = Get-RandomizedPairedBlockSchedule -Blocks 12 -Seed 3
+    Assert-Equal 6 @($schedule.Blocks | Where-Object Order -eq 'ABBA').Count 'a coincidentally balanced independent assignment remains valid'
     foreach ($step in $schedule.Steps) {
         $run = [string]$step.Name
         $steps += $step
@@ -486,22 +487,44 @@ Invoke-FixtureCase 'both judges are bound to the exact same retained receipt byt
         & $baseJudgeModule { Get-PairedPerformanceJudgeVersion }
     } else { 'legacy-unversioned' }
     $candidateJudgeText = [IO.File]::ReadAllText((Join-Path $repository 'Tools/PerformanceComparison.psm1')) -replace "`r`n","`n"
+    $candidateJudgeModule = New-Module -Name "DxUiFixtureCandidateJudge_$([guid]::NewGuid().ToString('N'))" -ScriptBlock ([scriptblock]::Create($candidateJudgeText))
+    $candidateJudgeVersion = & $candidateJudgeModule { Get-PairedPerformanceJudgeVersion }
     $sha = [Security.Cryptography.SHA256]::Create()
     try {
         $baseJudgeHash = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($baseJudgeText)))
         $candidateJudgeHash = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($candidateJudgeText)))
     } finally { $sha.Dispose() }
     $judgeMetrics = @(foreach($phase in @('clean','dirty')){foreach($metric in Get-PerformanceMetricNames){[ordered]@{phase=$phase;metric=$metric;verdict='within-noise'}}})
-    $scenario = [ordered]@{ scenario='Default'; set=[ordered]@{schemaVersion=2;method='independent-paired-block-sign-flip-holm';status='within-noise-budget';metrics=(Copy-JsonValue $judgeMetrics)};
+    $scenario = [ordered]@{ scenario='Default'; set=[ordered]@{schemaVersion=3;assignmentProtocol='independent-ABBA-BAAB-v1';method='independent-paired-block-sign-flip-holm';status='within-noise-budget';metrics=(Copy-JsonValue $judgeMetrics)};
         judgeComparison=[ordered]@{baseJudgeCommit=$baseCommit;baseJudgeSha256=$baseJudgeHash;candidateJudgeSha256=$candidateJudgeHash;reportBytesStable=$true;verdictAgreement=$true;
             sameReceiptsSha256=$hashes;legacyJudge=[ordered]@{status='within-noise-budget';metrics=(Copy-JsonValue $judgeMetrics)};
-            migratedJudge=[ordered]@{schemaVersion=2;method='independent-paired-block-sign-flip-holm';status='within-noise-budget';metrics=(Copy-JsonValue $judgeMetrics)}} }
+            migratedJudge=[ordered]@{schemaVersion=3;assignmentProtocol='independent-ABBA-BAAB-v1';method='independent-paired-block-sign-flip-holm';status='within-noise-budget';metrics=(Copy-JsonValue $judgeMetrics)}} }
     $retainedBlockSchedule = Copy-JsonValue $schedule.Blocks
-    $summary = [ordered]@{studyVersion=2;studyPurpose='regression-qualification';blocks=12;seed=$schedule.Seed;order=$schedule.Order;
-        baseline=[ordered]@{commit=$baseCommit};judgeProvenance=[ordered]@{status='available';baselineCommit=$baseCommit;baseJudgeSha256=$baseJudgeHash;candidateJudgeSha256=$candidateJudgeHash;baseJudgeVersion=$baseJudgeVersion;candidateJudgeVersion=(Get-PairedPerformanceJudgeVersion)};
+    $summary = [ordered]@{studyVersion=3;studyPurpose='regression-qualification';blocks=12;seed=$schedule.Seed;allocation=$schedule.Allocation;order=$schedule.Order;
+        baseline=[ordered]@{commit=$baseCommit};judgeProvenance=[ordered]@{status='available';baselineCommit=$baseCommit;baseJudgeSha256=$baseJudgeHash;candidateJudgeSha256=$candidateJudgeHash;baseJudgeVersion=$baseJudgeVersion;candidateJudgeVersion=$candidateJudgeVersion};
         blockSchedule=(Copy-JsonValue $retainedBlockSchedule);steps=$steps;scenarios=@($scenario)}
-    $approvedJudgeVersion = Get-PairedPerformanceJudgeVersion
-    Assert-True (Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid 'all receipt hashes and explicitly approved judge identity match both decisions'
+    $approvedJudgeVersion = $candidateJudgeVersion
+    $initialEvidence = Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion
+    Assert-True $initialEvidence.valid "all receipt hashes and explicitly approved judge identity match both decisions: $($initialEvidence.reason)"
+    foreach ($marker in @('', 'balanced-ABBA-BAAB')) {
+        $wrongProtocol = Copy-JsonValue $summary
+        $wrongProtocol.allocation = $marker
+        Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $wrongProtocol -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'missing or historical protocol cannot masquerade as independent assignment'
+    }
+    $historical = Copy-JsonValue $summary
+    $historical.studyVersion = 2
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $historical -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'historical summary schema cannot qualify even with copied protocol text'
+    foreach ($wrongSeed in @(3701, 3.5, 'not-a-seed')) {
+        $seedMismatch = Copy-JsonValue $summary
+        $seedMismatch.seed = $wrongSeed
+        Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $seedMismatch -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'independent schedule must replay the exact integer seed'
+    }
+    $wrongPosition = Copy-JsonValue $summary
+    $wrongPosition.steps[0].Position = 48
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $wrongPosition -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'literal run positions remain bound to their schedule'
+    $wrongDecisionProtocol = Copy-JsonValue $summary
+    $wrongDecisionProtocol.scenarios[0].judgeComparison.migratedJudge.assignmentProtocol = 'balanced-ABBA-BAAB'
+    Assert-True (-not (Test-DualJudgeReceiptEvidence -Summary $wrongDecisionProtocol -ReportsDirectory $root -ApprovedJudgeSha256 $candidateJudgeHash -ApprovedJudgeVersion $approvedJudgeVersion).valid) 'judge decision must identify the same assignment protocol as its inputs'
     $unapproved = Test-DualJudgeReceiptEvidence -Summary $summary -ReportsDirectory $root -ApprovedJudgeSha256 ('0' * 64) -ApprovedJudgeVersion $approvedJudgeVersion
     Assert-True (-not $unapproved.valid) 'matching verdict labels cannot approve an unapproved judge source'
     Assert-True $unapproved.reason.Contains('not explicitly approved') 'the failure states that policy approval is absent'
@@ -693,10 +716,10 @@ Invoke-FixtureCase 'migrated gate projection preserves Holm evidence and separat
 
     $controls = @((Get-HeldControl), (Get-HeldControl), (Get-HeldControl), (Get-HeldControl))
     $scenario = New-Scenario -Directory $root -Controls $controls -Metrics @($timing, $exact)
-    $scenario.set.schemaVersion = 2
+    $scenario.set.schemaVersion = 3
     $scenario.set.method = 'independent-paired-block-sign-flip-holm'
     $summary = New-Summary @($scenario)
-    $summary.studyVersion = 2
+    $summary.studyVersion = 3
     $summary.blocks = 12
     $summary.seed = 1729
 

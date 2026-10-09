@@ -12,12 +12,19 @@ function Invoke-FixtureGit([string] $Root, [string[]] $Arguments) {
 Invoke-FixtureCase 'only an independently qualified policy present in the measured base is trusted' {
     param($root)
     Invoke-FixtureGit $root @('init','-q','-b','main')
-    $judge = "function Get-PairedPerformanceJudgeVersion { 'dxui-fixture-v1' }`nExport-ModuleMember -Function Get-PairedPerformanceJudgeVersion`n"
+    $judge = "function Get-PairedPerformanceJudgeVersion { 'dxui-fixture-v1' }`nfunction Get-PairedAssignmentProtocol { 'fixture-independent-v1' }`nExport-ModuleMember -Function Get-PairedPerformanceJudgeVersion, Get-PairedAssignmentProtocol`n"
     Set-FixtureFile $root 'Tools/PerformanceComparison.psm1' $judge
     $normalizedJudge = [IO.File]::ReadAllText((Join-Path $root 'Tools/PerformanceComparison.psm1')) -replace "`r`n", "`n"
     $judgeShaHasher = [Security.Cryptography.SHA256]::Create()
     try { $judgeSha = [Convert]::ToHexString($judgeShaHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($normalizedJudge))) } finally { $judgeShaHasher.Dispose() }
-    $policy = [ordered]@{ schemaVersion=1; qualificationStatus='qualified'; qualified=$true; policyId='fixture-v1'; judgeVersion='dxui-fixture-v1'; approvedJudgeSha256=$judgeSha }
+    $assignmentPath = Join-Path $root 'Tools/PairedRun.psm1'
+    Set-FixtureFile $root 'Tools/PairedRun.psm1' "# independently approved assignment fixture`n"
+    $assignmentSource = [IO.File]::ReadAllText($assignmentPath) -replace "`r`n", "`n"
+    $assignmentHasher = [Security.Cryptography.SHA256]::Create()
+    try { $assignmentSha = [Convert]::ToHexString($assignmentHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($assignmentSource))) }
+    finally { $assignmentHasher.Dispose() }
+    $policy = [ordered]@{ schemaVersion=1; qualificationStatus='qualified'; qualified=$true; policyId='fixture-v1'; judgeVersion='dxui-fixture-v1'; approvedJudgeSha256=$judgeSha;
+        assignmentProtocol='fixture-independent-v1'; approvedAssignmentSha256=$assignmentSha }
     $path = Join-Path $root 'Tools/PerformanceAcceptancePolicy.v1.json'
     New-Item -ItemType Directory -Path (Split-Path $path) -Force | Out-Null
     $json = ConvertTo-Json -InputObject $policy -Depth 4
@@ -28,6 +35,26 @@ Invoke-FixtureCase 'only an independently qualified policy present in the measur
     Assert-True $trusted.trusted "base policy qualifies and candidate policy is semantically unchanged: $($trusted.reason)"
     Assert-Equal 'trusted' $trusted.status 'trusted status'
     Assert-True ($trusted.policySha256 -match '^[A-F0-9]{64}$') 'policy hash retained'
+    Set-FixtureFile $root 'Tools/PairedRun.psm1' "# candidate silently changes the assignment semantics`n"
+    $changedAssignment = Get-TrustedPerformancePolicy -BaselineCommit $commit -RepositoryRoot $root -CandidatePolicyPath $path
+    Assert-True (-not $changedAssignment.trusted) 'an unchanged judge and protocol string cannot approve another candidate assignment generator'
+    Assert-True $changedAssignment.reason.Contains('changes the approved assignment generator') 'assignment mutation requires review'
+    [IO.File]::WriteAllText($assignmentPath, $assignmentSource, [Text.UTF8Encoding]::new($false))
+    foreach ($mutation in @('missingHash', 'wrongHash', 'wrongProtocol')) {
+        $wrongAssignmentPolicy = Copy-JsonValue $policy
+        switch ($mutation) {
+            'missingHash' { $wrongAssignmentPolicy.Remove('approvedAssignmentSha256') }
+            'wrongHash' { $wrongAssignmentPolicy.approvedAssignmentSha256 = ('0' * 64) }
+            'wrongProtocol' { $wrongAssignmentPolicy.assignmentProtocol = 'another-protocol-v1' }
+        }
+        [IO.File]::WriteAllText($path, (ConvertTo-Json -InputObject $wrongAssignmentPolicy -Depth 4), [Text.UTF8Encoding]::new($false))
+        Invoke-FixtureGit $root @('add','-A'); Invoke-FixtureGit $root @('commit','-q','-m',"wrong assignment $mutation")
+        $wrongAssignmentCommit = (& git -C $root rev-parse HEAD).Trim()
+        $wrongAssignment = Get-TrustedPerformancePolicy -BaselineCommit $wrongAssignmentCommit -RepositoryRoot $root -CandidatePolicyPath $path
+        Assert-True (-not $wrongAssignment.trusted) "the base cannot qualify $mutation assignment metadata"
+        Assert-True $wrongAssignment.reason.Contains('assignment') 'assignment qualification failure is explicit'
+    }
+    [IO.File]::WriteAllText($path, $json, [Text.UTF8Encoding]::new($false))
     $unapprovedJudge = Copy-JsonValue $policy
     $unapprovedJudge.approvedJudgeSha256 = ('0' * 64)
     [IO.File]::WriteAllText($path, (ConvertTo-Json -InputObject $unapprovedJudge -Depth 4), [Text.UTF8Encoding]::new($false))
@@ -183,7 +210,16 @@ Invoke-TestCase 'the migrated acceptance policy describes the implemented family
     Assert-True $policy.exactBudgetRule.Contains('candidate run median above the baseline run-median median') 'the exact median gate is preserved'
     Assert-True (@($policy.requiresFullIdentity) -contains 'environmentIdentity') 'the policy requires resolved runner/build identity'
     Assert-True (@($policy.requiresFullIdentity) -contains 'warpSha256') 'the policy requires the WARP binary hash'
-    Assert-Equal 'dxui-paired-block-sign-flip-holm-v1' $policy.judgeVersion 'the policy names the judge version'
+    Assert-Equal 'dxui-paired-block-sign-flip-holm-v2' $policy.judgeVersion 'the policy names the judge version'
+    Assert-Equal 'independent-ABBA-BAAB-v1' $policy.assignmentProtocol 'the policy names the independent assignment mechanism'
     Assert-True ($policy.approvedJudgeSha256 -match '^[A-Fa-f0-9]{64}$') 'the proposed judge source hash is reviewable'
+    $source = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '../PerformanceComparison.psm1')) -replace "`r`n", "`n"
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { $actualHash = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($source))) } finally { $sha.Dispose() }
+    Assert-Equal $actualHash $policy.approvedJudgeSha256 'the review target names the actual current judge bytes'
+    $assignmentSource = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '../PairedRun.psm1')) -replace "`r`n", "`n"
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { $assignmentHash = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($assignmentSource))) } finally { $sha.Dispose() }
+    Assert-Equal $assignmentHash $policy.approvedAssignmentSha256 'the review target binds the actual assignment generator and replay source'
 }
 Complete-TestRun 'PerformancePolicy'

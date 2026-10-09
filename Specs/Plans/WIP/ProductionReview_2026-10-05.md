@@ -1336,7 +1336,7 @@ invalidate reuse of those qualification receipts; fresh builds, tests and measur
   GitHub can report a skipped job as success:
   [status-check behavior](https://docs.github.com/en/pull-requests/reference/status-checks).
 - **Q22 — Benchmark acceptance (technical/process).** Predeclare primary metric families, calibrate with A/A runs,
-  use randomized balanced blocks and analyze independent blocks. Add multiple-comparison control with enough
+  use independently randomized block orders and analyze independent blocks. Add multiple-comparison control with enough
   independent observations; simply applying Bonferroni to six dependent runs is not useful qualification.
   Confirm flagged regressions independently. Use a trusted, versioned base acceptance policy; changes to the judge
   must compare base/candidate decisions on identical data and receive explicit policy review.
@@ -1650,3 +1650,56 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   Complete Windows validation 49 passed after the hosted read-only-probe guard fixture was updated; all eighteen
   InteractiveMode cases still require desktop takeover to remain exclusively inside the restoring lease path.
   The fixture portability/caption correction and failure diagnostics are a focused follow-up to draft PR #70.
+- Follow-up CI run 37996368753 for PR head `ed70a83` passed all three x64 profiles: all twenty-one suites, including
+  Menu and NativeTextInput, had zero capability skips. Release's MenuResourceScaling and MenuTextLayoutResources
+  passed, and all four relocated x64 consumer profiles (including both ASan annotation modes) passed their rendering,
+  twelve ownership probes and ten rejected pin/build mismatches. The lead retrieved and checked each job's log.
+  These results belong to that PR merge candidate and are superseded by the fixture/protocol changes below.
+- Q31 follow-through found a design/judge mismatch: the schedule forced six ABBA and six BAAB blocks while the judge
+  enumerated 4096 independent sign assignments. The lead independently enumerated the actual 924 allowed assignments;
+  their minimum two-sided p cannot reach the first boundary of the 26-outcome Holm family. A separate agent confirmed
+  the analysis, and the lead verified it against primary randomization-test literature. The repair independently
+  draws each block's order, preserves two runs per side and all thresholds/budgets, versions the study/judge, and
+  validates protocol identity plus exact seed/block/run/position replay. Missing/historical protocols fail closed;
+  coincidental six/six independent samples stay valid. PairedRun 20/20, BenchmarkGate 44/44, PerformancePolicy 8/8 and
+  PerformanceComparison 32/32 passed the focused regressions. The policy remains unqualified; fresh A/A and paired
+  studies are required. [The diagnostic record](../../../Measurements/Review-2026-10-09/RandomizationDesignCorrection50/README.md)
+  preserves both the first-candidate CI packet and the interrupted old-design A/A attempt without relabelling them.
+- The same finding corrected the historical accessibility study's inference under its actual restricted allocation.
+  All original logs and `study-result.json` remain unchanged. The correction checks all 48 raw hashes and reconstructs
+  block effects from process medians. The lead independently enumerated all 924 assignments using a separate recursive
+  implementation and checked Holm correction: all six raw p-values are 0.0021645021645, adjusted 0.0129870129870.
+  Observed reductions, snapshot budgets, first-query delay and the developer's approved coalescing tradeoff are unchanged.
+- All three `ed70a83` ARM64 CI profiles passed their nineteen noninteractive suites with zero skips, then failed Menu
+  and NativeTextInput. The read-only desktop availability probe passed. Logs show the test window active/focused while
+  another HWND retained desktop foreground; the menu popup was already destroyed before its driver cleanup. The lead
+  independently checked these observations and corrected an agent's initial cleanup interpretation. They prove a
+  foreground mismatch, not an unavailable desktop or an ASan memory defect; exact menu dismissal cause remains unproven.
+  The bounded test-only repair reuses the existing lease backend's scoped input attachment when direct activation is
+  refused, rechecks foreground and post-detach focus, and explicitly activates both capturing context-menu owners.
+  A current-thread activation blocker refuses the helper before any input attachment/focus operation, covered even
+  after a fixture removes `WS_EX_NOACTIVATE`. Production menu dismissal, focus/IME guards and failure/skip gates are
+  unchanged. A separate agent reviewed surrounding callers and cleanup; fresh ARM64 foreground qualification is required.
+- Documentation/gallery review under Core_Documentation found no visual/product change in these tooling and fixture
+  repairs. Performance usage guidance and the owning performance/testing contracts are updated; canonical gallery
+  captures remain unchanged. Initial iteration 50 validation reported missing measurement ownership/input metadata
+  in the new correction record; it was repaired by retaining the original study's metadata, and specification
+  validation passed. The failure remains in its original log; no validator or policy rule was relaxed.
+- Complete Windows validation 52 passed. Both noninteractive WindowHost/InteractiveLease suites passed with zero skips,
+  but the public runner rejected reusable evidence because the lead updated reviewed CI identity metadata during the run.
+  Formatting also rejected the activation helper's layout; the helper was formatted and a stable-input rerun is required.
+  These failures remain recorded, rather than being treated as successful qualification.
+- A second independent audit confirmed the protocol and historical correction and identified an assignment trust gap:
+  a later candidate could change the scheduler while keeping the protocol string and approved judge. The policy loader
+  now binds the immutable measured-base and candidate generator/replay source to an approved normalized SHA-256, and
+  verifies the approved protocol against the immutable base judge. Candidate mutation and missing/mismatched base approval
+  have explicit regressions. The historical correction also rejects invalid order counts and outcome families. These
+  changes remain proposed, with the policy unqualified; fresh validation and A/A/paired qualification are still required.
+- Complete Windows validation 53 and clang-format checking passed after the trust-gap repair. Both whole x64 Debug
+  WindowHost/InteractiveLease suites passed with zero skips on stable inputs. The lead independently recomputed build/run
+  identities against current source, installed dependencies, artifact bytes and environment, and verified executable SHA-256.
+  [Qualification follow-up 53](../../../Measurements/Review-2026-10-09/QualificationFollowup53/README.md) seals that evidence
+  and every artifact/job log of completed CI run 37996368753. Its historical paired study is inconclusive and schema 2;
+  all 144 retained report hashes were independently verified, but it cannot qualify the repaired assignment design.
+  A local Debug Menu/NativeTextInput confirmation timed out without takeover; foreground, keyboard focus and pointer
+  stayed unchanged. No foreground suite ran, no skip was approved, and fresh final-source hosted/native gates remain open.

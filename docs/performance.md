@@ -46,7 +46,8 @@ When the benchmark itself changed, or the baseline predates it, measure both rev
 
 It creates a detached baseline worktree under `.build/paired`, copies this checkout's measurement scripts, comparator
 and benchmark inputs into it, builds both trees, then runs at least twelve independently randomized blocks per scenario.
-Every block is balanced as ABBA or BAAB; the seed and literal schedule are retained. That is 24 runs per side at the
+Each block independently draws ABBA or BAAB with equal probability, with two runs per side in either order. Counts across
+blocks are unconstrained; the versioned allocation protocol, seed and literal schedule are retained and replayed. That is 24 runs per side at the
 default, not 12 independent observations. `-Blocks` accepts 12–20 and `-Seed` replays an explicit schedule. `-SkipBuild`
 reuses the existing build of this checkout and of named
 trees (below); detached worktrees always build. `-CandidateRevision` measures a second
@@ -56,6 +57,8 @@ The migrated verdict uses direction-normalized paired log-ratios per independent
 randomization test. Holm step-down controls familywise alpha 0.05 over all 26 predeclared phase/metric slots. Twelve blocks
 can reach p = 2/4096 = 0.000488, below the first Holm boundary 0.05/26; six runs per side were not enough for that
 family. The legacy six-run Mann–Whitney judge remains available to read historic receipts, but cannot pass migrated CI.
+Study schema 3 and judge v2 reject earlier globally balanced allocation records: that design does not support the
+independent sign-flip distribution. Old measurements remain diagnostic evidence; qualification requires fresh studies.
 
 - A metric is `regressed` (or `improved`) only when its Holm-adjusted p is at most 0.05 and the candidate's median lies beyond its band, 5%
   for timing and FPS and 2% for process memory, on the worse (better) side. Anything else is `within-noise`: a
@@ -80,8 +83,9 @@ family. The legacy six-run Mann–Whitney judge remains available to read histor
 same receipt bytes. The legacy judge is loaded from the measured base commit's immutable Git object in its own module
 scope; both source hashes and verdict agreement are retained, and report bytes are rehashed before and after judgment.
 Unavailable base code, changed reports or changed verdicts remain `policy-review-required`/inconclusive until reviewed.
-A changed judge or policy remains `policy-review-required` until the base policy is independently qualified; candidate
-code cannot self-approve the trust policy.
+A changed judge, assignment generator or policy remains `policy-review-required` until the base policy is independently
+qualified. The policy binds the assignment protocol and normalized generator/replay source hash as well as the judge;
+candidate code cannot inherit trust by retaining the protocol name or self-approve the trust policy.
 
 To measure work that is not a commit, name the tree instead: `-BaselinePath` and `-CandidatePath` take the top of an
 existing DxUi working tree with its dependencies restored (`vcpkg-install.ps1`), such as one feature worktree against

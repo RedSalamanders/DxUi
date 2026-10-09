@@ -8,8 +8,8 @@ harness measures them and a comparison rejects any fixture difference; a revisio
 still gets one. A named tree is measured as it is, uncommitted work included: the harness files that differ are written
 into it, with the originals saved under the run directory, and restored when the run ends. A tree made for the run has
 its dependencies restored (a named tree, like this checkout, must already have them), and every tree is built unless
-SkipBuild reuses its build. Each scenario runs serially in independently randomized, balanced ABBA/BAAB blocks. The
-random seed and literal order are retained. At least twelve independent blocks are required. The migrated judge
+SkipBuild reuses its build. Each block independently draws ABBA or BAAB with equal probability; both orders contain
+two runs per side. The assignment protocol, random seed and literal order are retained. At least twelve blocks are required. The migrated judge
 analyzes block-level paired log effects with a two-sided exact sign-flip test and Holm correction across the declared
 phase/metric family. Exact resource budgets retain the deterministic any-candidate-run-median-above-baseline-median
 rule and independently fail when a raw candidate-round maximum exceeds the retained baseline maximum. The measured
@@ -247,7 +247,7 @@ try {
         $flatBaseline = @($blockReceipts | ForEach-Object { $_.Baseline }); $flatCandidate = @($blockReceipts | ForEach-Object { $_.Candidate })
         $set = try {
             if (-not $candidateJudgeModule) { throw $baseJudge.reason }
-            & $candidateJudgeModule { param($Blocks,$IsCalibration) Compare-PairedBlockSet -Blocks $Blocks -MinimumBlocks 12 -CalibrationAA:$IsCalibration } $blockReceipts ([bool]$CalibrationAA)
+            & $candidateJudgeModule { param($Blocks,$Protocol,$IsCalibration) Compare-PairedBlockSet -Blocks $Blocks -MinimumBlocks 12 -AssignmentProtocol $Protocol -CalibrationAA:$IsCalibration } $blockReceipts $schedule.Allocation ([bool]$CalibrationAA)
         } catch {
             [ordered]@{ status = 'invalid-evidence'; error = $_.Exception.Message; metrics = @() }
         }
@@ -271,7 +271,7 @@ try {
         candidateRevision = $(if ($candidate.Kind -eq 'path') { $null } else { $candidate.Spec }); candidateCommit = $candidate.Commit
         harnessCommit = (& git -C $harnessRoot rev-parse HEAD).Trim(); harnessDirty = $harnessDirty
         configuration = $Configuration; platform = $Platform
-        machine = [Environment]::MachineName; completedUtc = [DateTime]::UtcNow.ToString('o'); studyVersion=2
+        machine = [Environment]::MachineName; completedUtc = [DateTime]::UtcNow.ToString('o'); studyVersion=3
         studyPurpose=$(if ($CalibrationAA) { 'aa-calibration' } else { 'regression-qualification' }); blocks=$Blocks; seed=$schedule.Seed
         allocation=$schedule.Allocation; order = $schedule.Order; blockSchedule=$schedule.Blocks; steps=$schedule.Steps
         judgeProvenance=$judgeProvenance

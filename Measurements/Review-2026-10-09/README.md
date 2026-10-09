@@ -1,5 +1,9 @@
 # Accepted production-review implementation evidence
 
+[Qualification follow-up 53](QualificationFollowup53/README.md) retains the completed second CI run's native
+and historical paired packets, the current activation-blocker/lease qualification and the cancelled local
+foreground confirmation. These receipts remain bound to their stated sources and scopes.
+
 This directory retains evidence for the accepted Q1-Q31 follow-through in the
 [active plan](../../Specs/Plans/WIP/ProductionReview_2026-10-05.md). It is separate from the immutable
 [8 October packet](../Review-2026-10-08/README.md); those receipts qualify their archived source only.
@@ -34,7 +38,9 @@ the corrected caption regression requires fresh final-source execution.
 
 [The completed accessibility scheduling study](AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/README.md)
 retains 48 successful serial processes, 672 raw observations and stable pre/post identities. The lead independently
-recomputed its six block effects, exact sign-flip probabilities and Holm correction from the raw logs. It measures
+recomputed its six block effects and original judge calculations from the raw logs. A subsequent
+[allocation correction](RandomizationDesignCorrection50/README.md) supersedes its exact-sign-flip inference under
+the historical constrained schedule; observed cost deltas and counters remain unchanged. It measures
 the first-query tradeoff as well as operation and total cost; it remains explanatory evidence, not policy acceptance.
 
 The developer approved retaining coalescing with that measured first-query tradeoff on 9 October. The performance

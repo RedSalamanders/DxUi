@@ -1,6 +1,7 @@
 # Compare matched complex-UI receipts; regressions require advice, never automatic rebaselining.
 Set-StrictMode -Version Latest
-$script:PairedJudgeVersion = 'dxui-paired-block-sign-flip-holm-v1'
+$script:PairedJudgeVersion = 'dxui-paired-block-sign-flip-holm-v2'
+$script:PairedAssignmentProtocol = 'independent-ABBA-BAAB-v1'
 
 $script:Identity = @('fixture', 'renderer', 'width', 'height', 'dpi', 'controls', 'modelRows', 'framesPerRound', 'roundCount',
     'platform', 'configuration', 'nativeArchitecture', 'machine', 'cpu', 'os', 'compiler', 'warpVersion', 'powerPolicy')
@@ -25,6 +26,7 @@ $script:FingerprintPaths = @('src', 'include', 'Build', 'Directory.Build.props',
 function Get-PerformanceMetricNames { return @($script:Metrics.Keys) }
 
 function Get-PairedPerformanceJudgeVersion { return $script:PairedJudgeVersion }
+function Get-PairedAssignmentProtocol { return $script:PairedAssignmentProtocol }
 
 function Get-PerformanceIdentityKeys { return @($script:Identity) }
 
@@ -370,7 +372,11 @@ function Compare-PairedBlockSet {
        their existing any-candidate-run-above-baseline-median behavior; the Holm family contains all 26 phase/metric slots
        (exact slots contribute p=1) so inference never gains power by dropping a declared outcome. #>
     [CmdletBinding()]
-    param([Parameter(Mandatory)][object[]] $Blocks, [ValidateRange(12,20)][int] $MinimumBlocks = 12, [switch] $CalibrationAA)
+    param([Parameter(Mandatory)][object[]] $Blocks, [ValidateRange(12,20)][int] $MinimumBlocks = 12,
+        [AllowEmptyString()][string] $AssignmentProtocol = '', [switch] $CalibrationAA)
+    if ($AssignmentProtocol -cne $script:PairedAssignmentProtocol) {
+        throw 'Exact block sign-flip inference requires the versioned independent ABBA/BAAB assignment protocol; historical or unspecified allocations cannot qualify.'
+    }
     if ($Blocks.Count -lt $MinimumBlocks) { throw "At least $MinimumBlocks independent paired blocks are required for migrated qualification." }
     if ($Blocks.Count -gt 20) { throw 'At most 20 blocks are supported by exact sign-flip enumeration.' }
     $requiredIdentity = @($script:Identity + @('sourceCommit','sourceFingerprint','executableSha256','benchmarkSha256','harnessIdentity','toolchainIdentity','dependencyIdentity','environmentIdentity','identityStatus','warpSha256'))
@@ -382,26 +388,26 @@ function Compare-PairedBlockSet {
     }
     $missingIdentity = @($requiredIdentity | Where-Object { $key = $_; @($receipts | Where-Object { $_ -isnot [System.Collections.IDictionary] -or -not $_.Contains($key) -or [string]::IsNullOrWhiteSpace([string]$_[$key]) }).Count -gt 0 })
     if ($missingIdentity.Count) {
-        return [ordered]@{ schemaVersion=2; method='independent-paired-block-sign-flip-holm'; status='identity-unverifiable'; missingIdentity=$missingIdentity; metrics=@() }
+        return [ordered]@{ schemaVersion=3; assignmentProtocol=$AssignmentProtocol; method='independent-paired-block-sign-flip-holm'; status='identity-unverifiable'; missingIdentity=$missingIdentity; metrics=@() }
     }
     if (@($receipts | Where-Object { $_['identityStatus'] -cne 'verifiable' -or ($_.Contains('identityError') -and -not [string]::IsNullOrWhiteSpace([string]$_['identityError'])) }).Count) {
-        return [ordered]@{ schemaVersion=2; method='independent-paired-block-sign-flip-holm'; status='identity-unverifiable'; missingIdentity=@('identityStatus'); metrics=@() }
+        return [ordered]@{ schemaVersion=3; assignmentProtocol=$AssignmentProtocol; method='independent-paired-block-sign-flip-holm'; status='identity-unverifiable'; missingIdentity=@('identityStatus'); metrics=@() }
     }
     foreach ($key in @($script:Identity + @('harnessIdentity','toolchainIdentity','dependencyIdentity','environmentIdentity','benchmarkSha256','warpSha256'))) {
         $distinct = @($receipts | ForEach-Object { [string]$_[$key] } | Select-Object -Unique)
-        if ($distinct.Count -ne 1) { return [ordered]@{ schemaVersion=2; method='independent-paired-block-sign-flip-holm'; status='identity-mismatch'; mismatchedIdentity=$key; metrics=@() } }
+        if ($distinct.Count -ne 1) { return [ordered]@{ schemaVersion=3; assignmentProtocol=$AssignmentProtocol; method='independent-paired-block-sign-flip-holm'; status='identity-mismatch'; mismatchedIdentity=$key; metrics=@() } }
     }
     foreach ($role in @('Baseline','Candidate')) {
         $sideReceipts = @($Blocks | ForEach-Object { @($_[$role]) })
         foreach ($key in @('sourceCommit','sourceFingerprint','executableSha256')) {
             $distinct = @($sideReceipts | ForEach-Object { [string]$_[$key] } | Select-Object -Unique)
-            if ($distinct.Count -ne 1) { return [ordered]@{ schemaVersion=2; method='independent-paired-block-sign-flip-holm'; status='identity-mismatch'; mismatchedIdentity="$role.$key"; metrics=@() } }
+            if ($distinct.Count -ne 1) { return [ordered]@{ schemaVersion=3; assignmentProtocol=$AssignmentProtocol; method='independent-paired-block-sign-flip-holm'; status='identity-mismatch'; mismatchedIdentity="$role.$key"; metrics=@() } }
         }
     }
     if ($CalibrationAA) {
         foreach ($key in @('sourceCommit','sourceFingerprint','executableSha256')) {
             $distinct = @($receipts | ForEach-Object { [string]$_[$key] } | Select-Object -Unique)
-            if ($distinct.Count -ne 1) { return [ordered]@{ schemaVersion=2; method='independent-paired-block-sign-flip-holm'; status='identity-mismatch'; mismatchedIdentity="A/A.$key"; calibrationOnly=$true; metrics=@() } }
+            if ($distinct.Count -ne 1) { return [ordered]@{ schemaVersion=3; assignmentProtocol=$AssignmentProtocol; method='independent-paired-block-sign-flip-holm'; status='identity-mismatch'; mismatchedIdentity="A/A.$key"; calibrationOnly=$true; metrics=@() } }
         }
     }
     $metrics = [Collections.Generic.List[object]]::new()
@@ -455,7 +461,7 @@ function Compare-PairedBlockSet {
         elseif ($metrics[$i].rawImproved -and $adjusted[$i] -le $script:Significance) { $metrics[$i].verdict = 'improved' }
     }
     $regressed = @($metrics | Where-Object verdict -eq 'regressed').Count
-    return [ordered]@{ schemaVersion=2; method='independent-paired-block-sign-flip-holm'; familySize=$metrics.Count; minimumBlocks=$MinimumBlocks; blockCount=$Blocks.Count;
+    return [ordered]@{ schemaVersion=3; assignmentProtocol=$AssignmentProtocol; method='independent-paired-block-sign-flip-holm'; familySize=$metrics.Count; minimumBlocks=$MinimumBlocks; blockCount=$Blocks.Count;
         minimumAttainableP=(2.0 / [Math]::Pow(2.0, $Blocks.Count)); status=$(if ($regressed) { 'advice-required' } else { 'within-noise-budget' });
         calibrationOnly=[bool]$CalibrationAA; regressedMetrics=$regressed; metrics=$metrics.ToArray() }
 }
@@ -515,4 +521,5 @@ function Invoke-PerformanceComparison {
 Export-ModuleMember -Function Get-PerformanceMetricNames, Get-PerformanceIdentityKeys, Get-BenchmarkInputPaths, Get-LibraryInputPaths, Get-SourceFingerprint,
     Read-PerformanceReceipt, Assert-PerformanceReceipt, Compare-PerformanceReceipt, ConvertTo-PerformanceComparisonJson,
     Invoke-PerformanceComparison, Get-MannWhitneyTest, Get-MinimumAttainableP, Get-MetricVerdict, Compare-PerformanceSet,
-    Get-ExactSignFlipPValue, Get-HolmAdjustedPValues, Compare-PairedBlockSet, Format-PerformanceSetVerdict, Get-PairedPerformanceJudgeVersion
+    Get-ExactSignFlipPValue, Get-HolmAdjustedPValues, Compare-PairedBlockSet, Format-PerformanceSetVerdict, Get-PairedPerformanceJudgeVersion,
+    Get-PairedAssignmentProtocol

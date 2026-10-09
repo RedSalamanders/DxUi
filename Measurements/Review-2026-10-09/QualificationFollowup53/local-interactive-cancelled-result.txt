@@ -1,0 +1,11 @@
+state: timedout
+exit: 21
+reason: nobody chose within the confirmation's time, so the run was cancelled
+confirmation: timedout
+foreground.saved: class 'Chrome_WidgetWin_1' of ChatGPT.exe (process 26964)
+restoration.foreground: unchanged
+restoration.focus: unchanged
+restoration.cursor: unchanged
+cursor.saved: 2450,1184
+cursor.atExit: 2450,1184
+restoration.runMovedSomething: 0

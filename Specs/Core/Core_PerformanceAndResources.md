@@ -47,14 +47,24 @@ chosen resource budget in this contract or its owning domain; a WIP note alone c
 ### Paired sets
 
 The migrated study uses `performance-paired.ps1 -Blocks 12` by default. Every independent block contains two baseline and
-two candidate runs, scheduled as either ABBA or BAAB. The schedule is randomized with a retained seed, uses six blocks of
-each order, and is retained verbatim. Repetitions inside a block are not treated as independent blocks.
+two candidate runs, scheduled as either ABBA or BAAB. Each block independently draws either order with probability 1/2,
+using the retained seed. Neither the counts of the two orders nor later draws constrain previous draws. Both orders
+balance linear within-block drift. The `independent-ABBA-BAAB-v1` allocation protocol, seed and literal schedule are retained;
+qualification replays them exactly. Repetitions inside a block are not treated as independent blocks.
 
 - The judge computes a direction-normalized paired log-ratio for each block from the two run medians per side, then uses a
   two-sided exact sign-flip randomization test across independent blocks. Holm step-down correction controls familywise
   alpha at 0.05 across the predeclared 26 scenario-phase-metric slots. Twelve blocks are the minimum: complete separation
   has minimum two-sided p = 2/4096 = 0.000488, below the first Holm boundary 0.05/26. Fewer observations cannot be
   promoted to qualification by treating correlated runs as independent.
+- Study schema 3 and judge `dxui-paired-block-sign-flip-holm-v2` require that assignment protocol. Earlier schema 2 studies
+  forced six blocks of each order, permitting only C(12,6) = 924 assignments, while their judge enumerated 4096 independent
+  sign choices. Their claimed exact randomization inference is invalid for that design. The correct restricted-design
+  minimum two-sided p is 2/924 = 0.002165, above the first 26-outcome Holm boundary. Preserve those records for diagnosis;
+  fresh independent-order A/A calibration and paired studies are required before approving the migrated policy. A valid
+  independent draw may itself produce six of each order, so the protocol identity and replay, rather than observed counts,
+  determine eligibility. This follows the requirement that a randomization test reflect the actual assignment scheme
+  ([Hemerik and Goeman](https://arxiv.org/html/1912.02633v2)). Investigation bands, family size and exact budgets are unchanged.
 - Timing/FPS investigation bands remain 5%, process-memory bands remain 2%, and deterministic surface/allocation budgets
   remain exact. Exact budgets do not use statistical averaging: any candidate run median above the baseline run-median
   median is a regression, and any candidate raw-round maximum above the retained baseline raw-round maximum is a separate
@@ -72,7 +82,9 @@ each order, and is retained verbatim. Repetitions inside a block are not treated
   matching source revisions therefore do not satisfy A/A executable identity.
 - A policy binds the approved judge version and normalized source SHA-256. The candidate judge must match both values from
   the measured-base policy to be eligible for qualification; agreement of verdict labels alone does not approve changed
-  judge code. The proposed hash in the unqualified candidate policy is not trusted. Before seeding the first qualified
+  judge code. It also binds the assignment protocol and normalized `Tools/PairedRun.psm1` source SHA-256; both the immutable
+  measured-base source and candidate generator/replay source must match that approved hash. A candidate cannot change
+  assignment semantics while keeping the protocol string. Proposed hashes in the unqualified candidate policy are not trusted. Before seeding the first qualified
   policy, reviewers inspect a retained, same-source A/A calibration for the same runner, toolchain, harness and scenarios,
   including full provenance, per-metric controls and exact-budget findings. A/A review is manual, has no invented numeric
   pass threshold, and cannot qualify a pull request.
@@ -105,6 +117,11 @@ must build no full snapshots during mutation and one coherent fresh snapshot at 
 Fresh-query correctness remains required. Larger-tree and query-heavy consumer workloads need their own retained
 baseline and latency qualification; this Debug study and approval establish no universal query-latency allowance or
 Release benchmark-policy pass.
+
+The study's globally balanced schedule is historical: its original independent-sign-flip inference is superseded by
+the [restricted-allocation correction](../../Measurements/Review-2026-10-09/RandomizationDesignCorrection50/README.md).
+All six corrected Holm-adjusted p-values are 0.0129870129870; the observations and approved tradeoff are unchanged.
+It cannot seed the independent-order qualification policy.
 
 The HWND registry and canonical-provider cache use separate nonrecursive mutexes. Immutable provider queries do not take
 the mutable range-state lock, and owner-thread actions resolve, unlock, invoke and revalidate across callbacks. Text ranges
@@ -151,7 +168,7 @@ candidate-only policy is explicitly untrusted. `Tools/tests/Test-BenchmarkGate.p
   also hold whatever `main` gained since the branch was cut and would blame a regression it brought on this pull
   request; the two are one commit when the base has not moved. Both are built in Release and measured by
   `performance-paired.ps1` with the merge ref's harness in `Default`, `MultilineGrid` and `MultilineGridDistinct`, twelve
-  randomized balanced independent blocks each: 24 runs per side per scenario. The schedule seed/order are retained. The
+  independently drawn ABBA/BAAB blocks each: 24 runs per side per scenario. The assignment protocol and schedule seed/order are retained. The
   gate keeps no baseline receipt, so it measures the base afresh.
 - **What is published.** The job summary lists each scenario's set verdict and, for every metric, its medians, change,
   p-value, band, same-binary controls and outcome, with the flagged metrics first, and the artifact

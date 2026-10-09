@@ -207,24 +207,17 @@ function Get-PairedRunSchedule {
 }
 
 function Get-RandomizedPairedBlockSchedule {
-    <# New study schedule: each independent block is ABBA or BAAB. The seed, balanced allocation and concrete order are
-       returned as data so a retained receipt can reproduce the assignment exactly. Legacy schedules remain readable. #>
+    <# Each block independently draws ABBA or BAAB with equal probability. Both orders balance the two runs per side
+       within a block; there is no constraint on order counts across blocks. Retain the protocol, seed and literal order. #>
     [CmdletBinding()]
-    param([ValidateRange(12, 50)][int] $Blocks = 12, [Parameter(Mandatory)][int] $Seed)
-    if ($Blocks % 2) { throw 'The randomized schedule requires an even block count for exact ABBA/BAAB balance.' }
+    param([ValidateRange(12, 20)][int] $Blocks = 12, [Parameter(Mandatory)][int] $Seed)
     $random = [Random]::new($Seed)
-    $assignments = [Collections.Generic.List[string]]::new()
-    for ($i = 0; $i -lt ($Blocks / 2); $i++) { $assignments.Add('ABBA'); $assignments.Add('BAAB') }
-    for ($i = $assignments.Count - 1; $i -gt 0; $i--) {
-        $j = $random.Next($i + 1)
-        $temporary = $assignments[$i]; $assignments[$i] = $assignments[$j]; $assignments[$j] = $temporary
-    }
     $steps = [Collections.Generic.List[object]]::new()
     $blockRecords = [Collections.Generic.List[object]]::new()
     $sideRun = @{ A = 0; B = 0 }
     for ($blockIndex = 0; $blockIndex -lt $Blocks; $blockIndex++) {
         $blockName = 'block-{0:D2}' -f ($blockIndex + 1)
-        $order = $assignments[$blockIndex]
+        $order = if ($random.Next(2) -eq 0) { 'ABBA' } else { 'BAAB' }
         $aNames = [Collections.Generic.List[string]]::new(); $bNames = [Collections.Generic.List[string]]::new()
         foreach ($sideLetter in $order.ToCharArray()) {
             $sideRun[[string]$sideLetter]++
@@ -234,7 +227,7 @@ function Get-RandomizedPairedBlockSchedule {
         }
         $blockRecords.Add([ordered]@{ Name=$blockName; Order=$order; BaselineRuns=$aNames.ToArray(); CandidateRuns=$bNames.ToArray() })
     }
-    return [ordered]@{ SchemaVersion=2; Seed=$Seed; BlockCount=$Blocks; Allocation='balanced-ABBA-BAAB'; Blocks=$blockRecords.ToArray(); Steps=$steps.ToArray(); Order=(($steps | ForEach-Object { $_.Name }) -join ', ') }
+    return [ordered]@{ SchemaVersion=3; Seed=$Seed; BlockCount=$Blocks; Allocation=(Get-PairedAssignmentProtocol); Blocks=$blockRecords.ToArray(); Steps=$steps.ToArray(); Order=(($steps | ForEach-Object { $_.Name }) -join ', ') }
 }
 
 function Get-VersionedPerformanceJudge {

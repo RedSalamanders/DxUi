@@ -4714,6 +4714,19 @@ void TestNoninteractiveWindowActivationBlockerRejectsFocusStealing()
     Require(window != nullptr, "no-activation guard probe window is created");
     Require((GetWindowLongPtrW(window.get(), GWL_EXSTYLE) & WS_EX_NOACTIVATE) != 0, "no-activation guard applies WS_EX_NOACTIVATE to top-level test windows");
 
+    // Even a caller that removes the style must not reach the foreground helper's input attachment in this lane.
+    const LONG_PTR protectedStyle     = GetWindowLongPtrW(window.get(), GWL_EXSTYLE);
+    const uint64_t activationAttempts = localBlocker.BlockedActivationCount();
+    const uint64_t focusAttempts      = localBlocker.BlockedFocusCount();
+    static_cast<void>(SetWindowLongPtrW(window.get(), GWL_EXSTYLE, protectedStyle & ~WS_EX_NOACTIVATE));
+    Require(! TryActivateDxUiTestWindow(window.get()), "the foreground helper refuses an active noninteractive blocker even without the window style");
+    if (ownsBlocker)
+    {
+        Require(localBlocker.BlockedActivationCount() == activationAttempts && localBlocker.BlockedFocusCount() == focusAttempts,
+                "the blocked foreground helper makes no activation or keyboard-focus attempt");
+    }
+    static_cast<void>(SetWindowLongPtrW(window.get(), GWL_EXSTYLE, protectedStyle));
+
     ShowWindow(window.get(), SW_SHOW);
     static_cast<void>(SetActiveWindow(window.get()));
     static_cast<void>(SetForegroundWindow(window.get()));

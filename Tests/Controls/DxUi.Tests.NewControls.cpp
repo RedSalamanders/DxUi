@@ -2091,6 +2091,7 @@ void TestContextMenuPopupScrollsOversizedContent()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 120, 120, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "the oversized context menu owner holds the foreground before its popup opens");
 
     std::vector<MenuFlyoutItem> items;
     for (size_t index = 0u; index < kOversizedMenuItemCount; ++index)
@@ -2207,6 +2208,7 @@ void TestContextMenuPopupHonorsSessionMaxRootHeight()
     SetWindowPos(ownerWindow.Hwnd(), nullptr, 160, 160, 320, 220, SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(ownerWindow.Hwnd(), SW_SHOWNOACTIVATE);
     ownerWindow.PumpMessages();
+    Require(TryActivateDxUiTestWindow(ownerWindow.Hwnd()), "the capped context menu owner holds the foreground before its popup opens");
 
     std::vector<MenuFlyoutItem> items;
     for (size_t index = 0u; index < kOversizedMenuItemCount; ++index)

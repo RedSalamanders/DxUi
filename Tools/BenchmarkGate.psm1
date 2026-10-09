@@ -179,7 +179,10 @@ function Test-DualJudgeReceiptEvidence {
     param([Parameter(Mandatory)][System.Collections.IDictionary] $Summary, [Parameter(Mandatory)][string] $ReportsDirectory,
         [Parameter(Mandatory)][ValidatePattern('^[A-Fa-f0-9]{64}$')][string] $ApprovedJudgeSha256,
         [Parameter(Mandatory)][ValidatePattern('^dxui-[A-Za-z0-9-]+$')][string] $ApprovedJudgeVersion)
-    if ($Summary['studyVersion'] -ne 2 -or $Summary['studyPurpose'] -cne 'regression-qualification') { return [ordered]@{ valid=$false; reason='The summary is not a migrated regression-qualification study.' } }
+    if ($Summary['studyVersion'] -ne 3 -or $Summary['studyPurpose'] -cne 'regression-qualification' -or
+        $Summary['allocation'] -cne (Get-PairedAssignmentProtocol)) {
+        return [ordered]@{ valid=$false; reason='The summary does not identify the current independent-order regression-qualification protocol.' }
+    }
     $provenance = $Summary['judgeProvenance']
     $baselineCommit = if ($Summary['baseline'] -is [System.Collections.IDictionary]) { [string]$Summary['baseline']['commit'] } else { '' }
     if ($provenance -isnot [System.Collections.IDictionary] -or $provenance['status'] -cne 'available' -or
@@ -213,20 +216,30 @@ function Test-DualJudgeReceiptEvidence {
     if ($actualCandidateHash -cne $ApprovedJudgeSha256 -or [string]$actualCandidateVersion -cne $ApprovedJudgeVersion) {
         return [ordered]@{ valid=$false; reason='The candidate judge source or version is not explicitly approved by the measured-base policy.' }
     }
-    $blocks = [int]$Summary['blocks']; $steps = @($Summary['steps']); $blockSchedule = @($Summary['blockSchedule'])
-    if ($blocks -lt 12 -or $blocks % 2 -ne 0 -or $steps.Count -ne 4 * $blocks -or $blockSchedule.Count -ne $blocks -or $null -eq $Summary['seed']) {
-        return [ordered]@{ valid=$false; reason='The summary does not retain a seeded four-run schedule for each of at least twelve balanced blocks.' }
+    $blocks = 0; $seed = 0; $steps = @($Summary['steps']); $blockSchedule = @($Summary['blockSchedule'])
+    if (-not [int]::TryParse([string]$Summary['blocks'], [ref]$blocks) -or -not [int]::TryParse([string]$Summary['seed'], [ref]$seed) -or
+        $blocks -lt 12 -or $blocks -gt 20 -or $steps.Count -ne 4 * $blocks -or $blockSchedule.Count -ne $blocks) {
+        return [ordered]@{ valid=$false; reason='The summary does not retain a seeded four-run schedule for each of twelve to twenty independent blocks.' }
     }
-    if (@($blockSchedule | Where-Object Order -eq 'ABBA').Count -ne ($blocks / 2) -or @($blockSchedule | Where-Object Order -eq 'BAAB').Count -ne ($blocks / 2)) {
-        return [ordered]@{ valid=$false; reason='The randomized block allocation is not exactly balanced between ABBA and BAAB.' }
+    try { $replayed = Get-RandomizedPairedBlockSchedule -Blocks $blocks -Seed $seed }
+    catch { return [ordered]@{ valid=$false; reason='The retained independent assignment seed cannot be replayed.' } }
+    if ([string]$Summary['order'] -cne $replayed.Order) {
+        return [ordered]@{ valid=$false; reason='The retained order differs from replay of its independent assignment protocol and seed.' }
     }
     $expectedRuns = @($steps | ForEach-Object { [string]$_['Name'] })
     if (@($expectedRuns | Select-Object -Unique).Count -ne $expectedRuns.Count) { return [ordered]@{ valid=$false; reason='The retained schedule repeats a run name.' } }
     if ([string]$Summary['order'] -cne ($expectedRuns -join ', ')) { return [ordered]@{ valid=$false; reason='The literal retained order differs from the scheduled steps.' } }
     $position = 0
+    $blockIndex = 0
     foreach ($block in $blockSchedule) {
         if ($block['Order'] -cnotin @('ABBA','BAAB') -or @($block['BaselineRuns']).Count -ne 2 -or @($block['CandidateRuns']).Count -ne 2) {
             return [ordered]@{ valid=$false; reason='A block is not a balanced ABBA or BAAB block.' }
+        }
+        $expectedBlock = $replayed.Blocks[$blockIndex++]
+        if ([string]$block['Name'] -cne $expectedBlock.Name -or [string]$block['Order'] -cne $expectedBlock.Order -or
+            ($block['BaselineRuns'] -join ',') -cne ($expectedBlock.BaselineRuns -join ',') -or
+            ($block['CandidateRuns'] -join ',') -cne ($expectedBlock.CandidateRuns -join ',')) {
+            return [ordered]@{ valid=$false; reason='The retained blocks differ from replay of their independent assignment protocol and seed.' }
         }
         $aIndex = 0; $bIndex = 0
         foreach ($letter in ([string]$block['Order']).ToCharArray()) {
@@ -234,7 +247,8 @@ function Test-DualJudgeReceiptEvidence {
             $expectedName = if ($letter -eq 'A') { $block['BaselineRuns'][$aIndex++] } else { $block['CandidateRuns'][$bIndex++] }
             $expectedSide = if ($letter -eq 'A') { 'baseline' } else { 'candidate' }
             if ([string]$step['Name'] -cne [string]$expectedName -or [string]$step['Side'] -cne $expectedSide -or
-                [string]$step['Block'] -cne [string]$block['Name'] -or [string]$step['Order'] -cne [string]$block['Order']) {
+                [string]$step['Block'] -cne [string]$block['Name'] -or [string]$step['Order'] -cne [string]$block['Order'] -or
+                $step['Position'] -ne $position) {
                 return [ordered]@{ valid=$false; reason='The retained steps do not reproduce their balanced block schedule.' }
             }
         }
@@ -254,8 +268,11 @@ function Test-DualJudgeReceiptEvidence {
             -not $verdictsAgree) {
             return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) judges do not agree on the same attested base/candidate sources." }
         }
-        if ([int]$comparison['migratedJudge']['schemaVersion'] -ne 2 -or $comparison['migratedJudge']['method'] -cne 'independent-paired-block-sign-flip-holm' -or
-            [int]$scenario['set']['schemaVersion'] -ne 2) { return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) lacks the migrated judge record." } }
+        if ([int]$comparison['migratedJudge']['schemaVersion'] -ne 3 -or $comparison['migratedJudge']['method'] -cne 'independent-paired-block-sign-flip-holm' -or
+            [int]$scenario['set']['schemaVersion'] -ne 3 -or
+            $comparison['migratedJudge']['assignmentProtocol'] -cne $Summary['allocation'] -or $scenario['set']['assignmentProtocol'] -cne $Summary['allocation']) {
+            return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) lacks the current independent-protocol judge record." }
+        }
         $hashRecords = @($comparison['sameReceiptsSha256'])
         if ($hashRecords.Count -ne $expectedRuns.Count) { return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) judge inputs are incomplete." } }
         $byRun = @{}
@@ -384,8 +401,8 @@ function Get-BenchmarkConclusion {
         $baseCommit = if ($Summary['baseline'] -is [System.Collections.IDictionary]) { [string]$Summary['baseline']['commit'] } else { '' }
         $policy = if ($baseCommit) { Get-TrustedPerformancePolicy -BaselineCommit $baseCommit -RepositoryRoot $root -CandidatePolicyPath (Join-Path $root 'Tools/PerformanceAcceptancePolicy.v1.json') }
         else { [ordered]@{ trusted=$false; status='policy-review-required'; reason='Baseline commit is missing.' } }
-        if ($Summary['studyVersion'] -ne 2 -or $Summary['studyPurpose'] -cne 'regression-qualification' -or $policy['trusted'] -ne $true -or $recordedPolicy -isnot [System.Collections.IDictionary] -or $recordedPolicy['policySha256'] -cne $policy['policySha256']) {
-            $reason = if ($Summary['studyVersion'] -ne 2) { 'Historic reports are retained for reading but cannot pass migrated qualification.' }
+        if ($Summary['studyVersion'] -ne 3 -or $Summary['studyPurpose'] -cne 'regression-qualification' -or $policy['trusted'] -ne $true -or $recordedPolicy -isnot [System.Collections.IDictionary] -or $recordedPolicy['policySha256'] -cne $policy['policySha256']) {
+            $reason = if ($Summary['studyVersion'] -ne 3) { 'Historic reports are retained for reading but cannot pass migrated qualification.' }
             elseif ($Summary['studyPurpose'] -cne 'regression-qualification') { 'A/A calibration evidence is separate from regression qualification and cannot pass this gate.' }
             elseif (-not $policy['trusted']) { [string]$policy['reason'] }
             else { 'The report policy identity differs from the versioned trusted base policy.' }
@@ -414,8 +431,8 @@ function Get-BenchmarkConclusion {
     # A run is only as good as its scenarios, and a summary that lists none judged nothing: it says so itself, as there is no scenario to.
     $notes = [string[]]@(if ($scenarios.Count -eq 0) { 'Invalid evidence: the summary lists no scenario, so there is nothing to judge.' })
     $overall = if ($scenarios.Count) { Get-WorstConclusion @($scenarios | ForEach-Object { $_['Conclusion'] }) } else { 'invalid' }
-    $policyStatus = if ($Summary['studyVersion'] -eq 2 -and $Summary['acceptancePolicy'] -is [System.Collections.IDictionary]) { [string]$Summary['acceptancePolicy']['status'] } else { 'legacy-read-only' }
-    if ($Summary['studyVersion'] -eq 2 -and $policyStatus -cne 'trusted') {
+    $policyStatus = if ($Summary['studyVersion'] -eq 3 -and $Summary['acceptancePolicy'] -is [System.Collections.IDictionary]) { [string]$Summary['acceptancePolicy']['status'] } else { 'legacy-read-only' }
+    if ($Summary['studyVersion'] -eq 3 -and $policyStatus -cne 'trusted') {
         $policyReason = if ($Summary['acceptancePolicy'] -is [System.Collections.IDictionary]) { [string]$Summary['acceptancePolicy']['reason'] } else { 'the summary lacks trusted policy evidence' }
         $overall = 'inconclusive'; $notes += "Policy review required: $policyReason"
     }
@@ -545,7 +562,7 @@ function ConvertTo-BenchmarkMarkdown {
     $lines.Add("| Candidate | $(& $describe $candidate) |")
     $fingerprints = @($baseline, $candidate | ForEach-Object { if ($_ -is [System.Collections.IDictionary] -and $_['sourceFingerprint']) { "``$(& $short ([string]$_['sourceFingerprint']))``" } else { 'unknown' } })
     $lines.Add("| Library inputs | $(if ($Conclusion['LibraryUnchanged']) { "identical, fingerprint $($fingerprints[0]): both sides ran the same library code" } else { "changed, fingerprint $($fingerprints[0]) to $($fingerprints[1])" }) |")
-    $method = if ($Summary['studyVersion'] -eq 2) { "$($Summary['blocks']) independent paired blocks; seed $($Summary['seed']); randomized balanced ABBA/BAAB; exact sign-flip with Holm correction" } elseif ($Summary['repetitions']) { "legacy $($Summary['repetitions']) repetitions; $([int](2 * [int]$Summary['repetitions'])) runs per side; read-only Mann-Whitney" } else { 'legacy read-only report' }
+    $method = if ($Summary['studyVersion'] -eq 3) { "$($Summary['blocks']) independent paired blocks; seed $($Summary['seed']); independently drawn ABBA/BAAB; exact sign-flip with Holm correction" } elseif ($Summary['repetitions']) { "legacy $($Summary['repetitions']) repetitions; $([int](2 * [int]$Summary['repetitions'])) runs per side; read-only Mann-Whitney" } else { 'legacy read-only report' }
     $lines.Add("| Method | $method; $($Summary['platform']) $($Summary['configuration']); 5% timing and 2% memory bands, exact budgets stay exact |")
     $lines.Add("| Runner | $(ConvertTo-MarkdownCell $Summary['machine'])$(if ($Hosted) { '; a shared hosted VM, not a controlled quiet desktop' }) |")
     if ($Event) { $lines.Add("| Event | $(ConvertTo-MarkdownCell $Event) |") }

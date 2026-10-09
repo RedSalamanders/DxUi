@@ -242,7 +242,8 @@ private:
 };
 
 // The Windows desktop. Reading it has no side effects; BringToForeground and FocusWindow are the only calls that act on it besides
-// the pointer, and a lease only reaches them through Restore.
+// the pointer. A lease reaches them through Restore; authorized foreground fixtures can reuse the bounded attachment
+// in BringToForeground, while their activation blocker keeps noninteractive runs from reaching it.
 //
 // Windows lets only certain callers change the foreground (the foreground process, a process that received the last input, a
 // process the foreground process allowed). A lease runs after its tests took the foreground and gave it away, so it holds a window of

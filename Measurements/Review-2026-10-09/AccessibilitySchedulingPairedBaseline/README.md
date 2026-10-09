@@ -1,5 +1,9 @@
 # Accessibility publication scheduling paired baseline
 
+The later completed run's original independent-sign-flip inference is superseded by the
+[allocation correction](../RandomizationDesignCorrection50/README.md). Its observed timings and counters are unchanged;
+the original build/setup and run records below remain preserved. The correction supplies no policy qualification.
+
 This folder records the isolated x64 Debug baseline build inputs and provenance for the accepted accessibility-publication scheduling study. It is a build/setup receipt only: no timing samples, paired comparison, or performance conclusion has been produced.
 
 The baseline checkout is detached at `bea676a1f8418141f61cab9326b9b910e89a14b4`. Root tracked dirty source, native tests, build and tooling inputs were overlaid from candidate HEAD `bea676a1f8418141f61cab9326b9b910e89a14b4`; the retained pre-A1 implementation replaced only `src/Controls/DxUi.Accessibility.cpp`. Its byte-for-byte SHA-256 is `E65FDAE8F9B6D1BEFD6070337167D0A03CD997AFA69813BF5D852B82C6C70268`, matching `Measurements/Review-2026-10-09/AccessibilitySchedulingBefore/Accessibility.cpp.txt`. The current benchmark test fixture is identical in both trees at SHA-256 `1599C6E08825CA4576346566B8DAF9D03C2D759262B9764E8DF060680C87C815`. A hash comparison covered 49 native inputs with zero missing or mismatched inputs, excluding the intentional implementation substitution and test-project adapter registration.

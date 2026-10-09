@@ -226,19 +226,31 @@ Invoke-TestCase 'repetitions repeat the interleaved pass and keep every pass its
     Assert-Throws { Get-PairedRunSchedule -Repetitions 11 } 'more than ten repetitions'
 }
 
-Invoke-TestCase 'the qualification schedule is reproducible, randomized, balanced and uses independent blocks' {
+Invoke-TestCase 'independent orders retain reproducible prefixes and balance runs within every block' {
     $one = Get-RandomizedPairedBlockSchedule -Blocks 12 -Seed 3701
     $two = Get-RandomizedPairedBlockSchedule -Blocks 12 -Seed 3701
     Assert-Equal 12 $one.BlockCount 'minimum qualification sample'
     Assert-Equal 48 @($one.Steps).Count 'four measurements per independent block'
-    Assert-Equal 6 @($one.Blocks | Where-Object Order -eq 'ABBA').Count 'half the blocks use ABBA'
-    Assert-Equal 6 @($one.Blocks | Where-Object Order -eq 'BAAB').Count 'half the blocks use BAAB'
+    Assert-Equal 'independent-ABBA-BAAB-v1' $one.Allocation 'the assignment protocol is explicit'
+    Assert-Equal 3 $one.SchemaVersion 'historical globally balanced schedules have a distinct schema'
+    Assert-Equal 'ABBA,BAAB,BAAB,BAAB,ABBA,BAAB,ABBA,ABBA,BAAB,ABBA,BAAB,BAAB' (($one.Blocks | ForEach-Object Order) -join ',') 'retained seed has a fixed independent draw sequence'
+    Assert-Equal 5 @($one.Blocks | Where-Object Order -eq 'ABBA').Count 'global order counts are allowed to differ'
     Assert-Equal $one.Order $two.Order 'same seed reproduces literal order'
     Assert-Equal '3701' ([string]$one.Seed) 'seed is retained'
-    Assert-Equal 2 @($one.Blocks[0].BaselineRuns).Count 'two baseline observations per block'
-    Assert-Equal 2 @($one.Blocks[0].CandidateRuns).Count 'two candidate observations per block'
+    foreach ($block in $one.Blocks) {
+        Assert-Equal 2 @($block.BaselineRuns).Count 'two baseline observations per block'
+        Assert-Equal 2 @($block.CandidateRuns).Count 'two candidate observations per block'
+        Assert-Contains @('ABBA','BAAB') $block.Order 'either complementary within-block order is valid'
+    }
+    foreach ($count in @(13,20)) {
+        $longer = Get-RandomizedPairedBlockSchedule -Blocks $count -Seed 3701
+        Assert-Equal $one.Order (($longer.Steps | Select-Object -First 48 | ForEach-Object Name) -join ', ') 'adding blocks does not reallocate any previous draw'
+        Assert-Equal (4 * $count) @($longer.Steps).Count 'odd and even counts preserve four runs per block'
+    }
+    $coincidentalBalance = Get-RandomizedPairedBlockSchedule -Blocks 12 -Seed 3
+    Assert-Equal 6 @($coincidentalBalance.Blocks | Where-Object Order -eq 'ABBA').Count 'independent draws can also happen to give equal counts'
     Assert-Throws { Get-RandomizedPairedBlockSchedule -Blocks 10 -Seed 2 } 'underpowered sample rejected'
-    Assert-Throws { Get-RandomizedPairedBlockSchedule -Blocks 13 -Seed 2 } 'unbalanced odd block count rejected'
+    Assert-Throws { Get-RandomizedPairedBlockSchedule -Blocks 21 -Seed 2 } 'unsupported exact-enumeration size rejected'
 }
 
 Invoke-FixtureCase 'A/A assigns both randomized labels to one root and one build, while ordinary pairs keep two roots' {

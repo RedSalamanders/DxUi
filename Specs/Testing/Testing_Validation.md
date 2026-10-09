@@ -289,6 +289,15 @@ builds its scenario afresh. An expectation that fails records the first failure,
 client heard, instead of ending the test, and a wait in an attempt that failed or lost the foreground returns at once.
 The attempt that kept the foreground decides, so its first failure fails the test. Under `--foreground-thief`, which
 takes the foreground within 95 ms of every activation, these fixtures record the skip after five attempts.
+
+Authorized foreground fixtures use `TryActivateDxUiTestWindow`, which requires actual desktop foreground ownership,
+not just the calling thread's active/focus window. If a direct foreground request is refused, it reuses the lease
+backend's scoped foreground-thread input attachment, detached before the result is checked. The current-thread
+activation blocker refuses this path before any focus request, even if a fixture removed `WS_EX_NOACTIVATE`; the
+noninteractive WindowHost regression covers that case. Modal context-menu fixtures establish their owner's foreground
+before opening. Desktop availability alone establishes no foreground grant, and failure to acquire it still fails
+qualification. Production deactivation/dismissal behavior, skip rules and local desktop consent remain unchanged.
+
 `DxUi.ControlTests.exe --foreground-thief[=<minMs>,<maxMs>]` (default 30,95) reproduces the desktop application: a worker
 thread takes the foreground for its own window that long after a window of the process became the foreground window. It
 reports how often it did, and says so when no window of the process ever held the foreground (Windows keeps it with the

@@ -37,6 +37,41 @@ function Get-TrustedPerformancePolicy {
     if ([string]$baseJudgeVersion -cne [string]$policy.judgeVersion) {
         return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The measured-base judge version does not match the version approved by its policy.'; policySha256=$null; baseJudgeVersion=$baseJudgeVersion }
     }
+    if ([string]$policy['approvedAssignmentSha256'] -notmatch '^[A-Fa-f0-9]{64}$' -or
+        [string]::IsNullOrWhiteSpace([string]$policy['assignmentProtocol'])) {
+        return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The qualified base policy does not bind its assignment protocol and generator source.'; policySha256=$null }
+    }
+    try {
+        if (-not $judgeModule.ExportedFunctions.ContainsKey('Get-PairedAssignmentProtocol')) { throw 'The base judge has no assignment protocol identity.' }
+        $baseProtocol = & $judgeModule { Get-PairedAssignmentProtocol }
+    } catch {
+        return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The measured-base assignment protocol cannot be verified.'; policySha256=$null }
+    }
+    if ([string]$baseProtocol -cne [string]$policy['assignmentProtocol']) {
+        return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The measured-base assignment protocol differs from the protocol approved by its policy.'; policySha256=$null }
+    }
+    $assignmentLines = @(& git -C $RepositoryRoot show "${BaselineCommit}:Tools/PairedRun.psm1" 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $assignmentLines.Count -eq 0) {
+        return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The measured-base assignment generator source cannot be recovered.'; policySha256=$null }
+    }
+    $assignmentSource = (($assignmentLines -join "`n") + "`n") -replace "`r`n", "`n"
+    $assignmentHasher = [Security.Cryptography.SHA256]::Create()
+    try { $baseAssignmentSha = [Convert]::ToHexString($assignmentHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($assignmentSource))) }
+    finally { $assignmentHasher.Dispose() }
+    if ($baseAssignmentSha -cne [string]$policy['approvedAssignmentSha256']) {
+        return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The measured-base assignment generator does not match the hash approved by its policy.'; policySha256=$null }
+    }
+    $candidateAssignmentPath = Join-Path (Split-Path -Parent $CandidatePolicyPath) 'PairedRun.psm1'
+    if (-not (Test-Path -LiteralPath $candidateAssignmentPath -PathType Leaf)) {
+        return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The candidate assignment generator source is missing.'; policySha256=$null }
+    }
+    $candidateAssignmentSource = [IO.File]::ReadAllText($candidateAssignmentPath) -replace "`r`n", "`n"
+    $assignmentHasher = [Security.Cryptography.SHA256]::Create()
+    try { $candidateAssignmentSha = [Convert]::ToHexString($assignmentHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes($candidateAssignmentSource))) }
+    finally { $assignmentHasher.Dispose() }
+    if ($candidateAssignmentSha -cne $baseAssignmentSha) {
+        return [ordered]@{ trusted=$false; status='policy-review-required'; reason='The candidate changes the approved assignment generator; independent randomization qualification must be reviewed.'; policySha256=$null }
+    }
     $canonicalBase = ConvertTo-Json -InputObject $policy -Depth 32 -Compress
     $bytes = [Text.Encoding]::UTF8.GetBytes($canonicalBase)
     $sha = [Security.Cryptography.SHA256]::Create()

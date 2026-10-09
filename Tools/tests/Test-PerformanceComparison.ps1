@@ -52,40 +52,44 @@ Invoke-TestCase 'the migrated block judge uses identity, independent paired effe
         foreach ($row in $candidate2.scenarios) { foreach ($round in $row.rounds) { $round.surfaceBytes=101 } }
         [ordered]@{ Baseline=@($baseline1,$baseline2); Candidate=@($candidate1,$candidate2) }
     })
-    $result = Compare-PairedBlockSet -Blocks $blocks
+    $result = Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $blocks
+    Assert-Equal 3 $result.schemaVersion 'current inference has a distinct schema'
+    Assert-Equal 'independent-ABBA-BAAB-v1' $result.assignmentProtocol 'the decision retains its assignment mechanism'
+    Assert-Throws { Compare-PairedBlockSet -Blocks $blocks } 'an unspecified design cannot use independent sign-flip inference'
+    Assert-Throws { Compare-PairedBlockSet -Blocks $blocks -AssignmentProtocol 'balanced-ABBA-BAAB' } 'a globally constrained historical design cannot use the new judge'
     Assert-Equal 'advice-required' $result.status 'large consistent timing regression is significant after Holm'
     Assert-Equal 26 $result.familySize 'all declared phase and metric slots remain in family'
     Assert-Equal 12 $result.blockCount 'blocks are independent analysis units'
     $missingWarp = Copy-JsonValue $blocks
     $missingWarp[0].Candidate[0].Remove('warpSha256')
-    Assert-Equal 'identity-unverifiable' (Compare-PairedBlockSet -Blocks $missingWarp).status 'a migrated judge cannot qualify a report without the WARP binary hash'
+    Assert-Equal 'identity-unverifiable' (Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $missingWarp).status 'a migrated judge cannot qualify a report without the WARP binary hash'
     $exact = @($result.metrics | Where-Object { $_.metric -eq 'surfaceBytes' })[0]
     Assert-True $exact.exact 'surface allocation remains an exact budget'
     Assert-Equal 1.0 $exact.pValue 'exact budgets do not use timing inference'
     Assert-Equal 'regressed' $exact.verdict 'any candidate observation above baseline median still gates'
     $missing = Copy-JsonValue $blocks[0].Baseline[0]; $missing.Remove('harnessIdentity')
     $blocks[0].Baseline[0] = $missing
-    Assert-Equal 'identity-unverifiable' (Compare-PairedBlockSet -Blocks $blocks).status 'missing harness provenance fails closed as inconclusive evidence'
+    Assert-Equal 'identity-unverifiable' (Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $blocks).status 'missing harness provenance fails closed as inconclusive evidence'
     $missing.harnessIdentity = 'fixture'; $missing.identityStatus = 'identity-unverifiable'; $missing.identityError = 'missing resolved compiler'
     $blocks[0].Baseline[0] = $missing
-    Assert-Equal 'identity-unverifiable' (Compare-PairedBlockSet -Blocks $blocks).status 'explicitly unresolved provenance cannot pass with populated identity strings'
+    Assert-Equal 'identity-unverifiable' (Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $blocks).status 'explicitly unresolved provenance cannot pass with populated identity strings'
     $missing.identityStatus = 'verifiable'; $missing.Remove('identityError')
     $blocks[0].Baseline[0] = $missing
     $changedTool = Copy-JsonValue $blocks[1].Candidate[0]; $changedTool.toolchainIdentity = 'different toolchain'
     $blocks[1].Candidate[0] = $changedTool
-    $toolMismatch = Compare-PairedBlockSet -Blocks $blocks
+    $toolMismatch = Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $blocks
     Assert-Equal 'identity-mismatch' $toolMismatch.status 'one binary cannot mix a changed toolchain identity into its runs'
     Assert-Equal 'toolchainIdentity' $toolMismatch.mismatchedIdentity 'toolchain mismatch is named'
     $changedTool.toolchainIdentity = 'fixture'; $blocks[1].Candidate[0] = $changedTool
     $changedWarp = Copy-JsonValue $blocks[1].Candidate[0]; $changedWarp.warpSha256 = 'different WARP binary'
     $blocks[1].Candidate[0] = $changedWarp
-    $warpMismatch = Compare-PairedBlockSet -Blocks $blocks
+    $warpMismatch = Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $blocks
     Assert-Equal 'identity-mismatch' $warpMismatch.status 'migrated runs cannot mix WARP binary bytes'
     Assert-Equal 'warpSha256' $warpMismatch.mismatchedIdentity 'WARP binary mismatch is named'
     $changedWarp.warpSha256 = 'a'; $blocks[1].Candidate[0] = $changedWarp
     $changedExe = Copy-JsonValue $blocks[1].Candidate[0]; $changedExe.executableSha256 = 'other executable'
     $blocks[1].Candidate[0] = $changedExe
-    $exeMismatch = Compare-PairedBlockSet -Blocks $blocks
+    $exeMismatch = Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $blocks
     Assert-Equal 'identity-mismatch' $exeMismatch.status 'runs of one candidate binary cannot mix executable hashes'
     Assert-Equal 'Candidate.executableSha256' $exeMismatch.mismatchedIdentity 'executable mismatch is named'
     $changedExe.executableSha256 = 'a'; $blocks[1].Candidate[0] = $changedExe
@@ -94,7 +98,7 @@ Invoke-TestCase 'the migrated block judge uses identity, independent paired effe
         foreach ($receipt in @($block.Baseline) + @($block.Candidate)) { $receipt.sourceCommit='same'; $receipt.sourceFingerprint='same'; $receipt.executableSha256='same-exe' }
     }
     foreach ($block in $aaBlocks) { foreach ($receipt in $block.Candidate) { $receipt.executableSha256='changed-exe' } }
-    $aaMismatch = Compare-PairedBlockSet -Blocks $aaBlocks -CalibrationAA
+    $aaMismatch = Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $aaBlocks -CalibrationAA
     Assert-Equal 'identity-mismatch' $aaMismatch.status 'A/A cannot be calibrated with different executable bytes'
     Assert-Equal 'A/A.executableSha256' $aaMismatch.mismatchedIdentity 'A/A executable mismatch is named'
 
@@ -104,7 +108,7 @@ Invoke-TestCase 'the migrated block judge uses identity, independent paired effe
     }
     $spikeReceipt = $spikeBlocks[0].Candidate[0]
     $spikeReceipt.scenarios[0].rounds[0].surfaceBytes = 101
-    $spikeResult = Compare-PairedBlockSet -Blocks $spikeBlocks
+    $spikeResult = Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $spikeBlocks
     $surface = @($spikeResult.metrics | Where-Object { $_.phase -eq 'clean' -and $_.metric -eq 'surfaceBytes' })[0]
     Assert-Equal 'advice-required' $spikeResult.status 'a one-round exact-budget spike fails despite unchanged per-run medians'
     Assert-Equal 100.0 $surface.baselineMaximum 'the retained raw baseline maximum is reported'
@@ -114,10 +118,10 @@ Invoke-TestCase 'the migrated block judge uses identity, independent paired effe
 
     $badFixtureBlocks = Copy-JsonValue $blocks
     $badFixtureBlocks[0].Candidate[0].width = 1920
-    Assert-Throws { Compare-PairedBlockSet -Blocks $badFixtureBlocks } 'a migrated pair with different workload identity is invalid'
+    Assert-Throws { Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $badFixtureBlocks } 'a migrated pair with different workload identity is invalid'
     $shortBlocks = Copy-JsonValue $blocks
     $shortBlocks[0].Candidate[0].scenarios[0].rounds = @($shortBlocks[0].Candidate[0].scenarios[0].rounds | Select-Object -First 4)
-    Assert-Throws { Compare-PairedBlockSet -Blocks $shortBlocks } 'a migrated receipt missing a round is invalid'
+    Assert-Throws { Compare-PairedBlockSet -AssignmentProtocol 'independent-ABBA-BAAB-v1' -Blocks $shortBlocks } 'a migrated receipt missing a round is invalid'
 }
 
 function Set-DirtyMetric([Collections.IDictionary] $Receipt, [string] $Metric, [object] $Value) {

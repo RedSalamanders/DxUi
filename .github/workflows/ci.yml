@@ -150,7 +150,7 @@ jobs:
           name: docs-gallery-x64-Release
           path: docs/gallery/
           retention-days: 14
-  # One runner measures baseline and candidate serially in twelve randomized, balanced independent ABBA/BAAB blocks (24 runs per side).
+  # One runner measures baseline and candidate serially in twelve independently drawn ABBA/BAAB blocks (24 runs per side).
   # A pull request that changes something measured is compared with
   # the base its merge ref was made on (the candidate is that merge ref) and fails this job on a confirmed degradation or an
   # inconclusive run; a manual dispatch with benchmark_baseline names its own revisions, reports the same verdict in the job

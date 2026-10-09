@@ -5,6 +5,7 @@
 #include "../../src/Controls/DxUi.h"
 #include "../../src/Support/Diagnostics.h"
 #include "../../src/Support/WindowMessages.h"
+#include "../Support/Support.Tests.DesktopLease.h"
 #include "../Support/Support.Tests.TestWatchdog.h"
 #include "../Support/Support.Tests.TestWindowActivationGuard.h"
 
@@ -178,6 +179,10 @@ inline bool RunDxUiTest(const char* name, void (*test)())
 
 [[nodiscard]] inline bool TryActivateDxUiTestWindow(HWND hwnd, DWORD timeoutMs = 800u) noexcept
 {
+    if (DxUi::TestSupport::ScopedWindowActivationBlocker::IsActiveForCurrentThread())
+    {
+        return false;
+    }
     if (! TryFocusDxUiTestWindow(hwnd, timeoutMs))
     {
         return false;
@@ -190,7 +195,18 @@ inline bool RunDxUiTest(const char* name, void (*test)())
 
     if (SetForegroundWindow(hwnd) == FALSE && GetForegroundWindow() != hwnd)
     {
-        return false;
+        // Authorized foreground fixtures need a real foreground grant, not only thread-local active/focus state.
+        // Reuse the lease backend's scoped input attachment; it detaches before this helper checks the result.
+        DxUi::TestSupport::Win32DesktopBackend desktop;
+        if (! desktop.BringToForeground(hwnd) && GetForegroundWindow() != hwnd)
+        {
+            return false;
+        }
+        // Input attachment shares focus state; re-establish this thread's target after the queues are detached.
+        if (GetFocus() != hwnd && ! TryFocusDxUiTestWindow(hwnd, timeoutMs))
+        {
+            return false;
+        }
     }
 
     const ULONGLONG deadline = GetTickCount64() + timeoutMs;
@@ -198,13 +214,13 @@ inline bool RunDxUiTest(const char* name, void (*test)())
     {
         if (GetForegroundWindow() == hwnd)
         {
-            return true;
+            return GetFocus() == hwnd;
         }
 
         Sleep(10);
     } while (GetTickCount64() < deadline);
 
-    return GetForegroundWindow() == hwnd;
+    return GetForegroundWindow() == hwnd && GetFocus() == hwnd;
 }
 
 inline void RequireColorNear(const D2D1_COLOR_F& actual, const D2D1_COLOR_F& expected, const char* message)
