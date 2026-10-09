@@ -397,7 +397,11 @@ A harness-only change (assertions or receipt fields) keeps the workload identity
 matched baseline is measured with the final harness on the previous implementation before the candidate is compared.
 Renamed benchmark headers MUST also overlay any existing legacy include paths in the older measured tree with the
 current payload. Those aliases exist only in the temporary overlay and are restored with it; recorded current inputs
-and the older entrypoint must reach the same fixture bytes.
+and the older entrypoint must reach the same fixture bytes. Every overlaid path MUST match its retained SHA-256
+after copying, before build/reuse, and before and after every measurement.
+Overlay rollback MUST retain and verify the original hash, refuse changed backups, attempt the remaining restorations,
+and report failure when a completed study cannot restore a named tree. A failed or mismatched overlay supplies no
+performance qualification; preserve its original records for diagnosis before starting a fresh study.
 
 Application-specific adoption reports, configurations, endpoint workloads and budgets belong in that application's
 repository. Do not store them in DxUi docs or use them as a substitute for independent library evidence. Conversely,

@@ -134,26 +134,35 @@ function Copy-HarnessOverlay {
             $from = Join-Path $Source $inputFile.source
             $to = Join-Path $Target $path
             if (-not (Test-Path -LiteralPath $from -PathType Leaf)) { throw "Missing benchmark harness input: $path" }
+            $expectedSha256 = (Get-FileHash -LiteralPath $from -Algorithm SHA256).Hash
             $action = if ($same) { 'unchanged' }
             elseif (-not (Test-Path -LiteralPath $to -PathType Leaf)) { 'created' }
-            elseif ((Get-FileHash -LiteralPath $from -Algorithm SHA256).Hash -ceq (Get-FileHash -LiteralPath $to -Algorithm SHA256).Hash) { 'unchanged' }
+            elseif ($expectedSha256 -ceq (Get-FileHash -LiteralPath $to -Algorithm SHA256).Hash) { 'unchanged' }
             else { 'replaced' }
+            $originalSha256 = if ($action -ceq 'replaced') { (Get-FileHash -LiteralPath $to -Algorithm SHA256).Hash } else { $null }
             $created = [Collections.Generic.List[string]]::new()
             if ($action -ne 'unchanged') {
                 if ($action -eq 'replaced' -and $BackupDirectory) {
                     $backup = Join-Path $BackupDirectory $path
                     New-Item -ItemType Directory -Path (Split-Path $backup) -Force | Out-Null
                     Copy-Item -LiteralPath $to -Destination $backup -Force
+                    if ((Get-FileHash -LiteralPath $backup -Algorithm SHA256).Hash -cne $originalSha256) {
+                        throw "Benchmark harness backup does not match its original: $path"
+                    }
                 }
                 # The missing ancestors, outermost first, so a restore can remove exactly what this file added.
                 $missing = [Collections.Generic.Stack[string]]::new()
                 for ($directory = Split-Path $to; $directory -and -not (Test-Path -LiteralPath $directory); $directory = Split-Path $directory) { $missing.Push($directory) }
                 foreach ($directory in $missing) { $created.Add($directory) }
                 New-Item -ItemType Directory -Path (Split-Path $to) -Force | Out-Null
+                # Track this file before writing: a failed or incomplete copy also needs rollback.
+                $records.Add([ordered]@{ path = $path; action = $action; createdDirectories = @($created); sha256 = $expectedSha256; originalSha256 = $originalSha256 })
                 Copy-Item -LiteralPath $from -Destination $to -Force
                 [IO.File]::SetLastWriteTimeUtc($to, [DateTime]::UtcNow)
+            } else {
+                $records.Add([ordered]@{ path = $path; action = $action; createdDirectories = @($created); sha256 = $expectedSha256; originalSha256 = $originalSha256 })
             }
-            $records.Add([ordered]@{ path = $path; action = $action; createdDirectories = @($created) })
+            Assert-HarnessOverlay -Target $Target -Records @($records[$records.Count - 1])
         }
     } catch {
         # Leave the tree as it was found, even for a half-applied overlay.
@@ -163,25 +172,48 @@ function Copy-HarnessOverlay {
     return $records.ToArray()
 }
 
+function Assert-HarnessOverlay {
+    # Validate actual bytes, including legacy aliases, before a build or measurement can attest this harness.
+    param([Parameter(Mandatory)][string] $Target, [Parameter(Mandatory)][object[]] $Records)
+    foreach ($record in $Records) {
+        $path = Join-Path $Target $record['path']
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or
+            (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -cne [string]$record['sha256']) {
+            throw "Benchmark harness bytes do not match the retained source: $($record['path'])"
+        }
+    }
+}
+
 function Restore-HarnessOverlay {
     <# Undoes Copy-HarnessOverlay: replaced files return from the backup, created files and the directories made for them
        are removed. Restored files are stamped with the current time so the tree's next build sees them change. #>
     param([Parameter(Mandatory)][string] $Target, [Parameter(Mandatory)][object[]] $Records, [Parameter(Mandatory)][string] $BackupDirectory)
     $directories = [Collections.Generic.List[string]]::new()
+    $failures = [Collections.Generic.List[string]]::new()
     foreach ($record in $Records) {
-        $to = Join-Path $Target $record['path']
-        if ($record['action'] -ceq 'replaced') {
-            Copy-Item -LiteralPath (Join-Path $BackupDirectory $record['path']) -Destination $to -Force
-            [IO.File]::SetLastWriteTimeUtc($to, [DateTime]::UtcNow)
-        } elseif ($record['action'] -ceq 'created') {
-            if (Test-Path -LiteralPath $to -PathType Leaf) { Remove-Item -LiteralPath $to -Force }
-            $directories.AddRange([string[]]@($record['createdDirectories']))
-        }
+        try {
+            $to = Join-Path $Target $record['path']
+            if ($record['action'] -ceq 'replaced') {
+                $backup = Join-Path $BackupDirectory $record['path']
+                if ((Get-FileHash -LiteralPath $backup -Algorithm SHA256).Hash -cne [string]$record['originalSha256']) {
+                    throw "Benchmark harness backup no longer matches the original: $($record['path'])"
+                }
+                Copy-Item -LiteralPath $backup -Destination $to -Force
+                if ((Get-FileHash -LiteralPath $to -Algorithm SHA256).Hash -cne [string]$record['originalSha256']) {
+                    throw "Restored benchmark harness bytes do not match their backup: $($record['path'])"
+                }
+                [IO.File]::SetLastWriteTimeUtc($to, [DateTime]::UtcNow)
+            } elseif ($record['action'] -ceq 'created') {
+                if (Test-Path -LiteralPath $to -PathType Leaf) { Remove-Item -LiteralPath $to -Force }
+                $directories.AddRange([string[]]@($record['createdDirectories']))
+            }
+        } catch { $failures.Add($_.Exception.Message) }
     }
     # Deepest first, and only what is empty: a directory that gained other files is not this overlay's to remove.
     foreach ($directory in @($directories | Sort-Object -Unique | Sort-Object -Property Length -Descending)) {
         if ([IO.Directory]::Exists($directory) -and -not [IO.Directory]::GetFileSystemEntries($directory).Length) { Remove-Item -LiteralPath $directory -Force }
     }
+    if ($failures.Count) { throw "Benchmark harness restoration failed: $($failures -join '; ')" }
 }
 
 function Get-PairedRunSchedule {
@@ -268,5 +300,5 @@ function Get-OverlayCompiledChanges {
 }
 
 Export-ModuleMember -Function Get-PairedHarness, Get-PairedSelection, Assert-PairedSidesDiffer, Assert-PairedTree, Copy-HarnessOverlay,
-    Restore-HarnessOverlay, Get-PairedRunSchedule, Get-RandomizedPairedBlockSchedule, Get-VersionedPerformanceJudge, Get-OverlayCompiledChanges,
+    Restore-HarnessOverlay, Assert-HarnessOverlay, Get-PairedRunSchedule, Get-RandomizedPairedBlockSchedule, Get-VersionedPerformanceJudge, Get-OverlayCompiledChanges,
     New-PairedExecutionPlan

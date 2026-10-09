@@ -470,9 +470,8 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
 
 - **Selection.** Without `-Suites` the run is `Menu` and `NativeTextInput`; the two fixtures run when they are named. Any other name
   is refused, by name, before anything is built, so the lease holds only what needs the desktop. `-Tests` and `-TestTimeout` work as
-  for any run. Every other control suite keeps `--no-activate`, and the lease is reached only through `-Interactive`. A run without
-  it is unchanged: it passes these four suites no `--no-activate`, which the runner rejects, so on a desktop someone is working at it
-  can take focus; leave them out of `-Suites` there, and ask for them through `-Interactive`.
+  for any run. Every other control suite keeps `--no-activate`. Local foreground suites require `-Interactive`;
+  a verified GitHub-hosted Windows job uses the hosted lease below for only its requested foreground suites.
 - **Refusal.** A run refuses, before anything is built, in a CI job (`CI`, `GITHUB_ACTIONS`, `TF_BUILD` and the like are set) and in
   a process without an interactive window station (a service, a scheduled task, a remote shell). After the build the lease checks the
   session natively (`DxUi.InteractiveLease.exe --check`, which shows and takes nothing) and checks again when it is about to ask: the
@@ -511,6 +510,15 @@ interactive desktop lease: `DxUi.InteractiveLease.exe` (`Tests/InteractiveLease`
   means the desktop did not provide it) and no part is `failed`. Logs and receipts carry the suffix `.interactive`
   (`.interactive.filtered` with `-Tests`), so they never replace those of the run that records the suite's skips; a receipt records the
   lease: its state, the confirmation, what became of each part, the pointer positions and the window the person had.
+
+Verified GitHub-hosted Windows foreground runs MUST use the same lease's anchor, child-specific foreground grant,
+bounded child lifetime and verified restoration. `test.ps1` and `DxUi.InteractiveLease.exe --run-hosted` each independently
+require exact `CI=true`, `GITHUB_ACTIONS=true`, `RUNNER_ENVIRONMENT=github-hosted` and `RUNNER_OS=Windows` markers.
+Native refusal precedes desktop inspection or mutation. This mode substitutes hosted-runner authorization for the
+person-facing confirmation; it retains the desktop probe, mutex, warning anchor, failure/skip checks and restoration.
+It does not authorize an ordinary local or self-hosted run. Hosted logs/receipts use `.hosted` and explicitly retain the
+lease mode, exit code and restoration results. A child that did not launch writes a failed receipt and replaces any
+stale suite log with the current launch failure. Desktop availability alone supplies no foreground permission.
 
 `DxUi.InteractiveLease.exe` exits 0 when every suite passed and the desktop is as it was, 1 when a suite failed, 2 for a malformed
 command line, 20 when there is no interactive desktop, 21 when the confirmation was cancelled or unanswered, 22 when another run holds

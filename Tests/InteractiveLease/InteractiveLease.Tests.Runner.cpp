@@ -1,8 +1,9 @@
 // DxUi.InteractiveLease.exe: the interactive desktop lease behind `test.ps1 -Interactive`.
 //
 // The control suites that need real focus (Menu, NativeTextInput and the two menu resource fixtures) take the foreground, the keyboard
-// focus and the pointer. This program runs them for a person who agreed to it: it refuses when there is no desktop to take, asks first
-// (the default answer is Cancel), shows a warning for the length of the run, runs each suite as a child of its own, and puts the
+// focus and the pointer. This program runs them for a person who agreed to it, or for an exactly verified GitHub-hosted Windows job:
+// it refuses when there is no desktop to take, asks a local person first (the default answer is Cancel), shows a warning for the length
+// of the run, runs each suite as a child of its own, and puts the
 // person's foreground window, keyboard focus and pointer position back whatever ended the run: a failed suite, the runner's watchdog
 // (exit code 124), a hung child, Ctrl+C. The logic is in Tests/Support/Support.Tests.InteractiveLease.h and DesktopLease.h, which the control
 // tests exercise with a desktop of their own making; this file holds the Windows services and the command line.
@@ -76,7 +77,7 @@ void Print(std::string_view line) noexcept
 class Win32LeaseServices final : public TS::LeaseServices
 {
 public:
-    explicit Win32LeaseServices(PCWSTR mutexName) noexcept : _mutexName(mutexName)
+    explicit Win32LeaseServices(PCWSTR mutexName, bool hosted = false) noexcept : _mutexName(mutexName), _hosted(hosted)
     {
     }
 
@@ -119,6 +120,11 @@ public:
 
     [[nodiscard]] TS::Confirmation Confirm(const TS::LeaseRequest& request) override
     {
+        if (_hosted)
+        {
+            Log("confirmation: hosted runner authorization");
+            return TS::Confirmation::Started;
+        }
         Log(std::format("{}: {}; {}",
                         TS::ToUtf8(request.label),
                         TS::FormatApproximateDuration(request.estimateSeconds),
@@ -186,6 +192,7 @@ public:
 
 private:
     PCWSTR _mutexName;
+    bool _hosted = false;
     wil::unique_mutex_nothrow _mutex;
     bool _owned = false;
     TS::Win32DesktopProbe _probe;
@@ -250,6 +257,7 @@ int Usage(std::string_view problem)
                  "%.*s\n"
                  "usage: DxUi.InteractiveLease.exe --check [--result=<file>]\n"
                  "       DxUi.InteractiveLease.exe --run --plan=<file> --result=<file> [--label=<text>] [--estimate=<seconds>]\n"
+                 "       DxUi.InteractiveLease.exe --run-hosted --plan=<file> --result=<file> [--label=<text>] [--estimate=<seconds>]\n"
                  "                                 [--confirm-timeout=<seconds>] [--child-timeout=<seconds>]\n"
                  "       DxUi.InteractiveLease.exe --self-test\n",
                  static_cast<int>(problem.size()),
@@ -280,7 +288,7 @@ struct RunOptions
     unsigned childTimeoutSeconds = 900u;
 };
 
-int Run(const RunOptions& options)
+int Run(const RunOptions& options, bool hosted)
 {
     std::string planText;
     if (! ReadFileUtf8(options.plan, planText))
@@ -299,7 +307,7 @@ int Run(const RunOptions& options)
     request.confirmSeconds      = options.confirmSeconds;
     request.childTimeoutSeconds = options.childTimeoutSeconds;
 
-    Win32LeaseServices services(kLeaseMutexName);
+    Win32LeaseServices services(kLeaseMutexName, hosted);
     const TS::LeaseOutcome outcome = TS::RunLease(services, request);
     WriteResult(options.result, outcome);
     Print(std::format("{}{}{}", outcome.state, outcome.reason.empty() ? "" : ": ", outcome.reason));
@@ -534,26 +542,33 @@ int SelfTestChild(std::wstring_view mode)
     }
     return TS::LeaseExit::kUsage;
 }
+
+[[nodiscard]] bool IsVerifiedGitHubHostedRunner() noexcept
+{
+    const auto isExact = [](PCWSTR name, PCWSTR expected) noexcept
+    {
+        wchar_t value[64]{};
+        const DWORD length = GetEnvironmentVariableW(name, value, static_cast<DWORD>(std::size(value)));
+        return length != 0u && length < std::size(value) && std::wstring_view(value, length) == expected;
+    };
+    return isExact(L"CI", L"true") && isExact(L"GITHUB_ACTIONS", L"true") && isExact(L"RUNNER_ENVIRONMENT", L"github-hosted") &&
+           isExact(L"RUNNER_OS", L"Windows");
+}
 } // namespace
 
 int wmain(int argc, wchar_t** argv)
 {
-    // A failed runtime check reports to stderr and ends the run (exit code 3); only the lease's own confirmation and warning are
-    // windows a person sees.
-    DxUiTestFailureReports::RouteAwayFromDialogs();
-
-    // Per-monitor DPI, so the dialog and the warning are sharp on every monitor and the pointer is read in physical pixels.
-    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-
     enum class Mode
     {
         None,
         Check,
         Run,
+        RunHosted,
         SelfTest
     } mode = Mode::None;
     RunOptions options;
     std::filesystem::path checkResult;
+    std::optional<std::wstring> selfTestChildMode;
     for (int index = 1; index < argc; ++index)
     {
         const std::wstring_view argument = argv[index] != nullptr ? std::wstring_view(argv[index]) : std::wstring_view{};
@@ -561,10 +576,12 @@ int wmain(int argc, wchar_t** argv)
             mode = Mode::Check;
         else if (argument == L"--run")
             mode = Mode::Run;
+        else if (argument == L"--run-hosted")
+            mode = Mode::RunHosted;
         else if (argument == L"--self-test")
             mode = Mode::SelfTest;
         else if (const auto child = ValueOf(argument, L"--self-test-child"))
-            return SelfTestChild(*child);
+            selfTestChildMode = std::wstring(*child);
         else if (const auto plan = ValueOf(argument, L"--plan"))
             options.plan = std::filesystem::path(*plan);
         else if (const auto result = ValueOf(argument, L"--result"))
@@ -592,10 +609,26 @@ int wmain(int argc, wchar_t** argv)
         else
             return Usage(std::format("unknown argument: {}", TS::ToUtf8(argument)));
     }
-    if (mode == Mode::None)
-        return Usage("choose --check, --run or --self-test");
-    if (mode == Mode::Run && (options.plan.empty() || options.result.empty()))
-        return Usage("--run needs --plan=<file> and --result=<file>");
+    if (mode == Mode::None && ! selfTestChildMode.has_value())
+        return Usage("choose --check, --run, --run-hosted or --self-test");
+    if ((mode == Mode::Run || mode == Mode::RunHosted) && (options.plan.empty() || options.result.empty()))
+        return Usage("--run and --run-hosted need --plan=<file> and --result=<file>");
+    // The hosted path bypasses the person-facing confirmation only when every runner marker is exact. Keep this check before desktop
+    // inspection, DPI changes, warning creation, lease acquisition or result-file writes.
+    if (mode == Mode::RunHosted && ! IsVerifiedGitHubHostedRunner())
+        return Usage("--run-hosted is limited to verified GitHub-hosted Windows runners");
+
+    // A failed runtime check reports to stderr and ends the run (exit code 3); only the lease's own confirmation and warning are
+    // windows a person sees.
+    DxUiTestFailureReports::RouteAwayFromDialogs();
+
+    // The intentional runtime-failure child is still a test process: install the no-dialog handler before executing its deliberate
+    // failure, just as the prior early child dispatch did.
+    if (selfTestChildMode.has_value())
+        return SelfTestChild(*selfTestChildMode);
+
+    // Per-monitor DPI, so the dialog and the warning are sharp on every monitor and the pointer is read in physical pixels.
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
     g_interruptEvent.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
     g_finished.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
@@ -609,7 +642,8 @@ int wmain(int argc, wchar_t** argv)
     switch (mode)
     {
         case Mode::Check: return Check(checkResult);
-        case Mode::Run: return Run(options);
+        case Mode::Run: return Run(options, false);
+        case Mode::RunHosted: return Run(options, true);
         case Mode::SelfTest: return SelfTest().Run();
         case Mode::None: break;
     }

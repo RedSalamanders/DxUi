@@ -62,9 +62,12 @@ if (-not $Interactive -and -not $verifiedHostedRunner -and @($Suites | Where-Obj
 # -Interactive is settled before anything is built or run: its suites must need the desktop, and there must be one to take.
 if ($Interactive) {
     $Suites = @(Resolve-DxUiInteractiveSuites -Suites $Suites -Requested $PSBoundParameters.ContainsKey('Suites'))
-    $refusal = Get-DxUiInteractiveRefusal
+    $refusal = if ($verifiedHostedRunner) { $null } else { Get-DxUiInteractiveRefusal }
     if ($refusal) { throw "Interactive tests need an interactive desktop, and there is none: $refusal." }
 }
+$hostedForegroundLease = Test-DxUiHostedForegroundLeaseRequired -Suites $Suites -VerifiedHostedRunner $verifiedHostedRunner
+$leaseSuites = @(Resolve-DxUiForegroundLeaseSuites -Suites $Suites -Interactive $Interactive -VerifiedHostedRunner $verifiedHostedRunner)
+$foregroundLeaseRequired = $leaseSuites.Count -gt 0
 if ($Tests.Count -and -not @($Suites | Where-Object { $_ -notin @('Foundation','Embedded') }).Count) { throw '-Tests selects tests within DxUi.ControlTests.exe suites; none of the requested suites is one.' }
 if (-not $SkipTooling) {
     & (Join-Path $PSScriptRoot 'Tools/tests/Invoke-ToolingTests.ps1')
@@ -74,12 +77,15 @@ $nativeArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArc
 if (($Platform -eq 'ARM64') -and ($nativeArchitecture -ne 'Arm64')) { throw 'ARM64 runtime tests require an ARM64 host; use build.ps1 for cross-compilation.' }
 if (-not $SkipBuild) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform }
 $leaseExecutable = Join-Path $PSScriptRoot ".build/$Platform/$Configuration/DxUi.InteractiveLease.exe"
-if ($Interactive) {
+if ($Interactive -and -not $hostedForegroundLease) {
     # The session is asked again, natively, for what the environment cannot say (a locked screen, a disconnected session, a screen
     # saver), before the rest of the run spends its minutes: nothing is shown or taken by this check.
     if (-not (Test-Path -LiteralPath $leaseExecutable -PathType Leaf)) { throw "The interactive desktop lease is missing: $leaseExecutable. Build it with build.ps1 (not -SkipBuild after an older build)." }
     $noDesktop = Test-DxUiDesktopAvailable -Executable $leaseExecutable
     if ($noDesktop) { throw "Interactive tests need an interactive desktop, and there is none: $noDesktop." }
+}
+if ($hostedForegroundLease -and -not (Test-Path -LiteralPath $leaseExecutable -PathType Leaf)) {
+    throw "The hosted foreground lease is missing: $leaseExecutable. Build it with build.ps1 (not -SkipBuild after an older build)."
 }
 if ($verifiedHostedRunner -and @($Suites | Where-Object { Test-DxUiInteractiveSuite $_ }).Count) {
     # Owning a hosted runner is authorization, not evidence that its input desktop is usable. This read-only
@@ -136,29 +142,38 @@ function Get-SuiteRun([string] $Suite) {
     if ($null -ne $TestTimeout -and $Suite -notin @('Foundation','Embedded')) { $arguments += "--test-timeout=$TestTimeout" }
     # A filtered run is partial evidence: its log and receipt never replace those of the whole suite, and an interactive run's never
     # replace those of the run that records the same suite's skips.
-    $suffix = "$(if ($Interactive) { '.interactive' })$(if ($filtered) { '.filtered' })$(if ($instrumentation.Count) { '.instrumented' })"
+    $suiteUsesHostedLease = $hostedForegroundLease -and (Test-DxUiInteractiveSuite $Suite)
+    $suffix = "$(if ($suiteUsesHostedLease) { '.hosted' } elseif ($Interactive) { '.interactive' })$(if ($filtered) { '.filtered' })$(if ($instrumentation.Count) { '.instrumented' })"
     return [pscustomobject]@{ Executable = $executable; Arguments = $arguments; Filtered = [bool]$filtered; Suffix = $suffix; Log = (Join-Path $logs "test-$Suite-$Platform-$Configuration$suffix.log") }
 }
 Push-Location $PSScriptRoot
 try {
     $lease = $null
     $leaseProblems = @()
-    if ($Interactive) {
+    if ($foregroundLeaseRequired) {
         # Every suite of the run under one lease: one confirmation, one warning, one restoration. The suites run before any of them is
         # reported, and are reported below exactly as a run without -Interactive reports them.
-        $label = "$($Suites -join ', ') ($Platform $Configuration)"
-        $estimate = Get-DxUiInteractiveEstimateSeconds -Suites $Suites -Configuration $Configuration
-        $plan = @(foreach ($name in $Suites) {
+        $label = "$($leaseSuites -join ', ') ($Platform $Configuration)"
+        $estimate = Get-DxUiInteractiveEstimateSeconds -Suites $leaseSuites -Configuration $Configuration
+        $plan = @(foreach ($name in $leaseSuites) {
             $planned = Get-SuiteRun $name
             if (-not (Test-Path -LiteralPath $planned.Executable)) { throw "Test executable is missing: $($planned.Executable)" }
             [pscustomobject]@{ Name = $name; Log = $planned.Log; CommandLine = (ConvertTo-DxUiCommandLine -Program $planned.Executable -Arguments $planned.Arguments) }
         })
         # The lease's bound on one suite is for what the runner's watchdog cannot reach; it never cuts a suite the watchdog allows.
         $bound = if ($TestTimeout -eq 0) { 0 } elseif ($null -ne $TestTimeout) { [Math]::Max(900, 3 * $TestTimeout) } else { 900 }
-        Write-Host "Interactive run: $label takes the desktop for about $([Math]::Ceiling($estimate / 60.0)) minute(s) once it is confirmed."
-        $lease = Invoke-DxUiInteractiveLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound
+        $leaseStart = if ($hostedForegroundLease) { 'under verified hosted-runner authorization' } else { 'after local confirmation' }
+        Write-Host "Foreground run: $label takes the desktop for about $([Math]::Ceiling($estimate / 60.0)) minute(s) $leaseStart."
+        if ($hostedForegroundLease) {
+            $lease = Invoke-DxUiHostedForegroundLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound
+        } else {
+            $lease = Invoke-DxUiInteractiveLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound
+        }
         $leaseProblems = @(Get-DxUiLeaseProblems -Result $lease.Result -ExitCode $lease.ExitCode)
-        if ($null -eq $lease.Result -or @($lease.Result.Children).Count -eq 0) { throw "Interactive run: $($leaseProblems -join '; '). See $($lease.ResultPath)." }
+        $leaseResult = if ($null -ne $lease.Result) { $lease.Result } else {
+            [pscustomobject]@{ State='missing'; Exit=$lease.ExitCode; Reason='the native lease wrote no result'; Confirmation='none';
+                SavedForeground=''; Foreground='none'; Focus='none'; Cursor='none'; CursorSaved=''; CursorAtExit=''; RunMovedSomething=$false; Children=@() }
+        }
     }
     foreach ($suite in $Suites) {
         $run = Get-SuiteRun $suite
@@ -168,11 +183,18 @@ try {
         $filtered = $run.Filtered
         $suffix = $run.Suffix
         $log = $run.Log
-        if ($Interactive) {
-            $child = @($lease.Result.Children | Where-Object { $_.Name -eq $suite }) | Select-Object -First 1
-            if (-not $child -or -not $child.Launched) { $failures += "$suite did not run under the interactive lease"; Write-Host "FAIL $suite did not run under the interactive lease"; continue }
-            Write-Host "Ran $suite ($Platform $Configuration) under the interactive lease$(if ($filtered) { ", tests: $($Tests -join ', ')" })"
-            $testExit = $child.ExitCode
+        $suiteUsesForegroundLease = $Interactive -or ($hostedForegroundLease -and (Test-DxUiInteractiveSuite $suite))
+        if ($suiteUsesForegroundLease) {
+            $child = @($leaseResult.Children | Where-Object { $_.Name -eq $suite }) | Select-Object -First 1
+            if (-not $child -or -not $child.Launched) {
+                $failures += "$suite did not run under the foreground lease"
+                Write-Host "FAIL $suite did not run under the foreground lease"
+                Write-DxUiLeaseFailureLog -Path $log -Suite $suite
+                $testExit = 24
+            } else {
+                Write-Host "Ran $suite ($Platform $Configuration) under the $(if ($hostedForegroundLease) { 'hosted' } else { 'interactive' }) foreground lease$(if ($filtered) { ", tests: $($Tests -join ', ')" })"
+                $testExit = $child.ExitCode
+            }
         } else {
             Write-Host "Running $suite ($Platform $Configuration)$(if ($filtered) { ", tests: $($Tests -join ', ')" })"
             & $executable @arguments *> $log
@@ -197,19 +219,20 @@ try {
             performanceComparison=$performanceComparison.status; performanceExecutableSha256=$performance.executableSha256
         }
         if ($filtered) { $receipt['tests'] = @($Tests) }
-        if ($Interactive) {
+        if ($suiteUsesForegroundLease) {
             $receipt['interactive'] = $true
             $receipt['lease'] = [ordered]@{
-                state=$lease.Result.State; confirmation=$lease.Result.Confirmation; foreground=$lease.Result.Foreground; focus=$lease.Result.Focus
-                cursor=$lease.Result.Cursor; cursorSaved=$lease.Result.CursorSaved; cursorAtExit=$lease.Result.CursorAtExit
-                runMovedSomething=$lease.Result.RunMovedSomething; savedForeground=$lease.Result.SavedForeground; seconds=$child.Seconds
+                mode=$(if ($hostedForegroundLease) { 'verified-github-hosted' } else { 'local-confirmed' }); hosted=$hostedForegroundLease
+                state=$leaseResult.State; exitCode=$lease.ExitCode; confirmation=$leaseResult.Confirmation; foreground=$leaseResult.Foreground; focus=$leaseResult.Focus
+                cursor=$leaseResult.Cursor; cursorSaved=$leaseResult.CursorSaved; cursorAtExit=$leaseResult.CursorAtExit
+                runMovedSomething=$leaseResult.RunMovedSomething; savedForeground=$leaseResult.SavedForeground; seconds=$(if ($child) { $child.Seconds } else { $null })
                 executable=$leaseExecutable; sha256=(Get-FileHash -LiteralPath $leaseExecutable -Algorithm SHA256).Hash
             }
         }
         if ($failure -and $failure.Timeout) { $receipt['timeout'] = $failure.Timeout }
         $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $reports "$suite-$Platform-$Configuration$suffix.json") -Encoding utf8
         if ($failure) { $failures += $failure.Summary; Write-Host "FAIL $($failure.Summary)"; $failure.Tail }
-        elseif ($Interactive -and $skips.Count) {
+        elseif ($suiteUsesForegroundLease -and $skips.Count) {
             # An interactive run exists to run what a run without the desktop skips: a skip means the desktop did not provide it.
             $failures += "$suite recorded $($skips.Count) capability skip(s) in an interactive run"
             Write-Host "FAIL $suite recorded $($skips.Count) capability skip(s) in an interactive run, which exists to run what other runs skip"
@@ -220,7 +243,7 @@ try {
     }
     $failures += $leaseProblems
 } finally { Pop-Location }
-if ($Interactive) { Write-Host "Interactive lease: foreground $($lease.Result.Foreground), focus $($lease.Result.Focus), pointer $($lease.Result.Cursor)$(if ($lease.Result.RunMovedSomething) { '; the lease gave back what the run had moved' } else { '; the run left the desktop as the person had it' })." }
-if ($Interactive -and $lease.Result.Cursor -eq 'restored') { Write-Warning "The suites left the pointer at $($lease.Result.CursorAtExit), and the lease moved it back to $($lease.Result.CursorSaved). A fixture that moves the pointer puts it back itself, so a pointer left behind is a fixture to look at." }
+if ($foregroundLeaseRequired) { Write-Host "Foreground lease ($($leaseResult.State)): foreground $($leaseResult.Foreground), focus $($leaseResult.Focus), pointer $($leaseResult.Cursor)$(if ($leaseResult.RunMovedSomething) { '; the lease gave back what the run had moved' } else { '; the run left the desktop as the person had it' })." }
+if ($foregroundLeaseRequired -and $leaseResult.Cursor -eq 'restored') { Write-Warning "The suites left the pointer at $($leaseResult.CursorAtExit), and the lease moved it back to $($leaseResult.CursorSaved). A fixture that moves the pointer puts it back itself, so a pointer left behind is a fixture to look at." }
 if ($failures.Count) { throw "DxUi failed suites: $($failures -join '; '). See .build/logs and .build/reports." }
 Write-Host "All $($Suites.Count) requested suites passed."

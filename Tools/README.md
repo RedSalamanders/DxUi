@@ -73,7 +73,10 @@ complex-UI FPS/memory and optionally compares a baseline; `test.ps1` includes th
 with `-Tests`, runs only the named tests of a control suite (`--test=` of `DxUi.ControlTests.exe`).
 `performance-paired.ps1` measures a baseline (a revision or a named working tree) and a candidate (this checkout, a
 revision or a named tree) serially with one copied harness, which includes the comparator, so a revision from before
-the PowerShell tools is measured the same way. CI runs it on a hosted runner: for every pull request to `main` that
+the PowerShell tools is measured the same way. The overlay verifies destination bytes after copying, before build
+reuse and around each measurement, including legacy include aliases. It verifies original backup hashes during
+rollback and attempts all restorations; copy corruption or failed restoration cannot supply a successful study.
+CI runs it on a hosted runner: for every pull request to `main` that
 changes something the benchmark measures (the job's first step decides, and its summary names the files), and on a
 manual dispatch with `benchmark_baseline`. The manual `benchmark_calibration_aa` boolean is a separate diagnostic option:
 it requires identical explicit baseline and candidate revisions, builds that revision once, and measures the same binary

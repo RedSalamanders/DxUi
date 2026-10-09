@@ -77,7 +77,8 @@ independent sign-flip distribution. Old measurements remain diagnostic evidence;
   calibration is a separate study that builds one explicit revision once and measures its exact executable under
   both randomized labels, retaining separate receipts for every invocation. Missing or mismatched full
   harness/toolchain/executable/dependency identity is
-  inconclusive.
+  inconclusive. Every copied harness input, including historical include aliases, is byte-verified after overlay and
+  around execution. A corrupt copy or failed restoration is a failed study, retained for diagnosis before a fresh run.
 
 `summary.json` keeps the seed, block order, every receipt hash, the migrated decision and the legacy decision over those
 same receipt bytes. The legacy judge is loaded from the measured base commit's immutable Git object in its own module

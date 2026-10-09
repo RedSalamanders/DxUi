@@ -188,6 +188,80 @@ Invoke-FixtureCase 'a failed overlay leaves the tree as it was found' {
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $target 'Tests'))) 'the created file is gone'
 }
 
+Invoke-FixtureCase 'overlay corruption fails before use and restores both replaced and partially created files' {
+    param($root)
+    $source = Join-Path $root 'harness'
+    $target = Join-Path $root 'tree'
+    $backup = Join-Path $root 'backup'
+    Set-FixtureFile $source 'performance.ps1' "current harness`n"
+    Set-FixtureFile $target 'performance.ps1' "original tree`n"
+    $module = Get-Module PairedRun
+    & $module {
+        function script:Copy-Item {
+            param([string] $LiteralPath, [string] $Destination, [switch] $Force)
+            Microsoft.PowerShell.Management\Copy-Item -LiteralPath $LiteralPath -Destination $Destination -Force:$Force
+            if ((Split-Path (Split-Path $LiteralPath) -Leaf) -ceq 'harness') {
+                [IO.File]::AppendAllText($Destination, "`0")
+            }
+        }
+    }
+    try {
+        $message = Get-ErrorMessage { Copy-HarnessOverlay -Source $source -Target $target -Paths @('performance.ps1') -BackupDirectory $backup }
+        Assert-True $message.Contains('Benchmark harness bytes do not match') 'a copy that returns success with wrong bytes is refused'
+        Assert-Equal "original tree`n" ([IO.File]::ReadAllText((Join-Path $target 'performance.ps1'))) 'the current failed replacement is restored too'
+        $newTarget = Join-Path $root 'new-tree'
+        $message = Get-ErrorMessage { Copy-HarnessOverlay -Source $source -Target $newTarget -Paths @('performance.ps1') -BackupDirectory $backup }
+        Assert-True $message.Contains('Benchmark harness bytes do not match') 'an incomplete created copy is refused'
+        Assert-True (-not (Test-Path -LiteralPath $newTarget)) 'the failed created file and only its empty ancestors are removed'
+    } finally { & $module { Remove-Item Function:Copy-Item } }
+}
+
+Invoke-FixtureCase 'harness attestation rejects later mutation, missing inputs and changed legacy aliases' {
+    param($root)
+    $source = Join-Path $root 'harness'
+    $target = Join-Path $root 'tree'
+    $path = 'Tests/Embedded/Embedded.Tests.BenchmarkMain.h'
+    $legacy = 'Tests/Embedded/BenchmarkMain.h'
+    Set-FixtureFile $source $path "current compiled fixture`n"
+    Set-FixtureFile $target $legacy "old fixture`n"
+    $records = @(Copy-HarnessOverlay -Source $source -Target $target -Paths @($path))
+    Assert-HarnessOverlay -Target $target -Records $records
+    Set-FixtureFile $target $legacy "changed after overlay`n"
+    Assert-Throws { Assert-HarnessOverlay -Target $target -Records $records } 'a legacy alias changed after the overlay is rejected'
+    Set-FixtureFile $target $legacy "current compiled fixture`n"
+    Remove-Item -LiteralPath (Join-Path $target $path)
+    Assert-Throws { Assert-HarnessOverlay -Target $target -Records $records } 'a missing recorded input is rejected'
+}
+
+Invoke-FixtureCase 'a changed backup is refused without copying it and other originals still return' {
+    param($root)
+    $source = Join-Path $root 'harness'
+    $target = Join-Path $root 'tree'
+    $backup = Join-Path $root 'backup'
+    foreach ($path in @('first.ps1','second.ps1')) {
+        Set-FixtureFile $source $path "current $path`n"
+        Set-FixtureFile $target $path "original $path`n"
+    }
+    $records = @(Copy-HarnessOverlay -Source $source -Target $target -Paths @('first.ps1','second.ps1') -BackupDirectory $backup)
+    Set-FixtureFile $backup 'first.ps1' "corrupted backup`n"
+    $message = Get-ErrorMessage { Restore-HarnessOverlay -Target $target -Records $records -BackupDirectory $backup }
+    Assert-True $message.Contains('backup no longer matches the original: first.ps1') 'the changed backup is named'
+    Assert-Equal "current first.ps1`n" ([IO.File]::ReadAllText((Join-Path $target 'first.ps1'))) 'untrusted backup bytes never overwrite the target'
+    Assert-Equal "original second.ps1`n" ([IO.File]::ReadAllText((Join-Path $target 'second.ps1'))) 'later unaffected originals are restored despite the first failure'
+}
+
+Invoke-TestCase 'the driver verifies the overlaid bytes around every measurement and before build reuse' {
+    $text = [IO.File]::ReadAllText((Join-Path $repository 'performance-paired.ps1'))
+    $start = $text.IndexOf('function Invoke-Measurement(')
+    $end = $text.IndexOf('function Compare-Measurement(', $start)
+    $measurement = $text.Substring($start, $end - $start)
+    $call = $measurement.IndexOf("'performance.ps1'")
+    Assert-True ($measurement.IndexOf('Assert-HarnessOverlay') -lt $call) 'attestation precedes script execution'
+    Assert-True ($measurement.LastIndexOf('Assert-HarnessOverlay') -gt $call) 'attestation also follows script execution'
+    Assert-True $text.Contains('Assert-HarnessOverlay -Target $side.Root -Records $side.Overlay') 'existing builds are not reused without checking the overlay'
+    Assert-True $text.Contains('if ($studyCompleted -and $restoreFailures.Count) { throw') 'a completed study cannot report success after failed restoration'
+}
+
 Invoke-TestCase 'one repetition is the single pass a set has always been' {
     $schedule = Get-PairedRunSchedule -Repetitions 1
     Assert-Equal 'A1 B1 B2 A2' (($schedule.Steps | ForEach-Object { $_.Name }) -join ' ') 'run names'

@@ -1703,3 +1703,37 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   all 144 retained report hashes were independently verified, but it cannot qualify the repaired assignment design.
   A local Debug Menu/NativeTextInput confirmation timed out without takeover; foreground, keyboard focus and pointer
   stayed unchanged. No foreground suite ran, no skip was approved, and fresh final-source hosted/native gates remain open.
+
+- CI run 38000606497 for PR head `d5dfefc` passed all three x64 profiles: all 21 suites had zero skips,
+  Release's additional menu resource fixtures passed, and all four relocated x64 consumer cases passed API revision 4,
+  twelve ownership probes and ten rejected mismatches. All three ARM64 profiles passed 19 noninteractive suites,
+  then failed to acquire foreground for Menu and NativeTextInput. The lead independently checked every main-suite
+  receipt and the six job logs. Actual tested merge source is `a231a54a54a923b42bc39f27014ac538fdd787df`.
+- The completed independent-assignment hosted study has zero aggregate regression/improvement flags across all three
+  scenarios. The lead independently verified 144 report hashes, 1440 raw rounds, exact budgets and all 78 decisions;
+  both judges agree. Its official conclusion remains inconclusive because the measured base has no qualified policy.
+- The completed local same-executable A/A study likewise has zero aggregate flags, but 70/72 short controls are unstable.
+  All 54 timing/FPS/memory phase-metric cells have excursions; all 24 exact-budget cells are stable. The lead and a
+  separate agent independently checked those counts. A quiet-host rerun remains necessary before timing/memory policy
+  seeding. The policy remains unqualified; neither aggregate labels nor the approved coalescing tradeoff closes it.
+- The following local paired attempt stopped after one receipt because its baseline driver contained old text plus NUL
+  padding. The lead verified the bytes and rejected the attempt as invalid. Independent scratch copies did not reproduce
+  corruption, so its cause is unproven. Overlay checks now attest every copied path before build/reuse and around each
+  measurement, retain original backup hashes, refuse changed backups, attempt remaining restorations and reject a
+  completed study whose named-tree restoration fails. Fault-injection and legacy/missing-input regressions passed.
+- The remaining ARM64 launch gap is in the hosted harness: direct children have no explicit foreground-owning parent
+  grant. Verified hosted foreground suites now use the existing restoring lease, anchor and child-specific grant;
+  both PowerShell and native mode enforce exact hosted markers before desktop work. Local confirmation is preserved.
+  The lead found and corrected two agent-produced side effects: the intentional runtime-failure child must install
+  its no-dialog handler before dispatch, and a missing child must replace stale suite logs. A malformed new fixture
+  helper call was also corrected. Fresh native execution must prove this repair; it is not already qualified.
+- [Study and native follow-up 54](../../../Measurements/Review-2026-10-09/StudyAndNativeFollowup54/README.md)
+  seals the completed CI/A-A evidence and the invalid local attempt. Documentation/gallery review found no visual
+  product change in these tooling/launch repairs; usage guides and owning contracts are updated. Initial formatting
+  54 rejected the lease runner's layout; retain that failure and format the affected file before final checking.
+- After formatting, complete Windows validation 54 and clang-format checking passed. The fresh canonical x64 Debug
+  build and whole WindowHost/InteractiveLease scopes passed with zero skips. The lead independently recomputed the
+  exact current-source build/run identities and executable hashes. All six native lease checks passed, including
+  private-desktop warning/confirmation, no-dialog runtime-failure routing and rejection of unverified hosted markers.
+  No personal desktop takeover occurred. The local packet retains these results; all six final-source CI profiles,
+  a current verified paired study and A/A timing/memory policy qualification remain distinct pending obligations.

@@ -142,10 +142,12 @@ function Get-ReportMedians([string] $Path) {
         executableSha256 = $receipt.executableSha256; benchmarkSha256 = $receipt.benchmarkSha256; medians = $medians }
 }
 
-function Invoke-Measurement([string] $Root, [string] $Name, [string] $ScenarioName) {
+function Invoke-Measurement([System.Collections.IDictionary] $Side, [string] $Name, [string] $ScenarioName) {
     $path = Join-Path $reports "$ScenarioName-$Name.json"
+    Assert-HarnessOverlay -Target $Side.Root -Records $Side.Overlay
     # Console output must not join the function's result.
-    & (Join-Path $Root 'performance.ps1') -Configuration $Configuration -Platform $Platform -Scenario $ScenarioName -OutputPath $path -SkipBuild | Out-Host
+    & (Join-Path $Side.Root 'performance.ps1') -Configuration $Configuration -Platform $Platform -Scenario $ScenarioName -OutputPath $path -SkipBuild | Out-Host
+    Assert-HarnessOverlay -Target $Side.Root -Records $Side.Overlay
     return $path
 }
 
@@ -183,6 +185,7 @@ function Get-SideSummary([System.Collections.IDictionary] $Side) {
 }
 
 $results = @()
+$studyCompleted = $false
 try {
     foreach ($side in $created) {
         & git -C $harnessRoot worktree add --detach $side.Root $side.Commit
@@ -209,6 +212,7 @@ try {
 
     foreach ($side in $created) { & (Join-Path $side.Root 'vcpkg-install.ps1') -Platform $Platform }
     foreach ($side in $physicalSides) {
+        Assert-HarnessOverlay -Target $side.Root -Records $side.Overlay
         if ($SkipBuild -and $side.Existing) {
             # Only an existing tree has a build to reuse, and only one made from the harness the receipts will name.
             $executable = Join-Path $side.Root ".build/$Platform/$Configuration/DxUi.EmbeddedTests.exe"
@@ -222,11 +226,11 @@ try {
 
     if ($Seed -lt 0) { $Seed = [Security.Cryptography.RandomNumberGenerator]::GetInt32(0, [int]::MaxValue) }
     $schedule = Get-RandomizedPairedBlockSchedule -Blocks $Blocks -Seed $Seed
-    $roots = $executionPlan.RoleRoots
+    $roles = @{ baseline=$baseline; candidate=$candidate }
     foreach ($scenarioName in $Scenario) {
         $runs = [ordered]@{}
         foreach ($step in $schedule.Steps) {
-            $runs[$step.Name] = Invoke-Measurement -Root $roots[$step.Side] -Name $step.Name -ScenarioName $scenarioName
+            $runs[$step.Name] = Invoke-Measurement -Side $roles[$step.Side] -Name $step.Name -ScenarioName $scenarioName
         }
         $receiptHashesBefore = @($schedule.Steps | ForEach-Object { [ordered]@{ run=$_.Name; sha256=(Get-FileHash -LiteralPath $runs[$_.Name] -Algorithm SHA256).Hash } })
         $comparisons = [Collections.Generic.List[object]]::new()
@@ -310,14 +314,21 @@ try {
         # on them is the workflow's next step (Tools/Publish-BenchmarkVerdict.ps1), which also asks about the controls.
         if ($env:GITHUB_ACTIONS -eq 'true') { Write-Host "::warning::$message" } else { Write-Warning $message }
     }
+    $studyCompleted = $true
 } finally {
     # Put every named tree back as it was found, whatever ended the run.
+    $restoreFailures = [Collections.Generic.List[string]]::new()
     foreach ($side in $physicalSides) {
         if ($side.Contains('Overlay') -and $side['Backup']) {
             try { Restore-HarnessOverlay -Target $side.Root -Records $side.Overlay -BackupDirectory $side.Backup }
-            catch { Write-Warning "Cannot restore the harness files of the $($side.Role) tree $($side.Root): $($_.Exception.Message) The originals are under $($side.Backup)." }
+            catch {
+                $restoreFailures.Add("$($side.Role): $($_.Exception.Message)")
+                Write-Warning "Cannot restore the harness files of the $($side.Role) tree $($side.Root): $($_.Exception.Message) The originals are under $($side.Backup)."
+            }
         }
     }
+    # Preserve an original measurement error. A completed study must not report success after failed restoration.
+    if ($studyCompleted -and $restoreFailures.Count) { throw "Paired study restoration failed: $($restoreFailures -join '; ')" }
 }
 # A flagged comparison leaves the comparator's exit code in $LASTEXITCODE; it is a finding, not a failure.
 exit 0

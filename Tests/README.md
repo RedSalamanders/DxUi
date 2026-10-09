@@ -26,3 +26,8 @@ For independent resource investigations, force fresh execution and retain paired
 Repeated unchanged scopes print REUSED. Force reruns them. SkipBuild requires an attestation established by a prior Test-Changes build; stale binaries are rejected. Explicit test.ps1 suite/named-test calls retain the lower-level diagnostic interface. Its ordinary call now routes to affected iteration; Full is explicit. An unknown local comparison ref fails with Git's diagnostic rather than silently selecting no work.
 
 PrePush lists the separate focus-taking and menu-resource suites as `INTERACTIVE_NOT_RUN`; run those only with `test.ps1 -Interactive` after the person at the desktop agrees to the time. Capability-skipped scopes remain partial evidence and do not create reusable receipts.
+
+Verified GitHub-hosted Windows jobs run requested foreground suites through the same restoring lease with a parent
+anchor and a child-specific foreground grant. Both the PowerShell launcher and native `--run-hosted` mode check the
+exact hosted markers before taking that runner's desktop. Hosted receipts use `.hosted` and record lease results;
+ordinary local and self-hosted runs still require the person's confirmation through `-Interactive`.

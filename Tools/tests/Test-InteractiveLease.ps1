@@ -17,13 +17,14 @@ if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw "The interactive 
 
 # Runs the lease from the repository root for at most $BoundSeconds and returns how it ended. A run still going at the bound is this
 # script's own child: it is killed with its children and reported as not exited.
-function Invoke-Bounded([string[]] $Arguments, [int] $BoundSeconds) {
+function Invoke-Bounded([string[]] $Arguments, [int] $BoundSeconds, [hashtable] $Environment = @{}) {
     $info = [Diagnostics.ProcessStartInfo]::new($exe)
     foreach ($argument in $Arguments) { $info.ArgumentList.Add($argument) }
     $info.WorkingDirectory = $repo
     $info.UseShellExecute = $false
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
+    foreach ($name in $Environment.Keys) { $info.Environment[$name] = [string]$Environment[$name] }
     $clock = [Diagnostics.Stopwatch]::StartNew()
     $process = [Diagnostics.Process]::Start($info)
     try {
@@ -116,6 +117,25 @@ Invoke-FixtureCase 'a malformed command line is a usage error before anything is
         Assert-True (@($run.Output | Where-Object { $_ -like 'usage:*' }).Count -eq 1) "$name prints the usage"
     }
     Assert-True (-not (Test-Path -LiteralPath $result)) 'and none of them wrote a result'
+}
+Invoke-FixtureCase '--run-hosted refuses every unverified runner marker before desktop access or result writes' {
+    param($root)
+    $plan = Join-Path $root 'hosted-plan.txt'
+    $result = Join-Path $root 'hosted-result.txt'
+    Set-FixtureFile $root 'hosted-plan.txt' "Menu`tC:\logs\Menu.log`t`"C:\tests.exe`" --suite=Menu`n"
+    $mutations = @(
+        @{ CI='false'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' },
+        @{ CI='true'; GITHUB_ACTIONS='false'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' },
+        @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='self-hosted'; RUNNER_OS='Windows' },
+        @{ CI='true'; GITHUB_ACTIONS='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Linux' }
+    )
+    foreach ($environment in $mutations) {
+        $run = Invoke-Bounded @('--run-hosted', "--plan=$plan", "--result=$result") 30 $environment
+        Assert-True ($run.Exited -and $run.Exit -eq 2) "unverified marker set is refused as usage before desktop access: $($run.Output -join ' | ')"
+        Assert-True (-not (Test-Path -LiteralPath $result)) 'the refused hosted invocation writes no lease result'
+        Assert-True (@($run.Output | Where-Object { $_ -like 'usage:*' }).Count -eq 1) 'the native mode says why it refused'
+        Assert-True (@($run.Output | Where-Object { $_ -like '*interactive desktop*' }).Count -eq 0) 'it does not inspect or take the desktop'
+    }
 }
 Invoke-TestCase 'the confirmation defaults to Cancel, and cancels itself when nobody answers' {
     # The self-test proves each answer; what no run can observe is which button is the default, so that is read from the source.
