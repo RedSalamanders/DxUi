@@ -33,9 +33,12 @@ class FocusNameRecorder final : public Microsoft::WRL::RuntimeClass<Microsoft::W
 public:
     HRESULT STDMETHODCALLTYPE HandleFocusChangedEvent(IUIAutomationElement* sender) noexcept override
     {
+        int processId = 0;
+        if (! sender || FAILED(sender->get_CachedProcessId(&processId)) || static_cast<DWORD>(processId) != GetCurrentProcessId())
+            return S_OK;
         // The name is cached with the event, so the handler never calls back into the provider's thread.
         wil::unique_bstr name;
-        if (! sender || FAILED(sender->get_CachedName(name.put())) || ! name)
+        if (FAILED(sender->get_CachedName(name.put())) || ! name)
             return S_OK;
         try
         {
@@ -169,6 +172,8 @@ private:
             hr = automation->CreateCacheRequest(cache.put());
         if (SUCCEEDED(hr))
             hr = cache->AddProperty(UIA_NamePropertyId);
+        if (SUCCEEDED(hr))
+            hr = cache->AddProperty(UIA_ProcessIdPropertyId);
         if (SUCCEEDED(hr))
             hr = automation->AddFocusChangedEventHandler(cache.get(), _recorder.get());
         _setup.store(hr);

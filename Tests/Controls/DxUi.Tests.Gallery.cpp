@@ -721,10 +721,10 @@ struct GalleryScene
     GalleryScene& operator=(GalleryScene&&)      = default;
     ~GalleryScene()                              = default;
 
-    std::unique_ptr<Panel> root;
     std::unique_ptr<GalleryTreeModel> treeModel;
     std::unique_ptr<GalleryTreeModel> multiSelectTreeModel;
     std::unique_ptr<GalleryGridModel> gridModel;
+    std::unique_ptr<Panel> root;
     ExposedButton* selectorHoverButton = nullptr;
     ExposedButton* hoverButton         = nullptr;
     ExposedButton* pressedButton       = nullptr;
@@ -1271,8 +1271,9 @@ void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx)
 
 [[nodiscard]] WindowHostBitmapCapture CaptureThemeSection(const GalleryTheme& theme)
 {
-    AttachedHostWindow window;
     GalleryScene scene = BuildGalleryScene(theme, CaptureGalleryMenus(theme.palette));
+    // Borrowed models must survive capture cancellation and accessibility publication during host teardown.
+    AttachedHostWindow window;
 
     ResizeClientArea(window, DipsToPixelsCeil(window.Host(), kGalleryWidthDip), DipsToPixelsCeil(window.Host(), scene.heightDip));
     window.Host().SetTheme(theme.palette);

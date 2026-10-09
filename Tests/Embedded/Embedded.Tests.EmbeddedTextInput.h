@@ -180,12 +180,24 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu)
     const float wordY = (wordBounds.top + wordBounds.bottom) * 0.5f;
     Check(view.DispatchPointer({DxUi::PointerAction::Down, wordX, wordY}), "first tap on a word places the caret");
     Check(view.DispatchPointer({DxUi::PointerAction::Up, wordX, wordY}), "first tap on a word releases");
+    Check(view.DispatchPointer({DxUi::PointerAction::Cancel}), "capture-loss notification after up preserves the completed tap");
     Check(view.DispatchPointer({DxUi::PointerAction::Down, wordX, wordY}), "second tap synthesizes a control double-click");
     static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Up, wordX, wordY}));
     Check(view.ReadTextInput(wordSnap) == S_OK && wordSnap.state.selectionAnchorIndex.has_value(), "embedded double-tap selects a word");
     const size_t wordStart = (std::min)(*wordSnap.state.selectionAnchorIndex, wordSnap.state.caretIndex);
     const size_t wordEnd   = (std::max)(*wordSnap.state.selectionAnchorIndex, wordSnap.state.caretIndex);
     Check(wordStart == 8 && wordEnd == 13, "embedded double-tap selects exactly the punctuation-delimited word");
+
+    field->SetText(L"Contact alpha now");
+    Hr(view.Prepare(480, 240), "prepare text for interrupted-press double-tap check");
+    view.Controls().SetFocusControl(field);
+    Check(view.DispatchPointer({DxUi::PointerAction::Down, wordX, wordY}), "start a press that will be canceled before up");
+    Check(view.DispatchPointer({DxUi::PointerAction::Cancel}), "capture loss cancels the active press");
+    Check(view.DispatchPointer({DxUi::PointerAction::Down, wordX, wordY}), "the next press after cancellation is an ordinary click");
+    Check(view.DispatchPointer({DxUi::PointerAction::Up, wordX, wordY}), "ordinary click after cancellation releases");
+    Check(view.ReadTextInput(wordSnap) == S_OK &&
+              (! wordSnap.state.selectionAnchorIndex || wordSnap.state.selectionAnchorIndex.value() == wordSnap.state.caretIndex),
+          "canceling an active press leaves the next ordinary click with only a collapsed caret");
     field->SetText(L"Original");
     view.Controls().SetFocusControl(field);
     Hr(view.Prepare(480, 240), "restore original text after double-tap");

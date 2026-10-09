@@ -36,6 +36,25 @@
 
 namespace UiaTest
 {
+// Focus subscriptions can inspect providers outside the target window. Apply UIA's bounded connection and transaction
+// waits before any call that can reach those providers; COM activation itself necessarily happens before the settings exist.
+[[nodiscard]] inline HRESULT CreateAutomationClient(IUIAutomation** result) noexcept
+{
+    if (! result)
+        return E_POINTER;
+    *result = nullptr;
+
+    wil::com_ptr_nothrow<IUIAutomation2> automation;
+    HRESULT hr = CoCreateInstance(CLSID_CUIAutomation8, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(automation.put()));
+    if (SUCCEEDED(hr))
+        hr = automation->put_ConnectionTimeout(2000);
+    if (SUCCEEDED(hr))
+        hr = automation->put_TransactionTimeout(3000);
+    if (SUCCEEDED(hr))
+        hr = automation.query_to(result);
+    return hr;
+}
+
 [[noreturn]] inline void Fail(const char* what, HRESULT hr = S_OK)
 {
     std::cerr << "FAILED: " << what;
@@ -681,7 +700,7 @@ private:
         wil::com_ptr_nothrow<IUIAutomationElement> root;
         HRESULT hr = initialized;
         if (SUCCEEDED(hr))
-            hr = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(session.automation.put()));
+            hr = CreateAutomationClient(session.automation.put());
         if (SUCCEEDED(hr))
             hr = session.automation->get_ContentViewWalker(session.walker.put());
         VARIANT isContent{};

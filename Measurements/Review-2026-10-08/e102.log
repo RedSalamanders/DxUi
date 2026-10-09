@@ -1,0 +1,4 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] WindowHost
+  [START] TestNativeMenuBarRefreshMutableCallbackRetainsState
+FAILED: the registered mutable native-menu refresh callback retains state across synchronization

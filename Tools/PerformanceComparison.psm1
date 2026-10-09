@@ -1,5 +1,6 @@
 # Compare matched complex-UI receipts; regressions require advice, never automatic rebaselining.
 Set-StrictMode -Version Latest
+$script:PairedJudgeVersion = 'dxui-paired-block-sign-flip-holm-v1'
 
 $script:Identity = @('fixture', 'renderer', 'width', 'height', 'dpi', 'controls', 'modelRows', 'framesPerRound', 'roundCount',
     'platform', 'configuration', 'nativeArchitecture', 'machine', 'cpu', 'os', 'compiler', 'warpVersion', 'powerPolicy')
@@ -22,6 +23,8 @@ $script:BenchmarkInputs = @('Tests/Embedded/Embedded.Tests.BenchmarkMain.h', 'Te
 $script:FingerprintPaths = @('src', 'include', 'Build', 'Directory.Build.props', 'Directory.Build.targets', 'vcpkg.json', 'vcpkg-tool.json')
 
 function Get-PerformanceMetricNames { return @($script:Metrics.Keys) }
+
+function Get-PairedPerformanceJudgeVersion { return $script:PairedJudgeVersion }
 
 function Get-PerformanceIdentityKeys { return @($script:Identity) }
 
@@ -279,6 +282,13 @@ function Get-RunMedian([System.Collections.IDictionary] $Receipt, [string] $Phas
     throw "A receipt has no $Phase scenario"
 }
 
+function Get-RunValues([System.Collections.IDictionary] $Receipt, [string] $Phase, [string] $Metric) {
+    foreach ($scenario in $Receipt['scenarios']) {
+        if ($scenario['name'] -ceq $Phase) { return [double[]]@($scenario['rounds'] | ForEach-Object { [double]$_[$Metric] }) }
+    }
+    throw "A receipt has no $Phase scenario"
+}
+
 function Compare-PerformanceSet {
     <# Judges a paired set: the receipts of every baseline run against those of every candidate run, for each phase
        (clean, dirty) and metric, by Get-MetricVerdict on the median of each run's rounds. The set is advice-required when
@@ -319,6 +329,135 @@ function Compare-PerformanceSet {
         regressedMetrics = $regressed; improvedMetrics = @($metrics | Where-Object { $_['verdict'] -ceq 'improved' }).Count
         metrics = $metrics.ToArray()
     }
+}
+
+function Get-ExactSignFlipPValue {
+    <# Two-sided exact paired-block randomization p-value. Enumerates all 2^n sign assignments on independent block
+       effects; the statistic is the absolute mean effect. #>
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][double[]] $Effects)
+    if ($Effects.Length -lt 1 -or $Effects.Length -gt 20) { throw 'Exact sign-flip inference requires 1 to 20 independent block effects.' }
+    foreach ($effect in $Effects) { if ([double]::IsNaN($effect) -or [double]::IsInfinity($effect)) { throw 'Block effects must be finite.' } }
+    $observed = [Math]::Abs((($Effects | Measure-Object -Average).Average))
+    $assignments = [int64]1 -shl $Effects.Length
+    $extreme = [int64]0
+    for ([int64]$mask = 0; $mask -lt $assignments; $mask++) {
+        $sum = 0.0
+        for ($i = 0; $i -lt $Effects.Length; $i++) { $sum += if (($mask -band ([int64]1 -shl $i)) -ne 0) { $Effects[$i] } else { -$Effects[$i] } }
+        if ([Math]::Abs($sum / $Effects.Length) -ge ($observed - 1e-12)) { $extreme++ }
+    }
+    return [double]$extreme / [double]$assignments
+}
+
+function Get-HolmAdjustedPValues {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][double[]] $PValues)
+    if ($PValues.Length -eq 0) { return ,([double[]]@()) }
+    foreach ($p in $PValues) { if ($p -lt 0 -or $p -gt 1 -or [double]::IsNaN($p)) { throw 'p-values must be in [0,1].' } }
+    $order = 0..($PValues.Length - 1) | Sort-Object { $PValues[$_] }
+    $adjusted = [double[]]::new($PValues.Length)
+    $running = 0.0
+    for ($rank = 0; $rank -lt $order.Count; $rank++) {
+        $index = $order[$rank]
+        $running = [Math]::Max($running, [Math]::Min(1.0, $PValues[$index] * ($PValues.Length - $rank)))
+        $adjusted[$index] = $running
+    }
+    return ,$adjusted
+}
+
+function Compare-PairedBlockSet {
+    <# New qualification judge. Each independent block contains exactly two receipts per side. Exact resource budgets keep
+       their existing any-candidate-run-above-baseline-median behavior; the Holm family contains all 26 phase/metric slots
+       (exact slots contribute p=1) so inference never gains power by dropping a declared outcome. #>
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][object[]] $Blocks, [ValidateRange(12,20)][int] $MinimumBlocks = 12, [switch] $CalibrationAA)
+    if ($Blocks.Count -lt $MinimumBlocks) { throw "At least $MinimumBlocks independent paired blocks are required for migrated qualification." }
+    if ($Blocks.Count -gt 20) { throw 'At most 20 blocks are supported by exact sign-flip enumeration.' }
+    $requiredIdentity = @($script:Identity + @('sourceCommit','sourceFingerprint','executableSha256','benchmarkSha256','harnessIdentity','toolchainIdentity','dependencyIdentity','environmentIdentity','identityStatus','warpSha256'))
+    $receipts = @($Blocks | ForEach-Object { @($_.Baseline) + @($_.Candidate) })
+    foreach ($receipt in $receipts) {
+        if ($receipt -isnot [System.Collections.IDictionary]) { throw 'Every scheduled run must have a receipt.' }
+        Assert-PerformanceReceipt $receipt
+        Assert-MatchedFixture $receipts[0] $receipt
+    }
+    $missingIdentity = @($requiredIdentity | Where-Object { $key = $_; @($receipts | Where-Object { $_ -isnot [System.Collections.IDictionary] -or -not $_.Contains($key) -or [string]::IsNullOrWhiteSpace([string]$_[$key]) }).Count -gt 0 })
+    if ($missingIdentity.Count) {
+        return [ordered]@{ schemaVersion=2; method='independent-paired-block-sign-flip-holm'; status='identity-unverifiable'; missingIdentity=$missingIdentity; metrics=@() }
+    }
+    if (@($receipts | Where-Object { $_['identityStatus'] -cne 'verifiable' -or ($_.Contains('identityError') -and -not [string]::IsNullOrWhiteSpace([string]$_['identityError'])) }).Count) {
+        return [ordered]@{ schemaVersion=2; method='independent-paired-block-sign-flip-holm'; status='identity-unverifiable'; missingIdentity=@('identityStatus'); metrics=@() }
+    }
+    foreach ($key in @($script:Identity + @('harnessIdentity','toolchainIdentity','dependencyIdentity','environmentIdentity','benchmarkSha256','warpSha256'))) {
+        $distinct = @($receipts | ForEach-Object { [string]$_[$key] } | Select-Object -Unique)
+        if ($distinct.Count -ne 1) { return [ordered]@{ schemaVersion=2; method='independent-paired-block-sign-flip-holm'; status='identity-mismatch'; mismatchedIdentity=$key; metrics=@() } }
+    }
+    foreach ($role in @('Baseline','Candidate')) {
+        $sideReceipts = @($Blocks | ForEach-Object { @($_[$role]) })
+        foreach ($key in @('sourceCommit','sourceFingerprint','executableSha256')) {
+            $distinct = @($sideReceipts | ForEach-Object { [string]$_[$key] } | Select-Object -Unique)
+            if ($distinct.Count -ne 1) { return [ordered]@{ schemaVersion=2; method='independent-paired-block-sign-flip-holm'; status='identity-mismatch'; mismatchedIdentity="$role.$key"; metrics=@() } }
+        }
+    }
+    if ($CalibrationAA) {
+        foreach ($key in @('sourceCommit','sourceFingerprint','executableSha256')) {
+            $distinct = @($receipts | ForEach-Object { [string]$_[$key] } | Select-Object -Unique)
+            if ($distinct.Count -ne 1) { return [ordered]@{ schemaVersion=2; method='independent-paired-block-sign-flip-holm'; status='identity-mismatch'; mismatchedIdentity="A/A.$key"; calibrationOnly=$true; metrics=@() } }
+        }
+    }
+    $metrics = [Collections.Generic.List[object]]::new()
+    foreach ($phase in @('clean','dirty')) {
+        foreach ($metric in $script:Metrics.Keys) {
+            $direction, $band = $script:Metrics[$metric]
+            $exact = [double]$band -eq 0
+            $effects = [Collections.Generic.List[double]]::new()
+            $baselineValues = [Collections.Generic.List[double]]::new(); $candidateValues = [Collections.Generic.List[double]]::new()
+            $baselineRawValues = [Collections.Generic.List[double]]::new(); $candidateRawValues = [Collections.Generic.List[double]]::new()
+            foreach ($block in $Blocks) {
+                $a = @($block.Baseline); $b = @($block.Candidate)
+                if ($a.Count -ne 2 -or $b.Count -ne 2) { throw 'Every independent block must contain exactly two baseline and two candidate receipts.' }
+                $aValues = @($a | ForEach-Object { Get-RunMedian $_ $phase $metric })
+                $bValues = @($b | ForEach-Object { Get-RunMedian $_ $phase $metric })
+                foreach ($receipt in $a) { foreach ($value in (Get-RunValues $receipt $phase $metric)) { $baselineRawValues.Add($value) } }
+                foreach ($receipt in $b) { foreach ($value in (Get-RunValues $receipt $phase $metric)) { $candidateRawValues.Add($value) } }
+                foreach ($value in $aValues) { $baselineValues.Add([double]$value) }
+                foreach ($value in $bValues) { $candidateValues.Add([double]$value) }
+                $aCenter = [double](Get-MedianValue $aValues); $bCenter = [double](Get-MedianValue $bValues)
+                if ($exact) { $effects.Add(0.0); continue }
+                if ($aCenter -le 0 -or $bCenter -le 0) { throw "Cannot form paired log effect for $phase/$metric from a zero median." }
+                $effects.Add($(if ($direction -eq 'higher') { [Math]::Log($aCenter / $bCenter) } else { [Math]::Log($bCenter / $aCenter) }))
+            }
+            $before = [double](Get-MedianValue $baselineValues.ToArray()); $after = [double](Get-MedianValue $candidateValues.ToArray())
+            $p = if ($exact) { 1.0 } else { Get-ExactSignFlipPValue -Effects $effects.ToArray() }
+            $meanEffect = [double](($effects | Measure-Object -Average).Average)
+            $candidateRatio = [Math]::Exp($(if ($direction -eq 'higher') { -$meanEffect } else { $meanEffect }))
+            $worse = if ($direction -eq 'higher') { $candidateRatio -lt (1.0 - $band) } else { $candidateRatio -gt (1.0 + $band) }
+            $better = if ($direction -eq 'higher') { $candidateRatio -gt (1.0 + $band) } else { $candidateRatio -lt (1.0 - $band) }
+            $baselineMaximum = [double](($baselineRawValues.ToArray() | Measure-Object -Maximum).Maximum)
+            $candidateMaximum = [double](($candidateRawValues.ToArray() | Measure-Object -Maximum).Maximum)
+            $deterministicMedianRise = $exact -and @($candidateValues | Where-Object { $_ -gt $before }).Count -gt 0
+            $deterministicPeakRise = $exact -and $candidateMaximum -gt $baselineMaximum
+            $deterministicRise = $deterministicMedianRise -or $deterministicPeakRise
+            $metrics.Add([ordered]@{ phase=$phase; metric=$metric; direction=$direction; exact=$exact; band=$band; baselineMedian=$before; candidateMedian=$after;
+                baselineMaximum=$baselineMaximum; candidateMaximum=$candidateMaximum;
+                changePercent=(($candidateRatio - 1.0) * 100.0); meanWorseLogEffect=$meanEffect; blockEffects=$effects.ToArray(); pValue=$p;
+                rawRegressed=[bool]($worse -or $deterministicRise); rawImproved=[bool]$better; deterministicMedianRise=[bool]$deterministicMedianRise;
+                deterministicPeakRise=[bool]$deterministicPeakRise; deterministicRise=[bool]$deterministicRise; medianBudgetVerdict='not-applicable'; peakBudgetVerdict='not-applicable'; verdict='within-noise' })
+        }
+    }
+    $adjusted = Get-HolmAdjustedPValues -PValues ([double[]]@($metrics | ForEach-Object { $_.pValue }))
+    for ($i = 0; $i -lt $metrics.Count; $i++) {
+        $metrics[$i].adjustedPValue = $adjusted[$i]
+        if ($metrics[$i].exact) {
+            $metrics[$i].medianBudgetVerdict = if ($metrics[$i].deterministicMedianRise) { 'regressed' } else { 'within-budget' }
+            $metrics[$i].peakBudgetVerdict = if ($metrics[$i].deterministicPeakRise) { 'regressed' } else { 'within-budget' }
+        }
+        if ($metrics[$i].deterministicRise -or ($metrics[$i].rawRegressed -and $adjusted[$i] -le $script:Significance)) { $metrics[$i].verdict = 'regressed' }
+        elseif ($metrics[$i].rawImproved -and $adjusted[$i] -le $script:Significance) { $metrics[$i].verdict = 'improved' }
+    }
+    $regressed = @($metrics | Where-Object verdict -eq 'regressed').Count
+    return [ordered]@{ schemaVersion=2; method='independent-paired-block-sign-flip-holm'; familySize=$metrics.Count; minimumBlocks=$MinimumBlocks; blockCount=$Blocks.Count;
+        minimumAttainableP=(2.0 / [Math]::Pow(2.0, $Blocks.Count)); status=$(if ($regressed) { 'advice-required' } else { 'within-noise-budget' });
+        calibrationOnly=[bool]$CalibrationAA; regressedMetrics=$regressed; metrics=$metrics.ToArray() }
 }
 
 function Format-PerformanceSetVerdict {
@@ -376,4 +515,4 @@ function Invoke-PerformanceComparison {
 Export-ModuleMember -Function Get-PerformanceMetricNames, Get-PerformanceIdentityKeys, Get-BenchmarkInputPaths, Get-LibraryInputPaths, Get-SourceFingerprint,
     Read-PerformanceReceipt, Assert-PerformanceReceipt, Compare-PerformanceReceipt, ConvertTo-PerformanceComparisonJson,
     Invoke-PerformanceComparison, Get-MannWhitneyTest, Get-MinimumAttainableP, Get-MetricVerdict, Compare-PerformanceSet,
-    Format-PerformanceSetVerdict
+    Get-ExactSignFlipPValue, Get-HolmAdjustedPValues, Compare-PairedBlockSet, Format-PerformanceSetVerdict, Get-PairedPerformanceJudgeVersion

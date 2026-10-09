@@ -16,6 +16,11 @@ on:
         description: Optional candidate revision for the paired benchmark; empty measures the dispatched ref.
         required: false
         default: ''
+      benchmark_calibration_aa:
+        description: Run diagnostic same-binary A/A calibration; requires the same explicit baseline and candidate revision.
+        required: false
+        type: boolean
+        default: false
       benchmark_scenarios:
         description: Comma-separated performance.ps1 scenarios for the paired benchmark.
         required: false
@@ -30,22 +35,14 @@ concurrency:
   cancel-in-progress: true
 jobs:
   validation:
-    needs: windows-tooling
-    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       # The hosted Ubuntu image ships PowerShell 7; every repository tool is a PowerShell script. One entry point runs the
       # five validators and the tooling tests and reports every failure before it fails.
       - shell: pwsh
         run: ./validate.ps1
-      # Keep the existing validation check as the acceptance surface for both host qualifications.
-      - if: ${{ always() }}
-        shell: pwsh
-        env:
-          WINDOWS_TOOLING_RESULT: ${{ needs.windows-tooling.result }}
-        run: |
-          if ($env:WINDOWS_TOOLING_RESULT -ne 'success') { throw "Windows tooling did not pass: $env:WINDOWS_TOOLING_RESULT" }
   # Windows discovery/path/process branches need their own host qualification, once rather than once per native profile.
   windows-tooling:
     runs-on: windows-2025-vs2026
@@ -56,6 +53,17 @@ jobs:
         run: ./validate.ps1
       - shell: pwsh
         run: ./Tools/tests/Test-AsanRuntime.ps1
+  format:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - shell: pwsh
+        run: ./Tools/Install-ClangFormat.ps1
+      - shell: pwsh
+        run: ./format.ps1 -Check
   # Whether this run needs the six native jobs (Tools/Get-NativeScope.ps1). A push to main and a manual run always do; a pull
   # request does unless every path it changes is documentation, which the validation job above checks. When this job fails,
   # the native jobs run anyway: nothing passes unbuilt because its scope could not be read. A documentation-only pull request
@@ -125,7 +133,7 @@ jobs:
       # x64 Release also publishes into this checkout's docs/gallery, uploaded below for review. The manual "Publish
       # docs gallery" workflow regenerates it and commits it to a branch.
       - shell: pwsh
-        run: ./gallery.ps1 -SkipBuild -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }} ${{ matrix.platform == 'x64' && matrix.configuration == 'Release' && '-PublishDocs' || '' }}
+        run: ./gallery.ps1 -SkipBuild -Configuration "${{ matrix.configuration }}" -Platform ${{ matrix.platform }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -142,13 +150,14 @@ jobs:
           name: docs-gallery-x64-Release
           path: docs/gallery/
           retention-days: 14
-  # One runner measures the baseline and the candidate serially with one harness, three repetitions of the interleaved pass A,
-  # B, B, A (six runs per side, the contract's paired set). A pull request that changes something measured is compared with
+  # One runner measures baseline and candidate serially in twelve randomized, balanced independent ABBA/BAAB blocks (24 runs per side).
+  # A pull request that changes something measured is compared with
   # the base its merge ref was made on (the candidate is that merge ref) and fails this job on a confirmed degradation or an
   # inconclusive run; a manual dispatch with benchmark_baseline names its own revisions, reports the same verdict in the job
-  # summary and stays green for a finding. permissions stay contents: read; the summary and artifacts need nothing more.
+  # summary and stays green for a finding. A manual A/A dispatch is diagnostic only and never qualifies a pull request.
+  # permissions stay contents: read; the summary and artifacts need nothing more.
   #
-  # A pull request to main always starts this job, whatever it changes: its scope step decides from the changed paths whether
+  # Every pull request, including stacked PRs, starts this job: its scope step compares the actual PR base with its merge candidate and decides whether
   # anything the paired benchmark measures changed (Tools/BenchmarkGate.psm1), and the steps after it run only when it did, so a
   # documentation-only pull request ends this job within a couple of minutes. The job is not skipped instead because GitHub
   # reports a skipped job under its unevaluated name expression, which a required check of the same name would never see.
@@ -156,12 +165,12 @@ jobs:
     # A pull request's check is named apart from the push and manual runs of this job (which report it skipped, or by hand),
     # so that a required check names exactly one check run whatever order they complete in.
     name: ${{ github.event_name == 'pull_request' && 'paired-benchmark (pull request)' || 'paired-benchmark' }}
-    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'workflow_dispatch' && inputs.benchmark_baseline != '') }}
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && (inputs.benchmark_baseline != '' || inputs.benchmark_calibration_aa)) }}
+    outputs:
+      relevant: ${{ steps.scope.outputs.relevant }}
     runs-on: windows-2025-vs2026
-    # A pull request's run takes 10 to 15 minutes: the restore (under a minute), then the paired run, which builds both trees
-    # and measures 36 runs. Its limit is three times that, so a hang ends while the job still has time to report and upload.
-    # A manual run keeps the 90 minutes it always had, for the diagnostic scenarios that run much longer.
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 45 || 90 }}
+    # Twelve blocks across three gating scenarios mean 144 benchmark receipts, plus both builds; retain time to publish on timeout.
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 180 || 240 }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -181,12 +190,29 @@ jobs:
       - id: measure
         if: ${{ github.event_name == 'workflow_dispatch' || steps.scope.outputs.relevant == 'true' }}
         shell: pwsh
-        timeout-minutes: ${{ github.event_name == 'pull_request' && 30 || 70 }}
+        timeout-minutes: ${{ github.event_name == 'pull_request' && 150 || 210 }}
         env:
           BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline || steps.scope.outputs.baseline }}
           BENCHMARK_CANDIDATE: ${{ inputs.benchmark_candidate }}
           BENCHMARK_SCENARIOS: ${{ inputs.benchmark_scenarios || 'Default,MultilineGrid,MultilineGridDistinct' }}
-        run: ./performance-paired.ps1 -BaselineRevision $env:BENCHMARK_BASELINE -CandidateRevision $env:BENCHMARK_CANDIDATE -Scenario @($env:BENCHMARK_SCENARIOS -split ',' | ForEach-Object { $_.Trim() }) -Repetitions 3
+          BENCHMARK_CALIBRATION_AA: ${{ github.event_name == 'workflow_dispatch' && inputs.benchmark_calibration_aa || false }}
+        run: |
+          $pairedArgs = @{
+            BaselineRevision = $env:BENCHMARK_BASELINE
+            CandidateRevision = $env:BENCHMARK_CANDIDATE
+            Scenario = @($env:BENCHMARK_SCENARIOS -split ',' | ForEach-Object { $_.Trim() })
+            Blocks = 12
+          }
+          if ($env:BENCHMARK_CALIBRATION_AA -eq 'true') {
+            if ($env:GITHUB_EVENT_NAME -ne 'workflow_dispatch' -or
+                [string]::IsNullOrWhiteSpace($env:BENCHMARK_BASELINE) -or
+                [string]::IsNullOrWhiteSpace($env:BENCHMARK_CANDIDATE) -or
+                $env:BENCHMARK_BASELINE -cne $env:BENCHMARK_CANDIDATE) {
+              throw 'A/A calibration requires an explicit workflow_dispatch with identical non-empty baseline and candidate revisions.'
+            }
+            $pairedArgs.CalibrationAA = $true
+          }
+          ./performance-paired.ps1 @pairedArgs
       # Also after a failed measurement, to say why there is no verdict. Not after a cancellation: a newer push superseded it.
       - id: verdict
         if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || steps.scope.outputs.relevant == 'true') }}
@@ -206,3 +232,24 @@ jobs:
           # Worktree build logs live under each worktree's .build directory.
           include-hidden-files: true
           retention-days: 14
+  ci-gate:
+    name: ci-gate
+    if: ${{ always() }}
+    needs: [validation, windows-tooling, format, native-scope, native, paired-benchmark]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          VALIDATION_RESULT: ${{ needs.validation.result }}
+          WINDOWS_TOOLING_RESULT: ${{ needs.windows-tooling.result }}
+          FORMAT_RESULT: ${{ needs.format.result }}
+          NATIVE_SCOPE_RESULT: ${{ needs.native-scope.result }}
+          NATIVE_SCOPE_OUTPUT: ${{ needs.native-scope.outputs.native }}
+          NATIVE_RESULT: ${{ needs.native.result }}
+          PAIRED_RESULT: ${{ needs.paired-benchmark.result }}
+          PAIRED_RELEVANT: ${{ needs.paired-benchmark.outputs.relevant }}
+          BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline }}
+        run: ./Tools/Test-CiGate.ps1

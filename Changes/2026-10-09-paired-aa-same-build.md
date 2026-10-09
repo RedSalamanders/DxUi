@@ -1,0 +1,1 @@
+- A/A paired calibration now builds one worktree once and measures that exact executable under both randomized role labels, preserving distinct per-run receipts without relying on path-independent binaries.

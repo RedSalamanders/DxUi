@@ -1,0 +1,23 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Accessibility
+  [START] TestAccessibilityPublicationMutationBatchRetainsFinalStateAndReportsCost
+UIA_PUBLICATION_BENCHMARK {"scenario":"keystroke-batch","repetition":0,"operations":128,"microseconds":258030,"queryMicroseconds":465.9,"totalMicroseconds":258497,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"keystroke-batch","repetition":1,"operations":128,"microseconds":5235.5,"queryMicroseconds":456.8,"totalMicroseconds":5693.1,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"keystroke-batch","repetition":2,"operations":128,"microseconds":5652.6,"queryMicroseconds":431.4,"totalMicroseconds":6084.4,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"keystroke-batch","repetition":3,"operations":128,"microseconds":5449.7,"queryMicroseconds":464.6,"totalMicroseconds":5915,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"keystroke-batch","repetition":4,"operations":128,"microseconds":5192.3,"queryMicroseconds":447.7,"totalMicroseconds":5640.9,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"keystroke-batch","repetition":5,"operations":128,"microseconds":5480.2,"queryMicroseconds":426,"totalMicroseconds":5907.1,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"keystroke-batch","repetition":6,"operations":128,"microseconds":5556.8,"queryMicroseconds":421.5,"totalMicroseconds":5978.7,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"selection-batch","repetition":0,"operations":128,"microseconds":478.9,"queryMicroseconds":376.6,"totalMicroseconds":855.7,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"selection-batch","repetition":1,"operations":128,"microseconds":449.2,"queryMicroseconds":342.4,"totalMicroseconds":791.8,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"selection-batch","repetition":2,"operations":128,"microseconds":548.4,"queryMicroseconds":386.1,"totalMicroseconds":935.1,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"selection-batch","repetition":3,"operations":128,"microseconds":441.8,"queryMicroseconds":323.4,"totalMicroseconds":765.4,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"selection-batch","repetition":4,"operations":128,"microseconds":549.3,"queryMicroseconds":396.7,"totalMicroseconds":946.5,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"selection-batch","repetition":5,"operations":128,"microseconds":624.3,"queryMicroseconds":353.8,"totalMicroseconds":978.6,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+UIA_PUBLICATION_BENCHMARK {"scenario":"selection-batch","repetition":6,"operations":128,"microseconds":450.5,"queryMicroseconds":305.7,"totalMicroseconds":756.3,"operationSnapshotBuilds":0,"snapshotBuilds":1,"uiaListening":true}
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestAccessibilityPublicationMutationBatchRetainsFinalStateAndReportsCost (0.330 s)
+[DONE] Accessibility (0.330 s)
+All DxUi tests passed.

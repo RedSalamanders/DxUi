@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "policyId": "dxui-complex-ui-paired-v1",
+  "judgeVersion": "dxui-paired-block-sign-flip-holm-v1",
+  "approvedJudgeSha256": "5BB0D293DA737B79C35749391DE1EBEDF6A27824CCEEAC9170F526CD55B1F73C",
+  "qualificationStatus": "policy-review-required",
+  "minimumIndependentBlocks": 12,
+  "randomizedBalancedOrders": ["ABBA", "BAAB"],
+  "primaryFamily": "26 predeclared phase-metric slots per benchmark scenario (13 metrics x clean and dirty phases); Holm correction is per scenario",
+  "familywiseAlpha": 0.05,
+  "multipleComparisonMethod": "Holm step-down",
+  "pairedBlockMethod": "two-sided exact sign-flip permutation on independent block log-ratios",
+  "timingBandPercent": 5,
+  "memoryBandPercent": 2,
+  "exactBudgets": ["surfaceBytes", "replacementPeakBytes", "cppAllocations", "composeAllocations"],
+  "exactBudgetRule": "A regression is any candidate run median above the baseline run-median median or any raw candidate-round maximum above the retained baseline raw-round maximum; report both findings separately",
+  "requiresFullIdentity": ["sourceCommit", "sourceFingerprint", "executableSha256", "benchmarkSha256", "harnessIdentity", "toolchainIdentity", "dependencyIdentity", "environmentIdentity", "identityStatus", "fixture", "renderer", "width", "height", "dpi", "controls", "modelRows", "framesPerRound", "roundCount", "platform", "configuration", "nativeArchitecture", "machine", "cpu", "os", "compiler", "powerPolicy", "warpVersion", "warpSha256"],
+  "qualified": false,
+  "qualificationNote": "This policy is a proposed migration contract. approvedJudgeSha256 is a review target, not an approval. A trusted versioned base policy and independent policy review/qualification are required before a candidate may pass the migrated gate."
+}

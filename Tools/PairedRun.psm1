@@ -8,7 +8,8 @@ Import-Module (Join-Path $PSScriptRoot 'PerformanceComparison.psm1')
 $script:PathComparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
 # The measurement driver and its comparator; the compiled benchmark inputs come from the comparator module, which also
 # hashes them into every receipt.
-$script:HarnessScripts = @('performance.ps1', 'Tools/Compare-Performance.ps1', 'Tools/PerformanceComparison.psm1')
+$script:HarnessScripts = @('performance.ps1', 'performance-paired.ps1', 'Tools/Compare-Performance.ps1', 'Tools/PerformanceComparison.psm1',
+    'Tools/PairedRun.psm1', 'Tools/PerformancePolicy.psm1', 'Tools/PerformanceAcceptancePolicy.v1.json', 'Tools/BenchmarkGate.psm1')
 # Old revisions compile their original include names. Overlay the current payload
 # at those existing paths too, so renaming a fixture cannot leave an old fixture in use.
 $script:HarnessLegacyInputs = [ordered]@{
@@ -35,6 +36,39 @@ function Get-PairedSelection {
     elseif ($CandidateRevision) { [ordered]@{ Role = 'candidate'; Kind = 'revision'; Spec = $CandidateRevision } }
     else { [ordered]@{ Role = 'candidate'; Kind = 'checkout'; Spec = 'HEAD' } }
     return [ordered]@{ Baseline = $baseline; Candidate = $candidate }
+}
+
+function New-PairedExecutionPlan {
+    <# Assign physical roots to measurement roles. Calibration deliberately shares one worktree and one build so
+       same-source runs attest the same executable bytes even when the linker embeds the absolute PDB path. #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][System.Collections.IDictionary] $Baseline,
+        [Parameter(Mandatory)][System.Collections.IDictionary] $Candidate,
+        [Parameter(Mandatory)][string] $RunRoot,
+        [switch] $CalibrationAA
+    )
+    if ($CalibrationAA) {
+        if ($Baseline['Kind'] -cne 'revision' -or $Candidate['Kind'] -cne 'revision' -or
+            [string]::IsNullOrWhiteSpace([string]$Baseline['Commit']) -or [string]$Baseline['Commit'] -cne [string]$Candidate['Commit']) {
+            throw '-CalibrationAA requires -BaselineRevision and -CandidateRevision naming the same explicit commit.'
+        }
+        $sharedRoot = Join-Path ([IO.Path]::GetFullPath($RunRoot)) 'baseline'
+        $Baseline['Root'] = $sharedRoot
+        $Candidate['Root'] = $sharedRoot
+        $physical = @($Baseline)
+        $created = @($Baseline)
+    } else {
+        foreach ($side in @($Baseline,$Candidate)) {
+            if ($side['Kind'] -ceq 'revision') { $side['Root'] = Join-Path ([IO.Path]::GetFullPath($RunRoot)) ([string]$side['Role']) }
+        }
+        $physical = @($Baseline,$Candidate)
+        $created = @($physical | Where-Object { $_['Kind'] -ceq 'revision' })
+    }
+    return [ordered]@{
+        Baseline=$Baseline; Candidate=$Candidate; PhysicalSides=$physical; CreatedSides=$created
+        RoleRoots=[ordered]@{ baseline=[string]$Baseline['Root']; candidate=[string]$Candidate['Root'] }
+    }
 }
 
 function Test-SamePath([string] $Left, [string] $Right) {
@@ -172,6 +206,66 @@ function Get-PairedRunSchedule {
     return [ordered]@{ Steps = $steps.ToArray(); Comparisons = $comparisons.ToArray(); Order = (($steps | ForEach-Object { $_['Name'] }) -join ', ') }
 }
 
+function Get-RandomizedPairedBlockSchedule {
+    <# New study schedule: each independent block is ABBA or BAAB. The seed, balanced allocation and concrete order are
+       returned as data so a retained receipt can reproduce the assignment exactly. Legacy schedules remain readable. #>
+    [CmdletBinding()]
+    param([ValidateRange(12, 50)][int] $Blocks = 12, [Parameter(Mandatory)][int] $Seed)
+    if ($Blocks % 2) { throw 'The randomized schedule requires an even block count for exact ABBA/BAAB balance.' }
+    $random = [Random]::new($Seed)
+    $assignments = [Collections.Generic.List[string]]::new()
+    for ($i = 0; $i -lt ($Blocks / 2); $i++) { $assignments.Add('ABBA'); $assignments.Add('BAAB') }
+    for ($i = $assignments.Count - 1; $i -gt 0; $i--) {
+        $j = $random.Next($i + 1)
+        $temporary = $assignments[$i]; $assignments[$i] = $assignments[$j]; $assignments[$j] = $temporary
+    }
+    $steps = [Collections.Generic.List[object]]::new()
+    $blockRecords = [Collections.Generic.List[object]]::new()
+    $sideRun = @{ A = 0; B = 0 }
+    for ($blockIndex = 0; $blockIndex -lt $Blocks; $blockIndex++) {
+        $blockName = 'block-{0:D2}' -f ($blockIndex + 1)
+        $order = $assignments[$blockIndex]
+        $aNames = [Collections.Generic.List[string]]::new(); $bNames = [Collections.Generic.List[string]]::new()
+        foreach ($sideLetter in $order.ToCharArray()) {
+            $sideRun[[string]$sideLetter]++
+            $name = '{0}{1:D2}' -f $sideLetter, $sideRun[[string]$sideLetter]
+            if ($sideLetter -eq 'A') { $aNames.Add($name) } else { $bNames.Add($name) }
+            $steps.Add([ordered]@{ Name=$name; Side=$(if ($sideLetter -eq 'A') { 'baseline' } else { 'candidate' }); Block=$blockName; Position=$steps.Count + 1; Order=$order })
+        }
+        $blockRecords.Add([ordered]@{ Name=$blockName; Order=$order; BaselineRuns=$aNames.ToArray(); CandidateRuns=$bNames.ToArray() })
+    }
+    return [ordered]@{ SchemaVersion=2; Seed=$Seed; BlockCount=$Blocks; Allocation='balanced-ABBA-BAAB'; Blocks=$blockRecords.ToArray(); Steps=$steps.ToArray(); Order=(($steps | ForEach-Object { $_.Name }) -join ', ') }
+}
+
+function Get-VersionedPerformanceJudge {
+    <# Load the measured base's judge source from its immutable Git object into an isolated module scope. Never substitute the
+       candidate's currently loaded comparison function for a missing or unreadable base judge. #>
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string] $RepositoryRoot, [Parameter(Mandatory)][string] $BaselineCommit, [Parameter(Mandatory)][string] $CandidateModulePath)
+    $hash = { param([string] $Text) $sha=[Security.Cryptography.SHA256]::Create(); try { [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($Text -replace "`r`n","`n")))) } finally { $sha.Dispose() } }
+    $candidateSource = [IO.File]::ReadAllText([IO.Path]::GetFullPath($CandidateModulePath)) -replace "`r`n", "`n"
+    $candidateHash = & $hash $candidateSource
+    $lines = @(& git -C $RepositoryRoot show "${BaselineCommit}:Tools/PerformanceComparison.psm1" 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $lines.Count -eq 0) {
+        return [ordered]@{ module=$null; status='policy-review-required'; reason='The measured base does not contain a readable immutable performance judge.'; baselineCommit=$BaselineCommit; baseJudgeSha256=$null; candidateJudgeSha256=$candidateHash; baseJudgeVersion=$null; candidateJudgeVersion=$null }
+    }
+    $source = ($lines -join "`n") + "`n"
+    $baseHash = & $hash $source
+    try {
+        $candidateModule = New-Module -Name "DxUiCandidatePerformanceJudge_$([guid]::NewGuid().ToString('N'))" -ScriptBlock ([scriptblock]::Create($candidateSource))
+        if (-not $candidateModule.ExportedFunctions.ContainsKey('Compare-PairedBlockSet')) { throw 'The candidate judge does not export Compare-PairedBlockSet.' }
+        if (-not $candidateModule.ExportedFunctions.ContainsKey('Get-PairedPerformanceJudgeVersion')) { throw 'The candidate judge does not export its version identity.' }
+        $module = New-Module -Name "DxUiBasePerformanceJudge_$([guid]::NewGuid().ToString('N'))" -ScriptBlock ([scriptblock]::Create($source))
+        if (-not $module.ExportedFunctions.ContainsKey('Compare-PerformanceSet')) { throw 'The immutable base judge does not export Compare-PerformanceSet.' }
+        $candidateVersion = & $candidateModule { Get-PairedPerformanceJudgeVersion }
+        $baseVersion = if ($module.ExportedFunctions.ContainsKey('Get-PairedPerformanceJudgeVersion')) { & $module { Get-PairedPerformanceJudgeVersion } } else { 'legacy-unversioned' }
+        return [ordered]@{ module=$module; candidateModule=$candidateModule; status='available'; reason='Measured-base and candidate judges loaded from their attested sources in isolated module scopes.'; baselineCommit=$BaselineCommit; baseJudgeSha256=$baseHash; candidateJudgeSha256=$candidateHash; baseJudgeVersion=$baseVersion; candidateJudgeVersion=$candidateVersion }
+    }
+    catch {
+        return [ordered]@{ module=$null; status='policy-review-required'; reason="The immutable base judge could not be loaded: $($_.Exception.Message)"; baselineCommit=$BaselineCommit; baseJudgeSha256=$baseHash; candidateJudgeSha256=$candidateHash; baseJudgeVersion=$null; candidateJudgeVersion=$null }
+    }
+}
+
 function Get-OverlayCompiledChanges {
     <# The compiled benchmark inputs an overlay changed. A tree whose existing build predates them was not built from the
        harness its receipts will name, so it must be rebuilt rather than reused. #>
@@ -181,4 +275,5 @@ function Get-OverlayCompiledChanges {
 }
 
 Export-ModuleMember -Function Get-PairedHarness, Get-PairedSelection, Assert-PairedSidesDiffer, Assert-PairedTree, Copy-HarnessOverlay,
-    Restore-HarnessOverlay, Get-PairedRunSchedule, Get-OverlayCompiledChanges
+    Restore-HarnessOverlay, Get-PairedRunSchedule, Get-RandomizedPairedBlockSchedule, Get-VersionedPerformanceJudge, Get-OverlayCompiledChanges,
+    New-PairedExecutionPlan

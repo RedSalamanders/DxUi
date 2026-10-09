@@ -1,0 +1,81 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Animation
+  [START] TestFrameRuntimeClockIsMonotonic
+  [DONE] TestFrameRuntimeClockIsMonotonic (0.000 s)
+  [START] TestFrameRuntimeClampsLargeDelta
+  [DONE] TestFrameRuntimeClampsLargeDelta (0.000 s)
+  [START] TestAnimationDispatcherSchedulerPolicyUses120HzTargetAndClampsHitches
+  [DONE] TestAnimationDispatcherSchedulerPolicyUses120HzTargetAndClampsHitches (0.000 s)
+  [START] TestAnimationDispatcherActiveSubscribersReceiveMonotonicHighResolutionTicks
+  [DONE] TestAnimationDispatcherActiveSubscribersReceiveMonotonicHighResolutionTicks (0.261 s)
+  [START] TestAnimationDispatcherInactiveSubscriberStopsContinuousTicks
+  [DONE] TestAnimationDispatcherInactiveSubscriberStopsContinuousTicks (0.186 s)
+  [START] TestFrameRuntimeElapsedUsHandlesLargeQpcDelta
+  [DONE] TestFrameRuntimeElapsedUsHandlesLargeQpcDelta (0.000 s)
+  [START] TestFrameRuntimeElapsedUsHandlesWideCrossSignDelta
+  [DONE] TestFrameRuntimeElapsedUsHandlesWideCrossSignDelta (0.000 s)
+  [START] TestFrameRuntimeReducedMotionPolicy
+  [DONE] TestFrameRuntimeReducedMotionPolicy (0.000 s)
+  [START] TestButtonHoverAnimationRequestsTicksUntilSettled
+  [DONE] TestButtonHoverAnimationRequestsTicksUntilSettled (0.001 s)
+  [START] TestButtonReducedMotionSnapsInteractionAnimation
+  [DONE] TestButtonReducedMotionSnapsInteractionAnimation (0.000 s)
+  [START] TestSliderHoverAndPressAnimationRequestsTicksUntilSettled
+  [DONE] TestSliderHoverAndPressAnimationRequestsTicksUntilSettled (0.000 s)
+  [START] TestSliderTouchDragShowsTouchHaloUntilItEnds
+  [DONE] TestSliderTouchDragShowsTouchHaloUntilItEnds (0.000 s)
+  [START] TestSliderReducedMotionSnapsInteractionAndValueAnimation
+  [DONE] TestSliderReducedMotionSnapsInteractionAndValueAnimation (0.000 s)
+  [START] TestSliderKeyboardStepsAnimateDisplayedThumb
+  [DONE] TestSliderKeyboardStepsAnimateDisplayedThumb (0.000 s)
+  [START] TestTextFieldTickTracksFocusedCaretAnimation
+  [DONE] TestTextFieldTickTracksFocusedCaretAnimation (0.000 s)
+  [START] TestEditableComboBoxTickTracksFocusedCaretAnimation
+  [DONE] TestEditableComboBoxTickTracksFocusedCaretAnimation (0.000 s)
+  [START] TestPanelOverlayPaintsComboPopupAfterLaterSiblingContent
+  [DONE] TestPanelOverlayPaintsComboPopupAfterLaterSiblingContent (0.000 s)
+  [START] TestPopupLayerPaintsOnlyInOverlayPass
+  [DONE] TestPopupLayerPaintsOnlyInOverlayPass (0.000 s)
+  [START] TestPanelTickPropagatesAnimatedGrid
+  [DONE] TestPanelTickPropagatesAnimatedGrid (0.000 s)
+  [START] TestGridTickReturnsFalseForTextOnlyCells
+  [DONE] TestGridTickReturnsFalseForTextOnlyCells (0.000 s)
+  [START] TestGridTickReturnsTrueForHeaderBusyIndicator
+  [DONE] TestGridTickReturnsTrueForHeaderBusyIndicator (0.000 s)
+  [START] TestGridTickReturnsTrueForSortGlyphTransition
+  [DONE] TestGridTickReturnsTrueForSortGlyphTransition (0.000 s)
+  [START] TestReducedMotionSuppressesSortGlyphTransition
+  [DONE] TestReducedMotionSuppressesSortGlyphTransition (0.000 s)
+  [START] TestGridScrollbarFeedbackFollowsHoverAndDragState
+  [DONE] TestGridScrollbarFeedbackFollowsHoverAndDragState (0.003 s)
+  [START] TestGridScrollbarReducedMotionSnapsFeedback
+  [DONE] TestGridScrollbarReducedMotionSnapsFeedback (0.002 s)
+  [START] TestGridTickReturnsTrueForIndeterminateMarquee
+  [DONE] TestGridTickReturnsTrueForIndeterminateMarquee (0.000 s)
+  [START] TestGridTickReturnsFalseForDeterminateProgress
+  [DONE] TestGridTickReturnsFalseForDeterminateProgress (0.000 s)
+  [START] TestGridTickReturnsFalseForSpinnerWhenReducedMotionEnabled
+  [DONE] TestGridTickReturnsFalseForSpinnerWhenReducedMotionEnabled (0.000 s)
+  [START] TestGridTickReturnsFalseForHeaderBusyIndicatorWhenReducedMotionEnabled
+  [DONE] TestGridTickReturnsFalseForHeaderBusyIndicatorWhenReducedMotionEnabled (0.000 s)
+  [START] TestGridTickReturnsFalseForIndeterminateMarqueeWhenReducedMotionEnabled
+  [DONE] TestGridTickReturnsFalseForIndeterminateMarqueeWhenReducedMotionEnabled (0.000 s)
+  [START] TestTextFieldCaretTickIgnoresReducedMotion
+  [DONE] TestTextFieldCaretTickIgnoresReducedMotion (0.000 s)
+  [START] TestEditableComboBoxCaretTickIgnoresReducedMotion
+  [DONE] TestEditableComboBoxCaretTickIgnoresReducedMotion (0.000 s)
+  [START] TestEasingCurvesStayBoundedAndMonotonic
+  [DONE] TestEasingCurvesStayBoundedAndMonotonic (0.000 s)
+  [START] TestPageHostPageTransitionAnimatesAndSettles
+  [DONE] TestPageHostPageTransitionAnimatesAndSettles (0.000 s)
+  [START] TestPageHostConnectedAnimationInterpolatesSharedElementRect
+  [DONE] TestPageHostConnectedAnimationInterpolatesSharedElementRect (0.000 s)
+  [START] TestPageHostConnectedOverlayAnimationEmitsCompositionGateMetrics
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPageHostConnectedOverlayAnimationEmitsCompositionGateMetrics (1.389 s)
+  [START] TestPageHostReducedMotionSnapsTransition
+  [DONE] TestPageHostReducedMotionSnapsTransition (0.000 s)
+[DONE] Animation (1.852 s)
+All DxUi tests passed.

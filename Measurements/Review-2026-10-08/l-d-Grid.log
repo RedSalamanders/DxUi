@@ -1,0 +1,196 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Grid
+  [START] TestGridInputLeavesAGridTheFocusCallbackDestroyed
+  [DONE] TestGridInputLeavesAGridTheFocusCallbackDestroyed (0.002 s)
+  [START] TestGridSelectionDelegateReplacementStopsTheInput
+  [DONE] TestGridSelectionDelegateReplacementStopsTheInput (0.000 s)
+  [START] TestGridGroupCollapseSelectionDelegateReplacementStopsTheInput
+  [DONE] TestGridGroupCollapseSelectionDelegateReplacementStopsTheInput (0.000 s)
+  [START] TestGridSelectionDelegateReplacementDuringModelChangesStopsTheGrid
+  [DONE] TestGridSelectionDelegateReplacementDuringModelChangesStopsTheGrid (0.000 s)
+  [START] TestGridToggleDelegatesMayDestroyTheGridBeforeReturning
+  [DONE] TestGridToggleDelegatesMayDestroyTheGridBeforeReturning (0.000 s)
+  [START] TestSortCycle
+  [DONE] TestSortCycle (0.000 s)
+  [START] TestVisibleSpan
+  [DONE] TestVisibleSpan (0.000 s)
+  [START] TestSelectionModel
+  [DONE] TestSelectionModel (0.000 s)
+  [START] TestSelectionModelMatchesTheLinearReferenceOverRandomOperations
+  [DONE] TestSelectionModelMatchesTheLinearReferenceOverRandomOperations (0.499 s)
+  [START] TestSelectionModelMatchesTheLinearReferenceOnBothSidesOfItsScanAndReleaseLimits
+  [DONE] TestSelectionModelMatchesTheLinearReferenceOnBothSidesOfItsScanAndReleaseLimits (0.726 s)
+  [START] TestSelectionModelKeepsEveryOccurrenceOfAnIdThatARangeRepeats
+  [DONE] TestSelectionModelKeepsEveryOccurrenceOfAnIdThatARangeRepeats (0.000 s)
+  [START] TestSelectionModelRangeRunsBothWaysAndFallsBackToTheCurrentId
+  [DONE] TestSelectionModelRangeRunsBothWaysAndFallsBackToTheCurrentId (0.000 s)
+  [START] TestSelectionModelAnchorLeavesWithItsToggleAndMovesToTheFirstRemainingId
+  [DONE] TestSelectionModelAnchorLeavesWithItsToggleAndMovesToTheFirstRemainingId (0.000 s)
+  [START] TestSelectionModelPreserveOrderedKeepsSelectedIdsInTheGivenOrder
+  [DONE] TestSelectionModelPreserveOrderedKeepsSelectedIdsInTheGivenOrder (0.000 s)
+  [START] TestSelectionModelMembershipFollowsEveryMutator
+  [DONE] TestSelectionModelMembershipFollowsEveryMutator (0.000 s)
+  [START] TestSelectionModelKeepsSelectionOrderForAScatteredLargeSelection
+  [DONE] TestSelectionModelKeepsSelectionOrderForAScatteredLargeSelection (0.050 s)
+  [START] TestSelectionModelCopiesAnswerMembershipIndependently
+  [DONE] TestSelectionModelCopiesAnswerMembershipIndependently (0.000 s)
+  [START] TestSelectionModelPreserveOrderedOverALongListKeepsExactlyTheSelectedRows
+  [DONE] TestSelectionModelPreserveOrderedOverALongListKeepsExactlyTheSelectedRows (0.530 s)
+  [START] TestSelectionModelAnswersMembershipAtEverySizeAroundItsScanLimit
+  [DONE] TestSelectionModelAnswersMembershipAtEverySizeAroundItsScanLimit (0.164 s)
+  [START] TestSelectionModelGivesBackTheRoomOfALargeSelection
+  [DONE] TestSelectionModelGivesBackTheRoomOfALargeSelection (0.044 s)
+  [START] TestGridSelectionOfALargeListFollowsGesturesAndDataChanges
+  [DONE] TestGridSelectionOfALargeListFollowsGesturesAndDataChanges (0.008 s)
+  [START] TestGridShiftKeyboardRangeContinuesFromTheReachedRow
+  [DONE] TestGridShiftKeyboardRangeContinuesFromTheReachedRow (0.000 s)
+  [START] TestDisabledGridRejectsSelectionAndCheckboxRequests
+  [DONE] TestDisabledGridRejectsSelectionAndCheckboxRequests (0.000 s)
+  [START] TestGridGivesBackTheRoomOfALargeSelectionWhenAClickReplacesIt
+  [DONE] TestGridGivesBackTheRoomOfALargeSelectionWhenAClickReplacesIt (0.005 s)
+  [START] TestGridVisibleWorkMetricsStayBoundedForLargeDatasets
+  [DONE] TestGridVisibleWorkMetricsStayBoundedForLargeDatasets (0.032 s)
+  [START] TestGroupedGridVisibleWorkMetricsIncludeHeaders
+  [DONE] TestGroupedGridVisibleWorkMetricsIncludeHeaders (0.000 s)
+  [START] TestGridPartiallyVisibleBottomRowIsPaintedAndHitTestable
+  [DONE] TestGridPartiallyVisibleBottomRowIsPaintedAndHitTestable (0.256 s)
+  [START] TestGroupedGridProgrammaticSelectionAllowsOffscreenExpandedRows
+  [DONE] TestGroupedGridProgrammaticSelectionAllowsOffscreenExpandedRows (0.000 s)
+  [START] TestGridMouseWheelReportsUnhandledAtScrollEdges
+  [DONE] TestGridMouseWheelReportsUnhandledAtScrollEdges (0.000 s)
+  [START] TestGroupedGridLongRunScrollKeepsVisibleRowRects
+  [DONE] TestGroupedGridLongRunScrollKeepsVisibleRowRects (0.002 s)
+  [START] TestScrollPanelForwardsCapturedChildGridScrollbarDrag
+  [DONE] TestScrollPanelForwardsCapturedChildGridScrollbarDrag (0.001 s)
+  [START] TestGridScrollbarThumbGutterDragThroughWindowHost
+  [DONE] TestGridScrollbarThumbGutterDragThroughWindowHost (0.000 s)
+  [START] TestGroupedGridLayoutOffsetsRowsBelowHeaders
+  [DONE] TestGroupedGridLayoutOffsetsRowsBelowHeaders (0.000 s)
+  [START] TestHeaderlessGridStartsFirstRowAtTopEdge
+  [DONE] TestHeaderlessGridStartsFirstRowAtTopEdge (0.000 s)
+  [START] TestGroupedGridHeaderClickDoesNotSelectRows
+  [DONE] TestGroupedGridHeaderClickDoesNotSelectRows (0.000 s)
+  [START] TestGroupedGridHeaderRightClickDoesNotDispatchRowContextMenu
+  [DONE] TestGroupedGridHeaderRightClickDoesNotDispatchRowContextMenu (0.000 s)
+  [START] TestGroupedGridCollapsedGroupsHideRowsFromVisibleWork
+  [DONE] TestGroupedGridCollapsedGroupsHideRowsFromVisibleWork (0.000 s)
+  [START] TestGroupedGridNotifyDataChangedRehomesSelectionWhenGroupCollapsesExternally
+  [DONE] TestGroupedGridNotifyDataChangedRehomesSelectionWhenGroupCollapsesExternally (0.000 s)
+  [START] TestGroupedGridCaptureGroupLayoutReportsStableCollapsedState
+  [DONE] TestGroupedGridCaptureGroupLayoutReportsStableCollapsedState (0.000 s)
+  [START] TestGroupedGridApplyGroupLayoutRestoresCollapsedStateByStableId
+  [DONE] TestGroupedGridApplyGroupLayoutRestoresCollapsedStateByStableId (0.000 s)
+  [START] TestGroupedGridApplyGroupLayoutStopsWhenDelegateIsCleared
+  [DONE] TestGroupedGridApplyGroupLayoutStopsWhenDelegateIsCleared (0.000 s)
+  [START] TestGroupedGridKeyboardCollapsePreservesOnlyRowsOutsideCollapsedGroup
+  [DONE] TestGroupedGridKeyboardCollapsePreservesOnlyRowsOutsideCollapsedGroup (0.000 s)
+  [START] TestGroupedGridCopySkipsRowsHiddenByCollapsedGroups
+  [DONE] TestGroupedGridCopySkipsRowsHiddenByCollapsedGroups (0.026 s)
+  [START] TestGroupedGridVisibleRowOrdinalFollowsCollapsedLayout
+  [DONE] TestGroupedGridVisibleRowOrdinalFollowsCollapsedLayout (0.000 s)
+  [START] TestGroupedGridSelectAllSkipsRowsHiddenByCollapsedGroups
+  [DONE] TestGroupedGridSelectAllSkipsRowsHiddenByCollapsedGroups (0.000 s)
+  [START] TestGridApplyColumnLayoutCapturesDisplayOrderAndWidths
+  [DONE] TestGridApplyColumnLayoutCapturesDisplayOrderAndWidths (0.000 s)
+  [START] TestGridApplyColumnLayoutAppendsMissingColumnsInModelOrder
+  [DONE] TestGridApplyColumnLayoutAppendsMissingColumnsInModelOrder (0.000 s)
+  [START] TestGridCopyUsesRestoredDisplayOrder
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridCopyUsesRestoredDisplayOrder (0.008 s)
+  [START] TestGridHeaderDragReordersColumnsWithoutTriggeringSort
+  [DONE] TestGridHeaderDragReordersColumnsWithoutTriggeringSort (0.000 s)
+  [START] TestGridHeaderClickStillRequestsSortWithoutReordering
+  [DONE] TestGridHeaderClickStillRequestsSortWithoutReordering (0.000 s)
+  [START] TestGridHeaderClickMovesSortGlyphToClickedColumn
+  [DONE] TestGridHeaderClickMovesSortGlyphToClickedColumn (0.000 s)
+  [START] TestGridHeaderDragReorderRoundTripsThroughCapturedLayout
+  [DONE] TestGridHeaderDragReorderRoundTripsThroughCapturedLayout (0.000 s)
+  [START] TestGridHeaderDragReordersColumnToEarlierDisplaySlot
+  [DONE] TestGridHeaderDragReordersColumnToEarlierDisplaySlot (0.000 s)
+  [START] TestGridRightClickInvokesContextMenuForHitRow
+  [DONE] TestGridRightClickInvokesContextMenuForHitRow (0.000 s)
+  [START] TestGridRightClickPreservesExtendedSelectionForSelectedHitRow
+  [DONE] TestGridRightClickPreservesExtendedSelectionForSelectedHitRow (0.000 s)
+  [START] TestGridSelectionChangeNotifiesDelegateOnUserSelection
+  [DONE] TestGridSelectionChangeNotifiesDelegateOnUserSelection (0.000 s)
+  [START] TestGridPointerSelectionSurvivesDelegateModelSwap
+  [DONE] TestGridPointerSelectionSurvivesDelegateModelSwap (0.000 s)
+  [START] TestGridSelectionChangeReportsSenderGrid
+  [DONE] TestGridSelectionChangeReportsSenderGrid (0.002 s)
+  [START] TestGridSelectionChangeNotifiesDelegateOnDataChange
+  [DONE] TestGridSelectionChangeNotifiesDelegateOnDataChange (0.000 s)
+  [START] TestGridCellLayoutMetricsReserveSpaceForCheckboxAndBadge
+  [DONE] TestGridCellLayoutMetricsReserveSpaceForCheckboxAndBadge (0.094 s)
+  [START] TestGridCellLayoutMetricsReserveSpaceForIconAndBadge
+  [DONE] TestGridCellLayoutMetricsReserveSpaceForIconAndBadge (0.000 s)
+  [START] TestGridIconTextUsesIconFontForFluentGlyphs
+  [DONE] TestGridIconTextUsesIconFontForFluentGlyphs (0.000 s)
+  [START] TestGridIconIndexReservesIconSpaceWithoutTextGlyph
+  [DONE] TestGridIconIndexReservesIconSpaceWithoutTextGlyph (0.000 s)
+  [START] TestGridCellLayoutMetricsCenterDedicatedColorSwatch
+  [DONE] TestGridCellLayoutMetricsCenterDedicatedColorSwatch (0.000 s)
+  [START] TestGridDoubleClickActivatesHitRow
+  [DONE] TestGridDoubleClickActivatesHitRow (0.000 s)
+  [START] TestDedicatedStateImageColumnCentersIconAndCollapsesText
+  [DONE] TestDedicatedStateImageColumnCentersIconAndCollapsesText (0.000 s)
+  [START] TestGridExplicitTooltipUsesCellTooltipText
+  [DONE] TestGridExplicitTooltipUsesCellTooltipText (0.000 s)
+  [START] TestGridIgnoresExplicitTooltipThatRepeatsCellText
+  [DONE] TestGridIgnoresExplicitTooltipThatRepeatsCellText (0.000 s)
+  [START] TestGridIgnoresExplicitTooltipThatRepeatsIconBadgeCellText
+  [DONE] TestGridIgnoresExplicitTooltipThatRepeatsIconBadgeCellText (0.000 s)
+  [START] TestGridExplicitTooltipOverridesLongTextFallback
+  [DONE] TestGridExplicitTooltipOverridesLongTextFallback (0.000 s)
+  [START] TestGridLongTextFallbackTooltipRequiresClippedText
+  [DONE] TestGridLongTextFallbackTooltipRequiresClippedText (0.000 s)
+  [START] TestGridRepeatedExplicitTooltipShowsWhenCellTextIsClipped
+  [DONE] TestGridRepeatedExplicitTooltipShowsWhenCellTextIsClipped (0.000 s)
+  [START] TestGridMultilineTooltipFollowsPaintedLines
+  [DONE] TestGridMultilineTooltipFollowsPaintedLines (0.001 s)
+  [START] TestGridCopyOfTrimmedMultilineCellsIsExact
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestGridCopyOfTrimmedMultilineCellsIsExact (0.113 s)
+  [START] TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves
+  [DONE] TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves (0.327 s)
+Grid layout table at its ceiling, paint 1: 20000 values, 0 hits, 20000 misses, table 16384 entries
+Grid layout table at its ceiling, paint 2: 20000 values, 15776 hits, 4224 misses, table 16384 entries
+Grid layout table at its ceiling, paint 3: 20000 values, 15776 hits, 4224 misses, table 16384 entries
+Grid layout table halving: 100 values used, table 8192 entries
+Grid layout table halving: 100 values used, table 4096 entries
+Grid layout table halving: 100 values used, table 2048 entries
+Grid layout table halving: 100 values used, table 1024 entries
+Grid layout table halving: 100 values used, table 512 entries
+Grid layout table halving: 100 values used, table 512 entries
+Grid layout table halving: 3 values used, table 256 entries
+Grid layout table halving: 3 values used, table 128 entries
+Grid layout table halving: 3 values used, table 64 entries
+Grid layout table halving: 3 values used, table 32 entries
+Grid layout table halving: 3 values used, table 32 entries
+Grid layout table halving: 3 values used, table 32 entries
+  [START] TestGridScrolledSingleLineCaptionOffersTooltip
+Grid layout table eviction: of the 16 older values of the set 15 keep a layout, of the 16 newer 16, and the new one is held
+  [DONE] TestGridScrolledSingleLineCaptionOffersTooltip (0.098 s)
+  [START] TestGridFolderViewVisualModeUsesFolderLikeRowHighlights
+  [DONE] TestGridFolderViewVisualModeUsesFolderLikeRowHighlights (0.000 s)
+  [START] TestGridInactiveSelectionTextTracksThePaintedGround
+  [DONE] TestGridInactiveSelectionTextTracksThePaintedGround (0.000 s)
+  [START] TestGridEmptyModelDoesNotHitTestBodyRows
+  [DONE] TestGridEmptyModelDoesNotHitTestBodyRows (0.000 s)
+  [START] TestGridSetModelNullCancelsActiveColumnResize
+  [DONE] TestGridSetModelNullCancelsActiveColumnResize (0.000 s)
+  [START] TestGridHeaderResizeZoneRequestsHorizontalResizeCursor
+  [DONE] TestGridHeaderResizeZoneRequestsHorizontalResizeCursor (0.000 s)
+  [START] TestGridHeaderBusyColumnAloneDoesNotAnimate
+  [DONE] TestGridHeaderBusyColumnAloneDoesNotAnimate (0.000 s)
+  [START] TestGridCompactDensityShrinksHeaderAndRowMetrics
+  [DONE] TestGridCompactDensityShrinksHeaderAndRowMetrics (0.000 s)
+  [START] TestGridEffectiveRowHeightBypassesDensityScaling
+  [DONE] TestGridEffectiveRowHeightBypassesDensityScaling (0.000 s)
+  [START] TestGridRowMetricsClampToSegoeVariableBodyLineHeight
+  [DONE] TestGridRowMetricsClampToSegoeVariableBodyLineHeight (0.000 s)
+[DONE] Grid (2.998 s)
+All DxUi tests passed.

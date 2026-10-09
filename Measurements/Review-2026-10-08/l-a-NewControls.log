@@ -1,0 +1,455 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] NewControls
+  [START] TestMutableCallbackCaptureStatePersistsForComboBoxPopupRequest
+  [DONE] TestMutableCallbackCaptureStatePersistsForComboBoxPopupRequest (0.002 s)
+  [START] TestMutableCallbackCaptureStatePersistsForRadioControls
+  [DONE] TestMutableCallbackCaptureStatePersistsForRadioControls (0.000 s)
+  [START] TestMutableCallbackCaptureStatePersistsForPageIndicator
+  [DONE] TestMutableCallbackCaptureStatePersistsForPageIndicator (0.000 s)
+  [START] TestMutableCallbackCaptureStatePersistsForSliderCallbacks
+  [DONE] TestMutableCallbackCaptureStatePersistsForSliderCallbacks (0.001 s)
+  [START] TestMutableCallbackCaptureStatePersistsForMenuBarCallbacks
+  [DONE] TestMutableCallbackCaptureStatePersistsForMenuBarCallbacks (0.806 s)
+  [START] TestMutableCallbackCaptureStatePersistsForTabControlSelectionAndCloseEvents
+  [DONE] TestMutableCallbackCaptureStatePersistsForTabControlSelectionAndCloseEvents (0.001 s)
+  [START] TestMutableCallbackCaptureStatePersistsForTabControlReorder
+  [DONE] TestMutableCallbackCaptureStatePersistsForTabControlReorder (0.001 s)
+  [START] TestMutableCallbackCaptureStatePersistsForTagPicker
+  [DONE] TestMutableCallbackCaptureStatePersistsForTagPicker (0.000 s)
+  [START] TestTabControlSelectionSnapshotCleanupCanRetireRootBeforeMouseDownTail
+  [DONE] TestTabControlSelectionSnapshotCleanupCanRetireRootBeforeMouseDownTail (0.001 s)
+  [START] TestMenuBarHoverMoveSnapshotCleanupCanRetireRootSafely
+  [DONE] TestMenuBarHoverMoveSnapshotCleanupCanRetireRootSafely (0.000 s)
+  [START] TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely
+  [DONE] TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely (0.000 s)
+  [START] TestTabControlCloseCallbacksCanReplaceRootSafely
+  [DONE] TestTabControlCloseCallbacksCanReplaceRootSafely (0.001 s)
+  [START] TestButtonVariantDefaultIsStandard
+  [DONE] TestButtonVariantDefaultIsStandard (0.000 s)
+  [START] TestButtonVariantRoundtripsAllValues
+  [DONE] TestButtonVariantRoundtripsAllValues (0.000 s)
+  [START] TestButtonVariantPaintPathsHandleMissingDeviceContext
+  [DONE] TestButtonVariantPaintPathsHandleMissingDeviceContext (0.001 s)
+  [START] TestButtonDisclosureChevronAnimatesAndHonorsReducedMotion
+  [DONE] TestButtonDisclosureChevronAnimatesAndHonorsReducedMotion (0.000 s)
+  [START] TestButtonDisclosureChevronAnimatesAfterAHiddenChange
+  [DONE] TestButtonDisclosureChevronAnimatesAfterAHiddenChange (0.000 s)
+  [START] TestButtonDisclosureChevronPausesAcrossATickGap
+  [DONE] TestButtonDisclosureChevronPausesAcrossATickGap (0.000 s)
+  [START] TestButtonChromeLayoutDifferentiatesSelectorDropDownAndSplit
+  [DONE] TestButtonChromeLayoutDifferentiatesSelectorDropDownAndSplit (0.000 s)
+  [START] TestSelectorButtonChromeUsesStableCurrentValueTreatment
+  [DONE] TestSelectorButtonChromeUsesStableCurrentValueTreatment (0.000 s)
+  [START] TestButtonChromeCustomStylePreservesOverlayMetrics
+  [DONE] TestButtonChromeCustomStylePreservesOverlayMetrics (0.000 s)
+  [START] TestHyperlinkButtonClickInvokesCallback
+  [DONE] TestHyperlinkButtonClickInvokesCallback (0.000 s)
+  [START] TestDropDownButtonKeyboardActivationInvokesDropDownCallback
+  [DONE] TestDropDownButtonKeyboardActivationInvokesDropDownCallback (0.000 s)
+  [START] TestSelectorButtonUsesOneWholeSurfaceFlyoutAction
+  [DONE] TestSelectorButtonUsesOneWholeSurfaceFlyoutAction (0.000 s)
+  [START] TestButtonSuppressesTooltipThatRepeatsVisibleLabel
+  [DONE] TestButtonSuppressesTooltipThatRepeatsVisibleLabel (0.000 s)
+  [START] TestNonInteractiveControlCanHostSupplementalTooltip
+  [DONE] TestNonInteractiveControlCanHostSupplementalTooltip (0.000 s)
+  [START] TestDropDownButtonMnemonicInvokesDropDownCallback
+  [DONE] TestDropDownButtonMnemonicInvokesDropDownCallback (0.000 s)
+  [START] TestDropDownButtonCallbackCanReplaceRootSafely
+  [DONE] TestDropDownButtonCallbackCanReplaceRootSafely (0.002 s)
+  [START] TestButtonMouseClickReleasesHostCaptureBeforeCallback
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestButtonMouseClickReleasesHostCaptureBeforeCallback (0.052 s)
+  [START] TestSplitButtonDropDownMouseClickReleasesHostCaptureBeforeCallback
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestSplitButtonDropDownMouseClickReleasesHostCaptureBeforeCallback (0.010 s)
+  [START] TestButtonMouseLeaveClearsPressedState
+  [DONE] TestButtonMouseLeaveClearsPressedState (0.000 s)
+  [START] TestCheckboxIndeterminateDefaultIsFalse
+  [DONE] TestCheckboxIndeterminateDefaultIsFalse (0.000 s)
+  [START] TestCheckboxIndeterminateRoundtrips
+  [DONE] TestCheckboxIndeterminateRoundtrips (0.000 s)
+  [START] TestCheckboxIndeterminatePaintHandlesMissingDeviceContext
+  [DONE] TestCheckboxIndeterminatePaintHandlesMissingDeviceContext (0.220 s)
+  [START] TestRadioButtonsAddItemCreatesChildren
+  [DONE] TestRadioButtonsAddItemCreatesChildren (0.000 s)
+  [START] TestRadioButtonsSetSelectedIndexUpdatesState
+  [DONE] TestRadioButtonsSetSelectedIndexUpdatesState (0.000 s)
+  [START] TestRadioButtonClickSelectsAndDeselectsOthers
+  [DONE] TestRadioButtonClickSelectsAndDeselectsOthers (0.000 s)
+  [START] TestRadioButtonSelectionChangedCanReplaceRootSafely
+  [DONE] TestRadioButtonSelectionChangedCanReplaceRootSafely (0.000 s)
+  [START] TestRadioButtonPaintHandlesMissingDeviceContext
+  [DONE] TestRadioButtonPaintHandlesMissingDeviceContext (0.000 s)
+  [START] TestProgressBarDefaultState
+  [DONE] TestProgressBarDefaultState (0.000 s)
+  [START] TestProgressBarValueRoundtrips
+  [DONE] TestProgressBarValueRoundtrips (0.000 s)
+  [START] TestProgressBarRangeRoundtrips
+  [DONE] TestProgressBarRangeRoundtrips (0.000 s)
+  [START] TestProgressBarIndeterminateRoundtrips
+  [DONE] TestProgressBarIndeterminateRoundtrips (0.000 s)
+  [START] TestProgressBarExplicitTrackHeightRoundtrips
+  [DONE] TestProgressBarExplicitTrackHeightRoundtrips (0.000 s)
+  [START] TestProgressBarIndeterminateRequestsAnimationWhenAttached
+  [DONE] TestProgressBarIndeterminateRequestsAnimationWhenAttached (0.000 s)
+  [START] TestProgressBarPaintHandlesMissingDeviceContext
+  [DONE] TestProgressBarPaintHandlesMissingDeviceContext (0.000 s)
+  [START] TestProgressBarDisabledIndeterminateStateDoesNotAnimateUntilReenabled
+  [DONE] TestProgressBarDisabledIndeterminateStateDoesNotAnimateUntilReenabled (0.000 s)
+  [START] TestProgressBarReducedMotionRestsIndeterminateSegment
+  [DONE] TestProgressBarReducedMotionRestsIndeterminateSegment (0.000 s)
+  [START] TestProgressBarIndeterminateTickSurvivesClockReset
+  [DONE] TestProgressBarIndeterminateTickSurvivesClockReset (0.000 s)
+  [START] TestSliderSmallestStepStillMoves
+  [DONE] TestSliderSmallestStepStillMoves (0.000 s)
+  [START] TestPageIndicatorDefaultState
+  [DONE] TestPageIndicatorDefaultState (0.000 s)
+  [START] TestPageIndicatorPageCountAndSelectionRoundtrip
+  [DONE] TestPageIndicatorPageCountAndSelectionRoundtrip (0.000 s)
+  [START] TestPageIndicatorClickSelectsPage
+  [DONE] TestPageIndicatorClickSelectsPage (0.000 s)
+  [START] TestPageIndicatorKeyboardNavigatesAndStopsAtEnds
+  [DONE] TestPageIndicatorKeyboardNavigatesAndStopsAtEnds (0.000 s)
+  [START] TestPageIndicatorSetSelectedIndexDoesNotFireCallback
+  [DONE] TestPageIndicatorSetSelectedIndexDoesNotFireCallback (0.000 s)
+  [START] TestPageIndicatorSinglePageIsNotHittable
+  [DONE] TestPageIndicatorSinglePageIsNotHittable (0.000 s)
+  [START] TestPageIndicatorPaintHandlesMissingDeviceContext
+  [DONE] TestPageIndicatorPaintHandlesMissingDeviceContext (0.000 s)
+  [START] TestPageIndicatorSelectionCallbackCanReplaceRootSafely
+  [DONE] TestPageIndicatorSelectionCallbackCanReplaceRootSafely (0.000 s)
+  [START] TestSliderDefaultState
+  [DONE] TestSliderDefaultState (0.000 s)
+  [START] TestSliderTouchFriendlyGeometry
+  [DONE] TestSliderTouchFriendlyGeometry (0.000 s)
+  [START] TestSliderTallControlDoesNotHitFarFromTrack
+  [DONE] TestSliderTallControlDoesNotHitFarFromTrack (0.000 s)
+  [START] TestSliderThumbGrabDoesNotSeekWhenContactHitsTouchHalo
+  [DONE] TestSliderThumbGrabDoesNotSeekWhenContactHitsTouchHalo (0.000 s)
+  [START] TestSliderKeyboardAndPointerInputUpdatesValue
+  [DONE] TestSliderKeyboardAndPointerInputUpdatesValue (0.000 s)
+  [START] TestSliderVerticalAndRightToLeftGeometryMirrors
+  [DONE] TestSliderVerticalAndRightToLeftGeometryMirrors (0.000 s)
+  [START] TestSliderPaintHandlesMissingDeviceContext
+  [DONE] TestSliderPaintHandlesMissingDeviceContext (0.000 s)
+  [START] TestSliderSetValueSnapsDisplayedPosition
+  [DONE] TestSliderSetValueSnapsDisplayedPosition (0.000 s)
+  [START] TestSliderAcknowledgementStopsPendingAnimation
+  [DONE] TestSliderAcknowledgementStopsPendingAnimation (0.000 s)
+  [START] TestSliderRejectsNonFiniteRangeAndSteps
+  [DONE] TestSliderRejectsNonFiniteRangeAndSteps (0.000 s)
+  [START] TestSliderRangeAndStepSettersKeepDependentValuesValid
+  [DONE] TestSliderRangeAndStepSettersKeepDependentValuesValid (0.000 s)
+  [START] TestSliderOffCenterGrabAndCancel
+  [DONE] TestSliderOffCenterGrabAndCancel (0.000 s)
+  [START] TestToolbarAddButtonCreatesChildren
+  [DONE] TestToolbarAddButtonCreatesChildren (0.000 s)
+  [START] TestToolbarButtonHoverShowsTooltip
+  [DONE] TestToolbarButtonHoverShowsTooltip (0.000 s)
+  [START] TestToolbarButtonClickFiresCallback
+  [DONE] TestToolbarButtonClickFiresCallback (0.000 s)
+  [START] TestToolbarPaintHandlesMissingDeviceContext
+  [DONE] TestToolbarPaintHandlesMissingDeviceContext (0.000 s)
+  [START] TestMenuBarSetItemsRoundtrips
+  [DONE] TestMenuBarSetItemsRoundtrips (0.000 s)
+  [START] TestMenuBarClickInvokesOpenCallback
+  [DONE] TestMenuBarClickInvokesOpenCallback (0.001 s)
+  [START] TestMenuBarHoverMoveCallbackCanRetireRoot
+  [DONE] TestMenuBarHoverMoveCallbackCanRetireRoot (0.001 s)
+  [START] TestMenuBarHoverLeaveCallbackCanRetireRoot
+  [DONE] TestMenuBarHoverLeaveCallbackCanRetireRoot (0.000 s)
+  [START] TestMenuBarHoverCallbackCanReplaceItself
+  [DONE] TestMenuBarHoverCallbackCanReplaceItself (0.000 s)
+  [START] TestMenuBarMouseOpenReleasesHostCaptureBeforeCallback
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuBarMouseOpenReleasesHostCaptureBeforeCallback (0.055 s)
+  [START] TestMenuBarKeyboardNavigationOpensSelectedItem
+  [DONE] TestMenuBarKeyboardNavigationOpensSelectedItem (0.217 s)
+  [START] TestMenuBarMnemonicOpensMatchingItem
+  [DONE] TestMenuBarMnemonicOpensMatchingItem (0.001 s)
+  [START] TestFlowDirectionInheritanceRoundtrips
+  [DONE] TestFlowDirectionInheritanceRoundtrips (0.000 s)
+  [START] TestHorizontalStackPanelRelayoutsWhenFlowDirectionChanges
+  [DONE] TestHorizontalStackPanelRelayoutsWhenFlowDirectionChanges (0.000 s)
+  [START] TestMenuBarRightToLeftMirrorsItemOrderAndArrowKeys
+  [DONE] TestMenuBarRightToLeftMirrorsItemOrderAndArrowKeys (0.001 s)
+  [START] TestMenuBarCompactDensityKeepsUsableItemHeight
+  [DONE] TestMenuBarCompactDensityKeepsUsableItemHeight (0.001 s)
+  [START] TestTabControlSelectionShowsOnlyTheActivePage
+  [DONE] TestTabControlSelectionShowsOnlyTheActivePage (0.001 s)
+  [START] TestTabControlHiddenTabsKeepStableIndicesAndLeaveTheHeader
+  [DONE] TestTabControlHiddenTabsKeepStableIndicesAndLeaveTheHeader (0.001 s)
+  [START] TestTabControlCloseButtonRemovesTabsAndInvokesCallback
+  [DONE] TestTabControlCloseButtonRemovesTabsAndInvokesCallback (0.001 s)
+  [START] TestTabControlRemoveResolvesRequestedPageAfterFocusCallbackReordersSiblings
+  [DONE] TestTabControlRemoveResolvesRequestedPageAfterFocusCallbackReordersSiblings (0.001 s)
+  [START] TestTabControlSelectionReportsResolvedIndexAfterFocusCallbackRemovesSibling
+  [DONE] TestTabControlSelectionReportsResolvedIndexAfterFocusCallbackRemovesSibling (0.001 s)
+  [START] TestTabControlCloseReportsResolvedIndexAfterCloseCallbackRemovesSibling
+  [DONE] TestTabControlCloseReportsResolvedIndexAfterCloseCallbackRemovesSibling (0.001 s)
+  [START] TestTabControlOverflowButtonsAndWheelScroll
+  [DONE] TestTabControlOverflowButtonsAndWheelScroll (0.001 s)
+  [START] TestTabControlHeaderDividerExposesPaintableGeometry
+  [DONE] TestTabControlHeaderDividerExposesPaintableGeometry (0.001 s)
+  [START] TestTabControlKeyboardNavigationHonorsRightToLeft
+  [DONE] TestTabControlKeyboardNavigationHonorsRightToLeft (0.001 s)
+  [START] TestContextMenuPopupScrollsOversizedContent
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestContextMenuPopupScrollsOversizedContent (0.185 s)
+  [START] TestContextMenuPopupHonorsSessionMaxRootHeight
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestContextMenuPopupHonorsSessionMaxRootHeight (0.337 s)
+  [START] TestDescribedInfoRowPaintsItsDescription
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedInfoRowPaintsItsDescription (0.333 s)
+  [START] TestDescribedMenuRaisesFocusChangesForKeyboardRows
+    [UIA] setup ready=true stage=subscribe focus changes HRESULT=0x00000000
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuRaisesFocusChangesForKeyboardRows (0.949 s)
+  [START] TestDescribedMenuReleasesItsMemoryWhenItCloses
+Described menu resources before: 0 popups, 0 row layouts, 0 accessibility records, 0 heap bytes; open: 1 popups, 200 row layouts, 200 accessibility records, 0 heap bytes; closed: 0 popups, 0 row layouts, 0 accessibility records, 0 heap bytes (row elements still held 8; heap bytes are diagnostic only)
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuReleasesItsMemoryWhenItCloses (0.564 s)
+  [START] TestWindowHostTabRaisesAutomationFocusChanges
+SKIPPED: DxUi window-host UIA focus changes require an interactive desktop
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostTabRaisesAutomationFocusChanges (0.073 s)
+  [START] TestWindowHostTreeArrowAnnouncesTheFocusedItem
+SKIPPED: DxUi tree item UIA focus changes require an interactive desktop
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostTreeArrowAnnouncesTheFocusedItem (0.008 s)
+  [START] TestWindowHostSingleTreeArrowAnnouncesTheFocusedItem
+SKIPPED: DxUi single-control tree item UIA focus changes require an interactive desktop
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostSingleTreeArrowAnnouncesTheFocusedItem (0.008 s)
+  [START] TestWindowHostSingleGridArrowAnnouncesTheFocusedRow
+SKIPPED: DxUi single-control grid row UIA focus changes require an interactive desktop
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostSingleGridArrowAnnouncesTheFocusedRow (0.008 s)
+  [START] TestWindowHostElementSetFocusAnnouncesOnlyThatElement
+SKIPPED: DxUi element SetFocus announcements require an interactive desktop
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostElementSetFocusAnnouncesOnlyThatElement (0.011 s)
+  [START] TestWindowHostClickThatActivatesAWindowUiAutomationHasAskedBeforeAnnouncesTheClickedControlOnce
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+SKIPPED: DxUi click activation announcements require an interactive desktop
+  [DONE] TestWindowHostClickThatActivatesAWindowUiAutomationHasAskedBeforeAnnouncesTheClickedControlOnce (0.074 s)
+  [START] TestWindowHostClickThatActivatesAWindowUiAutomationHasNotSeenLeavesTheClickedControlToItsFirstGetFocus
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+SKIPPED: DxUi click activation announcements require an interactive desktop
+  [DONE] TestWindowHostClickThatActivatesAWindowUiAutomationHasNotSeenLeavesTheClickedControlToItsFirstGetFocus (0.077 s)
+  [START] TestWindowHostReactivatingAWindowUiAutomationHasSeenAnnouncesItsFocusedControlOnce
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+SKIPPED: DxUi reactivation announcements require an interactive desktop
+  [DONE] TestWindowHostReactivatingAWindowUiAutomationHasSeenAnnouncesItsFocusedControlOnce (0.078 s)
+  [START] TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange
+SKIPPED: DxUi foreground focus announcements require an interactive desktop
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestWindowHostThatLostTheForegroundAnnouncesNoFocusChange (0.010 s)
+  [START] TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside
+Menu pointer cursor: the arrow over the menu, the window's own cursor outside it
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside (0.899 s)
+  [START] TestMenuChoosesTheCursorWhenItOpensAndCloses
+SKIPPED: the menu open-and-close cursor test moves the physical pointer and is limited to the interactive Menu lane
+  [DONE] TestMenuChoosesTheCursorWhenItOpensAndCloses (0.000 s)
+  [START] TestMenuSurvivesAWindowClosingItFromSetCursor
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuSurvivesAWindowClosingItFromSetCursor (0.912 s)
+  [START] TestDescribedAsyncMenuRestoresFocusedOwnerChild
+  [DONE] TestDescribedAsyncMenuRestoresFocusedOwnerChild (0.000 s)
+  [START] TestDescribedMenuWrapsFrenchTextAndPreservesIdentity
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuWrapsFrenchTextAndPreservesIdentity (0.350 s)
+  [START] TestDescribedMenuAccessibilityInvokesAndDisconnects
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuAccessibilityInvokesAndDisconnects (0.327 s)
+  [START] TestDescribedMenuPointerAndCancelledQueuedInvoke
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuPointerAndCancelledQueuedInvoke (0.387 s)
+  [START] TestDescribedMenuSubmenuKeepsSessionAndIdentity
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuSubmenuKeepsSessionAndIdentity (0.850 s)
+  [START] TestDescribedPointerMenuActivationSelectsNoRow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedPointerMenuActivationSelectsNoRow (0.329 s)
+  [START] TestDescribedMenuScrollRepublishesAccessibleGeometry
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuScrollRepublishesAccessibleGeometry (0.344 s)
+  [START] TestPlainMenuAccessibilityInvokesAndDisconnects
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPlainMenuAccessibilityInvokesAndDisconnects (0.355 s)
+  [START] TestPlainMenuAccessibilityScrollsFocusedRow
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPlainMenuAccessibilityScrollsFocusedRow (0.425 s)
+  [START] TestPlainMenuFractionalDpiRoundingDoesNotCreateScrollbar
+SKIPPED: plain-menu half-pixel layout case requires a 125% or 175% monitor
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPlainMenuFractionalDpiRoundingDoesNotCreateScrollbar (0.009 s)
+  [START] TestPlainMenuPointerMoveClearsLogicalFocusAndRefreshesAccessibility
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPlainMenuPointerMoveClearsLogicalFocusAndRefreshesAccessibility (0.434 s)
+  [START] TestPlainMenuWheelReconcilesHoverAndCancelsMovedSubmenuTimer
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPlainMenuWheelReconcilesHoverAndCancelsMovedSubmenuTimer (0.352 s)
+  [START] TestOpeningSubmenuEdgeScrollRepaintsParentAccessibilityBounds
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestOpeningSubmenuEdgeScrollRepaintsParentAccessibilityBounds (0.784 s)
+  [START] TestMenuNativeFocusSelectsNoRowAndRestoresTheChosenOne
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuNativeFocusSelectsNoRowAndRestoresTheChosenOne (0.367 s)
+  [START] TestDescribedSubmenuSliderFocusKeepsSessionFocus
+  [DONE] TestDescribedSubmenuSliderFocusKeepsSessionFocus (0.000 s)
+  [START] TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus
+  [DONE] TestMenuItemRoleOutsideMenuPopupTransfersNativeFocus (0.000 s)
+  [START] TestDescribedMenuFractionalDpiKeepsLaneAndWidths
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuFractionalDpiKeepsLaneAndWidths (0.310 s)
+  [START] TestDescribedRowsHoldOneLayoutEach
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedRowsHoldOneLayoutEach (0.317 s)
+  [START] TestDescribedRowDescriptionStartsAGapBelowTheLabelAsSeparateLayoutsPlaceIt
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedRowDescriptionStartsAGapBelowTheLabelAsSeparateLayoutsPlaceIt (0.355 s)
+  [START] TestDescribedRowPaintsEachFieldInItsOwnColor
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedRowPaintsEachFieldInItsOwnColor (0.807 s)
+  [START] TestDescribedRowDescriptionKeepsTheSmallFontTabStops
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedRowDescriptionKeepsTheSmallFontTabStops (0.321 s)
+  [START] TestBodyAndSmallFormatsAgreeOnWhatOneRowLayoutHoldsForAllItsText
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestBodyAndSmallFormatsAgreeOnWhatOneRowLayoutHoldsForAllItsText (0.275 s)
+  [START] TestDescribedMenuDrawsItsDescriptionAgainAfterDeviceLoss
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestDescribedMenuDrawsItsDescriptionAgainAfterDeviceLoss (0.423 s)
+  [START] TestModalMenuDispatchesUnrelatedTimerWithSubmenuId
+SKIPPED: the modal timer-dispatch regression opens a capturing menu and is limited to the interactive Menu lane
+  [DONE] TestModalMenuDispatchesUnrelatedTimerWithSubmenuId (0.000 s)
+  [START] TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu (0.736 s)
+  [START] TestStatusStripTextRoundtrips
+  [DONE] TestStatusStripTextRoundtrips (0.000 s)
+  [START] TestStatusStripMultiSectionSetup
+  [DONE] TestStatusStripMultiSectionSetup (0.000 s)
+  [START] TestStatusStripRightAlignedLeadingEllipsisSections
+  [DONE] TestStatusStripRightAlignedLeadingEllipsisSections (0.000 s)
+  [START] TestStatusStripBlendWithWindowBackgroundRoundtrips
+  [DONE] TestStatusStripBlendWithWindowBackgroundRoundtrips (0.000 s)
+  [START] TestStatusStripPaintHandlesMissingDeviceContext
+  [DONE] TestStatusStripPaintHandlesMissingDeviceContext (0.222 s)
+  [START] TestTagPickerAddsRemovesAndDedupesOptions
+  [DONE] TestTagPickerAddsRemovesAndDedupesOptions (0.001 s)
+  [START] TestTagPickerSelectCallbackCanRetireRootAndReadSelectionAndCapture
+  [DONE] TestTagPickerSelectCallbackCanRetireRootAndReadSelectionAndCapture (0.000 s)
+  [START] TestTagPickerRemoveCallbackCanRetireRootAndReadSelectionAndCapture
+  [DONE] TestTagPickerRemoveCallbackCanRetireRootAndReadSelectionAndCapture (0.001 s)
+  [START] TestTagPickerSelectionCallbackCanReplaceItself
+  [DONE] TestTagPickerSelectionCallbackCanReplaceItself (0.001 s)
+  [START] TestSmokeOverlayDefaultIsFalse
+  [DONE] TestSmokeOverlayDefaultIsFalse (0.000 s)
+  [START] TestSmokeOverlayRoundtrips
+  [DONE] TestSmokeOverlayRoundtrips (0.000 s)
+  [START] TestSetSystemBackdropReturnsFalseWithoutHwnd
+  [DONE] TestSetSystemBackdropReturnsFalseWithoutHwnd (0.000 s)
+[DONE] NewControls (15.007 s)
+All DxUi tests passed.

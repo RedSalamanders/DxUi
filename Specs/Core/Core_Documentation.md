@@ -26,7 +26,7 @@ lines, so updates to different plans merge without conflicts.
 Every catalog control MUST have a usage entry in `docs/controls.md`, a populated gallery tile, meaningful behavior
 tests and a design-system guideline and preview under `Specs/DesignSystem/components/<Control>/`
 ([contract](../UI/UI_DesignSystem.md)). A new control is incomplete until its documentation, gallery tile and
-design-system preview exist and the design system is republished. Additions/removals must update these together;
+design-system preview exist and are committed with the change. Additions/removals must update these together;
 visual changes to existing controls update the affected design-system tokens and previews in the same change. The generated gallery includes light, dark, rainbow light,
 rainbow dark and high-contrast sheets plus the supplied-device example. Generate with `gallery.ps1 -PublishDocs`,
 review all sheets for clipping/overlap/missing content, and publish PNGs, Markdown/HTML indexes and the generation

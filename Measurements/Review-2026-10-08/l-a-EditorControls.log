@@ -1,0 +1,239 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestSplitterDefaultState
+  [DONE] TestSplitterDefaultState (0.000 s)
+  [START] TestSplitterClampsToPaneMinimums
+  [DONE] TestSplitterClampsToPaneMinimums (0.000 s)
+  [START] TestSplitterHitBoundsCoverOnlySeparator
+  [DONE] TestSplitterHitBoundsCoverOnlySeparator (0.000 s)
+  [START] TestSplitterDragPreviewsCommitsAndCancels
+  [DONE] TestSplitterDragPreviewsCommitsAndCancels (0.002 s)
+  [START] TestSplitterKeyboardStepsAndCommits
+  [DONE] TestSplitterKeyboardStepsAndCommits (0.000 s)
+  [START] TestSplitterHorizontalOrientationAndCursors
+  [DONE] TestSplitterHorizontalOrientationAndCursors (0.000 s)
+  [START] TestSplitterDisabledAndRequestPosition
+  [DONE] TestSplitterDisabledAndRequestPosition (0.000 s)
+  [START] TestSplitterPaintHandlesMissingDeviceContext
+  [DONE] TestSplitterPaintHandlesMissingDeviceContext (0.000 s)
+  [START] TestSplitterChangeCallbackCanReplaceRootSafely
+  [DONE] TestSplitterChangeCallbackCanReplaceRootSafely (0.000 s)
+  [START] TestSplitterMutableChangeCallbackRetainsState
+  [DONE] TestSplitterMutableChangeCallbackRetainsState (0.000 s)
+  [START] TestNumericStepperDefaultState
+  [DONE] TestNumericStepperDefaultState (0.000 s)
+  [START] TestNumericStepperParseAndFormat
+  [DONE] TestNumericStepperParseAndFormat (0.000 s)
+  [START] TestNumericStepperSetValueClampsSilently
+  [DONE] TestNumericStepperSetValueClampsSilently (0.000 s)
+  [START] TestNumericStepperNudgeAndButtonsCommit
+  [DONE] TestNumericStepperNudgeAndButtonsCommit (0.001 s)
+  [START] TestNumericStepperMutableChangeCallbackRetainsState
+  [DONE] TestNumericStepperMutableChangeCallbackRetainsState (0.000 s)
+  [START] TestNumericStepperTypingPreviewsEnterCommitsEscapeCancels
+  [DONE] TestNumericStepperTypingPreviewsEnterCommitsEscapeCancels (0.837 s)
+  [START] TestNumericStepperUnparseableEditRevertsAndDecimalsRound
+  [DONE] TestNumericStepperUnparseableEditRevertsAndDecimalsRound (0.001 s)
+  [START] TestNumericStepperEditsEndWithCommitOrCancel
+  [DONE] TestNumericStepperEditsEndWithCommitOrCancel (0.001 s)
+  [START] TestSplitterStaysInsideAnExtentBelowItsMinimums
+  [DONE] TestSplitterStaysInsideAnExtentBelowItsMinimums (0.000 s)
+  [START] TestNumericStepperDisabledAndLayout
+  [DONE] TestNumericStepperDisabledAndLayout (0.001 s)
+  [START] TestNumericStepperChangeCallbackCanReplaceRootSafely
+  [DONE] TestNumericStepperChangeCallbackCanReplaceRootSafely (0.000 s)
+  [START] TestColorHelpers
+  [DONE] TestColorHelpers (0.000 s)
+  [START] TestColorPickerDefaultState
+  [DONE] TestColorPickerDefaultState (0.001 s)
+  [START] TestColorPickerSetColorSyncsChildrenSilently
+  [DONE] TestColorPickerSetColorSyncsChildrenSilently (0.001 s)
+  [START] TestColorPickerMutableChangeCallbackRetainsState
+  [DONE] TestColorPickerMutableChangeCallbackRetainsState (0.001 s)
+  [START] TestColorPickerFieldDragPreviewsAndOkCommits
+  [DONE] TestColorPickerFieldDragPreviewsAndOkCommits (0.002 s)
+  [START] TestColorPickerHueStripAndKeyboard
+  [DONE] TestColorPickerHueStripAndKeyboard (0.002 s)
+  [START] TestColorPickerCancelPaths
+  [DONE] TestColorPickerCancelPaths (0.002 s)
+  [START] TestColorPickerTypedComponentsAndHex
+  [DONE] TestColorPickerTypedComponentsAndHex (0.006 s)
+  [START] TestColorPickerTypingKeepsTheEditedField
+  [DONE] TestColorPickerTypingKeepsTheEditedField (0.002 s)
+  [START] TestNumericStepperStepButtonsCarryAutomationNames
+  [DONE] TestNumericStepperStepButtonsCarryAutomationNames (0.001 s)
+  [START] TestColorPickerCaptionSlotsFollowTheLabelWidths
+  [DONE] TestColorPickerCaptionSlotsFollowTheLabelWidths (0.001 s)
+  [START] TestColorPickerDisabledAndPaint
+  [DONE] TestColorPickerDisabledAndPaint (0.002 s)
+  [START] TestColorPickerCommitCallbackCanReplaceRootSafely
+  [DONE] TestColorPickerCommitCallbackCanReplaceRootSafely (0.001 s)
+  [START] TestColorPickerMovedOutOfARightToLeftParentIsArrangedForItsNewPlace
+  [DONE] TestColorPickerMovedOutOfARightToLeftParentIsArrangedForItsNewPlace (0.006 s)
+  [START] TestColorPickerReleasesItsGradientsWhenItsHostChanges
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestColorPickerReleasesItsGradientsWhenItsHostChanges (0.161 s)
+  [START] TestColorPickerMovedBetweenHostsMatchesAFreshOne
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestColorPickerMovedBetweenHostsMatchesAFreshOne (3.815 s)
+  [START] TestNumericStepperMovedBetweenHostsMatchesAFreshOne
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestNumericStepperMovedBetweenHostsMatchesAFreshOne (1.394 s)
+  [START] TestTabControlMovedBetweenHostsMatchesAFreshOne
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTabControlMovedBetweenHostsMatchesAFreshOne (1.292 s)
+  [START] TestMenuBarMovedBetweenHostsMatchesAFreshOne
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestMenuBarMovedBetweenHostsMatchesAFreshOne (1.374 s)
+  [START] TestTextFieldMovedBetweenHostsMatchesAFreshOne
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestTextFieldMovedBetweenHostsMatchesAFreshOne (1.504 s)
+  [START] TestStackPanelMovedOutOfARightToLeftParentIsLaidOutForItsNewPlace
+  [DONE] TestStackPanelMovedOutOfARightToLeftParentIsLaidOutForItsNewPlace (0.001 s)
+  [START] TestTabControlMovedOutOfARightToLeftParentIsLaidOutForItsNewPlace
+  [DONE] TestTabControlMovedOutOfARightToLeftParentIsLaidOutForItsNewPlace (0.001 s)
+  [START] TestTreeMovedBetweenDensitiesMatchesAFreshOne
+  [DONE] TestTreeMovedBetweenDensitiesMatchesAFreshOne (0.002 s)
+  [START] TestGridMovedBetweenDensitiesMatchesAFreshOne
+  [DONE] TestGridMovedBetweenDensitiesMatchesAFreshOne (0.003 s)
+  [START] TestMovingAControlAnnouncesWhatItNowInheritsOnce
+  [DONE] TestMovingAControlAnnouncesWhatItNowInheritsOnce (0.001 s)
+  [START] TestPageHostInheritsItsControlParentFlowAndDensity
+  [DONE] TestPageHostInheritsItsControlParentFlowAndDensity (0.000 s)
+  [START] TestPanelSkipsTheSlotOfAChildMovedOutThroughGetChildren
+    [TRACE] attached host dtor: begin
+    [TRACE] attached host dtor: host detached
+    [TRACE] attached host dtor: hwnd reset
+  [DONE] TestPanelSkipsTheSlotOfAChildMovedOutThroughGetChildren (0.381 s)
+  [START] TestEditorControlsAreCatalogued
+  [DONE] TestEditorControlsAreCatalogued (0.001 s)
+  [START] TestEditorControlPressesLeaveAControlTheFocusCallbackDestroyed
+  [DONE] TestEditorControlPressesLeaveAControlTheFocusCallbackDestroyed (0.002 s)
+[DONE] EditorControls (10.807 s)
+All DxUi tests passed.

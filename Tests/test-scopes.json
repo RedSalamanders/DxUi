@@ -127,13 +127,6 @@
       "reason": "owning suite source"
     },
     {
-      "pattern": "Tests/Controls/DxUi.Tests.MenuExitLifetime.cpp",
-      "scopes": [
-        "MenuExitLifetime"
-      ],
-      "reason": "owning suite source"
-    },
-    {
       "pattern": "Tests/Controls/DxUi.Tests.NewControls.cpp",
       "scopes": [
         "NewControls"
@@ -246,6 +239,35 @@
       "reason": "tooling regression tests"
     },
     {
+      "pattern": "Tools/tests/TestSupport.psm1",
+      "scopes": [
+        "Grid",
+        "InteractiveLease"
+      ],
+      "reason": "shared helper used by native filter, watchdog and desktop lease integration fixtures"
+    },
+    {
+      "pattern": "Tools/tests/Test-TestFilter.ps1",
+      "scopes": [
+        "Grid"
+      ],
+      "reason": "native test-runner filter fixture executes Grid tests"
+    },
+    {
+      "pattern": "Tools/tests/Test-TestWatchdog.ps1",
+      "scopes": [
+        "Grid"
+      ],
+      "reason": "native test-runner watchdog fixture executes Grid tests"
+    },
+    {
+      "pattern": "Tools/tests/Test-InteractiveLease.ps1",
+      "scopes": [
+        "InteractiveLease"
+      ],
+      "reason": "interactive desktop lease integration fixture"
+    },
+    {
       "pattern": "src/Controls/DxUi.Grid.*",
       "scopes": [
         "Grid",
@@ -281,6 +303,7 @@
       "scopes": [
         "ComboBox",
         "Control",
+        "NewControls",
         "Rendering",
         "Accessibility",
         "Embedded",
@@ -290,38 +313,63 @@
         "Animation"
       ],
       "reason": "Reviewed direct scenario callers plus retained-host/rendering/accessibility integration; foreground and gallery acceptance remain separate."
-    },
-    {
-      "pattern": "src/Controls/DxUi.Tooltip.*",
-      "scopes": [
-        "Tooltip",
-        "Control",
-        "Rendering",
-        "Accessibility",
-        "Embedded",
-        "WindowHost"
-      ],
-      "reason": "Reviewed direct scenario callers plus retained-host/rendering/accessibility integration; foreground and gallery acceptance remain separate."
-    },
-    {
-      "pattern": "src/Controls/DxUi.TextField.*",
-      "scopes": [
-        "TextField",
-        "Control",
-        "Rendering",
-        "Accessibility",
-        "Embedded",
-        "WindowHost",
-        "MultilineText",
-        "EditorControls",
-        "Animation"
-      ],
-      "reason": "Reviewed direct scenario callers plus retained-host/rendering/accessibility integration; foreground and gallery acceptance remain separate."
     }
   ],
   "toolingCommands": [
     "validate.ps1",
     "Tools/tests/Test-AsanRuntime.ps1"
+  ],
+  "interactiveObligations": [
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.Menu.cpp",
+      "suites": [
+        "Menu"
+      ],
+      "reason": "menu pointer, activation and capture scenarios require the person's interactive desktop"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.NewControls.cpp",
+      "suites": [
+        "Menu"
+      ],
+      "reason": "capturing popup fixtures are invoked only by the interactive Menu suite"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.NewControls.cpp",
+      "suites": [
+        "Menu"
+      ],
+      "reason": "capturing popup fixtures are invoked only by the interactive Menu suite"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.MenuResources.h",
+      "suites": [
+        "MenuResources",
+        "MenuResourceScaling"
+      ],
+      "reason": "menu resource fixtures require the person's interactive desktop"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.NativeTextInput.cpp",
+      "suites": [
+        "NativeTextInput"
+      ],
+      "reason": "native text-input focus and IME scenarios require the person's interactive desktop"
+    },
+    {
+      "pattern": "src/Controls/DxUi.Menu.*",
+      "suites": [
+        "Menu"
+      ],
+      "reason": "menu implementation changes require the interactive menu suite"
+    },
+    {
+      "pattern": "src/Controls/DxUi.NativeTextInput.*",
+      "suites": [
+        "NativeTextInput"
+      ],
+      "reason": "native text-input implementation changes require the interactive suite"
+    }
   ],
   "prCoverage": [
     {
@@ -481,6 +529,6 @@
       "platform": "ARM64"
     }
   ],
-  "prWorkflowDigest": "e3c49ac80b75d7965a4997076f399aaa0e46be6b52aff7738753e3efef582621",
+  "prWorkflowDigest": "e72b994133eeacd6d72f08c80f42849367b08d9e254187acab2a86e87bc625a0",
   "prNativeScopeModule": "Tools/NativeScope.psm1"
 }

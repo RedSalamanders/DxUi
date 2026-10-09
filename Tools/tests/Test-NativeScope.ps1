@@ -180,11 +180,12 @@ Invoke-TestCase 'the native jobs follow the scope job, and run when it cannot de
     Assert-True ($native -cmatch '(?m)^    needs: native-scope\s*$') 'the native jobs wait for the scope'
     Assert-True $native.Contains("if: `${{ !cancelled() && needs.native-scope.outputs.native != 'false' }}") 'and are left out only by a decision: a failed scope runs them, a cancelled run does not'
     $validation = Get-WorkflowJob 'validation'
-    Assert-True ($validation -cmatch '(?m)^    needs: windows-tooling\s*$') 'the existing validation check accounts for the Windows qualification'
-    Assert-True $validation.Contains('if: ${{ !cancelled() }}') 'validation also runs after a Windows failure, independently of native scope'
-    Assert-True $validation.Contains('Windows tooling did not pass:') 'Windows failure cannot leave the existing validation check green'
+    Assert-True (-not ($validation -cmatch '(?m)^    needs:')) 'validation runs independently so it can report its own failures'
     Assert-True (-not ((Get-WorkflowJob 'windows-tooling') -cmatch '(?m)^    needs:')) 'Windows tooling is independent of native scope'
     Assert-True (-not ((Get-WorkflowJob 'paired-benchmark') -cmatch '(?m)^    needs:')) 'the paired benchmark is independent of native scope'
+    $gate = Get-WorkflowJob 'ci-gate'
+    Assert-True $gate.Contains('if: ${{ always() }}') 'the required aggregate runs even when a producer fails or is skipped'
+    Assert-True ($gate -cmatch '(?m)^    needs: \[validation, windows-tooling, format, native-scope, native, paired-benchmark\]$') 'the aggregate accounts for every required qualification'
 }
 
 Invoke-TestCase 'the scope scripts parse and are strict' {

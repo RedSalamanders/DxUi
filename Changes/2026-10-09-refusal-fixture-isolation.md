@@ -1,0 +1,1 @@
+- 2026-10-09: Isolate desktop-refusal tooling fixtures from concurrently written repository logs while checking that the refused run leaves existing log and receipt bytes unchanged.

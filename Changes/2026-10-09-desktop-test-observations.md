@@ -1,0 +1,1 @@
+- Route the TSF composition fixture through native character dispatch, verify deferred focus announcements after their client events, hold foreground focus throughout the removal observation, exercise all 50 described history rows, and exclude unrelated application names from focus-test diagnostics.

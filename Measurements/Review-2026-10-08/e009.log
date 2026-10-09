@@ -1,0 +1,6 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] Control
+  [START] TestScrollPanelScrollbarTrackCallbackCanDestroyItsOwner
+  [DONE] TestScrollPanelScrollbarTrackCallbackCanDestroyItsOwner (0.002 s)
+[DONE] Control (0.002 s)
+All DxUi tests passed.

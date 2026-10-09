@@ -7,6 +7,17 @@ namespace
 {
 using DxUi::WindowHostBitmapCapture;
 
+std::shared_ptr<int> MakeRetainedCallbackCleanupThatClearsRoot(DxUi::WindowHost& host, bool& cleanupRan)
+{
+    return std::shared_ptr<int>(new int(1),
+                                [&host, &cleanupRan](int* value)
+    {
+        delete value;
+        cleanupRan = true;
+        host.SetRoot({});
+    });
+}
+
 class StripedBackdropControl final : public DxUi::Control
 {
 public:
@@ -1172,11 +1183,226 @@ void TestComboBoxInputLeavesAComboBoxTheFocusCallbackDestroyed()
         "editable ComboBox context menu", add(true), [&](WindowHost& host, Control& combo) { static_cast<void>(combo.OnContextMenu(host, false, text)); });
 }
 
+void TestEditableComboBoxTextCallbackKeepsItsSnapshotDuringReentry()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root   = std::make_unique<Panel>();
+    auto* combo = root->AddChild<ComboBox>();
+    combo->SetEditable(true);
+    combo->SetText(L"a");
+    host.SetRoot(std::move(root));
+    std::wstring observed;
+    combo->SetOnTextChanged([&](std::wstring_view text)
+    {
+        observed.assign(text);
+        combo->SetText(L"reentered");
+        observed.append(text);
+    });
+
+    const bool handled = combo->OnChar(host, L'b', 0u);
+
+    Require(handled, "editable ComboBox handles the typed character");
+    Require(observed == L"abab", "ComboBox callback argument remains valid when the callback changes its text");
+}
+
+void TestEditableComboBoxImportReportsWhenTextChangedDestroysComboBox()
+{
+    using namespace DxUi;
+    class ImportComboBox final : public ComboBox
+    {
+    public:
+        using ComboBox::ImportTextInputState;
+    };
+
+    WindowHost host;
+    auto root   = std::make_unique<Panel>();
+    auto* combo = root->AddChild<ImportComboBox>();
+    combo->SetEditable(true);
+    combo->SetText(L"before");
+    host.SetRoot(std::move(root));
+    combo->SetOnTextChanged([&](std::wstring_view) { host.SetRoot(std::make_unique<Panel>()); });
+    TextInputState state;
+    state.text       = L"after";
+    state.caretIndex = state.text.size();
+
+    const bool survived = combo->ImportTextInputState(host, state, true);
+
+    Require(! survived, "editable ComboBox import reports when its text callback destroys it");
+    Require(dynamic_cast<const Panel*>(host.GetRoot()) != nullptr, "editable ComboBox import leaves the replacement root installed");
+}
+
+void TestComboBoxSelectionStopsAfterSelectionChangedDestroysComboBox()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root   = std::make_unique<Panel>();
+    auto* combo = root->AddChild<ComboBox>();
+    combo->SetItems({ComboBox::Item{L"alpha", L"Alpha"}, ComboBox::Item{L"beta", L"Beta"}});
+    host.SetRoot(std::move(root));
+    combo->SetOnSelectionChanged([&](size_t) { host.SetRoot(std::make_unique<Panel>()); });
+
+    const bool handled = combo->OnChar(host, L'b', 0u);
+
+    Require(handled, "ComboBox typeahead remains handled when selection destroys the control");
+    Require(dynamic_cast<const Panel*>(host.GetRoot()) != nullptr, "ComboBox selection callback leaves the replacement root installed");
+}
+
+void TestComboBoxPopupCallbackKeepsItsCaptureWhenItDestroysTheComboBox()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root   = std::make_unique<Panel>();
+    auto* combo = root->AddChild<ComboBox>();
+    combo->SetItems({ComboBox::Item{L"one", L"One"}, ComboBox::Item{L"two", L"Two"}});
+    host.SetRoot(std::move(root));
+
+    std::wstring observed;
+    combo->SetOnPopupRequested([payload = std::make_shared<std::wstring>(L"popup payload"), &host, &observed]()
+    {
+        host.SetRoot(std::make_unique<Panel>());
+        observed = *payload;
+        return false;
+    });
+
+    static_cast<void>(combo->OnKeyDown(host, VK_RETURN, 0u));
+
+    Require(observed == L"popup payload", "popup callback capture remains alive after destroying the ComboBox");
+    Require(dynamic_cast<const Panel*>(host.GetRoot()) != nullptr, "popup callback replacement root remains installed");
+}
+
+void TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    ComboBox combo;
+    combo.SetItems({ComboBox::Item{L"one", L"One"}});
+
+    std::wstring observed;
+    combo.SetOnPopupRequested([payload = std::make_shared<std::wstring>(L"popup replacement payload"), &combo, &observed]()
+    {
+        combo.SetOnPopupRequested({});
+        observed = *payload;
+        return true;
+    });
+
+    const bool handled = combo.OnKeyDown(host, VK_RETURN, 0u);
+
+    Require(handled, "ComboBox handles Enter after its popup callback claims the request");
+    Require(observed == L"popup replacement payload", "popup callback capture remains alive after its setter replaces the callable");
+    Require(! combo.IsPopupOpen(), "claimed popup callback leaves the popup closed");
+}
+
+void TestComboBoxTextChangedCallbackRetainsMutableStateAcrossNotifications()
+{
+    using namespace DxUi;
+
+    ComboBox combo;
+    combo.SetEditable(true);
+    std::vector<int> observedCounts;
+    combo.SetOnTextChanged([count = 0, &observedCounts](std::wstring_view) mutable { observedCounts.push_back(++count); });
+
+    combo.SetTextAndNotify(L"first");
+    combo.SetTextAndNotify(L"second");
+
+    Require(observedCounts == std::vector<int>{1, 2}, "ComboBox text-change callback state advances across notifications");
+}
+
+void TestComboBoxSubmittedCallbackRetainsMutableStateAcrossSubmissions()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    ComboBox combo;
+    combo.SetEditable(true);
+    std::vector<int> observedCounts;
+    combo.SetOnSubmitted([count = 0, &observedCounts]() mutable { observedCounts.push_back(++count); });
+
+    static_cast<void>(combo.OnKeyDown(host, VK_RETURN, 0u));
+    static_cast<void>(combo.OnKeyDown(host, VK_RETURN, 0u));
+
+    Require(observedCounts == std::vector<int>{1, 2}, "ComboBox submitted callback state advances across Enter notifications");
+}
+
+void TestComboBoxSelectionCallbackRetainsMutableStateAcrossSelections()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    ComboBox combo;
+    combo.SetItems({ComboBox::Item{L"alpha", L"Alpha"}, ComboBox::Item{L"beta", L"Beta"}, ComboBox::Item{L"cherry", L"Cherry"}});
+    std::vector<int> observedCounts;
+    combo.SetOnSelectionChanged([count = 0, &observedCounts](size_t) mutable { observedCounts.push_back(++count); });
+
+    Require(combo.OnChar(host, L'b', 0u), "typeahead selects the beta item");
+    Require(combo.OnChar(host, L'c', 0u), "typeahead selects the cherry item");
+
+    Require(observedCounts == std::vector<int>{1, 2}, "ComboBox selection callback state advances across selections");
+}
+
+void TestComboBoxPopupCallbackRetainsMutableStateAcrossRequests()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    ComboBox combo;
+    combo.SetItems({ComboBox::Item{L"one", L"One"}});
+    std::vector<int> observedCounts;
+    combo.SetOnPopupRequested([count = 0, &observedCounts]() mutable
+    {
+        observedCounts.push_back(++count);
+        return true;
+    });
+
+    Require(combo.OnKeyDown(host, VK_RETURN, 0u), "first popup request is claimed by the callback");
+    Require(combo.OnKeyDown(host, VK_RETURN, 0u), "second popup request is claimed by the callback");
+
+    Require(observedCounts == std::vector<int>{1, 2}, "ComboBox popup callback state advances across requests");
+    Require(! combo.IsPopupOpen(), "claimed popup requests leave the popup closed");
+}
+
+void TestComboBoxTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root   = std::make_unique<Panel>();
+    auto* combo = root->AddChild<ComboBox>();
+    combo->SetEditable(true);
+    host.SetRoot(std::move(root));
+
+    bool cleanupRan = false;
+    combo->SetOnTextChanged([payload = MakeRetainedCallbackCleanupThatClearsRoot(host, cleanupRan), combo](std::wstring_view)
+    {
+        combo->SetOnTextChanged({});
+        static_cast<void>(payload);
+    });
+
+    const bool handled = combo->OnChar(host, L'x', 0u);
+
+    Require(handled, "text-change cleanup leaves the typed character handled");
+    Require(cleanupRan && host.GetRoot() == nullptr, "releasing the text callback snapshot retires the root");
+}
+
 } // namespace
 
 void RunComboBoxTests()
 {
+    DXUI_RUN_TEST(TestComboBoxPopupCallbackKeepsItsCaptureWhenItDestroysTheComboBox);
+    DXUI_RUN_TEST(TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself);
+    DXUI_RUN_TEST(TestComboBoxTextChangedCallbackRetainsMutableStateAcrossNotifications);
+    DXUI_RUN_TEST(TestComboBoxSubmittedCallbackRetainsMutableStateAcrossSubmissions);
+    DXUI_RUN_TEST(TestComboBoxSelectionCallbackRetainsMutableStateAcrossSelections);
+    DXUI_RUN_TEST(TestComboBoxPopupCallbackRetainsMutableStateAcrossRequests);
+    DXUI_RUN_TEST(TestComboBoxTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues);
     DXUI_RUN_TEST(TestComboBoxInputLeavesAComboBoxTheFocusCallbackDestroyed);
+    DXUI_RUN_TEST(TestEditableComboBoxTextCallbackKeepsItsSnapshotDuringReentry);
+    DXUI_RUN_TEST(TestEditableComboBoxImportReportsWhenTextChangedDestroysComboBox);
+    DXUI_RUN_TEST(TestComboBoxSelectionStopsAfterSelectionChangedDestroysComboBox);
     DXUI_RUN_TEST(TestComboRightClickInvokesContextMenuWithoutOpeningPopup);
     DXUI_RUN_TEST(TestComboBoxClosesOnFocusLoss);
     DXUI_RUN_TEST(TestComboBoxSecondClickTogglesPopupClosed);

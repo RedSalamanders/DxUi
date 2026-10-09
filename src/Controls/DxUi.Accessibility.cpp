@@ -107,7 +107,7 @@ struct EmbeddedAccessibilityAccess
 
 namespace
 {
-constexpr PCWSTR kWindowHostPropName                                = L"DxUi.ControlHost";
+constexpr PCWSTR kWindowHostPropName                                = kNativeAccessibilityTargetProperty;
 constexpr uint32_t kAccessibilityMaxDepth                           = 16u;
 constexpr DWORD kAccessibilityUiActionDispatchTimeoutMs             = 5000u;
 constexpr LONG kAccessibilityRuntimeIdTreeItem                      = 1'001;
@@ -213,6 +213,16 @@ struct AccessibilityUiActionPayload
     std::shared_ptr<AccessibilityUiActionDispatch> dispatch;
 };
 
+struct AccessibilityProviderCreationResult
+{
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+};
+
+struct AccessibilityProviderCreationPayload
+{
+    std::shared_ptr<AccessibilityProviderCreationResult> result;
+};
+
 #if DXUI_ENABLE_DIAGNOSTICS
 std::atomic<HANDLE> g_accessibilityUiActionHandlerEnteredEvent{nullptr};
 std::atomic<HANDLE> g_accessibilityUiActionHandlerReleaseEvent{nullptr};
@@ -221,6 +231,7 @@ std::atomic<HANDLE> g_accessibilityUiActionHandlerTakenReleaseEvent{nullptr};
 std::atomic<HANDLE> g_accessibilityUiActionPostedEvent{nullptr};
 std::atomic<DWORD> g_accessibilityUiActionDispatchTimeoutOverrideMs{0u};
 std::atomic<uint32_t> g_accessibilityUiActionExecutionCount{0u};
+std::atomic<uint64_t> g_accessibilitySnapshotBuildCount{0u};
 std::atomic<size_t> g_accessibilityOffscreenSelectedRowMaterializationLimitOverride{0u};
 thread_local bool g_accessibilityResolutionCounting       = false;
 thread_local uint64_t g_accessibilityResolutionVisitCount = 0u;
@@ -231,13 +242,20 @@ std::atomic<HWND> g_accessibilityFocusResolutionGateWindow{nullptr};
 std::atomic<HANDLE> g_accessibilityFocusResolutionGateEnteredEvent{nullptr};
 std::atomic<HANDLE> g_accessibilityFocusResolutionGateReleaseEvent{nullptr};
 std::atomic<uint32_t> g_accessibilityFocusResolutionGateHolders{0u};
+std::atomic<bool> g_accessibilityFocusResolutionGateAfterSnapshot{false};
+std::atomic<HWND> g_accessibilityPeerCreationGateWindow{nullptr};
+std::atomic<HANDLE> g_accessibilityPeerCreationGateEnteredEvent{nullptr};
+std::atomic<HANDLE> g_accessibilityPeerCreationGateReleaseEvent{nullptr};
+std::atomic<uint32_t> g_accessibilityPeerCreationGateHolders{0u};
+std::atomic<bool> g_accessibilityPeerCreationGateArmed{false};
 constexpr DWORD kAccessibilityFocusResolutionGateTimeoutMs = 5000u;
 
 // Holds a call of `hwnd`'s GetFocus while a test has gated that window: sets the test's entered event and waits, bounded,
 // for its release event. Dormant (two loads) otherwise.
-void HoldFocusResolutionForTest(HWND hwnd) noexcept
+void HoldFocusResolutionForTest(HWND hwnd, bool afterSnapshot = false) noexcept
 {
-    if (! hwnd || g_accessibilityFocusResolutionGateWindow.load(std::memory_order_seq_cst) != hwnd)
+    if (! hwnd || g_accessibilityFocusResolutionGateAfterSnapshot.load(std::memory_order_acquire) != afterSnapshot ||
+        g_accessibilityFocusResolutionGateWindow.load(std::memory_order_seq_cst) != hwnd)
         return;
     // Registered before the window is read again and the events are used: clearing the gate stores the window first and
     // then waits for the calls registered, so the test's events outlive every use of them here.
@@ -351,7 +369,7 @@ constexpr void CountAccessibilityResolutionVisits(size_t) noexcept
 {
 }
 
-constexpr void HoldFocusResolutionForTest(HWND) noexcept
+constexpr void HoldFocusResolutionForTest(HWND, bool = false) noexcept
 {
 }
 
@@ -440,7 +458,6 @@ struct AccessibilityGridRowSnapshotRecord
     size_t rowIndex = 0u;
     uint64_t rowId  = 0u;
     std::wstring gridRowAccessibleName;
-    bool gridRowOffscreen = true;
 };
 
 struct AccessibilityGridCellStateSnapshotRecord
@@ -452,7 +469,6 @@ struct AccessibilityGridCellStateSnapshotRecord
     std::wstring gridCellAccessibleText;
     std::wstring gridCellHelpText;
     bool gridCellEnabled            = false;
-    bool gridCellOffscreen          = true;
     bool gridCellChecked            = false;
     bool gridCellSupportsToggle     = false;
     bool gridCellSupportsValue      = false;
@@ -511,16 +527,14 @@ struct AccessibilityControlNavigationSnapshot
     bool hasPasswordRevealButton     = false;
     bool passwordRevealButtonEnabled = false;
     bool treeIsEnabled               = false;
-    bool treeHasFocus                = false;
     bool gridIsEnabled               = false;
-    bool gridHasFocus                = false;
     size_t gridRowCount              = 0u;
     size_t gridColumnCount           = 0u;
     size_t treeVisibleItemCount      = 0u;
     std::wstring passwordRevealButtonAccessibleName;
     // The tree's selected (focused) item. With multi-select it is the focused item, which need not be selected:
     // selectedTreeItemIds holds the selection, in visible order.
-    std::optional<size_t> selectedTreeVisibleIndex;
+    std::optional<size_t> focusedTreeVisibleIndex;
     std::vector<uint64_t> selectedTreeItemIds;
     std::vector<AccessibilityTreeItemSnapshotRecord> treeItems;
     std::vector<AccessibilityGridHeaderSnapshotRecord> gridHeaders;
@@ -678,12 +692,24 @@ void IndexAccessibilitySnapshot(AccessibilitySnapshot& snapshot);
 [[nodiscard]] bool GridCellSupportsRangeValuePattern(const GridCellData& cellData) noexcept;
 [[nodiscard]] double GetGridCellRangeValue(const GridCellData& cellData) noexcept;
 [[nodiscard]] bool FindAccessibilityPathForTarget(const Control* current, const ControlPath& basePath, const Control* target, ControlPath& outPath) noexcept;
-void AppendAccessibilitySnapshotPointHits(ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot);
-void AppendAccessibilitySnapshotPointHits(
-    ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot, const AccessibilityPointHitBuildContext& context);
+struct AccessibilitySnapshotBuild;
+template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TControl* root, const ControlPath& path) noexcept;
+[[nodiscard]] bool AppendAccessibilitySnapshotPointHits(
+    ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot, const AccessibilitySnapshotBuild& build);
+[[nodiscard]] bool AppendAccessibilitySnapshotPointHits(ControlHost& host,
+                                                        const Control* current,
+                                                        const ControlPath& basePath,
+                                                        AccessibilitySnapshot& snapshot,
+                                                        const AccessibilityPointHitBuildContext& context,
+                                                        const AccessibilitySnapshotBuild& build);
 [[nodiscard]] size_t CountAccessibilitySnapshotNavigation(const Control* current, const ControlPath& basePath) noexcept;
-void AppendAccessibilitySnapshotNavigation(
-    ControlHost& host, const Control* root, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot);
+[[nodiscard]] bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
+                                                         const Control* root,
+                                                         const Control* current,
+                                                         const ControlPath& basePath,
+                                                         AccessibilitySnapshot& snapshot,
+                                                         const AccessibilitySnapshotBuild& build,
+                                                         bool ancestorsEnabled = true);
 [[nodiscard]] const AccessibilityPointHitSnapshot* FindSnapshotPointHit(const AccessibilitySnapshot& snapshot, D2D1_POINT_2F pointDip) noexcept;
 [[nodiscard]] std::optional<D2D1_RECT_F> FindSnapshotFragmentBounds(const AccessibilitySnapshot& snapshot,
                                                                     AccessibilityFragmentKind kind,
@@ -749,6 +775,8 @@ struct WindowHostAccessibilityTarget final
         {
             return nullptr;
         }
+        if (resolvedHost->GetHwnd() != hwnd)
+            return nullptr;
 
         return resolvedHost;
     }
@@ -766,6 +794,27 @@ struct WindowHostAccessibilityTarget final
     EmbeddedAccessibilityPlacement placement{};
     std::atomic<ControlHost*> host{nullptr};
     std::atomic<std::shared_ptr<const AccessibilitySnapshot>> snapshot;
+    // Native revisions and event baselines are confined to the owner thread. Worker queries read only snapshots.
+    uint64_t dirtyRevision     = 1u;
+    uint64_t publishedRevision = 0u;
+    uintptr_t attachmentCookie = 0u;
+    bool flushPosted           = false;
+    bool publishing            = false;
+    std::atomic<bool> providerRequested{false};
+    std::shared_ptr<const AccessibilitySnapshot> eventBaseline;
+    std::optional<EmbeddedAccessibilityAccess::FocusMoveReporter> pendingFocusReporter;
+    struct PendingTextEvents
+    {
+        ControlPath path{};
+        std::weak_ptr<int> lifetime;
+        uint32_t kinds = 0u;
+        size_t caret   = 0u;
+    };
+    std::array<PendingTextEvents, 128u> pendingTextEvents{};
+    size_t pendingTextEventCount = 0u;
+    // Mutable text-range helpers may recurse on one target; immutable provider reads do not take this lock.
+    std::recursive_mutex snapshotMutex;
+    std::mutex providerMutex;
     // Calls of a provider's GetFocus (the fragment root's, for the system's focus event) that have begun. Each counts
     // itself, then reads the snapshot; a publish stores the snapshot, then reads the count, so a call the count does
     // not include reads the snapshot after the store: see RefreshWindowHostAccessibilitySnapshot. All four operations are
@@ -776,6 +825,37 @@ struct WindowHostAccessibilityTarget final
     std::shared_ptr<const AccessibilitySnapshot> diffBaseline;
     wil::com_ptr_nothrow<IRawElementProviderSimple> rootProvider;
 };
+
+// A model getter is application code. Never finish or publish the partially built tree after it changes an owner.
+struct AccessibilitySnapshotBuild
+{
+    WindowHostAccessibilityTarget& target;
+    ControlHost& host;
+    const Control* root;
+    std::weak_ptr<int> rootLifetime;
+    uint64_t revision;
+
+    [[nodiscard]] bool IsCurrent() const noexcept
+    {
+        return (! root || ! rootLifetime.expired()) && target.host.load(std::memory_order_acquire) == &host && host.GetRoot() == root &&
+               target.dirtyRevision == revision;
+    }
+
+    [[nodiscard]] bool IsCurrent(const Control* control, const std::weak_ptr<int>& lifetime, const ControlPath& path) const noexcept
+    {
+        return ! lifetime.expired() && IsCurrent() && ResolveControlAtPath(const_cast<Control*>(root), path) == control;
+    }
+};
+
+[[nodiscard]] std::recursive_mutex& AccessibilitySnapshotMutex(WindowHostAccessibilityTarget* target) noexcept
+{
+    // Unattached diagnostic providers have no live target or mutable host state.
+    static std::recursive_mutex unattachedMutex;
+    return target ? target->snapshotMutex : unattachedMutex;
+}
+
+void FlushNativeAccessibilitySnapshot(WindowHostAccessibilityTarget& target) noexcept;
+void DrainNativeAccessibilityPublication(WindowHostAccessibilityTarget& target) noexcept;
 
 [[nodiscard]] UiaRect EmbeddedScreenBounds(const AccessibilitySnapshot& snapshot, const D2D1_RECT_F& bounds) noexcept
 {
@@ -788,9 +868,9 @@ struct WindowHostAccessibilityTarget final
     return {left, top, right - left, bottom - top};
 }
 
-[[nodiscard]] std::recursive_mutex& GetAccessibilityTargetMutex() noexcept
+[[nodiscard]] std::mutex& GetAccessibilityTargetMutex() noexcept
 {
-    static std::recursive_mutex mutex;
+    static std::mutex mutex;
     return mutex;
 }
 
@@ -846,6 +926,8 @@ struct WindowHostSnapshotChanges
     bool focusMoved       = false;           // Another element (control, tree item, grid row, or none) has focus.
     bool structureChanged = false;           // A semantic control was added, removed or replaced at its path.
     std::vector<SelectionChange> selections; // Trees and grids whose selection changed (embedded hosts too).
+    std::shared_ptr<const AccessibilitySnapshot> previous;
+    std::shared_ptr<const AccessibilitySnapshot> current;
 };
 
 [[nodiscard]] bool SameControlLifetime(const std::weak_ptr<int>& first, const std::weak_ptr<int>& second) noexcept
@@ -883,6 +965,15 @@ struct WindowHostSnapshotChanges
 
 WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAccessibilityTarget& target, ControlHost& host)
 {
+    const uint64_t revision = target.dirtyRevision;
+    // WM_GETTEXT can run application code. Read it before borrowing any control/model, then revalidate the attachment.
+    wchar_t windowText[128]{};
+    const int length = target.hwnd ? GetWindowTextW(target.hwnd, windowText, static_cast<int>(std::size(windowText))) : 0;
+    if (target.ResolveHost() != &host || (! target.embedded && revision != target.dirtyRevision))
+        return {};
+#if DXUI_ENABLE_DIAGNOSTICS
+    g_accessibilitySnapshotBuildCount.fetch_add(1u, std::memory_order_relaxed);
+#endif
     auto snapshot              = std::make_shared<AccessibilitySnapshot>();
     snapshot->hwnd             = target.hwnd;
     snapshot->buildThreadId    = GetCurrentThreadId();
@@ -892,13 +983,15 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     snapshot->placement        = target.placement;
     snapshot->pixelsToDipScale = USER_DEFAULT_SCREEN_DPI / host.GetDpi();
     const Control* const root  = host.GetRoot();
-    snapshot->hasRetainedRoot  = root != nullptr;
+    const AccessibilitySnapshotBuild build{target, host, root, root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{}, revision};
+    snapshot->hasRetainedRoot = root != nullptr;
     // Sized once: a menu's rows make thousands of records, which growing vectors would move again and again.
     const size_t semanticControls = CountAccessibilitySnapshotNavigation(root, ControlPath{});
     snapshot->semanticControlOrder.reserve(semanticControls);
     snapshot->controlsByAddress.reserve(semanticControls);
     snapshot->controlNavigationRecords.reserve(semanticControls);
-    AppendAccessibilitySnapshotNavigation(host, root, root, ControlPath{}, *snapshot);
+    if (! AppendAccessibilitySnapshotNavigation(host, root, root, ControlPath{}, *snapshot, build))
+        return {};
     if (root && ! target.embedded)
     {
         ControlPath collapsedRootPath{};
@@ -907,7 +1000,8 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
                                              (snapshot->semanticControlOrder.size() == 1u || explicitStatusRoot) &&
                                              AreControlPathsEqual(snapshot->semanticControlOrder.front(), collapsedRootPath);
     }
-    AppendAccessibilitySnapshotPointHits(host, root, ControlPath{}, *snapshot);
+    if (! AppendAccessibilitySnapshotPointHits(host, root, ControlPath{}, *snapshot, build))
+        return {};
     IndexAccessibilitySnapshot(*snapshot);
 
     // The host prunes a focused control that left the tree only at its next message, so find it by pointer before
@@ -923,13 +1017,19 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
 
             if (const auto* tree = dynamic_cast<const Tree*>(focused))
             {
-                if (const auto* model = tree->GetModel(); model && tree->GetSelectedItemId())
+                if (const auto* model = tree->GetModel(); model && tree->GetFocusedItemId())
                 {
-                    if (const std::optional<size_t> visibleIndex = model->FindVisibleItemById(tree->GetSelectedItemId().value()))
+                    const auto lifetime = GetControlLifetimeToken(*tree);
+                    const BorrowedControlModelGuard<Tree, ITreeModel> modelGuard(*tree, lifetime, model);
+                    const auto itemId                        = tree->GetFocusedItemId().value();
+                    const std::optional<size_t> visibleIndex = model->FindVisibleItemById(itemId);
+                    if (! modelGuard.IsCurrent() || ! build.IsCurrent(tree, lifetime, focusedFragment.path))
+                        return {};
+                    if (visibleIndex)
                     {
                         focusedFragment.kind             = AccessibilityFragmentKind::TreeItem;
                         focusedFragment.treeVisibleIndex = visibleIndex.value();
-                        focusedFragment.treeItemId       = tree->GetSelectedItemId().value();
+                        focusedFragment.treeItemId       = itemId;
                     }
                 }
             }
@@ -937,10 +1037,10 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
             {
                 if (const auto* model = grid->GetModel(); model)
                 {
-                    if (const std::optional<size_t> selectedRow = grid->GetPrimarySelectedRow())
+                    if (const std::optional<uint64_t> focusedRow = grid->GetFocusedRowId())
                     {
                         focusedFragment.kind      = AccessibilityFragmentKind::GridRow;
-                        focusedFragment.gridRowId = model->GetStableRowId(selectedRow.value());
+                        focusedFragment.gridRowId = focusedRow.value();
                     }
                 }
             }
@@ -949,8 +1049,6 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
         }
     }
 
-    wchar_t windowText[128]{};
-    const int length = target.hwnd ? GetWindowTextW(target.hwnd, windowText, static_cast<int>(std::size(windowText))) : 0;
     snapshot->windowName.assign(windowText, static_cast<size_t>((std::max)(0, length)));
     if (target.embedded)
         snapshot->windowName = root && ! root->GetAccessibleName().empty() ? root->GetAccessibleName() : L"Embedded controls";
@@ -964,20 +1062,30 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     if (target.menuPopup)
         snapshot->liveMenuRecords = Detail::LiveResourceCount(Detail::LiveResource::MenuAccessibilityRecord, snapshot->controlNavigationRecords.size());
     WindowHostSnapshotChanges changes{};
-    std::shared_ptr<const AccessibilitySnapshot> previous = target.snapshot.load(std::memory_order_acquire);
+    if (! build.IsCurrent())
+        return {};
+    std::shared_ptr<const AccessibilitySnapshot> previous = target.embedded ? target.snapshot.load(std::memory_order_acquire) : target.eventBaseline;
     if (! previous || ! previous->alive)
         previous = std::move(target.diffBaseline); // A root swap's stand-in: compare with the tree before it.
     target.diffBaseline.reset();
-    if (previous && previous->alive && previous->hasRetainedRoot && UiaClientsAreListening())
+    if (target.embedded && previous && previous->alive && previous->hasRetainedRoot && UiaClientsAreListening())
     {
+        changes.focusMoved = ! SameFocusedElement(*previous, *snapshot);
         if (! target.embedded)
         {
-            changes.focusMoved       = ! SameFocusedElement(*previous, *snapshot);
             changes.structureChanged = ! SameSemanticControls(*previous, *snapshot);
+            changes.previous         = previous;
+            changes.current          = snapshot;
         }
         changes.selections = CollectSelectionChanges(*previous, *snapshot);
     }
     PublishAccessibilitySnapshot(target, std::move(snapshot));
+    if (! target.embedded)
+    {
+        target.publishedRevision = revision;
+        if (! target.eventBaseline)
+            target.eventBaseline = target.snapshot.load(std::memory_order_acquire);
+    }
     return changes;
 }
 
@@ -987,6 +1095,9 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     {
         return nullptr;
     }
+
+    if (! target->embedded && target->threadId == GetCurrentThreadId())
+        FlushNativeAccessibilitySnapshot(*target);
 
     // Sequentially consistent, for a GetFocus that counted itself just before: see PublishAccessibilitySnapshot.
     if (auto snapshot = target->snapshot.load(std::memory_order_seq_cst))
@@ -1215,6 +1326,10 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
         return false;
     }
 
+    // A Panel is the stable window root even when it currently contains only one semantic control.
+    if (firstPath.depth != 0u)
+        return false;
+
     ControlPath nextPath{};
     if (FindNextSemanticControl(root, firstPath, nextPath))
     {
@@ -1296,22 +1411,34 @@ void AppendTransformedAccessibilityPointHit(AccessibilitySnapshot& snapshot,
     }
 }
 
-void AppendTreeAccessibilityPointHits(const Tree& tree,
-                                      const ControlPath& path,
-                                      AccessibilitySnapshot& snapshot,
-                                      const AccessibilityPointHitBuildContext& context)
+[[nodiscard]] bool AppendTreeAccessibilityPointHits(const Tree& tree,
+                                                    const ControlPath& path,
+                                                    AccessibilitySnapshot& snapshot,
+                                                    const AccessibilityPointHitBuildContext& context,
+                                                    const AccessibilitySnapshotBuild& build)
 {
     const auto* model = tree.GetModel();
     if (! model)
     {
-        return;
+        return true;
     }
+
+    const auto lifetime = GetControlLifetimeToken(tree);
+    const BorrowedControlModelGuard<Tree, ITreeModel> modelGuard(tree, lifetime, model);
+    const auto isCurrent = [&]() noexcept { return modelGuard.IsCurrent() && build.IsCurrent(&tree, lifetime, path); };
 
     const D2D1_RECT_F treeHitBounds = tree.GetHitBounds();
     const size_t visibleItemCount   = model->GetVisibleItemCount();
-    for (size_t visibleIndex = tree.GetFirstVisibleItemIndex(); visibleIndex < visibleItemCount; ++visibleIndex)
+    if (! isCurrent())
+        return false;
+    const size_t firstVisibleIndex = tree.GetFirstVisibleItemIndex();
+    if (! isCurrent())
+        return false;
+    for (size_t visibleIndex = firstVisibleIndex; visibleIndex < visibleItemCount; ++visibleIndex)
     {
         const std::optional<D2D1_RECT_F> rowRect = tree.GetVisibleItemHitRect(visibleIndex);
+        if (! isCurrent())
+            return false;
         if (! rowRect)
         {
             continue;
@@ -1327,32 +1454,45 @@ void AppendTreeAccessibilityPointHits(const Tree& tree,
 
         AppendTransformedAccessibilityPointHit(snapshot, AccessibilityFragmentKind::TreeItem, path, rowRect.value(), context, visibleIndex);
     }
+    return true;
 }
 
-void AppendGridAccessibilityPointHits(const Grid& grid,
-                                      const ControlPath& path,
-                                      AccessibilitySnapshot& snapshot,
-                                      const AccessibilityPointHitBuildContext& context)
+[[nodiscard]] bool AppendGridAccessibilityPointHits(const Grid& grid,
+                                                    const ControlPath& path,
+                                                    AccessibilitySnapshot& snapshot,
+                                                    const AccessibilityPointHitBuildContext& context,
+                                                    const AccessibilitySnapshotBuild& build)
 {
     const auto* model = grid.GetModel();
     if (! model)
     {
-        return;
+        return true;
     }
 
+    const auto lifetime = GetControlLifetimeToken(grid);
+    const BorrowedControlModelGuard<Grid, IGridModel> modelGuard(grid, lifetime, model);
+    const auto isCurrent = [&]() noexcept { return modelGuard.IsCurrent() && build.IsCurrent(&grid, lifetime, path); };
+
     const size_t visibleColumnCount = grid.GetVisibleColumnCount();
+    if (! isCurrent())
+        return false;
     std::vector<size_t> visibleColumns;
     visibleColumns.reserve(visibleColumnCount);
     for (size_t visibleColumnIndex = 0u; visibleColumnIndex < visibleColumnCount; ++visibleColumnIndex)
     {
         const std::optional<size_t> columnIndex = grid.GetVisibleColumnAt(visibleColumnIndex);
+        if (! isCurrent())
+            return false;
         if (! columnIndex)
         {
             continue;
         }
 
         visibleColumns.push_back(columnIndex.value());
-        if (const std::optional<D2D1_RECT_F> headerRect = grid.GetVisibleColumnHeaderRect(columnIndex.value()))
+        const std::optional<D2D1_RECT_F> headerRect = grid.GetVisibleColumnHeaderRect(columnIndex.value());
+        if (! isCurrent())
+            return false;
+        if (headerRect)
         {
             AppendTransformedAccessibilityPointHit(
                 snapshot, AccessibilityFragmentKind::GridHeader, path, headerRect.value(), context, 0u, 0u, columnIndex.value());
@@ -1360,42 +1500,62 @@ void AppendGridAccessibilityPointHits(const Grid& grid,
     }
 
     const size_t visibleRowCount = grid.GetVisibleRowCount();
+    if (! isCurrent())
+        return false;
     for (size_t visibleRowIndex = 0u; visibleRowIndex < visibleRowCount; ++visibleRowIndex)
     {
         const std::optional<size_t> rowIndex = grid.GetVisibleRowAt(visibleRowIndex);
+        if (! isCurrent())
+            return false;
         if (! rowIndex)
         {
             continue;
         }
 
         const uint64_t rowId = model->GetStableRowId(rowIndex.value());
+        if (! isCurrent())
+            return false;
         for (const size_t columnIndex : visibleColumns)
         {
-            if (const std::optional<D2D1_RECT_F> cellRect = grid.GetVisibleCellRect(rowIndex.value(), columnIndex))
+            const std::optional<D2D1_RECT_F> cellRect = grid.GetVisibleCellRect(rowIndex.value(), columnIndex);
+            if (! isCurrent())
+                return false;
+            if (cellRect)
             {
                 AppendTransformedAccessibilityPointHit(snapshot, AccessibilityFragmentKind::GridCell, path, cellRect.value(), context, 0u, rowId, columnIndex);
             }
         }
 
-        if (const std::optional<D2D1_RECT_F> rowRect = grid.GetVisibleRowRect(rowIndex.value()))
+        const std::optional<D2D1_RECT_F> rowRect = grid.GetVisibleRowRect(rowIndex.value());
+        if (! isCurrent())
+            return false;
+        if (rowRect)
         {
             AppendTransformedAccessibilityPointHit(snapshot, AccessibilityFragmentKind::GridRow, path, rowRect.value(), context, 0u, rowId);
         }
     }
+    return true;
 }
 
-void AppendAccessibilitySnapshotPointHits(ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot)
+bool AppendAccessibilitySnapshotPointHits(
+    ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot, const AccessibilitySnapshotBuild& build)
 {
-    AppendAccessibilitySnapshotPointHits(host, current, basePath, snapshot, AccessibilityPointHitBuildContext{});
+    if (! AppendAccessibilitySnapshotPointHits(host, current, basePath, snapshot, AccessibilityPointHitBuildContext{}, build))
+        return false;
     AppendAccessibilityPointHit(snapshot, AccessibilityFragmentKind::Root, ControlPath{}, host.GetClientBoundsDip());
+    return true;
 }
 
-void AppendAccessibilitySnapshotPointHits(
-    ControlHost& host, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot, const AccessibilityPointHitBuildContext& context)
+bool AppendAccessibilitySnapshotPointHits(ControlHost& host,
+                                          const Control* current,
+                                          const ControlPath& basePath,
+                                          AccessibilitySnapshot& snapshot,
+                                          const AccessibilityPointHitBuildContext& context,
+                                          const AccessibilitySnapshotBuild& build)
 {
     if (! current || ! current->IsVisible())
     {
-        return;
+        return true;
     }
 
     AccessibilityPointHitBuildContext childContext = context;
@@ -1404,7 +1564,7 @@ void AppendAccessibilitySnapshotPointHits(
         const std::optional<D2D1_RECT_F> viewport = ApplyAccessibilityPointHitContext(scrollPanel->GetViewportRect(), context);
         if (! viewport)
         {
-            return;
+            return true;
         }
 
         childContext.clipRectDip = viewport.value();
@@ -1427,13 +1587,14 @@ void AppendAccessibilitySnapshotPointHits(
                 continue;
             }
 
-            AppendAccessibilitySnapshotPointHits(host, children[index].get(), childPath, snapshot, childContext);
+            if (! AppendAccessibilitySnapshotPointHits(host, children[index].get(), childPath, snapshot, childContext, build))
+                return false;
         }
     }
 
     if (! IsSemanticAccessibilityControl(current))
     {
-        return;
+        return true;
     }
 
     if (const auto* textField = dynamic_cast<const TextField*>(current); textField && textField->IsPasswordRevealButtonVisibleForAccessibility())
@@ -1443,14 +1604,17 @@ void AppendAccessibilitySnapshotPointHits(
     }
     if (const auto* tree = dynamic_cast<const Tree*>(current))
     {
-        AppendTreeAccessibilityPointHits(*tree, basePath, snapshot, context);
+        if (! AppendTreeAccessibilityPointHits(*tree, basePath, snapshot, context, build))
+            return false;
     }
     else if (const auto* grid = dynamic_cast<const Grid*>(current))
     {
-        AppendGridAccessibilityPointHits(*grid, basePath, snapshot, context);
+        if (! AppendGridAccessibilityPointHits(*grid, basePath, snapshot, context, build))
+            return false;
     }
 
     AppendTransformedAccessibilityPointHit(snapshot, AccessibilityFragmentKind::Control, basePath, current->GetHitBounds(), context);
+    return true;
 }
 
 const AccessibilityPointHitSnapshot* FindSnapshotPointHit(const AccessibilitySnapshot& snapshot, D2D1_POINT_2F pointDip) noexcept
@@ -1652,13 +1816,20 @@ size_t CountAccessibilitySnapshotNavigation(const Control* current, const Contro
     return count;
 }
 
-void AppendAccessibilitySnapshotNavigation(
-    ControlHost& host, const Control* root, const Control* current, const ControlPath& basePath, AccessibilitySnapshot& snapshot)
+bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
+                                           const Control* root,
+                                           const Control* current,
+                                           const ControlPath& basePath,
+                                           AccessibilitySnapshot& snapshot,
+                                           const AccessibilitySnapshotBuild& build,
+                                           bool ancestorsEnabled)
 {
     if (! current || ! current->IsVisible())
     {
-        return;
+        return true;
     }
+
+    const bool effectiveEnabled = ancestorsEnabled && current->IsEnabled();
 
     if (IsSemanticAccessibilityControl(current))
     {
@@ -1677,7 +1848,7 @@ void AppendAccessibilitySnapshotNavigation(
         record.controlAccessibleHelpText = current->GetAccessibleHelpText();
         record.controlAutomationId       = current->GetAccessibleAutomationId();
         record.controlVisible            = current->IsVisible();
-        record.controlEnabled            = current->IsEnabled();
+        record.controlEnabled            = effectiveEnabled;
         record.controlFocusable          = current->IsFocusable();
         record.controlHasFocus           = current->HasFocus();
         if (const auto* textField = dynamic_cast<const TextField*>(current))
@@ -1773,20 +1944,23 @@ void AppendAccessibilitySnapshotNavigation(
             if (record.hasPasswordRevealButton)
             {
                 record.passwordRevealButtonAccessibleName = textField->GetPasswordRevealAccessibleName();
-                record.passwordRevealButtonEnabled        = textField->IsEnabled();
+                record.passwordRevealButtonEnabled        = effectiveEnabled;
             }
         }
         else if (const auto* tree = dynamic_cast<const Tree*>(current))
         {
             record.isTree                = true;
-            record.treeIsEnabled         = tree->IsEnabled();
-            record.treeHasFocus          = tree->HasFocus();
+            record.treeIsEnabled         = effectiveEnabled;
             record.treeCanSelectMultiple = tree->MultiSelectEnabled();
             if (const auto* model = tree->GetModel())
             {
+                const BorrowedControlModelGuard<Tree, ITreeModel> modelGuard(*tree, record.controlLifetime, model);
+                const auto isCurrent        = [&]() noexcept { return modelGuard.IsCurrent() && build.IsCurrent(tree, record.controlLifetime, basePath); };
                 record.treeVisibleItemCount = model->GetVisibleItemCount();
+                if (! isCurrent())
+                    return false;
                 record.treeItems.reserve(record.treeVisibleItemCount);
-                const std::optional<uint64_t> selectedItemId = tree->GetSelectedItemId();
+                const std::optional<uint64_t> focusedItemId = tree->GetFocusedItemId();
                 // With multi-select the selection is the tree's set, reported for the rows that are visible. A single
                 // selection builds no set.
                 std::optional<std::unordered_set<uint64_t>> selectedItemIds;
@@ -1799,17 +1973,19 @@ void AppendAccessibilitySnapshotNavigation(
                 {
                     TreeItemData item{};
                     model->GetVisibleItem(visibleIndex, item);
+                    if (! isCurrent())
+                        return false;
                     record.treeItems.push_back(AccessibilityTreeItemSnapshotRecord{.visibleIndex = visibleIndex,
                                                                                    .itemId       = item.id,
                                                                                    .text         = item.text,
                                                                                    .depth        = item.depth,
                                                                                    .hasChildren  = item.hasChildren,
                                                                                    .expanded     = item.expanded});
-                    if (selectedItemId && selectedItemId.value() == item.id)
+                    if (focusedItemId && focusedItemId.value() == item.id)
                     {
-                        record.selectedTreeVisibleIndex = visibleIndex;
+                        record.focusedTreeVisibleIndex = visibleIndex;
                     }
-                    if (selectedItemIds && selectedItemIds->contains(item.id))
+                    if (selectedItemIds ? selectedItemIds->contains(item.id) : tree->IsItemSelected(item.id))
                     {
                         record.selectedTreeItemIds.push_back(item.id);
                     }
@@ -1823,42 +1999,58 @@ void AppendAccessibilitySnapshotNavigation(
             size_t materializedOffscreenRowCount = 0u;
             record.isGrid                        = true;
             record.gridCanSelectMultiple         = grid->GetSelectionMode() != GridSelectionMode::Single;
-            record.gridIsEnabled                 = grid->IsEnabled();
-            record.gridHasFocus                  = grid->HasFocus();
+            record.gridIsEnabled                 = effectiveEnabled;
             if (const auto* model = grid->GetModel())
             {
-                record.gridRowCount    = model->GetRowCount();
+                const BorrowedControlModelGuard<Grid, IGridModel> modelGuard(*grid, record.controlLifetime, model);
+                const auto isCurrent = [&]() noexcept { return modelGuard.IsCurrent() && build.IsCurrent(grid, record.controlLifetime, basePath); };
+                record.gridRowCount  = model->GetRowCount();
+                if (! isCurrent())
+                    return false;
                 record.gridColumnCount = model->GetColumnCount();
+                if (! isCurrent())
+                    return false;
 
                 const size_t visibleColumnCount = grid->GetVisibleColumnCount();
+                if (! isCurrent())
+                    return false;
                 record.gridVisibleColumns.reserve(visibleColumnCount);
                 record.gridHeaders.reserve(visibleColumnCount);
                 for (size_t visibleColumnIndex = 0u; visibleColumnIndex < visibleColumnCount; ++visibleColumnIndex)
                 {
-                    if (const std::optional<size_t> columnIndex = grid->GetVisibleColumnAt(visibleColumnIndex))
+                    const std::optional<size_t> columnIndex = grid->GetVisibleColumnAt(visibleColumnIndex);
+                    if (! isCurrent())
+                        return false;
+                    if (columnIndex)
                     {
                         record.gridVisibleColumns.push_back(columnIndex.value());
                         const GridColumnDesc columnDesc = model->GetColumn(columnIndex.value());
+                        if (! isCurrent())
+                            return false;
                         record.gridHeaders.push_back(AccessibilityGridHeaderSnapshotRecord{
                             .columnIndex = columnIndex.value(), .gridHeaderName = std::wstring(GetGridHeaderAccessibleName(columnDesc))});
                     }
                 }
 
                 const size_t visibleRowCount = grid->GetVisibleRowCount();
+                if (! isCurrent())
+                    return false;
                 record.gridVisibleRows.reserve(visibleRowCount);
                 record.gridVisibleRowIds.reserve(visibleRowCount);
                 record.gridRows.reserve(visibleRowCount);
                 for (size_t visibleRowIndex = 0u; visibleRowIndex < visibleRowCount; ++visibleRowIndex)
                 {
-                    if (const std::optional<size_t> rowIndex = grid->GetVisibleRowAt(visibleRowIndex))
+                    const std::optional<size_t> rowIndex = grid->GetVisibleRowAt(visibleRowIndex);
+                    if (! isCurrent())
+                        return false;
+                    if (rowIndex)
                     {
                         const uint64_t rowId = model->GetStableRowId(rowIndex.value());
+                        if (! isCurrent())
+                            return false;
                         record.gridVisibleRows.push_back(rowIndex.value());
                         record.gridVisibleRowIds.push_back(rowId);
-                        record.gridRows.push_back(AccessibilityGridRowSnapshotRecord{
-                            .rowIndex         = rowIndex.value(),
-                            .rowId            = rowId,
-                            .gridRowOffscreen = ! grid->IsVisible() || ! grid->GetVisibleRowRect(rowIndex.value()).has_value()});
+                        record.gridRows.push_back(AccessibilityGridRowSnapshotRecord{.rowIndex = rowIndex.value(), .rowId = rowId});
                     }
                 }
 
@@ -1871,6 +2063,8 @@ void AppendAccessibilitySnapshotNavigation(
                     {
                         GridCellData cellData{};
                         model->GetCellData(rowIndex, columnIndex, cellData);
+                        if (! isCurrent())
+                            return false;
 
                         std::wstring helpText;
                         std::wstring accessibleText = BuildGridCellAccessibleText(cellData);
@@ -1888,20 +2082,19 @@ void AppendAccessibilitySnapshotNavigation(
                             helpText = cellData.tooltipText;
                         }
 
-                        record.gridCells.push_back(AccessibilityGridCellStateSnapshotRecord{
-                            .rowIndex                   = rowIndex,
-                            .rowId                      = rowId,
-                            .columnIndex                = columnIndex,
-                            .gridCellControlTypeId      = GetGridCellControlTypeId(cellData),
-                            .gridCellAccessibleText     = std::move(accessibleText),
-                            .gridCellHelpText           = std::move(helpText),
-                            .gridCellEnabled            = cellData.enabled,
-                            .gridCellOffscreen          = ! grid->IsVisible() || ! grid->GetVisibleCellRect(rowIndex, columnIndex).has_value(),
-                            .gridCellChecked            = cellData.checked,
-                            .gridCellSupportsToggle     = GridCellSupportsTogglePattern(cellData),
-                            .gridCellSupportsValue      = GridCellSupportsValuePattern(cellData),
-                            .gridCellSupportsRangeValue = GridCellSupportsRangeValuePattern(cellData),
-                            .gridCellRangeValue         = GetGridCellRangeValue(cellData)});
+                        record.gridCells.push_back(
+                            AccessibilityGridCellStateSnapshotRecord{.rowIndex                   = rowIndex,
+                                                                     .rowId                      = rowId,
+                                                                     .columnIndex                = columnIndex,
+                                                                     .gridCellControlTypeId      = GetGridCellControlTypeId(cellData),
+                                                                     .gridCellAccessibleText     = std::move(accessibleText),
+                                                                     .gridCellHelpText           = std::move(helpText),
+                                                                     .gridCellEnabled            = cellData.enabled,
+                                                                     .gridCellChecked            = cellData.checked,
+                                                                     .gridCellSupportsToggle     = GridCellSupportsTogglePattern(cellData),
+                                                                     .gridCellSupportsValue      = GridCellSupportsValuePattern(cellData),
+                                                                     .gridCellSupportsRangeValue = GridCellSupportsRangeValuePattern(cellData),
+                                                                     .gridCellRangeValue         = GetGridCellRangeValue(cellData)});
                     }
                 }
 
@@ -1911,17 +2104,21 @@ void AppendAccessibilitySnapshotNavigation(
                 for (const uint64_t rowId : selection)
                 {
                     const std::optional<size_t> selectedRowIndex = model->FindRowByStableId(rowId);
+                    if (! isCurrent())
+                        return false;
                     if (selectedRowIndex)
                     {
                         record.selectedGridRowIds.push_back(rowId);
                         if (! visibleRowIds.contains(rowId) && materializedOffscreenRowCount < AccessibilityOffscreenSelectedRowMaterializationLimit())
                         {
                             ++materializedOffscreenRowCount;
-                            AccessibilityGridRowSnapshotRecord rowRecord{.rowIndex = selectedRowIndex.value(), .rowId = rowId, .gridRowOffscreen = true};
+                            AccessibilityGridRowSnapshotRecord rowRecord{.rowIndex = selectedRowIndex.value(), .rowId = rowId};
                             for (size_t columnIndex = 0u; columnIndex < record.gridColumnCount; ++columnIndex)
                             {
                                 GridCellData cellData{};
                                 model->GetCellData(selectedRowIndex.value(), columnIndex, cellData);
+                                if (! isCurrent())
+                                    return false;
                                 std::wstring accessibleText = BuildGridCellAccessibleText(cellData);
                                 if (! accessibleText.empty())
                                 {
@@ -1968,9 +2165,11 @@ void AppendAccessibilitySnapshotNavigation(
                 continue;
             }
 
-            AppendAccessibilitySnapshotNavigation(host, root, children[index].get(), childPath, snapshot);
+            if (! AppendAccessibilitySnapshotNavigation(host, root, children[index].get(), childPath, snapshot, build, effectiveEnabled))
+                return false;
         }
     }
+    return true;
 }
 
 const AccessibilityControlNavigationSnapshot* FindControlNavigationRecord(const AccessibilitySnapshot& snapshot, const ControlPath& path) noexcept
@@ -2121,21 +2320,21 @@ bool SnapshotSupportsSelectionProvider(const AccessibilityControlNavigationSnaps
     return record.isTree || record.isGrid;
 }
 
-// The tree's focused (current) item: its selected item, or with multi-select the item the keyboard focus is on.
+// Focus is independent from membership in both single- and multiple-selection trees.
 bool SnapshotTreeItemIsFocused(const AccessibilityControlNavigationSnapshot& record, uint64_t itemId) noexcept
 {
-    if (! record.selectedTreeVisibleIndex)
+    if (! record.focusedTreeVisibleIndex)
     {
         return false;
     }
 
-    const AccessibilityTreeItemSnapshotRecord* focused = FindSnapshotTreeItemRecordByVisibleIndex(record, record.selectedTreeVisibleIndex.value());
+    const AccessibilityTreeItemSnapshotRecord* focused = FindSnapshotTreeItemRecordByVisibleIndex(record, record.focusedTreeVisibleIndex.value());
     return focused && focused->itemId == itemId;
 }
 
 bool SnapshotTreeItemIsSelected(const AccessibilityControlNavigationSnapshot& record, uint64_t itemId) noexcept
 {
-    return record.treeCanSelectMultiple ? FindU64ValueIndex(record.selectedTreeItemIds, itemId).has_value() : SnapshotTreeItemIsFocused(record, itemId);
+    return FindU64ValueIndex(record.selectedTreeItemIds, itemId).has_value();
 }
 
 bool SnapshotGridRowIsSelected(const AccessibilityControlNavigationSnapshot& record, uint64_t rowId) noexcept
@@ -2149,26 +2348,14 @@ bool SnapshotSupportsGridSelectionItem(const AccessibilityControlNavigationSnaps
     return record.isGrid && (SnapshotContainsGridRow(record, rowId) || SnapshotGridRowIsSelected(record, rowId));
 }
 
-// The ids a tree's or grid's Selection pattern reports, in the snapshot's order: a multi-select tree's selected visible items, a
-// single-selection tree's selected item while it is a visible row (`single` holds it for the span), a grid's selected rows.
-[[nodiscard]] std::span<const uint64_t> SnapshotSelectedIds(const AccessibilityControlNavigationSnapshot& record, uint64_t& single) noexcept
+// Membership is stored independently of focus in both selector modes, in the snapshot's visible order.
+[[nodiscard]] std::span<const uint64_t> SnapshotSelectedIds(const AccessibilityControlNavigationSnapshot& record) noexcept
 {
     if (record.isGrid)
     {
         return record.selectedGridRowIds;
     }
-    if (record.treeCanSelectMultiple)
-    {
-        return record.selectedTreeItemIds;
-    }
-    const AccessibilityTreeItemSnapshotRecord* const item =
-        record.selectedTreeVisibleIndex ? FindSnapshotTreeItemRecordByVisibleIndex(record, record.selectedTreeVisibleIndex.value()) : nullptr;
-    if (! item)
-    {
-        return {};
-    }
-    single = item->itemId;
-    return std::span<const uint64_t>(&single, 1u);
+    return record.selectedTreeItemIds;
 }
 
 // Membership in one side of a selection change: a scan of a few ids, or a binary search of a sorted copy of many, so that two
@@ -2210,10 +2397,8 @@ std::vector<SelectionChange> CollectSelectionChanges(const AccessibilitySnapshot
         {
             continue;
         }
-        uint64_t wasSingle                  = 0u;
-        uint64_t isSingle                   = 0u;
-        const std::span<const uint64_t> was = SnapshotSelectedIds(*previous, wasSingle);
-        const std::span<const uint64_t> now = SnapshotSelectedIds(record, isSingle);
+        const std::span<const uint64_t> was = SnapshotSelectedIds(*previous);
+        const std::span<const uint64_t> now = SnapshotSelectedIds(record);
         if (std::ranges::equal(was, now))
         {
             continue;
@@ -2223,7 +2408,39 @@ std::vector<SelectionChange> CollectSelectionChanges(const AccessibilitySnapshot
         change.path            = record.path;
         change.controlIdentity = record.controlIdentity;
         change.itemKind        = record.isGrid ? AccessibilityFragmentKind::GridRow : AccessibilityFragmentKind::TreeItem;
-        const auto tooMany     = [&]() noexcept { return change.added.size() + change.removed.size() > kAccessibilityMaxSelectionEvents; };
+        if (now.size() == 1u)
+        {
+            const bool newlySelected = std::ranges::find(was, now.front()) == was.end();
+            if (newlySelected)
+                change.added.push_back(now.front());
+            change.replaced = newlySelected;
+            // Replacement suppresses removed-item automation events, but still reports the observable property change.
+            for (const uint64_t id : was)
+            {
+                if (id == now.front())
+                    continue;
+                if (record.isGrid ? FindSnapshotGridRowRecord(record, id) != nullptr : SnapshotContainsTreeItem(record, id))
+                {
+                    if (change.removed.size() == kAccessibilityMaxSelectionEvents)
+                    {
+                        if (! newlySelected)
+                            change.invalidated = true;
+                        break; // The selected event itself reports a larger replacement; bound supplementary property events.
+                    }
+                    change.removed.push_back(id);
+                }
+                else if (! newlySelected)
+                    change.invalidated = true;
+            }
+            if (! newlySelected && change.removed.size() > kAccessibilityMaxSelectionEvents)
+            {
+                change.removed.clear();
+                change.invalidated = true;
+            }
+            changes.push_back(std::move(change));
+            continue;
+        }
+        const auto tooMany = [&]() noexcept { return change.added.size() + change.removed.size() > kAccessibilityMaxSelectionEvents; };
         // An id has one place in a selection, so the ids added and removed are at least as many as the two sizes differ by: a
         // change too large to name (selecting everything) is known before an id is compared.
         if ((std::max)(was.size(), now.size()) - (std::min)(was.size(), now.size()) > kAccessibilityMaxSelectionEvents)
@@ -3511,9 +3728,38 @@ struct TextRangeSpanMoveResult
     }
 
     const size_t currentIndex = FindTextRangeVisualLineIndex(*spans, clampedRange.start);
-    const int requestedIndex  = static_cast<int>(currentIndex) + count;
-    const int targetIndex     = std::clamp(requestedIndex, 0, static_cast<int>(spans->size() - 1u));
-    const int moved           = targetIndex - static_cast<int>(currentIndex);
+    const size_t lastIndex    = spans->size() - 1u;
+    size_t targetIndex        = currentIndex;
+    int moved                 = 0;
+    if (count > 0)
+    {
+        const size_t requested = static_cast<size_t>(count);
+        const size_t remaining = lastIndex - currentIndex;
+        if (requested > remaining)
+        {
+            targetIndex = lastIndex;
+            moved       = static_cast<int>(remaining);
+        }
+        else
+        {
+            targetIndex = currentIndex + requested;
+            moved       = count;
+        }
+    }
+    else
+    {
+        const uint64_t requested = static_cast<uint64_t>(-static_cast<int64_t>(count));
+        if (currentIndex > requested)
+        {
+            targetIndex = currentIndex - static_cast<size_t>(requested);
+            moved       = count;
+        }
+        else
+        {
+            targetIndex = 0u;
+            moved       = currentIndex == requested ? count : -static_cast<int>(currentIndex);
+        }
+    }
     if (moved == 0)
     {
         return TextRangeSpanMoveResult{clampedRange, 0};
@@ -4169,6 +4415,71 @@ struct AccessibilityControlIdentity
     uint64_t value = 0u;
 };
 
+[[nodiscard]] AccessibilityControlIdentity CaptureControlIdentity(const AccessibilityControlNavigationSnapshot& record) noexcept
+{
+    return {record.controlLifetime, record.controlIdentity};
+}
+
+// One-shot gate used to replace a tree/control after a worker has captured its source snapshot but before it creates a peer.
+#if DXUI_ENABLE_DIAGNOSTICS
+void HoldAccessibilityPeerCreationForTest(HWND hwnd) noexcept
+{
+    if (! hwnd || g_accessibilityPeerCreationGateWindow.load(std::memory_order_seq_cst) != hwnd ||
+        ! g_accessibilityPeerCreationGateArmed.exchange(false, std::memory_order_seq_cst))
+        return;
+    g_accessibilityPeerCreationGateHolders.fetch_add(1u, std::memory_order_seq_cst);
+    const auto leave = wil::scope_exit([]() noexcept
+    {
+        g_accessibilityPeerCreationGateHolders.fetch_sub(1u, std::memory_order_seq_cst);
+        g_accessibilityPeerCreationGateHolders.notify_all();
+    });
+    if (g_accessibilityPeerCreationGateWindow.load(std::memory_order_seq_cst) != hwnd)
+        return;
+    if (const HANDLE entered = g_accessibilityPeerCreationGateEnteredEvent.load(std::memory_order_acquire))
+        static_cast<void>(::SetEvent(entered));
+    if (const HANDLE release = g_accessibilityPeerCreationGateReleaseEvent.load(std::memory_order_acquire))
+        static_cast<void>(::WaitForSingleObject(release, kAccessibilityFocusResolutionGateTimeoutMs));
+}
+#else
+constexpr void HoldAccessibilityPeerCreationForTest(HWND) noexcept
+{
+}
+#endif
+
+[[nodiscard]] bool SameControlIdentity(const AccessibilityControlIdentity& left, const AccessibilityControlIdentity& right) noexcept
+{
+    return left.value == right.value && (left.value == 0u || SameControlLifetime(left.lifetime, right.lifetime));
+}
+
+[[nodiscard]] AccessibilityControlIdentity RootIdentityForSnapshot(const AccessibilitySnapshot& snapshot) noexcept
+{
+    if (! SnapshotHasCollapsedSemanticRoot(snapshot) || snapshot.semanticControlOrder.empty())
+        return {};
+    const auto* record = FindControlNavigationRecord(snapshot, snapshot.semanticControlOrder.front());
+    return record ? CaptureControlIdentity(*record) : AccessibilityControlIdentity{};
+}
+
+[[nodiscard]] AccessibilityControlIdentity CaptureWindowHostElementIdentity(WindowHostAccessibilityTarget* target,
+                                                                            const ControlPath& path,
+                                                                            AccessibilityFragmentKind kind) noexcept;
+
+[[nodiscard]] AccessibilityControlIdentity CaptureElementIdentity(WindowHostAccessibilityTarget* target,
+                                                                  const std::shared_ptr<const AccessibilitySnapshot>& snapshot,
+                                                                  const ControlPath& path,
+                                                                  AccessibilityFragmentKind kind) noexcept
+{
+    if (target && target->embedded)
+    {
+        if (! snapshot)
+            return {};
+        if (kind == AccessibilityFragmentKind::Root)
+            return RootIdentityForSnapshot(*snapshot);
+        const auto* record = FindControlNavigationRecord(*snapshot, path);
+        return record ? CaptureControlIdentity(*record) : AccessibilityControlIdentity{};
+    }
+    return CaptureWindowHostElementIdentity(target, path, kind);
+}
+
 [[nodiscard]] AccessibilityControlIdentity CaptureWindowHostControlIdentity(WindowHostAccessibilityTarget* target,
                                                                             const ControlPath& path,
                                                                             bool hasControl) noexcept
@@ -4209,13 +4520,19 @@ template <typename TControl>
     return sameControl ? control : nullptr;
 }
 
+[[nodiscard]] std::shared_ptr<const AccessibilitySnapshot> CaptureProviderCreationSnapshot(WindowHostAccessibilityTarget* target, HWND hwnd) noexcept;
+
 class AccessibilityTextRangeProvider final : public ITextRangeProvider
 {
 public:
+    [[nodiscard]] bool HasControlIdentity(const AccessibilityControlIdentity& identity) const noexcept
+    {
+        return SameControlIdentity(_identity, identity);
+    }
     AccessibilityTextRangeProvider(WindowHostAccessibilityTarget* target, HWND hwnd, const ControlPath& path, size_t start, size_t end) noexcept
         : _target(target),
           _hwnd(hwnd),
-          _snapshot(CaptureAccessibilitySnapshot(target, hwnd)),
+          _snapshot(CaptureProviderCreationSnapshot(target, hwnd)),
           _path(path),
           _rangeStart(start),
           _rangeEnd(end)
@@ -4226,7 +4543,7 @@ public:
         WindowHostAccessibilityTarget* target, HWND hwnd, const ControlPath& path, size_t start, size_t end, std::wstring textOverride) noexcept
         : _target(target),
           _hwnd(hwnd),
-          _snapshot(CaptureAccessibilitySnapshot(target, hwnd)),
+          _snapshot(CaptureProviderCreationSnapshot(target, hwnd)),
           _textOverride(std::move(textOverride)),
           _path(path),
           _rangeStart(start),
@@ -4242,7 +4559,7 @@ public:
                                    std::vector<D2D1_RECT_F> boundsOverrideDip) noexcept
         : _target(target),
           _hwnd(hwnd),
-          _snapshot(CaptureAccessibilitySnapshot(target, hwnd)),
+          _snapshot(CaptureProviderCreationSnapshot(target, hwnd)),
           _boundsOverrideDip(std::move(boundsOverrideDip)),
           _path(path),
           _rangeStart(start),
@@ -4283,19 +4600,33 @@ public:
     HRESULT STDMETHODCALLTYPE ScrollIntoView(BOOL alignToTop) noexcept override;
     HRESULT STDMETHODCALLTYPE GetChildren(SAFEARRAY** outChildren) noexcept override;
     HRESULT ExecuteSelectOnWindowThread() noexcept;
-    HRESULT ExecuteExpandToVisualLineOnWindowThread(size_t start, size_t end, size_t& outStart, size_t& outEnd) noexcept;
-    HRESULT ExecuteMoveByVisualLineOnWindowThread(size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved) noexcept;
-    HRESULT ExecuteMoveEndpointByVisualLineOnWindowThread(
-        size_t start, size_t end, TextPatternRangeEndpoint endpoint, int count, size_t& outStart, size_t& outEnd, int& outMoved) noexcept;
+    HRESULT ExecuteExpandToVisualLineOnWindowThread(size_t start, size_t end, size_t& outStart, size_t& outEnd, std::wstring_view expectedText) noexcept;
+    HRESULT ExecuteMoveByVisualLineOnWindowThread(
+        size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved, std::wstring_view expectedText) noexcept;
+    HRESULT ExecuteMoveEndpointByVisualLineOnWindowThread(size_t start,
+                                                          size_t end,
+                                                          TextPatternRangeEndpoint endpoint,
+                                                          int count,
+                                                          size_t& outStart,
+                                                          size_t& outEnd,
+                                                          int& outMoved,
+                                                          std::wstring_view expectedText) noexcept;
     HRESULT ExecuteResolveBoundsOnWindowThread(size_t start, size_t end, std::vector<D2D1_RECT_F>& outBoundsDip, float& outDipToPixelScale) noexcept;
 
 private:
     [[nodiscard]] bool IsCurrentThreadWindowThread() const noexcept;
     HRESULT DispatchActionToWindowThread(AccessibilityUiActionRequest& request) const noexcept;
-    HRESULT DispatchVisualLineExpansionToWindowThread(size_t start, size_t end, size_t& outStart, size_t& outEnd) noexcept;
-    HRESULT DispatchLineMovementToWindowThread(size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved) noexcept;
-    HRESULT DispatchEndpointLineMovementToWindowThread(
-        size_t start, size_t end, TextPatternRangeEndpoint endpoint, int count, size_t& outStart, size_t& outEnd, int& outMoved) noexcept;
+    HRESULT DispatchVisualLineExpansionToWindowThread(size_t start, size_t end, size_t& outStart, size_t& outEnd, std::wstring& expectedText) noexcept;
+    HRESULT DispatchLineMovementToWindowThread(
+        size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved, std::wstring& expectedText) noexcept;
+    HRESULT DispatchEndpointLineMovementToWindowThread(size_t start,
+                                                       size_t end,
+                                                       TextPatternRangeEndpoint endpoint,
+                                                       int count,
+                                                       size_t& outStart,
+                                                       size_t& outEnd,
+                                                       int& outMoved,
+                                                       std::wstring& expectedText) noexcept;
     HRESULT DispatchBoundingRectanglesToWindowThread(size_t start, size_t end, std::vector<D2D1_RECT_F>& outBoundsDip, float& outDipToPixelScale) noexcept;
     [[nodiscard]] std::shared_ptr<const AccessibilitySnapshot> CaptureSnapshot() const noexcept;
     [[nodiscard]] ControlHost* ResolveHost() const noexcept;
@@ -4304,6 +4635,7 @@ private:
     [[nodiscard]] std::wstring ResolveText() const;
     [[nodiscard]] TextRangeSpan ClampCurrentRange(size_t textLength) const noexcept;
     [[nodiscard]] ITextRangeProvider* CreateRange(size_t start, size_t end) const noexcept;
+    HRESULT CommitDispatchedRange(size_t expectedStart, size_t expectedEnd, size_t resultStart, size_t resultEnd, std::wstring_view expectedText) noexcept;
 
     std::atomic<ULONG> _referenceCount{1u};
     WindowHostAccessibilityTarget* _target = nullptr;
@@ -4314,7 +4646,7 @@ private:
     ControlPath _path{};
     size_t _rangeStart                     = 0u;
     size_t _rangeEnd                       = 0u;
-    AccessibilityControlIdentity _identity = CaptureWindowHostControlIdentity(_target, _path, true);
+    AccessibilityControlIdentity _identity = CaptureElementIdentity(_target, _snapshot, _path, AccessibilityFragmentKind::Control);
 };
 
 // Only embedded providers compare against the snapshot they were created with (lifetime guard, runtime id); a
@@ -4361,6 +4693,16 @@ public:
     [[nodiscard]] bool IsElementGone() const noexcept
     {
         return ! CaptureSnapshot();
+    }
+
+    [[nodiscard]] bool HasControlIdentity(const AccessibilityControlNavigationSnapshot& record) const noexcept
+    {
+        return HasControlIdentity(CaptureControlIdentity(record));
+    }
+
+    [[nodiscard]] bool HasControlIdentity(const AccessibilityControlIdentity& identity) const noexcept
+    {
+        return SameControlIdentity(_identity, identity);
     }
 
     AccessibilityProvider(WindowHostAccessibilityTarget* target, HWND hwnd, const ControlPath& path) noexcept
@@ -4515,26 +4857,56 @@ private:
         }
         return provider ? static_cast<TInterface*>(provider) : nullptr;
     }
-    [[nodiscard]] IRawElementProviderFragmentRoot* CreateRootProvider() noexcept;
-    [[nodiscard]] IRawElementProviderFragment* CreateRootFragmentProvider() noexcept;
-    [[nodiscard]] IRawElementProviderFragment* CreateChildProvider(const ControlPath& path) noexcept;
-    [[nodiscard]] IRawElementProviderFragment* CreateControlProvider(const ControlPath& path) noexcept;
-    [[nodiscard]] IRawElementProviderFragment* CreateTextFieldPasswordRevealButtonProvider(const ControlPath& path) noexcept;
-    [[nodiscard]] IRawElementProviderFragment* CreateTreeItemProvider(const ControlPath& path, uint64_t itemId) noexcept;
-    [[nodiscard]] IRawElementProviderFragment* CreateGridHeaderProvider(const ControlPath& path, size_t columnIndex) noexcept;
-    [[nodiscard]] IRawElementProviderFragment* CreateGridRowProvider(const ControlPath& path, uint64_t rowId) noexcept;
-    [[nodiscard]] IRawElementProviderFragment* CreateGridCellProvider(const ControlPath& path, uint64_t rowId, size_t columnIndex) noexcept;
-    [[nodiscard]] IRawElementProviderFragment* CreateProviderFromNavigationTarget(const AccessibilityNavigationTarget& navigationTarget) noexcept;
-    [[nodiscard]] ITextRangeProvider* CreateTextRangeProvider(const ControlPath& path, size_t start, size_t end) noexcept;
+    template <typename TInterface, typename TProvider, typename... Args>
+    [[nodiscard]] TInterface* MakeIdentifiedProvider(const AccessibilityControlIdentity& expectedIdentity, Args&&... args) const noexcept
+    {
+        HoldAccessibilityPeerCreationForTest(_hwnd);
+        if (expectedIdentity.value == 0u)
+            return nullptr; // Only a canonical host root may have no control identity.
+        auto* provider = MakeProvider<TInterface, TProvider>(std::forward<Args>(args)...);
+        if (provider && ! static_cast<TProvider*>(provider)->HasControlIdentity(expectedIdentity))
+        {
+            static_cast<void>(provider->Release());
+            return nullptr;
+        }
+        return provider;
+    }
+    [[nodiscard]] IRawElementProviderFragmentRoot* CreateRootProvider(const AccessibilityControlIdentity& expectedIdentity) noexcept;
+    [[nodiscard]] IRawElementProviderFragment* CreateRootFragmentProvider(const AccessibilityControlIdentity& expectedIdentity) noexcept;
+    [[nodiscard]] IRawElementProviderFragment* CreateControlProvider(const ControlPath& path, const AccessibilityControlIdentity& expectedIdentity) noexcept;
+    [[nodiscard]] IRawElementProviderFragment* CreateTextFieldPasswordRevealButtonProvider(const ControlPath& path,
+                                                                                           const AccessibilityControlIdentity& expectedIdentity) noexcept;
+    [[nodiscard]] IRawElementProviderFragment* CreateTreeItemProvider(const ControlPath& path,
+                                                                      uint64_t itemId,
+                                                                      const AccessibilityControlIdentity& expectedIdentity) noexcept;
+    [[nodiscard]] IRawElementProviderFragment* CreateGridHeaderProvider(const ControlPath& path,
+                                                                        size_t columnIndex,
+                                                                        const AccessibilityControlIdentity& expectedIdentity) noexcept;
+    [[nodiscard]] IRawElementProviderFragment* CreateGridRowProvider(const ControlPath& path,
+                                                                     uint64_t rowId,
+                                                                     const AccessibilityControlIdentity& expectedIdentity) noexcept;
+    [[nodiscard]] IRawElementProviderFragment* CreateGridCellProvider(const ControlPath& path,
+                                                                      uint64_t rowId,
+                                                                      size_t columnIndex,
+                                                                      const AccessibilityControlIdentity& expectedIdentity) noexcept;
+    [[nodiscard]] IRawElementProviderFragment* CreateProviderFromNavigationTarget(const AccessibilityNavigationTarget& navigationTarget,
+                                                                                  const AccessibilityControlIdentity& expectedIdentity) noexcept;
     [[nodiscard]] ITextRangeProvider* CreateTextRangeProvider(const ControlPath& path,
                                                               size_t start,
                                                               size_t end,
-                                                              std::vector<D2D1_RECT_F> boundsOverrideDip) noexcept;
-    [[nodiscard]] ITextRangeProvider* CreateTextRangeProvider(const ControlPath& path, size_t start, size_t end, std::wstring textOverride) noexcept;
+                                                              const AccessibilityControlIdentity& expectedIdentity) noexcept;
+    [[nodiscard]] ITextRangeProvider* CreateTextRangeProvider(const ControlPath& path,
+                                                              size_t start,
+                                                              size_t end,
+                                                              std::vector<D2D1_RECT_F> boundsOverrideDip,
+                                                              const AccessibilityControlIdentity& expectedIdentity) noexcept;
+    [[nodiscard]] ITextRangeProvider* CreateTextRangeProvider(
+        const ControlPath& path, size_t start, size_t end, std::wstring textOverride, const AccessibilityControlIdentity& expectedIdentity) noexcept;
     [[nodiscard]] ITextRangeProvider* CreateTextDocumentRangeProvider(const AccessibilityControlNavigationSnapshot& record) noexcept;
     [[nodiscard]] WindowHostAccessibilityTarget* AddRefTarget() const noexcept;
     [[nodiscard]] bool IsCurrentThreadWindowThread() const noexcept;
     HRESULT DispatchActionToWindowThread(AccessibilityUiActionRequest& request) noexcept;
+    [[nodiscard]] HRESULT ValidateActionEnabled() const noexcept;
     HRESULT ExecuteSetFocusOnWindowThread() noexcept;
     HRESULT ExecuteInvokeOnWindowThread() noexcept;
     HRESULT ExecuteToggleOnWindowThread() noexcept;
@@ -4555,7 +4927,7 @@ private:
     uint64_t _treeItemId                   = 0u;
     uint64_t _gridRowId                    = 0u;
     size_t _gridColumnIndex                = 0u;
-    AccessibilityControlIdentity _identity = CaptureWindowHostElementIdentity(_target, _path, _kind);
+    AccessibilityControlIdentity _identity = CaptureElementIdentity(_target, _snapshot, _path, _kind);
 };
 
 [[nodiscard]] wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> AcquireCanonicalRootProvider(WindowHostAccessibilityTarget* target) noexcept
@@ -4566,10 +4938,23 @@ private:
         return root;
     }
 
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+    target->providerRequested.store(true, std::memory_order_release);
+    if (! target->embedded && target->threadId == GetCurrentThreadId())
+    {
+        FlushNativeAccessibilitySnapshot(*target);
+        if (target->publishedRevision != target->dirtyRevision)
+            return root;
+    }
+    wil::com_ptr_nothrow<IRawElementProviderSimple> cached;
+    {
+        const std::scoped_lock cacheLock(target->providerMutex);
+        cached = target->rootProvider;
+    }
+    const bool cachedGone = cached && ! target->embedded && static_cast<AccessibilityProvider*>(cached.get())->IsElementGone();
+    const std::scoped_lock accessibilityLock(target->providerMutex);
     // A cached root that stood for a control no longer collapsed into the window is gone for the clients that hold it; a
     // newly acquiring client gets a fresh root, which stands for what the window shows now.
-    if (target->rootProvider && ! target->embedded && static_cast<AccessibilityProvider*>(target->rootProvider.get())->IsElementGone())
+    if (cachedGone && target->rootProvider.get() == cached.get())
         target->rootProvider.reset();
     if (! target->rootProvider)
     {
@@ -4627,6 +5012,18 @@ private:
     return element;
 }
 
+[[nodiscard]] wil::com_ptr_nothrow<IRawElementProviderSimple> CreateControlElement(WindowHostAccessibilityTarget* target,
+                                                                                   HWND hwnd,
+                                                                                   const ControlPath& path,
+                                                                                   const AccessibilityControlIdentity& expectedIdentity) noexcept
+{
+    HoldAccessibilityPeerCreationForTest(hwnd);
+    auto element = CreateControlElement(target, hwnd, path);
+    if (element && ! static_cast<AccessibilityProvider*>(element.get())->HasControlIdentity(expectedIdentity))
+        element.reset();
+    return element;
+}
+
 HRESULT AccessibilityTextRangeProvider::QueryInterface(REFIID riid, void** ppvObject) noexcept
 {
     if (! ppvObject)
@@ -4672,7 +5069,7 @@ HRESULT AccessibilityTextRangeProvider::Clone(ITextRangeProvider** outClone) noe
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+    const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
     if (! outClone)
     {
         return E_POINTER;
@@ -4695,6 +5092,7 @@ HRESULT AccessibilityTextRangeProvider::Compare(ITextRangeProvider* range, BOOL*
     }
 
     const auto* other = dynamic_cast<AccessibilityTextRangeProvider*>(range);
+    const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
     *outSame = (other && _target == other->_target && _hwnd == other->_hwnd && AreControlPathsEqual(_path, other->_path) && _rangeStart == other->_rangeStart &&
                 _rangeEnd == other->_rangeEnd)
                    ? TRUE
@@ -4727,7 +5125,7 @@ HRESULT AccessibilityTextRangeProvider::CompareEndpoints(TextPatternRangeEndpoin
         return E_INVALIDARG;
     }
 
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+    const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
     const std::wstring text        = ResolveText();
     const TextRangeSpan range      = ClampCurrentRange(text.size());
     const TextRangeSpan otherRange = other->ClampCurrentRange(text.size());
@@ -4747,28 +5145,29 @@ HRESULT AccessibilityTextRangeProvider::ExpandToEnclosingUnit(TextUnit unit) noe
 
     if (supportedUnit == TextUnit_Line && ! IsCurrentThreadWindowThread())
     {
-        size_t rangeStart = 0u;
-        size_t rangeEnd   = 0u;
-        size_t textLength = 0u;
+        size_t expectedStart = 0u;
+        size_t expectedEnd   = 0u;
+        size_t rangeStart    = 0u;
+        size_t rangeEnd      = 0u;
+        size_t textLength    = 0u;
+        std::wstring expectedText;
         {
-            const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-            const std::wstring text   = ResolveText();
-            const TextRangeSpan range = ClampCurrentRange(text.size());
+            const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
+            expectedText              = ResolveText();
+            const TextRangeSpan range = ClampCurrentRange(expectedText.size());
+            expectedStart             = _rangeStart;
+            expectedEnd               = _rangeEnd;
             rangeStart                = range.start;
             rangeEnd                  = range.end;
-            textLength                = text.size();
+            textLength                = expectedText.size();
         }
 
         size_t resultStart = rangeStart;
         size_t resultEnd   = rangeEnd;
-        const HRESULT hr   = DispatchVisualLineExpansionToWindowThread(rangeStart, rangeEnd, resultStart, resultEnd);
+        HRESULT hr         = DispatchVisualLineExpansionToWindowThread(rangeStart, rangeEnd, resultStart, resultEnd, expectedText);
         if (SUCCEEDED(hr))
         {
-            const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-            const TextRangeSpan resultRange = ClampTextRangeSpan(resultStart, resultEnd, ResolveText().size());
-            _boundsOverrideDip.reset();
-            _rangeStart = resultRange.start;
-            _rangeEnd   = resultRange.end;
+            hr = CommitDispatchedRange(expectedStart, expectedEnd, resultStart, resultEnd, expectedText);
         }
         Debug::Perf::Emit(L"dxui.uia.text_range_us",
                           L"expand-line-dispatch",
@@ -4779,7 +5178,7 @@ HRESULT AccessibilityTextRangeProvider::ExpandToEnclosingUnit(TextUnit unit) noe
         return hr;
     }
 
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+    const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
     const std::wstring text = ResolveText();
     _boundsOverrideDip.reset();
     TextRangeSpan expandedRange{};
@@ -4888,7 +5287,7 @@ HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRec
     std::optional<std::vector<D2D1_RECT_F>> boundsOverrideDip;
     size_t textLength = 0u;
     {
-        const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+        const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
         const std::wstring text = ResolveText();
         textLength              = text.size();
         range                   = ClampCurrentRange(textLength);
@@ -4907,7 +5306,10 @@ HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRec
 
     if (boundsOverrideDip && ! boundsOverrideDip->empty())
     {
-        const float dipToPixelScale = (_snapshot && _snapshot->pixelsToDipScale > 0.0f) ? 1.0f / _snapshot->pixelsToDipScale : 1.0f;
+        const auto snapshot = CaptureSnapshot();
+        if (! snapshot)
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        const float dipToPixelScale = snapshot->pixelsToDipScale > 0.0f ? 1.0f / snapshot->pixelsToDipScale : 1.0f;
         const HRESULT hr            = SetScreenRectDoubleArray(outRectangles, _target, _hwnd, boundsOverrideDip.value(), dipToPixelScale);
         Debug::Perf::Emit(L"dxui.uia.text_range_us",
                           L"bounding-rectangles-snapshot",
@@ -4935,7 +5337,7 @@ HRESULT AccessibilityTextRangeProvider::GetBoundingRectangles(SAFEARRAY** outRec
         return hr;
     }
 
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+    const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
     ControlHost* const host      = ResolveHost();
     const Control* const control = ResolveControl();
     if (! host || ! control)
@@ -4969,22 +5371,22 @@ HRESULT AccessibilityTextRangeProvider::GetEnclosingElement(IRawElementProviderS
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outElement)
     {
         return E_POINTER;
     }
 
-    *outElement = nullptr;
+    *outElement         = nullptr;
+    const auto snapshot = CaptureSnapshot();
     const AccessibilityControlNavigationSnapshot* record =
-        (_snapshot && _snapshot->alive && _snapshot->hasRetainedRoot) ? FindControlNavigationRecord(*_snapshot, _path) : nullptr;
+        (snapshot && snapshot->alive && snapshot->hasRetainedRoot) ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
     if (! record || ! record->controlSupportsText)
     {
         return UIA_E_ELEMENTNOTAVAILABLE;
     }
 
     // The field's element: the window's own when the field is the one control the window's root stands for.
-    wil::com_ptr_nothrow<IRawElementProviderSimple> element = CreateControlElement(_target, _hwnd, record->path);
+    wil::com_ptr_nothrow<IRawElementProviderSimple> element = CreateControlElement(_target, _hwnd, record->path, CaptureControlIdentity(*record));
     if (! element)
     {
         return E_OUTOFMEMORY;
@@ -5002,7 +5404,7 @@ HRESULT AccessibilityTextRangeProvider::GetText(int maxLength, BSTR* outText) no
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+    const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
     if (! outText)
     {
         return E_POINTER;
@@ -5040,7 +5442,7 @@ HRESULT AccessibilityTextRangeProvider::Move(TextUnit unit, int count, int* outM
     unit      = NormalizeAccessibilityTextUnit(unit);
     if (count == 0)
     {
-        const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+        const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
         const std::wstring text = ResolveText();
         Debug::Perf::Emit(L"dxui.uia.text_range_us", L"move-unsupported", Debug::Perf::ElapsedUs(startedAt), 0u, text.size(), S_OK);
         return S_OK;
@@ -5048,38 +5450,39 @@ HRESULT AccessibilityTextRangeProvider::Move(TextUnit unit, int count, int* outM
 
     if (unit == TextUnit_Line && ! IsCurrentThreadWindowThread())
     {
-        size_t rangeStart = 0u;
-        size_t rangeEnd   = 0u;
-        size_t textLength = 0u;
+        size_t expectedStart = 0u;
+        size_t expectedEnd   = 0u;
+        size_t rangeStart    = 0u;
+        size_t rangeEnd      = 0u;
+        size_t textLength    = 0u;
+        std::wstring expectedText;
         {
-            const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-            const std::wstring text   = ResolveText();
-            const TextRangeSpan range = ClampCurrentRange(text.size());
+            const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
+            expectedText              = ResolveText();
+            const TextRangeSpan range = ClampCurrentRange(expectedText.size());
+            expectedStart             = _rangeStart;
+            expectedEnd               = _rangeEnd;
             rangeStart                = range.start;
             rangeEnd                  = range.end;
-            textLength                = text.size();
+            textLength                = expectedText.size();
         }
 
         size_t resultStart = rangeStart;
         size_t resultEnd   = rangeEnd;
         int moved          = 0;
-        const HRESULT hr   = DispatchLineMovementToWindowThread(rangeStart, rangeEnd, count, resultStart, resultEnd, moved);
+        HRESULT hr         = DispatchLineMovementToWindowThread(rangeStart, rangeEnd, count, resultStart, resultEnd, moved, expectedText);
         if (SUCCEEDED(hr))
         {
-            const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-            const std::wstring text         = ResolveText();
-            const TextRangeSpan resultRange = ClampTextRangeSpan(resultStart, resultEnd, text.size());
-            _boundsOverrideDip.reset();
-            _rangeStart = resultRange.start;
-            _rangeEnd   = resultRange.end;
-            *outMoved   = moved;
+            hr = CommitDispatchedRange(expectedStart, expectedEnd, resultStart, resultEnd, expectedText);
+            if (SUCCEEDED(hr))
+                *outMoved = moved;
         }
         Debug::Perf::Emit(
             L"dxui.uia.text_range_us", L"move-line-dispatch", Debug::Perf::ElapsedUs(startedAt), SUCCEEDED(hr) ? resultEnd - resultStart : 0u, textLength, hr);
         return hr;
     }
 
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+    const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
     const std::wstring text   = ResolveText();
     const TextRangeSpan range = ClampCurrentRange(text.size());
     if (unit == TextUnit_Line)
@@ -5125,9 +5528,15 @@ HRESULT AccessibilityTextRangeProvider::Move(TextUnit unit, int count, int* outM
         const TextRangeUnitMoveResult moveResult  = MoveAccessibilityTextPositionByUnit(text, range.start, unit, count);
         const AccessibilityTextUnitSpan movedSpan = GetEnclosingAccessibilityTextUnitSpan(text, moveResult.position, unit);
         _boundsOverrideDip.reset();
-        _rangeStart = collapsed ? moveResult.position : movedSpan.start;
-        _rangeEnd   = collapsed ? moveResult.position : movedSpan.end;
-        *outMoved   = moveResult.moved;
+        const size_t nextStart = collapsed ? moveResult.position : movedSpan.start;
+        const size_t nextEnd   = collapsed ? moveResult.position : movedSpan.end;
+        _rangeStart            = nextStart;
+        _rangeEnd              = nextEnd;
+        *outMoved              = nextStart == range.start && nextEnd == range.end ? 0 : moveResult.moved;
+        if (! collapsed && unit == TextUnit_Document)
+            *outMoved = 0; // Normalizing a partial range to the only document unit does not move that unit.
+        else if (! collapsed && count > 0 && moveResult.position == text.size() && *outMoved > 0)
+            --*outMoved; // A nondegenerate range stops on the last character, before the end caret boundary.
         Debug::Perf::Emit(L"dxui.uia.text_range_us",
                           unit == TextUnit_Document ? L"move-document" : L"move-character",
                           Debug::Perf::ElapsedUs(startedAt),
@@ -5158,7 +5567,7 @@ HRESULT AccessibilityTextRangeProvider::MoveEndpointByUnit(TextPatternRangeEndpo
     unit      = NormalizeAccessibilityTextUnit(unit);
     if (count == 0)
     {
-        const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+        const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
         const std::wstring text = ResolveText();
         Debug::Perf::Emit(L"dxui.uia.text_range_us", L"move-endpoint-unsupported", Debug::Perf::ElapsedUs(startedAt), 0u, text.size(), S_OK);
         return S_OK;
@@ -5166,31 +5575,32 @@ HRESULT AccessibilityTextRangeProvider::MoveEndpointByUnit(TextPatternRangeEndpo
 
     if (unit == TextUnit_Line && ! IsCurrentThreadWindowThread())
     {
-        size_t rangeStart = 0u;
-        size_t rangeEnd   = 0u;
-        size_t textLength = 0u;
+        size_t expectedStart = 0u;
+        size_t expectedEnd   = 0u;
+        size_t rangeStart    = 0u;
+        size_t rangeEnd      = 0u;
+        size_t textLength    = 0u;
+        std::wstring expectedText;
         {
-            const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-            const std::wstring text   = ResolveText();
-            const TextRangeSpan range = ClampCurrentRange(text.size());
+            const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
+            expectedText              = ResolveText();
+            const TextRangeSpan range = ClampCurrentRange(expectedText.size());
+            expectedStart             = _rangeStart;
+            expectedEnd               = _rangeEnd;
             rangeStart                = range.start;
             rangeEnd                  = range.end;
-            textLength                = text.size();
+            textLength                = expectedText.size();
         }
 
         size_t resultStart = rangeStart;
         size_t resultEnd   = rangeEnd;
         int moved          = 0;
-        const HRESULT hr   = DispatchEndpointLineMovementToWindowThread(rangeStart, rangeEnd, endpoint, count, resultStart, resultEnd, moved);
+        HRESULT hr         = DispatchEndpointLineMovementToWindowThread(rangeStart, rangeEnd, endpoint, count, resultStart, resultEnd, moved, expectedText);
         if (SUCCEEDED(hr))
         {
-            const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-            const std::wstring text         = ResolveText();
-            const TextRangeSpan resultRange = ClampTextRangeSpan(resultStart, resultEnd, text.size());
-            _boundsOverrideDip.reset();
-            _rangeStart = resultRange.start;
-            _rangeEnd   = resultRange.end;
-            *outMoved   = moved;
+            hr = CommitDispatchedRange(expectedStart, expectedEnd, resultStart, resultEnd, expectedText);
+            if (SUCCEEDED(hr))
+                *outMoved = moved;
         }
         Debug::Perf::Emit(L"dxui.uia.text_range_us",
                           L"move-endpoint-line-dispatch",
@@ -5201,7 +5611,7 @@ HRESULT AccessibilityTextRangeProvider::MoveEndpointByUnit(TextPatternRangeEndpo
         return hr;
     }
 
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+    const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
     const std::wstring text       = ResolveText();
     const TextRangeSpan range     = ClampCurrentRange(text.size());
     const size_t endpointPosition = GetTextRangeEndpointPosition(range, endpoint);
@@ -5271,21 +5681,33 @@ HRESULT AccessibilityTextRangeProvider::ExecuteSelectOnWindowThread() noexcept
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-
-    ControlHost* host = ResolveHost();
-    Control* control  = ResolveMutableControl();
+    ControlHost* host    = ResolveHost();
+    Control* control     = ResolveMutableControl();
     if (! host || ! control || ! SupportsTextPattern(control))
     {
         return UIA_E_ELEMENTNOTAVAILABLE;
     }
 
-    const std::wstring text   = GetControlAccessibleTextRangeText(control);
-    const TextRangeSpan range = ClampCurrentRange(text.size());
+    if (! IsControlEffectivelyInteractive(host->GetRoot(), control))
+        return UIA_E_ELEMENTNOTENABLED;
+
+    const auto lifetime     = GetControlLifetimeToken(*control);
+    const std::wstring text = GetControlAccessibleTextRangeText(control);
+    TextRangeSpan range{};
+    {
+        const std::scoped_lock rangeLock(AccessibilitySnapshotMutex(_target));
+        range = ClampCurrentRange(text.size());
+    }
+    const auto stillCurrent = [&]() noexcept
+    { return ! lifetime.expired() && _target && _target->ResolveHost() == host && ResolveMutableControl() == control; };
     if (auto* textField = dynamic_cast<TextField*>(control))
     {
         textField->SetSelectionRange(range.start, range.end);
+        if (! stillCurrent())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         host->SyncTextInput(textField);
+        if (! stillCurrent())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         host->Invalidate();
         Debug::Perf::Emit(L"dxui.uia.text_range_us", L"select", Debug::Perf::ElapsedUs(startedAt), range.end - range.start, text.size(), S_OK);
         return S_OK;
@@ -5293,7 +5715,11 @@ HRESULT AccessibilityTextRangeProvider::ExecuteSelectOnWindowThread() noexcept
     if (auto* comboBox = dynamic_cast<ComboBox*>(control); comboBox && comboBox->IsEditable())
     {
         comboBox->SetEditableSelectionRange(range.start, range.end);
+        if (! stillCurrent())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         host->SyncTextInput(comboBox);
+        if (! stillCurrent())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         host->Invalidate();
         Debug::Perf::Emit(L"dxui.uia.text_range_us", L"select", Debug::Perf::ElapsedUs(startedAt), range.end - range.start, text.size(), S_OK);
         return S_OK;
@@ -5302,16 +5728,17 @@ HRESULT AccessibilityTextRangeProvider::ExecuteSelectOnWindowThread() noexcept
     return UIA_E_NOTSUPPORTED;
 }
 
-HRESULT AccessibilityTextRangeProvider::ExecuteExpandToVisualLineOnWindowThread(size_t start, size_t end, size_t& outStart, size_t& outEnd) noexcept
+HRESULT AccessibilityTextRangeProvider::ExecuteExpandToVisualLineOnWindowThread(
+    size_t start, size_t end, size_t& outStart, size_t& outEnd, std::wstring_view expectedText) noexcept
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-
     ControlHost* const host      = ResolveHost();
     const Control* const control = ResolveControl();
     const std::wstring text      = control ? (_textOverride ? _textOverride.value() : GetControlAccessibleTextRangeText(control)) : ResolveText();
-    const TextRangeSpan range    = ClampTextRangeSpan(start, end, text.size());
+    if (text != expectedText)
+        return UIA_E_INVALIDOPERATION;
+    const TextRangeSpan range = ClampTextRangeSpan(start, end, text.size());
     const TextRangeSpan expandedRange =
         (host && control)
             ? TryGetEnclosingTextRangeVisualLineSpan(*host, *control, text, range.start).value_or(GetTextRangeLineSpanAtPosition(text, range.start))
@@ -5323,16 +5750,16 @@ HRESULT AccessibilityTextRangeProvider::ExecuteExpandToVisualLineOnWindowThread(
 }
 
 HRESULT AccessibilityTextRangeProvider::ExecuteMoveByVisualLineOnWindowThread(
-    size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved) noexcept
+    size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved, std::wstring_view expectedText) noexcept
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-
     ControlHost* const host      = ResolveHost();
     const Control* const control = ResolveControl();
     const std::wstring text      = control ? (_textOverride ? _textOverride.value() : GetControlAccessibleTextRangeText(control)) : ResolveText();
-    const TextRangeSpan range    = ClampTextRangeSpan(start, end, text.size());
+    if (text != expectedText)
+        return UIA_E_INVALIDOPERATION;
+    const TextRangeSpan range = ClampTextRangeSpan(start, end, text.size());
     const TextRangeSpanMoveResult moveResult =
         (host && control) ? TryMoveTextRangeSpanByVisualLine(*host, *control, text, range, count).value_or(MoveTextRangeSpanByLine(text, range, count))
                           : MoveTextRangeSpanByLine(text, range, count);
@@ -5343,16 +5770,22 @@ HRESULT AccessibilityTextRangeProvider::ExecuteMoveByVisualLineOnWindowThread(
     return S_OK;
 }
 
-HRESULT AccessibilityTextRangeProvider::ExecuteMoveEndpointByVisualLineOnWindowThread(
-    size_t start, size_t end, TextPatternRangeEndpoint endpoint, int count, size_t& outStart, size_t& outEnd, int& outMoved) noexcept
+HRESULT AccessibilityTextRangeProvider::ExecuteMoveEndpointByVisualLineOnWindowThread(size_t start,
+                                                                                      size_t end,
+                                                                                      TextPatternRangeEndpoint endpoint,
+                                                                                      int count,
+                                                                                      size_t& outStart,
+                                                                                      size_t& outEnd,
+                                                                                      int& outMoved,
+                                                                                      std::wstring_view expectedText) noexcept
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-
-    ControlHost* const host       = ResolveHost();
-    const Control* const control  = ResolveControl();
-    const std::wstring text       = control ? (_textOverride ? _textOverride.value() : GetControlAccessibleTextRangeText(control)) : ResolveText();
+    ControlHost* const host      = ResolveHost();
+    const Control* const control = ResolveControl();
+    const std::wstring text      = control ? (_textOverride ? _textOverride.value() : GetControlAccessibleTextRangeText(control)) : ResolveText();
+    if (text != expectedText)
+        return UIA_E_INVALIDOPERATION;
     const TextRangeSpan range     = ClampTextRangeSpan(start, end, text.size());
     const size_t endpointPosition = GetTextRangeEndpointPosition(range, endpoint);
 
@@ -5382,8 +5815,6 @@ HRESULT AccessibilityTextRangeProvider::ExecuteResolveBoundsOnWindowThread(size_
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-
     outBoundsDip.clear();
     outDipToPixelScale = 1.0f;
 
@@ -5555,32 +5986,36 @@ HRESULT AccessibilityTextRangeProvider::DispatchActionToWindowThread(Accessibili
     return DispatchAccessibilityUiActionToWindowThread(_hwnd, request);
 }
 
-HRESULT AccessibilityTextRangeProvider::DispatchVisualLineExpansionToWindowThread(size_t start, size_t end, size_t& outStart, size_t& outEnd) noexcept
+HRESULT AccessibilityTextRangeProvider::DispatchVisualLineExpansionToWindowThread(
+    size_t start, size_t end, size_t& outStart, size_t& outEnd, std::wstring& expectedText) noexcept
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     AccessibilityUiActionRequest request{};
     request.textRangeProvider    = this;
     request.kind                 = AccessibilityUiActionKind::ExpandTextRangeToVisualLine;
+    request.stringValue          = std::move(expectedText);
     request.textRangeStart       = start;
     request.textRangeEnd         = end;
     request.textRangeResultStart = start;
     request.textRangeResultEnd   = end;
 
     const HRESULT hr = DispatchActionToWindowThread(request);
+    expectedText     = std::move(request.stringValue);
     outStart         = request.textRangeResultStart;
     outEnd           = request.textRangeResultEnd;
     return hr;
 }
 
 HRESULT AccessibilityTextRangeProvider::DispatchLineMovementToWindowThread(
-    size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved) noexcept
+    size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved, std::wstring& expectedText) noexcept
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     AccessibilityUiActionRequest request{};
     request.textRangeProvider    = this;
     request.kind                 = AccessibilityUiActionKind::MoveTextRangeByVisualLine;
+    request.stringValue          = std::move(expectedText);
     request.textRangeStart       = start;
     request.textRangeEnd         = end;
     request.textRangeMoveCount   = count;
@@ -5589,20 +6024,28 @@ HRESULT AccessibilityTextRangeProvider::DispatchLineMovementToWindowThread(
     request.textRangeResultEnd   = end;
 
     const HRESULT hr = DispatchActionToWindowThread(request);
+    expectedText     = std::move(request.stringValue);
     outStart         = request.textRangeResultStart;
     outEnd           = request.textRangeResultEnd;
     outMoved         = request.textRangeMoved;
     return hr;
 }
 
-HRESULT AccessibilityTextRangeProvider::DispatchEndpointLineMovementToWindowThread(
-    size_t start, size_t end, TextPatternRangeEndpoint endpoint, int count, size_t& outStart, size_t& outEnd, int& outMoved) noexcept
+HRESULT AccessibilityTextRangeProvider::DispatchEndpointLineMovementToWindowThread(size_t start,
+                                                                                   size_t end,
+                                                                                   TextPatternRangeEndpoint endpoint,
+                                                                                   int count,
+                                                                                   size_t& outStart,
+                                                                                   size_t& outEnd,
+                                                                                   int& outMoved,
+                                                                                   std::wstring& expectedText) noexcept
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     AccessibilityUiActionRequest request{};
     request.textRangeProvider    = this;
     request.kind                 = AccessibilityUiActionKind::MoveTextRangeEndpointByVisualLine;
+    request.stringValue          = std::move(expectedText);
     request.textRangeStart       = start;
     request.textRangeEnd         = end;
     request.textRangeEndpoint    = endpoint;
@@ -5612,6 +6055,7 @@ HRESULT AccessibilityTextRangeProvider::DispatchEndpointLineMovementToWindowThre
     request.textRangeResultEnd   = end;
 
     const HRESULT hr = DispatchActionToWindowThread(request);
+    expectedText     = std::move(request.stringValue);
     outStart         = request.textRangeResultStart;
     outEnd           = request.textRangeResultEnd;
     outMoved         = request.textRangeMoved;
@@ -5726,14 +6170,36 @@ std::wstring AccessibilityTextRangeProvider::ResolveText() const
         return _textOverride.value();
     }
 
+    const auto snapshot = CaptureSnapshot();
     const AccessibilityControlNavigationSnapshot* record =
-        (_snapshot && _snapshot->alive && _snapshot->hasRetainedRoot) ? FindControlNavigationRecord(*_snapshot, _path) : nullptr;
+        (snapshot && snapshot->alive && snapshot->hasRetainedRoot) ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
     if (! record || ! record->controlSupportsText)
     {
         return {};
     }
 
     return record->controlAccessibleText;
+}
+
+HRESULT AccessibilityTextRangeProvider::CommitDispatchedRange(
+    size_t expectedStart, size_t expectedEnd, size_t resultStart, size_t resultEnd, std::wstring_view expectedText) noexcept
+{
+    const auto snapshot = CaptureSnapshot();
+    if (! snapshot)
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    const std::scoped_lock lock(AccessibilitySnapshotMutex(_target));
+    const auto* record = FindControlNavigationRecord(*snapshot, _path);
+    if (! record || ! record->controlSupportsText)
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    // Dispatch must not hold the range lock while waiting for its owner. A concurrent range mutation wins.
+    const std::wstring_view text = _textOverride ? std::wstring_view(*_textOverride) : std::wstring_view(record->controlAccessibleText);
+    if (_rangeStart != expectedStart || _rangeEnd != expectedEnd || text != expectedText)
+        return UIA_E_INVALIDOPERATION;
+    const auto range = ClampTextRangeSpan(resultStart, resultEnd, text.size());
+    _boundsOverrideDip.reset();
+    _rangeStart = range.start;
+    _rangeEnd   = range.end;
+    return S_OK;
 }
 
 TextRangeSpan AccessibilityTextRangeProvider::ClampCurrentRange(size_t textLength) const noexcept
@@ -5743,6 +6209,7 @@ TextRangeSpan AccessibilityTextRangeProvider::ClampCurrentRange(size_t textLengt
 
 ITextRangeProvider* AccessibilityTextRangeProvider::CreateRange(size_t start, size_t end) const noexcept
 {
+    HoldAccessibilityPeerCreationForTest(_hwnd);
     WindowHostAccessibilityTarget* target = _target;
     if (target)
     {
@@ -5766,6 +6233,11 @@ ITextRangeProvider* AccessibilityTextRangeProvider::CreateRange(size_t start, si
     if (! provider && target)
     {
         static_cast<void>(target->Release());
+    }
+    if (provider && ! provider->HasControlIdentity(_identity))
+    {
+        static_cast<void>(provider->Release());
+        provider = nullptr;
     }
     return provider ? static_cast<ITextRangeProvider*>(provider) : nullptr;
 }
@@ -5899,7 +6371,6 @@ AccessibilityPatternQueryResult AccessibilityProvider::QueryPattern(Accessibilit
 
 HRESULT AccessibilityProvider::QueryInterface(REFIID riid, void** ppvObject) noexcept
 {
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! ppvObject)
     {
         return E_POINTER;
@@ -5964,7 +6435,6 @@ ULONG AccessibilityProvider::Release() noexcept
 
 HRESULT AccessibilityProvider::get_ProviderOptions(ProviderOptions* outOptions) noexcept
 {
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outOptions)
     {
         return E_POINTER;
@@ -5984,7 +6454,6 @@ HRESULT AccessibilityProvider::GetPatternProvider(PATTERNID patternId, IUnknown*
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outProvider)
     {
         return E_POINTER;
@@ -6014,7 +6483,6 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outValue)
     {
         return E_POINTER;
@@ -6075,7 +6543,7 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
         const AccessibilityGridRowSnapshotRecord* row = record ? FindSnapshotGridRowRecord(*record, _gridRowId) : nullptr;
         if (! record || ! row)
         {
-            return S_OK;
+            return UIA_E_ELEMENTNOTAVAILABLE;
         }
 
         switch (propertyId)
@@ -6087,9 +6555,13 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
             case UIA_IsKeyboardFocusablePropertyId: *outValue = VariantFromBool(true); return S_OK;
             case UIA_IsEnabledPropertyId: *outValue = VariantFromBool(record->gridIsEnabled); return S_OK;
             case UIA_HasKeyboardFocusPropertyId:
-                *outValue = VariantFromBool(record->gridHasFocus && SnapshotGridRowIsSelected(*record, _gridRowId));
+                *outValue = VariantFromBool(record->controlHasFocus && snapshot->focusedFragment.has_value() &&
+                                            snapshot->focusedFragment->kind == AccessibilityFragmentKind::GridRow &&
+                                            AreControlPathsEqual(snapshot->focusedFragment->path, _path) && snapshot->focusedFragment->gridRowId == _gridRowId);
                 return S_OK;
-            case UIA_IsOffscreenPropertyId: *outValue = VariantFromBool(row->gridRowOffscreen); return S_OK;
+            case UIA_IsOffscreenPropertyId:
+                *outValue = VariantFromBool(! FindSnapshotFragmentBounds(*snapshot, _kind, _path, 0u, _gridRowId, 0u).has_value());
+                return S_OK;
             case UIA_SelectionItemIsSelectedPropertyId: *outValue = VariantFromBool(SnapshotGridRowIsSelected(*record, _gridRowId)); return S_OK;
             default: return S_OK;
         }
@@ -6114,9 +6586,11 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
             case UIA_IsKeyboardFocusablePropertyId: *outValue = VariantFromBool(true); return S_OK;
             case UIA_IsEnabledPropertyId: *outValue = VariantFromBool(record->treeIsEnabled); return S_OK;
             case UIA_HasKeyboardFocusPropertyId:
-                *outValue = VariantFromBool(record->treeHasFocus && SnapshotTreeItemIsFocused(*record, _treeItemId));
+                *outValue = VariantFromBool(record->controlHasFocus && SnapshotTreeItemIsFocused(*record, _treeItemId));
                 return S_OK;
-            case UIA_IsOffscreenPropertyId: *outValue = VariantFromBool(false); return S_OK;
+            case UIA_IsOffscreenPropertyId:
+                *outValue = VariantFromBool(! FindSnapshotFragmentBounds(*snapshot, _kind, _path, item->visibleIndex, 0u, 0u).has_value());
+                return S_OK;
             case UIA_LevelPropertyId:
                 *outValue = VariantFromInt(static_cast<LONG>((std::min)(item->depth + 1u, static_cast<size_t>((std::numeric_limits<LONG>::max)()))));
                 return S_OK;
@@ -6151,7 +6625,7 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
         const AccessibilityGridHeaderSnapshotRecord* header = record ? FindSnapshotGridHeaderRecord(*record, _gridColumnIndex) : nullptr;
         if (! record || ! header)
         {
-            return S_OK;
+            return UIA_E_ELEMENTNOTAVAILABLE;
         }
 
         switch (propertyId)
@@ -6163,7 +6637,9 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
             case UIA_IsEnabledPropertyId: *outValue = VariantFromBool(record->gridIsEnabled); return S_OK;
             case UIA_IsKeyboardFocusablePropertyId:
             case UIA_HasKeyboardFocusPropertyId: *outValue = VariantFromBool(false); return S_OK;
-            case UIA_IsOffscreenPropertyId: *outValue = VariantFromBool(false); return S_OK;
+            case UIA_IsOffscreenPropertyId:
+                *outValue = VariantFromBool(! FindSnapshotFragmentBounds(*snapshot, _kind, _path, 0u, 0u, _gridColumnIndex).has_value());
+                return S_OK;
             default: return S_OK;
         }
     }
@@ -6176,7 +6652,7 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
         const AccessibilityGridCellStateSnapshotRecord* cellRecord    = cell ? cell->cellRecord : nullptr;
         if (! cell || ! cellRecord)
         {
-            return S_OK;
+            return UIA_E_ELEMENTNOTAVAILABLE;
         }
 
         switch (propertyId)
@@ -6196,7 +6672,9 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
                 return S_OK;
             case UIA_IsKeyboardFocusablePropertyId:
             case UIA_HasKeyboardFocusPropertyId: *outValue = VariantFromBool(false); return S_OK;
-            case UIA_IsOffscreenPropertyId: *outValue = VariantFromBool(cellRecord->gridCellOffscreen); return S_OK;
+            case UIA_IsOffscreenPropertyId:
+                *outValue = VariantFromBool(! FindSnapshotFragmentBounds(*snapshot, _kind, _path, 0u, _gridRowId, _gridColumnIndex).has_value());
+                return S_OK;
             case UIA_ToggleToggleStatePropertyId:
                 if (SnapshotGridCellSupportsTogglePattern(cell.value()))
                 {
@@ -6356,7 +6834,6 @@ HRESULT AccessibilityProvider::get_HostRawElementProvider(IRawElementProviderSim
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outProvider)
     {
         return E_POINTER;
@@ -6416,13 +6893,18 @@ HRESULT AccessibilityProvider::Navigate(NavigateDirection direction, IRawElement
         return S_OK;
     }
 
-    *outProvider = CreateProviderFromNavigationTarget(navigationTarget.value());
-    return S_OK;
+    const AccessibilityControlIdentity expectedIdentity = navigationTarget->kind == AccessibilityFragmentKind::Root ? RootIdentityForSnapshot(*snapshot)
+                                                                                                                    : [&]() noexcept
+    {
+        const auto* record = FindControlNavigationRecord(*snapshot, navigationTarget->path);
+        return record ? CaptureControlIdentity(*record) : AccessibilityControlIdentity{};
+    }();
+    *outProvider                                        = CreateProviderFromNavigationTarget(navigationTarget.value(), expectedIdentity);
+    return S_OK; // A child retired after the captured snapshot is a transient empty answer for its surviving parent.
 }
 
 HRESULT AccessibilityProvider::GetRuntimeId(SAFEARRAY** outRuntimeId) noexcept
 {
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (_target && _target->embedded)
     {
         if (! outRuntimeId)
@@ -6606,7 +7088,6 @@ HRESULT AccessibilityProvider::GetEmbeddedFragmentRoots(SAFEARRAY** outRoots) no
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outRoots)
     {
         return E_POINTER;
@@ -6644,7 +7125,6 @@ HRESULT AccessibilityProvider::get_FragmentRoot(IRawElementProviderFragmentRoot*
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outRoot)
     {
         return E_POINTER;
@@ -6660,8 +7140,9 @@ HRESULT AccessibilityProvider::get_FragmentRoot(IRawElementProviderFragmentRoot*
         const auto site = _target->site;
         return site ? site->FragmentRoot(outRoot) : UIA_E_ELEMENTNOTAVAILABLE;
     }
-    *outRoot = CreateRootProvider();
-    return S_OK;
+    const auto snapshot = CaptureSnapshot();
+    *outRoot            = snapshot ? CreateRootProvider(RootIdentityForSnapshot(*snapshot)) : nullptr;
+    return *outRoot ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
 }
 
 HRESULT AccessibilityProvider::ElementProviderFromPoint(double x, double y, IRawElementProviderFragment** outProvider) noexcept
@@ -6712,10 +7193,17 @@ HRESULT AccessibilityProvider::ElementProviderFromPoint(double x, double y, IRaw
     {
         return S_OK;
     }
+    const AccessibilityControlNavigationSnapshot* hitRecord =
+        hit->kind == AccessibilityFragmentKind::Root ? nullptr : FindControlNavigationRecord(*snapshot, hit->path);
+    const AccessibilityControlIdentity hitIdentity = hit->kind == AccessibilityFragmentKind::Root
+                                                         ? RootIdentityForSnapshot(*snapshot)
+                                                         : (hitRecord ? CaptureControlIdentity(*hitRecord) : AccessibilityControlIdentity{});
 
     switch (hit->kind)
     {
-        case AccessibilityFragmentKind::TextFieldPasswordRevealButton: *outProvider = CreateTextFieldPasswordRevealButtonProvider(hit->path); return S_OK;
+        case AccessibilityFragmentKind::TextFieldPasswordRevealButton:
+            *outProvider = CreateTextFieldPasswordRevealButtonProvider(hit->path, hitIdentity);
+            break;
         case AccessibilityFragmentKind::TreeItem:
         {
             const AccessibilityControlNavigationSnapshot* record = FindControlNavigationRecord(*snapshot, hit->path);
@@ -6724,14 +7212,14 @@ HRESULT AccessibilityProvider::ElementProviderFromPoint(double x, double y, IRaw
             {
                 return UIA_E_ELEMENTNOTAVAILABLE;
             }
-            *outProvider = CreateTreeItemProvider(hit->path, item->itemId);
-            return S_OK;
+            *outProvider = CreateTreeItemProvider(hit->path, item->itemId, hitIdentity);
+            break;
         }
-        case AccessibilityFragmentKind::GridHeader: *outProvider = CreateGridHeaderProvider(hit->path, hit->gridColumnIndex); return S_OK;
-        case AccessibilityFragmentKind::GridRow: *outProvider = CreateGridRowProvider(hit->path, hit->gridRowId); return S_OK;
-        case AccessibilityFragmentKind::GridCell: *outProvider = CreateGridCellProvider(hit->path, hit->gridRowId, hit->gridColumnIndex); return S_OK;
-        case AccessibilityFragmentKind::Control: *outProvider = CreateControlProvider(hit->path); return S_OK;
-        case AccessibilityFragmentKind::Root: *outProvider = CreateRootFragmentProvider(); return S_OK;
+        case AccessibilityFragmentKind::GridHeader: *outProvider = CreateGridHeaderProvider(hit->path, hit->gridColumnIndex, hitIdentity); break;
+        case AccessibilityFragmentKind::GridRow: *outProvider = CreateGridRowProvider(hit->path, hit->gridRowId, hitIdentity); break;
+        case AccessibilityFragmentKind::GridCell: *outProvider = CreateGridCellProvider(hit->path, hit->gridRowId, hit->gridColumnIndex, hitIdentity); break;
+        case AccessibilityFragmentKind::Control: *outProvider = CreateControlProvider(hit->path, hitIdentity); break;
+        case AccessibilityFragmentKind::Root: *outProvider = CreateRootFragmentProvider(hitIdentity); break;
     }
 
     return S_OK;
@@ -6771,11 +7259,25 @@ HRESULT AccessibilityProvider::GetFocus(IRawElementProviderFragment** outProvide
     }
 
     const AccessibilityFocusedFragmentSnapshot& focusedFragment = snapshot->focusedFragment.value();
+    HoldFocusResolutionForTest(_hwnd, true);
     switch (focusedFragment.kind)
     {
-        case AccessibilityFragmentKind::TreeItem: *outProvider = CreateTreeItemProvider(focusedFragment.path, focusedFragment.treeItemId); return S_OK;
-        case AccessibilityFragmentKind::GridRow: *outProvider = CreateGridRowProvider(focusedFragment.path, focusedFragment.gridRowId); return S_OK;
-        case AccessibilityFragmentKind::Control: *outProvider = CreateControlProvider(focusedFragment.path); return S_OK;
+        case AccessibilityFragmentKind::TreeItem:
+        case AccessibilityFragmentKind::GridRow:
+        case AccessibilityFragmentKind::Control:
+        {
+            const auto* expected = FindControlNavigationRecord(*snapshot, focusedFragment.path);
+            if (! expected)
+                return S_OK;
+            const auto identity = CaptureControlIdentity(*expected);
+            if (focusedFragment.kind == AccessibilityFragmentKind::TreeItem)
+                *outProvider = CreateTreeItemProvider(focusedFragment.path, focusedFragment.treeItemId, identity);
+            else if (focusedFragment.kind == AccessibilityFragmentKind::GridRow)
+                *outProvider = CreateGridRowProvider(focusedFragment.path, focusedFragment.gridRowId, identity);
+            else
+                *outProvider = CreateControlProvider(focusedFragment.path, identity);
+            break;
+        }
         case AccessibilityFragmentKind::Root:
         case AccessibilityFragmentKind::GridHeader:
         case AccessibilityFragmentKind::GridCell:
@@ -6834,7 +7336,6 @@ HRESULT AccessibilityProvider::get_ToggleState(ToggleState* outState) noexcept
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outState)
     {
         return E_POINTER;
@@ -6875,7 +7376,6 @@ HRESULT AccessibilityProvider::GetVisibleRanges(SAFEARRAY** outRanges) noexcept
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outRanges)
     {
         return E_POINTER;
@@ -6948,7 +7448,7 @@ HRESULT AccessibilityProvider::RangeFromPoint(UiaPoint point, ITextRangeProvider
         return resolveHr;
     }
 
-    *outRange        = CreateTextRangeProvider(record->path, request.textRangeResultStart, request.textRangeResultStart);
+    *outRange        = CreateTextRangeProvider(record->path, request.textRangeResultStart, request.textRangeResultStart, CaptureControlIdentity(*record));
     const HRESULT hr = *outRange ? S_OK : E_OUTOFMEMORY;
     Debug::Perf::Emit(
         L"dxui.uia.text_range_us", L"range-from-point", Debug::Perf::ElapsedUs(startedAt), request.textRangeResultStart, request.textRangeTextLength, hr);
@@ -6959,7 +7459,6 @@ HRESULT AccessibilityProvider::ExecuteResolveTextRangeFromPointOnWindowThread(Ui
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     outCaretIndex = 0u;
     outTextLength = 0u;
 
@@ -7019,7 +7518,6 @@ HRESULT AccessibilityProvider::get_DocumentRange(ITextRangeProvider** outRange) 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outRange)
     {
         return E_POINTER;
@@ -7047,7 +7545,6 @@ HRESULT AccessibilityProvider::get_SupportedTextSelection(SupportedTextSelection
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outSupportedSelection)
     {
         return E_POINTER;
@@ -7073,7 +7570,6 @@ HRESULT AccessibilityProvider::GetActiveComposition(ITextRangeProvider** outRang
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outRange)
     {
         return E_POINTER;
@@ -7096,7 +7592,7 @@ HRESULT AccessibilityProvider::GetActiveComposition(ITextRangeProvider** outRang
 
     const TextRangeSpan range =
         ClampTextRangeSpan(record->controlTextCompositionStart.value(), record->controlTextCompositionEnd.value(), record->controlAccessibleText.size());
-    *outRange        = CreateTextRangeProvider(record->path, range.start, range.end, record->controlAccessibleText);
+    *outRange        = CreateTextRangeProvider(record->path, range.start, range.end, record->controlAccessibleText, CaptureControlIdentity(*record));
     const HRESULT hr = *outRange ? S_OK : E_OUTOFMEMORY;
     Debug::Perf::Emit(
         L"dxui.uia.text_range_us", L"active-composition", Debug::Perf::ElapsedUs(startedAt), range.end - range.start, record->controlAccessibleText.size(), hr);
@@ -7111,7 +7607,6 @@ HRESULT AccessibilityProvider::GetConversionTarget(ITextRangeProvider** outRange
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     const auto startedAt = std::chrono::steady_clock::now();
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outRange)
     {
         return E_POINTER;
@@ -7134,7 +7629,7 @@ HRESULT AccessibilityProvider::GetConversionTarget(ITextRangeProvider** outRange
 
     const TextRangeSpan range = ClampTextRangeSpan(
         record->controlTextConversionTargetStart.value(), record->controlTextConversionTargetEnd.value(), record->controlAccessibleText.size());
-    *outRange        = CreateTextRangeProvider(record->path, range.start, range.end, record->controlAccessibleText);
+    *outRange        = CreateTextRangeProvider(record->path, range.start, range.end, record->controlAccessibleText, CaptureControlIdentity(*record));
     const HRESULT hr = *outRange ? S_OK : E_OUTOFMEMORY;
     Debug::Perf::Emit(
         L"dxui.uia.text_range_us", L"conversion-target", Debug::Perf::ElapsedUs(startedAt), range.end - range.start, record->controlAccessibleText.size(), hr);
@@ -7192,7 +7687,6 @@ HRESULT AccessibilityProvider::get_Value(BSTR* outValue) noexcept
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outValue)
     {
         return E_POINTER;
@@ -7234,7 +7728,6 @@ HRESULT AccessibilityProvider::get_Value(double* outValue) noexcept
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outValue)
     {
         return E_POINTER;
@@ -7273,7 +7766,6 @@ HRESULT AccessibilityProvider::get_IsReadOnly(BOOL* outReadOnly) noexcept
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outReadOnly)
     {
         return E_POINTER;
@@ -7313,7 +7805,6 @@ HRESULT AccessibilityProvider::get_Maximum(double* outMaximum) noexcept
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outMaximum)
     {
         return E_POINTER;
@@ -7353,7 +7844,6 @@ HRESULT AccessibilityProvider::get_Minimum(double* outMinimum) noexcept
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outMinimum)
     {
         return E_POINTER;
@@ -7393,7 +7883,6 @@ HRESULT AccessibilityProvider::get_LargeChange(double* outLargeChange) noexcept
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outLargeChange)
     {
         return E_POINTER;
@@ -7433,7 +7922,6 @@ HRESULT AccessibilityProvider::get_SmallChange(double* outSmallChange) noexcept
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outSmallChange)
     {
         return E_POINTER;
@@ -7487,14 +7975,14 @@ HRESULT AccessibilityProvider::GetSelection(SAFEARRAY** outSelection) noexcept
         std::vector<wil::com_ptr_nothrow<IRawElementProviderSimple>> selectionProviders;
         if (record->isTree)
         {
-            if (record->treeCanSelectMultiple)
+            if (! record->selectedTreeItemIds.empty())
             {
                 // Every selected item that is a visible row, in visible order.
                 selectionProviders.reserve(record->selectedTreeItemIds.size());
                 for (const uint64_t itemId : record->selectedTreeItemIds)
                 {
                     wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
-                    fragment.attach(CreateTreeItemProvider(record->path, itemId));
+                    fragment.attach(CreateTreeItemProvider(record->path, itemId, CaptureControlIdentity(*record)));
                     wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
                     if (! fragment || FAILED(fragment.query_to(simple.put())))
                     {
@@ -7503,23 +7991,6 @@ HRESULT AccessibilityProvider::GetSelection(SAFEARRAY** outSelection) noexcept
                     selectionProviders.push_back(std::move(simple));
                 }
             }
-            else if (record->selectedTreeVisibleIndex)
-            {
-                const AccessibilityTreeItemSnapshotRecord* selectedItem =
-                    FindSnapshotTreeItemRecordByVisibleIndex(*record, record->selectedTreeVisibleIndex.value());
-                if (! selectedItem)
-                {
-                    return UIA_E_ELEMENTNOTAVAILABLE;
-                }
-                wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
-                fragment.attach(CreateTreeItemProvider(record->path, selectedItem->itemId));
-                wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
-                if (! fragment || FAILED(fragment.query_to(simple.put())))
-                {
-                    return E_OUTOFMEMORY;
-                }
-                selectionProviders.push_back(std::move(simple));
-            }
         }
         else if (record->isGrid)
         {
@@ -7527,7 +7998,7 @@ HRESULT AccessibilityProvider::GetSelection(SAFEARRAY** outSelection) noexcept
             for (const uint64_t rowId : record->selectedGridRowIds)
             {
                 wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
-                fragment.attach(CreateGridRowProvider(record->path, rowId));
+                fragment.attach(CreateGridRowProvider(record->path, rowId, CaptureControlIdentity(*record)));
                 wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
                 if (! fragment || FAILED(fragment.query_to(simple.put())))
                 {
@@ -7554,12 +8025,16 @@ HRESULT AccessibilityProvider::GetSelection(SAFEARRAY** outSelection) noexcept
         wil::com_ptr_nothrow<ITextRangeProvider> range;
         if (! textRecord->controlTextSelectionBoundsDip.empty())
         {
-            range.attach(CreateTextRangeProvider(
-                textRecord->path, textRecord->controlTextSelectionStart, textRecord->controlTextSelectionEnd, textRecord->controlTextSelectionBoundsDip));
+            range.attach(CreateTextRangeProvider(textRecord->path,
+                                                 textRecord->controlTextSelectionStart,
+                                                 textRecord->controlTextSelectionEnd,
+                                                 textRecord->controlTextSelectionBoundsDip,
+                                                 CaptureControlIdentity(*textRecord)));
         }
         else
         {
-            range.attach(CreateTextRangeProvider(textRecord->path, textRecord->controlTextSelectionStart, textRecord->controlTextSelectionEnd));
+            range.attach(CreateTextRangeProvider(
+                textRecord->path, textRecord->controlTextSelectionStart, textRecord->controlTextSelectionEnd, CaptureControlIdentity(*textRecord)));
         }
         if (! range)
         {
@@ -7638,7 +8113,6 @@ HRESULT AccessibilityProvider::GetRowHeaders(SAFEARRAY** outRowHeaders) noexcept
 
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
     if (! outRowHeaders)
     {
         return E_POINTER;
@@ -7682,7 +8156,7 @@ HRESULT AccessibilityProvider::GetColumnHeaders(SAFEARRAY** outColumnHeaders) no
     for (const size_t columnIndex : record->gridVisibleColumns)
     {
         wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
-        fragment.attach(CreateGridHeaderProvider(record->path, columnIndex));
+        fragment.attach(CreateGridHeaderProvider(record->path, columnIndex, CaptureControlIdentity(*record)));
         wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
         if (! fragment || FAILED(fragment.query_to(simple.put())))
         {
@@ -7854,7 +8328,7 @@ HRESULT AccessibilityProvider::get_SelectionContainer(IRawElementProviderSimple*
     }
 
     // The tree's or grid's own element: the window's root element when that is the one control it stands for.
-    wil::com_ptr_nothrow<IRawElementProviderSimple> container = CreateControlElement(_target, _hwnd, _path);
+    wil::com_ptr_nothrow<IRawElementProviderSimple> container = CreateControlElement(_target, _hwnd, _path, CaptureControlIdentity(*record));
     if (! container)
     {
         return E_OUTOFMEMORY;
@@ -8068,7 +8542,7 @@ HRESULT AccessibilityProvider::get_ContainingGrid(IRawElementProviderSimple** ou
     }
 
     // The grid's own element: the window's root element when that is the one control it stands for.
-    wil::com_ptr_nothrow<IRawElementProviderSimple> grid = CreateControlElement(_target, _hwnd, _path);
+    wil::com_ptr_nothrow<IRawElementProviderSimple> grid = CreateControlElement(_target, _hwnd, _path, CaptureControlIdentity(*cell->controlRecord));
     if (! grid)
     {
         return E_OUTOFMEMORY;
@@ -8124,7 +8598,7 @@ HRESULT AccessibilityProvider::GetColumnHeaderItems(SAFEARRAY** outColumnHeaderI
     }
 
     wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
-    fragment.attach(CreateGridHeaderProvider(_path, cell->columnIndex));
+    fragment.attach(CreateGridHeaderProvider(_path, cell->columnIndex, CaptureControlIdentity(*cell->controlRecord)));
     wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
     if (! fragment || FAILED(fragment.query_to(simple.put())))
     {
@@ -8265,8 +8739,10 @@ bool AccessibilityProvider::ResolveTreeVisibleIndex(size_t& outVisibleIndex) con
         return false;
     }
 
+    const auto lifetime = GetControlLifetimeToken(*tree);
+    const BorrowedControlModelGuard<Tree, ITreeModel> modelGuard(*tree, lifetime, model);
     const std::optional<size_t> visibleIndex = model->FindVisibleItemById(_treeItemId);
-    if (! visibleIndex)
+    if (! visibleIndex || ! modelGuard.IsCurrent() || ResolveTreeControl() != tree)
     {
         return false;
     }
@@ -8280,13 +8756,19 @@ bool AccessibilityProvider::ResolveTreeItemData(TreeItemData& outItem) const noe
     const Tree* tree    = ResolveTreeControl();
     const auto* model   = tree ? tree->GetModel() : nullptr;
     size_t visibleIndex = 0u;
-    if (! model || ! ResolveTreeVisibleIndex(visibleIndex))
+    if (! model)
+        return false;
+    const auto lifetime = GetControlLifetimeToken(*tree);
+    const BorrowedControlModelGuard<Tree, ITreeModel> modelGuard(*tree, lifetime, model);
+    const auto isCurrent = [&]() noexcept { return modelGuard.IsCurrent() && ResolveTreeControl() == tree; };
+    if (! ResolveTreeVisibleIndex(visibleIndex) || ! isCurrent())
     {
         return false;
     }
 
-    model->GetVisibleItem(visibleIndex, outItem);
-    return true;
+    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, outItem); }))
+        return false;
+    return isCurrent();
 }
 
 bool AccessibilityProvider::ResolveGridRowIndex(size_t& outRowIndex) const noexcept
@@ -8298,8 +8780,10 @@ bool AccessibilityProvider::ResolveGridRowIndex(size_t& outRowIndex) const noexc
         return false;
     }
 
+    const auto lifetime = GetControlLifetimeToken(*grid);
+    const BorrowedControlModelGuard<Grid, IGridModel> modelGuard(*grid, lifetime, model);
     const std::optional<size_t> rowIndex = model->FindRowByStableId(_gridRowId);
-    if (! rowIndex)
+    if (! rowIndex || ! modelGuard.IsCurrent() || ResolveGridControl() != grid)
     {
         return false;
     }
@@ -8309,11 +8793,22 @@ bool AccessibilityProvider::ResolveGridRowIndex(size_t& outRowIndex) const noexc
 }
 
 bool AccessibilityProvider::ResolveGridCellData(size_t& outRowIndex, size_t& outColumnIndex, GridCellData& outCellData) const noexcept
+try
 {
     const Grid* grid  = ResolveGridControl();
     const auto* model = grid ? grid->GetModel() : nullptr;
-    if (! grid || ! model || ! ResolveGridRowIndex(outRowIndex) || ! grid->FindVisibleRowOrdinal(outRowIndex) ||
-        ! grid->FindVisibleColumnOrdinal(_gridColumnIndex))
+    if (! grid || ! model)
+        return false;
+    const auto lifetime = GetControlLifetimeToken(*grid);
+    const BorrowedControlModelGuard<Grid, IGridModel> modelGuard(*grid, lifetime, model);
+    const auto isCurrent = [&]() noexcept { return modelGuard.IsCurrent() && ResolveGridControl() == grid; };
+    if (! ResolveGridRowIndex(outRowIndex) || ! isCurrent())
+        return false;
+    const auto rowOrdinal = grid->FindVisibleRowOrdinal(outRowIndex);
+    if (! isCurrent() || ! rowOrdinal)
+        return false;
+    const auto columnOrdinal = grid->FindVisibleColumnOrdinal(_gridColumnIndex);
+    if (! isCurrent() || ! columnOrdinal)
     {
         return false;
     }
@@ -8321,7 +8816,12 @@ bool AccessibilityProvider::ResolveGridCellData(size_t& outRowIndex, size_t& out
     outColumnIndex = _gridColumnIndex;
     outCellData    = {};
     model->GetCellData(outRowIndex, outColumnIndex, outCellData);
-    return true;
+    return isCurrent();
+}
+catch (const std::exception&)
+{
+    // A failed application model or geometry read must not escape this COM action's noexcept resolution path.
+    return false;
 }
 
 WindowHostAccessibilityTarget* AccessibilityProvider::AddRefTarget() const noexcept
@@ -8376,16 +8876,49 @@ HRESULT AccessibilityProvider::ExecuteUiThreadAction(AccessibilityUiActionReques
     return UIA_E_NOTSUPPORTED;
 }
 
+template <typename ResolveCurrentTarget>
+[[nodiscard]] bool RevalidateAccessibilityActionTarget(const std::weak_ptr<int>& lifetime, ResolveCurrentTarget&& resolveCurrentTarget) noexcept
+{
+    // Check the independently captured owner token before the provider resolves its path again. The provider identity may be
+    // zero, and a callback may have replaced the control at the same path with a new object.
+    if (lifetime.expired())
+        return false;
+    return resolveCurrentTarget();
+}
+
+HRESULT AccessibilityProvider::ValidateActionEnabled() const noexcept
+{
+    ControlHost* const host = ResolveHost();
+    Control* const control =
+        _kind == AccessibilityFragmentKind::TreeItem
+            ? static_cast<Control*>(ResolveMutableTreeControl())
+            : (_kind == AccessibilityFragmentKind::GridHeader || _kind == AccessibilityFragmentKind::GridRow || _kind == AccessibilityFragmentKind::GridCell
+                   ? static_cast<Control*>(ResolveMutableGridControl())
+                   : ResolveMutableControl());
+    // Window-only and unsupported targets retain their existing executor result.
+    if (host && control && ! IsControlEffectivelyInteractive(host->GetRoot(), control))
+        return UIA_E_ELEMENTNOTENABLED;
+    return S_OK;
+}
+
 HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
+    if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
+        return result;
     // The mutex guards resolving the host only. Moving focus runs the application's callbacks (the embedded site's
     // RequestFocus, the host's focus-changed callback) and raises UI Automation events, none of which run under it.
     ControlHost* host = nullptr;
     std::shared_ptr<EmbeddedAccessibilitySite> site;
+    Control* owner  = nullptr;
+    Tree* ownerTree = nullptr;
+    Grid* ownerGrid = nullptr;
+    std::weak_ptr<int> lifetime;
+    TreeItemData treeItem{};
+    size_t itemIndex            = 0u;
+    size_t requestedColumnIndex = 0u;
     {
-        const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
         host = ResolveHost();
         if (! host)
         {
@@ -8397,21 +8930,83 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
             if (! site)
                 return UIA_E_ELEMENTNOTAVAILABLE;
         }
+
+        if (_kind == AccessibilityFragmentKind::TreeItem)
+        {
+            ownerTree = ResolveMutableTreeControl();
+            if (! ownerTree || ! ResolveTreeItemData(treeItem) || ! ResolveTreeVisibleIndex(itemIndex))
+                return UIA_E_ELEMENTNOTAVAILABLE;
+            owner = ownerTree;
+        }
+        else if (_kind == AccessibilityFragmentKind::GridHeader || _kind == AccessibilityFragmentKind::GridRow || _kind == AccessibilityFragmentKind::GridCell)
+        {
+            ownerGrid = ResolveMutableGridControl();
+            owner     = ownerGrid;
+            if (ownerGrid && _kind == AccessibilityFragmentKind::GridRow && ! ResolveGridRowIndex(itemIndex))
+                return UIA_E_ELEMENTNOTAVAILABLE;
+            if (ownerGrid && _kind == AccessibilityFragmentKind::GridCell)
+            {
+                GridCellData cellData{};
+                if (! ResolveGridCellData(itemIndex, requestedColumnIndex, cellData))
+                    return UIA_E_ELEMENTNOTAVAILABLE;
+            }
+        }
+        else
+            owner = ResolveMutableControl();
+
+        if (owner)
+            lifetime = GetControlLifetimeToken(*owner);
     }
+
+    const auto survived = [&]() noexcept
+    {
+        if (! owner)
+        {
+            return ResolveHost() == host && (_kind != AccessibilityFragmentKind::Root || ResolveMutableControl() == nullptr);
+        }
+        return RevalidateAccessibilityActionTarget(lifetime,
+                                                   [&]() noexcept
+        {
+            if (ResolveHost() != host)
+                return false;
+            if (owner)
+            {
+                Control* current = ownerTree ? static_cast<Control*>(ResolveMutableTreeControl())
+                                             : (ownerGrid ? static_cast<Control*>(ResolveMutableGridControl()) : ResolveMutableControl());
+                if (current != owner)
+                    return false;
+                if (ownerTree)
+                {
+                    size_t currentIndex = 0u;
+                    TreeItemData currentItem{};
+                    return ResolveTreeVisibleIndex(currentIndex) && ResolveTreeItemData(currentItem) && currentItem.id == treeItem.id;
+                }
+                if (ownerGrid && _kind == AccessibilityFragmentKind::GridRow)
+                {
+                    size_t currentIndex = 0u;
+                    return ResolveGridRowIndex(currentIndex);
+                }
+                if (ownerGrid && _kind == AccessibilityFragmentKind::GridCell)
+                {
+                    size_t currentRow = 0u, currentColumn = 0u;
+                    GridCellData currentCell{};
+                    return ResolveGridCellData(currentRow, currentColumn, currentCell) && currentColumn == requestedColumnIndex;
+                }
+            }
+            return true;
+        });
+    };
 
     if (site)
     {
         const HRESULT hr = site->RequestFocus();
         if (FAILED(hr))
             return hr;
-        const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-        host = ResolveHost();
-        if (! host)
+        if (! survived())
             return UIA_E_ELEMENTNOTAVAILABLE;
     }
     // Moving focus runs application code (native focus, the host's focus-changed callback) that can rebuild the controls:
     // an element whose control did not survive it reports itself gone instead of success, and moves no further focus.
-    const auto survived = [&]() noexcept { return ResolveHost() == host; };
     if (_kind == AccessibilityFragmentKind::Root)
     {
         // A native menu popup keeps its session's Win32 focus target: activating a submenu popup would dismiss the
@@ -8432,15 +9027,20 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
 
         // A tree that selects one item selects what it focuses; with multi-select only the focus moves. The selection's
         // delegate may rebuild the controls: a tree it destroyed is not focused.
-        tree->SetFocusedItemId(item.id);
+        if (! tree->RequestFocusVisibleItem(itemIndex))
+            return UIA_E_ELEMENTNOTAVAILABLE;
         if (! survived())
             return UIA_E_ELEMENTNOTAVAILABLE;
         host->SetFocusControl(tree);
         if (! survived())
             return UIA_E_ELEMENTNOTAVAILABLE;
         RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+        if (! survived())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         if (! _target->embedded)
             ::SetFocus(_hwnd);
+        if (! survived())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         host->Invalidate();
         return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
     }
@@ -8454,8 +9054,12 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
             if (! survived())
                 return UIA_E_ELEMENTNOTAVAILABLE;
             RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+            if (! survived())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             if (! _target->embedded)
                 ::SetFocus(_hwnd);
+            if (! survived())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             host->Invalidate();
         }
         return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
@@ -8465,7 +9069,7 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
     {
         size_t rowIndex = 0u;
         Grid* grid      = ResolveMutableGridControl();
-        if (grid && ResolveGridRowIndex(rowIndex) && grid->RequestSelectRow(rowIndex, 0u))
+        if (grid && ResolveGridRowIndex(rowIndex) && grid->RequestFocusRow(rowIndex))
         {
             // The selection's delegate may rebuild the controls: a grid it destroyed is not focused.
             if (! survived())
@@ -8474,8 +9078,12 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
             if (! survived())
                 return UIA_E_ELEMENTNOTAVAILABLE;
             RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+            if (! survived())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             if (! _target->embedded)
                 ::SetFocus(_hwnd);
+            if (! survived())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             host->Invalidate();
         }
         return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
@@ -8487,7 +9095,7 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
         size_t columnIndex = 0u;
         GridCellData cellData{};
         Grid* grid = ResolveMutableGridControl();
-        if (grid && ResolveGridCellData(rowIndex, columnIndex, cellData) && grid->RequestSelectRow(rowIndex, 0u))
+        if (grid && ResolveGridCellData(rowIndex, columnIndex, cellData) && grid->RequestFocusCell(rowIndex, columnIndex))
         {
             if (! survived())
                 return UIA_E_ELEMENTNOTAVAILABLE;
@@ -8495,8 +9103,12 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
             if (! survived())
                 return UIA_E_ELEMENTNOTAVAILABLE;
             RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+            if (! survived())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             if (! _target->embedded)
                 ::SetFocus(_hwnd);
+            if (! survived())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             host->Invalidate();
         }
         return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
@@ -8512,6 +9124,8 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
                 return UIA_E_ELEMENTNOTAVAILABLE;
             if (! _target->embedded)
                 ::SetFocus(_hwnd);
+            if (! survived())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             host->Invalidate();
         }
         return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
@@ -8530,6 +9144,8 @@ HRESULT AccessibilityProvider::ExecuteSetFocusOnWindowThread() noexcept
             return UIA_E_ELEMENTNOTAVAILABLE;
         if (! _target->embedded && ! nativeMenuRow)
             ::SetFocus(_hwnd);
+        if (! survived())
+            return UIA_E_ELEMENTNOTAVAILABLE;
     }
     return survived() ? S_OK : UIA_E_ELEMENTNOTAVAILABLE;
 }
@@ -8538,13 +9154,16 @@ HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread() noexcept
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
+    if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
+        return result;
     ControlHost* host          = nullptr;
     TextField* revealTextField = nullptr;
     Button* button             = nullptr;
     Control* accessibleControl = nullptr;
+    Control* owner             = nullptr;
+    std::weak_ptr<int> lifetime;
 
     {
-        const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
         host = ResolveHost();
         if (! host)
         {
@@ -8561,6 +9180,7 @@ HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread() noexcept
             {
                 return UIA_E_NOTSUPPORTED;
             }
+            owner = revealTextField;
         }
         else
         {
@@ -8570,69 +9190,120 @@ HRESULT AccessibilityProvider::ExecuteInvokeOnWindowThread() noexcept
                 return UIA_E_NOTSUPPORTED;
             }
             button = dynamic_cast<Button*>(accessibleControl);
+            owner  = accessibleControl;
         }
+        lifetime = GetControlLifetimeToken(*owner);
     }
+
+    const auto survived = [&]() noexcept
+    {
+        return RevalidateAccessibilityActionTarget(lifetime,
+                                                   [&]() noexcept
+        {
+            if (ResolveHost() != host)
+                return false;
+            return _kind == AccessibilityFragmentKind::TextFieldPasswordRevealButton ? ResolveMutableControl() == revealTextField
+                                                                                     : ResolveMutableControl() == accessibleControl;
+        });
+    };
 
     if (_kind == AccessibilityFragmentKind::TextFieldPasswordRevealButton)
     {
-        if (! revealTextField->InvokePasswordRevealButton(*host))
-        {
-            return UIA_E_NOTSUPPORTED;
-        }
-        return S_OK;
+        const bool invoked = revealTextField->InvokePasswordRevealButton(*host);
+        if (! survived())
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        return invoked ? S_OK : UIA_E_NOTSUPPORTED;
     }
 
     if (accessibleControl && accessibleControl->SupportsAccessibleInvoke())
     {
-        return accessibleControl->InvokeAccessible(*host) ? S_OK : UIA_E_NOTSUPPORTED;
+        const HRESULT result = accessibleControl->InvokeAccessibleResult(*host);
+        if (! survived())
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        return result;
     }
 
     // The button focuses itself first, and a focus callback that rebuilds the controls ends the invocation (Button::Invoke):
     // the element then reports its control gone.
-    if (button->Invoke(*host, true))
-        return S_OK;
-    return ResolveHost() == host ? UIA_E_NOTSUPPORTED : UIA_E_ELEMENTNOTAVAILABLE;
+    const bool invoked = button->Invoke(*host, true);
+    if (! survived())
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    return invoked ? S_OK : UIA_E_NOTSUPPORTED;
 }
 
 HRESULT AccessibilityProvider::ExecuteToggleOnWindowThread() noexcept
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-    ControlHost* host = ResolveHost();
-    if (! host)
+    if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
+        return result;
+    ControlHost* host = nullptr;
+    Control* owner    = nullptr;
+    std::weak_ptr<int> ownerLifetime;
+    size_t rowIndex    = 0u;
+    size_t columnIndex = 0u;
+    GridCellData cellData{};
+    DxUi::Toggle* toggle = nullptr;
+    Grid* grid           = nullptr;
+    {
+        host = ResolveHost();
+        if (! host)
+            return UIA_E_NOTSUPPORTED;
+
+        if (_kind == AccessibilityFragmentKind::GridCell)
+        {
+            grid = ResolveMutableGridControl();
+            if (! grid || ! ResolveGridCellData(rowIndex, columnIndex, cellData) || ! GridCellSupportsTogglePattern(cellData))
+                return UIA_E_NOTSUPPORTED;
+            if (! grid->IsEnabled())
+                return UIA_E_ELEMENTNOTENABLED;
+            owner = grid;
+        }
+        else
+        {
+            toggle = dynamic_cast<DxUi::Toggle*>(ResolveMutableControl());
+            if (! toggle)
+                return UIA_E_NOTSUPPORTED;
+            if (! toggle->IsEnabled())
+                return UIA_E_ELEMENTNOTENABLED;
+            owner = toggle;
+        }
+        ownerLifetime = GetControlLifetimeToken(*owner);
+    }
+
+    // Application delegates are allowed to query UI Automation or replace the retained tree.
+    const bool changed = grid ? grid->RequestToggleCheckboxCell(*host, rowIndex, columnIndex) : toggle->OnMnemonic(*host);
+    if (ownerLifetime.expired())
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    {
+        if (ResolveHost() != host || (_kind == AccessibilityFragmentKind::GridCell ? ResolveMutableGridControl() != grid : ResolveMutableControl() != toggle))
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        if (_kind == AccessibilityFragmentKind::GridCell)
+        {
+            size_t currentRow = 0u, currentColumn = 0u;
+            GridCellData current{};
+            if (! ResolveGridCellData(currentRow, currentColumn, current) || currentRow != rowIndex || currentColumn != columnIndex)
+                return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+    }
+    if (! changed)
     {
         return UIA_E_NOTSUPPORTED;
     }
-
-    if (_kind == AccessibilityFragmentKind::GridCell)
-    {
-        size_t rowIndex    = 0u;
-        size_t columnIndex = 0u;
-        GridCellData cellData{};
-        Grid* grid = ResolveMutableGridControl();
-        if (! grid || ! ResolveGridCellData(rowIndex, columnIndex, cellData) || ! GridCellSupportsTogglePattern(cellData))
-        {
-            return UIA_E_NOTSUPPORTED;
-        }
-
-        if (! grid->RequestToggleCheckboxCell(*host, rowIndex, columnIndex))
-        {
-            return UIA_E_NOTSUPPORTED;
-        }
-
-        RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
-        return S_OK;
-    }
-
-    auto* toggle = dynamic_cast<DxUi::Toggle*>(ResolveMutableControl());
-    if (! toggle)
-    {
-        return UIA_E_NOTSUPPORTED;
-    }
-
-    static_cast<void>(toggle->OnMnemonic(*host));
     RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+    if (ownerLifetime.expired())
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    {
+        if (ResolveHost() != host || (grid ? ResolveMutableGridControl() != grid : ResolveMutableControl() != toggle))
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        if (grid)
+        {
+            size_t currentRow = 0u, currentColumn = 0u;
+            GridCellData current{};
+            if (! ResolveGridCellData(currentRow, currentColumn, current) || currentRow != rowIndex || currentColumn != columnIndex)
+                return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+    }
     return S_OK;
 }
 
@@ -8640,11 +9311,18 @@ HRESULT AccessibilityProvider::ExecuteSetStringValueOnWindowThread(LPCWSTR value
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-    ControlHost* host = ResolveHost();
-    Control* control  = ResolveMutableControl();
-    if (! host || ! control || ! control->IsEnabled() || ! SupportsValuePattern(control) || IsValueReadOnly(control))
-        return UIA_E_NOTSUPPORTED;
+    if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
+        return result;
+    ControlHost* host = nullptr;
+    Control* control  = nullptr;
+    std::weak_ptr<int> lifetime;
+    {
+        host    = ResolveHost();
+        control = ResolveMutableControl();
+        if (! host || ! control || ! control->IsEnabled() || ! SupportsValuePattern(control) || IsValueReadOnly(control))
+            return UIA_E_NOTSUPPORTED;
+        lifetime = GetControlLifetimeToken(*control);
+    }
     const size_t length = value ? wcsnlen(value, 65537) : 0;
     if (length > 65536)
         return E_INVALIDARG;
@@ -8660,17 +9338,26 @@ HRESULT AccessibilityProvider::ExecuteSetStringValueOnWindowThread(LPCWSTR value
     }
     try
     {
-        const auto lifetime = GetControlLifetimeToken(*control);
         if (auto* field = dynamic_cast<TextField*>(control))
             field->SetTextAndNotify(value ? value : L"");
         else if (auto* combo = dynamic_cast<ComboBox*>(control))
             combo->SetTextAndNotify(value ? value : L"");
         else
             return UIA_E_NOTSUPPORTED;
-        if (lifetime.expired() || ResolveHost() != host || ResolveMutableControl() != control)
-            return S_OK;
+        if (lifetime.expired())
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        {
+            if (ResolveHost() != host || ResolveMutableControl() != control)
+                return UIA_E_ELEMENTNOTAVAILABLE;
+        }
         host->SyncTextInput(control);
         RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+        if (lifetime.expired())
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        {
+            if (ResolveHost() != host || ResolveMutableControl() != control)
+                return UIA_E_ELEMENTNOTAVAILABLE;
+        }
         host->Invalidate();
         return S_OK;
     }
@@ -8688,129 +9375,187 @@ HRESULT AccessibilityProvider::ExecuteSetRangeValueOnWindowThread(double value) 
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-    ControlHost* host = ResolveHost();
-    Control* control  = ResolveMutableControl();
-    if (! host || ! control || ! control->IsEnabled() || ! SupportsRangeValuePattern(control) || IsValueReadOnly(control))
+    if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
+        return result;
+    ControlHost* host  = nullptr;
+    Control* control   = nullptr;
+    Slider* slider     = nullptr;
+    Splitter* splitter = nullptr;
+    std::weak_ptr<int> lifetime;
     {
-        return UIA_E_NOTSUPPORTED;
+        host    = ResolveHost();
+        control = ResolveMutableControl();
+        if (! host || ! control || ! control->IsEnabled() || ! SupportsRangeValuePattern(control) || IsValueReadOnly(control))
+            return UIA_E_NOTSUPPORTED;
+        slider   = dynamic_cast<Slider*>(control);
+        splitter = dynamic_cast<Splitter*>(control);
+        if (! slider && ! splitter)
+            return UIA_E_NOTSUPPORTED;
+        lifetime = GetControlLifetimeToken(*control);
     }
 
-    if (auto* slider = dynamic_cast<Slider*>(control))
-    {
-        return slider->RequestValue(*host, value) ? S_OK : E_INVALIDARG;
-    }
-    if (auto* splitter = dynamic_cast<Splitter*>(control))
-    {
+    bool accepted = false;
+    if (slider)
+        accepted = slider->RequestValue(*host, value);
+    else
         // One committed change, like the keyboard; refused mid-drag. The consumer re-lays out its panes.
-        return std::isfinite(value) && splitter->RequestPosition(*host, static_cast<float>(value)) ? S_OK : E_INVALIDARG;
-    }
+        accepted = std::isfinite(value) && splitter->RequestPosition(*host, static_cast<float>(value));
 
-    return UIA_E_NOTSUPPORTED;
+    if (lifetime.expired())
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    {
+        if (ResolveHost() != host || ResolveMutableControl() != control)
+            return UIA_E_ELEMENTNOTAVAILABLE;
+    }
+    if (! accepted)
+        return E_INVALIDARG;
+    RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+    if (lifetime.expired())
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    {
+        if (ResolveHost() != host || ResolveMutableControl() != control)
+            return UIA_E_ELEMENTNOTAVAILABLE;
+    }
+    host->Invalidate();
+    return S_OK;
 }
 
 HRESULT AccessibilityProvider::ExecuteSelectOnWindowThread() noexcept
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-    ControlHost* host = ResolveHost();
-    if (! host)
+    if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
+        return result;
+    ControlHost* host = nullptr;
+    Tree* tree        = nullptr;
+    Grid* grid        = nullptr;
+    Control* owner    = nullptr;
+    std::weak_ptr<int> lifetime;
+    size_t index = 0u;
     {
-        return UIA_E_NOTSUPPORTED;
-    }
-    // The selection's delegate and the focus callbacks may rebuild the controls: an element whose control did not survive
-    // them reports itself gone, and its control is neither focused nor touched again.
-    const auto survived = [&]() noexcept { return ResolveHost() == host; };
-
-    if (_kind == AccessibilityFragmentKind::TreeItem)
-    {
-        Tree* tree          = ResolveMutableTreeControl();
-        size_t visibleIndex = 0u;
-        if (! tree || ! ResolveTreeVisibleIndex(visibleIndex) || ! tree->RequestSelectVisibleItem(visibleIndex))
-        {
-            return UIA_E_ELEMENTNOTAVAILABLE;
-        }
-        if (! survived())
-            return UIA_E_ELEMENTNOTAVAILABLE;
-
-        host->SetFocusControl(tree);
-        if (! survived())
-            return UIA_E_ELEMENTNOTAVAILABLE;
-        RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
-        host->Invalidate();
-        return S_OK;
-    }
-
-    if (_kind == AccessibilityFragmentKind::GridRow)
-    {
-        size_t rowIndex = 0u;
-        Grid* grid      = ResolveMutableGridControl();
-        if (! grid || ! ResolveGridRowIndex(rowIndex) || ! grid->RequestSelectRow(rowIndex, 0u))
-        {
+        host = ResolveHost();
+        if (! host)
             return UIA_E_NOTSUPPORTED;
+        if (_kind == AccessibilityFragmentKind::TreeItem)
+        {
+            tree = ResolveMutableTreeControl();
+            if (! tree || ! tree->IsEnabled() || ! ResolveTreeVisibleIndex(index))
+                return tree && ! tree->IsEnabled() ? UIA_E_ELEMENTNOTENABLED : UIA_E_ELEMENTNOTAVAILABLE;
+            owner = tree;
         }
-        if (! survived())
-            return UIA_E_ELEMENTNOTAVAILABLE;
-
-        host->SetFocusControl(grid);
-        if (! survived())
-            return UIA_E_ELEMENTNOTAVAILABLE;
-        RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
-        host->Invalidate();
-        return S_OK;
+        else if (_kind == AccessibilityFragmentKind::GridRow)
+        {
+            grid = ResolveMutableGridControl();
+            if (! grid || ! grid->IsEnabled() || ! ResolveGridRowIndex(index))
+                return grid && ! grid->IsEnabled() ? UIA_E_ELEMENTNOTENABLED : UIA_E_ELEMENTNOTAVAILABLE;
+            owner = grid;
+        }
+        else
+            return UIA_E_NOTSUPPORTED;
+        lifetime = GetControlLifetimeToken(*owner);
     }
 
-    return UIA_E_NOTSUPPORTED;
+    const auto survives = [&]() noexcept
+    {
+        if (lifetime.expired())
+            return false;
+        if (ResolveHost() != host || (tree ? ResolveMutableTreeControl() != tree : ResolveMutableGridControl() != grid))
+            return false;
+        size_t currentIndex = 0u;
+        return _kind == AccessibilityFragmentKind::TreeItem ? ResolveTreeVisibleIndex(currentIndex) : ResolveGridRowIndex(currentIndex);
+    };
+
+    const bool accepted = tree ? tree->RequestSelectVisibleItem(index) : grid->RequestSelectRow(index, 0u);
+    if (! survives())
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    if (! accepted)
+        return tree ? UIA_E_ELEMENTNOTAVAILABLE : UIA_E_NOTSUPPORTED;
+    RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+    if (! survives())
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    host->Invalidate();
+    return S_OK;
 }
 
 HRESULT AccessibilityProvider::ExecuteAddToSelectionOnWindowThread() noexcept
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
+    if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
+        return result;
+    ControlHost* host = nullptr;
+    Tree* tree        = nullptr;
+    Grid* grid        = nullptr;
+    Control* owner    = nullptr;
+    std::weak_ptr<int> lifetime;
+    size_t index         = 0u;
+    bool alreadySelected = false;
+    bool singleSelect    = false;
     if (_kind == AccessibilityFragmentKind::TreeItem)
     {
-        Tree* const tree = ResolveMutableTreeControl();
-        if (! tree || ! tree->MultiSelectEnabled())
         {
-            // A single selection has nothing to add to: the item becomes the selection.
-            return ExecuteSelectOnWindowThread();
+            host = ResolveHost();
+            tree = ResolveMutableTreeControl();
+            if (! host || ! tree)
+                return UIA_E_ELEMENTNOTAVAILABLE;
+            if (! tree->IsEnabled())
+                return UIA_E_ELEMENTNOTENABLED;
+            if (! ResolveTreeVisibleIndex(index))
+                return UIA_E_ELEMENTNOTAVAILABLE;
+            singleSelect = ! tree->MultiSelectEnabled();
+            TreeItemData item{};
+            if (! ResolveTreeItemData(item))
+                return UIA_E_ELEMENTNOTAVAILABLE;
+            alreadySelected = tree->IsItemSelected(item.id);
+            if (singleSelect && ! alreadySelected && tree->GetSelectedItemId().has_value())
+                return UIA_E_INVALIDOPERATION;
+            owner    = tree;
+            lifetime = GetControlLifetimeToken(*tree);
         }
-
-        // Multi-select: the item joins the selection (and takes the focus), which keeps the items already in it. The
-        // selection's delegate and the focus callbacks may rebuild the controls, as for ExecuteSelectOnWindowThread.
-        ControlHost* const host = ResolveHost();
-        size_t visibleIndex     = 0u;
-        if (! host || ! ResolveTreeVisibleIndex(visibleIndex) || ! tree->RequestAddVisibleItemToSelection(visibleIndex))
+        if (singleSelect)
         {
-            return UIA_E_ELEMENTNOTAVAILABLE;
+            return alreadySelected ? S_OK : ExecuteSelectOnWindowThread();
         }
-        if (ResolveHost() != host)
-            return UIA_E_ELEMENTNOTAVAILABLE;
-
-        host->SetFocusControl(tree);
-        if (ResolveHost() != host)
-            return UIA_E_ELEMENTNOTAVAILABLE;
-        RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
-        host->Invalidate();
-        return S_OK;
     }
-
-    ControlHost* host = ResolveHost();
-    size_t rowIndex   = 0u;
-    Grid* grid        = ResolveMutableGridControl();
-    if (! host || ! grid || _kind != AccessibilityFragmentKind::GridRow || ! ResolveGridRowIndex(rowIndex) || ! grid->RequestSelectRow(rowIndex, MK_CONTROL))
+    else if (_kind == AccessibilityFragmentKind::GridRow)
     {
-        return UIA_E_NOTSUPPORTED;
+        host = ResolveHost();
+        grid = ResolveMutableGridControl();
+        if (! host || ! grid || ! ResolveGridRowIndex(index))
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        if (! grid->IsEnabled())
+            return UIA_E_ELEMENTNOTENABLED;
+        alreadySelected = grid->IsRowSelected(index);
+        singleSelect    = grid->GetSelectionMode() == GridSelectionMode::Single;
+        if (singleSelect && ! alreadySelected && grid->GetSelectionModel().GetCount() != 0u)
+            return UIA_E_INVALIDOPERATION;
+        owner    = grid;
+        lifetime = GetControlLifetimeToken(*grid);
     }
-    if (ResolveHost() != host)
-        return UIA_E_ELEMENTNOTAVAILABLE;
+    else
+        return UIA_E_NOTSUPPORTED;
 
-    host->SetFocusControl(grid);
-    if (ResolveHost() != host)
+    const auto survives = [&]() noexcept
+    {
+        if (lifetime.expired())
+            return false;
+        if (ResolveHost() != host || (tree ? ResolveMutableTreeControl() != tree : ResolveMutableGridControl() != grid))
+            return false;
+        size_t currentIndex = 0u;
+        return tree ? ResolveTreeVisibleIndex(currentIndex) : ResolveGridRowIndex(currentIndex);
+    };
+    bool accepted = true;
+    if (tree)
+        accepted = tree->RequestAddVisibleItemToSelection(index);
+    else if (! alreadySelected)
+        accepted = grid->RequestAddRowSelection(index);
+    if (! survives())
         return UIA_E_ELEMENTNOTAVAILABLE;
+    if (! accepted)
+        return UIA_E_NOTSUPPORTED;
     RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+    if (! survives())
+        return UIA_E_ELEMENTNOTAVAILABLE;
     host->Invalidate();
     return S_OK;
 }
@@ -8819,41 +9564,72 @@ HRESULT AccessibilityProvider::ExecuteRemoveFromSelectionOnWindowThread() noexce
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-    ControlHost* host = ResolveHost();
-    if (! host)
+    if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
+        return result;
+    ControlHost* host = nullptr;
+    Tree* tree        = nullptr;
+    Grid* grid        = nullptr;
+    Control* owner    = nullptr;
+    std::weak_ptr<int> lifetime;
+    size_t index = 0u;
+    TreeItemData item{};
+    bool wasSelected = false;
     {
-        return UIA_E_NOTSUPPORTED;
+        host = ResolveHost();
+        if (! host)
+            return UIA_E_NOTSUPPORTED;
+        if (_kind == AccessibilityFragmentKind::TreeItem)
+        {
+            tree = ResolveMutableTreeControl();
+            if (! tree || ! ResolveTreeItemData(item) || ! ResolveTreeVisibleIndex(index))
+                return UIA_E_ELEMENTNOTAVAILABLE;
+            if (! tree->IsEnabled())
+                return UIA_E_ELEMENTNOTENABLED;
+            owner       = tree;
+            wasSelected = tree->IsItemSelected(item.id);
+            lifetime    = GetControlLifetimeToken(*tree);
+        }
+        else if (_kind == AccessibilityFragmentKind::GridRow)
+        {
+            grid = ResolveMutableGridControl();
+            if (! grid || ! ResolveGridRowIndex(index))
+                return UIA_E_ELEMENTNOTAVAILABLE;
+            if (! grid->IsEnabled())
+                return UIA_E_ELEMENTNOTENABLED;
+            owner       = grid;
+            wasSelected = grid->IsRowSelected(index);
+            lifetime    = GetControlLifetimeToken(*grid);
+        }
+        else
+            return UIA_E_NOTSUPPORTED;
     }
+
+    const auto survives = [&]() noexcept
+    {
+        if (lifetime.expired())
+            return false;
+        if (ResolveHost() != host || (tree ? ResolveMutableTreeControl() != tree : ResolveMutableGridControl() != grid))
+            return false;
+        size_t currentIndex = 0u;
+        return tree ? ResolveTreeVisibleIndex(currentIndex) : ResolveGridRowIndex(currentIndex);
+    };
 
     if (_kind == AccessibilityFragmentKind::TreeItem)
     {
-        Tree* tree = ResolveMutableTreeControl();
-        TreeItemData item;
-        if (! tree || ! ResolveTreeItemData(item))
-        {
-            return UIA_E_ELEMENTNOTAVAILABLE;
-        }
-
-        if (tree->MultiSelectEnabled())
+        if (tree->MultiSelectEnabled() || wasSelected)
         {
             // Only this item leaves the selection; the others stay and so does the focus.
-            size_t visibleIndex = 0u;
-            if (! ResolveTreeVisibleIndex(visibleIndex) || ! tree->RequestRemoveVisibleItemFromSelection(visibleIndex))
-            {
+            const bool accepted = tree->RequestRemoveVisibleItemFromSelection(index);
+            if (! survives())
                 return UIA_E_ELEMENTNOTAVAILABLE;
-            }
+            if (! accepted)
+                return UIA_E_ELEMENTNOTAVAILABLE;
 
             RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+            if (! survives())
+                return UIA_E_ELEMENTNOTAVAILABLE;
             host->Invalidate();
             return S_OK;
-        }
-
-        if (tree->GetSelectedItemId() && tree->GetSelectedItemId().value() == item.id)
-        {
-            tree->SetSelectedItemId(std::nullopt);
-            RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
-            host->Invalidate();
         }
 
         return S_OK;
@@ -8861,14 +9637,15 @@ HRESULT AccessibilityProvider::ExecuteRemoveFromSelectionOnWindowThread() noexce
 
     if (_kind == AccessibilityFragmentKind::GridRow)
     {
-        size_t rowIndex = 0u;
-        Grid* grid      = ResolveMutableGridControl();
-        if (! grid || ! ResolveGridRowIndex(rowIndex) || ! grid->RequestRemoveRowSelection(rowIndex))
-        {
+        const bool accepted = ! wasSelected || grid->RequestRemoveRowSelection(index);
+        if (! survives())
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        if (wasSelected && ! accepted)
             return UIA_E_NOTSUPPORTED;
-        }
 
         RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+        if (! survives())
+            return UIA_E_ELEMENTNOTAVAILABLE;
         host->Invalidate();
         return S_OK;
     }
@@ -8880,12 +9657,14 @@ HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded) noexce
 {
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
+    if (const HRESULT result = ValidateActionEnabled(); FAILED(result))
+        return result;
     if (_kind == AccessibilityFragmentKind::Control || _kind == AccessibilityFragmentKind::Root)
     {
         ControlHost* host = nullptr;
         Button* button    = nullptr;
+        std::weak_ptr<int> lifetime;
         {
-            const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
             host   = ResolveHost();
             button = dynamic_cast<Button*>(ResolveMutableControl());
             if (! host || ! button)
@@ -8905,52 +9684,88 @@ HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded) noexce
             {
                 return S_OK;
             }
+            lifetime = GetControlLifetimeToken(*button);
         }
         // Like Invoke, release the snapshot lock before a callback which may destroy the tree.
         // The application acknowledges state and owns content visibility; do not retain/touch button afterward.
-        return button->Invoke(*host, true) ? S_OK : UIA_E_NOTSUPPORTED;
+        const bool invoked = button->Invoke(*host, true);
+        if (lifetime.expired())
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        {
+            if (ResolveHost() != host || ResolveMutableControl() != button)
+                return UIA_E_ELEMENTNOTAVAILABLE;
+        }
+        return invoked ? S_OK : UIA_E_NOTSUPPORTED;
     }
-    const std::scoped_lock accessibilityLock(GetAccessibilityTargetMutex());
-    ControlHost* host = ResolveHost();
-    Tree* tree        = ResolveMutableTreeControl();
-    if (! host || ! tree)
-    {
-        return UIA_E_ELEMENTNOTAVAILABLE;
-    }
+    ControlHost* host = nullptr;
+    Tree* tree        = nullptr;
+    std::weak_ptr<int> lifetime;
     TreeItemData item;
     size_t visibleIndex = 0u;
-    if (! ResolveTreeItemData(item) || ! ResolveTreeVisibleIndex(visibleIndex))
     {
-        return UIA_E_ELEMENTNOTAVAILABLE;
+        host = ResolveHost();
+        tree = ResolveMutableTreeControl();
+        if (! host || ! tree)
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        if (! tree->IsEnabled())
+            return UIA_E_ELEMENTNOTENABLED;
+        if (! ResolveTreeItemData(item) || ! ResolveTreeVisibleIndex(visibleIndex))
+            return UIA_E_ELEMENTNOTAVAILABLE;
+        lifetime = GetControlLifetimeToken(*tree);
     }
     if (! item.hasChildren)
     {
         return UIA_E_NOTSUPPORTED;
     }
     const bool stateChanged = item.expanded != expanded;
-    if (! tree->RequestExpandedState(visibleIndex, expanded))
+    const bool accepted     = tree->RequestExpandedState(visibleIndex, expanded);
+    if (lifetime.expired())
+        return UIA_E_ELEMENTNOTAVAILABLE;
     {
-        return UIA_E_NOTSUPPORTED;
+        size_t currentIndex = 0u;
+        if (ResolveHost() != host || ResolveMutableTreeControl() != tree || ! ResolveTreeVisibleIndex(currentIndex))
+            return UIA_E_ELEMENTNOTAVAILABLE;
     }
+    if (! accepted)
+        return UIA_E_NOTSUPPORTED;
 
     RefreshWindowHostAccessibilitySnapshot(_hwnd, host);
+    if (lifetime.expired())
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    {
+        size_t currentIndex = 0u;
+        if (ResolveHost() != host || ResolveMutableTreeControl() != tree || ! ResolveTreeVisibleIndex(currentIndex))
+            return UIA_E_ELEMENTNOTAVAILABLE;
+    }
     if (stateChanged && ! host->GetTheme().reducedMotion)
     {
         host->RequestAnimation();
+    }
+    if (lifetime.expired())
+        return UIA_E_ELEMENTNOTAVAILABLE;
+    {
+        if (ResolveHost() != host || ResolveMutableTreeControl() != tree)
+            return UIA_E_ELEMENTNOTAVAILABLE;
     }
     host->Invalidate();
     return S_OK;
 }
 
-IRawElementProviderFragmentRoot* AccessibilityProvider::CreateRootProvider() noexcept
+IRawElementProviderFragmentRoot* AccessibilityProvider::CreateRootProvider(const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
+    HoldAccessibilityPeerCreationForTest(_hwnd);
     auto retainedRoot = AcquireCanonicalRootProvider(_target);
+    if (retainedRoot && ! static_cast<AccessibilityProvider*>(retainedRoot.get())->HasControlIdentity(expectedIdentity))
+        return nullptr;
     return retainedRoot.detach();
 }
 
-IRawElementProviderFragment* AccessibilityProvider::CreateRootFragmentProvider() noexcept
+IRawElementProviderFragment* AccessibilityProvider::CreateRootFragmentProvider(const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
+    HoldAccessibilityPeerCreationForTest(_hwnd);
     const auto retainedRoot = AcquireCanonicalRootProvider(_target);
+    if (retainedRoot && ! static_cast<AccessibilityProvider*>(retainedRoot.get())->HasControlIdentity(expectedIdentity))
+        return nullptr;
     wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
     if (retainedRoot)
     {
@@ -8959,85 +9774,104 @@ IRawElementProviderFragment* AccessibilityProvider::CreateRootFragmentProvider()
     return fragment.detach();
 }
 
-IRawElementProviderFragment* AccessibilityProvider::CreateChildProvider(const ControlPath& path) noexcept
-{
-    return MakeProvider<IRawElementProviderFragment, AccessibilityProvider>(_hwnd, path);
-}
-
 // The element of the control at `path`, which is the window's root element when a collapsed semantic root stands for it.
-IRawElementProviderFragment* AccessibilityProvider::CreateControlProvider(const ControlPath& path) noexcept
+IRawElementProviderFragment* AccessibilityProvider::CreateControlProvider(const ControlPath& path,
+                                                                          const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
-    const wil::com_ptr_nothrow<IRawElementProviderSimple> element = CreateControlElement(_target, _hwnd, path);
+    HoldAccessibilityPeerCreationForTest(_hwnd);
+    const wil::com_ptr_nothrow<IRawElementProviderSimple> element = CreateControlElement(_target, _hwnd, path, expectedIdentity);
     wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
     if (element)
     {
         static_cast<void>(element.query_to(fragment.put()));
     }
+    if (fragment && ! static_cast<AccessibilityProvider*>(fragment.get())->HasControlIdentity(expectedIdentity))
+        fragment.reset();
     return fragment.detach();
 }
 
-IRawElementProviderFragment* AccessibilityProvider::CreateTextFieldPasswordRevealButtonProvider(const ControlPath& path) noexcept
+IRawElementProviderFragment* AccessibilityProvider::CreateTextFieldPasswordRevealButtonProvider(const ControlPath& path,
+                                                                                                const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
-    return MakeProvider<IRawElementProviderFragment, AccessibilityProvider>(_hwnd, path, AccessibilityFragmentKind::TextFieldPasswordRevealButton);
+    return MakeIdentifiedProvider<IRawElementProviderFragment, AccessibilityProvider>(
+        expectedIdentity, _hwnd, path, AccessibilityFragmentKind::TextFieldPasswordRevealButton);
 }
 
-IRawElementProviderFragment* AccessibilityProvider::CreateTreeItemProvider(const ControlPath& path, uint64_t itemId) noexcept
+IRawElementProviderFragment* AccessibilityProvider::CreateTreeItemProvider(const ControlPath& path,
+                                                                           uint64_t itemId,
+                                                                           const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
-    return MakeProvider<IRawElementProviderFragment, AccessibilityProvider>(_hwnd, path, itemId, AccessibilityProvider::TreeItemTag{});
+    return MakeIdentifiedProvider<IRawElementProviderFragment, AccessibilityProvider>(
+        expectedIdentity, _hwnd, path, itemId, AccessibilityProvider::TreeItemTag{});
 }
 
-IRawElementProviderFragment* AccessibilityProvider::CreateGridHeaderProvider(const ControlPath& path, size_t columnIndex) noexcept
+IRawElementProviderFragment* AccessibilityProvider::CreateGridHeaderProvider(const ControlPath& path,
+                                                                             size_t columnIndex,
+                                                                             const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
-    return MakeProvider<IRawElementProviderFragment, AccessibilityProvider>(_hwnd, path, columnIndex, AccessibilityProvider::GridHeaderTag{});
+    return MakeIdentifiedProvider<IRawElementProviderFragment, AccessibilityProvider>(
+        expectedIdentity, _hwnd, path, columnIndex, AccessibilityProvider::GridHeaderTag{});
 }
 
-IRawElementProviderFragment* AccessibilityProvider::CreateGridRowProvider(const ControlPath& path, uint64_t rowId) noexcept
+IRawElementProviderFragment* AccessibilityProvider::CreateGridRowProvider(const ControlPath& path,
+                                                                          uint64_t rowId,
+                                                                          const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
-    return MakeProvider<IRawElementProviderFragment, AccessibilityProvider>(_hwnd, path, rowId, AccessibilityFragmentKind::GridRow);
+    return MakeIdentifiedProvider<IRawElementProviderFragment, AccessibilityProvider>(expectedIdentity, _hwnd, path, rowId, AccessibilityFragmentKind::GridRow);
 }
 
-IRawElementProviderFragment* AccessibilityProvider::CreateGridCellProvider(const ControlPath& path, uint64_t rowId, size_t columnIndex) noexcept
+IRawElementProviderFragment* AccessibilityProvider::CreateGridCellProvider(const ControlPath& path,
+                                                                           uint64_t rowId,
+                                                                           size_t columnIndex,
+                                                                           const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
-    return MakeProvider<IRawElementProviderFragment, AccessibilityProvider>(_hwnd, path, rowId, columnIndex);
+    return MakeIdentifiedProvider<IRawElementProviderFragment, AccessibilityProvider>(expectedIdentity, _hwnd, path, rowId, columnIndex);
 }
 
-IRawElementProviderFragment* AccessibilityProvider::CreateProviderFromNavigationTarget(const AccessibilityNavigationTarget& navigationTarget) noexcept
+IRawElementProviderFragment* AccessibilityProvider::CreateProviderFromNavigationTarget(const AccessibilityNavigationTarget& navigationTarget,
+                                                                                       const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
     switch (navigationTarget.kind)
     {
         case AccessibilityFragmentKind::Root:
         {
-            return MakeProvider<IRawElementProviderFragment, AccessibilityProvider>(_hwnd);
+            return CreateRootFragmentProvider(expectedIdentity);
         }
         // A control's element, which is the window's root element when a collapsed semantic root stands for the control: the
         // parent of the control's fragments (its tree items, grid headers and rows, reveal button) is a Control target.
-        case AccessibilityFragmentKind::Control: return CreateControlProvider(navigationTarget.path);
-        case AccessibilityFragmentKind::TextFieldPasswordRevealButton: return CreateTextFieldPasswordRevealButtonProvider(navigationTarget.path);
-        case AccessibilityFragmentKind::TreeItem: return CreateTreeItemProvider(navigationTarget.path, navigationTarget.treeItemId);
-        case AccessibilityFragmentKind::GridHeader: return CreateGridHeaderProvider(navigationTarget.path, navigationTarget.gridColumnIndex);
-        case AccessibilityFragmentKind::GridRow: return CreateGridRowProvider(navigationTarget.path, navigationTarget.gridRowId);
+        case AccessibilityFragmentKind::Control: return CreateControlProvider(navigationTarget.path, expectedIdentity);
+        case AccessibilityFragmentKind::TextFieldPasswordRevealButton:
+            return CreateTextFieldPasswordRevealButtonProvider(navigationTarget.path, expectedIdentity);
+        case AccessibilityFragmentKind::TreeItem: return CreateTreeItemProvider(navigationTarget.path, navigationTarget.treeItemId, expectedIdentity);
+        case AccessibilityFragmentKind::GridHeader: return CreateGridHeaderProvider(navigationTarget.path, navigationTarget.gridColumnIndex, expectedIdentity);
+        case AccessibilityFragmentKind::GridRow: return CreateGridRowProvider(navigationTarget.path, navigationTarget.gridRowId, expectedIdentity);
         case AccessibilityFragmentKind::GridCell:
-            return CreateGridCellProvider(navigationTarget.path, navigationTarget.gridRowId, navigationTarget.gridColumnIndex);
+            return CreateGridCellProvider(navigationTarget.path, navigationTarget.gridRowId, navigationTarget.gridColumnIndex, expectedIdentity);
         default: return nullptr;
     }
-}
-
-ITextRangeProvider* AccessibilityProvider::CreateTextRangeProvider(const ControlPath& path, size_t start, size_t end) noexcept
-{
-    return MakeProvider<ITextRangeProvider, AccessibilityTextRangeProvider>(_hwnd, path, start, end);
 }
 
 ITextRangeProvider* AccessibilityProvider::CreateTextRangeProvider(const ControlPath& path,
                                                                    size_t start,
                                                                    size_t end,
-                                                                   std::vector<D2D1_RECT_F> boundsOverrideDip) noexcept
+                                                                   const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
-    return MakeProvider<ITextRangeProvider, AccessibilityTextRangeProvider>(_hwnd, path, start, end, std::move(boundsOverrideDip));
+    return MakeIdentifiedProvider<ITextRangeProvider, AccessibilityTextRangeProvider>(expectedIdentity, _hwnd, path, start, end);
 }
 
-ITextRangeProvider* AccessibilityProvider::CreateTextRangeProvider(const ControlPath& path, size_t start, size_t end, std::wstring textOverride) noexcept
+ITextRangeProvider* AccessibilityProvider::CreateTextRangeProvider(const ControlPath& path,
+                                                                   size_t start,
+                                                                   size_t end,
+                                                                   std::vector<D2D1_RECT_F> boundsOverrideDip,
+                                                                   const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
-    return MakeProvider<ITextRangeProvider, AccessibilityTextRangeProvider>(_hwnd, path, start, end, std::move(textOverride));
+    return MakeIdentifiedProvider<ITextRangeProvider, AccessibilityTextRangeProvider>(expectedIdentity, _hwnd, path, start, end, std::move(boundsOverrideDip));
+}
+
+ITextRangeProvider* AccessibilityProvider::CreateTextRangeProvider(
+    const ControlPath& path, size_t start, size_t end, std::wstring textOverride, const AccessibilityControlIdentity& expectedIdentity) noexcept
+{
+    return MakeIdentifiedProvider<ITextRangeProvider, AccessibilityTextRangeProvider>(expectedIdentity, _hwnd, path, start, end, std::move(textOverride));
 }
 
 ITextRangeProvider* AccessibilityProvider::CreateTextDocumentRangeProvider(const AccessibilityControlNavigationSnapshot& record) noexcept
@@ -9047,7 +9881,7 @@ ITextRangeProvider* AccessibilityProvider::CreateTextDocumentRangeProvider(const
         return nullptr;
     }
 
-    return CreateTextRangeProvider(record.path, 0u, record.controlAccessibleText.size());
+    return CreateTextRangeProvider(record.path, 0u, record.controlAccessibleText.size(), CaptureControlIdentity(record));
 }
 
 [[nodiscard]] bool SearchAccessibilityPathForTarget(
@@ -9276,13 +10110,18 @@ bool AnnounceWindowHostFocus(HWND hwnd) noexcept
 // which republishes). The providers never touch a control; the events left are dropped, not raised on elements that are gone.
 void RaiseSelectionEvents(WindowHostAccessibilityTarget& target, HWND hwnd, const std::vector<SelectionChange>& changes) noexcept
 {
-    const auto connected = [&]() noexcept
-    { return target.host.load(std::memory_order_acquire) != nullptr && (! target.embedded || ! target.rootLifetime.expired()); };
+    const auto expectedSnapshot = target.snapshot.load(std::memory_order_acquire);
+    const auto connected        = [&]() noexcept
+    {
+        return target.host.load(std::memory_order_acquire) != nullptr &&
+               (target.embedded ? ! target.rootLifetime.expired() : target.publishedRevision == target.dirtyRevision) &&
+               target.snapshot.load(std::memory_order_acquire) == expectedSnapshot;
+    };
     const auto published = [&](const SelectionChange& change) noexcept
     {
         const std::shared_ptr<const AccessibilitySnapshot> snapshot = target.snapshot.load(std::memory_order_acquire);
         const AccessibilityControlNavigationSnapshot* const record  = snapshot ? FindControlNavigationRecord(*snapshot, change.path) : nullptr;
-        return record && record->controlIdentity == change.controlIdentity;
+        return record && record->controlVisible && ! record->controlLifetime.expired() && record->controlIdentity == change.controlIdentity;
     };
     const auto live             = [&](const SelectionChange& change) noexcept { return connected() && published(change); };
     const auto makeItemProvider = [&](const SelectionChange& change, uint64_t id) noexcept -> wil::com_ptr_nothrow<IRawElementProviderSimple>
@@ -9347,31 +10186,23 @@ void RaiseSelectionEvents(WindowHostAccessibilityTarget& target, HWND hwnd, cons
     }
 }
 
-// The selection events of a window host's publish, raised outside its lock like the focus and structure events.
-void RaiseWindowHostSelectionChanges(HWND hwnd, const std::vector<SelectionChange>& changes) noexcept
+struct RangePropertyChange
 {
-    if (! hwnd || changes.empty() || ! UiaClientsAreListening())
-        return;
-    constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
-    wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> target(AcquireWindowHostAccessibilityTarget(hwnd));
-    if (target)
-        RaiseSelectionEvents(*target.get(), hwnd, changes);
+    PROPERTYID id;
+    double previous;
+    double current;
+};
+
+[[nodiscard]] std::array<RangePropertyChange, 5> GetRangePropertyChanges(const AccessibilityControlNavigationSnapshot& previous,
+                                                                         const AccessibilityControlNavigationSnapshot& current) noexcept
+{
+    return {{{UIA_RangeValueValuePropertyId, previous.controlRangeValue, current.controlRangeValue},
+             {UIA_RangeValueMinimumPropertyId, previous.controlRangeMinimum, current.controlRangeMinimum},
+             {UIA_RangeValueMaximumPropertyId, previous.controlRangeMaximum, current.controlRangeMaximum},
+             {UIA_RangeValueSmallChangePropertyId, previous.controlRangeSmallChange, current.controlRangeSmallChange},
+             {UIA_RangeValueLargeChangePropertyId, previous.controlRangeLargeChange, current.controlRangeLargeChange}}};
 }
 
-// Clients learn that semantic controls were added, removed or replaced, so they drop elements that now report
-// UIA_E_ELEMENTNOTAVAILABLE and navigate again.
-void RaiseWindowHostStructureInvalidated(HWND hwnd) noexcept
-{
-    if (! hwnd || ! UiaClientsAreListening())
-        return;
-    constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
-    wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> target(AcquireWindowHostAccessibilityTarget(hwnd));
-    if (! target)
-        return;
-    wil::com_ptr_nothrow<IRawElementProviderSimple> root;
-    if (const auto fragmentRoot = AcquireCanonicalRootProvider(target.get()); fragmentRoot && SUCCEEDED(fragmentRoot.query_to(root.put())))
-        static_cast<void>(UiaRaiseStructureChangedEvent(root.get(), StructureChangeType_ChildrenInvalidated, nullptr, 0));
-}
 } // namespace
 
 void RaiseWindowHostFocusChanged(HWND hwnd, const Control* control) noexcept
@@ -9382,84 +10213,64 @@ void RaiseWindowHostFocusChanged(HWND hwnd, const Control* control) noexcept
 
 void RaiseWindowHostDisclosureChanged(HWND hwnd, const Control* control, bool expanded) noexcept
 {
-    if (const auto provider = CreateWindowHostEventProvider(hwnd, control))
-        static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(),
-                                                                 UIA_ExpandCollapseExpandCollapseStatePropertyId,
-                                                                 VariantFromInt(expanded ? ExpandCollapseState_Collapsed : ExpandCollapseState_Expanded),
-                                                                 VariantFromInt(expanded ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed)));
+    static_cast<void>(expanded);
+    if (! control)
+        return;
+    constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
+    wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> target(AcquireWindowHostAccessibilityTarget(hwnd));
+    if (target)
+        RefreshWindowHostAccessibilitySnapshot(hwnd, target.get()->ResolveHost());
 }
 
 bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, TextInputAutomationEventKind kind) noexcept
 {
     if (! hwnd || ! control)
-    {
         return false;
-    }
-
-    WindowHostAccessibilityTarget* target = AcquireWindowHostAccessibilityTarget(hwnd);
-    if (! target)
-    {
+    constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
+    wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> retained(AcquireWindowHostAccessibilityTarget(hwnd));
+    auto* target            = retained.get();
+    ControlHost* const host = target ? target->ResolveHost() : nullptr;
+    if (! host)
         return false;
-    }
-
-    ControlHost* const host = target->ResolveHost();
-    ControlPath controlPath{};
-    const auto snapshot = target->snapshot.load(std::memory_order_acquire);
-    if (! host || ! FindWindowHostControlPath(snapshot.get(), host->GetRoot(), control, controlPath))
-    {
-        static_cast<void>(target->Release());
+    ControlPath path{};
+    if (! FindAccessibilityPathForTarget(host->GetRoot(), ControlPath{}, control, path))
         return false;
-    }
-
-    // The event comes from the field's element, which is the window's own when the field is the one control its root stands for.
-    const wil::com_ptr_nothrow<IRawElementProviderSimple> provider = CreateControlElement(target, hwnd, controlPath);
-    if (! provider)
+    // Ordinary text/selection/composition events are derived from the final snapshot difference.
+    // Caret and conversion events also retain the final requested state in a bounded, reusable queue.
+    if (kind == TextInputAutomationEventKind::ActiveTextPositionChanged || kind == TextInputAutomationEventKind::TextEditConversionTargetChanged)
     {
-        static_cast<void>(target->Release());
-        return false;
-    }
-    const auto releaseTarget = wil::scope_exit([&] { static_cast<void>(target->Release()); });
-
-    switch (kind)
-    {
-        case TextInputAutomationEventKind::TextChanged: static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_Text_TextChangedEventId)); return true;
-        case TextInputAutomationEventKind::TextSelectionChanged:
-            static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_Text_TextSelectionChangedEventId));
-            return true;
-        case TextInputAutomationEventKind::ActiveTextPositionChanged:
+        const auto lifetime = GetControlLifetimeToken(*control);
+        size_t index        = 0u;
+        while (index < target->pendingTextEventCount && ! SameControlLifetime(target->pendingTextEvents[index].lifetime, lifetime))
+            ++index;
+        if (index == target->pendingTextEventCount)
         {
-            wil::com_ptr_nothrow<ITextRangeProvider> activeRange;
-            NativeTextInputState state{};
-            if (host->TryReadNativeTextInputState(control, state))
+            if (index == target->pendingTextEvents.size())
             {
-                const size_t caretIndex = std::min(state.caretIndex, state.text.size());
-                static_cast<void>(target->AddRef());
-                auto* rangeProvider = new (std::nothrow) AccessibilityTextRangeProvider(target, hwnd, controlPath, caretIndex, caretIndex);
-                if (rangeProvider)
-                {
-                    activeRange.attach(static_cast<ITextRangeProvider*>(rangeProvider));
-                }
-                else
-                {
-                    static_cast<void>(target->Release());
-                }
+                OutputDebugStringW(L"DxUi: accessibility text-event queue exhausted.\n");
+                return false;
             }
-            static_cast<void>(UiaRaiseActiveTextPositionChangedEvent(provider.get(), activeRange.get()));
-            return true;
+            ++target->pendingTextEventCount;
         }
-        case TextInputAutomationEventKind::TextEditCompositionChanged:
+        auto& pending    = target->pendingTextEvents[index];
+        pending.path     = path;
+        pending.lifetime = lifetime;
+        pending.kinds |= 1u << static_cast<unsigned>(kind);
+        try
         {
-            unique_safearray changedData(SafeArrayCreateVector(VT_BSTR, 0u, 0u));
-            static_cast<void>(UiaRaiseTextEditTextChangedEvent(provider.get(), TextEditChangeType_Composition, changedData.get()));
-            return true;
+            NativeTextInputState state{};
+            if (kind == TextInputAutomationEventKind::ActiveTextPositionChanged && host->TryReadNativeTextInputState(control, state))
+                pending.caret = std::min(state.caretIndex, state.text.size());
         }
-        case TextInputAutomationEventKind::TextEditConversionTargetChanged:
-            static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_TextEdit_ConversionTargetChangedEventId));
-            return true;
-        default: return false;
+        catch (const std::bad_alloc&)
+        {
+            OutputDebugStringW(L"DxUi: accessibility caret-state allocation failed.\n");
+            return false;
+        }
     }
+    RefreshWindowHostAccessibilitySnapshot(hwnd, host);
+    return true;
 }
-
 void RegisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept
 {
     if (hwnd && host)
@@ -9468,23 +10279,27 @@ void RegisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcep
         if (auto* target = static_cast<WindowHostAccessibilityTarget*>(GetPropW(hwnd, kWindowHostPropName)))
         {
             target->host.store(host, std::memory_order_release);
-            PublishWindowHostAccessibilitySnapshot(*target, *host);
+            ++target->dirtyRevision;
             return;
         }
 
         auto* target = new (std::nothrow) WindowHostAccessibilityTarget(hwnd, host);
         if (! target)
         {
+            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
             return;
         }
 
         if (SetPropW(hwnd, kWindowHostPropName, target) == 0)
         {
+            const DWORD error = GetLastError();
             static_cast<void>(target->Release());
+            SetLastError(error);
             return;
         }
 
-        PublishWindowHostAccessibilitySnapshot(*target, *host);
+        static std::atomic<uintptr_t> nextCookie{1u};
+        target->attachmentCookie = nextCookie.fetch_add(1u, std::memory_order_relaxed);
     }
 }
 
@@ -9511,9 +10326,13 @@ void UnregisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexc
         }
 
         target->diffBaseline.reset();
+        target->eventBaseline.reset();
         PublishEmptyAccessibilitySnapshot(*target);
         target->host.store(nullptr, std::memory_order_release);
-        providerToDisconnect.attach(target->rootProvider.detach());
+        {
+            const std::scoped_lock cacheLock(target->providerMutex);
+            providerToDisconnect.attach(target->rootProvider.detach());
+        }
         if (RemovePropW(hwnd, kWindowHostPropName) == target)
         {
             static_cast<void>(target->Release());
@@ -9546,45 +10365,55 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexce
     if (! hwnd)
         return; // EmbeddedHost::UpdateAccessibility publishes after coherent preparation.
 
-    WindowHostSnapshotChanges changes{};
-    uint64_t focusResolutions = 0u;
+    constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
+    wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> retained(AcquireWindowHostAccessibilityTarget(hwnd));
+    auto* target = retained.get();
+    if (! target || target->ResolveHost() != host)
+        return;
+    ++target->dirtyRevision;
+    const bool interested = target->providerRequested.load(std::memory_order_acquire) || UiaClientsAreListening();
+    const auto before     = target->snapshot.load(std::memory_order_acquire);
+    // Windows' first focus event calls GetFocus on a worker. Only actual focus transitions publish synchronously.
+    Control* focused = host->GetFocusControl();
+    ControlPath path{};
+    if (focused && ! FindAccessibilityPathForTarget(host->GetRoot(), ControlPath{}, focused, path))
+        focused = nullptr;
+    bool focusChanged = focused != nullptr;
+    if (before && before->alive)
     {
-        const std::scoped_lock lock(GetAccessibilityTargetMutex());
-        auto* target = static_cast<WindowHostAccessibilityTarget*>(GetPropW(hwnd, kWindowHostPropName));
-        if (! target || target->host.load(std::memory_order_acquire) != host)
+        const auto* old = before->focusedFragment ? FindControlNavigationRecord(*before, before->focusedFragment->path) : nullptr;
+        focusChanged =
+            focused ? (! old || ! SameControlLifetime(old->controlLifetime, GetControlLifetimeToken(*focused)) || old->controlHasFocus != focused->HasFocus())
+                    : before->focusedFragment.has_value();
+        if (focused && ! focusChanged)
         {
+            if (const auto* tree = dynamic_cast<const Tree*>(focused))
+                focusChanged = before->focusedFragment->treeItemId != tree->GetFocusedItemId().value_or(0u);
+            else if (const auto* grid = dynamic_cast<const Grid*>(focused))
+                focusChanged = before->focusedFragment->gridRowId != grid->GetFocusedRowId().value_or(0u);
+        }
+    }
+    if (interested && focusChanged && ! target->publishing)
+    {
+        FlushNativeAccessibilitySnapshot(*target);
+        const auto current = target->snapshot.load(std::memory_order_acquire);
+        if (target->ResolveHost() != host)
             return;
-        }
-
-        changes = PublishWindowHostAccessibilitySnapshot(*target, *host);
-        // Read after the publish stored the snapshot. A call of GetFocus counts itself before it loads the snapshot, all
-        // four operations sequentially consistent, so a call this read does not count loads the snapshot after the
-        // store and reports the element the host just focused, while one it counts may have loaded the snapshot before.
-        if (changes.focusMoved)
-            focusResolutions = target->focusResolutions.load(std::memory_order_seq_cst);
-    }
-    // Raised outside the publish lock: clients may call back into these providers from other threads.
-    if (changes.structureChanged)
-        RaiseWindowHostStructureInvalidated(hwnd);
-    if (changes.focusMoved)
-    {
-        // What the gain itself focuses is left to the system's focus event, and a move later in its turn is too while no
-        // GetFocus call has begun on the window (see ReporterOfFocusMove): every call that begins later loads the snapshot
-        // after the store above and reports the moved-to element. Otherwise the host announces the move, at worst as a
-        // duplicate of a call that answered the event before it.
-        switch (EmbeddedAccessibilityAccess::ReporterOfFocusMove(*host, focusResolutions))
+        if (current && target->publishedRevision == target->dirtyRevision)
         {
-            case EmbeddedAccessibilityAccess::FocusMoveReporter::Host:
-                EmbeddedAccessibilityAccess::NoteFocusMoveAnnounced(*host);
-                if (AnnounceWindowHostFocus(hwnd))
-                    EmbeddedAccessibilityAccess::CountFocusAnnouncement(*host);
-                break;
-            case EmbeddedAccessibilityAccess::FocusMoveReporter::SystemUnanswered: EmbeddedAccessibilityAccess::CountFocusMoveLeftToSystem(*host); break;
-            case EmbeddedAccessibilityAccess::FocusMoveReporter::SystemAtGain: break;
+            const auto reporter          = EmbeddedAccessibilityAccess::ReporterOfFocusMove(*host, target->focusResolutions.load(std::memory_order_seq_cst));
+            target->pendingFocusReporter = reporter;
+            if (reporter == EmbeddedAccessibilityAccess::FocusMoveReporter::SystemUnanswered && (! before || ! SameFocusedElement(*before, *current)))
+                EmbeddedAccessibilityAccess::CountFocusMoveLeftToSystem(*host);
         }
     }
-    // After the focus move, as a list view reports its focus and then its selection.
-    RaiseWindowHostSelectionChanges(hwnd, changes.selections);
+    if (target->flushPosted || ! interested)
+        return;
+    const auto message = WndMsg::AccessibilityFlush();
+    if (message && PostMessageW(hwnd, message.value, static_cast<WPARAM>(target->attachmentCookie), 0) != FALSE)
+        target->flushPosted = true;
+    else
+        OutputDebugStringW(L"DxUi: accessibility publication remains dirty after failed post.\n");
 }
 
 void BeginWindowHostFocusGain(HWND hwnd, ControlHost* host) noexcept
@@ -9611,10 +10440,12 @@ void EndWindowHostFocusGainTurn(HWND hwnd, ControlHost* host) noexcept
         return;
 
     {
-        const std::scoped_lock lock(GetAccessibilityTargetMutex());
-        const auto* target = static_cast<const WindowHostAccessibilityTarget*>(GetPropW(hwnd, kWindowHostPropName));
-        if (! target || target->host.load(std::memory_order_acquire) != host)
+        constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
+        wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> retained(AcquireWindowHostAccessibilityTarget(hwnd));
+        auto* target = retained.get();
+        if (! target || target->ResolveHost() != host)
             return;
+        FlushNativeAccessibilitySnapshot(*target);
         const auto snapshot = target->snapshot.load(std::memory_order_seq_cst);
         // UI Automation reports the root element itself when the root says it has the keyboard focus.
         if (! snapshot || ! snapshot->alive || ! snapshot->hasRetainedRoot || RootElementHasKeyboardFocus(*snapshot))
@@ -9623,7 +10454,12 @@ void EndWindowHostFocusGainTurn(HWND hwnd, ControlHost* host) noexcept
     EmbeddedAccessibilityAccess::CountReactivationAnnouncement(*host);
     // Raised outside the publish lock, like the host's other focus changes: clients may call back into these providers.
     if (AnnounceWindowHostFocus(hwnd))
-        EmbeddedAccessibilityAccess::CountFocusAnnouncement(*host);
+    {
+        constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
+        wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> retained(AcquireWindowHostAccessibilityTarget(hwnd));
+        if (retained && retained.get()->ResolveHost() == host)
+            EmbeddedAccessibilityAccess::CountFocusAnnouncement(*host);
+    }
 }
 
 void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) noexcept
@@ -9674,6 +10510,17 @@ LRESULT ReturnWindowHostAccessibilityProvider(HWND hwnd, WPARAM wp, LPARAM lp) n
 bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, LRESULT& outResult) noexcept
 {
     outResult = 0;
+    if (WndMsg::AccessibilityFlush().Matches(msg))
+    {
+        constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
+        wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> target(AcquireWindowHostAccessibilityTarget(hwnd));
+        if (target && target.get()->attachmentCookie == static_cast<uintptr_t>(wp))
+        {
+            target.get()->flushPosted = false;
+            DrainNativeAccessibilityPublication(*target.get());
+        }
+        return true;
+    }
     if (msg == WM_GETOBJECT)
     {
         if (lp != static_cast<LPARAM>(UiaRootObjectId))
@@ -9693,11 +10540,9 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
 
     if (WndMsg::AccessibilityCreateProvider().Matches(msg))
     {
-        auto** provider = reinterpret_cast<IRawElementProviderFragmentRoot**>(lp);
-        if (provider)
-        {
-            *provider = CreateWindowHostAccessibilityProvider(hwnd);
-        }
+        auto payload = TakeMessagePayload<AccessibilityProviderCreationPayload>(hwnd, msg, lp);
+        if (payload && payload->result)
+            payload->result->provider.attach(CreateWindowHostAccessibilityProvider(hwnd));
         return true;
     }
 
@@ -9706,7 +10551,7 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
         return false;
     }
 
-    auto payload = TakeMessagePayload<AccessibilityUiActionPayload>(lp);
+    auto payload = TakeMessagePayload<AccessibilityUiActionPayload>(hwnd, msg, lp);
     if (! payload || ! payload->dispatch)
     {
         return true;
@@ -9744,7 +10589,7 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
     if (request.textRangeProvider && request.kind == AccessibilityUiActionKind::ExpandTextRangeToVisualLine)
     {
         request.result = request.textRangeProvider->ExecuteExpandToVisualLineOnWindowThread(
-            request.textRangeStart, request.textRangeEnd, request.textRangeResultStart, request.textRangeResultEnd);
+            request.textRangeStart, request.textRangeEnd, request.textRangeResultStart, request.textRangeResultEnd, request.stringValue);
         return true;
     }
     if (request.textRangeProvider && request.kind == AccessibilityUiActionKind::MoveTextRangeByVisualLine)
@@ -9754,7 +10599,8 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
                                                                                           request.textRangeMoveCount,
                                                                                           request.textRangeResultStart,
                                                                                           request.textRangeResultEnd,
-                                                                                          request.textRangeMoved);
+                                                                                          request.textRangeMoved,
+                                                                                          request.stringValue);
         return true;
     }
     if (request.textRangeProvider && request.kind == AccessibilityUiActionKind::MoveTextRangeEndpointByVisualLine)
@@ -9765,7 +10611,8 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
                                                                                                   request.textRangeMoveCount,
                                                                                                   request.textRangeResultStart,
                                                                                                   request.textRangeResultEnd,
-                                                                                                  request.textRangeMoved);
+                                                                                                  request.textRangeMoved,
+                                                                                                  request.stringValue);
         return true;
     }
     if (request.textRangeProvider && request.kind == AccessibilityUiActionKind::ResolveTextRangeBounds)
@@ -9783,18 +10630,34 @@ namespace
 {
 // `selections` is the selection diff of the publish. The caller makes it, where running out of memory is reported,
 // because this function raises events and never throws.
-void RaiseEmbeddedAccessibilityChanges(WindowHostAccessibilityTarget& target,
+void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
                                        const std::shared_ptr<const AccessibilitySnapshot>& previous,
-                                       const std::vector<SelectionChange>& selections) noexcept
+                                       const WindowHostSnapshotChanges& changes) noexcept
 {
     const auto current = target.snapshot.load(std::memory_order_acquire);
-    if (! previous || ! current || ! target.rootProvider || ! UiaClientsAreListening())
+    if (! previous || ! current || ! UiaClientsAreListening())
         return;
     // Keep target/provider alive through UIA callbacks; disconnect during a callback stops later notifications.
     static_cast<void>(target.AddRef());
-    const auto release    = wil::scope_exit([&] { static_cast<void>(target.Release()); });
-    auto root             = target.rootProvider;
-    const auto connected  = [&] { return target.host.load(std::memory_order_acquire) != nullptr; };
+    const auto release = wil::scope_exit([&] { static_cast<void>(target.Release()); });
+    wil::com_ptr_nothrow<IRawElementProviderSimple> root;
+    if (! target.embedded)
+    {
+        if (const auto fragmentRoot = AcquireCanonicalRootProvider(&target))
+            static_cast<void>(fragmentRoot.query_to(root.put()));
+    }
+    else
+    {
+        const std::scoped_lock cacheLock(target.providerMutex);
+        root = target.rootProvider;
+    }
+    if (! root)
+        return;
+    const auto connected = [&]
+    {
+        return target.host.load(std::memory_order_acquire) != nullptr && target.snapshot.load(std::memory_order_acquire) == current &&
+               (target.embedded || target.publishedRevision == target.dirtyRevision);
+    };
     bool structureChanged = previous->controlNavigationRecords.size() != current->controlNavigationRecords.size();
     for (const auto& record : current->controlNavigationRecords)
     {
@@ -9814,20 +10677,17 @@ void RaiseEmbeddedAccessibilityChanges(WindowHostAccessibilityTarget& target,
             before->controlTextSelectionStart != record.controlTextSelectionStart || before->controlTextSelectionEnd != record.controlTextSelectionEnd;
         const bool compositionChanged =
             before->controlTextCompositionStart != record.controlTextCompositionStart || before->controlTextCompositionEnd != record.controlTextCompositionEnd;
+        const auto rangeProperties = GetRangePropertyChanges(*before, record);
+        const bool rangeChanged    = record.controlSupportsRangeValue && std::ranges::any_of(rangeProperties, [](const RangePropertyChange& property) noexcept {
+            return property.previous != property.current;
+        });
         if (! nameChanged && ! helpChanged && ! textChanged && ! valueChanged && ! selectionChanged && ! compositionChanged &&
             before->controlEnabled == record.controlEnabled && before->controlToggleChecked == record.controlToggleChecked &&
-            before->controlDisclosureExpanded == record.controlDisclosureExpanded && before->controlRangeValue == record.controlRangeValue &&
-            before->controlHasFocus == record.controlHasFocus)
+            before->controlDisclosureExpanded == record.controlDisclosureExpanded && ! rangeChanged && before->controlHasFocus == record.controlHasFocus)
             continue;
-        static_cast<void>(target.AddRef());
-        auto* raw = new (std::nothrow) AccessibilityProvider(&target, nullptr, record.path);
-        if (! raw)
-        {
-            static_cast<void>(target.Release());
+        const auto provider = CreateControlElement(&target, target.hwnd, record.path, CaptureControlIdentity(record));
+        if (! provider)
             return;
-        }
-        wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
-        provider.attach(raw);
         const auto property = [&](PROPERTYID id, VARIANT oldValue, VARIANT newValue)
         {
             if (connected())
@@ -9862,13 +10722,13 @@ void RaiseEmbeddedAccessibilityChanges(WindowHostAccessibilityTarget& target,
             property(UIA_ExpandCollapseExpandCollapseStatePropertyId,
                      VariantFromInt(before->controlDisclosureExpanded.value() ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed),
                      VariantFromInt(record.controlDisclosureExpanded.value() ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed));
-        if (record.controlSupportsRangeValue && before->controlRangeValue != record.controlRangeValue)
-            property(UIA_RangeValueValuePropertyId, VariantFromDouble(before->controlRangeValue), VariantFromDouble(record.controlRangeValue));
+        if (rangeChanged)
+            for (const RangePropertyChange& change : rangeProperties)
+                if (change.previous != change.current)
+                    property(change.id, VariantFromDouble(change.previous), VariantFromDouble(change.current));
         if (before->controlHasFocus != record.controlHasFocus)
         {
             property(UIA_HasKeyboardFocusPropertyId, VariantFromBool(before->controlHasFocus), VariantFromBool(record.controlHasFocus));
-            if (connected() && record.controlHasFocus)
-                static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_AutomationFocusChangedEventId));
         }
         if (connected() && record.controlSupportsText && textChanged)
             static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_Text_TextChangedEventId));
@@ -9883,8 +10743,114 @@ void RaiseEmbeddedAccessibilityChanges(WindowHostAccessibilityTarget& target,
     }
     if (connected() && structureChanged)
         static_cast<void>(UiaRaiseStructureChangedEvent(root.get(), StructureChangeType_ChildrenInvalidated, nullptr, 0));
+    if (target.embedded && connected() && changes.focusMoved && target.snapshot.load(std::memory_order_acquire) == current && current->focusedFragment)
+    {
+        const auto fragmentRoot = AcquireCanonicalRootProvider(&target);
+        wil::com_ptr_nothrow<IRawElementProviderFragment> focused;
+        wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
+        if (fragmentRoot && SUCCEEDED(fragmentRoot->GetFocus(focused.put())) && focused && SUCCEEDED(focused.query_to(provider.put())) && connected())
+            static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_AutomationFocusChangedEventId));
+    }
     if (connected())
-        RaiseSelectionEvents(target, nullptr, selections);
+        RaiseSelectionEvents(target, target.hwnd, changes.selections);
+}
+
+void FlushNativeAccessibilitySnapshot(WindowHostAccessibilityTarget& target) noexcept
+{
+    if (target.embedded || target.threadId != GetCurrentThreadId() || target.publishing || target.publishedRevision == target.dirtyRevision)
+        return;
+    target.publishing = true;
+    const auto finish = wil::scope_exit([&] { target.publishing = false; });
+    try
+    {
+        // A caption callback can replace the root. Retry once; never publish its predecessor.
+        for (size_t attempt = 0; attempt != 2u && target.publishedRevision != target.dirtyRevision; ++attempt)
+            if (ControlHost* const host = target.ResolveHost())
+                static_cast<void>(PublishWindowHostAccessibilitySnapshot(target, *host));
+            else
+                break;
+    }
+    catch (const std::bad_alloc&)
+    {
+        OutputDebugStringW(L"DxUi: accessibility snapshot allocation failed; coherent prior snapshot retained.\n");
+    }
+}
+
+void DrainNativeAccessibilityPublication(WindowHostAccessibilityTarget& target) noexcept
+{
+    auto previous = target.eventBaseline;
+    FlushNativeAccessibilitySnapshot(target);
+    if (! previous)
+        previous = target.eventBaseline; // The first snapshot establishes the diff baseline; explicit queued text events still drain.
+    const auto current      = target.snapshot.load(std::memory_order_acquire);
+    ControlHost* const host = target.ResolveHost();
+    if (! host || ! current || ! current->alive || ! previous || (current == previous && target.pendingTextEventCount == 0u))
+        return;
+    try
+    {
+        WindowHostSnapshotChanges changes{};
+        changes.previous         = previous;
+        changes.current          = current;
+        changes.focusMoved       = ! SameFocusedElement(*previous, *current);
+        changes.structureChanged = ! SameSemanticControls(*previous, *current);
+        if (UiaClientsAreListening())
+            changes.selections = CollectSelectionChanges(*previous, *current);
+        // Fresh owner queries do not consume the event baseline.
+        target.eventBaseline               = current;
+        const auto capturedReporter        = std::exchange(target.pendingFocusReporter, std::nullopt);
+        const auto pendingTextEvents       = target.pendingTextEvents;
+        const size_t pendingTextEventCount = std::exchange(target.pendingTextEventCount, 0u);
+        for (auto& pending : target.pendingTextEvents)
+            pending = {};
+        if (changes.focusMoved)
+        {
+            const auto reporter =
+                capturedReporter.value_or(EmbeddedAccessibilityAccess::ReporterOfFocusMove(*host, target.focusResolutions.load(std::memory_order_seq_cst)));
+            if (reporter == EmbeddedAccessibilityAccess::FocusMoveReporter::Host)
+            {
+                EmbeddedAccessibilityAccess::NoteFocusMoveAnnounced(*host);
+                const bool announced = AnnounceWindowHostFocus(target.hwnd);
+                if (announced && target.ResolveHost() == host)
+                    EmbeddedAccessibilityAccess::CountFocusAnnouncement(*host);
+            }
+            else if (reporter == EmbeddedAccessibilityAccess::FocusMoveReporter::SystemUnanswered && ! capturedReporter)
+                EmbeddedAccessibilityAccess::CountFocusMoveLeftToSystem(*host);
+        }
+        if (target.ResolveHost() == host && target.snapshot.load(std::memory_order_acquire) == current && target.publishedRevision == target.dirtyRevision)
+            RaiseAccessibilitySnapshotChanges(target, previous, changes);
+        for (size_t index = 0u; index < pendingTextEventCount; ++index)
+        {
+            if (target.ResolveHost() != host || target.snapshot.load(std::memory_order_acquire) != current || target.publishedRevision != target.dirtyRevision)
+                break;
+            const auto& pending = pendingTextEvents[index];
+            const auto* record  = FindControlNavigationRecord(*current, pending.path);
+            if (! record || ! record->controlVisible || pending.lifetime.expired() || ! SameControlLifetime(pending.lifetime, record->controlLifetime))
+                continue;
+            auto provider = CreateControlElement(&target, target.hwnd, pending.path);
+            if (! provider)
+                continue;
+            if ((pending.kinds & (1u << static_cast<unsigned>(TextInputAutomationEventKind::ActiveTextPositionChanged))) != 0u)
+            {
+                static_cast<void>(target.AddRef());
+                wil::com_ptr_nothrow<ITextRangeProvider> range;
+                auto* raw = new (std::nothrow) AccessibilityTextRangeProvider(&target, target.hwnd, pending.path, pending.caret, pending.caret);
+                if (raw)
+                    range.attach(raw);
+                else
+                    static_cast<void>(target.Release());
+                if (range)
+                    static_cast<void>(UiaRaiseActiveTextPositionChangedEvent(provider.get(), range.get()));
+            }
+            if (target.ResolveHost() == host && target.snapshot.load(std::memory_order_acquire) == current &&
+                target.publishedRevision == target.dirtyRevision &&
+                (pending.kinds & (1u << static_cast<unsigned>(TextInputAutomationEventKind::TextEditConversionTargetChanged))) != 0u)
+                static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_TextEdit_ConversionTargetChangedEventId));
+        }
+    }
+    catch (const std::bad_alloc&)
+    {
+        OutputDebugStringW(L"DxUi: accessibility event diff allocation failed; event baseline retained.\n");
+    }
 }
 } // namespace
 
@@ -9945,7 +10911,7 @@ HRESULT EmbeddedHost::UpdateAccessibility(const EmbeddedAccessibilityPlacement& 
         // The publish diffs the selections against `previous` while clients listen.
         const WindowHostSnapshotChanges changes = PublishWindowHostAccessibilitySnapshot(*target, _host);
         target->preparation                     = preparation;
-        RaiseEmbeddedAccessibilityChanges(*target, previous, changes.selections);
+        RaiseAccessibilitySnapshotChanges(*target, previous, changes);
         return S_OK;
     }
     catch (const std::bad_alloc&)
@@ -9980,7 +10946,11 @@ void EmbeddedHost::DisconnectAccessibility() noexcept
     target->host.store(nullptr, std::memory_order_release);
     target->snapshot.store(nullptr, std::memory_order_release);
     target->site.reset();
-    auto provider = std::move(target->rootProvider);
+    wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
+    {
+        const std::scoped_lock cacheLock(target->providerMutex);
+        provider = std::move(target->rootProvider);
+    }
     if (provider)
         static_cast<void>(UiaDisconnectProvider(provider.get()));
     static_cast<void>(target->Release());
@@ -9993,23 +10963,32 @@ IRawElementProviderFragmentRoot* CreateWindowHostAccessibilityProvider(HWND hwnd
         return nullptr;
     }
 
-    const DWORD windowThreadId = GetWindowThreadProcessId(hwnd, nullptr);
-    if (windowThreadId == 0u)
+    DWORD windowProcessId      = 0u;
+    const DWORD windowThreadId = GetWindowThreadProcessId(hwnd, &windowProcessId);
+    if (windowThreadId == 0u || windowProcessId != GetCurrentProcessId())
     {
         return nullptr;
     }
     if (windowThreadId != GetCurrentThreadId())
     {
-        // Provider creation must resolve the live host on its owning thread. SendMessageW is
-        // synchronous, so the handler cannot outlive this output slot. Without its registered
-        // message nothing is sent, and there is no provider, as when the send fails.
+        // Resolve on the owner with bounded transport. A late reply owns its result independently of the
+        // caller's frame; registered-message parameters are tokens, never writable caller addresses.
         const WndMsg::RegisteredMessage createMessage = WndMsg::AccessibilityCreateProvider();
-        IRawElementProviderFragmentRoot* provider     = nullptr;
-        if (createMessage)
+        if (! createMessage)
+            return nullptr;
+        try
         {
-            static_cast<void>(SendMessageW(hwnd, createMessage.value, 0, reinterpret_cast<LPARAM>(&provider)));
+            auto result     = std::make_shared<AccessibilityProviderCreationResult>();
+            auto payload    = std::make_unique<AccessibilityProviderCreationPayload>();
+            payload->result = result;
+            if (! SendMessagePayload(hwnd, createMessage.value, 0, std::move(payload), AccessibilityUiActionDispatchTimeoutMs()))
+                return nullptr;
+            return result->provider.detach();
         }
-        return provider;
+        catch (const std::bad_alloc&)
+        {
+            return nullptr;
+        }
     }
 
     WindowHostAccessibilityTarget* target = AcquireWindowHostAccessibilityTarget(hwnd);
@@ -10086,6 +11065,11 @@ void DebugResetAccessibilityUiActionExecutionCountForTest() noexcept
     g_accessibilityUiActionExecutionCount.store(0u, std::memory_order_release);
 }
 
+uint64_t DebugGetAccessibilitySnapshotBuildCountForTest() noexcept
+{
+    return g_accessibilitySnapshotBuildCount.load(std::memory_order_relaxed);
+}
+
 uint32_t DebugGetAccessibilityUiActionExecutionCountForTest() noexcept
 {
     return g_accessibilityUiActionExecutionCount.load(std::memory_order_acquire);
@@ -10105,10 +11089,11 @@ uint64_t DebugGetAccessibilityFocusResolutionCountForTest(HWND hwnd) noexcept
     return target ? target->focusResolutions.load(std::memory_order_seq_cst) : (std::numeric_limits<uint64_t>::max)();
 }
 
-void DebugSetAccessibilityFocusResolutionGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent) noexcept
+void DebugSetAccessibilityFocusResolutionGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent, bool afterSnapshot) noexcept
 {
     if (hwnd && (enteredEvent || releaseEvent))
     {
+        g_accessibilityFocusResolutionGateAfterSnapshot.store(afterSnapshot, std::memory_order_release);
         g_accessibilityFocusResolutionGateEnteredEvent.store(enteredEvent, std::memory_order_release);
         g_accessibilityFocusResolutionGateReleaseEvent.store(releaseEvent, std::memory_order_release);
         g_accessibilityFocusResolutionGateWindow.store(hwnd, std::memory_order_seq_cst);
@@ -10125,6 +11110,25 @@ void DebugSetAccessibilityFocusResolutionGateForTest(HWND hwnd, HANDLE enteredEv
     }
     g_accessibilityFocusResolutionGateEnteredEvent.store(nullptr, std::memory_order_release);
     g_accessibilityFocusResolutionGateReleaseEvent.store(nullptr, std::memory_order_release);
+}
+
+void DebugSetAccessibilityPeerCreationGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent) noexcept
+{
+    if (hwnd && enteredEvent && releaseEvent)
+    {
+        g_accessibilityPeerCreationGateEnteredEvent.store(enteredEvent, std::memory_order_release);
+        g_accessibilityPeerCreationGateReleaseEvent.store(releaseEvent, std::memory_order_release);
+        g_accessibilityPeerCreationGateArmed.store(true, std::memory_order_release);
+        g_accessibilityPeerCreationGateWindow.store(hwnd, std::memory_order_seq_cst);
+        return;
+    }
+    g_accessibilityPeerCreationGateWindow.store(nullptr, std::memory_order_seq_cst);
+    g_accessibilityPeerCreationGateArmed.store(false, std::memory_order_seq_cst);
+    for (uint32_t holders = g_accessibilityPeerCreationGateHolders.load(std::memory_order_seq_cst); holders != 0u;
+         holders          = g_accessibilityPeerCreationGateHolders.load(std::memory_order_seq_cst))
+        g_accessibilityPeerCreationGateHolders.wait(holders);
+    g_accessibilityPeerCreationGateEnteredEvent.store(nullptr, std::memory_order_release);
+    g_accessibilityPeerCreationGateReleaseEvent.store(nullptr, std::memory_order_release);
 }
 
 void DebugSetAccessibilitySelectionEventHookForTest(AccessibilitySelectionEventHookForTest hook, void* context) noexcept

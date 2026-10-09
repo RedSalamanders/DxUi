@@ -1,0 +1,9 @@
+{
+  "capturedUtc": "2026-10-09T00:43:41.9665372Z",
+  "branch": "codex/production-review-remediation-2026-10-08",
+  "head": "bea676a1f8418141f61cab9326b9b910e89a14b4",
+  "dirty": true,
+  "compiledSourceIdentity": "e2ab708c48e9de9e55c9a1bfd3601e3899a3909d09e9e95a8807f7ac59018ac0",
+  "libraryFingerprint": "FAEF6725B5A0B5DF2C2C39A107F9FE012A5A9F8B13D6B9ABFAD2F154CE558D2E",
+  "note": "Final gallery model/window destruction ordering; library and EmbeddedTests remain unchanged from paired evidence."
+}

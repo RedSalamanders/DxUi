@@ -4,10 +4,9 @@
 #include <cmath>
 #include <fstream>
 #include <limits>
+#include <memory>
 #include <string>
 #include <thread>
-
-void RunMenuDescriptionTests();
 
 namespace
 {
@@ -1048,6 +1047,23 @@ void TestProgressBarReducedMotionRestsIndeterminateSegment()
     Require(bar->Tick(host, 2000u), "restored motion ticks the indeterminate segment again");
 }
 
+void TestProgressBarRightToLeftMirrorsMovingSegment()
+{
+    using namespace DxUi;
+    WindowHost host;
+    ProgressBar bar;
+    bar.SetBounds(D2D1::RectF(40, 10, 240, 18));
+    bar.SetIndeterminate(true);
+    static_cast<void>(bar.Tick(host, 1000u));
+    static_cast<void>(bar.Tick(host, 1200u));
+    const auto ltr = bar.DebugGetIndeterminateSegmentRect(host.GetTheme());
+    bar.SetFlowDirection(FlowDirection::RightToLeft);
+    const auto rtl = bar.DebugGetIndeterminateSegmentRect(host.GetTheme());
+    RequireFloatNear(rtl.left, 280.0f - ltr.right, 0.01f, "RTL mirrors indeterminate segment about its track center");
+    RequireFloatNear(rtl.right, 280.0f - ltr.left, 0.01f, "RTL preserves segment width while reversing direction");
+    RequireFloatNear(rtl.top, ltr.top, 0.01f, "RTL preserves progress track height");
+}
+
 void TestProgressBarIndeterminateTickSurvivesClockReset()
 {
     using namespace DxUi;
@@ -1318,6 +1334,32 @@ void TestSliderRejectsNonFiniteRangeAndSteps()
     Require(slider.GetMaximum() == 100, "overflowing range span is rejected before it can corrupt pointer mapping");
 }
 
+void TestSliderRangeAndStepSettersKeepDependentValuesValid()
+{
+    using namespace DxUi;
+
+    Slider slider;
+    slider.SetTickMarks({10.0, 50.0, 90.0});
+    slider.SetMinimum(30.0);
+    slider.SetMaximum(60.0);
+    const std::span<const double> ticks = slider.GetTickMarks();
+    Require(ticks.size() == 3u && ticks[0] == 30.0 && ticks[1] == 50.0 && ticks[2] == 60.0,
+            "changing the slider range reclamps existing tick marks in sorted order");
+
+    Slider stepFirst;
+    stepFirst.SetStep(25.0);
+    stepFirst.SetLargeStep(40.0);
+    Require(stepFirst.GetLargeStep() >= stepFirst.GetStep(), "setting the small step before the large step preserves large-step ordering");
+
+    Slider largeFirst;
+    largeFirst.SetLargeStep(40.0);
+    largeFirst.SetStep(25.0);
+    Require(largeFirst.GetLargeStep() == stepFirst.GetLargeStep() && largeFirst.GetLargeStep() >= largeFirst.GetStep(),
+            "setting the large step before the small step produces the same valid large step");
+    largeFirst.SetStep(45.0);
+    Require(largeFirst.GetLargeStep() >= largeFirst.GetStep(), "raising the small step keeps the large step at least as large");
+}
+
 void TestSliderOffCenterGrabAndCancel()
 {
     using namespace DxUi;
@@ -1478,6 +1520,94 @@ void TestMenuBarClickInvokesOpenCallback()
     Require(openedIndex == 0u, "menu bar click opens the matching top-level menu");
     Require(! keyboardInvoke, "menu bar mouse click reports pointer invocation");
     Require(openedPoint.y >= 28, "menu bar click anchors the popup from the bottom edge of the active item");
+}
+
+void TestMenuBarHoverMoveCallbackCanRetireRoot()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root     = std::make_unique<Panel>();
+    auto* menuBar = root->AddChild<MenuBar>();
+    menuBar->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 32.0f));
+    menuBar->SetItems({MenuBarItem{.text = L"File", .mnemonic = L'F', .enabled = true}});
+    host.SetRoot(std::move(root));
+
+    auto callbackText = std::make_shared<std::wstring>(L"menu move survives root retirement");
+    std::wstring captureAfterRetirement;
+    std::optional<size_t> hoveredAfterRetirement;
+    size_t callbackCount = 0u;
+    menuBar->SetOnHoverChanged([&, callbackText = std::move(callbackText)](std::optional<size_t> index)
+    {
+        ++callbackCount;
+        host.SetRoot(std::make_unique<Panel>());
+        hoveredAfterRetirement = index;
+        captureAfterRetirement = *callbackText;
+    });
+
+    Require(menuBar->OnMouseMove(host, D2D1::Point2F(12.0f, 12.0f), 0u), "MenuBar handles the logical hover move");
+    Require(callbackCount == 1u && hoveredAfterRetirement == 0u, "MenuBar reports the hovered item before root retirement");
+    Require(captureAfterRetirement == L"menu move survives root retirement", "the hover-move callback capture remains readable after root retirement");
+    Require(host.GetRoot() != nullptr, "the replacement root survives the MenuBar hover-move callback");
+}
+
+void TestMenuBarHoverLeaveCallbackCanRetireRoot()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root     = std::make_unique<Panel>();
+    auto* menuBar = root->AddChild<MenuBar>();
+    menuBar->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 32.0f));
+    menuBar->SetItems({MenuBarItem{.text = L"File", .mnemonic = L'F', .enabled = true}});
+    host.SetRoot(std::move(root));
+    Require(menuBar->OnMouseMove(host, D2D1::Point2F(12.0f, 12.0f), 0u), "MenuBar starts hovered before the leave callback is installed");
+
+    auto callbackText = std::make_shared<std::wstring>(L"menu leave survives root retirement");
+    std::wstring captureAfterRetirement;
+    bool reportedClear   = false;
+    size_t callbackCount = 0u;
+    menuBar->SetOnHoverChanged([&, callbackText = std::move(callbackText)](std::optional<size_t> index)
+    {
+        ++callbackCount;
+        reportedClear = ! index.has_value();
+        host.SetRoot(std::make_unique<Panel>());
+        captureAfterRetirement = *callbackText;
+    });
+
+    Require(menuBar->OnMouseLeave(host), "MenuBar handles the logical hover leave");
+    Require(callbackCount == 1u && reportedClear, "MenuBar reports cleared hover before root retirement");
+    Require(captureAfterRetirement == L"menu leave survives root retirement", "the hover-leave callback capture remains readable after root retirement");
+    Require(host.GetRoot() != nullptr, "the replacement root survives the MenuBar hover-leave callback");
+}
+
+void TestMenuBarHoverCallbackCanReplaceItself()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root     = std::make_unique<Panel>();
+    auto* menuBar = root->AddChild<MenuBar>();
+    menuBar->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 32.0f));
+    menuBar->SetItems({MenuBarItem{.text = L"File", .mnemonic = L'F', .enabled = true}});
+    host.SetRoot(std::move(root));
+
+    auto callbackText = std::make_shared<std::wstring>(L"menu callback survives replacement");
+    std::wstring captureAfterReplacement;
+    size_t originalCount    = 0u;
+    size_t replacementCount = 0u;
+    menuBar->SetOnHoverChanged([&, callbackText = std::move(callbackText)](std::optional<size_t>)
+    {
+        ++originalCount;
+        menuBar->SetOnHoverChanged([&](std::optional<size_t>) { ++replacementCount; });
+        captureAfterReplacement = *callbackText;
+    });
+
+    Require(menuBar->OnMouseMove(host, D2D1::Point2F(12.0f, 12.0f), 0u), "MenuBar delivers the first hover change");
+    Require(originalCount == 1u, "the original MenuBar hover callback runs once before replacing itself");
+    Require(captureAfterReplacement == L"menu callback survives replacement", "the hover callback capture remains readable after self-replacement");
+    Require(menuBar->OnMouseLeave(host), "MenuBar delivers the hover leave to the replacement callback");
+    Require(replacementCount == 1u, "the replacement MenuBar hover callback remains installed");
 }
 
 void TestMenuBarMouseOpenReleasesHostCaptureBeforeCallback()
@@ -1770,6 +1900,111 @@ void TestTabControlCloseButtonRemovesTabsAndInvokesCallback()
     Require(tabControl->OnMouseUp(host, closePoint, false, 0), "tab control handles close-button release");
     Require(closeCount == 1u && closedIndex == 1u, "tab control invokes the close callback with the closed tab index");
     Require(tabControl->GetTabCount() == 2u, "tab control removes the closed tab");
+}
+
+void TestTabControlRemoveResolvesRequestedPageAfterFocusCallbackReordersSiblings()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root                               = std::make_unique<Panel>();
+    auto* tabControl                        = root->AddChild<TabControl>();
+    auto* firstPage                         = tabControl->AddTab<Label>(L"First", L"First page");
+    auto* targetPage                        = tabControl->AddTab<Panel>(L"Target");
+    auto* focus                             = targetPage->AddChild<Button>(L"Focused child");
+    auto* lastPage                          = tabControl->AddTab<Label>(L"Last", L"Last page");
+    const std::weak_ptr<int> targetLifetime = GetControlLifetimeToken(*targetPage);
+    host.SetRoot(std::move(root));
+    tabControl->SetSelectedIndex(1u);
+    host.SetFocusControl(focus);
+
+    bool siblingRemoved = false;
+    host.SetOnFocusChanged([&](Control* focused)
+    {
+        if (focused == tabControl && ! siblingRemoved)
+        {
+            siblingRemoved = true;
+            tabControl->RemoveTab(0u);
+        }
+    });
+
+    tabControl->RemoveTab(1u);
+
+    Require(siblingRemoved, "removing a focused page allows the focus callback to change sibling indices");
+    Require(tabControl->GetTabCount() == 1u && tabControl->GetTabTitle(0u) == L"Last" && tabControl->GetSelectedPage() == lastPage,
+            "RemoveTab removes the originally requested page after its index shifts");
+    Require(firstPage != lastPage && targetLifetime.expired(), "removal destroys the originally requested page after preserving the surviving sibling");
+}
+
+void TestTabControlSelectionReportsResolvedIndexAfterFocusCallbackRemovesSibling()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    auto* tabControl = root->AddChild<TabControl>();
+    auto* firstPage  = tabControl->AddTab<Panel>(L"First");
+    auto* focus      = firstPage->AddChild<Button>(L"Focused child");
+    auto* targetPage = tabControl->AddTab<Label>(L"Target", L"Target page");
+    tabControl->AddTab<Label>(L"Last", L"Last page");
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(focus);
+
+    bool siblingRemoved  = false;
+    size_t notifiedIndex = std::numeric_limits<size_t>::max();
+    tabControl->SetOnSelectionChanged([&](size_t index) { notifiedIndex = index; });
+    host.SetOnFocusChanged([&](Control* focused)
+    {
+        if (focused == tabControl && ! siblingRemoved)
+        {
+            siblingRemoved = true;
+            tabControl->RemoveTab(0u);
+        }
+    });
+
+    Require(tabControl->OnKeyDown(host, VK_RIGHT, 0u), "keyboard selection handles moving to the next tab");
+
+    Require(siblingRemoved, "selection focus callback removes a sibling before selection notification");
+    Require(tabControl->GetSelectedIndex() == 0u && tabControl->GetSelectedPage() == targetPage,
+            "selection remains attached to the requested page after its index shifts");
+    Require(notifiedIndex == 0u, "selection callback receives the requested page's current index");
+}
+
+void TestTabControlCloseReportsResolvedIndexAfterCloseCallbackRemovesSibling()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    auto* tabControl = root->AddChild<TabControl>();
+    tabControl->SetBounds(D2D1::RectF(0.0f, 0.0f, 360.0f, 200.0f));
+    tabControl->AddTab<Label>(L"First", L"First page");
+    auto* targetPage                        = tabControl->AddTab<Label>(L"Target", L"Target page");
+    auto* lastPage                          = tabControl->AddTab<Label>(L"Last", L"Last page");
+    const std::weak_ptr<int> targetLifetime = GetControlLifetimeToken(*targetPage);
+    tabControl->SetTabClosable(1u, true);
+    tabControl->SetSelectedIndex(1u);
+    host.SetRoot(std::move(root));
+
+    bool siblingRemoved   = false;
+    size_t requestedIndex = std::numeric_limits<size_t>::max();
+    size_t closedIndex    = std::numeric_limits<size_t>::max();
+    tabControl->SetOnTabCloseRequested([&](size_t index)
+    {
+        requestedIndex = index;
+        siblingRemoved = true;
+        tabControl->RemoveTab(0u);
+        return false;
+    });
+    tabControl->SetOnTabClosed([&](size_t index) { closedIndex = index; });
+
+    const D2D1_POINT_2F closePoint = RectCenter(tabControl->DebugGetCloseButtonRect(1u));
+    Require(tabControl->OnMouseDown(host, closePoint, false, 0u), "tab control handles close press before callback mutation");
+    Require(tabControl->OnMouseUp(host, closePoint, false, 0u), "tab control handles close release after callback mutation");
+
+    Require(siblingRemoved && tabControl->GetTabCount() == 1u && tabControl->GetSelectedPage() == lastPage,
+            "closing a tab removes the original page even when the request callback shifts its index");
+    Require(targetLifetime.expired() && requestedIndex == 1u && closedIndex == 0u, "close callbacks report request-time and resolved target indices");
 }
 
 void TestTabControlOverflowButtonsAndWheelScroll()
@@ -2133,6 +2368,99 @@ void TestTagPickerAddsRemovesAndDedupesOptions()
     Require(changedCount >= 4u, "tag picker notifies selection changes");
 }
 
+void TestTagPickerSelectCallbackCanRetireRootAndReadSelectionAndCapture()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* picker = root->AddChild<TagPicker>();
+    picker->SetOptions(L"All", {L"Alpha", L"Beta"});
+    host.SetRoot(std::move(root));
+
+    auto callbackText = std::make_shared<std::wstring>(L"selection callback survives root retirement");
+    std::vector<std::wstring> selectedAfterRetirement;
+    std::wstring captureAfterRetirement;
+    bool callbackObservedRetiredRoot = false;
+    size_t callbackCount             = 0u;
+    picker->SetOnSelectionChanged([&, callbackText = std::move(callbackText)](std::span<const std::wstring> selected)
+    {
+        ++callbackCount;
+        host.SetRoot(std::make_unique<Panel>());
+        callbackObservedRetiredRoot = true;
+        captureAfterRetirement      = *callbackText;
+        selectedAfterRetirement.assign(selected.begin(), selected.end());
+    });
+
+    const bool selected = picker->SelectOption(L"Beta");
+    Require(selected, "TagPicker accepts the option before its callback retires the root");
+    Require(callbackCount == 1u && callbackObservedRetiredRoot, "TagPicker selection callback retires the original root exactly once");
+    Require(captureAfterRetirement == L"selection callback survives root retirement", "the callback capture remains readable after root retirement");
+    Require(selectedAfterRetirement == std::vector<std::wstring>{L"Beta"}, "the callback selection span remains valid after TagPicker destruction");
+    Require(host.GetRoot() != nullptr, "the replacement root survives the selection callback");
+}
+
+void TestTagPickerRemoveCallbackCanRetireRootAndReadSelectionAndCapture()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* picker = root->AddChild<TagPicker>();
+    picker->SetOptions(L"All", {L"Alpha", L"Beta", L"Gamma"});
+    Require(picker->SelectOption(L"Alpha") && picker->SelectOption(L"Beta"), "TagPicker starts with two distinct display tags");
+    host.SetRoot(std::move(root));
+
+    auto callbackText = std::make_shared<std::wstring>(L"remove callback survives root retirement");
+    std::vector<std::wstring> selectedAfterRetirement{L"unexpected"};
+    std::wstring captureAfterRetirement;
+    bool callbackObservedRetiredRoot = false;
+    size_t callbackCount             = 0u;
+    picker->SetOnSelectionChanged([&, callbackText = std::move(callbackText)](std::span<const std::wstring> selected)
+    {
+        ++callbackCount;
+        host.SetRoot(std::make_unique<Panel>());
+        callbackObservedRetiredRoot = true;
+        captureAfterRetirement      = *callbackText;
+        selectedAfterRetirement.assign(selected.begin(), selected.end());
+    });
+
+    const bool removed = picker->RemoveDisplayTag(0u);
+    Require(removed, "TagPicker removes the display tag before its callback retires the root");
+    Require(callbackCount == 1u && callbackObservedRetiredRoot, "TagPicker removal callback retires the original root exactly once");
+    Require(captureAfterRetirement == L"remove callback survives root retirement", "the removal callback capture remains readable after root retirement");
+    Require(selectedAfterRetirement == std::vector<std::wstring>{L"Beta"}, "the remaining callback selection span stays readable after TagPicker destruction");
+    Require(host.GetRoot() != nullptr, "the replacement root survives the removal callback");
+}
+
+void TestTagPickerSelectionCallbackCanReplaceItself()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* picker = root->AddChild<TagPicker>();
+    picker->SetOptions(L"All", {L"Alpha", L"Beta"});
+    host.SetRoot(std::move(root));
+
+    auto callbackText = std::make_shared<std::wstring>(L"selection callback survives replacement");
+    std::wstring captureAfterReplacement;
+    size_t originalCount    = 0u;
+    size_t replacementCount = 0u;
+    picker->SetOnSelectionChanged([&, callbackText = std::move(callbackText)](std::span<const std::wstring>)
+    {
+        ++originalCount;
+        picker->SetOnSelectionChanged([&](std::span<const std::wstring>) { ++replacementCount; });
+        captureAfterReplacement = *callbackText;
+    });
+
+    Require(picker->SelectOption(L"Alpha"), "TagPicker selection invokes the original callback");
+    Require(originalCount == 1u, "the original TagPicker callback runs once before replacing itself");
+    Require(captureAfterReplacement == L"selection callback survives replacement", "the callback capture remains readable after self-replacement");
+    Require(picker->SelectOption(L"Beta"), "TagPicker selection invokes the replacement callback");
+    Require(replacementCount == 1u, "the replacement TagPicker callback remains installed");
+}
+
 // ---------------------------------------------------------------------------
 // Smoke overlay
 // ---------------------------------------------------------------------------
@@ -2226,10 +2554,294 @@ void TestTabControlCloseCallbacksCanReplaceRootSafely()
     }
 }
 
+void TestMutableCallbackCaptureStatePersistsForComboBoxPopupRequest()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    ComboBox combo;
+    combo.SetItems({ComboBox::Item{L"one", L"One"}});
+    std::vector<size_t> callbackCounts;
+    combo.SetOnPopupRequested([count = size_t{0u}, &callbackCounts]() mutable
+    {
+        callbackCounts.push_back(++count);
+        return true;
+    });
+    Require(combo.OnKeyDown(host, VK_RETURN, 0u) && combo.OnKeyDown(host, VK_RETURN, 0u), "ComboBox handles repeated claimed popup requests");
+    Require(callbackCounts == std::vector<size_t>{1u, 2u}, "ComboBox retains mutable popup-request callback state between requests");
+    Require(! combo.IsPopupOpen(), "a claimed popup request keeps the ComboBox popup closed");
+}
+
+void TestMutableCallbackCaptureStatePersistsForRadioControls()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    RadioButtons group;
+    RadioButton* first  = group.AddItem(L"First");
+    RadioButton* second = group.AddItem(L"Second");
+    std::vector<size_t> groupCounts;
+    group.SetOnSelectionChanged([count = size_t{0u}, &groupCounts](int) mutable { groupCounts.push_back(++count); });
+    std::vector<size_t> itemCounts;
+    first->SetOnSelected([count = size_t{0u}, &itemCounts]() mutable { itemCounts.push_back(++count); });
+
+    Require(first->OnKeyDown(host, VK_SPACE, 0u), "first RadioButton handles selection");
+    Require(second->OnKeyDown(host, VK_SPACE, 0u), "second RadioButton handles selection");
+    Require(first->OnKeyDown(host, VK_SPACE, 0u), "first RadioButton handles reselection");
+    Require(groupCounts == std::vector<size_t>{1u, 2u, 3u}, "RadioButtons retains mutable selection callback state across items");
+    Require(itemCounts == std::vector<size_t>{1u, 2u}, "RadioButton retains mutable selected callback state across reselection");
+}
+
+void TestMutableCallbackCaptureStatePersistsForPageIndicator()
+{
+    using namespace DxUi;
+    WindowHost host;
+    PageIndicator indicator;
+    indicator.SetPageCount(4u);
+    std::vector<size_t> callbackCounts;
+    indicator.SetOnSelected([count = size_t{0u}, &callbackCounts](uint32_t) mutable { callbackCounts.push_back(++count); });
+    Require(indicator.OnKeyDown(host, VK_RIGHT, 0u) && indicator.OnKeyDown(host, VK_RIGHT, 0u), "PageIndicator handles repeated keyboard selection");
+    Require(callbackCounts == std::vector<size_t>{1u, 2u}, "PageIndicator retains mutable selection callback state between changes");
+}
+
+void TestMutableCallbackCaptureStatePersistsForSliderCallbacks()
+{
+    using namespace DxUi;
+    WindowHost host;
+    Slider slider;
+    slider.SetMinimum(0.0);
+    slider.SetMaximum(100.0);
+    std::vector<size_t> legacyCounts;
+    std::vector<size_t> changeCounts;
+    slider.SetOnValueChanged([count = size_t{0u}, &legacyCounts](double) mutable { legacyCounts.push_back(++count); });
+    slider.SetOnChange([count = size_t{0u}, &changeCounts](SliderChange) mutable { changeCounts.push_back(++count); });
+    Require(slider.RequestValue(host, 20.0) && slider.RequestValue(host, 40.0), "Slider accepts two distinct public value requests");
+    Require(legacyCounts == std::vector<size_t>{1u, 2u}, "Slider retains mutable legacy callback state across value changes");
+    Require(changeCounts == std::vector<size_t>{1u, 2u}, "Slider retains mutable phase callback state across value changes");
+}
+
+void TestMutableCallbackCaptureStatePersistsForMenuBarCallbacks()
+{
+    using namespace DxUi;
+    WindowHost host;
+    MenuBar menuBar;
+    menuBar.SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 32.0f));
+    menuBar.SetItems({MenuBarItem{.text = L"File", .mnemonic = L'F', .enabled = true}});
+    std::vector<size_t> hoverCounts;
+    menuBar.SetOnHoverChanged([count = size_t{0u}, &hoverCounts](std::optional<size_t>) mutable { hoverCounts.push_back(++count); });
+    Require(menuBar.OnMouseMove(host, D2D1::Point2F(12.0f, 12.0f), 0u), "MenuBar handles a logical hover move");
+    Require(menuBar.OnMouseLeave(host), "MenuBar handles a logical hover leave");
+    Require(hoverCounts == std::vector<size_t>{1u, 2u}, "MenuBar retains mutable hover callback state between notifications");
+    std::vector<size_t> openCounts;
+    menuBar.SetOnOpenItem([count = size_t{0u}, &openCounts](size_t, POINT, bool) mutable { openCounts.push_back(++count); });
+    Require(menuBar.ActivateItem(host, 0u, true) && menuBar.ActivateItem(host, 0u, true), "MenuBar handles repeated public item activation");
+    Require(openCounts == std::vector<size_t>{1u, 2u}, "MenuBar retains mutable open callback state between activations");
+}
+
+void TestMutableCallbackCaptureStatePersistsForTabControlSelectionAndCloseEvents()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    auto* tabControl = root->AddChild<TabControl>();
+    tabControl->SetBounds(D2D1::RectF(0.0f, 0.0f, 440.0f, 180.0f));
+    tabControl->AddTab<Panel>(L"First");
+    tabControl->AddTab<Panel>(L"Second");
+    tabControl->AddTab<Panel>(L"Third");
+    for (size_t index = 0u; index < tabControl->GetTabCount(); ++index)
+    {
+        tabControl->SetTabClosable(index, true);
+    }
+    host.SetRoot(std::move(root));
+    std::vector<size_t> selectionCounts;
+    tabControl->SetOnSelectionChanged([count = size_t{0u}, &selectionCounts](size_t) mutable { selectionCounts.push_back(++count); });
+    Require(tabControl->OnKeyDown(host, VK_RIGHT, 0u) && tabControl->OnKeyDown(host, VK_RIGHT, 0u), "TabControl handles two keyboard selection changes");
+    Require(selectionCounts == std::vector<size_t>{1u, 2u}, "TabControl retains mutable selection callback state between changes");
+
+    std::vector<size_t> requestCounts;
+    std::vector<size_t> closedCounts;
+    tabControl->SetOnTabCloseRequested([count = size_t{0u}, &requestCounts](size_t) mutable
+    {
+        requestCounts.push_back(++count);
+        return false;
+    });
+    tabControl->SetOnTabClosed([count = size_t{0u}, &closedCounts](size_t) mutable { closedCounts.push_back(++count); });
+    for (size_t closeAttempt = 0u; closeAttempt < 2u; ++closeAttempt)
+    {
+        const D2D1_RECT_F closeRect = tabControl->DebugGetCloseButtonRect(tabControl->GetSelectedIndex().value());
+        Require(closeRect.right > closeRect.left && closeRect.bottom > closeRect.top, "the selected tab has a visible close button");
+        const D2D1_POINT_2F closePoint = RectCenter(closeRect);
+        Require(tabControl->OnMouseDown(host, closePoint, false, 0u), "TabControl handles a close-button press");
+        Require(tabControl->OnMouseUp(host, closePoint, false, 0u), "TabControl handles a close-button release");
+    }
+    Require(requestCounts == std::vector<size_t>{1u, 2u}, "TabControl retains mutable close-request callback state across closes");
+    Require(closedCounts == std::vector<size_t>{1u, 2u}, "TabControl retains mutable closed callback state across closes");
+}
+
+void TestMutableCallbackCaptureStatePersistsForTabControlReorder()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    auto* tabControl = root->AddChild<TabControl>();
+    tabControl->SetBounds(D2D1::RectF(0.0f, 0.0f, 640.0f, 180.0f));
+    tabControl->AddTab<Panel>(L"Alpha");
+    tabControl->AddTab<Panel>(L"Bravo");
+    tabControl->AddTab<Panel>(L"Charlie");
+    host.SetRoot(std::move(root));
+    std::vector<size_t> callbackCounts;
+    tabControl->SetOnTabReordered([count = size_t{0u}, &callbackCounts](size_t, size_t) mutable { callbackCounts.push_back(++count); });
+    for (size_t move = 0u; move < 2u; ++move)
+    {
+        const D2D1_RECT_F firstRect  = tabControl->DebugGetTabRect(0u);
+        const D2D1_RECT_F secondRect = tabControl->DebugGetTabRect(1u);
+        const D2D1_POINT_2F from     = D2D1::Point2F((firstRect.left + firstRect.right) * 0.5f, (firstRect.top + firstRect.bottom) * 0.5f);
+        const D2D1_POINT_2F to       = D2D1::Point2F(secondRect.left + 2.0f, (secondRect.top + secondRect.bottom) * 0.5f);
+        Require(tabControl->OnMouseDown(host, from, false, 0u), "TabControl accepts the reorder drag start");
+        Require(tabControl->OnMouseMove(host, to, 0u), "TabControl processes the reorder drag move");
+        static_cast<void>(tabControl->OnMouseUp(host, to, false, 0u));
+    }
+    Require(callbackCounts == std::vector<size_t>{1u, 2u}, "TabControl retains mutable reorder callback state across moves");
+}
+
+void TestMutableCallbackCaptureStatePersistsForTagPicker()
+{
+    using namespace DxUi;
+    TagPicker picker;
+    picker.SetOptions(L"All", {L"Alpha", L"Beta"});
+    std::vector<size_t> callbackCounts;
+    picker.SetOnSelectionChanged([count = size_t{0u}, &callbackCounts](std::span<const std::wstring>) mutable { callbackCounts.push_back(++count); });
+    Require(picker.SelectOption(L"Alpha") && picker.SelectOption(L"Beta"), "TagPicker accepts two distinct selections");
+    Require(callbackCounts == std::vector<size_t>{1u, 2u}, "TagPicker retains mutable callback state across selection changes");
+}
+
+void TestTabControlSelectionSnapshotCleanupCanRetireRootBeforeMouseDownTail()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    auto* tabControl = root->AddChild<TabControl>();
+    tabControl->SetBounds(D2D1::RectF(0.0f, 0.0f, 440.0f, 180.0f));
+    tabControl->AddTab<Panel>(L"First");
+    tabControl->AddTab<Panel>(L"Second");
+    host.SetRoot(std::move(root));
+
+    size_t callbackCount          = 0u;
+    bool retiredBySnapshotCleanup = false;
+    tabControl->SetOnSelectionChanged([tabControl,
+                                       &host,
+                                       &callbackCount,
+                                       &retiredBySnapshotCleanup,
+                                       payload = std::shared_ptr<int>(new int(1),
+                                                                      [&host, &retiredBySnapshotCleanup](int* value) noexcept
+    {
+        delete value;
+        retiredBySnapshotCleanup = true;
+        host.SetRoot({});
+    })](size_t)
+    {
+        ++callbackCount;
+        static_cast<void>(*payload);
+        tabControl->SetOnSelectionChanged({});
+    });
+
+    const D2D1_POINT_2F secondTabCenter = RectCenter(tabControl->DebugGetTabRect(1u));
+    const bool handled                  = tabControl->OnMouseDown(host, secondTabCenter, false, 0u);
+    Require(handled, "TabControl consumes the click that selects the second tab");
+    Require(callbackCount == 1u, "TabControl invokes its selection callback once");
+    Require(retiredBySnapshotCleanup && ! host.GetRoot(), "releasing the callback snapshot can retire the root before the mouse-down tail");
+    Require(host.GetCapturedControl() == nullptr, "TabControl does not capture the retired control after selection callback cleanup");
+}
+
+void TestMenuBarHoverMoveSnapshotCleanupCanRetireRootSafely()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root     = std::make_unique<Panel>();
+    auto* menuBar = root->AddChild<MenuBar>();
+    menuBar->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 32.0f));
+    menuBar->SetItems({MenuBarItem{.text = L"File", .mnemonic = L'F', .enabled = true}});
+    host.SetRoot(std::move(root));
+
+    size_t callbackCount          = 0u;
+    bool retiredBySnapshotCleanup = false;
+    menuBar->SetOnHoverChanged([menuBar,
+                                &host,
+                                &callbackCount,
+                                &retiredBySnapshotCleanup,
+                                payload = std::shared_ptr<int>(new int(1),
+                                                               [&host, &retiredBySnapshotCleanup](int* value) noexcept
+    {
+        delete value;
+        retiredBySnapshotCleanup = true;
+        host.SetRoot({});
+    })](std::optional<size_t>)
+    {
+        ++callbackCount;
+        static_cast<void>(*payload);
+        menuBar->SetOnHoverChanged({});
+    });
+
+    const bool handled = menuBar->OnMouseMove(host, D2D1::Point2F(12.0f, 12.0f), 0u);
+    Require(handled, "MenuBar reports the logical hover move handled");
+    Require(callbackCount == 1u, "MenuBar runs the hover callback once before releasing its active snapshot");
+    Require(retiredBySnapshotCleanup && ! host.GetRoot(), "the callback snapshot's final captured owner can retire the root");
+}
+
+void TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root     = std::make_unique<Panel>();
+    auto* menuBar = root->AddChild<MenuBar>();
+    menuBar->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 32.0f));
+    menuBar->SetItems({MenuBarItem{.text = L"File", .mnemonic = L'F', .enabled = true}});
+    host.SetRoot(std::move(root));
+    Require(menuBar->OnMouseMove(host, D2D1::Point2F(12.0f, 12.0f), 0u), "MenuBar starts hovered before leave callback setup");
+
+    size_t callbackCount          = 0u;
+    bool retiredBySnapshotCleanup = false;
+    menuBar->SetOnHoverChanged([menuBar,
+                                &host,
+                                &callbackCount,
+                                &retiredBySnapshotCleanup,
+                                payload = std::shared_ptr<int>(new int(1),
+                                                               [&host, &retiredBySnapshotCleanup](int* value) noexcept
+    {
+        delete value;
+        retiredBySnapshotCleanup = true;
+        host.SetRoot({});
+    })](std::optional<size_t>)
+    {
+        ++callbackCount;
+        static_cast<void>(*payload);
+        menuBar->SetOnHoverChanged({});
+    });
+
+    const bool handled = menuBar->OnMouseLeave(host);
+    Require(handled, "MenuBar reports the logical hover leave handled");
+    Require(callbackCount == 1u, "MenuBar runs the leave callback once before releasing its active snapshot");
+    Require(retiredBySnapshotCleanup && ! host.GetRoot(), "the leave callback snapshot's final captured owner can retire the root");
+}
+
 } // namespace
 
 void RunNewControlTests()
 {
+    DXUI_RUN_TEST(TestMutableCallbackCaptureStatePersistsForComboBoxPopupRequest);
+    DXUI_RUN_TEST(TestMutableCallbackCaptureStatePersistsForRadioControls);
+    DXUI_RUN_TEST(TestMutableCallbackCaptureStatePersistsForPageIndicator);
+    DXUI_RUN_TEST(TestMutableCallbackCaptureStatePersistsForSliderCallbacks);
+    DXUI_RUN_TEST(TestMutableCallbackCaptureStatePersistsForMenuBarCallbacks);
+    DXUI_RUN_TEST(TestMutableCallbackCaptureStatePersistsForTabControlSelectionAndCloseEvents);
+    DXUI_RUN_TEST(TestMutableCallbackCaptureStatePersistsForTabControlReorder);
+    DXUI_RUN_TEST(TestMutableCallbackCaptureStatePersistsForTagPicker);
+    DXUI_RUN_TEST(TestTabControlSelectionSnapshotCleanupCanRetireRootBeforeMouseDownTail);
+    DXUI_RUN_TEST(TestMenuBarHoverMoveSnapshotCleanupCanRetireRootSafely);
+    DXUI_RUN_TEST(TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely);
     DXUI_RUN_TEST(TestTabControlCloseCallbacksCanReplaceRootSafely);
     // Button variant
     DXUI_RUN_TEST(TestButtonVariantDefaultIsStandard);
@@ -2274,6 +2886,7 @@ void RunNewControlTests()
     DXUI_RUN_TEST(TestProgressBarPaintHandlesMissingDeviceContext);
     DXUI_RUN_TEST(TestProgressBarDisabledIndeterminateStateDoesNotAnimateUntilReenabled);
     DXUI_RUN_TEST(TestProgressBarReducedMotionRestsIndeterminateSegment);
+    DXUI_RUN_TEST(TestProgressBarRightToLeftMirrorsMovingSegment);
     DXUI_RUN_TEST(TestProgressBarIndeterminateTickSurvivesClockReset);
     DXUI_RUN_TEST(TestSliderSmallestStepStillMoves);
 
@@ -2298,6 +2911,7 @@ void RunNewControlTests()
     DXUI_RUN_TEST(TestSliderSetValueSnapsDisplayedPosition);
     DXUI_RUN_TEST(TestSliderAcknowledgementStopsPendingAnimation);
     DXUI_RUN_TEST(TestSliderRejectsNonFiniteRangeAndSteps);
+    DXUI_RUN_TEST(TestSliderRangeAndStepSettersKeepDependentValuesValid);
     DXUI_RUN_TEST(TestSliderOffCenterGrabAndCancel);
 
     // Toolbar
@@ -2309,6 +2923,9 @@ void RunNewControlTests()
     // MenuBar
     DXUI_RUN_TEST(TestMenuBarSetItemsRoundtrips);
     DXUI_RUN_TEST(TestMenuBarClickInvokesOpenCallback);
+    DXUI_RUN_TEST(TestMenuBarHoverMoveCallbackCanRetireRoot);
+    DXUI_RUN_TEST(TestMenuBarHoverLeaveCallbackCanRetireRoot);
+    DXUI_RUN_TEST(TestMenuBarHoverCallbackCanReplaceItself);
     DXUI_RUN_TEST(TestMenuBarMouseOpenReleasesHostCaptureBeforeCallback);
     DXUI_RUN_TEST(TestMenuBarKeyboardNavigationOpensSelectedItem);
     DXUI_RUN_TEST(TestMenuBarMnemonicOpensMatchingItem);
@@ -2321,14 +2938,12 @@ void RunNewControlTests()
     DXUI_RUN_TEST(TestTabControlSelectionShowsOnlyTheActivePage);
     DXUI_RUN_TEST(TestTabControlHiddenTabsKeepStableIndicesAndLeaveTheHeader);
     DXUI_RUN_TEST(TestTabControlCloseButtonRemovesTabsAndInvokesCallback);
+    DXUI_RUN_TEST(TestTabControlRemoveResolvesRequestedPageAfterFocusCallbackReordersSiblings);
+    DXUI_RUN_TEST(TestTabControlSelectionReportsResolvedIndexAfterFocusCallbackRemovesSibling);
+    DXUI_RUN_TEST(TestTabControlCloseReportsResolvedIndexAfterCloseCallbackRemovesSibling);
     DXUI_RUN_TEST(TestTabControlOverflowButtonsAndWheelScroll);
     DXUI_RUN_TEST(TestTabControlHeaderDividerExposesPaintableGeometry);
     DXUI_RUN_TEST(TestTabControlKeyboardNavigationHonorsRightToLeft);
-
-    // Oversized context menus
-    DXUI_RUN_TEST(TestContextMenuPopupScrollsOversizedContent);
-    DXUI_RUN_TEST(TestContextMenuPopupHonorsSessionMaxRootHeight);
-    RunMenuDescriptionTests();
 
     // StatusStrip
     DXUI_RUN_TEST(TestStatusStripTextRoundtrips);
@@ -2337,6 +2952,9 @@ void RunNewControlTests()
     DXUI_RUN_TEST(TestStatusStripBlendWithWindowBackgroundRoundtrips);
     DXUI_RUN_TEST(TestStatusStripPaintHandlesMissingDeviceContext);
     DXUI_RUN_TEST(TestTagPickerAddsRemovesAndDedupesOptions);
+    DXUI_RUN_TEST(TestTagPickerSelectCallbackCanRetireRootAndReadSelectionAndCapture);
+    DXUI_RUN_TEST(TestTagPickerRemoveCallbackCanRetireRootAndReadSelectionAndCapture);
+    DXUI_RUN_TEST(TestTagPickerSelectionCallbackCanReplaceItself);
 
     // Smoke overlay
     DXUI_RUN_TEST(TestSmokeOverlayDefaultIsFalse);
@@ -2344,4 +2962,11 @@ void RunNewControlTests()
 
     // SetSystemBackdrop
     DXUI_RUN_TEST(TestSetSystemBackdropReturnsFalseWithoutHwnd);
+}
+
+// These fixtures open native capturing popups and belong only to the explicit desktop lease.
+void RunNewControlCapturingMenuTests()
+{
+    DXUI_RUN_TEST(TestContextMenuPopupScrollsOversizedContent);
+    DXUI_RUN_TEST(TestContextMenuPopupHonorsSessionMaxRootHeight);
 }

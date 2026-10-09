@@ -1,6 +1,8 @@
 #include "../../src/Controls/DxUi.Internal.h"
 #include "../../src/Controls/TextStoreTarget.h"
+#include "../../src/Support/WindowMessages.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.TextStoreComposition.h"
 #include <thread>
 
 #include <array>
@@ -11,12 +13,52 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include <msctf.h>
 #include <textstor.h>
 
 namespace
 {
+
+class ReentrantExportTextField final : public DxUi::TextField
+{
+public:
+    using DxUi::TextField::TextField;
+
+    mutable std::function<void()> onExport;
+
+    bool ExportTextInputState(DxUi::TextInputState& outState) const override
+    {
+        const bool exported            = DxUi::TextField::ExportTextInputState(outState);
+        std::function<void()> callback = std::move(onExport);
+        if (callback)
+            callback();
+        return exported;
+    }
+};
+
+class ScopedActivatingTestWindows final
+{
+public:
+    ScopedActivatingTestWindows() noexcept : _previous(DxUiTestWindowsCanActivateFlag())
+    {
+        SetDxUiTestWindowsCanActivate(true);
+    }
+
+    ~ScopedActivatingTestWindows()
+    {
+        SetDxUiTestWindowsCanActivate(_previous);
+    }
+
+    ScopedActivatingTestWindows(const ScopedActivatingTestWindows&)            = delete;
+    ScopedActivatingTestWindows& operator=(const ScopedActivatingTestWindows&) = delete;
+    ScopedActivatingTestWindows(ScopedActivatingTestWindows&&)                 = delete;
+    ScopedActivatingTestWindows& operator=(ScopedActivatingTestWindows&&)      = delete;
+
+private:
+    bool _previous;
+};
 
 class NativeTextStoreTestSink final : public ITextStoreACPSink
 {
@@ -29,6 +71,7 @@ public:
 
     std::function<HRESULT(DWORD)> onLockGranted;
     std::function<HRESULT(const TS_TEXTCHANGE*)> onTextChange;
+    std::function<HRESULT(TsLayoutCode, TsViewCookie)> onLayoutChange;
     DWORD lastLockFlags                = 0u;
     uint32_t textChangeCount           = 0u;
     uint32_t selectionChangeCount      = 0u;
@@ -82,10 +125,10 @@ public:
         return S_OK;
     }
 
-    HRESULT STDMETHODCALLTYPE OnLayoutChange(TsLayoutCode /*lcode*/, TsViewCookie /*vcView*/) noexcept override
+    HRESULT STDMETHODCALLTYPE OnLayoutChange(TsLayoutCode lcode, TsViewCookie vcView) noexcept override
     {
         ++layoutChangeCount;
-        return S_OK;
+        return onLayoutChange ? onLayoutChange(lcode, vcView) : S_OK;
     }
 
     HRESULT STDMETHODCALLTYPE OnStatusChange(DWORD /*dwFlags*/) noexcept override
@@ -123,6 +166,124 @@ public:
 
 private:
     std::atomic<ULONG> _referenceCount{1u};
+};
+
+class ReentrantNativeTextInputThreadMgrSink final : public ITfThreadMgrEventSink
+{
+public:
+    std::function<void()> onPushContext;
+    std::function<void()> onPopContext;
+    std::function<void()> onSetFocus;
+    bool pushCallbackEnabled = true;
+    bool popCallbackEnabled  = true;
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) noexcept override
+    {
+        if (! ppvObject)
+            return E_POINTER;
+        *ppvObject = nullptr;
+        if (riid == __uuidof(IUnknown) || riid == __uuidof(ITfThreadMgrEventSink))
+        {
+            *ppvObject = static_cast<ITfThreadMgrEventSink*>(this);
+            AddRef();
+            return S_OK;
+        }
+        return E_NOINTERFACE;
+    }
+
+    ULONG STDMETHODCALLTYPE AddRef() noexcept override
+    {
+        return _referenceCount.fetch_add(1u, std::memory_order_relaxed) + 1u;
+    }
+
+    ULONG STDMETHODCALLTYPE Release() noexcept override
+    {
+        return _referenceCount.fetch_sub(1u, std::memory_order_acq_rel) - 1u;
+    }
+
+    HRESULT STDMETHODCALLTYPE OnInitDocumentMgr(ITfDocumentMgr* /*documentMgr*/) noexcept override
+    {
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE OnUninitDocumentMgr(ITfDocumentMgr* /*documentMgr*/) noexcept override
+    {
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE OnSetFocus(ITfDocumentMgr* /*focusDocumentMgr*/, ITfDocumentMgr* /*previousFocusDocumentMgr*/) noexcept override
+    {
+        if (! onSetFocus)
+            return S_OK;
+        try
+        {
+            onSetFocus();
+            return S_OK;
+        }
+        catch (const std::exception&)
+        {
+            return E_FAIL;
+        }
+    }
+
+    HRESULT STDMETHODCALLTYPE OnPushContext(ITfContext* /*context*/) noexcept override
+    {
+        if (! pushCallbackEnabled || ! onPushContext)
+            return S_OK;
+        try
+        {
+            onPushContext();
+            return S_OK;
+        }
+        catch (const std::exception&)
+        {
+            return E_FAIL;
+        }
+    }
+
+    HRESULT STDMETHODCALLTYPE OnPopContext(ITfContext* /*context*/) noexcept override
+    {
+        if (! popCallbackEnabled || ! onPopContext)
+            return S_OK;
+        try
+        {
+            onPopContext();
+            return S_OK;
+        }
+        catch (const std::exception&)
+        {
+            return E_FAIL;
+        }
+    }
+
+private:
+    std::atomic<ULONG> _referenceCount{1u};
+};
+
+class ScopedNativeTextInputThreadMgrSink final
+{
+public:
+    ScopedNativeTextInputThreadMgrSink(DxUi::ControlHost& host, DWORD cookie) noexcept : _host(&host), _cookie(cookie)
+    {
+    }
+    ~ScopedNativeTextInputThreadMgrSink()
+    {
+        static_cast<void>(Unadvise());
+    }
+    ScopedNativeTextInputThreadMgrSink(const ScopedNativeTextInputThreadMgrSink&)            = delete;
+    ScopedNativeTextInputThreadMgrSink& operator=(const ScopedNativeTextInputThreadMgrSink&) = delete;
+
+    [[nodiscard]] HRESULT Unadvise() noexcept
+    {
+        if (! _host)
+            return S_FALSE;
+        DxUi::ControlHost* host = std::exchange(_host, nullptr);
+        return host->DebugUnadviseNativeTextInputThreadMgrEventSinkForTest(_cookie);
+    }
+
+private:
+    DxUi::ControlHost* _host;
+    DWORD _cookie;
 };
 
 #include "Controls.Tests.ClipboardTransport.h"
@@ -268,6 +429,7 @@ void VerifyNativeTextInputPointerScenarioMatchesDirectWrite(std::wstring_view te
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root = std::make_unique<Panel>();
@@ -387,6 +549,7 @@ void TestWindowHostDefaultsToNativeTextInputBackend()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     Require(window.Host().GetTextInputBackend() == TextInputBackend::Native, "window host defaults to native text input backend");
     Require(! window.Host().DebugHasActiveNativeTextInputSession(), "native text input session is inactive by default");
 }
@@ -396,6 +559,7 @@ void TestNativeTextInputBackendFocusesHostWithoutBridgeChild()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -430,6 +594,7 @@ void TestNativeTextInputBackendActivatesTsfDocumentOnFocus()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -464,6 +629,451 @@ void TestNativeTextInputBackendActivatesTsfDocumentOnFocus()
             "native text input counts TSF document deactivation when focus leaves the field");
 }
 
+void TestNativeTextInputHostFocusTransferPreservesNestedTsfActivation()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"nested native focus");
+    field->SetBounds(D2D1::RectF(12.0f, 16.0f, 260.0f, 44.0f));
+    window.Host().SetRoot(std::move(root));
+    if (! TryActivateDxUiTestWindow(window.Hwnd()))
+    {
+        SkipDxUiTest("native focus-transfer reentrancy requires an interactive desktop");
+        return;
+    }
+    NativeTextInputEventCounters before{};
+    NativeTextInputEventCounters after{};
+    bool documentStayedActive         = false;
+    bool sessionStayedActive          = false;
+    bool retainedAndNativeFocusStayed = false;
+    const auto run                    = [&]
+    {
+        window.Host().SetFocusControl(nullptr);
+        // Keep the foreground while removing keyboard focus. SetFocusControl below
+        // must transfer it and synchronously re-enter activation through WM_SETFOCUS.
+        static_cast<void>(SetFocus(nullptr));
+        before = window.Host().DebugGetNativeTextInputEventCounters();
+        window.Host().SetFocusControl(field);
+        window.PumpMessages();
+        after                        = window.Host().DebugGetNativeTextInputEventCounters();
+        documentStayedActive         = window.Host().DebugHasActiveNativeTextInputTsfDocument();
+        sessionStayedActive          = window.Host().DebugHasActiveNativeTextInputSession();
+        retainedAndNativeFocusStayed = window.Host().GetFocusControl() == field && GetFocus() == window.Hwnd();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, run), "native focus-transfer reentrancy assertions"))
+        return;
+    Require(after.tsfActivationSuccessCount == before.tsfActivationSuccessCount + 1u, "the nested WM_SETFOCUS activation commits one TSF document");
+    Require(after.tsfDeactivationCount == before.tsfDeactivationCount && after.deactivationCount == before.deactivationCount,
+            "the outer focus-transfer request does not retire the newer same-field session");
+    Require(documentStayedActive && sessionStayedActive && retainedAndNativeFocusStayed,
+            "the nested TSF document, native session and field focus survive the outer activation");
+}
+
+void TestNativeTextInputInactiveResetAndRootReplacementPreserveKeyboardFocus()
+{
+    using namespace DxUi;
+    AttachedHostWindow foreground;
+    if (! TryActivateDxUiTestWindow(foreground.Hwnd()))
+    {
+        SkipDxUiTest("inactive editor reset needs a held foreground window");
+        return;
+    }
+    bool cacheWasActive            = false;
+    bool resetPreservedFocus       = false;
+    bool replacementPreservedFocus = false;
+    const auto run                 = [&]
+    {
+        cacheWasActive = resetPreservedFocus = replacementPreservedFocus = false;
+        AttachedHostWindow inactive;
+        SetWindowPos(inactive.Hwnd(), nullptr, 600, 120, 360, 220, SWP_NOZORDER | SWP_NOACTIVATE);
+        ShowWindow(inactive.Hwnd(), SW_SHOWNOACTIVATE);
+        auto root   = std::make_unique<Panel>();
+        auto* field = root->AddChild<TextField>(L"background editor");
+        field->SetBounds(D2D1::RectF(12.0f, 16.0f, 260.0f, 44.0f));
+        inactive.Host().SetRoot(std::move(root));
+        inactive.Host().SetFocusControl(field, false);
+        cacheWasActive = inactive.Host().DebugHasActiveNativeTextInputSession() && ! inactive.Host().DebugHasActiveNativeTextInputTsfDocument() &&
+                         GetFocus() == foreground.Hwnd();
+        inactive.Host().ResetInteractionState();
+        resetPreservedFocus =
+            GetFocus() == foreground.Hwnd() && ! inactive.Host().GetFocusControl() && ! inactive.Host().DebugHasActiveNativeTextInputSession();
+        inactive.Host().SetFocusControl(field, false);
+        inactive.Host().SetRoot(std::make_unique<Panel>());
+        replacementPreservedFocus =
+            GetFocus() == foreground.Hwnd() && ! inactive.Host().GetFocusControl() && ! inactive.Host().DebugHasActiveNativeTextInputSession();
+        foreground.PumpMessages();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(foreground, run), "inactive editor reset assertions"))
+        return;
+    Require(cacheWasActive, "the inactive sized editor keeps a native cache without taking keyboard focus or activating TSF");
+    Require(resetPreservedFocus, "resetting the inactive editor cache preserves the other window's keyboard focus");
+    Require(replacementPreservedFocus, "replacing the inactive editor root preserves the other window's keyboard focus");
+}
+
+void TestNativeTextInputFocusNotificationRemovalRetiresEditorImmediately()
+{
+    using namespace DxUi;
+    for (const bool keepRemovedChild : {false, true})
+    {
+        for (const bool throwAfterRemoval : {false, true})
+        {
+            bool activatedWindow          = false;
+            bool callbackRan              = false;
+            bool editorWasActive          = false;
+            bool editorRetired            = false;
+            bool childBlurred             = false;
+            const ForegroundRunResult run = RunUntilForegroundHeld([&]
+            {
+                activatedWindow = callbackRan = editorWasActive = editorRetired = childBlurred = false;
+                AttachedHostWindow window;
+                static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+                auto root          = std::make_unique<Panel>();
+                Panel* const panel = root.get();
+                auto* field        = root->AddChild<TextField>(L"removed editor cache");
+                field->SetBounds(D2D1::RectF(12.0f, 16.0f, 260.0f, 44.0f));
+                window.Host().SetTextInputBackend(TextInputBackend::Native);
+                window.Host().SetRoot(std::move(root));
+                std::unique_ptr<Control> removedChild;
+                const uint32_t foregroundLossCount = window.ForegroundLossCount();
+                activatedWindow                    = TryActivateDxUiTestWindow(window.Hwnd());
+                const auto finish                  = [&]
+                { return ForegroundAttempt{window.ForegroundLossCount() != foregroundLossCount, window.LastForegroundThiefThreadId()}; };
+                if (! activatedWindow)
+                    return finish();
+                window.PumpMessages();
+                window.Host().SetFocusControl(nullptr);
+                window.Host().SetOnFocusChanged([&](Control* notified)
+                {
+                    if (notified != field)
+                        return;
+                    callbackRan = true;
+                    NativeTextInputState activeState{};
+                    editorWasActive = window.Host().DebugHasActiveNativeTextInputSession() && window.Host().DebugHasActiveNativeTextInputTsfDocument() &&
+                                      window.Host().DebugGetNativeTextInputState(activeState) && activeState.text == L"removed editor cache";
+                    if (keepRemovedChild)
+                        removedChild = panel->TakeChild(0u);
+                    else
+                        panel->ClearChildren();
+                    if (throwAfterRemoval)
+                        throw std::runtime_error("focus notification removed its editor");
+                });
+                window.Host().SetFocusControl(field);
+                // Assert the return state before pumping: a later prune must not repair a stale session for us.
+                NativeTextInputState retiredState{};
+                editorRetired = ! window.Host().GetFocusControl() && ! window.Host().DebugHasActiveNativeTextInputSession() &&
+                                ! window.Host().DebugHasActiveNativeTextInputTsfDocument() && ! window.Host().DebugGetNativeTextInputState(retiredState);
+                childBlurred  = ! keepRemovedChild || (removedChild && ! removedChild->HasFocus());
+                window.Host().SetOnFocusChanged({});
+                window.PumpMessages();
+                return finish();
+            });
+            if (! ForegroundHeldOrSkip(run, "focus notification editor-removal assertions"))
+                return;
+            Require(activatedWindow && callbackRan && editorWasActive, "removal notification starts with a focused native editor, TSF document and cache");
+            Require(editorRetired, "removing the notified editor retires retained focus, native session, TSF document and cache before the setter returns");
+            Require(childBlurred, "a live returned editor acknowledges loss of focus even when its removal callback throws");
+        }
+    }
+}
+
+void TestNativeTextInputTsfCallbacksPreserveReentrantSameControlSession()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+
+    auto root         = std::make_unique<Panel>();
+    auto* first       = root->AddChild<TextField>(L"first");
+    auto* requested   = root->AddChild<TextField>(L"requested");
+    auto* outerButton = root->AddChild<Button>(L"Superseded outer focus");
+    window.Host().SetRoot(std::move(root));
+
+    if (! TryActivateDxUiTestWindow(window.Hwnd()))
+    {
+        SkipDxUiTest("TSF context-pop reentrancy requires an interactive desktop");
+        return;
+    }
+
+    ReentrantNativeTextInputThreadMgrSink sink;
+    bool pushCallbackRan                     = false;
+    bool pushedSessionStayedActive           = false;
+    bool popCallbackRan                      = false;
+    bool poppedSessionStayedActive           = false;
+    bool initialSessionActive                = false;
+    bool callbackTextChanged                 = false;
+    bool callbackTextWasRetained             = false;
+    bool activationWorkWasPosted             = false;
+    bool activationWorkWasDrained            = false;
+    bool externalThreadManagerFocusPreserved = false;
+    bool activationNotifiedTextAndLayoutOnce = false;
+    bool parentSetterPreservedCallbackEditor = false;
+    wil::com_ptr_nothrow<IUnknown> externalThreadManagerDocument;
+    const auto run = [&]
+    {
+        sink.onPushContext       = {};
+        sink.onPopContext        = {};
+        sink.onSetFocus          = {};
+        sink.pushCallbackEnabled = false;
+        sink.popCallbackEnabled  = false;
+        externalThreadManagerDocument.reset();
+        pushCallbackRan = pushedSessionStayedActive = popCallbackRan = poppedSessionStayedActive = false;
+        initialSessionActive = callbackTextChanged = callbackTextWasRetained = false;
+        activationWorkWasPosted = activationWorkWasDrained = false;
+        externalThreadManagerFocusPreserved = activationNotifiedTextAndLayoutOnce = false;
+        parentSetterPreservedCallbackEditor                                       = false;
+        window.Host().SetFocusControl(nullptr);
+        first->SetText(L"first");
+        requested->SetText(L"requested");
+        requested->SetBounds(D2D1::RectF());
+        window.Host().SetFocusControl(first);
+        window.PumpMessages();
+        initialSessionActive = window.Host().DebugHasActiveNativeTextInputTsfDocument();
+        if (! initialSessionActive)
+            return;
+
+        DWORD sinkCookie = TF_INVALID_COOKIE;
+        RequireSucceeded(window.Host().DebugAdviseNativeTextInputThreadMgrEventSinkForTest(&sink, &sinkCookie),
+                         "TSF thread-manager event sink is advised on the host's active manager");
+        ScopedNativeTextInputThreadMgrSink registration(window.Host(), sinkCookie);
+        NativeTextInputEventCounters beforeOuterActivation = window.Host().DebugGetNativeTextInputEventCounters();
+        pushCallbackRan                                    = false;
+        sink.popCallbackEnabled                            = false;
+        sink.pushCallbackEnabled                           = true;
+        sink.onPushContext                                 = [&]
+        {
+            if (! pushCallbackRan)
+            {
+                pushCallbackRan = true;
+                // The requested control and focus identity remain the same. This nested activation
+                // must still retire the outer staged document by transition generation.
+                window.Host().SetFocusControl(requested);
+            }
+        };
+
+        window.Host().SetFocusControl(requested);
+        window.PumpMessages();
+        const NativeTextInputEventCounters afterOuterActivation = window.Host().DebugGetNativeTextInputEventCounters();
+        pushedSessionStayedActive = pushCallbackRan && window.Host().GetFocusControl() == requested &&
+                                    window.Host().DebugHasActiveNativeTextInputTsfDocument() &&
+                                    afterOuterActivation.tsfActivationSuccessCount == beforeOuterActivation.tsfActivationSuccessCount + 1u &&
+                                    afterOuterActivation.tsfActivationFailureCount == beforeOuterActivation.tsfActivationFailureCount + 1u;
+
+        popCallbackRan           = false;
+        sink.pushCallbackEnabled = false;
+        sink.popCallbackEnabled  = true;
+        sink.onPopContext        = [&]
+        {
+            if (! popCallbackRan)
+            {
+                popCallbackRan = true;
+                // Deactivation's Pop callback reactivates the same pointer at the same focus id.
+                window.Host().SetFocusControl(requested);
+            }
+        };
+        const NativeTextInputEventCounters beforePop = window.Host().DebugGetNativeTextInputEventCounters();
+        window.Host().DebugDeactivateNativeTextInputTsfForTest();
+        window.PumpMessages();
+        const NativeTextInputEventCounters afterPop = window.Host().DebugGetNativeTextInputEventCounters();
+        poppedSessionStayedActive                   = popCallbackRan && window.Host().GetFocusControl() == requested &&
+                                                      window.Host().DebugHasActiveNativeTextInputTsfDocument() &&
+                                                      afterPop.tsfActivationSuccessCount == beforePop.tsfActivationSuccessCount + 1u;
+
+        sink.onPopContext = [&]
+        {
+            if (window.Host().GetFocusControl() == requested)
+                window.Host().SetFocusControl(first);
+        };
+        window.Host().SetFocusControl(outerButton);
+        window.PumpMessages();
+        parentSetterPreservedCallbackEditor = window.Host().GetFocusControl() == first && first->HasFocus() && ! requested->HasFocus() &&
+                                              ! outerButton->HasFocus() && window.Host().DebugHasActiveNativeTextInputTsfDocument();
+        sink.popCallbackEnabled             = false;
+        window.Host().SetFocusControl(requested);
+
+        sink.pushCallbackEnabled            = false;
+        sink.popCallbackEnabled             = false;
+        const HRESULT foreignDocumentResult = window.Host().DebugCreateFocusedNativeTextInputDocumentForTest(externalThreadManagerDocument.put());
+        wil::com_ptr_nothrow<IUnknown> focusBeforeRetirement;
+        const HRESULT focusBeforeResult = window.Host().DebugGetFocusedNativeTextInputDocumentForTest(focusBeforeRetirement.put());
+        const bool foreignFocusEstablished =
+            SUCCEEDED(foreignDocumentResult) && externalThreadManagerDocument && focusBeforeRetirement.get() == externalThreadManagerDocument.get();
+        bool retirementReachedPop = false;
+        sink.popCallbackEnabled   = true;
+        sink.onPopContext         = [&] { retirementReachedPop = true; };
+        sink.onSetFocus           = [&]
+        {
+            wil::com_ptr_nothrow<IUnknown> observed;
+            const HRESULT observedResult = window.Host().DebugGetFocusedNativeTextInputDocumentForTest(observed.put());
+            std::cerr << "    [TSF] foreign focus retirement callback: afterPop=" << retirementReachedPop << " query=" << observedResult
+                      << " matchesForeign=" << (observed && observed.get() == externalThreadManagerDocument.get()) << '\n';
+        };
+        window.Host().DebugDeactivateNativeTextInputTsfForTest();
+        sink.onSetFocus         = {};
+        sink.popCallbackEnabled = false;
+        if (SUCCEEDED(foreignDocumentResult) && externalThreadManagerDocument)
+        {
+            wil::com_ptr_nothrow<IUnknown> currentThreadManagerDocument;
+            const HRESULT focusAfterResult = window.Host().DebugGetFocusedNativeTextInputDocumentForTest(currentThreadManagerDocument.put());
+            externalThreadManagerFocusPreserved =
+                foreignFocusEstablished && SUCCEEDED(focusAfterResult) && currentThreadManagerDocument.get() == externalThreadManagerDocument.get();
+            std::cerr << "    [TSF] foreign focus retirement: create=" << foreignDocumentResult << " before=" << focusBeforeResult
+                      << " established=" << foreignFocusEstablished << " after=" << focusAfterResult << " preserved=" << externalThreadManagerFocusPreserved
+                      << '\n';
+        }
+        else
+            std::cerr << "    [TSF] foreign focus setup failed: create=" << foreignDocumentResult << " before=" << focusBeforeResult << '\n';
+        sink.onSetFocus = [&]
+        {
+            if (! callbackTextChanged)
+            {
+                callbackTextChanged = true;
+                requested->SetText(L"changed during staged TSF focus");
+                requested->SetBounds(D2D1::RectF(16.0f, 18.0f, 310.0f, 54.0f));
+            }
+        };
+        // The previous step deliberately retired TSF. Re-enter the activation path;
+        // SyncTextInput only synchronizes an existing session's retained cache.
+        window.Host().SetFocusControl(requested);
+        activationWorkWasPosted                 = window.Host().DebugHasPostedNativeTextStoreWorkForTest();
+        callbackTextWasRetained                 = requested->GetText() == L"changed during staged TSF focus";
+        uint64_t textChangesBeforeDispatch      = 0u;
+        uint64_t selectionChangesBeforeDispatch = 0u;
+        uint64_t layoutChangesBeforeDispatch    = 0u;
+        window.Host().DebugGetActiveNativeTextStoreNotificationCountsForTest(
+            textChangesBeforeDispatch, selectionChangesBeforeDispatch, layoutChangesBeforeDispatch);
+        window.PumpMessages();
+        activationWorkWasDrained               = ! window.Host().DebugHasPostedNativeTextStoreWorkForTest();
+        uint64_t textChangesAfterDispatch      = 0u;
+        uint64_t selectionChangesAfterDispatch = 0u;
+        uint64_t layoutChangesAfterDispatch    = 0u;
+        window.Host().DebugGetActiveNativeTextStoreNotificationCountsForTest(
+            textChangesAfterDispatch, selectionChangesAfterDispatch, layoutChangesAfterDispatch);
+        activationNotifiedTextAndLayoutOnce = textChangesAfterDispatch == textChangesBeforeDispatch + 1u &&
+                                              layoutChangesAfterDispatch == layoutChangesBeforeDispatch + 1u &&
+                                              selectionChangesAfterDispatch >= selectionChangesBeforeDispatch;
+
+        // Disable the callback before cleanup causes another document Pop.
+        sink.onSetFocus = {};
+        RequireSucceeded(registration.Unadvise(), "TSF thread-manager event sink is removed before host teardown");
+        window.Host().SetFocusControl(nullptr);
+        window.PumpMessages();
+    };
+
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, run), "TSF callback reentrancy assertions"))
+        return;
+
+    Require(initialSessionActive, "initial field has an active TSF document before the sink is advised");
+    Require(pushCallbackRan, "pushing a TSF context synchronously raises OnPushContext");
+    Require(pushedSessionStayedActive, "a same-control nested activation wins over the outer staged TSF context");
+    Require(popCallbackRan, "popping the active TSF document synchronously raises OnPopContext");
+    Require(poppedSessionStayedActive, "deactivation preserves the same-control TSF session installed by OnPopContext");
+    Require(parentSetterPreservedCallbackEditor, "a parent focus setter cannot overwrite the different editor selected by its TSF Pop callback");
+    Require(callbackTextChanged && callbackTextWasRetained && activationWorkWasPosted && activationWorkWasDrained,
+            "text and layout changes during TSF SetFocus coalesce onto a post-commit reconciliation turn");
+    Require(activationNotifiedTextAndLayoutOnce, "the post-commit turn reports the combined text and layout change once");
+    Require(externalThreadManagerFocusPreserved, "retiring a host TSF document preserves a different document that now owns thread-manager focus");
+    Require(window.Host().GetFocusControl() == nullptr, "TSF event sink cleanup leaves no retained editor focus");
+}
+
+void TestNativeTextInputProcessExitPopCannotResurrectDetachedEditor()
+{
+    using namespace DxUi;
+
+    bool desktopAvailable             = false;
+    bool callbackCleanupSucceeded     = false;
+    bool activationSucceeded          = false;
+    bool sinkAdvised                  = false;
+    bool popCallbackRan               = false;
+    bool callbackAttemptedRefocus     = false;
+    bool rootCleared                  = false;
+    bool focusCleared                 = false;
+    bool sessionCleared               = false;
+    bool documentCleared              = false;
+    bool deferredWorkCleared          = false;
+    bool cacheCleared                 = false;
+    ForegroundRunResult foregroundRun = RunUntilForegroundHeld([&]
+    {
+        // Process-exit detach is irreversible; every foreground retry gets a new host and control tree.
+        desktopAvailable         = false;
+        callbackCleanupSucceeded = false;
+        activationSucceeded      = false;
+        sinkAdvised              = false;
+        popCallbackRan           = false;
+        callbackAttemptedRefocus = false;
+        rootCleared              = false;
+        focusCleared             = false;
+        sessionCleared           = false;
+        documentCleared          = false;
+        cacheCleared             = false;
+        deferredWorkCleared      = false;
+        AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+        auto root   = std::make_unique<Panel>();
+        auto* field = root->AddChild<TextField>(L"credential-secret");
+        field->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 36.0f));
+        window.Host().SetTextInputBackend(TextInputBackend::Native);
+        window.Host().SetRoot(std::move(root));
+
+        const bool activatedWindow = TryActivateDxUiTestWindow(window.Hwnd());
+        desktopAvailable           = activatedWindow;
+        if (! activatedWindow)
+            return ForegroundAttempt{};
+        const uint32_t foregroundLossCount = window.ForegroundLossCount();
+        window.Host().SetFocusControl(field);
+        window.PumpMessages();
+        activationSucceeded = window.Host().DebugHasActiveNativeTextInputTsfDocument();
+        NativeTextInputState activeState{};
+        activationSucceeded = activationSucceeded && window.Host().DebugGetNativeTextInputState(activeState) && activeState.text == L"credential-secret";
+        if (! activationSucceeded)
+            return ForegroundAttempt{window.ForegroundLossCount() != foregroundLossCount, window.LastForegroundThiefThreadId()};
+
+        ReentrantNativeTextInputThreadMgrSink sink;
+        DWORD sinkCookie           = TF_INVALID_COOKIE;
+        const HRESULT adviseResult = window.Host().DebugAdviseNativeTextInputThreadMgrEventSinkForTest(&sink, &sinkCookie);
+        sinkAdvised                = SUCCEEDED(adviseResult);
+        if (! sinkAdvised)
+            return ForegroundAttempt{window.ForegroundLossCount() != foregroundLossCount, window.LastForegroundThiefThreadId()};
+        ScopedNativeTextInputThreadMgrSink registration(window.Host(), sinkCookie);
+        sink.pushCallbackEnabled = false;
+        sink.popCallbackEnabled  = true;
+        sink.onPopContext        = [&]
+        {
+            popCallbackRan           = true;
+            callbackAttemptedRefocus = true;
+            window.Host().SetFocusControl(field);
+        };
+
+        window.Host().DebugDetachForProcessExit();
+        NativeTextInputState detachedState{};
+        rootCleared              = window.Host().GetRoot() == nullptr;
+        focusCleared             = window.Host().GetFocusControl() == nullptr;
+        sessionCleared           = ! window.Host().HasActiveTextInput() && ! window.Host().DebugHasActiveNativeTextInputSession();
+        documentCleared          = ! window.Host().DebugHasActiveNativeTextInputTsfDocument();
+        cacheCleared             = ! window.Host().DebugGetNativeTextInputState(detachedState);
+        deferredWorkCleared      = ! window.Host().DebugHasPostedNativeTextStoreWorkForTest();
+        sink.onPopContext        = {};
+        callbackCleanupSucceeded = SUCCEEDED(registration.Unadvise());
+        return ForegroundAttempt{window.ForegroundLossCount() != foregroundLossCount, window.LastForegroundThiefThreadId()};
+    });
+
+    if (! ForegroundHeldOrSkip(foregroundRun, "TSF process-exit detach callback assertions"))
+        return;
+    if (! desktopAvailable)
+    {
+        SkipDxUiTest("TSF process-exit detach requires an interactive native text-input host");
+        return;
+    }
+    Require(activationSucceeded && sinkAdvised, "process-exit regression starts with a focused editor and advised TSF event sink");
+    Require(callbackCleanupSucceeded, "process-exit regression removes its TSF callback before destroying the sink");
+    Require(popCallbackRan && callbackAttemptedRefocus, "process-exit detach invokes OnPopContext and exercises same-field refocus reentry");
+    Require(rootCleared && focusCleared && sessionCleared && documentCleared && cacheCleared && deferredWorkCleared,
+            "TSF refocus reentry cannot resurrect the detached root, editor, document, cache, or posted work");
+}
+
 // A desktop application retaking the foreground makes the host release its native session, TSF document included. The
 // takeover is delivered as Windows sends it; the sequence then repeats, so the TSF assertions of the test above keep their
 // meaning on a run that kept the foreground and never fail because of a thief.
@@ -473,6 +1083,7 @@ void TestNativeTextInputTsfSequenceRepeatsAfterTheForegroundIsTaken()
 
     const ScopedNonActivatingTestWindows nonActivatingWindows; // The takeover is simulated: nothing real may add to it.
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -507,6 +1118,7 @@ void TestForegroundHoldGivesUpAfterTheMaximumRunsAndNamesWhoTookIt()
 
     const ScopedNonActivatingTestWindows nonActivatingWindows; // The takeover is simulated: nothing real may add to it.
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -537,6 +1149,7 @@ void TestNativeTextInputBackendOwnsSystemCaretOnHostHwnd()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -579,6 +1192,7 @@ void TestNativeTextInputBackendMovesSystemCaretAfterKeyInput()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -606,6 +1220,7 @@ void TestNativeTextInputBackendClearsSessionWhenRootResets()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -631,6 +1246,7 @@ void TestNativeTextInputBackendClearsSessionWhenFocusedControlBecomesStale()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -656,6 +1272,7 @@ void TestNativeTextInputBackendUpdatesCaretWhenFocusedFieldMoves()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -683,7 +1300,9 @@ void TestNativeTextInputBackendHostFocusLossControlsNativeSession()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     AttachedHostWindow externalWindow;
+    static_cast<void>(ShowWindow(externalWindow.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -719,6 +1338,7 @@ void TestNativeTextInputBackendTabMovesFocusToNextControl()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root    = std::make_unique<Panel>();
@@ -743,6 +1363,7 @@ void TestNativeTextInputBackendMultilineDialogKeysStayHostOwned()
     const auto runCase = [](bool wrapped)
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root            = std::make_unique<Panel>();
@@ -817,6 +1438,7 @@ void TestNativeTextInputBackendEnterInvokesDefaultButton()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     int invokeCount = 0;
@@ -842,6 +1464,7 @@ void TestNativeTextInputBackendEscapeInvokesCancelButton()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     int invokeCount = 0;
@@ -866,6 +1489,7 @@ void TestNativeTextInputBackendRevealedMaskedFieldRemasksBeforeEscapeCancel()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     int invokeCount = 0;
@@ -898,6 +1522,7 @@ void TestNativeTextInputBackendMenuKeyInvokesContextMenu()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     int contextMenuCount    = 0;
@@ -927,6 +1552,7 @@ void TestNativeTextInputBackendMultilineContextMenuKeysStayOnHostHwnd()
     const auto runScenario = [](bool wrapped, bool shiftF10)
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         RecordingContextMenuInvocation contextMenu;
@@ -979,6 +1605,7 @@ void TestNativeTextInputBackendImeStartEndUpdatesCompositionState()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1018,6 +1645,7 @@ void TestNativeTextInputBackendReadOnlySuppressesImeComposition()
 
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -1043,6 +1671,7 @@ void TestNativeTextInputBackendReadOnlySuppressesImeComposition()
 
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -1072,11 +1701,306 @@ void TestNativeTextInputBackendReadOnlySuppressesImeComposition()
     }
 }
 
+void TestNativeTextInputImePreviewCancelsWhenFieldBecomesIneligible()
+{
+    using namespace DxUi;
+
+    const ScopedActivatingTestWindows activatingWindows;
+    const auto verifyTransition = [](bool masked)
+    {
+        AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+        window.Host().SetTextInputBackend(TextInputBackend::Native);
+        auto root   = std::make_unique<Panel>();
+        auto* field = root->AddChild<TextField>(L"alpha");
+        field->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
+        unsigned notifications = 0u;
+        field->SetOnTextChanged([&](std::wstring_view) { ++notifications; });
+        window.Host().SetRoot(std::move(root));
+
+        bool focused                = false;
+        const auto activateAndFocus = [&]
+        {
+            if (! TryActivateDxUiTestWindow(window.Hwnd()))
+                return;
+            window.Host().SetFocusControl(field);
+            window.PumpMessages();
+            focused = GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession();
+        };
+        if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, activateAndFocus), "native text input eligibility transition"))
+            return true;
+        Require(focused, "eligibility transition fixture owns actual keyboard focus and an active native session");
+
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+        NativeTextInputImePayload preview{};
+        preview.hasCompositionString = true;
+        preview.compositionString    = L"draft";
+        window.Host().DebugSetNativeTextInputImePayloadForTest(std::move(preview));
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+        Require(field->GetText() == L"alphadraft", "native IMM transition fixture exposes only its active preview");
+        Require(notifications == 0u, "native IMM transition preview does not notify the model");
+
+        if (masked)
+            field->SetMasked(true);
+        else
+            field->SetReadOnly(true);
+
+        NativeTextInputState state{};
+        Require(field->GetText() == L"alpha", "becoming read-only or masked cancels the IMM preview to its pre-composition text");
+        Require(notifications == 0u, "eligibility transition cancellation does not commit the preview");
+        Require(window.Host().TryReadNativeTextInputState(field, state), "native IMM transition leaves a readable field state");
+        Require(state.readOnly == ! masked && state.masked == masked, "native IMM transition preserves the new field policy");
+        Require(! state.compositionStartIndex && ! state.compositionEndIndex && ! state.compositionCursorIndex,
+                "eligibility transition clears native composition and caret metadata");
+        if (masked)
+            Require(! window.Host().DebugHasActiveNativeTextInputTsfDocument(), "masking during IMM preview disconnects the TSF document");
+        return true;
+    };
+
+    Require(verifyTransition(false), "native IMM preview cancels on a read-only transition");
+    Require(verifyTransition(true), "native IMM preview cancels on a masked transition");
+}
+
+void TestNativeTextInputZeroSizeCancelsImeAndResumesOnlyWithRetainedFocus()
+{
+    using namespace DxUi;
+
+    const ScopedActivatingTestWindows activatingWindows;
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"alpha");
+    field->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
+    window.Host().SetRoot(std::move(root));
+
+    bool focused                = false;
+    const auto activateAndFocus = [&]
+    {
+        if (! TryActivateDxUiTestWindow(window.Hwnd()))
+            return;
+        window.Host().SetFocusControl(field);
+        window.PumpMessages();
+        focused = GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, activateAndFocus), "native text input zero-size suspension"))
+        return;
+    Require(focused, "zero-size suspension fixture owns actual keyboard focus and an active native session");
+
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+    NativeTextInputImePayload preview{};
+    preview.hasCompositionString = true;
+    preview.compositionString    = L"draft";
+    window.Host().DebugSetNativeTextInputImePayloadForTest(preview);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+    Require(field->GetText() == L"alphadraft", "zero-size fixture starts from an active inline IMM preview");
+
+    Require(SetWindowPos(window.Hwnd(), nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+            "zero-size suspension is delivered through the actual host HWND size transition");
+    Require(GetFocus() == window.Hwnd(), "zero-size suspension keeps the host's actual keyboard focus for this fixture");
+    Require(field->GetText() == L"alpha", "zero-size suspension cancels the IMM preview to its base text");
+    Require(! window.Host().DebugHasActiveNativeTextInputSession(), "zero-size host deactivates its native text session");
+
+    NativeTextInputImePayload latePreview{};
+    latePreview.hasCompositionString = true;
+    latePreview.compositionString    = L"late";
+    window.Host().DebugSetNativeTextInputImePayloadForTest(latePreview);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+    Require(field->GetText() == L"alpha", "late IMM start and composition messages cannot restore preview while the HWND is zero-sized");
+    Require(! window.Host().DebugHasActiveNativeTextInputSession(), "late zero-size IMM messages cannot reactivate native text input");
+    window.Host().DebugSetNativeTextInputImePayloadForTest(NativeTextInputImePayload{});
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+
+    Require(SetWindowPos(window.Hwnd(), nullptr, 0, 0, 320, 200, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+            "nonzero size is restored through the actual host HWND size transition");
+    window.PumpMessages();
+    Require(GetFocus() == window.Hwnd(), "restoring a nonzero client size does not move keyboard focus");
+    Require(window.Host().DebugHasActiveNativeTextInputSession(), "native input resumes when the host retains actual keyboard focus and becomes nonzero");
+    Require(field->GetText() == L"alpha", "resuming after zero size does not reapply a cancelled preview");
+}
+
+void TestNativeTextInputHiddenHostRejectsLateImeAndDoesNotStealFocusOnShow()
+{
+    using namespace DxUi;
+
+    const ScopedActivatingTestWindows activatingWindows;
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    AttachedHostWindow focusOwner;
+    static_cast<void>(ShowWindow(focusOwner.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    focusOwner.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"alpha");
+    field->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
+    window.Host().SetRoot(std::move(root));
+
+    bool focused                = false;
+    const auto activateAndFocus = [&]
+    {
+        if (! TryActivateDxUiTestWindow(window.Hwnd()))
+            return;
+        window.Host().SetFocusControl(field);
+        window.PumpMessages();
+        focused = GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, activateAndFocus), "native text input hide suspension"))
+        return;
+    Require(focused, "hide suspension fixture owns actual keyboard focus and an active native session");
+
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+    NativeTextInputImePayload preview{};
+    preview.hasCompositionString = true;
+    preview.compositionString    = L"draft";
+    window.Host().DebugSetNativeTextInputImePayloadForTest(preview);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+    Require(field->GetText() == L"alphadraft", "hidden-host fixture starts from an active inline IMM preview");
+
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_HIDE));
+    Require(field->GetText() == L"alpha", "hiding the actual HWND cancels the IMM preview to its base text");
+    Require(! window.Host().DebugHasActiveNativeTextInputSession(), "hiding the actual HWND deactivates native text input");
+    NativeTextInputImePayload latePreview{};
+    latePreview.hasCompositionString = true;
+    latePreview.compositionString    = L"late";
+    window.Host().DebugSetNativeTextInputImePayloadForTest(latePreview);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+    Require(field->GetText() == L"alpha", "late IMM messages cannot restart preview while the actual HWND is hidden");
+    Require(! window.Host().DebugHasActiveNativeTextInputSession(), "late hidden-HWND IMM messages cannot reactivate native text input");
+    window.Host().DebugSetNativeTextInputImePayloadForTest(NativeTextInputImePayload{});
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+
+    const auto activateOtherWindow = [&] { static_cast<void>(TryActivateDxUiTestWindow(focusOwner.Hwnd())); };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(focusOwner, activateOtherWindow), "native text input hidden-window focus owner"))
+        return;
+    Require(GetFocus() == focusOwner.Hwnd(), "a second host owns keyboard focus before the hidden host is shown");
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.PumpMessages();
+    Require(GetFocus() == focusOwner.Hwnd(), "showing the host without activation preserves the other host's keyboard focus");
+    Require(! window.Host().DebugHasActiveNativeTextInputSession(), "showing an unfocused host does not resume native text input");
+
+    bool resumed                        = false;
+    const auto reactivateOriginalWindow = [&]
+    {
+        if (! TryActivateDxUiTestWindow(window.Hwnd()))
+            return;
+        window.Host().SetFocusControl(field);
+        window.PumpMessages();
+        resumed = GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, reactivateOriginalWindow), "native text input visible-window resume"))
+        return;
+    Require(resumed, "native text input resumes after the shown host regains actual keyboard focus");
+    Require(field->GetText() == L"alpha", "resuming after hide does not reapply a cancelled preview");
+}
+
+void TestNativeTextInputNewerApplicationTextWinsImmCancellation()
+{
+    using namespace DxUi;
+
+    const ScopedActivatingTestWindows activatingWindows;
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"alpha");
+    field->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
+    window.Host().SetRoot(std::move(root));
+
+    bool focused                = false;
+    const auto activateAndFocus = [&]
+    {
+        if (! TryActivateDxUiTestWindow(window.Hwnd()))
+            return;
+        window.Host().SetFocusControl(field);
+        window.PumpMessages();
+        focused = GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, activateAndFocus), "native IMM application-text cancellation"))
+        return;
+    Require(focused, "application-text cancellation fixture owns actual keyboard focus and an active native session");
+
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+    NativeTextInputImePayload preview{};
+    preview.hasCompositionString = true;
+    preview.compositionString    = L"draft";
+    window.Host().DebugSetNativeTextInputImePayloadForTest(preview);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+    Require(field->GetText() == L"alphadraft", "application-text cancellation fixture exposes its temporary IMM preview");
+
+    field->SetTextAndNotify(L"application text");
+    Require(field->GetText() == L"application text", "application replacement becomes the current retained text during composition");
+    Require(field->GetCaretIndex() == 10u && ! field->GetSelectionRange(), "application replacement retains the clamped preview caret");
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+    Require(field->GetText() == L"application text", "late IMM end does not restore the older pre-composition base over newer application text");
+    Require(field->GetCaretIndex() == 10u && ! field->GetSelectionRange(), "late IMM end preserves the application's current insertion point");
+
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+    NativeTextInputImePayload secondPreview{};
+    secondPreview.hasCompositionString = true;
+    secondPreview.compositionString    = L"another draft";
+    window.Host().DebugSetNativeTextInputImePayloadForTest(secondPreview);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+    Require(field->GetText() == L"applicatioanother draftn text" && field->GetCaretIndex() == 23u,
+            "a second IMM preview inserts into the newer application text at its retained caret");
+    field->SetTextAndNotify(L"newest application text");
+    Require(field->GetText() == L"newest application text", "the second application replacement is current before native deactivation");
+
+    Require(SetWindowPos(window.Hwnd(), nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+            "application-text cancellation deactivation uses the actual zero-size HWND transition");
+    Require(field->GetText() == L"newest application text", "native session deactivation preserves newer application text over the active IMM preview");
+}
+
+void TestNativeTextInputBackendMaskedFieldRejectsTextServices()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"secret");
+    field->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
+    field->SetMasked(true);
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field);
+
+    Require(! window.Host().DebugHasActiveNativeTextInputTsfDocument(), "masked native text fields do not activate a TSF document");
+    const NativeTextInputEventCounters before = window.Host().DebugGetNativeTextInputEventCounters();
+    NativeTextInputState state{};
+    Require(window.Host().TryReadNativeTextInputState(field, state) && state.masked, "masked text service test reads only the masked state flag");
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+    NativeTextInputImePayload payload{};
+    payload.hasCompositionString = true;
+    payload.compositionString    = L"replacement";
+    window.Host().DebugSetNativeTextInputImePayloadForTest(payload);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+    Require(field->GetText() == L"secret", "masked fields reject legacy IMM previews without changing the secret");
+    Require(window.Host().TryReadNativeTextInputState(field, state) && ! state.compositionStartIndex && ! state.compositionEndIndex,
+            "masked fields publish no IMM composition range");
+    Require(window.Host().DebugGetNativeTextInputEventCounters().tsfActivationAttemptCount == before.tsfActivationAttemptCount,
+            "masked focused text does not retry TSF activation");
+
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(CreateNativeTextInputTextStore(window.Host(), *field));
+    Require(store != nullptr, "masked field store rejection test creates the defensive native adapter");
+    wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> compositionSink;
+    RequireSucceeded(store.query_to(compositionSink.put()), "masked field adapter exposes its composition policy to TSF");
+    BOOL accepted = TRUE;
+    Require(compositionSink->OnStartComposition(nullptr, &accepted) == E_ACCESSDENIED && accepted == FALSE,
+            "native TSF refuses composition for a masked field");
+    HRESULT session = S_OK;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "masked field write-lock request reaches the adapter");
+    Require(session == E_ACCESSDENIED, "native TSF cannot read or mutate a masked field through a write lock");
+}
+
 void TestNativeTextInputBackendImeStartTracksSelectedCompositionRange()
 {
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1102,11 +2026,56 @@ void TestNativeTextInputBackendImeStartTracksSelectedCompositionRange()
             "native ime composition over selection ends at the selection end");
 }
 
+void TestNativeTextInputImeNoGcsFlagsCancelsOwnedPreviewAndPreservesHistory()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"alpha");
+    field->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
+    unsigned notifications = 0u;
+    field->SetOnTextChanged([&](std::wstring_view) { ++notifications; });
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field);
+    Require(field->OnChar(window.Host(), L'Q', 0u) && field->GetText() == L"alphaQ", "cancellation fixture begins with an independent typed edit");
+    notifications = 0u;
+
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+    NativeTextInputImePayload preview{};
+    preview.hasCompositionString = true;
+    preview.compositionString    = L"draft";
+    window.Host().DebugSetNativeTextInputImePayloadForTest(preview);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+    Require(field->GetText() == L"alphaQdraft" && notifications == 0u, "the cancellation fixture exposes an uncommitted preview");
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPREADSTR));
+    NativeTextInputState state{};
+    Require(window.Host().TryReadNativeTextInputState(field, state) && state.compositionStartIndex && field->GetText() == L"alphaQdraft",
+            "an IME read-string update does not cancel an existing inline preview");
+
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, 0));
+    Require(window.Host().TryReadNativeTextInputState(field, state) && state.text == L"alphaQ" && field->GetText() == L"alphaQ" && state.caretIndex == 6u,
+            "no-GCS cancellation restores only the owned composition-entry text and caret");
+    Require(! state.compositionStartIndex && ! state.compositionEndIndex && ! state.conversionTargetStartIndex && ! state.conversionTargetEndIndex &&
+                ! state.compositionCursorIndex && state.compositionClauseBoundaries.empty() && notifications == 0u,
+            "no-GCS cancellation clears every composition marker without a model commit");
+    preview.hasResultString = true;
+    preview.resultString    = L"late";
+    window.Host().DebugSetNativeTextInputImePayloadForTest(preview);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_RESULTSTR | GCS_COMPSTR));
+    Require(field->GetText() == L"alphaQ" && notifications == 0u, "late result and preview payloads remain rejected after no-GCS cancellation");
+    Require(field->OnKeyDown(window.Host(), 'Z', MK_CONTROL) && field->GetText() == L"alpha" && notifications == 1u,
+            "canceling the preview preserves the earlier typed edit as the next undo unit");
+}
+
 void TestNativeTextInputBackendImeNoPayloadWithoutActiveCompositionDoesNotStartRange()
 {
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1131,6 +2100,7 @@ void TestNativeTextInputBackendImeWindowsTrackCaretRect()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1172,6 +2142,7 @@ void TestNativeTextInputBackendMultilineImeWindowsTrackCaretAcrossLines()
     const auto runCase = [](bool wrapped)
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -1240,7 +2211,9 @@ void TestNativeTextInputBackendMultilineImeWindowsTrackCaretAcrossLines()
 
         field->SetSelectionRange(firstIndex, firstIndex);
         window.Host().SyncTextInput(field);
-        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, 0));
+        NativeTextInputState currentState{};
+        Require(window.Host().TryReadNativeTextInputState(field, currentState) && currentState.compositionStartIndex,
+                "caret synchronization retains active composition without a synthetic cancellation message");
 
         const POINT firstPoint =
             requireImeFormsAtCaret(firstIndex,
@@ -1260,6 +2233,7 @@ void TestNativeTextInputBackendImeWindowsUpdateWhenFocusedFieldMoves()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1307,6 +2281,7 @@ void TestNativeTextInputBackendMultilineImeWindowsUpdateWhenFocusedFieldMoves()
     const auto runCase = [](bool wrapped)
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -1385,6 +2360,7 @@ void TestNativeTextInputBackendImeWindowsUpdateWhenEditableComboMoves()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1433,6 +2409,7 @@ void TestNativeTextInputBackendImeWindowsUpdateAfterProgrammaticTextFieldCaretMo
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1482,6 +2459,7 @@ void TestNativeTextInputBackendImeWindowsUpdateAfterProgrammaticEditableComboCar
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1534,6 +2512,7 @@ void TestNativeTextInputBackendImeWindowsUpdateAfterFocusedTextFieldPaddingChang
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1579,6 +2558,7 @@ void TestNativeTextInputBackendImeWindowsUpdateAfterFocusedEditableComboDensityC
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1627,6 +2607,7 @@ void TestNativeTextInputBackendImeWindowsUpdateAfterDpiChange()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1685,6 +2666,7 @@ void TestNativeTextInputBackendImeWindowsUpdateAfterMultilineScroll()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1732,6 +2714,7 @@ void TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1775,11 +2758,483 @@ void TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement()
     Require(state.text == field->GetText(), "native ime end after result commit keeps native state synchronized with retained text");
 }
 
+void TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText()
+{
+    using namespace DxUi;
+
+    {
+        AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+        window.Host().SetTextInputBackend(TextInputBackend::Native);
+        auto root   = std::make_unique<Panel>();
+        auto* field = root->AddChild<TextField>();
+        field->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
+        unsigned notifications = 0u;
+        field->SetOnTextChanged([&notifications](std::wstring_view) { ++notifications; });
+        window.Host().SetRoot(std::move(root));
+
+        bool setup              = false;
+        const auto focusAndType = [&]
+        {
+            if (! TryActivateDxUiTestWindow(window.Hwnd()))
+                return;
+            window.Host().SetFocusControl(field);
+            setup = field->OnChar(window.Host(), L'a', 0u);
+            window.PumpMessages();
+        };
+        if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, focusAndType), "native IME composition undo grouping"))
+            return;
+        Require(setup && field->GetText() == L"a", "undo fixture creates one earlier independent typed edit");
+        notifications = 0u;
+
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+        NativeTextInputImePayload firstPreview{};
+        firstPreview.hasCompositionString = true;
+        firstPreview.compositionString    = L"draft";
+        window.Host().DebugSetNativeTextInputImePayloadForTest(firstPreview);
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+        NativeTextInputImePayload finalPreview{};
+        finalPreview.hasCompositionString = true;
+        finalPreview.compositionString    = L"result";
+        window.Host().DebugSetNativeTextInputImePayloadForTest(finalPreview);
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+        Require(field->GetText() == L"aresult" && notifications == 0u, "several IME previews remain uncommitted model state");
+
+        NativeTextInputImePayload result{};
+        result.hasResultString = true;
+        result.resultString    = L"result";
+        window.Host().DebugSetNativeTextInputImePayloadForTest(result);
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_RESULTSTR));
+        Require(field->GetText() == L"aresult" && notifications == 1u, "a result equal to the final preview emits exactly one model notification");
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+
+        Require(field->OnKeyDown(window.Host(), 'Z', MK_CONTROL), "committed IMM composition can be undone");
+        Require(field->GetText() == L"a", "the first undo removes the complete composition and restores composition-entry text");
+        Require(field->OnKeyDown(window.Host(), 'Z', MK_CONTROL), "the earlier typed edit remains independently undoable");
+        Require(field->GetText().empty(), "the second undo removes only the earlier typed edit");
+    }
+
+    {
+        AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+        window.Host().SetTextInputBackend(TextInputBackend::Native);
+        auto root   = std::make_unique<Panel>();
+        auto* field = root->AddChild<TextField>(L"alpha");
+        field->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
+        unsigned notifications = 0u;
+        field->SetOnTextChanged([&notifications](std::wstring_view) { ++notifications; });
+        window.Host().SetRoot(std::move(root));
+
+        bool focused                = false;
+        const auto activateAndFocus = [&]
+        {
+            if (! TryActivateDxUiTestWindow(window.Hwnd()))
+                return;
+            window.Host().SetFocusControl(field);
+            window.PumpMessages();
+            focused = GetFocus() == window.Hwnd();
+        };
+        if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, activateAndFocus), "native late IMM result cancellation"))
+            return;
+        Require(focused, "late-result fixture owns actual keyboard focus");
+
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+        NativeTextInputImePayload preview{};
+        preview.hasCompositionString = true;
+        preview.compositionString    = L"draft";
+        window.Host().DebugSetNativeTextInputImePayloadForTest(preview);
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+        Require(field->GetText() == L"alphadraft" && notifications == 0u, "late-result fixture has an active uncommitted preview");
+
+        field->SetTextAndNotify(L"application replacement");
+        Require(field->GetText() == L"application replacement" && notifications == 1u, "new application text replaces the active IMM preview");
+        NativeTextInputImePayload lateResult{};
+        lateResult.hasResultString = true;
+        lateResult.resultString    = L"stale result";
+        window.Host().DebugSetNativeTextInputImePayloadForTest(lateResult);
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_RESULTSTR));
+        Require(field->GetText() == L"application replacement" && notifications == 1u, "late IMM RESULTSTR cannot overwrite a newer application replacement");
+    }
+}
+
+void TestNativeImeResultCallbacksPreserveNewerTextAndComposition()
+{
+    using namespace DxUi;
+
+    enum class CallbackAction
+    {
+        Synchronize,
+        ReplaceText,
+        RestartComposition,
+        FocusOtherEditor
+    };
+    for (const bool continues : {false, true})
+    {
+        for (const CallbackAction action :
+             {CallbackAction::Synchronize, CallbackAction::ReplaceText, CallbackAction::RestartComposition, CallbackAction::FocusOtherEditor})
+        {
+            AttachedHostWindow window;
+            static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+            window.Host().SetTextInputBackend(TextInputBackend::Native);
+            auto root   = std::make_unique<Panel>();
+            auto* field = root->AddChild<TextField>(L"alpha");
+            auto* other = root->AddChild<TextField>(L"other");
+            field->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
+            other->SetBounds(D2D1::RectF(12.0f, 56.0f, 220.0f, 84.0f));
+            window.Host().SetRoot(std::move(root));
+            window.Host().SetFocusControl(field);
+
+            unsigned notifications   = 0u;
+            bool callbackTextCorrect = false;
+            field->SetOnTextChanged([&](std::wstring_view text)
+            {
+                ++notifications;
+                callbackTextCorrect = text == L"alphaR";
+                if (action == CallbackAction::Synchronize)
+                {
+                    window.Host().SyncTextInput(field);
+                    return;
+                }
+                if (action == CallbackAction::FocusOtherEditor)
+                    window.Host().SetFocusControl(other);
+                else
+                    field->SetText(L"winner");
+                if (action == CallbackAction::ReplaceText)
+                    return;
+                static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+                NativeTextInputImePayload nested{};
+                nested.hasCompositionString = true;
+                nested.compositionString    = L"nested";
+                window.Host().DebugSetNativeTextInputImePayloadForTest(nested);
+                static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+            });
+
+            static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+            NativeTextInputImePayload preview{};
+            preview.hasCompositionString = true;
+            preview.compositionString    = L"draft";
+            window.Host().DebugSetNativeTextInputImePayloadForTest(preview);
+            static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+            Require(field->GetText() == L"alphadraft" && notifications == 0u, "the callback fixture begins with an uncommitted preview");
+
+            NativeTextInputImePayload result{};
+            result.hasResultString      = true;
+            result.resultString         = L"R";
+            result.hasCompositionString = continues;
+            result.compositionString    = L"outer preview";
+            window.Host().DebugSetNativeTextInputImePayloadForTest(result);
+            static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_RESULTSTR | (continues ? GCS_COMPSTR : 0)));
+            Require(notifications == 1u, "the IMM result invokes the application callback once");
+            Require(callbackTextCorrect, "the result callback receives the complete committed text");
+            if (action == CallbackAction::FocusOtherEditor)
+                Require(field->GetText() == L"alphaR", "focus transfer from the result callback preserves the committed result in the old editor");
+            TextField* const winner = action == CallbackAction::FocusOtherEditor ? other : field;
+            NativeTextInputState state{};
+            Require(window.Host().TryReadNativeTextInputState(winner, state), "the callback's current editor retains readable native state");
+            if (action == CallbackAction::Synchronize)
+            {
+                Require(field->GetText() == (continues ? L"alphaRouter preview" : L"alphaR"),
+                        "ordinary callback synchronization preserves the result and its continuing preview");
+                Require(state.compositionStartIndex.has_value() == continues, "ordinary callback synchronization preserves correct composition ownership");
+            }
+            else if (action == CallbackAction::ReplaceText)
+            {
+                Require(field->GetText() == L"winner" && state.text == L"winner" && ! state.compositionStartIndex && ! state.compositionEndIndex,
+                        "application replacement cancels ranges and rejects the old message's continuing preview");
+                NativeTextInputImePayload late{};
+                late.hasResultString = true;
+                late.resultString    = L"late";
+                window.Host().DebugSetNativeTextInputImePayloadForTest(late);
+                static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_RESULTSTR));
+                Require(field->GetText() == L"winner" && notifications == 1u, "a late result cannot commit into the application's replacement");
+            }
+            else
+            {
+                const std::wstring_view expected = action == CallbackAction::FocusOtherEditor ? L"othernested" : L"winnernested";
+                Require(winner->GetText() == expected && state.text == expected && state.compositionStartIndex && state.compositionEndIndex,
+                        "the callback's newer composition survives old result publication and cleanup");
+                Require(state.compositionStartIndex == (action == CallbackAction::FocusOtherEditor ? 5u : 6u) && state.compositionEndIndex == expected.size(),
+                        "the newer composition retains its own base range rather than the older result range");
+            }
+            static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+            const std::wstring_view expectedBase = action == CallbackAction::FocusOtherEditor ? L"other"
+                                                   : action == CallbackAction::Synchronize    ? L"alphaR"
+                                                                                              : L"winner";
+            Require(winner->GetText() == expectedBase, "ending the current composition restores only its own entry text");
+        }
+    }
+}
+
+void TestNativeImeCancellationCallbacksPreserveNewerState()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<ReentrantExportTextField>(L"alpha");
+    auto* other = root->AddChild<TextField>(L"other");
+    field->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
+    other->SetBounds(D2D1::RectF(12.0f, 56.0f, 220.0f, 84.0f));
+    window.Host().SetRoot(std::move(root));
+
+    bool focused                = false;
+    const auto activateAndFocus = [&]
+    {
+        if (! TryActivateDxUiTestWindow(window.Hwnd()))
+            return;
+        window.Host().SetFocusControl(field);
+        window.PumpMessages();
+        focused = GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, activateAndFocus), "native IME cancellation reentrant control callbacks"))
+        return;
+    Require(focused, "IME cancellation callback fixture owns an active native text session");
+
+    const auto beginPreview = [&]
+    {
+        field->SetText(L"alpha");
+        window.Host().SetFocusControl(field);
+        window.Host().SyncTextInput(field);
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+        NativeTextInputImePayload preview{};
+        preview.hasCompositionString = true;
+        preview.compositionString    = L"draft";
+        window.Host().DebugSetNativeTextInputImePayloadForTest(preview);
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+        Require(field->GetText() == L"alphadraft", "cancellation callback fixture starts from the owned IMM preview");
+    };
+
+    // Export returns the old preview, then application synchronization publishes newer text into the cache.
+    beginPreview();
+    field->onExport = [&]
+    {
+        field->SetText(L"application");
+        window.Host().SyncTextInput(field);
+    };
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+    NativeTextInputState state{};
+    Require(field->GetText() == L"application", "cancellation does not import the stale base after same-editor application text wins");
+    Require(window.Host().TryReadNativeTextInputState(field, state) && state.text == L"application" && ! state.compositionStartIndex &&
+                ! state.compositionEndIndex,
+            "same-editor callback synchronization keeps its newer native cache and cleared composition ranges");
+
+    // A nested fresh START and preview replace the cancelled generation on the same HWND and control.
+    beginPreview();
+    field->onExport = [&]
+    {
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+        NativeTextInputImePayload successor{};
+        successor.hasCompositionString = true;
+        successor.compositionString    = L"next";
+        window.Host().DebugSetNativeTextInputImePayloadForTest(successor);
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+    };
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+    Require(field->GetText() == L"alphadraftnext", "old cancellation does not overwrite the same-control successor preview");
+    Require(window.Host().TryReadNativeTextInputState(field, state) && state.text == L"alphadraftnext" && state.compositionStartIndex &&
+                state.compositionEndIndex,
+            "same-control successor composition retains its own active native state");
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+    Require(field->GetText() == L"alphadraft", "the successor cancellation restores only its own entry state");
+
+    // A failed export with no successor retires the metadata and allows a later ordinary synchronization.
+    beginPreview();
+    field->onExport = [] { throw std::runtime_error("test owned cancellation export failure"); };
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+    window.Host().SyncTextInput(field);
+    Require(window.Host().TryReadNativeTextInputState(field, state) && state.text == L"alphadraft" && ! state.compositionStartIndex &&
+                ! state.compositionEndIndex,
+            "a contained cancellation export failure leaves the live text intact and permits synchronization recovery");
+
+    // A new editor session installed by Export must keep its cache even when the old callback then throws.
+    for (const bool allocationFailure : {false, true})
+    {
+        beginPreview();
+        field->onExport = [&, allocationFailure]
+        {
+            window.Host().SetFocusControl(other);
+            if (allocationFailure)
+                throw std::bad_alloc{};
+            throw std::runtime_error("test export failure after focus replacement");
+        };
+        static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+        Require(window.Host().GetFocusControl() == other, "a throwing cancellation callback preserves its newer focused editor");
+        Require(window.Host().TryReadNativeTextInputState(other, state) && state.text == L"other",
+                "exception fallback does not clear the replacement editor's native cache");
+    }
+
+    // The callback can replace the root and destroy the control whose virtual Export is still returning.
+    window.Host().SetFocusControl(field);
+    window.Host().SyncTextInput(field);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+    NativeTextInputImePayload destructionPreview{};
+    destructionPreview.hasCompositionString = true;
+    destructionPreview.compositionString    = L"draft";
+    window.Host().DebugSetNativeTextInputImePayloadForTest(destructionPreview);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+    auto replacementRoot = std::make_unique<Panel>();
+    auto* replacement    = replacementRoot->AddChild<TextField>(L"replacement");
+    replacement->SetBounds(D2D1::RectF(12.0f, 16.0f, 220.0f, 44.0f));
+    field->onExport = [&]
+    {
+        window.Host().SetRoot(std::move(replacementRoot));
+        window.Host().SetFocusControl(replacement);
+    };
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+    Require(window.Host().GetFocusControl() == replacement && replacement->GetText() == L"replacement",
+            "cancellation does not use the destroyed control after its Export callback replaces the root");
+    Require(window.Host().TryReadNativeTextInputState(replacement, state) && state.text == L"replacement",
+            "root replacement during Export retains the successor native session");
+}
+
+void TestNativeTextInputProviderExposesImeTextEditRanges()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"alpha beta");
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 32.0f));
+    window.Host().SetRoot(std::move(root));
+
+    bool focused                = false;
+    const auto activateAndFocus = [&]
+    {
+        if (! TryActivateDxUiTestWindow(window.Hwnd()))
+            return;
+        window.Host().SetFocusControl(field);
+        field->SetSelectionRange(5u, 5u);
+        window.Host().SyncTextInput(field);
+        window.PumpMessages();
+        focused = GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, activateAndFocus), "native IME TextEdit range query"))
+        return;
+    if (! focused)
+    {
+        SkipDxUiTest("native IME TextEdit ranges require an interactive focused host");
+        return;
+    }
+
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+    NativeTextInputImePayload payload;
+    payload.hasCompositionString  = true;
+    payload.compositionString     = L"-ime";
+    payload.compositionAttributes = {ATTR_INPUT, ATTR_TARGET_CONVERTED, ATTR_TARGET_CONVERTED, ATTR_INPUT};
+    payload.hasCursorPosition     = true;
+    payload.cursorPosition        = 3u;
+    window.Host().DebugSetNativeTextInputImePayloadForTest(payload);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR | GCS_COMPATTR | GCS_CURSORPOS));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "native IME TextEditPattern test creates a root provider");
+
+    wil::com_ptr_nothrow<IRawElementProviderFragment> fieldProvider =
+        GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 40.0f, 16.0f, "native IME text field provider resolves by point");
+    wil::com_ptr_nothrow<IRawElementProviderSimple> fieldSimple;
+    RequireSucceeded(fieldProvider.query_to(fieldSimple.put()), "native IME text field provider exposes IRawElementProviderSimple");
+
+    wil::com_ptr_nothrow<IUnknown> patternUnknown;
+    RequireSucceeded(fieldSimple->GetPatternProvider(UIA_TextEditPatternId, patternUnknown.put()), "native IME TextEditPattern lookup succeeds");
+    Require(patternUnknown != nullptr, "native IME text field exposes TextEditPattern");
+    wil::com_ptr_nothrow<ITextEditProvider> textEditPattern;
+    RequireSucceeded(patternUnknown.query_to(textEditPattern.put()), "native IME TextEditPattern supports ITextEditProvider");
+
+    wil::com_ptr_nothrow<ITextRangeProvider> activeComposition;
+    RequireSucceeded(textEditPattern->GetActiveComposition(activeComposition.put()), "native IME active-composition range lookup succeeds");
+    Require(activeComposition != nullptr, "native IME TextEditPattern exposes active composition range");
+    Require(ReadTextRangeText(*activeComposition.get(), -1, "native IME active-composition range reads text") == L"-ime",
+            "native IME active-composition range returns the preview string");
+
+    wil::com_ptr_nothrow<ITextRangeProvider> conversionTarget;
+    RequireSucceeded(textEditPattern->GetConversionTarget(conversionTarget.put()), "native IME conversion-target range lookup succeeds");
+    Require(conversionTarget != nullptr, "native IME TextEditPattern exposes conversion target range");
+    Require(ReadTextRangeText(*conversionTarget.get(), -1, "native IME conversion-target range reads text") == L"im",
+            "native IME conversion-target range returns the target-converted span");
+
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+}
+
+void TestNativeTextInputRaisesTextAndTextEditEventCounters()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"alpha beta");
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 32.0f));
+    window.Host().SetRoot(std::move(root));
+
+    bool focused                = false;
+    const auto activateAndFocus = [&]
+    {
+        if (! TryActivateDxUiTestWindow(window.Hwnd()))
+            return;
+        window.Host().SetFocusControl(field);
+        window.Host().SyncTextInput(field);
+        window.PumpMessages();
+        focused = GetFocus() == window.Hwnd() && window.Host().DebugHasActiveNativeTextInputSession();
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, activateAndFocus), "native text and TextEdit events"))
+        return;
+    if (! focused)
+    {
+        SkipDxUiTest("native text and TextEdit events require an interactive focused host");
+        return;
+    }
+
+    const NativeTextInputEventCounters baselineCounters = window.Host().DebugGetNativeTextInputEventCounters();
+    field->SetTextAndNotify(L"alpha beta edited");
+    window.Host().SyncTextInput(field);
+
+    NativeTextInputEventCounters counters = window.Host().DebugGetNativeTextInputEventCounters();
+    Require(counters.uiaTextChangedCount == baselineCounters.uiaTextChangedCount + 1u,
+            "native text input raises a UIA TextPattern text-changed event for retained text mutations");
+
+    const NativeTextInputEventCounters afterTextCounters = counters;
+    field->SetSelectionRange(6u, 10u);
+    window.Host().SyncTextInput(field);
+    counters = window.Host().DebugGetNativeTextInputEventCounters();
+    Require(counters.uiaTextSelectionChangedCount == afterTextCounters.uiaTextSelectionChangedCount + 1u,
+            "native text input raises a UIA TextPattern selection-changed event for retained selection mutations");
+
+    const NativeTextInputEventCounters afterSelectionCounters = counters;
+    field->SetSelectionRange(3u, 3u);
+    window.Host().SyncTextInput(field);
+    counters = window.Host().DebugGetNativeTextInputEventCounters();
+    Require(counters.uiaActiveTextPositionChangedCount == afterSelectionCounters.uiaActiveTextPositionChangedCount + 1u,
+            "native text input raises a UIA active text position event for retained caret moves");
+
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+    NativeTextInputImePayload payload;
+    payload.hasCompositionString  = true;
+    payload.compositionString     = L"-ime";
+    payload.compositionAttributes = {ATTR_INPUT, ATTR_TARGET_CONVERTED, ATTR_TARGET_CONVERTED, ATTR_INPUT};
+    window.Host().DebugSetNativeTextInputImePayloadForTest(payload);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR | GCS_COMPATTR));
+
+    counters = window.Host().DebugGetNativeTextInputEventCounters();
+    Require(counters.uiaTextEditTextChangedCount >= baselineCounters.uiaTextEditTextChangedCount + 1u,
+            "native IME composition raises a UIA TextEdit text-changed event");
+    Require(counters.uiaTextEditConversionTargetChangedCount == baselineCounters.uiaTextEditConversionTargetChangedCount + 1u,
+            "native IME target conversion raises a UIA TextEdit conversion-target-changed event");
+
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+}
+
 void TestNativeTextInputBackendImeCompositionPayloadPreviewsAndCancelRestoresBase()
 {
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1837,6 +3292,7 @@ void TestNativeTextInputBackendImeCompositionPaintExposesStyledInlineRanges()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1903,6 +3359,7 @@ void TestNativeTextInputBackendImeCompositionPaintExposesEditableComboInlineRang
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -1974,6 +3431,7 @@ void TestNativeTextInputBackendImeMultilineWrappedPreviewThenResultCommitsAtOrig
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -2026,6 +3484,7 @@ void TestNativeTextInputBackendImeCompositionOwnsSpecialKeys()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root          = std::make_unique<Panel>();
@@ -2085,6 +3544,7 @@ void TestNativeTextInputBackendImeCompositionLetsModifiedNavigationKeysRoute()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -2122,6 +3582,7 @@ void TestNativeTextInputBackendMultilineImeCompositionOwnsSpecialKeys()
     const auto runScenario = [](bool wrapped)
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root          = std::make_unique<Panel>();
@@ -2209,6 +3670,7 @@ void TestNativeTextInputBackendImeResultOnlyResumesHostKeyRouting()
     const auto runScenario = [](bool multiline, bool wrapped)
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root          = std::make_unique<Panel>();
@@ -2285,6 +3747,7 @@ void TestNativeTextInputBackendImeResultAndCompositionKeepsKeyOwnership()
     const auto runScenario = [](bool multiline, bool wrapped)
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root          = std::make_unique<Panel>();
@@ -2353,6 +3816,7 @@ void TestNativeTextInputBackendSyncsPrintableCharIntoSessionState()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -2380,6 +3844,7 @@ void TestNativeTextInputBackendSingleLineTabCharAndPasteReplacementSyncState()
     const bool edited = RetryClipboardSensitiveAction([]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -2417,6 +3882,7 @@ void TestNativeTextInputBackendStateMirrorsInheritedFlowDirection()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root = std::make_unique<Panel>();
@@ -2438,6 +3904,7 @@ void TestNativeTextInputBackendSyncsFocusedInheritedFlowDirectionChanges()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -2467,6 +3934,7 @@ void TestNativeTextInputBackendEditableComboSyncsTextAndFlowDirection()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -2509,6 +3977,7 @@ void TestNativeTextInputBackendEditableComboCommandsAndPopupSyncState()
     const bool edited = RetryClipboardSensitiveAction([]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -2613,6 +4082,7 @@ void TestNativeTextInputBackendEditableComboExactMatchCommandsSyncSelection()
     const bool edited = RetryClipboardSensitiveAction([]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -2676,6 +4146,7 @@ void TestNativeTextInputBackendEditableComboDeleteKeysAndPathWordDeleteSyncState
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -2734,6 +4205,7 @@ void TestNativeTextInputBackendSyncsPrintableSysCharIntoSessionState()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -2757,6 +4229,7 @@ void TestNativeTextInputBackendSyncsKeySelectionIntoSessionState()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -2779,6 +4252,7 @@ void TestNativeTextInputBackendExposesBackendNeutralTextInputState()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
 
     auto root   = std::make_unique<Panel>();
     auto* field = root->AddChild<TextField>(L"alpha");
@@ -2811,6 +4285,7 @@ void TestNativeTextInputBackendSurrogatePairDeletionSyncsState()
 
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -2832,6 +4307,7 @@ void TestNativeTextInputBackendSurrogatePairDeletionSyncsState()
 
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -2867,6 +4343,7 @@ void TestNativeTextInputBackendEmojiZwJDeletionSyncsState()
 
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -2888,6 +4365,7 @@ void TestNativeTextInputBackendEmojiZwJDeletionSyncsState()
 
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -2923,6 +4401,7 @@ void TestNativeTextInputBackendRegionalIndicatorFlagDeletionSyncsState()
 
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -2944,6 +4423,7 @@ void TestNativeTextInputBackendRegionalIndicatorFlagDeletionSyncsState()
 
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -2972,6 +4452,7 @@ void TestNativeTextInputBackendEmojiSuffixDeletionSyncsState()
     const auto verifyBackspace = [](const std::wstring& textElement, const char* textMessage, const char* stateMessage)
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root         = std::make_unique<Panel>();
@@ -2997,6 +4478,7 @@ void TestNativeTextInputBackendEmojiSuffixDeletionSyncsState()
     const auto verifyDelete = [](const std::wstring& textElement, const char* textMessage, const char* stateMessage)
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root         = std::make_unique<Panel>();
@@ -3039,6 +4521,7 @@ void TestNativeTextInputBackendEmojiShiftSelectionSyncsState()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     std::wstring text = L"A";
@@ -3075,6 +4558,7 @@ void TestNativeTextInputBackendCtrlWordDeletionSyncsState()
 
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -3095,6 +4579,7 @@ void TestNativeTextInputBackendCtrlWordDeletionSyncsState()
 
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -3120,6 +4605,7 @@ void TestNativeTextInputBackendPointerCaretPlacementSyncsState()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -3151,6 +4637,7 @@ void TestNativeTextInputBackendSingleLineDoubleClickSelectsWordOnHostHwnd()
     const size_t expectedEnd = expectedStart + std::wstring_view(L"domain").size();
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -3196,6 +4683,7 @@ void TestNativeTextInputBackendSingleLineRepeatedClicksWithoutClassDoubleClicksS
     const size_t expectedEnd = expectedStart + std::wstring_view(L"domain").size();
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -3241,6 +4729,7 @@ void TestNativeTextInputBackendSingleLineThirdClickSelectsAllOnHostHwnd()
     Require(targetIndex != std::wstring_view::npos, "native third-click select-all test locates target word");
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -3280,6 +4769,7 @@ void TestNativeTextInputBackendSingleLineDragSelectionReplacesRangeOnHostHwnd()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -3323,6 +4813,7 @@ void TestNativeTextInputBackendMixedBiDiDragSelectionCopiesLogicalOrderOnHostHwn
         constexpr std::wstring_view mixedBiDiText = L"abc \x05D0\x05D1\x05D2";
 
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root = std::make_unique<Panel>();
@@ -3448,6 +4939,7 @@ void TestNativeTextInputBackendBiDiKeyboardLogicalBoundaryCommandsSyncState()
     constexpr std::wstring_view originalText = L"ab \x05D0\x05D1 cd";
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root = std::make_unique<Panel>();
@@ -3526,6 +5018,7 @@ void TestNativeTextInputBackendMixedBiDiEditTransactionsPreserveLogicalOrder()
         constexpr size_t hebrewEnd                        = 5u;
 
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root = std::make_unique<Panel>();
@@ -3618,6 +5111,7 @@ void TestNativeTextInputBackendPointerHitTestDoesNotSplitEmojiTextElements()
     const auto verifyPointerInsertion = [](const std::wstring& textElement, const char* message)
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         std::wstring text = L"A";
@@ -3677,6 +5171,7 @@ void TestNativeTextInputBackendEditableComboPointerHitTestDoesNotSplitEmojiTextE
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     const std::wstring textElement = MakeUsFlagTextElement();
@@ -3735,6 +5230,7 @@ void TestNativeTextInputBackendNoSelectionCopyLeavesClipboardUnchanged()
     const bool copied = RetryClipboardSensitiveAction([]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -3760,6 +5256,7 @@ void TestNativeTextInputBackendCtrlCopyCutPasteSyncsState()
     const bool edited = RetryClipboardSensitiveAction([]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -3821,6 +5318,7 @@ void TestNativeTextInputBackendUndoRedoAndRedoClear()
     const bool edited = RetryClipboardSensitiveAction([]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -3878,6 +5376,7 @@ void TestNativeTextInputBackendEditTransactionsNotifyOnceAndIgnoreNoOps()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -3933,6 +5432,7 @@ void TestNativeTextInputBackendEmojiClipboardReplacementUndoRedo()
     const bool edited = RetryClipboardSensitiveAction([&]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -4005,6 +5505,7 @@ void TestNativeTextInputBackendMaskedHiddenSuppressesCopyAndCut()
     const bool suppressed = RetryClipboardSensitiveAction([]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -4048,6 +5549,7 @@ void TestNativeTextInputBackendMaskedExactPolicyCountsTextElements()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     std::wstring secret = L"A";
@@ -4076,6 +5578,7 @@ void TestNativeTextInputBackendMaskedConcealedPolicyUsesStableBuckets()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -4110,6 +5613,7 @@ void TestNativeTextInputBackendMaskedConcealedPolicyRegeneratesEpochs()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -4155,6 +5659,7 @@ void TestNativeTextInputBackendConcealedEditingAffordancesAndPointerPolicy()
     const bool edited = RetryClipboardSensitiveAction([]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -4225,6 +5730,7 @@ void TestNativeTextInputBackendRevealedMaskedFieldAllowsCopyAndCut()
     const bool revealedCut = RetryClipboardSensitiveAction([]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -4266,6 +5772,7 @@ void TestNativeTextInputBackendRevealedMaskedFieldRemasksOnBlurReadOnlyAndDisabl
 
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -4285,6 +5792,7 @@ void TestNativeTextInputBackendRevealedMaskedFieldRemasksOnBlurReadOnlyAndDisabl
 
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -4303,6 +5811,7 @@ void TestNativeTextInputBackendRevealedMaskedFieldRemasksOnBlurReadOnlyAndDisabl
 
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -4325,6 +5834,7 @@ void TestNativeTextInputBackendImeCompositionClearsOnWindowDeactivate()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -4385,6 +5895,7 @@ void TestNativeTextInputBackendRevealedMaskedFieldRemasksOnWindowDeactivate()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -4424,6 +5935,7 @@ void TestNativeTextInputBackendMaskedRevealButtonRemasksOnCaptureLoss()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -4454,6 +5966,7 @@ void TestNativeTextInputBackendMaskedRevealButtonPeeksWithoutClearingSecret()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -4485,6 +5998,7 @@ void TestNativeTextInputBackendMaskedRevealButtonSupportsKeyboardPeek()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -4535,6 +6049,7 @@ void TestNativeTextInputBackendPasswordRevealModesControlAffordanceAndVisibility
 
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -4566,6 +6081,7 @@ void TestNativeTextInputBackendPasswordRevealModesControlAffordanceAndVisibility
     const bool visibleModeCopied = RetryClipboardSensitiveAction([]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -4617,6 +6133,7 @@ void TestNativeTextInputBackendReadOnlyAllowsCopyAndSuppressesMutation()
     const bool suppressed = RetryClipboardSensitiveAction([]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -4674,6 +6191,7 @@ void TestNativeTextInputBackendMultilineCtrlCopyPastePreservesLogicalNewlines()
     const bool edited = RetryClipboardSensitiveAction([]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -4723,6 +6241,7 @@ void TestNativeTextInputBackendMultilineCharAndReturnReplacementSyncState()
 
         {
             AttachedHostWindow window;
+            static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
             window.Host().SetTextInputBackend(TextInputBackend::Native);
 
             auto root   = std::make_unique<Panel>();
@@ -4753,6 +6272,7 @@ void TestNativeTextInputBackendMultilineCharAndReturnReplacementSyncState()
 
         {
             AttachedHostWindow window;
+            static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
             window.Host().SetTextInputBackend(TextInputBackend::Native);
 
             auto root    = std::make_unique<Panel>();
@@ -4812,6 +6332,7 @@ void TestNativeTextInputBackendEditMessagesCopyPasteCutClearSelection()
     const bool edited = RetryClipboardSensitiveAction([]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -4865,11 +6386,46 @@ void TestNativeTextInputBackendEditMessagesCopyPasteCutClearSelection()
     Require(edited, "native edit messages copy, paste, cut, clear selection, and undo through the host-owned text session");
 }
 
+void TestNativeTextInputBackendEditMessagesRejectIneligibleReplaceBeforeReadingPointer()
+{
+    using namespace DxUi;
+
+    const auto verifyRejectedReplacement = [](bool masked)
+    {
+        AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+        window.Host().SetTextInputBackend(TextInputBackend::Native);
+        auto root              = std::make_unique<Panel>();
+        auto* field            = root->AddChild<TextField>(L"alpha");
+        unsigned notifications = 0u;
+        field->SetOnTextChanged([&](std::wstring_view) { ++notifications; });
+        field->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 44.0f));
+        window.Host().SetRoot(std::move(root));
+        window.Host().SetFocusControl(field);
+        if (masked)
+            field->SetMasked(true);
+        else
+            field->SetReadOnly(true);
+        field->SetSelectionRange(1u, 4u);
+        window.Host().SyncTextInput(field);
+
+        bool handled         = false;
+        const LRESULT result = window.Host().HandleMessage(window.Hwnd(), EM_REPLACESEL, TRUE, static_cast<LPARAM>(1), handled);
+        Require(handled && result == FALSE, "EM_REPLACESEL rejects an ineligible editor before inspecting its replacement pointer");
+        Require(field->GetText() == L"alpha" && notifications == 0u, "rejected EM_REPLACESEL leaves masked/read-only text and notification history unchanged");
+        return true;
+    };
+
+    Require(verifyRejectedReplacement(false), "native EM_REPLACESEL cannot mutate a read-only field");
+    Require(verifyRejectedReplacement(true), "native EM_REPLACESEL cannot mutate a masked field");
+}
+
 void TestNativeTextInputBackendEditMessagesRoundTripWin32Protocol()
 {
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -4880,23 +6436,13 @@ void TestNativeTextInputBackendEditMessagesRoundTripWin32Protocol()
     window.Host().SetRoot(std::move(root));
     window.Host().SetFocusControl(field);
 
-    const std::wstring expectedWin32Text = L"alpha\r\nbeta \xD83D\xDE00";
-    Require(SendMessageW(window.Hwnd(), WM_GETTEXTLENGTH, 0, 0) == static_cast<LRESULT>(expectedWin32Text.size()),
-            "native wm_gettextlength reports CRLF-normalized multiline text length");
-
-    std::array<wchar_t, 64> buffer{};
-    const LRESULT copied = SendMessageW(window.Hwnd(), WM_GETTEXT, buffer.size(), reinterpret_cast<LPARAM>(buffer.data()));
-    Require(copied == static_cast<LRESULT>(expectedWin32Text.size()) && std::wstring(buffer.data()) == expectedWin32Text,
-            "native wm_gettext returns CRLF-normalized multiline text and preserves surrogate pairs");
-
-    const wchar_t replacementText[] = L"one\r\ntwo \xD83D\xDE00";
-    Require(SendMessageW(window.Hwnd(), WM_SETTEXT, 0, reinterpret_cast<LPARAM>(replacementText)) == TRUE, "native wm_settext reports success");
-    Require(field->GetText() == L"one\ntwo \xD83D\xDE00", "native wm_settext normalizes CRLF input to logical LF text");
+    field->SetTextAndNotify(L"one\ntwo \xD83D\xDE00");
+    Require(field->GetText() == L"one\ntwo \xD83D\xDE00", "public text setter replaces the logical multiline text");
 
     DWORD selectionStart = 0;
     DWORD selectionEnd   = 0;
     static_cast<void>(SendMessageW(window.Hwnd(), EM_GETSEL, reinterpret_cast<WPARAM>(&selectionStart), reinterpret_cast<LPARAM>(&selectionEnd)));
-    Require(selectionStart == 11u && selectionEnd == 11u, "native wm_settext leaves the Win32 selection collapsed at the logical end");
+    Require(selectionStart == 11u && selectionEnd == 11u, "public text setter leaves Win32 selection collapsed at the logical end");
 
     Require(SendMessageW(window.Hwnd(), EM_SETSEL, 0, 3) != 0, "native em_setsel returns nonzero on success");
     Require(SendMessageW(window.Hwnd(), EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L"ONE\r\nTWO")) == TRUE, "native em_replacesel reports success");
@@ -4910,11 +6456,12 @@ void TestNativeTextInputBackendEditMessagesRoundTripWin32Protocol()
     Require(selectionStart == selectionEnd && selectionEnd == 16u, "native em_setsel(-1, -1) collapses the Win32 selection at the end");
 }
 
-void TestNativeTextInputBackendEditMessagesSetTextClearsComposition()
+void TestNativeTextInputPublicSetTextClearsComposition()
 {
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -4927,14 +6474,30 @@ void TestNativeTextInputBackendEditMessagesSetTextClearsComposition()
     static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
     NativeTextInputState state{};
     Require(window.Host().TryReadNativeTextInputState(field, state) && state.compositionStartIndex.has_value(),
-            "native edit-message wm_settext test starts with an active composition");
+            "native public-set-text test starts with an active composition");
 
-    Require(SendMessageW(window.Hwnd(), WM_SETTEXT, 0, reinterpret_cast<LPARAM>(L"omega\r\npsi")) == TRUE,
-            "native wm_settext during composition reports success");
-    Require(window.Host().TryReadNativeTextInputState(field, state), "native wm_settext during composition leaves readable state");
-    Require(field->GetText() == L"omega\r\npsi" || field->GetText() == L"omega\npsi", "native wm_settext during composition writes replacement text");
+    field->SetTextAndNotify(L"omega\npsi");
+    Require(window.Host().TryReadNativeTextInputState(field, state), "public SetText during composition leaves readable state");
+    Require(field->GetText() == L"omega\npsi", "public SetText during composition writes replacement text");
+    Require(state.text == field->GetText(), "public SetText immediately synchronizes replacement text into native state");
     Require(! state.compositionStartIndex.has_value() && ! state.compositionEndIndex.has_value(),
-            "native wm_settext during composition clears the active composition range");
+            "public SetText during composition clears the active composition range immediately");
+    const size_t replacementCaret = field->GetCaretIndex();
+    NativeTextInputImePayload late{};
+    late.hasCompositionString = true;
+    late.compositionString    = L"late preview";
+    window.Host().DebugSetNativeTextInputImePayloadForTest(late);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+    Require(field->GetText() == L"omega\npsi" && field->GetCaretIndex() == replacementCaret,
+            "late preview and end messages preserve the application's replacement and insertion point");
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_STARTCOMPOSITION, 0, 0));
+    late.compositionString = L"new";
+    window.Host().DebugSetNativeTextInputImePayloadForTest(late);
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_COMPOSITION, 0, GCS_COMPSTR));
+    Require(field->GetText() == L"omeganew\npsi", "a fresh START admits another preview at the retained replacement caret");
+    static_cast<void>(SendMessageW(window.Hwnd(), WM_IME_ENDCOMPOSITION, 0, 0));
+    Require(field->GetText() == L"omega\npsi", "the fresh composition cancels to the application replacement");
 }
 
 void TestNativeTextInputBackendEditMessagesFallBackWithoutTextInput()
@@ -4942,6 +6505,7 @@ void TestNativeTextInputBackendEditMessagesFallBackWithoutTextInput()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     Require(SetWindowTextW(window.Hwnd(), L"fallback-title") != FALSE, "native edit-message fallback test sets a host window title");
 
     bool handled         = true;
@@ -4957,6 +6521,7 @@ void TestNativeTextInputBackendClearWithoutSelectionLeavesTextAndClipboardUnchan
     const bool unchanged = RetryClipboardSensitiveAction([]()
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root   = std::make_unique<Panel>();
@@ -4986,6 +6551,7 @@ void TestNativeTextInputTextStoreRequiresLockAndExposesTextSelectionGeometry()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -4997,6 +6563,7 @@ void TestNativeTextInputTextStoreRequiresLockAndExposesTextSelectionGeometry()
     field->SetSelectionRange(0u, 5u);
     window.Host().SyncTextInput(field);
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store is created for focused native text input");
@@ -5004,7 +6571,6 @@ void TestNativeTextInputTextStoreRequiresLockAndExposesTextSelectionGeometry()
     LONG endOutsideLock = 0;
     Require(store->GetEndACP(&endOutsideLock) == TS_E_NOLOCK, "native text store rejects GetEndACP without a document lock");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
                      "native text store accepts a sink");
 
@@ -5093,6 +6659,7 @@ void TestNativeTextInputTextStoreRejectsDestroyedControlDuringTeardown()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -5120,6 +6687,7 @@ void TestNativeTextInputTextStoreExposesOwnerCompositionSink()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -5143,11 +6711,593 @@ void TestNativeTextInputTextStoreExposesOwnerCompositionSink()
     RequireSucceeded(compositionSink->OnEndComposition(nullptr), "native text store owner composition sink accepts composition end callbacks");
 }
 
+void TestNativeTextInputTextStoreCompositionCommitsOnceAndDisconnectCancels()
+{
+    using namespace DxUi;
+
+    const auto makeStore = [](AttachedHostWindow& window, TextField*& field, unsigned& changes)
+    {
+        auto root = std::make_unique<Panel>();
+        field     = root->AddChild<TextField>();
+        field->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 32.0f));
+        field->SetOnTextChanged([&changes](std::wstring_view) { ++changes; });
+        window.Host().SetRoot(std::move(root));
+        window.Host().SetFocusControl(field);
+        bool handled = false;
+        static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_CHAR, L'a', 0, handled));
+        Require(handled && field->GetText() == L"a", "native TSF composition fixture types and synchronizes its preceding edit");
+        changes = 0u;
+        wil::com_ptr_nothrow<ITextStoreACP> store;
+        store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
+        Require(store != nullptr, "native TSF composition fixture creates a focused text store");
+        return store;
+    };
+
+    {
+        AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+        window.Host().SetTextInputBackend(TextInputBackend::Native);
+        TextField* field = nullptr;
+        unsigned changes = 0u;
+        NativeTextStoreTestSink sink;
+        auto store = makeStore(window, field, changes);
+        wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> compositionSink;
+        RequireSucceeded(store.query_to(compositionSink.put()), "native TSF composition fixture queries the owner sink");
+        BOOL accepted = FALSE;
+        RequireSucceeded(compositionSink->OnStartComposition(nullptr, &accepted), "native TSF composition starts");
+        Require(accepted == TRUE, "native TSF composition is accepted for an unmasked editable field");
+
+        RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE), "native TSF composition fixture advises a sink");
+        sink.onLockGranted = [&](DWORD) noexcept
+        {
+            TS_TEXTCHANGE change{};
+            const HRESULT edit = store->SetText(0u, 1, 1, L"BC", 2u, &change);
+            return edit;
+        };
+        HRESULT session = E_UNEXPECTED;
+        RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "native TSF composition preview obtains a write lock");
+        RequireSucceeded(session, "native TSF composition preview is staged successfully");
+        Require(field->GetText() == L"aBC" && changes == 0u, "native TSF preview is visible without a model-change notification");
+
+        RequireSucceeded(compositionSink->OnEndComposition(nullptr), "native TSF composition ends and commits");
+        Require(field->GetText() == L"aBC" && changes == 1u, "native TSF composition publishes exactly one commit notification");
+        Require(field->OnKeyDown(window.Host(), 'Z', MK_CONTROL), "native TSF composition result is undoable");
+        Require(field->GetText() == L"a", "one undo removes the complete TSF composition and preserves prior text");
+        Require(field->OnKeyDown(window.Host(), 'Z', MK_CONTROL), "the edit preceding TSF composition remains undoable");
+        Require(field->GetText().empty(), "the second undo removes only the preceding typed edit");
+    }
+
+    {
+        AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+        window.Host().SetTextInputBackend(TextInputBackend::Native);
+        TextField* field = nullptr;
+        unsigned changes = 0u;
+        NativeTextStoreTestSink sink;
+        auto store = makeStore(window, field, changes);
+        wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> compositionSink;
+        RequireSucceeded(store.query_to(compositionSink.put()), "native TSF cancellation fixture queries the owner sink");
+        BOOL accepted = FALSE;
+        RequireSucceeded(compositionSink->OnStartComposition(nullptr, &accepted), "native TSF cancellation fixture starts composition");
+        Require(accepted == TRUE, "native TSF cancellation fixture composition is accepted");
+        RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE), "native TSF cancellation fixture advises a sink");
+        sink.onLockGranted = [&](DWORD) noexcept
+        {
+            TS_TEXTCHANGE change{};
+            return store->SetText(0u, 1, 1, L"discard", 7u, &change);
+        };
+        HRESULT session = E_UNEXPECTED;
+        RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "native TSF cancellation preview obtains a write lock");
+        RequireSucceeded(session, "native TSF cancellation preview is staged successfully");
+        Require(field->GetText() == L"adiscard" && changes == 0u, "native TSF cancellation preview remains uncommitted");
+
+        DisconnectNativeTextInputTextStore(store.get());
+        Require(field->GetText() == L"a", "disconnect cancels TSF preview and restores the pre-composition text");
+        Require(field->OnKeyDown(window.Host(), 'Z', MK_CONTROL), "cancelling TSF preview preserves earlier undo history");
+        Require(field->GetText().empty(), "undo after TSF cancellation removes the earlier edit without exposing preview history");
+    }
+}
+
+void TestNativeTextStoreCookieRejectsRetiredPreviewButBlurRollsBack()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"base");
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 36.0f));
+    window.Host().SetRoot(std::move(root));
+
+    NativeTextStoreTestSink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> retiredStore;
+    wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> retiredCompositionSink;
+    wil::com_ptr_nothrow<ITextStoreACP> blurStore;
+    wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> blurCompositionSink;
+    bool setupActive                 = false;
+    bool retiredPreviewStaged        = false;
+    bool staleLockRejected           = false;
+    bool sameControlPreviewPreserved = false;
+    bool blurPreviewStaged           = false;
+    bool normalBlurRestored          = false;
+    const auto run                   = [&]
+    {
+        sink.onLockGranted = {};
+        DisconnectNativeTextInputTextStore(retiredStore.get());
+        DisconnectNativeTextInputTextStore(blurStore.get());
+        retiredCompositionSink.reset();
+        retiredStore.reset();
+        blurCompositionSink.reset();
+        blurStore.reset();
+        setupActive = retiredPreviewStaged = staleLockRejected = false;
+        sameControlPreviewPreserved = blurPreviewStaged = normalBlurRestored = false;
+        window.Host().SetFocusControl(nullptr);
+        field->SetText(L"base");
+        window.Host().SetFocusControl(field);
+        setupActive = window.Host().DebugHasActiveNativeTextInputTsfDocument();
+        if (! setupActive)
+            return;
+
+        retiredStore.attach(CreateNativeTextInputTextStore(window.Host(), *field, true));
+        if (! retiredStore || FAILED(retiredStore.query_to(retiredCompositionSink.put())) ||
+            FAILED(retiredStore->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE)))
+            return;
+        BOOL accepted = FALSE;
+        if (FAILED(retiredCompositionSink->OnStartComposition(nullptr, &accepted)) || accepted != TRUE)
+            return;
+        sink.onLockGranted = [&](DWORD) noexcept
+        {
+            TS_TEXTCHANGE change{};
+            return retiredStore->SetText(0u, 0, 4, L"first preview", 13u, &change);
+        };
+        HRESULT session = E_UNEXPECTED;
+        if (SUCCEEDED(retiredStore->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session)) && SUCCEEDED(session))
+            retiredPreviewStaged = field->GetText() == L"first preview";
+        if (! retiredPreviewStaged)
+            return;
+
+        window.Host().SetFocusControl(nullptr);
+        window.Host().SetFocusControl(field);
+        session = E_UNEXPECTED;
+        static_cast<void>(retiredStore->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session));
+        staleLockRejected = session == TS_E_INVALIDPOS;
+        DisconnectNativeTextInputTextStore(retiredStore.get());
+        sameControlPreviewPreserved = field->GetText() == L"first preview";
+        retiredCompositionSink.reset();
+        retiredStore.reset();
+
+        blurStore.attach(CreateNativeTextInputTextStore(window.Host(), *field, true));
+        if (! blurStore || FAILED(blurStore.query_to(blurCompositionSink.put())) ||
+            FAILED(blurStore->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE)))
+            return;
+        accepted = FALSE;
+        if (FAILED(blurCompositionSink->OnStartComposition(nullptr, &accepted)) || accepted != TRUE)
+            return;
+        sink.onLockGranted = [&](DWORD) noexcept
+        {
+            TS_TEXTCHANGE change{};
+            return blurStore->SetText(0u, 0, static_cast<LONG>(field->GetText().size()), L"blur preview", 12u, &change);
+        };
+        session = E_UNEXPECTED;
+        if (SUCCEEDED(blurStore->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session)) && SUCCEEDED(session))
+            blurPreviewStaged = field->GetText() == L"blur preview";
+        if (! blurPreviewStaged)
+            return;
+
+        window.Host().SetFocusControl(nullptr);
+        DisconnectNativeTextInputTextStore(blurStore.get());
+        normalBlurRestored = field->GetText() == L"first preview";
+        blurCompositionSink.reset();
+        blurStore.reset();
+    };
+
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, run), "native TSF retired-session rollback assertions"))
+        return;
+
+    Require(setupActive && retiredPreviewStaged, "a production-cookie store can stage an owned composition preview");
+    Require(staleLockRejected, "a retired production store cannot start another same-control edit after reactivation");
+    Require(sameControlPreviewPreserved, "disconnecting an old same-control store cannot restore over its replacement session");
+    Require(blurPreviewStaged && normalBlurRestored, "ordinary blur disconnect still rolls back the old control's owned preview");
+}
+
+void TestNativeTextStoreExternalTextWinsCompositionEndAndDisconnect()
+{
+    using namespace DxUi;
+
+    const auto verifyReplacement = [](bool disconnect, bool makeReadOnly, bool makeMasked)
+    {
+        AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+        window.Host().SetTextInputBackend(TextInputBackend::Native);
+        auto root   = std::make_unique<Panel>();
+        auto* field = root->AddChild<TextField>(L"alpha");
+        field->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 32.0f));
+        unsigned changes = 0u;
+        field->SetOnTextChanged([&changes](std::wstring_view) { ++changes; });
+        window.Host().SetRoot(std::move(root));
+        window.Host().SetFocusControl(field);
+
+        NativeTextStoreTestSink sink;
+        wil::com_ptr_nothrow<ITextStoreACP> store;
+        store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
+        Require(store != nullptr, "external-text composition fixture creates a focused TSF store");
+        wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> compositionSink;
+        RequireSucceeded(store.query_to(compositionSink.put()), "external-text composition fixture queries the owner sink");
+        BOOL accepted = FALSE;
+        RequireSucceeded(compositionSink->OnStartComposition(nullptr, &accepted), "external-text fixture starts a TSF composition");
+        Require(accepted == TRUE, "external-text fixture composition is accepted");
+
+        RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE), "external-text composition fixture advises its sink");
+        sink.onLockGranted = [&](DWORD) noexcept
+        {
+            TS_TEXTCHANGE change{};
+            return store->SetText(0u, 1, 5, L"preview", 7u, &change);
+        };
+        HRESULT session = E_UNEXPECTED;
+        RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "external-text TSF preview obtains a write lock");
+        RequireSucceeded(session, "external-text TSF preview is staged");
+        Require(field->GetText() == L"apreview" && changes == 0u, "TSF preview is imported without notifying the application model");
+
+        field->SetTextAndNotify(L"application replacement");
+        Require(field->GetText() == L"application replacement" && changes == 1u,
+                "application replacement becomes current while the TSF composition remains active");
+        if (makeReadOnly)
+            field->SetReadOnly(true);
+        if (makeMasked)
+            field->SetMasked(true);
+
+        if (disconnect)
+            DisconnectNativeTextInputTextStore(store.get());
+        else
+            RequireSucceeded(compositionSink->OnEndComposition(nullptr), "late TSF composition end is accepted after an application replacement");
+
+        Require(field->GetText() == L"application replacement", "TSF cancellation cannot restore its older base over application text");
+        Require(changes == 1u, "discarded TSF preview emits no second model-change notification");
+        Require(field->IsReadOnly() == makeReadOnly, "TSF cancellation preserves the current read-only policy");
+        Require(field->IsMasked() == makeMasked, "TSF cancellation preserves the current masked policy");
+        return true;
+    };
+
+    Require(verifyReplacement(false, false, false), "TSF end preserves a newer application replacement");
+    Require(verifyReplacement(true, false, false), "TSF store disconnect preserves a newer application replacement");
+    Require(verifyReplacement(false, true, false), "TSF end preserves a newer replacement and read-only policy");
+    Require(verifyReplacement(false, false, true), "TSF disconnect preserves a newer replacement and masked policy");
+}
+
+void TestNativeTextInputTextStoreRejectsDirectLocksAfterFieldIsHidden()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"alpha");
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 36.0f));
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field);
+
+    NativeTextStoreTestSink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
+    Require(store != nullptr, "hidden-field TSF fixture creates a focused store");
+    unsigned lockCallbacks = 0u;
+    sink.onLockGranted     = [&](DWORD) noexcept
+    {
+        ++lockCallbacks;
+        return S_OK;
+    };
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE), "hidden-field TSF fixture advises its sink");
+
+    field->SetVisible(false);
+    HRESULT session = E_UNEXPECTED;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session),
+                     "retained TSF store reports hidden-target lock rejection through the session result");
+    Require(session == TS_E_INVALIDPOS && lockCallbacks == 0u, "a retained direct TSF lock cannot read or edit a field after it is hidden");
+}
+
+void TestNativeTextStoreRejectsLocksUnderDisabledAncestorAndRecovers()
+{
+    using namespace DxUi;
+
+    // A headless host exercises logical focus and effective interactivity without depending on desktop activation.
+    ControlHost host;
+    host.SetTextInputBackend(TextInputBackend::Native);
+    auto root      = std::make_unique<Panel>();
+    auto* ancestor = root->AddChild<Panel>();
+    Require(ancestor != nullptr, "disabled-ancestor fixture creates the intermediate panel");
+    auto* field = ancestor->AddChild<TextField>(L"alpha");
+    Require(field != nullptr, "disabled-ancestor fixture creates its nested text field");
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(field, false);
+
+    NativeTextStoreTestSink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(host.DebugCreateNativeTextInputTextStoreForTest());
+    Require(store != nullptr, "disabled-ancestor fixture creates a focused headless TSF store");
+
+    unsigned textNotifications = 0u;
+    field->SetOnTextChanged([&](std::wstring_view) { ++textNotifications; });
+    unsigned lockCallbacks = 0u;
+    TS_TEXTCHANGE lastChange{};
+    sink.onLockGranted = [&](DWORD) noexcept
+    {
+        ++lockCallbacks;
+        const LONG end = static_cast<LONG>(field->GetText().size());
+        return store->SetText(0u, end, end, L"!", 1u, &lastChange);
+    };
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE), "disabled-ancestor fixture advises the TSF sink");
+
+    HRESULT session = E_UNEXPECTED;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "initial eligible TSF lock is dispatched");
+    RequireSucceeded(session, "initial eligible TSF lock is granted");
+    Require(field->GetText() == L"alpha!" && field->GetCaretIndex() == 6u && textNotifications == 1u && lockCallbacks == 1u && sink.textChangeCount == 0u &&
+                lastChange.acpStart == 5 && lastChange.acpOldEnd == 5 && lastChange.acpNewEnd == 6,
+            "initial focused child edit establishes the recovery baseline");
+
+    ancestor->SetEnabled(false);
+    const std::wstring disabledText(field->GetText());
+    const size_t disabledCaret             = field->GetCaretIndex();
+    const unsigned disabledNotifications   = textNotifications;
+    const uint32_t disabledSinkTextChanges = sink.textChangeCount;
+    session                                = E_UNEXPECTED;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session),
+                     "retained TSF store reports disabled-ancestor rejection through the lock session result");
+    Require(session == TS_E_INVALIDPOS, "a TSF lock cannot target a focused child below a disabled ancestor");
+    Require(lockCallbacks == 1u && field->GetText() == disabledText && field->GetCaretIndex() == disabledCaret && textNotifications == disabledNotifications &&
+                sink.textChangeCount == disabledSinkTextChanges,
+            "rejected descendant lock invokes no sink edit and changes no text, caret, or notifications");
+
+    ancestor->SetEnabled(true);
+    host.SetFocusControl(field, false);
+    session = E_UNEXPECTED;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "a fresh TSF lock is dispatched after the ancestor is re-enabled");
+    RequireSucceeded(session, "the focused child TSF lock recovers after ancestor re-enablement");
+    Require(field->GetText() == L"alpha!!" && field->GetCaretIndex() == 7u && textNotifications == disabledNotifications + 1u &&
+                sink.textChangeCount == disabledSinkTextChanges && lockCallbacks == 2u && lastChange.acpStart == 6 && lastChange.acpOldEnd == 6 &&
+                lastChange.acpNewEnd == 7,
+            "one fresh descendant edit reports its ACP delta and one application change after recovery, without echoing a TSF self-edit");
+}
+
+void TestNativeTextStoreCompositionRangeUsesStagedTextAfterInsert()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"ab");
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 32.0f));
+    field->SetSelectionRange(1u, 1u);
+    unsigned changes = 0u;
+    field->SetOnTextChanged([&changes](std::wstring_view) { ++changes; });
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field);
+
+    NativeTextStoreTestSink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
+    Require(store != nullptr, "native TSF staged-range test creates a focused text store");
+    wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> compositionSink;
+    RequireSucceeded(store.query_to(compositionSink.put()), "native TSF staged-range test queries the owner sink");
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE), "native TSF staged-range test advises a sink");
+
+    ClientComposition composition;
+    composition.range.start  = 1;
+    composition.range.length = 4;
+    ClientComposition duplicateComposition;
+    duplicateComposition.range.start  = 0;
+    duplicateComposition.range.length = 1;
+    sink.onLockGranted                = [&](DWORD) noexcept
+    {
+        LONG first = -1;
+        LONG last  = -1;
+        TS_TEXTCHANGE change{};
+        const HRESULT inserted = store->InsertTextAtSelection(0u, L"\u6771\u4eac\U0001f600", 4u, &first, &last, &change);
+        if (FAILED(inserted))
+        {
+            return inserted;
+        }
+        if (first != 1 || last != 5)
+        {
+            return E_UNEXPECTED;
+        }
+        BOOL accepted         = FALSE;
+        const HRESULT started = compositionSink->OnStartComposition(&composition, &accepted);
+        if (FAILED(started))
+        {
+            return started;
+        }
+        if (accepted != TRUE)
+        {
+            return E_UNEXPECTED;
+        }
+        BOOL duplicateAccepted       = TRUE;
+        const HRESULT duplicateStart = compositionSink->OnStartComposition(&duplicateComposition, &duplicateAccepted);
+        if (FAILED(duplicateStart) || duplicateAccepted != FALSE)
+        {
+            return E_UNEXPECTED;
+        }
+        return S_OK;
+    };
+
+    HRESULT session = E_UNEXPECTED;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "native TSF staged-range edit obtains a write lock");
+    RequireSucceeded(session, "native TSF stages insertion before composition start");
+    Require(field->GetText() == L"a\u6771\u4eac\U0001f600b" && changes == 0u,
+            "same-lock insertion is visible as an uncommitted preview while retaining the prior document");
+
+    NativeTextInputState nativeState{};
+    Require(window.Host().TryReadNativeTextInputState(field, nativeState), "native TSF staged-range state remains readable");
+    Require(nativeState.compositionStartIndex == std::optional<size_t>{1u} && nativeState.compositionEndIndex == std::optional<size_t>{5u},
+            "composition markers use the inserted staged document even when its end exceeds the lock-entry document length");
+    Require(nativeState.compositionStartIndex != std::optional<size_t>{0u},
+            "a second live composition in the same lock is rejected without replacing the active range");
+    Require(nativeState.compositionEndIndex.value() > 2u, "staged composition end lies beyond the original two-ACP document");
+
+    RequireSucceeded(compositionSink->OnEndComposition(&composition), "native TSF staged-range composition ends");
+    Require(field->GetText() == L"a\u6771\u4eac\U0001f600b" && changes == 1u, "the inserted composition publishes one committed text notification");
+    Require(field->OnKeyDown(window.Host(), 'Z', MK_CONTROL), "staged native TSF composition is one undoable edit");
+    Require(field->GetText() == L"ab", "one undo restores the lock-entry text after same-lock insertion and composition");
+}
+
+void TestNativeTextStoreSequentialCompositionsInOneLockHaveSeparateUndoUnits()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"base");
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 36.0f));
+    unsigned notifications = 0u;
+    field->SetOnTextChanged([&](std::wstring_view) { ++notifications; });
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field);
+
+    NativeTextStoreTestSink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
+    Require(store != nullptr, "sequential-composition fixture creates a focused TSF store");
+    wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> compositionSink;
+    RequireSucceeded(store.query_to(compositionSink.put()), "sequential-composition fixture queries the owner sink");
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE), "sequential-composition fixture advises the sink");
+
+    ClientComposition firstComposition;
+    firstComposition.range.start  = 4;
+    firstComposition.range.length = 0;
+    ClientComposition secondComposition;
+    secondComposition.range.start  = 5;
+    secondComposition.range.length = 0;
+    sink.onLockGranted             = [&](DWORD) noexcept
+    {
+        const auto insert = [&](const wchar_t* text) noexcept
+        {
+            LONG first = -1;
+            LONG last  = -1;
+            TS_TEXTCHANGE change{};
+            const HRESULT hr = store->InsertTextAtSelection(0u, text, 1u, &first, &last, &change);
+            if (FAILED(hr) || last != first + 1)
+                return FAILED(hr) ? hr : E_UNEXPECTED;
+            return S_OK;
+        };
+
+        BOOL firstAccepted = FALSE;
+        HRESULT hr         = compositionSink->OnStartComposition(&firstComposition, &firstAccepted);
+        if (FAILED(hr) || firstAccepted != TRUE)
+            return FAILED(hr) ? hr : E_UNEXPECTED;
+        if (FAILED(hr = insert(L"A")))
+            return hr;
+        if (FAILED(hr = compositionSink->OnEndComposition(&firstComposition)))
+            return hr;
+
+        BOOL secondAccepted = FALSE;
+        hr                  = compositionSink->OnStartComposition(&secondComposition, &secondAccepted);
+        if (FAILED(hr) || secondAccepted != TRUE)
+            return FAILED(hr) ? hr : E_UNEXPECTED;
+        if (FAILED(hr = insert(L"B")))
+            return hr;
+        return compositionSink->OnEndComposition(&secondComposition);
+    };
+
+    HRESULT session = E_UNEXPECTED;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "same-lock sequential compositions acquire a TSF write lock");
+    RequireSucceeded(session, "same-lock sequential composition edits complete");
+    Require(field->GetText() == L"baseAB" && notifications == 2u, "each sequential composition commits once even when both finish in the same TSF lock");
+    Require(field->OnKeyDown(window.Host(), 'Z', MK_CONTROL), "the second sequential composition is independently undoable");
+    Require(field->GetText() == L"baseA", "one undo removes only the second same-lock composition");
+    Require(field->OnKeyDown(window.Host(), 'Z', MK_CONTROL), "the first sequential composition has its own undo record");
+    Require(field->GetText() == L"base", "the next undo removes the first same-lock composition only");
+}
+
+void TestNativeTextStoreStaleSameLockCompositionCannotReplaceExternalText()
+{
+    using namespace DxUi;
+
+    const auto verifyStalePath = [](bool attemptStaleWrite)
+    {
+        AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+        window.Host().SetTextInputBackend(TextInputBackend::Native);
+        auto root   = std::make_unique<Panel>();
+        auto* field = root->AddChild<TextField>(L"base");
+        field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 36.0f));
+        unsigned notifications = 0u;
+        field->SetOnTextChanged([&notifications](std::wstring_view) { ++notifications; });
+        window.Host().SetRoot(std::move(root));
+        window.Host().SetFocusControl(field);
+
+        NativeTextStoreTestSink sink;
+        wil::com_ptr_nothrow<ITextStoreACP> store;
+        store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
+        Require(store != nullptr, "stale same-lock composition fixture creates a TSF store");
+        wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> compositionSink;
+        RequireSucceeded(store.query_to(compositionSink.put()), "stale same-lock composition fixture queries the owner sink");
+        RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE), "stale same-lock composition fixture advises its sink");
+
+        ClientComposition firstComposition;
+        firstComposition.range.start  = 4;
+        firstComposition.range.length = 0;
+        ClientComposition nextComposition;
+        nextComposition.range.start  = 5;
+        nextComposition.range.length = 0;
+        HRESULT staleWrite           = S_OK;
+        sink.onLockGranted           = [&](DWORD)
+        {
+            BOOL firstAccepted = FALSE;
+            HRESULT hr         = compositionSink->OnStartComposition(&firstComposition, &firstAccepted);
+            if (FAILED(hr) || firstAccepted != TRUE)
+                return FAILED(hr) ? hr : E_UNEXPECTED;
+
+            TS_TEXTCHANGE change{};
+            if (FAILED(hr = store->SetText(0u, 4, 4, L"A", 1u, &change)))
+                return hr;
+
+            // This direct application edit replaces the live backing document while
+            // the first TSF preview exists only in the current write-lock staging.
+            field->SetTextAndNotify(L"fresh");
+            if (attemptStaleWrite)
+            {
+                TS_TEXTCHANGE ignoredChange{};
+                staleWrite = store->SetText(0u, 0, 1, L"!", 1u, &ignoredChange);
+            }
+
+            if (FAILED(hr = compositionSink->OnEndComposition(&firstComposition)))
+                return hr;
+            BOOL nextAccepted = FALSE;
+            hr                = compositionSink->OnStartComposition(&nextComposition, &nextAccepted);
+            if (FAILED(hr) || nextAccepted != TRUE)
+                return FAILED(hr) ? hr : E_UNEXPECTED;
+            if (FAILED(hr = store->SetText(0u, 5, 5, L"B", 1u, &change)))
+                return hr;
+            return compositionSink->OnEndComposition(&nextComposition);
+        };
+
+        HRESULT session = E_UNEXPECTED;
+        RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "stale same-lock composition sequence obtains a write lock");
+        RequireSucceeded(session, "stale first composition is abandoned and the following one commits");
+        if (attemptStaleWrite)
+            Require(staleWrite == E_FAIL, "TSF cannot apply another staged edit after the application replaced the document");
+        Require(field->GetText() == L"freshB" && notifications == 2u,
+                "the second same-lock composition commits against fresh application text without publishing the stale preview");
+        Require(field->OnKeyDown(window.Host(), 'Z', MK_CONTROL), "the fresh same-lock composition has one undo unit");
+        Require(field->GetText() == L"fresh", "undo of the new composition restores the application's replacement text");
+        return true;
+    };
+
+    Require(verifyStalePath(false), "stale EndComposition followed by a new composition refreshes staged state");
+    Require(verifyStalePath(true), "a rejected stale ApplyState does not poison the next same-lock composition");
+}
+
 void TestNativeTextInputTextStoreExposesAcp2Surface()
 {
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -5158,6 +7308,7 @@ void TestNativeTextInputTextStoreExposesAcp2Surface()
     field->SetSelectionRange(6u, 10u);
     window.Host().SyncTextInput(field);
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native ACP2 text store test creates the text store");
@@ -5165,7 +7316,6 @@ void TestNativeTextInputTextStoreExposesAcp2Surface()
     wil::com_ptr_nothrow<ITextStoreACP2> store2;
     RequireSucceeded(store.query_to(store2.put()), "native text store exposes ITextStoreACP2");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store2->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
                      "native ACP2 text store accepts a sink");
 
@@ -5252,6 +7402,7 @@ void TestNativeTextInputTextStoreMixedBiDiGeometryUsesTextViewport()
     for (const FlowDirection flowDirection : {FlowDirection::LeftToRight, FlowDirection::RightToLeft})
     {
         AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
         window.Host().SetTextInputBackend(TextInputBackend::Native);
 
         auto root = std::make_unique<Panel>();
@@ -5284,11 +7435,11 @@ void TestNativeTextInputTextStoreMixedBiDiGeometryUsesTextViewport()
                                                      spans[2].second,
                                                      "native text store mixed-BiDi trailing span probe")};
 
+        NativeTextStoreTestSink sink;
         wil::com_ptr_nothrow<ITextStoreACP> store;
         store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
         Require(store != nullptr, "native text store mixed-BiDi geometry creates the text store");
 
-        NativeTextStoreTestSink sink;
         RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_LAYOUT_CHANGE), "native text store mixed-BiDi geometry accepts a sink");
 
         TsViewCookie activeView = 0u;
@@ -5356,6 +7507,7 @@ void TestNativeTextInputTextStoreMultilineTextExtUsesCaretLineGeometry()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -5377,11 +7529,11 @@ void TestNativeTextInputTextStoreMultilineTextExtUsesCaretLineGeometry()
                                                 (std::max)(expectedStartRect.bottom, expectedEndRect.bottom));
     const RECT expectedScreen     = DipRectToScreenRect(window, expectedDip);
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store multiline geometry creates the text store");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_LAYOUT_CHANGE), "native text store multiline geometry accepts a sink");
 
     TsViewCookie activeView = 0u;
@@ -5415,6 +7567,7 @@ void TestNativeTextInputTextStoreWrappedTextExtSpansVisualLineGeometry()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -5453,11 +7606,11 @@ void TestNativeTextInputTextStoreWrappedTextExtSpansVisualLineGeometry()
                                                                          (std::max)(firstCaretRect.bottom, previousLineCaretRect.bottom)));
     const LONG expectedMinimumWidth    = expectedFirstLineScreen.right - expectedFirstLineScreen.left;
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store wrapped extent creates the text store");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_LAYOUT_CHANGE), "native text store wrapped extent accepts a sink");
 
     TsViewCookie activeView = 0u;
@@ -5492,6 +7645,7 @@ void TestNativeTextInputTextStoreMultilinePointMapsToLineCaretAcp()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -5507,11 +7661,11 @@ void TestNativeTextInputTextStoreMultilinePointMapsToLineCaretAcp()
     Require(field->DebugGetCaretRect(window.Host(), 8u, caretRect), "native text store multiline point can measure the target caret");
     const POINT queryPoint = DipPointToScreenPoint(window, D2D1::Point2F(caretRect.left, (caretRect.top + caretRect.bottom) * 0.5f));
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store multiline point creates the text store");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_LAYOUT_CHANGE), "native text store multiline point accepts a sink");
 
     TsViewCookie activeView = 0u;
@@ -5543,6 +7697,7 @@ void TestNativeTextInputTextStoreWrappedPointMapsToVisualLineCaretAcp()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -5574,11 +7729,11 @@ void TestNativeTextInputTextStoreWrappedPointMapsToVisualLineCaretAcp()
 
     const POINT queryPoint = DipPointToScreenPoint(window, D2D1::Point2F(wrappedCaretRect.left, (wrappedCaretRect.top + wrappedCaretRect.bottom) * 0.5f));
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store wrapped point creates the text store");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_LAYOUT_CHANGE), "native text store wrapped point accepts a sink");
 
     TsViewCookie activeView = 0u;
@@ -5610,6 +7765,7 @@ void TestNativeTextInputTextStoreReportsNoLayoutForEmptyBounds()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -5621,11 +7777,11 @@ void TestNativeTextInputTextStoreReportsNoLayoutForEmptyBounds()
     window.Host().SyncTextInput(field);
     field->SetBounds(D2D1::RectF(0.0f, 0.0f, 0.0f, 0.0f));
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store no-layout test creates a store");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
                      "native text store no-layout test advises a sink");
 
@@ -5664,11 +7820,12 @@ void TestNativeTextInputTextStoreReportsNoLayoutForEmptyBounds()
     RequireSucceeded(store->UnadviseSink(&sink), "native text store no-layout test unadvises the sink");
 }
 
-void TestNativeTextInputTextStoreInsertAtSelectionMutatesRetainedTextAndNotifiesSink()
+void TestNativeTextInputTextStoreInsertAtSelectionMutatesRetainedTextWithoutEcho()
 {
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -5680,11 +7837,11 @@ void TestNativeTextInputTextStoreInsertAtSelectionMutatesRetainedTextAndNotifies
     field->SetSelectionRange(6u, 10u);
     window.Host().SyncTextInput(field);
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store mutation test creates a store");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
                      "native text store mutation test advises a sink");
 
@@ -5722,11 +7879,8 @@ void TestNativeTextInputTextStoreInsertAtSelectionMutatesRetainedTextAndNotifies
             "native text store query-only insert reports the projected TS_TEXTCHANGE span");
     Require(insertStart == 6 && insertEnd == 11, "native text store insert-at-selection returns inserted ACP bounds");
     Require(change.acpStart == 6 && change.acpOldEnd == 10 && change.acpNewEnd == 11, "native text store reports the TS_TEXTCHANGE span");
-    Require(sink.textChangeCount == 1u && sink.selectionChangeCount == 1u && sink.layoutChangeCount == 1u,
-            "native text store notifies text, selection, and layout sinks after mutation");
-    Require(sink.lastTextChange.acpStart == change.acpStart && sink.lastTextChange.acpOldEnd == change.acpOldEnd &&
-                sink.lastTextChange.acpNewEnd == change.acpNewEnd,
-            "native text store sink receives the mutation text-change span");
+    Require(sink.textChangeCount == 0u && sink.selectionChangeCount == 0u && sink.layoutChangeCount == 0u,
+            "native text store does not echo its own TSF edits back through sink notifications");
 
     RequireSucceeded(store->UnadviseSink(&sink), "native text store mutation test unadvises the sink");
 }
@@ -5743,6 +7897,7 @@ void TestNativeTextInputTextStoreEmojiRangeUsesLogicalUtf16Acp()
     const size_t replacementEnd         = emojiStart + replacement.size();
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -5754,11 +7909,11 @@ void TestNativeTextInputTextStoreEmojiRangeUsesLogicalUtf16Acp()
     field->SetSelectionRange(0u, 0u);
     window.Host().SyncTextInput(field);
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store emoji range test creates a store");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
                      "native text store emoji range test advises a sink");
 
@@ -5832,17 +7987,18 @@ void TestNativeTextInputTextStoreEmojiRangeUsesLogicalUtf16Acp()
     Require(change.acpStart == static_cast<LONG>(emojiStart) && change.acpOldEnd == static_cast<LONG>(emojiEnd) &&
                 change.acpNewEnd == static_cast<LONG>(replacementEnd),
             "native text store emoji range replacement reports logical UTF-16 TS_TEXTCHANGE bounds");
-    Require(sink.textChangeCount == 1u && sink.selectionChangeCount >= 1u && sink.layoutChangeCount >= 1u,
-            "native text store emoji range replacement notifies text, selection, and layout sinks");
+    Require(sink.textChangeCount == 0u && sink.selectionChangeCount == 0u && sink.layoutChangeCount == 0u,
+            "native text store emoji replacement does not echo TSF-originated edits to its sink");
 
     RequireSucceeded(store->UnadviseSink(&sink), "native text store emoji range test unadvises the sink");
 }
 
-void TestNativeTextInputTextStoreSetTextReplacesRangeAndNotifiesSink()
+void TestNativeTextInputTextStoreSetTextReplacesRangeWithoutEcho()
 {
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -5854,11 +8010,11 @@ void TestNativeTextInputTextStoreSetTextReplacesRangeAndNotifiesSink()
     field->SetSelectionRange(6u, 10u);
     window.Host().SyncTextInput(field);
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store creates a store for SetText replacement");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
                      "native text store SetText test advises a sink");
 
@@ -5891,11 +8047,8 @@ void TestNativeTextInputTextStoreSetTextReplacesRangeAndNotifiesSink()
     Require(fetchedSelection == 1u && selectionAfter.acpStart == 11 && selectionAfter.acpEnd == 11,
             "native text store SetText exposes the collapsed post-replacement selection");
     Require(change.acpStart == 6 && change.acpOldEnd == 10 && change.acpNewEnd == 11, "native text store SetText reports the replacement TS_TEXTCHANGE span");
-    Require(sink.textChangeCount == 1u && sink.selectionChangeCount == 1u && sink.layoutChangeCount == 1u,
-            "native text store SetText notifies text, selection, and layout sinks after replacement");
-    Require(sink.lastTextChange.acpStart == change.acpStart && sink.lastTextChange.acpOldEnd == change.acpOldEnd &&
-                sink.lastTextChange.acpNewEnd == change.acpNewEnd,
-            "native text store SetText sink receives the replacement text-change span");
+    Require(sink.textChangeCount == 0u && sink.selectionChangeCount == 0u && sink.layoutChangeCount == 0u,
+            "native text store SetText does not echo its own TSF edit back through sink notifications");
 
     RequireSucceeded(store->UnadviseSink(&sink), "native text store SetText test unadvises the sink");
 }
@@ -5909,6 +8062,7 @@ void TestNativeTextInputTextStoreCallbackInvalidation()
         for (unsigned scenario = 0; scenario != 4; ++scenario)
         {
             AttachedHostWindow window;
+            static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
             window.Host().SetTextInputBackend(TextInputBackend::Native);
             auto root        = std::make_unique<Panel>();
             TextField* field = nullptr;
@@ -5927,6 +8081,7 @@ void TestNativeTextInputTextStoreCallbackInvalidation()
             window.Host().SetRoot(std::move(root));
             window.Host().SetFocusControl(control);
             window.Host().SyncTextInput(control);
+            NativeTextStoreTestSink sink;
             wil::com_ptr_nothrow<ITextStoreACP> store;
             store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
             Require(store != nullptr, "callback invalidation fixture creates text store");
@@ -5960,7 +8115,6 @@ void TestNativeTextInputTextStoreCallbackInvalidation()
                 combo->SetOnTextChanged(changed);
             else
                 field->SetOnTextChanged(changed);
-            NativeTextStoreTestSink sink;
             RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
                              "callback invalidation advises sink");
             sink.onLockGranted = [&](DWORD) noexcept
@@ -5973,7 +8127,15 @@ void TestNativeTextInputTextStoreCallbackInvalidation()
             Require(FAILED(session) && calls == 1, "invalidated callback rejects stale continuation without repeat notification");
             Require(scenario == 3 || snapshotSurvived, "callback retains text argument even when control is destroyed or changed");
             Require(sink.textChangeCount == 0 && sink.selectionChangeCount == 0 && sink.layoutChangeCount == 0,
-                    "failed continuation emits no stale TSF success notifications");
+                    "TSF-originated SetText does not echo notifications before the invalidated continuation is rejected");
+            if (scenario == 2)
+            {
+                NotifyTextStoreChanged(store.get());
+                Require(sink.textChangeCount == 1 && sink.selectionChangeCount == 1 && sink.layoutChangeCount == 1,
+                        "callback replacement is reported once as an external edit after the failed lock has unwound");
+                Require(sink.lastTextChange.acpStart == 0 && sink.lastTextChange.acpOldEnd == 6 && sink.lastTextChange.acpNewEnd == 8,
+                        "out-of-lock external notification describes the callback's newer document");
+            }
             Require(sink.editTransactionStartCount == 1 && sink.editTransactionEndCount == 1 && sink.editTransactionDepth == 0,
                     "callback failure still balances text-store edit transaction");
             if (scenario == 0)
@@ -5996,6 +8158,7 @@ void TestNativeTextInputTextStoreExternalRetainedChangesNotifySink()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -6007,11 +8170,11 @@ void TestNativeTextInputTextStoreExternalRetainedChangesNotifySink()
     field->SetSelectionRange(0u, 5u);
     window.Host().SyncTextInput(field);
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store creates a store for external retained-change notification");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
                      "native text store external-change test advises a sink");
 
@@ -6025,6 +8188,7 @@ void TestNativeTextInputTextStoreExternalRetainedChangesNotifySink()
     field->SetTextAndNotify(L"alpha gamma");
     field->SetSelectionRange(6u, 11u);
     window.Host().SyncTextInput(field);
+    NotifyTextStoreChanged(store.get());
     sessionHr = E_UNEXPECTED;
     RequireSucceeded(store->RequestLock(TS_LF_READ, &sessionHr), "native text store observes an external retained text change");
     RequireSucceeded(sessionHr, "native text store external retained text lock succeeds");
@@ -6038,6 +8202,7 @@ void TestNativeTextInputTextStoreExternalRetainedChangesNotifySink()
     const uint32_t layoutChangesAfterText    = sink.layoutChangeCount;
     field->SetSelectionRange(0u, 5u);
     window.Host().SyncTextInput(field);
+    NotifyTextStoreChanged(store.get());
     sessionHr = E_UNEXPECTED;
     RequireSucceeded(store->RequestLock(TS_LF_READ, &sessionHr), "native text store observes an external retained selection change");
     RequireSucceeded(sessionHr, "native text store external retained selection lock succeeds");
@@ -6050,6 +8215,7 @@ void TestNativeTextInputTextStoreExternalRetainedChangesNotifySink()
     const uint32_t layoutChangesAfterSelection    = sink.layoutChangeCount;
     field->SetBounds(D2D1::RectF(8.0f, 4.0f, 280.0f, 44.0f));
     window.Host().SyncTextInput(field);
+    NotifyTextStoreChanged(store.get());
     sessionHr = E_UNEXPECTED;
     RequireSucceeded(store->RequestLock(TS_LF_READ, &sessionHr), "native text store observes an external retained layout change");
     RequireSucceeded(sessionHr, "native text store external retained layout lock succeeds");
@@ -6057,7 +8223,83 @@ void TestNativeTextInputTextStoreExternalRetainedChangesNotifySink()
                 sink.layoutChangeCount == layoutChangesAfterSelection + 1u,
             "native text store notifies only the layout sink after external retained layout change");
 
-    RequireSucceeded(store->UnadviseSink(&sink), "native text store external-change test unadvises the sink");
+    HRESULT layoutUnadviseResult = E_UNEXPECTED;
+    bool layoutCallbackCompleted = false;
+    sink.onLayoutChange          = [&](TsLayoutCode, TsViewCookie) noexcept
+    {
+        layoutUnadviseResult = store->UnadviseSink(&sink);
+        store.reset();
+        layoutCallbackCompleted = true;
+        return S_OK;
+    };
+    NotifyTextStoreLayoutChanged(store.get());
+    Require(layoutCallbackCompleted && SUCCEEDED(layoutUnadviseResult) && ! store,
+            "prepared-layout notification retains its sink and store while the callback unadvises and releases both");
+}
+
+void TestNativeTextInputDeferredStoreWorkRejectsRetiredSessionCookie()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"cookie");
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 36.0f));
+    window.Host().SetRoot(std::move(root));
+    bool activated                 = false;
+    bool oldWorkPosted             = false;
+    bool retired                   = false;
+    bool replacementActive         = false;
+    bool replacementWorkPosted     = false;
+    bool staleMessageHandled       = false;
+    bool staleMessagePreservedWork = false;
+    bool currentMessageHandled     = false;
+    bool currentMessageDrainedWork = false;
+    const auto run                 = [&]
+    {
+        activated = oldWorkPosted = retired = replacementActive = replacementWorkPosted = false;
+        staleMessageHandled = staleMessagePreservedWork = currentMessageHandled = currentMessageDrainedWork = false;
+        window.Host().SetFocusControl(nullptr);
+        window.Host().SetFocusControl(field);
+        activated = window.Host().DebugHasActiveNativeTextInputTsfDocument();
+        if (! activated)
+            return;
+
+        const UINT_PTR retiredCookie = window.Host().DebugGetNativeTextStoreDispatchCookieForTest();
+        oldWorkPosted                = window.Host().DebugPostActiveNativeTextStoreWorkForTest() && window.Host().DebugHasPostedNativeTextStoreWorkForTest();
+        window.Host().SetFocusControl(nullptr);
+        retired = ! window.Host().DebugHasPostedNativeTextStoreWorkForTest() && window.Host().DebugGetNativeTextStoreDispatchCookieForTest() != retiredCookie;
+        window.Host().SetFocusControl(field);
+        replacementActive = window.Host().DebugHasActiveNativeTextInputTsfDocument();
+        if (! replacementActive)
+            return;
+        const UINT_PTR currentCookie = window.Host().DebugGetNativeTextStoreDispatchCookieForTest();
+        replacementWorkPosted        = currentCookie != retiredCookie && window.Host().DebugPostActiveNativeTextStoreWorkForTest() &&
+                                       window.Host().DebugHasPostedNativeTextStoreWorkForTest();
+
+        const auto message = WndMsg::NativeTextStoreDeferredWork();
+        if (! message)
+            return;
+        bool handled = false;
+        static_cast<void>(window.Host().HandleMessage(window.Hwnd(), message.value, static_cast<WPARAM>(retiredCookie), 0, handled));
+        staleMessageHandled       = handled;
+        staleMessagePreservedWork = window.Host().DebugHasPostedNativeTextStoreWorkForTest();
+        handled                   = false;
+        static_cast<void>(window.Host().HandleMessage(window.Hwnd(), message.value, static_cast<WPARAM>(currentCookie), 0, handled));
+        currentMessageHandled     = handled;
+        currentMessageDrainedWork = ! window.Host().DebugHasPostedNativeTextStoreWorkForTest();
+        window.PumpMessages(); // Consume the actual queued PostMessage records; the retired one must stay inert.
+    };
+    if (! ForegroundHeldOrSkip(RunWhileForegroundHeld(window, run), "native TSF cookie generation assertions"))
+        return;
+
+    Require(activated && oldWorkPosted, "cookie test activates the production TSF text store and posts work through its host cookie");
+    Require(retired, "deactivation retires queued work from the old text-store session");
+    Require(replacementActive && replacementWorkPosted, "replacement session queues deferred work under a fresh cookie");
+    Require(staleMessageHandled && staleMessagePreservedWork, "a late message from the retired session cannot consume replacement-session work");
+    Require(currentMessageHandled && currentMessageDrainedWork, "the current session cookie drains its own posted work");
 }
 
 void TestNativeTextInputTextStoreExternalChangeNotificationHandlesSinkRequestedLock()
@@ -6065,6 +8307,7 @@ void TestNativeTextInputTextStoreExternalChangeNotificationHandlesSinkRequestedL
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -6076,11 +8319,11 @@ void TestNativeTextInputTextStoreExternalChangeNotificationHandlesSinkRequestedL
     field->SetSelectionRange(0u, 5u);
     window.Host().SyncTextInput(field);
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store creates a store for reentrant external-change notification");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
                      "native text store reentrant external-change test advises a sink");
 
@@ -6107,6 +8350,7 @@ void TestNativeTextInputTextStoreExternalChangeNotificationHandlesSinkRequestedL
     field->SetTextAndNotify(L"alpha gamma");
     field->SetSelectionRange(6u, 11u);
     window.Host().SyncTextInput(field);
+    NotifyTextStoreChanged(store.get());
 
     sessionHr = E_UNEXPECTED;
     RequireSucceeded(store->RequestLock(TS_LF_READ, &sessionHr), "native text store observes a reentrant external retained text change");
@@ -6127,6 +8371,7 @@ void TestNativeTextInputTextStoreRepeatedEmojiExternalChangesStayBounded()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -6138,11 +8383,11 @@ void TestNativeTextInputTextStoreRepeatedEmojiExternalChangesStayBounded()
     field->SetSelectionRange(field->GetText().size(), field->GetText().size());
     window.Host().SyncTextInput(field);
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store creates a store for repeated emoji external-change soak");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
                      "native text store repeated emoji external-change soak advises a sink");
 
@@ -6183,6 +8428,7 @@ void TestNativeTextInputTextStoreRepeatedEmojiExternalChangesStayBounded()
         field->SetTextAndNotify(nextText);
         field->SetSelectionRange(nextText.size(), nextText.size());
         window.Host().SyncTextInput(field);
+        NotifyTextStoreChanged(store.get());
 
         sessionHr = E_UNEXPECTED;
         RequireSucceeded(store->RequestLock(TS_LF_READ, &sessionHr), "native text store repeated emoji soak observes the external change");
@@ -6217,6 +8463,7 @@ void TestNativeTextInputTextStoreUnadviseRequiresAdvisedSink()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -6227,12 +8474,12 @@ void TestNativeTextInputTextStoreUnadviseRequiresAdvisedSink()
     window.Host().SetFocusControl(field);
     window.Host().SyncTextInput(field);
 
+    NativeTextStoreTestSink advisedSink;
+    NativeTextStoreTestSink unrelatedSink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store creates a store for UnadviseSink identity validation");
 
-    NativeTextStoreTestSink advisedSink;
-    NativeTextStoreTestSink unrelatedSink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &advisedSink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
                      "native text store UnadviseSink test advises the primary sink");
     Require(FAILED(store->UnadviseSink(&unrelatedSink)), "native text store rejects UnadviseSink for an unrelated sink");
@@ -6240,6 +8487,7 @@ void TestNativeTextInputTextStoreUnadviseRequiresAdvisedSink()
     advisedSink.onLockGranted = [](DWORD /*lockFlags*/) noexcept { return S_OK; };
     field->SetTextAndNotify(L"alpha gamma");
     window.Host().SyncTextInput(field);
+    NotifyTextStoreChanged(store.get());
 
     HRESULT sessionHr = E_UNEXPECTED;
     RequireSucceeded(store->RequestLock(TS_LF_READ, &sessionHr), "native text store mismatched UnadviseSink keeps the advised sink connected");
@@ -6255,6 +8503,7 @@ void TestNativeTextInputTextStoreReadWriteLockBracketsEditTransactionAndRejectsR
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -6265,11 +8514,11 @@ void TestNativeTextInputTextStoreReadWriteLockBracketsEditTransactionAndRejectsR
     window.Host().SetFocusControl(field);
     window.Host().SyncTextInput(field);
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store creates a store for read-write lock transaction coverage");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
                      "native text store transaction test advises a sink");
 
@@ -6316,6 +8565,7 @@ void TestNativeTextInputTextStoreEditableComboBoxSelectionAndMutation()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -6329,11 +8579,11 @@ void TestNativeTextInputTextStoreEditableComboBoxSelectionAndMutation()
     combo->SetEditableSelectionRange(6u, 10u);
     window.Host().SyncTextInput(combo);
 
+    NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
     store.attach(window.Host().DebugCreateNativeTextInputTextStoreForTest());
     Require(store != nullptr, "native text store creates a store for focused editable ComboBox");
 
-    NativeTextStoreTestSink sink;
     RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
                      "native editable combo text store advises a sink");
 
@@ -6381,8 +8631,8 @@ void TestNativeTextInputTextStoreEditableComboBoxSelectionAndMutation()
             "native editable combo text store mutation collapses native selection after inserted text");
     Require(insertStart == 0 && insertEnd == 5, "native editable combo text store insert-at-selection returns inserted ACP bounds");
     Require(change.acpStart == 0 && change.acpOldEnd == 5 && change.acpNewEnd == 5, "native editable combo text store reports the TS_TEXTCHANGE span");
-    Require(sink.textChangeCount == 1u && sink.selectionChangeCount == 2u && sink.layoutChangeCount == 2u,
-            "native editable combo text store notifies text, selection, and layout sinks after selection plus mutation");
+    Require(sink.textChangeCount == 0u && sink.selectionChangeCount == 0u && sink.layoutChangeCount == 0u,
+            "native editable ComboBox store does not echo its own TSF selection and text edits");
 
     RequireSucceeded(store->UnadviseSink(&sink), "native editable combo text store mutation test unadvises the sink");
 }
@@ -6392,6 +8642,7 @@ void TestNativeTextInputBackendKeyToPaintMetricScenario()
     using namespace DxUi;
 
     AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     window.Host().SetTextInputBackend(TextInputBackend::Native);
 
     auto root   = std::make_unique<Panel>();
@@ -6438,15 +8689,27 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestEmbeddedClipboardRejectsLargeNativePayload);
     DXUI_RUN_TEST(TestApplicationTextStoreInsertionAndLayout);
     DXUI_RUN_TEST(TestApplicationTextStoreTransactions);
+    DXUI_RUN_TEST(TestApplicationTextStoreDefersExternalNotificationUntilLockUnwinds);
     DXUI_RUN_TEST(TestApplicationTextStoreDeferredLocks);
     DXUI_RUN_TEST(TestApplicationCompositionCancelAfterFocusReplacement);
     DXUI_RUN_TEST(TestApplicationTextStoreFailuresAndGeometry);
     DXUI_RUN_TEST(TestApplicationTextServiceLifecycle);
+    DXUI_RUN_TEST(TestApplicationTextServiceReadReentrancyPreservesNewClient);
+    DXUI_RUN_TEST(TestApplicationTextServiceCancelReentrancyPreservesNewClient);
+    DXUI_RUN_TEST(TestApplicationTextServiceSameClientReattachmentSurvivesReadCallbacks);
+    DXUI_RUN_TEST(TestApplicationTextServiceRetirementReadReentrancyPreservesSameClientSuccessor);
+    DXUI_RUN_TEST(TestApplicationTextServiceDetachRejectsReentrantReattach);
+    DXUI_RUN_TEST(TestApplicationTextServiceRetirementPreservesForeignFocusAndReentrantWinner);
     DXUI_RUN_TEST(TestApplicationClipboardCommands);
     DXUI_RUN_TEST(TestBoundedClipboardDecode);
     DXUI_RUN_TEST(TestWindowHostDefaultsToNativeTextInputBackend);
     DXUI_RUN_TEST(TestNativeTextInputBackendFocusesHostWithoutBridgeChild);
     DXUI_RUN_TEST(TestNativeTextInputBackendActivatesTsfDocumentOnFocus);
+    DXUI_RUN_TEST(TestNativeTextInputHostFocusTransferPreservesNestedTsfActivation);
+    DXUI_RUN_TEST(TestNativeTextInputInactiveResetAndRootReplacementPreserveKeyboardFocus);
+    DXUI_RUN_TEST(TestNativeTextInputFocusNotificationRemovalRetiresEditorImmediately);
+    DXUI_RUN_TEST(TestNativeTextInputTsfCallbacksPreserveReentrantSameControlSession);
+    DXUI_RUN_TEST(TestNativeTextInputProcessExitPopCannotResurrectDetachedEditor);
     DXUI_RUN_TEST(TestNativeTextInputTsfSequenceRepeatsAfterTheForegroundIsTaken);
     DXUI_RUN_TEST(TestForegroundHoldGivesUpAfterTheMaximumRunsAndNamesWhoTookIt);
     DXUI_RUN_TEST(TestNativeTextInputBackendOwnsSystemCaretOnHostHwnd);
@@ -6474,6 +8737,13 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextInputTextStoreRequiresLockAndExposesTextSelectionGeometry);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreRejectsDestroyedControlDuringTeardown);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreExposesOwnerCompositionSink);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreCompositionCommitsOnceAndDisconnectCancels);
+    DXUI_RUN_TEST(TestNativeTextStoreCookieRejectsRetiredPreviewButBlurRollsBack);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreRejectsDirectLocksAfterFieldIsHidden);
+    DXUI_RUN_TEST(TestNativeTextStoreRejectsLocksUnderDisabledAncestorAndRecovers);
+    DXUI_RUN_TEST(TestNativeTextStoreCompositionRangeUsesStagedTextAfterInsert);
+    DXUI_RUN_TEST(TestNativeTextStoreSequentialCompositionsInOneLockHaveSeparateUndoUnits);
+    DXUI_RUN_TEST(TestNativeTextStoreStaleSameLockCompositionCannotReplaceExternalText);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreExposesAcp2Surface);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreMixedBiDiGeometryUsesTextViewport);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreMultilineTextExtUsesCaretLineGeometry);
@@ -6481,21 +8751,29 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextInputTextStoreMultilinePointMapsToLineCaretAcp);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreWrappedPointMapsToVisualLineCaretAcp);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreReportsNoLayoutForEmptyBounds);
-    DXUI_RUN_TEST(TestNativeTextInputTextStoreInsertAtSelectionMutatesRetainedTextAndNotifiesSink);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreInsertAtSelectionMutatesRetainedTextWithoutEcho);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreEmojiRangeUsesLogicalUtf16Acp);
-    DXUI_RUN_TEST(TestNativeTextInputTextStoreSetTextReplacesRangeAndNotifiesSink);
+    DXUI_RUN_TEST(TestNativeTextInputTextStoreSetTextReplacesRangeWithoutEcho);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreCallbackInvalidation);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreExternalRetainedChangesNotifySink);
+    DXUI_RUN_TEST(TestNativeTextInputDeferredStoreWorkRejectsRetiredSessionCookie);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreExternalChangeNotificationHandlesSinkRequestedLock);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreRepeatedEmojiExternalChangesStayBounded);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreUnadviseRequiresAdvisedSink);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreReadWriteLockBracketsEditTransactionAndRejectsReentrantLock);
+    DXUI_RUN_TEST(TestNativeTextStoreExternalTextWinsCompositionEndAndDisconnect);
     DXUI_RUN_TEST(TestNativeTextInputTextStoreEditableComboBoxSelectionAndMutation);
     DXUI_RUN_TEST(TestNativeTextInputBackendKeyToPaintMetricScenario);
     DXUI_RUN_TEST(TestNativeTextInputBackendImeStartEndUpdatesCompositionState);
     DXUI_RUN_TEST(TestNativeTextInputBackendReadOnlySuppressesImeComposition);
+    DXUI_RUN_TEST(TestNativeTextInputImePreviewCancelsWhenFieldBecomesIneligible);
+    DXUI_RUN_TEST(TestNativeTextInputZeroSizeCancelsImeAndResumesOnlyWithRetainedFocus);
+    DXUI_RUN_TEST(TestNativeTextInputHiddenHostRejectsLateImeAndDoesNotStealFocusOnShow);
+    DXUI_RUN_TEST(TestNativeTextInputNewerApplicationTextWinsImmCancellation);
+    DXUI_RUN_TEST(TestNativeTextInputBackendMaskedFieldRejectsTextServices);
     DXUI_RUN_TEST(TestNativeTextInputBackendImeStartTracksSelectedCompositionRange);
     DXUI_RUN_TEST(TestNativeTextInputBackendImeNoPayloadWithoutActiveCompositionDoesNotStartRange);
+    DXUI_RUN_TEST(TestNativeTextInputImeNoGcsFlagsCancelsOwnedPreviewAndPreservesHistory);
     DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsTrackCaretRect);
     DXUI_RUN_TEST(TestNativeTextInputBackendMultilineImeWindowsTrackCaretAcrossLines);
     DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsUpdateWhenFocusedFieldMoves);
@@ -6508,6 +8786,11 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsUpdateAfterDpiChange);
     DXUI_RUN_TEST(TestNativeTextInputBackendImeWindowsUpdateAfterMultilineScroll);
     DXUI_RUN_TEST(TestNativeTextInputBackendImeResultPayloadCommitsSelectionReplacement);
+    DXUI_RUN_TEST(TestNativeImeCommitOwnsOneUndoUnitAndLateResultPreservesApplicationText);
+    DXUI_RUN_TEST(TestNativeImeResultCallbacksPreserveNewerTextAndComposition);
+    DXUI_RUN_TEST(TestNativeImeCancellationCallbacksPreserveNewerState);
+    DXUI_RUN_TEST(TestNativeTextInputProviderExposesImeTextEditRanges);
+    DXUI_RUN_TEST(TestNativeTextInputRaisesTextAndTextEditEventCounters);
     DXUI_RUN_TEST(TestNativeTextInputBackendImeCompositionPayloadPreviewsAndCancelRestoresBase);
     DXUI_RUN_TEST(TestNativeTextInputBackendImeCompositionPaintExposesStyledInlineRanges);
     DXUI_RUN_TEST(TestNativeTextInputBackendImeCompositionPaintExposesEditableComboInlineRanges);
@@ -6560,7 +8843,8 @@ void RunNativeTextInputTests()
     DXUI_RUN_TEST(TestNativeTextInputBackendMultilineCharAndReturnReplacementSyncState);
     DXUI_RUN_TEST(TestNativeTextInputBackendEditMessagesCopyPasteCutClearSelection);
     DXUI_RUN_TEST(TestNativeTextInputBackendEditMessagesRoundTripWin32Protocol);
-    DXUI_RUN_TEST(TestNativeTextInputBackendEditMessagesSetTextClearsComposition);
+    DXUI_RUN_TEST(TestNativeTextInputBackendEditMessagesRejectIneligibleReplaceBeforeReadingPointer);
+    DXUI_RUN_TEST(TestNativeTextInputPublicSetTextClearsComposition);
     DXUI_RUN_TEST(TestNativeTextInputBackendEditMessagesFallBackWithoutTextInput);
     DXUI_RUN_TEST(TestNativeTextInputBackendClearWithoutSelectionLeavesTextAndClipboardUnchanged);
 }

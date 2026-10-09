@@ -143,11 +143,11 @@ static void TestEmbeddedTreeMultiSelect(GraphicsFixture& gpu)
     click(1, 0);
     Check(selected() == std::vector<uint64_t>{2u}, "an embedded click selects one row");
     click(3, MK_CONTROL);
-    Check(selected() == std::vector<uint64_t>{2u, 4u}, "an embedded Ctrl+click toggles a row");
+    Check(selected() == std::vector<uint64_t>{2u, 4u}, "an embedded Ctrl+click toggles a row and moves the range anchor there");
     click(4, MK_SHIFT);
-    Check(selected() == std::vector<uint64_t>{2u, 3u, 4u, 5u}, "an embedded Shift+click selects the range from the anchor");
+    Check(selected() == std::vector<uint64_t>{4u, 5u}, "an embedded Shift+click selects the range from the last Ctrl-toggled row");
     Check(view.DispatchKey(VK_UP, true, MK_SHIFT), "the tree handles Shift+Up");
-    Check(selected() == std::vector<uint64_t>{2u, 3u, 4u}, "an embedded Shift+Up shrinks the range");
+    Check(selected() == std::vector<uint64_t>{4u}, "an embedded Shift+Up shrinks the range to its anchor");
     Check(view.DispatchKey('A', true, MK_CONTROL), "the tree handles Ctrl+A");
     Check(selected().size() == 5u && delegate.lastSet.size() == 5u, "an embedded Ctrl+A selects every row and reports it");
     Hr(view.Prepare(720, 510, 144), "prepare after Ctrl+A");

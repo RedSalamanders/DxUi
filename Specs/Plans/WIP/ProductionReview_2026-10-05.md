@@ -1,10 +1,17 @@
-# Production review of the 25 September - 4 October merges
+# Production review and remediation of the recent merges
 
-- **Status**: ACTIVE (review complete; no fix started; questions below await the developer)
+- **Status**: ACTIVE (8 October corrections archived; accepted 9 October implementation and qualification in progress)
 - **Date**: 2026-10-05
-- **Window**: `9f5bc07` (main on 2026-09-25) to `49a9988`: 45 merged pull requests, #21 to #65. About 6,500 changed lines of
-  `src`/`include`, 24,000 of tests and 7,700 of tooling and CI.
+- **Requested window**: 28 September through 8 October 2026, from first-parent base `6b344566` to `bea676a`:
+  41 landings, pull requests #28 through #68. The retained scope inventory names all changed paths.
+- **Historical review**: `9f5bc07` (main on 2026-09-25) to `49a9988`: 45 merged pull requests, #21 to #65. The
+  historical findings and recommendations remain below and are superseded by the current dispositions.
 - **Revalidated**: against `e5ebbb5` (#66, #67) on 2026-10-06; see [Revalidation](#revalidation-at-e5ebbb5).
+- **Current remediation**: started 2026-10-08 on `codex/production-review-remediation-2026-10-08`, from clean
+  `bea676a`. The requested ten-day window is 28 September through 8 October, with first-parent base `6b344566`.
+  This includes #28-#68 and retains surrounding/pre-existing defects needed to make those paths safe.
+- **Recommendations**: [all 31 answers](#recommended-answers) revised on 2026-10-09 by the lead reviewer;
+  accepted by the user on 2026-10-09 with "go for all that". Implementation and qualification remain separate.
 - **Owning contracts**: [controls](../../UI/UI_ControlsAndLayout.md), [input and accessibility](../../UI/UI_InputAndAccessibility.md),
   [theme](../../UI/UI_ThemeAndTypography.md), [Win32 host](../../Rendering/Rendering_Win32Host.md),
   [embedded rendering](../../Rendering/Rendering_EmbeddedD3D11.md), [performance](../../Core/Core_PerformanceAndResources.md),
@@ -14,7 +21,429 @@
 
 ## How the review was made
 
-Static review only: nothing was built or run. Nineteen reviewers each took one area: menu loop and lifetime, menu layout,
+### Accepted implementation (9 October)
+
+The user accepted Q1-Q31. Continue on the existing feature branch, preserve the immutable 8 October packet as the
+pre-change baseline, and retain new evidence separately. The lead integrates and independently checks delegated
+Grid/Tree, text-input and tooling work. Prior receipts qualify their exact archived source only.
+
+The accepted implementation is integrated. The checkboxes below remain open until their associated qualification
+obligations finish; the performance policy remains a proposed migration awaiting concrete calibration and review.
+
+- [ ] Q1/Q2: ownership-safe child/tab extraction, compatible API guidance and measured dispatch retirement.
+- [ ] Q3/Q4/Q5/Q15: coalesced lazy native publication, canonical attachment identity, shared unlocked action execution
+  and independent target synchronization; preserve first-query freshness and every reentrancy boundary.
+- [ ] Q8/Q9/Q10/Q11: Unicode menu mnemonics, described-row identity/fallback/sizing, complete RTL contracts and system
+  high-contrast colors, with deterministic harness captures.
+- [ ] Q12/Q13/Q14/Q19: independent Grid focus, shared anchors, UIA selection/event semantics, quoted TSV and accessible
+  full-cell inspection; centralize shared tooltip bounds.
+- [ ] Q17/Q18: committed-composition undo, masked-field text-service/disclosure policy and diagnosed bounded transport.
+- [ ] Q20/Q21/Q23/Q24/Q27-Q31: required aggregate workflow, explicit skips/interactive obligations, six-profile
+  PrePush accounting, consumer signature/version fixtures and instrumentation identity.
+- [ ] Q22: versioned trusted benchmark acceptance, randomized independent blocks/A-A calibration, protected policy
+  migration and separate median/peak errata; no weakened threshold or silent rebaseline.
+- [ ] Q25/Q26: reconcile plans/capabilities, actual touch provenance, bounded feedback overlap and adoption trackers.
+- [ ] Qualify the final source with relevant native x64 Debug/Release/ASan, all ARM64 builds, consumer fixture,
+  WARP/device-loss/resource evidence, gallery, validators/format and an exact-source CI candidate.
+- [ ] Apply the approved required CI rule only after its workflow and concrete candidate are verified.
+- [ ] Finish separately recorded real desktop/IME/AT/touch/native-ARM64 and publication/adoption obligations using
+  available environments. Agreement to desktop timing remains explicit; hardware absence is not a pass.
+
+### Current iteration evidence (9 October)
+
+- Debug23 compiled the focus-transfer and menu assertion repairs, but Tooling stopped at the desktop-refusal fixture's
+  repository-wide output snapshot. The lead isolated the actual entry point, its imports and scope manifest in the
+  existing temporary-fixture mechanism. Refusal now checks only that child's outputs, including unchanged sentinel
+  bytes, lengths and timestamps; all original refusal and no-execution assertions remain. The focused redirected
+  run passed all 18 InteractiveMode cases after adding the required manifest. Current-source native qualification
+  remains pending, and the failed Debug23 validator run supplies no overall pass.
+- Debug22, build `3370d463877645bd9ec31936497fe5e2`, passed all 19 noninteractive suites with no skips and all
+  validators/tooling, including balanced reentrant attachment refusal and recovery. The authorized desktop lease
+  then failed in plain-menu record accounting before provider acquisition and native TSF retention after focus
+  transfer; foreground, keyboard focus and pointer were restored. Independent lead review confirmed the menu
+  assertion required obsolete eager publication and native outer activation erroneously retired the newer session
+  committed by synchronous WM_SETFOCUS on the same editor. The former now checks all records after requesting the
+  provider; the latter guards cleanup by complete session identity and adds a held-foreground regression. These
+  corrections require fresh qualification. An unrelated RedPrism analysis build was observed and left untouched;
+  the concurrent unpaired timing receipt supplies no performance conclusion.
+- Debug19 passed all validators/tooling and 18 of 19 native suites, but the process-exit WindowHost regression
+  exposed an expired native observer preventing session cleanup. Deactivation now validates session identity
+  independently of control liveness, and process-exit TSF detachment abandons its target before native callbacks.
+  Debug20, build `55fbe4d263bd4978922e9ba2fd3b2e7f`, passed all 19 noninteractive suites with zero capability skips
+  and all validators/tooling. The subsequent lead teardown audit found Attach could register a new HWND from a
+  focus-loss callback before the original reservation was released. Attach now refuses while detach is active;
+  a nonactivating regression verifies callback delivery, balanced registries and a successful later attachment.
+  That final correction supersedes Debug20's compiled-source identity and requires a fresh build and runtime check.
+- A fresh fetch still places `main` at `bea676a`; the remediation stays on its focused feature branch. Debug15/16
+  stopped at compilation defects in the new TSF fixtures and declarations; the lead corrected them. Debug17 stopped
+  before compilation at two renamed inherited-test mappings and the workflow contract digest. These failed attempts
+  provide no native qualification. The digest was refreshed using the existing normalized workflow hash and its
+  focused tooling checks passed. The final TSF callback audit also covers staged external edits, shared thread-manager
+  focus ownership and same-control retired-store eligibility before the next frozen-source run.
+- A consumer-source capacity audit identifies RedSalamander's 50-row history ceiling for described menus. The lead
+  checked its construction and normalization and enlarged the library's synthetic scrolling fixture to that size,
+  including keyboard reachability and command identity of the final row. Runtime menu/host/payload concurrency is
+  still unmeasured; retain the diagnosed 128-slot registries. See the [source-only audit](../../../Measurements/Review-2026-10-09/ConsumerCapacity/README.md).
+- The lead cancelled Debug14 during compilation after a further surrounding-code audit confirmed TSF document
+  `Pop`/`Push` invoke registered thread-manager sinks. Reentrant replacement can retire the editor before activation
+  resumes or replace the session before teardown completes. Staged activation, session identity checks and actual
+  thread-manager event-sink regressions are being implemented before repeating qualification. The cancelled run
+  supplies no successful build or suite evidence. Unrelated RedPrism processes were inspected and left alone.
+- The TSF self-edit notification repair was independently reviewed twice. Standalone diagnostic stores cannot queue
+  work for the host's different production store. Deferred notifications retain the store and sink, validate the
+  connection and target between callbacks, reject retired session cookies, and preserve callback-side external edits.
+  Allocation failure keeps pending work for a later real trigger without a self-reposting loop. Current-source native
+  runtime qualification remains outstanding.
+- Debug build `0ad3ccdf1d3d4595ad1905d9069870bc` passed all 19 noninteractive native suites with zero capability
+  skips, all five validators and tooling. Earlier ASan build `a122d0578228472585a6ec08335e3921` also passed all 19
+  noninteractive suites, tooling and the expected isolated sanitizer-detection probe. Subsequent desktop-driven
+  corrections supersede their exact-source identities; neither receipt closes the interactive gate.
+- The approved Debug desktop leases restored focus and pointer on failure. The first run stopped at focused-control
+  removal and a new TSF fixture that bypassed native character synchronization. The corrected fixture now uses host
+  `WM_CHAR` dispatch and its composition/undo/cancellation test passes. The next run reached deferred-focus counter
+  assertions and TSF callback invalidation. Focus tests now observe the client event before counting the deferred
+  announcement, and their recorder filters cached process identity before retaining names from the desktop.
+  Independent primary-contract review found native ACP self-edit notifications violate Microsoft's TSF contract;
+  that behavior and its old compatibility assertions were corrected without weakening the invalidation test.
+- A/A orchestration now builds one physical tree and measures the same executable under both labels. Independent
+  lead tooling tests passed all 20 paired-run cases; the complete tooling runner passed afterward. Explicit hosted A/A
+  dispatch support is implemented and the lead's final benchmark-gate fixtures passed all 44 cases. These are
+  orchestration checks, not measured calibration or policy approval.
+- Benchmark policy migration has a deliberate bootstrap obligation: `main` has no qualified versioned policy,
+  and a seed candidate cannot authorize itself. Keep the aggregate outside required branch protection until a
+  dedicated seed policy receives named maintainer review of the frozen judge/hash, unchanged thresholds, full
+  A/A and paired evidence, and both judges' decisions on identical reports. A seed verdict remains
+  `policy-review-required`; after it lands, a normal candidate must pass from that trusted base before the approved
+  required-status rule is enabled. No generic bypass or threshold reduction is authorized.
+- The earlier private design-system artifact sign-in did not publish files. The repository's committed
+  `Specs/DesignSystem` and `docs/gallery` now define publication; external upload is no longer a gate.
+- The frozen native implementation passed complete x64 Debug and Release runs: all 19 suites, zero capability skips,
+  at builds `dded8e2f5b5e484499dd8bf42106d6f9` and `777e66f77a334952a27905bfc70934b6`. Debug ran all five validators
+  and tooling; Release reused their exact matching receipt. `format.ps1 -Check` passed. Current ASan, ARM64 builds,
+  approved desktop runs, exact-pin consumer and matched measurements remain open.
+- Independent lead/agent review found A/A calibration separately built two worktrees although its judge requires
+  identical executable hashes. The lead confirmed the actual Release PE embeds its absolute PDB path. Calibration
+  orchestration was corrected to build one physical tree and measure that binary under both randomized labels,
+  preserving independent receipts, exact identity checks and all existing policy/threshold obligations. This tooling
+  correction does not change the native implementation; final source accounting must include the new orchestration.
+- Debug build `803749dfebb848458714d81f3cfa6efc` passed all validators/tooling and 18/19 native suites with zero skips,
+  including the new same-event geometry/input and native focus regressions. Control stopped at the PageHost fixture's
+  old expectation that a changed hit query returns its container. The lead checked the host geometry contract and
+  changed the fixture to require rejection, followed by a fresh hit on the replacement page. No full receipt is
+  claimed for that iteration. Earlier Debug compilation attempts exposed a protected helper access and two missing
+  stable-row lookup overrides in new fixtures; the current build includes their corrections.
+- Refreshed `origin/main`: it remains `bea676a`; the working changes are isolated on the remediation branch.
+- ASan build `f52dd536e0eb47be82feab28975888a2` and all six affected suites passed with no skips. The completed 10k-row
+  rebuild measured 37,252 us, below its 250 ms budget. This source was superseded by the final geometry/input fixes.
+- The subsequent full ASan iteration at build `39e807e97031437b9514f2156248eaa7` passed 18/19 native suites, including
+  Rendering/device-loss and Accessibility, plus all validators/tooling. Embedded stopped at the lead's new fixture
+  asserting that ordinary Grid Up must report handled. Grid selection completes on Down; the corrected assertion
+  verifies capture release. This failed run does not provide a full receipt or qualify later source changes.
+- The final bounded query audit confirmed flow/density, Tree/Grid metrics and density-changing themes left prepared
+  hit geometry eligible for input. Those setters now reuse the weak-owner geometry scope guard, removing duplicate
+  lifetime/invalidation tails. The shared query guard also captures host identity and geometry epoch. Native virtual
+  hits and hover tails stop after geometry changes; embedded input rechecks pruning, hover and hit boundaries before
+  acting. New two-column checkbox and synthetic hover/hit regressions require zero old-pixel actions followed by one
+  correct retried action. Captured embedded events dispatch once directly, avoiding a synthetic duplicate Move before
+  the real draft event. Current-source full profiles remain pending.
+- ASan build `dbf448f079d94b1fa7bcaec5139f341f` passed; Embedded, Control and WindowHost passed with no capability
+  skips, including the new PageHost recovery and StackPanel layout cases. Accessibility passed its completed 10k-row
+  rebuild budget, then stopped in an old single-select fixture that used AddToSelection to replace the parent. The
+  lead verified the Q14 contract and independent rejection fixture, retained rejection/state assertions and changed
+  the replacement action to Select. This partial run is not a complete Accessibility receipt.
+- The lead independently confirmed two further frame-coherence holes: Tree/Grid delegate setters advanced only local
+  query revisions, and native child attach/detach/visibility/enabled mutations did not advance the host geometry
+  revision. Both now advance host geometry and attachment changes invalidate both hosts. New WARP delegate-query
+  and native unchanged-root clearing/extraction/reparenting/visibility/enabled capture regressions require partial
+  rejection and explicit preparation recovery. The fresh affected ASan run remains pending.
+- The isolated InteractiveMode tooling fixture passed all 18 cases after other log writers stopped. The lead also
+  independently ran the final proposed judge trust/WARP provenance fixtures: PerformancePolicy 5/5, PairedRun 19/19,
+  BenchmarkGate 44/44 and PerformanceComparison 32/32. The base policy still lacks qualified calibration; these tests
+  prove trust enforcement behavior, not performance acceptance or production qualification.
+- The lead reproduced and repaired a null-model dereference in Grid paint metrics cleanup and an existing Tree
+  expansion action that rejected a successful delegate `NotifyDataChanged`. Query epochs now protect borrowed reads;
+  binding epochs separately determine whether an action can complete after publishing its edit. The Grid double-click
+  tests then exposed lost inspection after a same-model reorder; dispatch now resolves fresh stable identities after
+  that callback. These corrections remain subject to the running affected ASan suites and final profile matrix.
+- A further read-only parent review confirmed that PageHost replacement during render can leave zero incoming bounds
+  until resize, and StackPanel layout retains a live child span across virtual bounds callbacks. Add actual geometry
+  recovery and retirement assertions, then repair the shared preparation/traversal paths before the final source freeze.
+- ASan build `75b8982d81184826bd347fe5d7167918` passed and the complete affected run passed Embedded (3,959 checks,
+  1,000 warm composites with zero C++ allocations), Grid, Tree and Rendering. Control stopped in a hover fixture that
+  retired the root through its overlay query before the intended ordinary query; WindowHost stopped because its new
+  unattached-root input fixture set bounds before SetRoot reset them. Accessibility stopped in an old timing fixture
+  that measured the lazy dirty request without querying the provider. The lead corrected those fixtures, retaining
+  the 250 ms completed-rebuild budget. No complete current-source gate passed in that run.
+- PageHost now defers paint-time incoming bounds through private pending preparation state, with no public virtual
+  hook or task queue. Native capture and embedded Prepare discard the partial replacement frame, then synchronize
+  page bounds in Update on the next explicit preparation. New native and WARP assertions require recovery without
+  resizing or advancing animation. Gallery regeneration remains a final-source obligation for the broader visual work;
+  these internal lifetime/layout fixes introduce no new gallery appearance.
+- The lead reviewed the delegated StackPanel repair, rejected an unnecessary snapshot allocation in noexcept layout
+  callers, and required child-lifetime checks and corrected gap/RTL fixtures. The final implementation reuses the
+  existing guarded parent traversal and a private layout revision; tests cover child clearing, root replacement,
+  changed gap and nested RTL horizontal reflow. Fresh executable validation remains pending.
+- A second validator run passed all five validators but its tooling run reported PerformanceComparison and
+  InteractiveMode failures while tooling edits/tests were concurrent. The subsequent isolated lead comparison run
+  passed all 32 cases. Recheck InteractiveMode alone and rerun the complete tooling/validation gate on frozen source;
+  no concurrent or partially passed run supplies final validation evidence.
+- Retained additional failing diagnostics under
+  [ModelGetterReentrancy](../../../Measurements/Review-2026-10-09/ModelGetterReentrancy/README.md), with intermediate
+  build IDs and explicit limits on missing old source/artifact identity. They cannot authorize result reuse.
+- Extended the getter audit through parent and host call chains: Panel, PageHost and ScrollPanel traversals now
+  revalidate storage/ownership after virtual callbacks, native hit testing refuses retired targets, and native and
+  embedded painting reject incomplete root-replacement frames. Added actual Direct2D retirement/recovery cases,
+  standard-exception input/paint cases and selection collection failures. The lead corrected agent fixture bounds,
+  a duplicate Grid local and exact-size vector growth that would lose amortized insertion performance. Fresh
+  ASan compilation and runtime qualification are in progress; these changes have not yet earned a green receipt.
+- Independently ran the updated benchmark gate fixtures: all 44 passed, including fractional band, raw/Holm p-value
+  and separate raw-maximum/median/peak-budget projection. Calibration, paired performance and trusted policy seeding
+  remain open; fixture success does not qualify those acceptance gates.
+- Independently reran `validate.ps1` after the tooling-agent repairs: all five validators and the full tooling test
+  runner passed. This predates the subsequent benchmark-policy and interactive-routing edits and must be repeated.
+- The first Debug build exposed Grid reading-direction conversion, menu chevron and protected text-import access
+  errors. The library compiled after correction; the next build exposed new Grid fixture declarations/point/pointer
+  access errors and missing default focus-delegate definitions. These failures are not successful build evidence.
+- Independent follow-up found that UIA cell focus lost the active column, idempotent Tree Add changed focus, inspection
+  dropped capture cancellation and allowed the remainder of a dismissed gesture through. Corrections and regression
+  coverage are being integrated. RTL reveal, overlay shaping and final-glyph reachability are included.
+- Added a nonactivating native keystroke/selection mutation fixture to retain a scheduling baseline before the lazy
+  publication change. A before/after number alone cannot close the paired performance gate.
+- Menu descriptions, popup-size and focus-announcement fixtures now belong to the explicitly interactive Menu runner.
+  The former NewControls skip allowances and routing descriptions are being reconciled; no desktop result is implied.
+- Current command logs are under `.build/logs/production-review-2026-10-09-*`; generated reports remain under
+  `.build/reports/`. The immutable 8 October packet is unchanged.
+- The user authorized the restoring desktop lease for Menu and NativeTextInput on 9 October, after noninteractive
+  checks pass, with up to fifteen minutes reserved. This authorization is not a test result.
+- The lead found and corrected two additional interleavings while checking delegated work: a snapshot-derived peer
+  must retain the identity it inspected even when a replacement occupies the same path; a delayed visual-line range
+  operation must reject a conflicting concurrent endpoint change instead of overwriting it. Native ranges read the
+  current document while retaining control identity, rather than pinning a complete historical window snapshot.
+- Focus loss now publishes its transition before gain. This lets focus restoration replace an earlier pending host
+  announcement even when loss and gain occur before the queued event drain.
+- Slider touch feedback is clipped to its declared bounds and active ancestor clips. Ordinary thumb, tick and focus
+  painting is unchanged. A deterministic harness test covers neighboring pixels/hit testing, overlays and scrolling.
+- The final audit confirmed and repaired missing focused-row callbacks in mouse/keyboard group collapse, selection
+  insertion order leaking into clipboard row order, and stale row/column ordinals after double-click selection
+  callbacks. The shared selection/focus notifier guards retirement; inspection reads the current stable cell.
+- A complete Accessibility iteration exposed text events raised through a second peer for a collapsed TextField
+  root. Generic diff events now use the canonical element factory with the inspected control identity. The existing
+  real-client subscribed-window regression must pass in the final profiles before this correction is qualified.
+- The first final native run passed Foundation but stopped in the new skip parser on its empty skip list. Empty and
+  multiple-entry regression cases now pass; this tooling failure is not a successful native-suite receipt.
+- Native text-input audit found that policy transitions could retain an IMM preview, edit-message routing could
+  read a replacement pointer before rejecting an ineligible editor, and a new completed TSF composition could reuse
+  the previous one's undo base within one lock. Corrections and regression cases are integrated for current-source
+  validation. Hide/zero-size cancellation and late-message rejection preserve actual HWND focus. Cancellation tracks
+  the preview separately from the synchronized host cache so newer application text cannot be mistaken for a preview.
+- A second audit caught stale TSF staging surviving an external edit into the next composition within the same lock.
+  Stale completion and rejected writes now discard their staging and edit base; the following composition starts
+  from current application text and receives its own undo unit. The registered regression exercises both paths.
+- Transport intake now requires the token's exact HWND, message and type. A compatible HRESULT Invoke callback
+  reports menu queue exhaustion and permits retry after capacity is freed; UIA target retirement takes precedence
+  over a callback result. Attachment is exclusive/idempotent, rejects incomplete accessibility registration with
+  balanced rollback, and uses a fixed bounded process-exit snapshot. The lead reviewed every new agent test and
+  corrected adoption of four owned COM references in attachment fixtures.
+- The first final dispatch build failed on an incomplete SDK UIA header include; the next exposed a local-name
+  shadow warning under warnings-as-errors. Both were corrected. Neither failed build supplies qualification.
+- Final surrounding-code audit confirmed that children beneath a disabled visible Panel still advertised enabled
+  UIA state and accepted actions/text-service locks. Effective state now flows through the linear publication walk;
+  owner-side actions and TSF use the existing interaction helper. Disable/re-enable regressions are being qualified.
+- The latest five validators and tooling runner passed. Native iteration then stopped after Foundation because a
+  nested forced module import removed the caller's suite-reporting function. The import now preserves the caller;
+  all five skip-policy regressions pass, including that actual caller/module sequence. This stopped iteration is
+  not an all-suite result. Its automatic performance sample was unpaired and overlapped other compiler processes.
+- The first complete current-source Debug iteration passed 14 of 19 native suites with no skips; Embedded, ReadOnly,
+  Rendering, Accessibility and WindowHost failed. It exposed a real ignored `transferNativeFocus=false` editor path
+  and missing embedded preview ownership marker. Both are repaired for a fresh candidate run. Hidden-cache fixtures
+  now use visible nonactivating HWNDs; the password test holds the reveal peer before disabled-focus pruning. The RTL
+  fixture replaces its invalid unmarked/right-aligned pixel anchor with explicit correct and opposite-direction
+  marker references. The lead independently reviewed every repair; the failed iteration is not qualification.
+- Follow-up ASan regressions proved Tree and Grid model getters could replace the root and leave snapshot construction
+  reading freed owners. The lead retained both failing sanitizer traces and is integrating abortable navigation,
+  hit-geometry and focused-lookup construction with guards in their nested queries. The initial agent fixtures also
+  required correction for the noexcept model contract, COM QueryInterface and collapsed-root provider lifetime.
+  Disabled Tree/Grid item actions now resolve their owning control before checking effective state. The focused ASan
+  disabled-item and RTL marker regressions pass; the complete current-source profiles remain required.
+- The later Release iteration failed Rendering and Accessibility; ASan additionally failed Embedded when the shared
+  UIA client could not finish setup in twenty seconds. Its executable hash matched the run receipt and no sanitizer
+  error appeared in that failure. The shared client now uses the existing bounded CUIAutomation8 request pattern;
+  COM activation precedes those settings and remains covered by the test-process startup deadline. A rerun is required.
+
+### Archived verification and implementation (8 October)
+
+The archived reviewer verdicts below are claims to recheck, not executable qualification. The lead is reviewing
+surrounding callers and independently inspecting each delegated patch. Three cheaper agents cover Grid, text input
+and tooling; the lead owns host/Tree/menu/accessibility integration, documentation and final validation.
+Clear corrections proceed under the developer's instruction; API/product-policy decisions stay in the questions
+section. This changes the library alone, with no implicit consumer adoption.
+
+- [x] Verify the clean checkout, exact merge window and existing plan; create the focused remediation branch.
+- [x] Build the unchanged x64 Release candidate and retain three offscreen Default benchmark receipts under
+  `.build/reports/ProductionReview-2026-10-08/`. The first run was much slower than the next two controls; keep it
+  as evidence of environmental instability, and do not use it to claim an improvement.
+- [x] Reproduce and repair confirmed lifetime faults, including surrounding callbacks and publication callers.
+- [x] Repair clear keyboard and scoped-validation defects with meaningful regression cases.
+- [x] Classify current-source corrections, refuted claims and remaining architecture/policy questions; archived verdicts are not runtime qualification.
+- [x] Run affected explanations, targeted regressions and 19 noninteractive native suites in each x64 Debug/Release/ASan profile; preserve 12 NewControls capability skips per profile.
+- [x] Build ARM64 Debug/Release/ASan; retain native ARM64 and real focus/IME/assistive-technology gates separately.
+- [x] Compare the same retained benchmark fixture, review affected docs/gallery, run all validators and formatting.
+
+Focus-taking suites require agreement to the time under `AGENTS.md` and
+[build-dxui](../../../.agents/skills/build-dxui/SKILL.md): "only when the person at the desktop has agreed to the time".
+The archived 8 October run had no desktop authorization. The 9 October authorization and subsequent results belong
+to the current iteration ledger; no noninteractive result closes that gate.
+
+#### Current dispositions
+
+This table records the qualified 8 October source and supersedes the earlier review verdicts. The appendix retains the original reports,
+including hypotheses and duplicate identifiers; neither its old "confirmed" labels nor an agent's report establish
+current runtime correctness. Source fixes below were built and locally validated as the archived candidate; new
+9 October changes require their own exact-source evidence.
+
+| Area | Current-source correction | Evidence and remaining boundary |
+|---|---|---|
+| Root/focus lifetime | Snapshot the incoming root's prior inheritance before reset callbacks can retire its parent; share the normal guarded reparent path; retain the current owner through notifications; capture requested focus lifetime before pruning. | Original promotion and nested reset promotion fail under ASan; the latter covers both root replacement and host detach. Requested-focus, callback-destruction and inheritance regressions added. A pointer callback test already passed before the fix and is supplemental evidence only. |
+| Grid | Keep the moving range endpoint separately from ordered membership; guard checkbox/group callbacks and layout publications; resolve group IDs after mutation and stop when delegate/model retires. | Tests cover upward ranges, model/delegate mutation, nested selection destruction, disabled requests and focused endpoint metadata. The larger independent-focus/navigation design remains Q12. |
+| Tree | Offer only handled keys to first-row navigation; re-hit-test after focus callbacks; reject drops into any selected subtree; stop destroyed/disabled requests. | Original unhandled-key test fails and pointer model-reset test crashes before correction. Unparsed edit cancellation and selection-policy questions stay separate. |
+| Base/containers | Guard mutation callbacks inside Control, Panel, PageHost and TabControl; resolve page identity after callbacks; bound traversal and retain entry-owned children during clear; share guarded overlay dismissal with ScrollPanel. | Direct destruction, sibling removal, promotion, close/focus and third-page transition regressions added. Panel and ScrollPanel overlay retirement both reproduce ASan use-after-free. `AddChild`/`AddTab` return null when their owner retires. This is a local repair, not A5's deferred-destruction architecture. |
+| Editors/native input | Propagate text-callback survival; snapshot callbacks/text arguments; revalidate after native activation/IME imports; leave caption messages with the HWND; retain reversed EM_SETSEL orientation and CRLF offsets. | TextField/ComboBox/caption tests are nonactivating; native IME/focus timing and composition acceptance remain Q17 and an interactive gate. |
+| Callback storage/cleanup | Share registered callable storage across dispatch; preserve mutable captured state and the old subscription on allocation failure; release dispatch snapshots before survival checks. Native menu refresh follows the same rule. | 25 mutable-state cases fail with per-dispatch copies; ScrollPanel already passes. Seven cleanup cases reproduce ASan use-after-free in TextField, ComboBox, tabs, MenuBar and Tab traversal; blur is supplemental. A native-menu mutable-state case independently fails. The final candidate passes these plus the original 22 callback lifetime cases. |
+| TSF service | Consume a pending lock once while another lock is active; retain flags and post once on release; retry failed posts on the next real request. | Nested-loop and failed-post regressions; no timer or immediate repost loop. Real TIP/IME acceptance remains separate. |
+| UIA actions/transport | Resolve under the mutex, act outside it, revalidate target lifetime before host access; make AddToSelection idempotent and disabled requests fail; provider creation uses bounded token transport. | Original worker snapshot query blocks inside a Toggle callback. Added destruction, worker-query, bounded owner dispatch and bogus-token tests. No out-of-process UIA reentrancy claim is made. |
+| UIA state/events | Only the focused Grid endpoint reports focus; native range values, limits and steps republish/announce; Tree items and Grid headers/rows/cells derive offscreen state from published clipped geometry; embedded focus events name the focused item/row; terminal TextRange moves return zero. | Real subscribed clients in nonactivating fixtures plus provider-query, partial/full ancestor-clipping and terminal-movement regressions. Native foreground announcements remain interactive; selection policy is Q14. |
+| Rendering failure | Guard every direct solid-brush use in Grid, scrollbar, Tree focus and ComboBox split/popup painting. | Four separate ASan regressions crash inside Direct2D with forced-null brushes before correction; faulted capture and recovery are checked. The archived Button claim is refuted: its shared chrome helper already guards the brush. |
+| Menus | Drain async sessions before process-exit sweep and recheck registered hosts; dispatch unrelated timers; handle sent modal cancellation; apply pixel-rounding slack consistently; reconcile pointer/focus/scroll geometry. | MenuExitLifetime is nonactivating. Capturing modal, physical pointer and monitor-specific fractional-DPI fixtures remain capability/interactive gates. |
+| Contrast | Reuse linear WCAG contrast and compositing; retain readable configured inactive text and exact HC HighlightText; measure Tree focus against its actual resolved fill. | Palette/control tests cover light, dark, alpha, rainbow, Aquatic-like and Desert-like pairs; all six harness gallery images are regenerated and visually reviewed. |
+| Scoped evidence | Decode Git as UTF-8; include real git/gh identity; attest the built source rather than reread concurrent state; reject skip-bearing receipts for reuse; label empty/partial/pending work truthfully; fix scope fan-outs. | Tooling regressions cover source staging equivalence, non-MD docs, tool/environment identity, missing obligations and composed fixtures. Pending CI remains pending. |
+
+#### Claims corrected or still unresolved
+
+- Tree Ctrl-click currently collects IDs, not every `TreeItemData`; that archived allocation claim is refuted. Expansion
+  animation still has linear lookups per animated row and deserves a separate measured optimization.
+- Same-value NumericStepper `SetValue` is an authoritative model update under its contract. Ending the typed edit is
+  deliberate; Escape while the buffer is unparseable has no agreed revert timing and remains a product question.
+- Original EM_SETSEL start -1 mapped to the text end, not zero. Reversed-range loss was real and has been repaired.
+- NumericStepper does not expose RangeValue; the claimed stale step-size RangeValue property is refuted. Slider does
+  expose it, and its silent limit/step setters required publication and preparation requests.
+- The Embedded regression initially treated a zero-length anchor as selected text. The assertion was corrected after
+  tracing ordinary MouseDown/MouseUp; no production edit was needed for that assertion failure.
+- The selection diff checks the >20 threshold before the exactly-one replacement case. This is still a source-backed
+  discrepancy with the stated WPF comparison; retain Q14's explicit priority decision.
+- Native TSF composition/history/geometry, masked-field input scope, lazy snapshot publication, single-select/UIA
+  focus policy, collapsed-group/horizontal Grid navigation, tooltip overflow inspection, RTL and capacity/error behavior
+  remain in the owning questions and architecture proposals. They are not passed or silently deferred release gates.
+- Interaction-lease Ctrl+C restoration is plausible from pipeline ownership, not demonstrated by a desktop interruption
+  here. Preserve it as an unqualified scenario rather than a confirmed reproduction.
+- Final read-only audit found that a nested tab resize could be overwritten by the outer layout's cached content
+  rectangle. A regression now exercises that sequence. Raw rearrangement of a Panel's mutable child slots can still
+  skip a propagation callback, and extracting a tab page through the span can desynchronize its tab metadata; the
+  documented extraction leaves an empty slot, while arbitrary rearrangement and TabControl extraction have no
+  established contract. These source-backed boundary cases stay in Q2/A5, not a claimed passing scenario.
+
+#### Historical decisions and release gates (8 October)
+
+This is the archived 8 October decision inventory. The user accepted the revised answers on 9 October;
+the current implementation and qualification checklist above now owns outstanding work.
+
+- **Ownership and scheduling (Q2, Q3, Q4; A1/A5):** define whether arbitrary rearrangement through the mutable
+  child span and extraction of tab pages are supported; choose an ownership-safe transfer API and whether
+  destruction/publication is deferred to the message boundary. The repaired documented promotion path does not
+  qualify those broader operations. Lazy UIA publication also needs an explicit first-client/event timing contract.
+- **Grid and UIA policy (Q12-Q15; A3):** choose independent keyboard focus, Ctrl/range anchors, single-select
+  Add/Remove semantics, the exactly-one event priority over the 20-item bound, and root-provider identity when
+  the semantic tree changes. Current large-selection event behavior is now disclosed in the usage docs.
+- **Native input and menu policy (Q8/Q9/Q17):** settle layout-sensitive/duplicate mnemonics, described-row failure
+  fallback and spoken-description placement, IME undo, masked-field TIP/input scope and edit-message ownership.
+- **UX and limits (Q10/Q11/Q18/Q19/Q26):** define RTL coverage, application-color overrides in high contrast,
+  payload/row capacity limits, full clipped-cell access for keyboard/touch and real-device slider feedback.
+- **Validation and release process (Q20/Q21/Q23-Q25/Q27-Q31):** choose the required aggregate CI check and
+  cancellation/skip policy, consumer-interface PowerShell/API migration requirements and the obligations of an
+  empty affected run. Existing source fixes disclose missing work; they do not enable branch protection or
+  substitute for consumer adoption.
+
+Release qualification still needs agreed real-focus Menu/NativeTextInput and menu resource runs, the 12 omitted
+desktop/DPI scenarios, native ARM64 runtime, real IME/assistive-technology/touch acceptance, final committed
+design-system/gallery updates and separately owned consumer pin handoffs. The proposal to use a lock per accessibility
+target and larger selection/publication deduplications remain measured architecture work, not hidden scope in
+these fixes. No consumer project or pin is changed by this candidate.
+
+#### Current evidence and qualification ledger
+
+- The retained pre-implementation Default Release benchmark and two controls identify `bea676a`, WARP, 1280×720,
+  96 DPI, 83 controls, 1,000 model rows, 40 frames and five rounds. Environmental drift prevents a single-run improvement claim.
+- Before host/Tree fixes, targeted ASan logs in `.build/reports/ProductionReview-2026-10-08/red-*.log` record promotion
+  use-after-free, the Tree model-reset crash, unhandled-key selection and a blocked worker query. These builds included
+  other in-progress patches; they are targeted negative evidence, not clean-baseline qualification for the whole tree.
+- The final follow-up red logs reproduce a freed-parent read during focus-reset promotion, false Tree onscreen state
+  for an entirely clipped row, and stale Slider limits/clamped values. These defects were found after an earlier
+  three-profile pass; that pass does not qualify the final repaired source.
+- Later red logs independently reproduce Panel/ScrollPanel overlay owner retirement, four null-brush paint crashes,
+  and false onscreen metadata for Grid fragments fully clipped by an ancestor ScrollPanel. Earlier passing matrices
+  are superseded by the source containing these corrections.
+- The final callback audit reproduces 22 additional ASan failures before its repairs: self-replacement/destruction
+  frees the executing callable in Control, TextField, ComboBox, PageIndicator, ScrollPanel, TagPicker, MenuBar and
+  host Tab/Escape callbacks. TagPicker also borrows a selection span that retirement invalidates; tab-boundary
+  replacement leaves a stale next-focus target. Local callable/argument snapshots and lifetime checks repair
+  these paths. The delegated tests were independently strengthened to read captures after replacement, eliminate
+  outside ownership, leave a nonempty TagPicker removal argument and exercise the TextField Backspace tail.
+  `callback-red-cases.json` maps every failing case to its log; the final green matrix must include all of them.
+- Independent review then caught mutable-state loss from copying callbacks per dispatch. Retained shared callable
+  storage repairs all registered control and host callbacks and native-menu refresh, with one allocation-failure
+  helper. Capture destruction is itself a reentrancy boundary: seven cleanup tests reproduce ASan failures after
+  premature survival checks. These repairs supersede all previous complete profile results.
+- The final two callback regressions independently demonstrate accessible-invoke replacement retiring its
+  control inside old capture cleanup (ASan use-after-free), and ColorSwatch requesting another repaint after its
+  keyboard callback retires the root. The latter does not reproduce an ASan read because `Control::Invalidate`
+  currently delegates without reading members; the strengthened test measures the erroneous post-retirement repaint.
+- Provider creation's pointer-to-token transport changes its registered message to protocol version 2, as required
+  by the shared message contract. The existing exact-name regression fails when the old version is retained.
+  This final integration correction supersedes the preceding ASan pass and Release run; the final matrix is rerun.
+- Harness gallery generation independently reproduced an expired borrowed Tree model during Slider capture
+  cancellation at host teardown. The GalleryScene is now declared before its attached window, and owns models
+  before its root, so teardown respects the borrowing contract. This is a fixture lifetime correction; the library
+  and benchmark executable remain byte-identical. Native test artifacts are rebuilt and revalidated after this fixture edit.
+- Final simplification preserves the protected `Control::Reparent(Panel*, ControlHost*)` extension signature,
+  uses the private generic helper for PageHost, removes redundant Grid offscreen flags, removes three scope rules
+  for nonexistent files and includes native Grid/InteractiveLease consumers of the shared tooling fixture helper.
+- The first complete ASan iteration passed 18 of 19 noninteractive native suites; Embedded failed the invalid new
+  assertion described above. NewControls recorded eleven explicit capability skips. No passing full receipt was claimed.
+- The final formatted source, including gallery fixture ordering, has compiled identity `e2ab708c48e9de9e55c9a1bfd3601e3899a3909d09e9e95a8807f7ac59018ac0`
+  and library fingerprint `FAEF6725B5A0B5DF2C2C39A107F9FE012A5A9F8B13D6B9ABFAD2F154CE558D2E`.
+  All 19 selected native suites pass in x64 Debug, Release and ASan Debug; NewControls records 12 capability skips
+  per profile and is deliberately not reusable. The final accessibility scope runs once per profile and is reused
+  only with the exact unchanged source/artifact/profile/environment identity. ARM64 Debug, Release and ASan Debug all build, with no native
+  execution claim. Earlier source-changing/format-overlap runs published no attestation and are superseded.
+  The [retained packet](../../../Measurements/Review-2026-10-08/README.md) contains 57 raw suite logs/receipts,
+  profile build/run logs, exact candidate source bytes, a reviewable patch and source fingerprints.
+- The paired Default, MultilineGrid and MultilineGridDistinct comparisons use the same untouched harness,
+  x64 Release WARP fixture and three ABBA repetitions (six runs per side). All three sets are within the investigation
+  bands, with no metric flagged as regressed or improved. The canonical gate passes as no change established;
+  it does not establish that no regression exists. Respectively 16, 10 and 14 of 26 metrics held inside their bands
+  in every same-binary control; smaller shifts in the others could not be resolved against runner drift.
+  Library and benchmark executable hashes still match after the gallery-only fixture edit. All raw paired reports,
+  summaries, control comparisons and hashes are retained in the packet.
+- All six Release harness gallery images are regenerated and visually reviewed; the five-theme gallery passes
+  under ASan after the borrowing-order correction. Source, executable and image hashes are retained. Formatting,
+  `git diff --check` and the five validators plus tooling tests pass. Final PrePush accounting runs after this
+  documentation/evidence closeout; its log and exact reusable receipts are under `.build/reports/` and disclose
+  the still-unqualified capability/desktop/CI gates. Compilation failures during integration are retained and
+  are not test passes.
+- Real Menu/NativeTextInput focus, MenuResources/MenuResourceScaling, actual IME/AT/touch, native ARM64 runtime,
+  consumer pin handoffs and final committed design-system/gallery updates remain explicitly unqualified. Local
+  source/previews and harness gallery are the required publication surface.
+- Live GitHub APIs on 8 October show active main rules for pull requests, deletion and non-fast-forward prevention,
+  no required-status-check rule, and HTTP 404 from legacy branch protection. That confirms the current Q21 gate gap;
+  an enabled candidate workflow or a pending check is not required merge coverage.
+
+Q1's documented root promotion, Q5's unlocked application actions, Q6's live async-menu exit sweep, Q7's modal
+cancellation and Q16's embedded item focus have concrete local corrections above. Their historical question text
+is retained for context; implementation does not close the corresponding interactive/platform/resource acceptance.
+
+The historical sections from "Verdict" onward describe the merged source before this remediation. Their unchecked
+items are a review backlog; use the current table and qualification ledger to assess what this candidate actually fixed.
+
+The original 5 October review was static only: nothing was built or run then. Nineteen reviewers each took one area: menu loop and lifetime, menu layout,
 UIA lifetime and threading, UIA selection semantics, Grid selection, Grid multiline text, Tree, core and editor controls,
 text input, the host core, the public API, cross-cutting simplification, test support, two test-quality slices, two
 tooling slices, CI and process. Each production area then had a second reviewer looking only for what the first one
@@ -310,7 +739,7 @@ Text ranges:
 - [ ] `Move` reports `moved=1` without moving at the last character and for every Paragraph/Page/Document move, so
   "move until 0" clients never stop. Visual-line moves overflow `int` for large counts. (`uia-lifetime-threading-11`, `-18`)
 
-Visual accessibility (gallery and design-system republish required):
+Visual accessibility (gallery regeneration and committed design-system update required):
 
 - [ ] **The Tree focus ring has the selection fill's own color**, so with multi-select the current row is invisible once
   selected (1:1 in the default light theme, about 1.2:1 in dark and HC) (#35, `DxUi.Tree.cpp:183`). The Grid draws no
@@ -676,7 +1105,9 @@ Lifetime and architecture:
    replaces raw moves.
 2. **Q2.** Should DxUi controls survive *any* callback destroying them (selection, checkbox, group, text-changed, blur,
    context menu), or should docs/controls.md say every rebuild must be posted? Today only the selection delegate may
-   rebuild synchronously. A5's deferred destruction would make the answer "always".
+   rebuild synchronously. A5's deferred destruction would make the answer "always". Does the mutable `GetChildren()`
+   span support rearrangement during propagation, or extraction of a TabControl page without `RemoveTab`? The
+   current pointer/span bookkeeping cannot guarantee those cases; define that boundary before claiming them safe.
 3. **Q3.** Is there measured evidence that `UiaRaiseAutomationEvent` dispatches window messages on the raising thread
    (non-COM-threaded providers, out-of-process clients)? The #60 guards, and several "plausible" items above, rest on it.
    A1 makes it moot.
@@ -792,186 +1223,187 @@ Scoped testing (#66, #67):
 
 ## Recommended answers
 
-Drafted on 2026-10-06 by seven researchers who read the code, the specs and the platform documentation, then checked by
-the lead reviewer. The GitHub facts in Q21, Q26 and Q31 were confirmed against the live repository. These are proposals:
-the developer decides. *Kind* is technical (evidence decides), product (a default is proposed) or process.
+Revised by the lead reviewer on 2026-10-09 after checking the current implementation, owning contracts and Microsoft
+documentation. This section supersedes the 6 October proposals and was accepted by the user on 9 October.
+"Locally corrected" refers to this uncommitted feature branch:
+the fixes have not landed on main.
 
-- **Q1** (technical, small). Yes, it is documented in three places, so it is supported.
-  - Fix `SetRoot` now: keep the old root alive until after `Reparent`.
-  - Then add `Panel::TakeChild`, which clears `_parent` and `_host` and keeps the inherited flow direction and density.
-  - Deprecate the mutable `GetChildren()` span for one API revision.
-- **Q2** (product, large). The target contract: any callback may destroy its control (not its host). Implement it
-  structurally:
-  - A5: removed subtrees are retired to the end of the message turn, and lifetime tokens expire on removal.
-  - A1: publishes do not re-enter.
-  - Keep checks at delegate calls (A2), because a rebuild can free the borrowed model or delegate.
+The retained [review packet](../../../Measurements/Review-2026-10-08/README.md) records the exact closeout snapshot
+before the accepted implementation. Its archived source and hashes remain immutable. The 9 October code changes
+invalidate reuse of those qualification receipts; fresh builds, tests and measurements are required for the candidate.
 
-  Until then, make docs/controls.md list exactly the callbacks that may rebuild synchronously (today: focus, and
-  Tree/Grid selection), and fix the P0 sites.
-- **Q3** (technical, medium). Unestablished: nothing in the repository measures it, and Microsoft's documentation is
-  silent. Measure it with consent: count the messages dispatched on the raising thread during `UiaRaise*` with Narrator,
-  NVDA and Accessibility Insights attached, on x64 and ARM64. Implement A1 regardless, because the publish already
-  re-enters through its own `GetWindowTextW`.
-- **Q4** (product, large). No.
-  - Coalesce publishes to one per message turn, raised by the host (A1).
-  - Build a window's snapshot only once a client has asked for it, synchronously on the first `WM_GETOBJECT`.
-  - Measure today's per-keystroke cost on the complex-UI fixture first.
-- **Q5** (technical, medium). Not deliberate: Invoke and SetFocus already release the lock, and their comments state
-  the rule.
-  - Convert all seven actions, plus text-range Select, through one A4 helper, then use a non-recursive lock per target.
-  - Hosts on several UI threads are supported when every call stays on the owner thread; document it.
-  - It is P0 if any consumer has hosts on several threads; otherwise the Narrator stall during nested loops still
-    justifies it.
-- **Q6** (product, medium). Make the sweep callable at any time, with windows and menus alive: `WM_ENDSESSION` does not
-  require destroying windows. Before detaching, it:
-  - closes each thread's async menus without callbacks;
-  - re-checks registry membership per host;
-  - leaves alone hosts whose menu loop is on the current stack.
-- **Q7** (technical, small). Yes; it is a bug fix, because the header promises `TrackPopupMenu` behavior.
-  - Close on deactivation and `WM_CANCELMODE`, handled in the popup window procedure (they are sent, so the loop's peek
-    check never sees them).
-  - Keep recapturing on bare capture loss.
-- **Q8** (technical, medium).
-  - (a) Yes: match `WM_CHAR`/`WM_SYSCHAR` characters, as `NativeMenuBarHost` does, and keep virtual keys for navigation.
-  - (b) Yes: several matches move to the next match without invoking; only a unique match invokes; an explicit `&`
-    mnemonic wins over a first-letter match.
-- **Q9** (product, medium).
-  - Size described menus to their content within 128-456 DIP. The row layouts already exist, so their metrics are free;
-    `minRootWidthDip` stays for a fixed width.
-  - Keep the description in Name, but join it with ", " instead of a newline. Expose it as HelpText only when a custom
-    accessible name omits it.
-  - A row that fails to prepare falls back to a plain row.
-  - Bound the described rows per popup by the largest list consumers show (developer input).
-- **Q10** (product, small).
-  - Document now that Tree, described menus and Grid do not mirror.
-  - Mirror ProgressBar now: it is cheap, and it contradicts the Slider beside it.
-  - Do not half-mirror.
-  - Open an RTL plan (menus, then Tree, then Grid) only when a consumer commits to an RTL UI language.
-- **Q11** (technical, medium). Force system colors in high contrast, per Microsoft's contrast-theme guidance:
-  - application alert colors become text on window background, with severity carried by an icon or text;
-  - the accent and the halo use Highlight;
-  - subdued text is WindowText, with no blends.
-- **Q12** (product, large). Adopt A3 in full.
-  - A focused row in `GridSelectionModel`.
-  - Ctrl+arrows move focus alone, Ctrl+Space toggles, and Shift ranges to the focused row.
-  - A visible focus indicator through A7.
-  - After a deletion, focus moves to the row now at that index; if the selection became empty, that row is selected
-    too.
+- **Q1 — Root promotion (technical).** Support the documented descendant promotion; the lifetime/inheritance repair
+  is locally corrected. Add an ownership-safe `TakeChild` API that detaches parent/host links while preserving effective
+  inherited settings. Deprecate mutable owning slots through a compatible API revision. Tab pages must use
+  `RemoveTab` or an explicit metadata-aware extraction API.
+- **Q2 — Callback destruction (architecture).** Permit a callback to replace or retire its control tree. Keep
+  lifetime checks at every external callback and callable-capture cleanup boundary, including borrowed models.
+  Centralize ownership-safe mutation and dispatch; evaluate deferred physical subtree cleanup at a bounded dispatch
+  boundary while invalidating logical identities immediately. Deferred cleanup does not establish model lifetime
+  or make publication non-reentrant. Arbitrary raw-slot rearrangement and tab-page extraction remain unsupported
+  until an explicit API contract exists. Destruction of the whole host requires a separately qualified contract.
+- **Q3 — UIA reentrancy evidence (technical).** Continue treating publication and UIA clients as possible reentrancy
+  boundaries. The worker-query regression proves the action-lock problem, not out-of-process message dispatch
+  inside `UiaRaise*`. Measure the latter with a bounded external client and real assistive technology, after agreement
+  to the desktop time, on each qualified platform. Queuing publication still needs lifetime checks when the queue drains.
+- **Q4 — Accessibility publication (architecture).** Replace unconditional whole-window rebuilding with dirty,
+  coalesced publication and lazy initial snapshot construction. Both first `WM_GETOBJECT` access and explicit provider
+  creation must obtain a fresh coherent snapshot; later queries/events need an explicit flush/version contract.
+  Embedded hosts retain explicit application-scheduled accessibility updates, with no work in composition. Retain
+  paired keystroke/selection measurements before changing scheduling.
+- **Q5 — Action locks and threads (technical).** Never retain the snapshot mutex across application callbacks;
+  this is locally corrected. Consolidate resolve/unlock/act/revalidate operations, then evaluate a non-recursive
+  lock per target. Support independent hosts on several UI threads with owner-thread mutation and immutable
+  cross-thread snapshots. Do not infer that arbitrary control calls become thread-safe.
+- **Q6 — Process-exit sweep (technical).** Support early and idempotent shutdown with live windows and async menus.
+  Close async menus without application callbacks, recheck registry membership before each host, and avoid tearing
+  down a modal loop on its current stack. The current sweep is locally corrected; consumer call-site adoption remains
+  separately owned.
+- **Q7 — Synchronous menu cancellation (technical).** Close on deactivation and sent `WM_CANCELMODE`, consistent
+  with the promised popup behavior. Keep the deliberate bare-capture-loss recapture policy. Source is locally
+  corrected; real-focus modal/resource qualification remains open.
+- **Q8 — Mnemonics (product).** Match Unicode characters from `WM_CHAR`/`WM_SYSCHAR` in the active keyboard layout;
+  reserve virtual keys for navigation. Explicit ampersand mnemonics take precedence. Duplicate matches cycle focus;
+  a unique match invokes. Qualify alternate layouts, dead keys and IME-generated characters.
+- **Q9 — Described menus (product).** Size to content within the existing 128–456 DIP range; retain an explicit fixed
+  width option. Keep `Name` concise and sufficient to identify the command, including a path when it disambiguates.
+  Put explanatory description in `FullDescription`/`HelpText`, avoiding duplicate speech. Preparation failure may
+  fall back to a plain row only when its command, primary label and accessible identity remain valid; otherwise
+  fail with a diagnostic. Keep a measured resource bound. Discover the largest real consumer list before selecting
+  a row limit; do not invent one.
+- **Q10 — RTL (product).** Document current mirroring limitations immediately. Implement complete mirroring per
+  control under a dedicated plan: menus, Tree and Grid need layout, hit testing, navigation and mixed-script tests
+  together. ProgressBar can be a smaller first change following its orientation contract. Consumer RTL demand sets
+  rollout priority; do not silently promise coverage from mirrored text alone.
+- **Q11 — High contrast (technical).** Use the user's system-color pairs, including selected foreground/background;
+  app alert colors and translucent secondary text must not override them. Communicate severity with text or icons.
+  Use Highlight/HighlightText where appropriate for slider feedback; reserve GrayText for disabled content.
+  Qualify all four contrast themes, custom colors and live switching.
+  See [Microsoft contrast-theme guidance](https://learn.microsoft.com/en-us/windows/apps/design/accessibility/high-contrast-themes).
+- **Q12 — Grid focus (product/API).** Adopt independent focused-row identity: Ctrl+arrows move focus, Ctrl+Space
+  toggles selection, and Shift uses the focused endpoint with a visible focus indicator. After deletion, focus the
+  row at the old index, or the previous last row. Select that replacement when deletion removed the last selected
+  item; do not undo an intentional model selection clear.
+  Check consumer navigation assumptions before changing the default.
+- **Q13 — Range anchor (product).** Ctrl+click and Ctrl+Space move the anchor to the touched item, whether selected
+  or deselected, consistently in Tree and Grid. Focus-only Ctrl+arrows and UIA Add/Remove do not move the gesture anchor.
+- **Q14 — UIA selection (technical/product).** Adding an already-selected item succeeds idempotently. Adding another
+  item in a single-select container with an existing selection returns `UIA_E_INVALIDOPERATION`.
+  Removal may clear an optional selection; reject removal of the last item only when the control actually reports
+  `IsSelectionRequired=true`. Do not force that property true merely because selection is single.
+  `SetFocus` preserves multi-selection and calls the focus delegate; selection callbacks run only for selection changes.
+  `Select` changes selection/current item without activating the OS window. The exactly-one selected-item event wins
+  over the >20 invalidation threshold. Disabled and retired targets return the corresponding UIA errors.
+  Idempotence, disabled checks and action lifetime are locally corrected; policy changes remain proposed.
+  See [Microsoft SelectionItem contract](https://learn.microsoft.com/en-us/dotnet/framework/ui-automation/implementing-the-ui-automation-selectionitem-control-pattern)
+  and [Selection pattern](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-implementingselection).
+- **Q15 — Provider root identity (architecture).** Keep the attachment/window root stable when sibling controls appear
+  or disappear. Do not collapse a Panel into its sole semantic child based on child count. Direct semantic roots may
+  use an explicit documented role. Actual control replacement invalidates replaced peers; detach/reattach obtains
+  a new attachment identity.
+- **Q16 — Embedded focus events (technical).** DxUi raises its item/row-level focus events; the application supplies
+  truthful OS placement focus and schedules `UpdateAccessibility`. Avoid duplicate events in consumer adapters.
+  The library correction is locally implemented; audit each adapter at adoption.
+- **Q17 — Text input (technical/product).** Treat each committed composition, emoji insertion or dictation phrase as
+  one undo unit; preview/cancel and selection-only imports add no undo history. Code-path tests do not qualify real
+  TIPs: run actual IME/emoji interaction in scrolled multiline fields with clipping, DPI and read-only transitions.
+  Disable text services for password fields; `IS_PASSWORD` is unsupported and is not a security mechanism. Prevent
+  clear-text disclosure through field messages, UIA or clipboard. Host `WM_GETTEXT`, `WM_GETTEXTLENGTH` and
+  `WM_SETTEXT` retain window-caption semantics, as locally corrected. Edit/clipboard routing applies only to a focused,
+  eligible editor. See [Microsoft InputScope](https://learn.microsoft.com/en-us/windows/win32/api/inputscope/ne-inputscope-inputscope)
+  and [WM_GETTEXT](https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-gettext).
+- **Q18 — Message trust and capacity (technical).** Treat registered-message parameters as untrusted inputs, not
+  authentication. Validate token, process, attachment/lifetime and protocol identity; bound waits and reject late
+  or cancelled work. Keep raw pointers out of cross-thread transport and do not relax UIPI. Token-based provider
+  transport is locally corrected. Retain bounded payload and host registries, diagnose exhaustion and stress recovery.
+  Measure actual concurrent hosts/popups before changing the current 128 limits.
+- **Q19 — Multiline copy and inspection (product).** Use quoted Unicode TSV for tabs, newlines and quotes, with
+  round-trip tests against target consumers. Keep an explicit raw-TSV compatibility option only when adoption needs
+  it; add no CSV/HTML format yet. Full values must be reachable through UIA/copy and a keyboard/touch inspection
+  action; hover alone is insufficient. Put monitor/DPI-aware tooltip clipping, bounds and wrapping in shared
+  `TooltipLayer`; consumer detail views remain consumer-owned.
+- **Q20 — Test policy (process).** Move every real-focus/pointer fixture to the explicit interactive lane. Fail CI on
+  unexpected capability skips against a reviewed per-test, per-lane allowance; accepted noninteractive skips still
+  leave their qualification obligation open. Review intentional visual changes and regenerate baselines in the same
+  PR. Calibrate pixel/channel tolerances on WARP and qualified native GPUs before replacing the 2% allowance.
+  Accept a test-only per-host clock seam for timing, while retaining a real-time/restoration integration case.
+- **Q21 — Required CI and publication (process).** Live APIs on 9 October show no required-status-check rule and
+  auto-merge disabled. Add one always-running `ci-gate` that checks Windows/Linux tooling, scope classification,
+  formatting, all six native/consumer profiles when needed, and required paired measurements. Treat missing,
+  failed or cancelled dependencies as failures; allow native/performance skips only after positive scope classification.
+  Make that aggregate required after workflow qualification and explicit authorization to change repository rules.
+  Keep auto-merge disabled until those protections are effective. Publish gallery changes through a branch/PR.
+  GitHub can report a skipped job as success:
+  [status-check behavior](https://docs.github.com/en/pull-requests/reference/status-checks).
+- **Q22 — Benchmark acceptance (technical/process).** Predeclare primary metric families, calibrate with A/A runs,
+  use randomized balanced blocks and analyze independent blocks. Add multiple-comparison control with enough
+  independent observations; simply applying Bonferroni to six dependent runs is not useful qualification.
+  Confirm flagged regressions independently. Use a trusted, versioned base acceptance policy; changes to the judge
+  must compare base/candidate decisions on identical data and receive explicit policy review.
+  Paths select measurement obligations; an unchanged fingerprint alone does not prove unchanged execution.
+  Noise attribution needs matching compiled dependency/toolchain/harness/fixture identity and preferably measured
+  executable byte identity. The +7,012,352 median-private and +7,327,744 peak-private figures measure different
+  quantities: record separate envelopes and append an erratum to the old packet's "within" claim without rewriting
+  archived evidence. Current paired passes mean
+  no change established, not proof of performance equivalence. These study-design recommendations apply
+  [NIST randomized-block guidance](https://www.itl.nist.gov/div898/handbook/pri/section3/pri332.htm)
+  to this fixture.
+- **Q23 — PowerShell contract (technical/process).** Declare supported versions per consumer entry point.
+  Preserve the published 5.1/7 restore contract; internal validators may require PowerShell 7 explicitly rather
+  than a broad compatibility port. Normalize relative `-Root` before resolving modules and test from a different
+  working directory under each promised version. Audit actual consumer invocation before changing that promise.
+- **Q24 — API revision (process).** Complete revision-3 migration notes for the missed renames. Freeze representative
+  consumer compile/import fixtures per revision and detect newly mandatory script parameters. Breaking source
+  changes need a revision bump or a compatible alias for an agreed transition. Private class-layout changes still
+  require matching headers and a rebuilt static library; they do not independently prove a source API break.
+- **Q25 — Plans and capabilities (process).** Close only completed, independently qualified library scope with
+  current contracts/tests; keep native-platform, interactive and consumer handoffs explicitly separate. Record
+  implemented tree multi-select, multiline Grid, menu UIA and touch feedback truthfully, alongside qualification
+  limits. Do not promote described menus to unrestricted production support or close this remediation plan while
+  their owning gates remain open.
+- **Q26 — Slider proof and overlap (technical/process).** Real touch is not qualified by synthetic input; retain that
+  label until a device test is recorded. Rechecked PR #62: its paired verdict succeeded at 12:28:24 UTC on 4 October,
+  before merge at 12:50:03 UTC. Keep the intentional 48-DIP touch feedback, with parent/viewport clipping and enough
+  layout spacing to avoid obscuring neighboring content or menus. Record hit-test and visual-overlap behavior.
+  See [PR #62](https://github.com/RedSalamanders/DxUi/pull/62)
+  and [its paired run](https://github.com/RedSalamanders/DxUi/actions/runs/37201375166/job/111433592012).
+- **Q27 — Affected default and empty work (process).** Keep the accepted Affected default and run `-Explain` first.
+  An empty iteration may exit zero only as `NO_WORK`/`NOT_EVALUATED`, never repository success. Qualification and
+  consumer commands must explicitly request/account for their full obligations and fail incomplete acceptance.
+  Environment/toolset changes invalidate matching evidence; use explicit verification/PrePush to qualify a clean
+  checkout in a changed environment. Audit consumer entry points rather than assuming they never call plain
+  `test.ps1`. Withdraw the old unconditional-Full recommendation.
+- **Q28 — PrePush matrix and delegation (process).** Provide one accounting entry point for all six profiles,
+  sharing identical tooling once. Reuse only exact evidence. ARM64 cross-builds prove compilation; native runtime
+  must run on ARM64 locally or in a required candidate CI gate. Pending CI remains `CI_PENDING`, and absent native
+  coverage remains `NOT_RUN`, never passed. Use the real PR base/merge candidate for stacked PRs. Refuse delegation
+  for dirty trees, default-branch or detached HEADs, foreign remotes, or unrequired/unverified coverage.
+- **Q29 — Scope dependencies (technical).** Remove dead rules and validate every declared rule/fixture mapping.
+  TagPicker is not the only composition: ComboBox feeds TagPicker, TextField feeds NumericStepper, and NumericStepper/
+  TextField feed ColorPicker. Encode these actual dependencies or retain conservative widening. All non-build
+  changes, including non-Markdown documentation/measurement inputs, need tooling classification. Changed foreground
+  suites must yield explicit `INTERACTIVE_NOT_RUN` obligations until qualified. Most immediate rule/fan-out repairs
+  are locally corrected; broadened composition validation remains an improvement.
+- **Q30 — Reuse, Unicode and instrumentation (technical).** Never reuse a skip-bearing receipt. The current
+  NewControls result has 12 capability skips per x64 profile and is intentionally rerun; an allowance does not
+  turn it into whole-scope evidence. Decode Git as UTF-8 independently of console encoding. Both corrections are
+  local. Keep performance, filtered and mutation runs distinct from ordinary qualification; include relevant
+  `DXUI_*`, runtime/toolset/device/font/DPI identities without exposing secrets. Graph/performance instrumentation
+  must not accidentally reuse or create an ordinary test pass.
+- **Q31 — Hosted focus and cancellation (process).** Hosted lease self-tests must prove confirmation/warning behavior,
+  not tolerate skips. The live repository runner inventory is empty on 9 October; organization runners or future
+  self-hosted use require their own audit. Restrict a CI focus bypass to verified hosted-runner metadata, not merely
+  `GITHUB_ACTIONS=true`. Self-hosted focus needs a dedicated explicitly authorized desktop or the normal lease.
+  The aggregate runs despite dependency failure/cancellation and rejects missing work; qualification must not
+  depend on whether GitHub labels a dependent job skipped or cancelled. Require the aggregate, not Windows tooling
+  alone. Current candidate workflows do not themselves establish required merge coverage.
 
-  Check first that no consumer relies on Ctrl+Up/Down toggling the neighbour.
-- **Q13** (product, small). Yes, in multi-select, the same in Tree and Grid. Ctrl+click and Ctrl+Space move the anchor to
-  the item whether it was selected or deselected (the WPF rule). UIA Add/Remove do not move it.
-- **Q14** (technical, medium). Follow the UIA SelectionItem contract, as WPF does:
-  - AddToSelection with another item selected in a single-select container returns `UIA_E_INVALIDOPERATION`.
-  - Single-select Tree and Grid report `IsSelectionRequired` true, and RemoveFromSelection of the selected item returns
-    `UIA_E_INVALIDOPERATION`.
-  - SetFocus notifies the delegate exactly as the keyboard would, and never destroys a multi-selection.
-  - Select moves the control's current item, not keyboard focus.
-  - "Became exactly one new item" wins over the more-than-20 rule.
-  - A disabled control returns `UIA_E_ELEMENTNOTENABLED`.
-- **Q15** (technical, medium). A defect.
-  - Collapse only when the host's root control is itself the semantic control, or has the Status role. A Panel root
-    never collapses, so siblings appearing or disappearing cannot kill the root.
-  - Keep "gone" for `SetRoot` replacement only, and disconnect the old root then.
-- **Q16** (technical, small). DxUi raises item-level focus events (A6). The application reports placement focus
-  truthfully, calls `UpdateAccessibility`, and never raises events for elements inside the view. Document the split, and
-  confirm RedXe's adapter does not raise them too.
-- **Q17** (technical, medium).
-  - (a) Yes: each committed composition, emoji insert or dictation phrase is one undo unit. Previews and selection-only
-    imports never touch history, as on the embedded path.
-  - (b) By code, TSF input methods take the native `ITextStoreACP` path, but no real-IME or emoji-panel run is recorded.
-    Do one with consent and record it.
-  - (c) Masked fields refuse `WM_GETTEXT`/`WM_GETTEXTLENGTH` for every caller. That is stricter than `ES_PASSWORD`,
-    because DxUi's own publish reads the window text in-process. Disable text services while one has focus, as
-    `ES_PASSWORD` does.
-  - (d) No: stop answering `WM_GETTEXT`, `WM_GETTEXTLENGTH` and `WM_SETTEXT` for the host window (the new P1 item). Keep
-    the `EM_*` and clipboard messages.
-- **Q18** (technical, small). The trust model and capacity:
-  - Same-user, same-integrity processes are not a security boundary (Microsoft's servicing criteria). UIPI already
-    blocks lower-integrity senders, and DxUi never relaxes it.
-  - Treat registered messages as a robustness matter: no raw pointers in parameters (`SendMessagePayload` with a
-    timeout for CreateProvider), validated tokens, bounded waits, and refusal of a foreign-process HWND.
-  - Drop the 128-window table, since entries record their window, and keep a diagnosed payload bound (A8).
-- **Q19** (product, medium).
-  - Copy Excel-style quoted TSV in `CF_UNICODETEXT`: quote fields with TAB, CR, LF or `"`. Add no CSV or HTML until
-    asked, and rewrite the #36 test.
-  - The full value is reachable through UIA, Ctrl+C and a consumer detail view; document that view as required for
-    clamped cells. Add a keyboard tooltip after A3.
-  - Bound tooltips in `TooltipLayer`.
-- **Q20** (technical, medium).
-  - (a) No. Split `RunMenuDescriptionTests` into a non-activating list for NewControls and an activating list for Menu,
-    and make the pointer-alignment fixture require activation.
-  - (b) Yes. Fail CI on any skip outside a checked-in per-lane baseline keyed by test name.
-  - (c) A deliberate visual change regenerates its baselines in the same PR. Replace the 2% ratio with a per-channel
-    tolerance plus a small absolute pixel cap, measured on the hosted GPUs and WARP.
-  - (d) Yes. A per-host, test-only clock seam, as #44, keeping one real-time test.
-- **Q21** (process, small). Today nothing is required, so nothing blocks a merge.
-  - Add one always-running aggregate job (for example `ci-gate`) that fails unless `validation` and the native matrix
-    succeeded, or native was skipped for a documentation-only PR. Make it the single required check.
-  - Do not require matrix names or the path-filtered format check.
-  - Make `validation` run with `if: always()`.
-  - The gallery workflow refuses `refs/heads/main` and publishes on the PR branch.
-- **Q22** (technical, medium).
-  - (1) No family-wise correction yet: six runs per side cannot reach Bonferroni thresholds. Fix the A,B,B,A dependence
-    first, then calibrate with A/A sets.
-  - (2) Keep the gate code from the PR, whose workflow comes from the merge ref anyway. When a PR changes the gate, also
-    run the base revision's verdict on the same summary and fail on disagreement.
-  - (3) Downgrade to noise only when the fingerprints match *and* every changed measured path is harness, gate or
-    workflow. Move the allocation counters into an overlaid, hashed header.
-  - (4) Both numbers are right but measure different metrics: +7,012,352 is the median private-bytes envelope, and the
-    dirty peak was never enveloped. Correct the packet's "within", and give the contract one figure per metric.
-- **Q23** (product, small). Declare the PowerShell version per consumer-interface entry.
-  - Keep `vcpkg-install.ps1` and its modules 5.1-compatible; RedSalamander runs them under 5.1.
-  - Declare `validate-build-matrix.ps1` PowerShell 7.2+, with `#Requires` or a re-launch under pwsh, rather than porting
-    `Validation.psm1`.
-  - Fix the relative `-Root`.
-- **Q24** (process, medium). Yes to both:
-  - amend the revision 3 migration list with #29's full renames, through a new Changes fragment;
-  - enforce the rule with a frozen per-revision consumer compile fixture seeded from what consumers use, plus
-    mandatory-parameter detection.
-- **Q25** (process, small). Close the library side now, and keep consumer pin handoffs in one tracker.
-  - Close MenuDescriptions, GridTextOverflow and TreeReorder after fixing their stale text.
-  - Close SliderTouchHalo (its hosted paired benchmark passed before the merge) and CiRunScope after recording their
-    run ids.
-  - Move CodexBranchReview's delegate audit here (A5).
-  - In `capabilities.json`, list tree multi-select, grid multiline, ordinary-menu UIA and slider touch feedback, and move
-    described menus to supported. If "supported" means safe to pin, wait for the P0 fixes.
-- **Q26** (process, small).
-  - No real-touch check is recorded. Run a short one on a touch device, or record "synthetic input only".
-  - #62 merged at 12:50 on 4 October after `paired-benchmark (pull request)` passed at 12:28.
-  - The halo's overlap is intended and documented; keep it.
-- **Q27** (product, small). No: a plain `test.ps1` must never exit 0 having run nothing.
-  - Hand it to `Test-Changes.ps1 -Mode Full`: reuse keeps it cheap, since unchanged scopes report REUSED.
-  - Keep Affected iteration under `Test-Changes.ps1`, and label an empty plan NOTHING_SELECTED, NOT_EVALUATED.
-  - No consumer calls DxUi's plain `test.ps1`.
-- **Q28** (product, medium).
-  - One PrePush call covers every PR profile.
-  - Native scopes are delegated only once a required aggregate check (Q21) is confirmed through the rules API.
-  - Otherwise they run locally, and ARM64 on an x64 host cross-builds and reports ARM64 runtime NOT_RUN, non-zero.
-  - Use the PR's real base for stacked PRs.
-  - Refuse to delegate on the default branch, on a detached HEAD, or to another remote.
-- **Q29** (technical, small).
-  - The dead rules are leftovers: repoint MenuExitLifetime to `DxUi.Tests.Menu.cpp` and delete the Tooltip/TextField
-    patterns.
-  - Check that every rule matches a tracked file and every fixture maps to a scope that runs it.
-  - Add NewControls to the ComboBox rule; TagPicker is the only composition the rules care about.
-  - Every non-`.build` change selects Tooling.
-  - Menu and NativeTextInput sources yield INTERACTIVE_NOT_RUN, never FULL.
-- **Q30** (technical, small).
-  - Reuse a run that skipped only when its skip set equals a reviewed per-lane set. NewControls records the same nine
-    skips in every x64 profile here, so "never" would never reuse.
-  - Consoles here use OEM 850: decode git as UTF-8, and record missing paths instead of dropping them.
-  - Performance and mutation runs use `test.ps1` or `performance.ps1`, and `Test-Changes.ps1` hashes every `DXUI_*`
-    variable.
-- **Q31** (technical, small).
-  - (a) The hosted lease self-test does not skip: no SKIPPED line in 18 jobs. Remove the CI tolerance.
-  - (b) No repository self-hosted runners exist. Also require `RUNNER_ENVIRONMENT=github-hosted` for the CI-only focus
-    suites.
-  - (c) A cancelled run reports pending dependants as cancelled (run 37203429227), so the skipped-`validation` case is
-    unlikely; `if: always()` removes it anyway.
-  - (d) Nothing is required today. Require the single aggregate check (Q21), not `windows-tooling`.
+Recommended order: retain the proven point fixes; implement ownership/publication/action helpers with measured
+lifetime behavior; settle Grid/UIA and text contracts; enforce the aggregate CI/skip/revision policy; then complete
+interactive/native-platform/consumer qualification. RTL, broader copy formats and optional visual changes remain
+separate scoped improvements unless an active consumer requires them.
 
-## Sequence
+## Historical proposed sequence (6 October)
 
 1. **P0 point fixes** that are small and independent of the questions: `SetRoot` order, the pointer-down revalidation,
    the checkbox/group tokens, the clear button and `ImportTextInputState` liveness, closing menus before the exit sweep,
@@ -995,3 +1427,188 @@ Validation follows AGENTS.md:
 - gallery regeneration for visual changes.
 
 Consumer adoption (RedXe, RedSalamander) stays separate.
+
+### 9 October follow-up: focus request supersession
+
+- Debug24 affected execution passed all 19 noninteractive scopes with no capability skips and all validators/tooling.
+  Its approved desktop execution failed the modal owner timer fixture and the TSF post-commit staging fixture;
+  both the original native focus-transfer test and its new nested-activation regression passed. The lease restored
+  foreground, keyboard focus and pointer. This is not interactive qualification.
+- Independently traced and repaired a parent `SetFocusControl` continuation that overwrote a newer focus selected
+  from control callbacks or TSF `OnPopContext`. Added request-generation checks and standard-exception containment,
+  with noninteractive loss/gain/host-callback and retirement regressions and a real TSF different-editor regression.
+- Repaired the modal timer fixture's pre-popup safety deadline and added failure diagnostics. Repaired TSF staging
+  to call activation after deliberately retiring its document; cache synchronization does not activate TSF.
+- These source changes invalidate the Debug24 build attestation. Fresh affected Debug and approved desktop runs,
+  then Release/ASan/ARM64 and the existing measurement/publication/consumer/CI gates, remain required.
+- Debug25 built `3011d3d953fc42feb0f539ed4760520c` but its validators rejected two incorrectly shaped changelog
+  fragments. Every remaining validator and tooling test ran and passed; no overall pass is claimed. The fragments
+  now follow Changes/README.md. Independent audit then found before-base throwing blur and old-tree focus retirement
+  gaps; both received concrete regressions before the next build.
+- Debug26, build `7b8abde2d2454c8a985f94b9b7016950`, passed all 19 noninteractive scopes with zero capability skips,
+  all validators and tooling. The four new focus supersession, throwing-blur, reset/successor and retirement cases
+  all executed successfully. A follow-up audit found the sole text-service focus-restoration option could activate
+  an inactive cached editor during reset. The option is removed and an approved desktop regression now covers reset
+  and root replacement while another window holds keyboard focus. This source needs fresh qualification.
+- The Menu fractional-DPI scenario is being changed to deterministic synthetic 120/168 DPI reflow; two foreground
+  acquisition fixtures are being converted to fresh-window held-foreground attempts. Their previous skips remain
+  incomplete acceptance. The focus/session changes do not change gallery pixels directly; public hosting guidance
+  is updated, and the broader review's final visual gallery regeneration remains required.
+- Debug27, build `6c5d088bc83a43838716e6fad333e1fe`, passed all 19 noninteractive scopes with zero capability skips,
+  all validators and tooling. Independent review then confirmed that a host focus notification removing its editor
+  cleared logical focus but left its native session/cache alive until a later prune. Immediate retirement now covers
+  both destruction and returning a live child, with normal and throwing notifications. Fresh qualification is required.
+- Debug29, build `3d677af56e8a4f61b6aa9dd8656f15ce`, passed all 19 noninteractive scopes with zero skips, validators,
+  tooling and formatting. Its desktop run passed the nested focus-transfer, inactive-reset and four editor-removal
+  cases, then failed Menu owner acquisition and foreign TSF document retention. Debug30's focused host/control/embedded
+  checks passed; its desktop diagnostics proved foreign document creation/focus succeeded, then association restoration
+  changed focus before the `OnPopContext` notification. Native retirement and staged rollback now preserve that external focus with generation
+  and document checks. The Menu run advanced through submenu focus and timer tests, then exposed synchronous Escape
+  cleanup racing its posted mnemonic; the redundant success cleanup is removed. Both failed runs restored the desktop
+  and supply no whole interactive-suite qualification.
+- Debug31, build `5104df53f02444b5ba19d92b2bdafcd8`, passed its focused WindowHost check. Its desktop TSF callback
+  case now proves external document retention, staged text/layout reconciliation and different-editor supersession;
+  process-exit Pop/refocus retirement also passed. NativeTextInput later stopped at an obsolete disabled-ancestor
+  self-edit sink-echo expectation. The fixture now checks returned ACP extents, exact retained text/caret and one
+  application callback with no sink echo. Independent audit found no further obsolete counter assertions.
+- Debug31's Menu startup timeout coincided with an independently launched RedPrism Release build and many active
+  compiler processes. Leave those processes untouched and rerun the existing deadline in a quieter window before
+  classifying the result. The lease restored foreground, keyboard focus and pointer; no full interactive pass exists.
+- The lead independently confirmed the application-side `TextInputServices::Clear`/`SetClient` path still allowed
+  cancellation, client reads and TSF callbacks to clear or overwrite a replacement session. A separate delegated
+  repair stages ownership and immutable dispatch generations, moves old resources before callbacks, shares native
+  focus-association preservation, and makes Detach reject resurrection. The lead will review every change and run
+  the new replacement/teardown regressions before the final configuration and measurement matrix.
+- Debug32, build `f820c021afc94acfb8bea7e87059eec2`, passed all 19 noninteractive scopes with zero skips,
+  validators, tooling and formatting. The lead's post-build review then identified retirement Read reattaching the
+  same client before old-store cancellation. A private successor check now runs before and after Read; its native
+  regression proves the replacement preview survives and ordinary later retirement still cancels once.
+- Debug33's focused Embedded/EditorControls/TextField/WindowHost execution passed with zero skips; full validators
+  and tooling passed. Its approved desktop run passed all six new application text-service regressions, native TSF
+  foreign-focus retention and process-exit retirement. Menu and NativeTextInput still failed later, so no complete
+  interactive qualification is claimed. Foreground/focus were unchanged and the lease restored the pointer.
+- The lead independently confirmed both Debug33 stopping points were fixture defects: the Unicode menu test posted
+  WM_CHAR to its own thread without pumping it while waiting, and the IMM replacement test assumed SetText moved
+  an existing caret to the end. The local menu wait now dispatches its posted character and verifies exact closing
+  command identity; the IMM test checks insertion at the retained caret and its preservation through late cancellation.
+  Fresh source/build validation and complete desktop runs remain required.
+- Debug34, build `5b304281346f4eb6904fe62bcff3f4f4`, passed the focused WindowHost check. The desktop run passed
+  the repaired Unicode dispatch and retained-caret scenarios but stopped at two later assertions. The lead verified
+  the RTL test compared shadow-expanded HWNDs instead of visible surfaces; it now checks row-edge anchoring and
+  leftward preference when the work area permits it. The native public setter exposed a production defect: new text
+  retained old IMM metadata. Immediate retirement now rejects late payloads until a fresh START. Independent audit
+  also confirmed a notifying result callback could start a successor then have its base/preview erased by the old
+  handler. Composition revisions and owned cleanup cover replacement, nested start, focus transfer and ordinary
+  synchronization for result-only and continuing messages. Fresh complete qualification remains required.
+  These input fixes and geometry assertions do not directly change gallery pixels; the broader visual review's
+  final gallery regeneration and publication remain open.
+- Debug36, build `7c213e0f6cfd44e8844545e4ca288a98`, passed all 19 noninteractive scopes with zero skips,
+  all five validators, tooling and formatting. The approved desktop invocation timed out at its 120-second
+  confirmation; neither Menu nor NativeTextInput started, and foreground/focus/pointer were unchanged.
+  Desktop qualification remains open. The lead requested only a new timing preference and continues offscreen work.
+  The final IMM follow-up now handles an active no-GCS cancellation, keeps read-string updates distinct, and tests
+  retained history and dropped late payloads. The caret-layout fixture no longer sends a contradictory cancellation
+  message merely to refresh geometry. The new native scenarios still require execution under the lease.
+- Release36, build `2250c586bd4549448b4c87faf01cdde2`, passed focused Embedded/EditorControls/TextField/WindowHost
+  execution with zero skips. The lead's continuation audit confirmed cancellation still called a virtual export
+  and then restored text through its old raw control without rechecking ownership. Destruction, newer editor,
+  same-editor composition and throwing-export regressions are being added before the next source freeze.
+- The accessibility scheduling baseline refresh stopped before overlay because its old harness lacks the new
+  acceptance policy. An explicit platform-only identity now separates that pre-overlay check from full benchmark
+  provenance; the lead independently passed all seven focused tooling cases. Actual checkout verification then
+  found `MSBuildAllProjects` reported different partial import lists despite equal effective compiler options.
+  Both complete `/pp` expanded project texts are byte-equivalent after checkout-root and line-ending normalization,
+  SHA-256 `86B95D4E8BABBD4DBF4EFF3E3FDD3E150549FC5CCBDC86C3446DA9395659A23C`. Full identity will hash those
+  actual expanded inputs before the refresh is retried. No baseline overlay, timing study or performance result
+  has yet been produced by this refresh attempt; the original setup receipt remains unchanged.
+- Debug37, build `e0417857d2ea48eab6f607318279cdb1`, passed all 19 noninteractive scopes with zero skips,
+  all five validators, the complete tooling runner and formatting. Cancellation now checks the editor lifetime,
+  session, composition generation and cached owned preview after its virtual read. The lead strengthened the
+  delegated regression with owned-read recovery and allocation/standard exceptions after successor focus;
+  these new native desktop cases still require execution under the lease.
+- Canonical x64 and ARM64 dependency restore completed with VS 18 Insiders/default MSVC `14.51.36231`.
+  The prior candidate installation had no generated toolset overlay and different package ABI records despite
+  equal installed headers. The pinned restore recovered the baseline's exact x64 dependency identity. The lead
+  verified equal actual toolchain, dependency and environment hashes across both study roots; it did not weaken
+  comparison rules or edit installed products manually. Logs and equality records are retained under `.build/logs`.
+  Fresh final-profile build attestation is required after this restore.
+- A lead audit then confirmed scoped build and native reuse identities omitted restored dependency inputs.
+  A changed installed header/library/status could leave `-SkipBuild` eligible with stale output. The shared
+  platform-specific build-input identity is being extended and exercised with unchanged-artifact regressions
+  before the final matrix and scheduling study. The original archived receipts are not being relabelled.
+- The shared scoped build identity now includes the actual selected-platform installed dependency closure, status,
+  package inventory and ABI metadata. The lead independently passed all 34 focused cases after strengthening
+  per-file mutation isolation, missing-input refusals and x64/ARM64 separation.
+- Debug38 (`236b4d5c749f4e03955bdb55310fb551`), Release38 (`1228a0fb7d32492d89aadf49d6242712`) and
+  ASanDebug38 (`6ed0001f07674028ab0e65bdf44c1083`) each passed all 19 noninteractive scopes with zero skips.
+  Debug and Release ran all validators and tooling; ASan reused the exact Release tooling receipt and passed
+  its sanitizer detection probe. ARM64 Debug (`4f1dc4afe47942a8bde6cfea4e475d00`), Release
+  (`40adff6901184b4bb32d3f329e273d3a`) and ASanDebug (`cfd4570d6908491999398fc4cee0289d`) cross-builds passed.
+  Native ARM64 runtime qualification remains NOT RUN.
+- A lead identity audit caught the scoped-testing fixture restoring absent environment variables as present-empty
+  on this PowerShell host. Production identities correctly distinguish those states. Fixture cleanup now preserves
+  presence and value; the lead independently verified all 34 cases and replayed the instrumentation case with
+  initially present-empty variables. The before/after environment identities match. This tooling edit requires
+  fresh final receipt accounting; the previous native executable results are retained, not relabelled.
+- The baseline refresh also exposed a historical tool inventory error: its preserved compilation log invoked
+  Hostx86 tools, although the original inventory recorded Hostx64 binaries. The original manifest and log are
+  unchanged. The refresh now records this erratum, verifies the preserved log, fully rebuilds with attested
+  current tools, and still requires equal actual toolchain/dependency/harness/environment identities.
+- Debug39's current Foundation check passed. Its approved Menu/NativeTextInput lease confirmation timed out
+  before either suite started; foreground, keyboard focus and pointer were unchanged. Whole interactive-suite
+  qualification, final visual publication, paired acceptance and consumer/CI handoff remain open.
+- The baseline refresh passed after two disclosed payload-call signature bridges in its compiled copy; the archived
+  implementation remains SHA-256 `E65FDAE8F9B6D1BEFD6070337167D0A03CD997AFA69813BF5D852B82C6C70268`.
+  The compiled copy is `A2848B84BAFD73FD1E59945FAE56B511B848C6EF1603F14FB846D7FA62828FBD`; their diff is
+  exactly the two reviewed expressions. The versioned setup manifest records those changes and compiler-host erratum.
+- The completed scheduling study (`20261009T201426Z-seed-20261009`) passed all 48 serial named-test processes and
+  retained 672 records across 12 randomized independent blocks. Source, binaries, dependencies, toolchain, harness,
+  environment and UIA-listening state stayed stable. The lead verified every raw log hash and independently
+  recomputed all six geometric effects, exact sign-flip p-values and Holm-adjusted p-values (`0.0029296875`).
+  Keystroke batch total cost fell 95.92%; selection batch total cost fell 98.43%. Snapshot builds changed from
+  384/128 per batch to zero during mutations and one at the first query. First-query cost rose from representative
+  11.90/8.10 microseconds to 431.83/321.93 microseconds; this is a measured cost, not silently rebaselined.
+- Developer advice for that tradeoff: retain coalescing and its fresh first-query assertions given the measured total
+  reduction; optimize incrementally only after profiling larger-tree/query-heavy workloads with their own retained
+  baselines. Scope coalescing more narrowly, or defer it, if a consumer's measured query-latency budget requires it.
+  This Debug synthetic study sets no new acceptance threshold and cannot replace Release policy qualification.
+- The developer explicitly accepted that measured scheduling tradeoff on 9 October: retain coalescing and record
+  the increased first-query cost. The durable rationale, bounded publication/snapshot budget, freshness requirement
+  and separate larger-tree/query-heavy consumer qualification now belong in the performance contract.
+- Final Release gallery regeneration passed and the lead visually reviewed all six actual harness captures.
+  The canonical design-system files under `Specs/DesignSystem` and the six images under `docs/gallery` are the
+  repository publication. Commit and review their final changes with the rest of the project.
+- Debug40b, Release40b and ASanDebug40b passed all 19 noninteractive scopes with zero skips. Debug reused only
+  Foundation's exact current-source Debug39 receipt; all other native obligations executed. The ASan detection
+  probe, five validators, complete tooling runner and clang-format 22.1.3 check passed. The lead independently
+  recomputed all 57 receipt identities and verified every corresponding report and current executable hash;
+  [the preserved record](../../../Measurements/Review-2026-10-09/NativeQualification40/README.md) gives their limits.
+- The final reuse audit found no additional demonstrated defect. The validation contract now makes explicit that
+  scoped receipts qualify existing attested bytes in the recorded environment; they do not hash the entire external
+  compiler/SDK installation or replace fresh buildability evidence. Resolved toolchain content remains mandatory
+  for paired performance studies. Desktop, consumer, paired Release policy and native ARM64 remain open.
+- Git's default line-ending conversion would alter retained hashed records after checkout. Byte-preservation
+  attributes now cover the sealed 8 October packet and the 9 October raw scheduling/qualification records. No native
+  C++ behavior changed, but the conservative build/run identity did; Debug42, Release42 and ASanDebug42 each executed
+  and passed all 19 scopes with zero skips. The lead independently verified all 57 current identities and executable
+  hashes. ASan detection, validators, tooling and formatting passed. The additional noninteractive Release
+  MenuTextLayoutResources fixture passed with zero skips. The
+  [final archive](../../../Measurements/Review-2026-10-09/NativeQualification42/README.md) preserves the receipts;
+  iteration 40 remains historical. Whole desktop suites, consumer fixtures, Release paired policy and native ARM64
+  are separate unfinished gates.
+- Debug43's approved desktop lease passed the complete Menu suite with zero skips, then NativeTextInput stopped
+  at the eligibility-transition fixture's preview assertion. The lease restored foreground, focus and pointer.
+  The confirmed setup defect is a missing START before the preview: the cancellation latch rejects late payloads
+  until a fresh transaction starts. The lead corrected an initial focus diagnosis after verifying that the
+  interactive runner permits activation and SetFocusControl defaults to requesting native focus. The fixture
+  now also explicitly activates its window and verifies keyboard focus and the native session before START.
+  The nearby hidden-host regression already has START and explicit activation. No production guard was relaxed;
+  fresh desktop execution remains required. Debug44's subsequent lease confirmation timed out without starting
+  a child; foreground, focus and pointer were unchanged.
+- After final fixture formatting, all six canonical builds passed in iteration 45: x64 and ARM64 Debug, Release
+  and ASan Debug. All five validators, complete tooling and formatting passed. The lead independently checked
+  current source/build-input/artifact identities and the original build logs in the
+  [post-build inventory](../../../Measurements/Review-2026-10-09/BuildQualification45/README.md). Direct build.ps1
+  does not publish scoped receipts; no stale scoped build receipt was reused or relabelled. Debug45's desktop
+  confirmation also timed out before any child ran, leaving foreground, focus and pointer unchanged. Remaining
+  native profile obligations will be accounted against the concrete committed PR and its actual CI coverage.

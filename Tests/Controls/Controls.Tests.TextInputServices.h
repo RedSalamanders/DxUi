@@ -1,174 +1,18 @@
-// Included after NativeTextStoreTestSink; these tests exercise the production COM store with an application adapter.
-class ClientTextRange final : public ITfRangeACP
-{
-public:
-    LONG start = 1, length = 4;
-    ULONG references = 1;
-    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** out) noexcept override
-    {
-        if (! out)
-            return E_POINTER;
-        *out = nullptr;
-        if (iid != __uuidof(IUnknown) && iid != __uuidof(ITfRange) && iid != __uuidof(ITfRangeACP))
-            return E_NOINTERFACE;
-        *out = static_cast<ITfRangeACP*>(this);
-        AddRef();
-        return S_OK;
-    }
-    ULONG STDMETHODCALLTYPE AddRef() noexcept override
-    {
-        return ++references;
-    }
-    ULONG STDMETHODCALLTYPE Release() noexcept override
-    {
-        return --references;
-    }
-    HRESULT STDMETHODCALLTYPE GetExtent(LONG* first, LONG* count) noexcept override
-    {
-        *first = start;
-        *count = length;
-        return S_OK;
-    }
-    HRESULT STDMETHODCALLTYPE SetExtent(LONG first, LONG count) noexcept override
-    {
-        start  = first;
-        length = count;
-        return S_OK;
-    }
-    HRESULT STDMETHODCALLTYPE GetText(TfEditCookie, DWORD, WCHAR*, ULONG, ULONG*) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE SetText(TfEditCookie, DWORD, const WCHAR*, LONG) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE GetFormattedText(TfEditCookie, IDataObject**) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE GetEmbedded(TfEditCookie, REFGUID, REFIID, IUnknown**) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE InsertEmbedded(TfEditCookie, DWORD, IDataObject*) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE ShiftStart(TfEditCookie, LONG, LONG*, const TF_HALTCOND*) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE ShiftEnd(TfEditCookie, LONG, LONG*, const TF_HALTCOND*) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE ShiftStartToRange(TfEditCookie, ITfRange*, TfAnchor) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE ShiftEndToRange(TfEditCookie, ITfRange*, TfAnchor) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE ShiftStartRegion(TfEditCookie, TfShiftDir, BOOL*) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE ShiftEndRegion(TfEditCookie, TfShiftDir, BOOL*) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE IsEmpty(TfEditCookie, BOOL*) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE Collapse(TfEditCookie, TfAnchor) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE IsEqualStart(TfEditCookie, ITfRange*, TfAnchor, BOOL*) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE IsEqualEnd(TfEditCookie, ITfRange*, TfAnchor, BOOL*) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE CompareStart(TfEditCookie, ITfRange*, TfAnchor, LONG*) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE CompareEnd(TfEditCookie, ITfRange*, TfAnchor, LONG*) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE AdjustForInsert(TfEditCookie, ULONG, BOOL*) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE GetGravity(TfGravity*, TfGravity*) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE SetGravity(TfEditCookie, TfGravity, TfGravity) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE Clone(ITfRange**) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-    HRESULT STDMETHODCALLTYPE GetContext(ITfContext**) noexcept override
-    {
-        return E_NOTIMPL;
-    }
-};
+#pragma once
 
-class ClientComposition final : public ITfCompositionView
-{
-public:
-    ClientTextRange range;
-    ULONG references = 1;
-    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** out) noexcept override
-    {
-        if (! out)
-            return E_POINTER;
-        *out = nullptr;
-        if (iid != __uuidof(IUnknown) && iid != __uuidof(ITfCompositionView))
-            return E_NOINTERFACE;
-        *out = static_cast<ITfCompositionView*>(this);
-        AddRef();
-        return S_OK;
-    }
-    ULONG STDMETHODCALLTYPE AddRef() noexcept override
-    {
-        return ++references;
-    }
-    ULONG STDMETHODCALLTYPE Release() noexcept override
-    {
-        return --references;
-    }
-    HRESULT STDMETHODCALLTYPE GetOwnerClsid(CLSID* clsid) noexcept override
-    {
-        *clsid = GUID_NULL;
-        return S_OK;
-    }
-    HRESULT STDMETHODCALLTYPE GetRange(ITfRange** out) noexcept override
-    {
-        *out = &range;
-        range.AddRef();
-        return S_OK;
-    }
-};
+#include "Controls.Tests.TextStoreComposition.h"
+
+#include <atomic>
 
 class TestTextClient final : public DxUi::TextInputClient
 {
 public:
     DxUi::EmbeddedTextInputSnapshot snapshot;
     std::optional<DxUi::NativeTextInputState> base;
-    size_t commits = 0, previews = 0, cancellations = 0;
+    size_t reads = 0, commits = 0, previews = 0, cancellations = 0;
+    std::function<void()> onRead, onCancel;
     std::function<void(const DxUi::NativeTextInputState&)> onApply;
+    HRESULT applyResult = S_OK;
     TestTextClient()
     {
         snapshot.focusId          = 1;
@@ -178,9 +22,13 @@ public:
     }
     HRESULT Read(DxUi::EmbeddedTextInputSnapshot& result) noexcept override
     {
+        ++reads;
         try
         {
-            result = snapshot;
+            result        = snapshot;
+            auto callback = std::move(onRead);
+            if (callback)
+                callback();
             return S_OK;
         }
         catch (const std::bad_alloc&)
@@ -210,7 +58,7 @@ public:
             ++snapshot.revision;
             if (onApply)
                 onApply(state);
-            return S_OK;
+            return applyResult;
         }
         catch (const std::bad_alloc&)
         {
@@ -226,6 +74,9 @@ public:
             base.reset();
             ++snapshot.revision;
         }
+        auto callback = std::move(onCancel);
+        if (callback)
+            callback();
     }
     HRESULT HitTest(POINT point, size_t& index) noexcept override
     {
@@ -353,6 +204,7 @@ void TestApplicationTextStoreFailuresAndGeometry()
     client->snapshot.state.caretIndex = 1;
     client->snapshot.state.readOnly   = true;
     ++client->snapshot.revision;
+    NotifyTextStoreChanged(store.get());
     sink.onLockGranted = [&](DWORD) noexcept
     {
         TS_TEXTCHANGE change{};
@@ -413,6 +265,128 @@ void TestApplicationTextStoreFailuresAndGeometry()
     RequireSucceeded(store->UnadviseSink(&sink), "failure-test sink unadvised");
 }
 
+void TestApplicationTextStoreDefersExternalNotificationUntilLockUnwinds()
+{
+    using namespace DxUi;
+    auto client = std::make_shared<TestTextClient>();
+    struct Dispatch final
+    {
+        bool queued    = false;
+        unsigned posts = 0u;
+    } dispatch;
+
+    NativeTextStoreTestSink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(CreateClientTextStore(nullptr,
+                                       client,
+                                       {&dispatch,
+                                        [](void* context) noexcept
+    {
+        auto& queue = *static_cast<Dispatch*>(context);
+        if (! queue.queued)
+        {
+            queue.queued = true;
+            ++queue.posts;
+        }
+        return true;
+    }}));
+    Require(store != nullptr, "deferred external-notification fixture creates an application text store");
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE),
+                     "deferred external-notification sink is advised");
+
+    client->applyResult = HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    client->onApply     = [&](const NativeTextInputState&) noexcept
+    {
+        client->snapshot.state.text       = L"external";
+        client->snapshot.state.caretIndex = client->snapshot.state.text.size();
+        client->snapshot.state.selectionAnchorIndex.reset();
+        ++client->snapshot.revision;
+        NotifyTextStoreChanged(store.get());
+    };
+    sink.onLockGranted = [&](DWORD) noexcept
+    {
+        TS_TEXTCHANGE change{};
+        return store->SetText(0u, 0, 2, L"after", 5u, &change);
+    };
+
+    HRESULT session = E_UNEXPECTED;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE, &session), "stale application edit returns through RequestLock");
+    Require(session == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH) && client->snapshot.state.text == L"external",
+            "the newer application replacement rejects the staged TSF continuation");
+    Require(sink.textChangeCount == 0u && sink.selectionChangeCount == 0u && sink.layoutChangeCount == 0u,
+            "a TSF self-edit is not echoed while its write lock is active");
+    Require(dispatch.queued && dispatch.posts == 1u, "the callback-side external change queues one bounded out-of-lock notification");
+
+    sink.onLockGranted     = [](DWORD) noexcept { return S_OK; };
+    bool requestedReadLock = false;
+    HRESULT nestedRequest  = E_UNEXPECTED;
+    HRESULT nestedSession  = E_UNEXPECTED;
+    sink.onTextChange      = [&](const TS_TEXTCHANGE*) noexcept
+    {
+        requestedReadLock = true;
+        nestedRequest     = store->RequestLock(TS_LF_READ, &nestedSession);
+        return S_OK;
+    };
+    const HRESULT dispatchResult = DispatchDeferredTextStoreLock(store.get(), dispatch.queued);
+    Require(dispatchResult == S_FALSE && ! dispatch.queued, "the posted turn reports external state without inventing another lock request");
+    Require(requestedReadLock && SUCCEEDED(nestedRequest) && SUCCEEDED(nestedSession),
+            "the external text callback can request a read lock after the failed write lock unwinds");
+    Require(sink.textChangeCount == 1u && sink.selectionChangeCount == 1u && sink.layoutChangeCount == 1u,
+            "the newer external replacement is reported once after lock release");
+    Require(sink.lastTextChange.acpStart == 0 && sink.lastTextChange.acpOldEnd == 2 && sink.lastTextChange.acpNewEnd == 8,
+            "deferred external notification compares the committed document with the newer replacement");
+    Require(sink.editTransactionStartCount == 1u && sink.editTransactionEndCount == 1u && sink.editTransactionDepth == 0u,
+            "deferred notification preserves the failed edit's balanced transaction callbacks");
+
+    client->onApply                   = {};
+    client->snapshot.state.text       = L"outside-read";
+    client->snapshot.state.caretIndex = client->snapshot.state.text.size();
+    ++client->snapshot.revision;
+    sink.onTextChange  = {};
+    sink.onLockGranted = [&](DWORD) noexcept
+    {
+        NotifyTextStoreChanged(store.get());
+        return S_OK;
+    };
+    RequireSucceeded(store->RequestLock(TS_LF_READ, &session), "read lock observes an external callback-side replacement");
+    RequireSucceeded(session, "external replacement does not fail an otherwise successful read lock");
+    Require(sink.textChangeCount == 1u && dispatch.queued, "successful lock capture does not consume an external notification observed during its callback");
+    RequireSucceeded(DispatchDeferredTextStoreLock(store.get(), dispatch.queued), "posted turn reports the read-lock external replacement");
+    Require(sink.textChangeCount == 2u && sink.lastTextChange.acpOldEnd == 8 && sink.lastTextChange.acpNewEnd == 12,
+            "the deferred read-lock notification preserves the pre-callback document as its comparison baseline");
+
+    client->snapshot.state.text       = L"replacement-final";
+    client->snapshot.state.caretIndex = client->snapshot.state.text.size();
+    ++client->snapshot.revision;
+    HRESULT unadviseResult = E_UNEXPECTED;
+    HRESULT readviseResult = E_UNEXPECTED;
+    bool disconnected      = false;
+    sink.onTextChange      = [&](const TS_TEXTCHANGE*) noexcept
+    {
+        unadviseResult = store->UnadviseSink(&sink);
+        if (SUCCEEDED(unadviseResult))
+            readviseResult = store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE | TS_AS_SEL_CHANGE | TS_AS_LAYOUT_CHANGE);
+        DisconnectNativeTextInputTextStore(store.get());
+        disconnected = true;
+        return S_OK;
+    };
+    sink.onLockGranted = [&](DWORD) noexcept
+    {
+        NotifyTextStoreChanged(store.get());
+        NotifyTextStoreLayoutChanged(store.get());
+        return S_OK;
+    };
+    RequireSucceeded(store->RequestLock(TS_LF_READ, &session), "lock queues external text and prepared-layout notifications together");
+    RequireSucceeded(session, "external notification fixture completes its lock");
+    Require(dispatch.queued, "coalesced external text and layout changes use one posted turn");
+    RequireSucceeded(DispatchDeferredTextStoreLock(store.get(), dispatch.queued), "coalesced external notifications dispatch out of lock");
+    Require(disconnected && SUCCEEDED(unadviseResult) && SUCCEEDED(readviseResult),
+            "the text callback can replace its sink connection and disconnect the store reentrantly");
+    Require(sink.textChangeCount == 3u && sink.selectionChangeCount == 2u && sink.layoutChangeCount == 2u,
+            "disconnect stops stale selection and layout notifications from reaching the retired or replacement connection");
+    Require(DispatchDeferredTextStoreLock(store.get(), dispatch.queued) == S_FALSE, "disconnect leaves no deferred lock or layout work to deliver");
+}
+
 void TestApplicationTextServiceLifecycle()
 {
     using namespace DxUi;
@@ -421,6 +395,10 @@ void TestApplicationTextServiceLifecycle()
     TextInputServices services;
     Require(services.Attach(nullptr) == E_INVALIDARG, "application text services require a valid application HWND");
     RequireSucceeded(services.Attach(window.Hwnd()), "application text services borrow the existing HWND");
+    auto maskedClient                   = std::make_shared<TestTextClient>();
+    maskedClient->snapshot.state.masked = true;
+    Require(services.SetClient(maskedClient) == E_ACCESSDENIED && ! services.HasClient(),
+            "application text services refuse to attach a TSF document to a masked field");
     auto client = std::make_shared<TestTextClient>();
     RequireSucceeded(services.SetClient(client), "application text services associate their real TSF context");
     Require(services.HasClient(), "application text service retains one focused client");
@@ -431,11 +409,370 @@ void TestApplicationTextServiceLifecycle()
     std::thread worker([&] { wrongThread = services.SetClient(nullptr); });
     worker.join();
     Require(wrongThread == RPC_E_WRONG_THREAD && services.HasClient(), "a wrong-thread call cannot disconnect UI text services");
+    client->snapshot.state.masked = true;
+    services.NotifyChanged();
+    Require(! services.HasClient() && client->cancellations == 1,
+            "a focused field that becomes masked disconnects its TSF store and cancels its input service");
     services.ClearClient();
     services.ClearClient();
     Require(! services.HasClient() && client->cancellations == 1, "client removal cancels once and safely detaches the TSF document");
     services.Detach();
     services.Detach();
+}
+
+class TextServicesReentrantFocusSink final : public ITfThreadMgrEventSink
+{
+public:
+    std::function<void()> onSetFocus;
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** object) noexcept override
+    {
+        if (! object)
+            return E_POINTER;
+        *object = nullptr;
+        if (riid == __uuidof(IUnknown) || riid == __uuidof(ITfThreadMgrEventSink))
+        {
+            *object = static_cast<ITfThreadMgrEventSink*>(this);
+            AddRef();
+            return S_OK;
+        }
+        return E_NOINTERFACE;
+    }
+    ULONG STDMETHODCALLTYPE AddRef() noexcept override
+    {
+        return _references.fetch_add(1u, std::memory_order_relaxed) + 1u;
+    }
+    ULONG STDMETHODCALLTYPE Release() noexcept override
+    {
+        return _references.fetch_sub(1u, std::memory_order_acq_rel) - 1u;
+    }
+    HRESULT STDMETHODCALLTYPE OnInitDocumentMgr(ITfDocumentMgr*) noexcept override
+    {
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE OnUninitDocumentMgr(ITfDocumentMgr*) noexcept override
+    {
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE OnSetFocus(ITfDocumentMgr*, ITfDocumentMgr*) noexcept override
+    {
+        auto callback = std::move(onSetFocus);
+        if (callback)
+        {
+            try
+            {
+                callback();
+            }
+            catch (const std::exception&)
+            {
+                return E_FAIL;
+            }
+        }
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE OnPushContext(ITfContext*) noexcept override
+    {
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE OnPopContext(ITfContext*) noexcept override
+    {
+        return S_OK;
+    }
+
+private:
+    std::atomic<ULONG> _references{1u};
+};
+
+bool TestTextServicesSameComIdentity(IUnknown* left, IUnknown* right) noexcept
+{
+    if (! left || ! right)
+        return false;
+    wil::com_ptr_nothrow<IUnknown> leftIdentity, rightIdentity;
+    return SUCCEEDED(left->QueryInterface(IID_PPV_ARGS(leftIdentity.put()))) && leftIdentity &&
+           SUCCEEDED(right->QueryInterface(IID_PPV_ARGS(rightIdentity.put()))) && rightIdentity && leftIdentity.get() == rightIdentity.get();
+}
+
+void TestApplicationTextServiceReadReentrancyPreservesNewClient()
+{
+    using namespace DxUi;
+    const auto apartment = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+    AttachedHostWindow window;
+    TextInputServices services;
+    RequireSucceeded(services.Attach(window.Hwnd()), "application text service attaches before reentrant Read fixture");
+    auto incoming               = std::make_shared<TestTextClient>();
+    auto winner                 = std::make_shared<TestTextClient>();
+    winner->snapshot.focusId    = 2u;
+    winner->snapshot.state.text = L"newer";
+    bool callbackRan            = false;
+    HRESULT nestedResult        = E_UNEXPECTED;
+    incoming->onRead            = [&]() noexcept
+    {
+        callbackRan  = true;
+        nestedResult = services.SetClient(winner);
+    };
+
+    const HRESULT incomingResult = services.SetClient(incoming);
+    Require(callbackRan && SUCCEEDED(nestedResult), "client Read can synchronously install a newer focus client");
+    Require(incomingResult == TF_E_DISCONNECTED, "the superseded SetClient request stops after its Read callback");
+    Require(services.HasClient(), "the Read callback's newer client remains attached");
+    services.ClearClient();
+    Require(winner->cancellations == 1u && incoming->cancellations == 0u,
+            "clearing after Read reentrancy cancels the newer client and never publishes the superseded one");
+}
+
+void TestApplicationTextServiceCancelReentrancyPreservesNewClient()
+{
+    using namespace DxUi;
+    const auto apartment = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+    AttachedHostWindow window;
+    TextInputServices services;
+    RequireSucceeded(services.Attach(window.Hwnd()), "application text service attaches before reentrant Cancel fixture");
+    auto oldClient              = std::make_shared<TestTextClient>();
+    auto incoming               = std::make_shared<TestTextClient>();
+    auto winner                 = std::make_shared<TestTextClient>();
+    winner->snapshot.focusId    = 3u;
+    winner->snapshot.state.text = L"newer";
+    RequireSucceeded(services.SetClient(oldClient), "old client owns a TSF document before Cancel reentrancy");
+    bool callbackRan     = false;
+    HRESULT nestedResult = E_UNEXPECTED;
+    oldClient->onCancel  = [&]() noexcept
+    {
+        callbackRan  = true;
+        nestedResult = services.SetClient(winner);
+    };
+
+    const HRESULT incomingResult = services.SetClient(incoming);
+    Require(callbackRan && SUCCEEDED(nestedResult), "disconnect cancellation can synchronously install a newer focus client");
+    Require(incomingResult == TF_E_DISCONNECTED, "the superseded SetClient request stops after Cancel reentrancy");
+    Require(services.HasClient() && incoming->reads == 0u, "the Cancel callback winner remains attached without reading the superseded client");
+    services.ClearClient();
+    Require(oldClient->cancellations == 1u && winner->cancellations == 1u && incoming->cancellations == 0u,
+            "retiring the old store never tears down or redirects cancellation into the newer client");
+}
+
+void TestApplicationTextServiceSameClientReattachmentSurvivesReadCallbacks()
+{
+    using namespace DxUi;
+    const auto apartment = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+    {
+        AttachedHostWindow window;
+        TextInputServices services;
+        RequireSucceeded(services.Attach(window.Hwnd()), "application text service attaches before same-client notification reentrancy");
+        auto client = std::make_shared<TestTextClient>();
+        RequireSucceeded(services.SetClient(client), "same-client notification fixture installs its initial session");
+
+        client->snapshot.state.masked = true;
+        ++client->snapshot.revision;
+        HRESULT replacementResult = E_UNEXPECTED;
+        client->onRead            = [&]() noexcept
+        {
+            // The returned snapshot remains masked, while the replacement session reads this new unmasked state.
+            client->snapshot.state.masked = false;
+            ++client->snapshot.revision;
+            services.ClearClient();
+            replacementResult = services.SetClient(client);
+        };
+        services.NotifyChanged();
+
+        Require(SUCCEEDED(replacementResult) && services.HasClient(),
+                "a same-client replacement installed from Read survives the stale masked-field notification");
+        Require(client->cancellations == 1u, "the stale notification retires only the original same-client session");
+        services.ClearClient();
+        Require(client->cancellations == 2u, "the reattached same client remains live until its own explicit retirement");
+    }
+
+    {
+        AttachedHostWindow window;
+        TextInputServices services;
+        RequireSucceeded(services.Attach(window.Hwnd()), "application text service attaches before same-client Escape reentrancy");
+        auto client                                  = std::make_shared<TestTextClient>();
+        client->snapshot.state.compositionStartIndex = 0u;
+        RequireSucceeded(services.SetClient(client), "same-client Escape fixture installs an active composition session");
+
+        HRESULT replacementResult = E_UNEXPECTED;
+        client->onRead            = [&]() noexcept
+        {
+            services.ClearClient();
+            replacementResult = services.SetClient(client);
+        };
+        const bool cancelled = services.CancelComposition();
+
+        Require(! cancelled && SUCCEEDED(replacementResult) && services.HasClient(),
+                "Escape does not clear a same-client replacement installed from its Read callback");
+        Require(client->cancellations == 1u, "the stale Escape continuation cancels only the original session");
+        services.ClearClient();
+        Require(client->cancellations == 2u, "the same-client Escape replacement remains live until explicit retirement");
+    }
+}
+
+void TestApplicationTextServiceRetirementReadReentrancyPreservesSameClientSuccessor()
+{
+    using namespace DxUi;
+    const auto apartment = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+    AttachedHostWindow window;
+    TextInputServices services;
+    RequireSucceeded(services.Attach(window.Hwnd()), "application text service attaches before retirement Read reentrancy");
+    auto client                   = std::make_shared<TestTextClient>();
+    NativeTextInputState original = client->snapshot.state;
+    original.text                 = L"original";
+    client->base                  = original;
+    client->snapshot.state.text   = L"old preview";
+    ++client->snapshot.revision;
+    RequireSucceeded(services.SetClient(client), "retirement Read fixture installs its original preview session");
+
+    HRESULT replacementResult = E_UNEXPECTED;
+    client->onRead            = [&]() noexcept
+    {
+        client->snapshot.state.text = L"replacement";
+        ++client->snapshot.revision;
+        replacementResult = services.SetClient(client);
+    };
+    services.ClearClient();
+
+    Require(SUCCEEDED(replacementResult) && services.HasClient(),
+            "a same-client successor installed during retirement Read remains the active service session");
+    Require(client->cancellations == 0u && client->snapshot.state.text == L"replacement",
+            "the retired store skips cancellation after Read discovers a successor owning the preview state");
+    services.ClearClient();
+    Require(client->cancellations == 1u, "ordinary retirement still cancels the successor when no newer session replaces it");
+}
+
+void TestApplicationTextServiceDetachRejectsReentrantReattach()
+{
+    using namespace DxUi;
+    const auto apartment = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+    AttachedHostWindow window;
+    TextInputServices services;
+    RequireSucceeded(services.Attach(window.Hwnd()), "application text service attaches before Detach reentrancy fixture");
+    auto oldClient       = std::make_shared<TestTextClient>();
+    auto attemptedClient = std::make_shared<TestTextClient>();
+    auto finalClient     = std::make_shared<TestTextClient>();
+    RequireSucceeded(services.SetClient(oldClient), "old client owns a TSF document before Detach");
+    HRESULT reentrantSetClient = S_OK;
+    HRESULT reentrantAttach    = S_OK;
+    oldClient->onCancel        = [&]() noexcept
+    {
+        reentrantSetClient = services.SetClient(attemptedClient);
+        reentrantAttach    = services.Attach(window.Hwnd());
+    };
+
+    services.Detach();
+    Require(reentrantSetClient == E_UNEXPECTED && reentrantAttach == E_UNEXPECTED,
+            "Detach rejects a client or HWND attachment requested from its retirement callback");
+    Require(! services.HasClient(), "Detach finishes detached after rejecting callback resurrection");
+    RequireSucceeded(services.Attach(window.Hwnd()), "an explicit Attach succeeds after Detach has finished");
+    RequireSucceeded(services.SetClient(finalClient), "a later explicit SetClient succeeds after reattachment");
+    services.ClearClient();
+    Require(finalClient->cancellations == 1u && attemptedClient->cancellations == 0u,
+            "post-detach reattachment owns only the explicitly installed final client");
+}
+
+void TestApplicationTextServiceRetirementPreservesForeignFocusAndReentrantWinner()
+{
+    using namespace DxUi;
+    const auto apartment                    = wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
+    bool activationSucceeded                = false;
+    bool attachSucceeded                    = false;
+    bool oldClientInstalled                 = false;
+    bool managerReady                       = false;
+    bool sinkAdvised                        = false;
+    bool foreignFocusEstablished            = false;
+    bool foreignFocusPreserved              = false;
+    bool replacementInstalled               = false;
+    bool callbackRan                        = false;
+    bool replacementFocusPreserved          = false;
+    bool sinkUnadvised                      = false;
+    bool replacementCancelled               = false;
+    const ForegroundRunResult foregroundRun = RunUntilForegroundHeld([&]
+    {
+        activationSucceeded = attachSucceeded = oldClientInstalled = managerReady = sinkAdvised = false;
+        foreignFocusEstablished = foreignFocusPreserved = replacementInstalled = callbackRan = false;
+        replacementFocusPreserved = sinkUnadvised = replacementCancelled = false;
+        AttachedHostWindow window;
+        static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+        const uint32_t foregroundLossCount = window.ForegroundLossCount();
+        activationSucceeded                = TryActivateDxUiTestWindow(window.Hwnd());
+        if (! activationSucceeded)
+            return ForegroundAttempt{window.ForegroundLossCount() != foregroundLossCount, window.LastForegroundThiefThreadId()};
+
+        TextInputServices services;
+        attachSucceeded    = SUCCEEDED(services.Attach(window.Hwnd()));
+        auto oldClient     = std::make_shared<TestTextClient>();
+        oldClientInstalled = attachSucceeded && SUCCEEDED(services.SetClient(oldClient));
+        if (! oldClientInstalled)
+            return ForegroundAttempt{window.ForegroundLossCount() != foregroundLossCount, window.LastForegroundThiefThreadId()};
+
+        wil::com_ptr_nothrow<ITfThreadMgr> manager;
+        managerReady = SUCCEEDED(CoCreateInstance(CLSID_TF_ThreadMgr, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(manager.put()))) && manager;
+        wil::com_ptr_nothrow<ITfSource> source;
+        managerReady = managerReady && SUCCEEDED(manager.query_to(source.put())) && source;
+        if (! managerReady)
+            return ForegroundAttempt{window.ForegroundLossCount() != foregroundLossCount, window.LastForegroundThiefThreadId()};
+        TextServicesReentrantFocusSink sink;
+        DWORD sinkCookie = TF_INVALID_COOKIE;
+        sinkAdvised      = SUCCEEDED(source->AdviseSink(__uuidof(ITfThreadMgrEventSink), &sink, &sinkCookie));
+        if (! sinkAdvised)
+            return ForegroundAttempt{window.ForegroundLossCount() != foregroundLossCount, window.LastForegroundThiefThreadId()};
+        auto unadviseSink = wil::scope_exit([&]() noexcept
+        {
+            if (sinkCookie != TF_INVALID_COOKIE)
+                static_cast<void>(source->UnadviseSink(sinkCookie));
+        });
+
+        wil::com_ptr_nothrow<ITfDocumentMgr> foreignDocument;
+        HRESULT foreignResult = manager->CreateDocumentMgr(foreignDocument.put());
+        if (SUCCEEDED(foreignResult) && foreignDocument)
+            foreignResult = manager->SetFocus(foreignDocument.get());
+        wil::com_ptr_nothrow<ITfDocumentMgr> beforeRetirement;
+        const HRESULT beforeRead = SUCCEEDED(foreignResult) ? manager->GetFocus(beforeRetirement.put()) : foreignResult;
+        foreignFocusEstablished  = SUCCEEDED(beforeRead) && TestTextServicesSameComIdentity(beforeRetirement.get(), foreignDocument.get());
+        if (! foreignFocusEstablished)
+            return ForegroundAttempt{window.ForegroundLossCount() != foregroundLossCount, window.LastForegroundThiefThreadId()};
+
+        services.ClearClient();
+        wil::com_ptr_nothrow<ITfDocumentMgr> afterForeignRetirement;
+        const HRESULT afterForeignRead = manager->GetFocus(afterForeignRetirement.put());
+        foreignFocusPreserved          = SUCCEEDED(afterForeignRead) && TestTextServicesSameComIdentity(afterForeignRetirement.get(), foreignDocument.get());
+
+        auto replacement              = std::make_shared<TestTextClient>();
+        replacement->snapshot.focusId = 4u;
+        oldClientInstalled            = SUCCEEDED(services.SetClient(oldClient));
+        if (! oldClientInstalled || FAILED(manager->SetFocus(foreignDocument.get())))
+            return ForegroundAttempt{window.ForegroundLossCount() != foregroundLossCount, window.LastForegroundThiefThreadId()};
+        wil::com_ptr_nothrow<ITfDocumentMgr> replacementDocument;
+        HRESULT callbackSetResult = E_UNEXPECTED;
+        sink.onSetFocus           = [&]() noexcept
+        {
+            if (! callbackRan)
+            {
+                callbackRan       = true;
+                callbackSetResult = services.SetClient(replacement);
+                if (SUCCEEDED(callbackSetResult))
+                    static_cast<void>(manager->GetFocus(replacementDocument.put()));
+            }
+        };
+        services.ClearClient();
+        wil::com_ptr_nothrow<ITfDocumentMgr> afterReentrantRetirement;
+        const HRESULT focusRead   = manager->GetFocus(afterReentrantRetirement.put());
+        replacementInstalled      = SUCCEEDED(callbackSetResult) && services.HasClient() && replacement->cancellations == 0u;
+        replacementFocusPreserved = SUCCEEDED(focusRead) && TestTextServicesSameComIdentity(afterReentrantRetirement.get(), replacementDocument.get());
+
+        static_cast<void>(source->UnadviseSink(sinkCookie));
+        sinkCookie    = TF_INVALID_COOKIE;
+        sinkUnadvised = true;
+        services.ClearClient();
+        replacementCancelled = replacement->cancellations == 1u;
+        return ForegroundAttempt{window.ForegroundLossCount() != foregroundLossCount, window.LastForegroundThiefThreadId()};
+    });
+    if (! ForegroundHeldOrSkip(foregroundRun, "application TSF focus retirement assertions"))
+        return;
+    Require(activationSucceeded, "the application TSF focus fixture activates when no foreground thief is observed");
+    Require(attachSucceeded && oldClientInstalled && managerReady && sinkAdvised, "application TSF focus fixture establishes its host and sink");
+    Require(foreignFocusEstablished && foreignFocusPreserved, "clearing a host document preserves an independently focused TSF document");
+    Require(callbackRan && replacementInstalled && replacementFocusPreserved,
+            "retiring the old document leaves the client installed reentrantly by a TSF focus callback active and focused");
+    Require(sinkUnadvised && replacementCancelled, "the TSF sink and callback-installed client are retired before fixture teardown");
+    static_cast<void>(apartment);
 }
 
 void TestApplicationClipboardCommands()
@@ -575,8 +912,11 @@ void TestApplicationTextStoreDeferredLocks()
     auto client = std::make_shared<TestTextClient>();
     struct Dispatch final
     {
-        bool queued    = false;
-        unsigned posts = 0;
+        bool queued            = false;
+        unsigned posts         = 0;
+        unsigned attempts      = 0;
+        unsigned delivered     = 0;
+        unsigned failOnAttempt = 0;
     } dispatch;
     NativeTextStoreTestSink sink;
     wil::com_ptr_nothrow<ITextStoreACP> store;
@@ -588,6 +928,9 @@ void TestApplicationTextStoreDeferredLocks()
         auto& queue = *static_cast<Dispatch*>(context);
         if (! queue.queued)
         {
+            ++queue.attempts;
+            if (queue.attempts == queue.failOnAttempt)
+                return false;
             queue.queued = true;
             ++queue.posts;
         }
@@ -608,6 +951,18 @@ void TestApplicationTextStoreDeferredLocks()
             Require(session == TS_S_ASYNC, "a nested asynchronous read lock is deferred");
             RETURN_IF_FAILED(store->RequestLock(TS_LF_READWRITE, &session));
             Require(session == TS_S_ASYNC && grants == 1, "a deferred write upgrade coalesces without running inside the current callback");
+
+            // A nested UI message loop can receive the posted request while this lock is still held. Consume it once:
+            // TS_E_NOLOCK must wait for the outer lock to unwind, not enqueue itself repeatedly into this loop.
+            unsigned nestedMessages = 0;
+            while (dispatch.queued && nestedMessages < 4u)
+            {
+                ++nestedMessages;
+                const HRESULT nested = DispatchDeferredTextStoreLock(store.get(), dispatch.queued);
+                ++dispatch.delivered;
+                Require(nested == TS_E_NOLOCK, "a nested message sees the held lock and defers the request");
+            }
+            Require(nestedMessages == 1u && ! dispatch.queued, "a held-lock notification does not repost inside the nested message loop");
         }
         else
             Require((flags & TS_LF_READWRITE) == TS_LF_READWRITE, "deferred lock retains the strongest requested access");
@@ -616,16 +971,67 @@ void TestApplicationTextStoreDeferredLocks()
     HRESULT session = E_UNEXPECTED;
     RequireSucceeded(store->RequestLock(TS_LF_READ, &session), "initial read lock requested");
     RequireSucceeded(session, "initial read lock completes");
-    Require(grants == 1 && dispatch.posts == 1 && dispatch.queued, "one event represents all deferred lock requests");
-    dispatch.queued = false;
-    RequireSucceeded(DispatchPendingTextStoreLock(store.get()), "application message grants the coalesced lock");
-    Require(grants == 2 && DispatchPendingTextStoreLock(store.get()) == S_FALSE, "drained locks do not repeat on an idle message");
+    Require(grants == 1 && dispatch.posts == 2 && dispatch.delivered == 1u && dispatch.queued,
+            "lock release posts one coalesced retry after a nested loop consumed the early notification");
+    RequireSucceeded(DispatchDeferredTextStoreLock(store.get(), dispatch.queued), "application message grants the coalesced lock");
+    Require(grants == 2 && ! dispatch.queued && DispatchDeferredTextStoreLock(store.get(), dispatch.queued) == S_FALSE,
+            "drained locks do not repeat on an idle message");
     Require(sink.editTransactionStartCount == 1 && sink.editTransactionEndCount == 1 && sink.editTransactionDepth == 0,
             "the deferred write lock has one balanced transaction");
     grants = 0;
     RequireSucceeded(store->RequestLock(TS_LF_READ, &session), "another lock queues before detach");
     DisconnectNativeTextInputTextStore(store.get());
-    Require(DispatchPendingTextStoreLock(store.get()) == S_FALSE && grants == 1, "disconnect discards pending locks before a late application message");
+    Require(DispatchDeferredTextStoreLock(store.get(), dispatch.queued) == S_FALSE && grants == 1,
+            "disconnect discards pending locks before a late application message");
+
+    // If the single re-post after unlock fails, keep the accepted request coalesced and retry on the next real lock
+    // request. There is no timer, loop or hidden retry queue.
+    auto retryClient = std::make_shared<TestTextClient>();
+    Dispatch retryDispatch{};
+    retryDispatch.failOnAttempt = 2u;
+    NativeTextStoreTestSink retrySink;
+    wil::com_ptr_nothrow<ITextStoreACP> retryStore;
+    retryStore.attach(CreateClientTextStore(nullptr,
+                                            retryClient,
+                                            {&retryDispatch,
+                                             [](void* context) noexcept
+    {
+        auto& queue = *static_cast<Dispatch*>(context);
+        if (! queue.queued)
+        {
+            ++queue.attempts;
+            if (queue.attempts == queue.failOnAttempt)
+                return false;
+            queue.queued = true;
+            ++queue.posts;
+        }
+        return true;
+    }}));
+    Require(retryStore != nullptr, "retry fixture creates an application text store");
+    RequireSucceeded(retryStore->AdviseSink(__uuidof(ITextStoreACPSink), &retrySink, TS_AS_TEXT_CHANGE), "retry sink advised");
+    unsigned retryGrants    = 0u;
+    retrySink.onLockGranted = [&](DWORD) noexcept
+    {
+        ++retryGrants;
+        if (retryGrants == 1u)
+        {
+            HRESULT deferredSession = S_OK;
+            RETURN_IF_FAILED(retryStore->RequestLock(TS_LF_READ, &deferredSession));
+            Require(deferredSession == TS_S_ASYNC, "retry fixture accepts the nested asynchronous lock");
+            const HRESULT earlyMessage = DispatchDeferredTextStoreLock(retryStore.get(), retryDispatch.queued);
+            ++retryDispatch.delivered;
+            Require(earlyMessage == TS_E_NOLOCK, "retry fixture consumes its notification while the lock is held");
+        }
+        return S_OK;
+    };
+    RequireSucceeded(retryStore->RequestLock(TS_LF_READ, &session), "retry fixture starts its outer lock");
+    Require(retryGrants == 1u && retryDispatch.attempts == 2u && retryDispatch.posts == 1u && ! retryDispatch.queued,
+            "failed post after unlock retains the deferred request without a busy retry");
+    RequireSucceeded(retryStore->RequestLock(TS_LF_READ, &session), "a later real lock request retries the retained post once");
+    Require(retryDispatch.attempts == 3u && retryDispatch.posts == 2u && retryDispatch.queued,
+            "the later request creates one queued retry after the earlier post failure");
+    RequireSucceeded(DispatchDeferredTextStoreLock(retryStore.get(), retryDispatch.queued), "the retained asynchronous request eventually receives its lock");
+    Require(retryGrants == 3u && ! retryDispatch.queued, "the one deferred request is granted exactly once");
 }
 
 void TestApplicationCompositionCancelAfterFocusReplacement()

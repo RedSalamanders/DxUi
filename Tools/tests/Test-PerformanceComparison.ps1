@@ -14,6 +14,10 @@ function New-Receipt {
     $receipt.hiddenPreparations = 0
     $receipt.hiddenComposites = 0
     foreach ($key in @('sourceCommit', 'sourceFingerprint', 'executableSha256', 'benchmarkSha256')) { $receipt[$key] = 'a' }
+    foreach ($key in @('harnessIdentity','toolchainIdentity','dependencyIdentity','environmentIdentity')) { $receipt[$key] = 'fixture' }
+    $receipt.identityStatus = 'verifiable'
+    $receipt.warpVersion = 'fixture'
+    $receipt.warpSha256 = 'a'
     $receipt.scenarios = @(foreach ($name in @('clean', 'dirty')) {
             [ordered]@{ name = $name; rounds = @(foreach ($round in 1..5) {
                         $metrics = [ordered]@{}
@@ -25,6 +29,97 @@ function New-Receipt {
     return $receipt
 }
 
+$before = New-Receipt
+
+Invoke-TestCase 'the exact sign-flip minimum reaches the first Holm threshold with twelve independent blocks' {
+    $p = Get-ExactSignFlipPValue -Effects ([double[]]@(1,1,1,1,1,1,1,1,1,1,1,1))
+    Assert-Equal ([double](2.0 / 4096.0)) $p 'attainable two-sided p at twelve blocks'
+    Assert-True ($p -lt (0.05 / 26.0)) 'the minimum p can pass the first Holm threshold across the full family'
+    Assert-Throws { Get-ExactSignFlipPValue -Effects ([double[]]@([double]::NaN,1)) } 'non-finite block effect rejected'
+    $holm = Get-HolmAdjustedPValues -PValues ([double[]]@(0.001,0.01,0.04))
+    Assert-Equal '0.003 0.02 0.04' (($holm | ForEach-Object { $_.ToString('0.###',[Globalization.CultureInfo]::InvariantCulture) }) -join ' ') 'Holm step-down adjustment'
+}
+
+Invoke-TestCase 'the migrated block judge uses identity, independent paired effects and separate exact budgets' {
+    $blocks = @(foreach ($i in 1..12) {
+        $baseline1 = Copy-JsonValue $before; $baseline2 = Copy-JsonValue $before
+        $candidate1 = Copy-JsonValue $before; $candidate2 = Copy-JsonValue $before
+        $baseline1.sourceCommit='base'; $baseline2.sourceCommit='base'; $baseline1.sourceFingerprint='base'; $baseline2.sourceFingerprint='base'
+        $candidate1.sourceCommit='candidate'; $candidate2.sourceCommit='candidate'; $candidate1.sourceFingerprint='candidate'; $candidate2.sourceFingerprint='candidate'
+        foreach ($row in $candidate1.scenarios) { foreach ($round in $row.rounds) { $round.fps=80 } }
+        foreach ($row in $candidate2.scenarios) { foreach ($round in $row.rounds) { $round.fps=80 } }
+        foreach ($row in $candidate1.scenarios) { foreach ($round in $row.rounds) { $round.surfaceBytes=101 } }
+        foreach ($row in $candidate2.scenarios) { foreach ($round in $row.rounds) { $round.surfaceBytes=101 } }
+        [ordered]@{ Baseline=@($baseline1,$baseline2); Candidate=@($candidate1,$candidate2) }
+    })
+    $result = Compare-PairedBlockSet -Blocks $blocks
+    Assert-Equal 'advice-required' $result.status 'large consistent timing regression is significant after Holm'
+    Assert-Equal 26 $result.familySize 'all declared phase and metric slots remain in family'
+    Assert-Equal 12 $result.blockCount 'blocks are independent analysis units'
+    $missingWarp = Copy-JsonValue $blocks
+    $missingWarp[0].Candidate[0].Remove('warpSha256')
+    Assert-Equal 'identity-unverifiable' (Compare-PairedBlockSet -Blocks $missingWarp).status 'a migrated judge cannot qualify a report without the WARP binary hash'
+    $exact = @($result.metrics | Where-Object { $_.metric -eq 'surfaceBytes' })[0]
+    Assert-True $exact.exact 'surface allocation remains an exact budget'
+    Assert-Equal 1.0 $exact.pValue 'exact budgets do not use timing inference'
+    Assert-Equal 'regressed' $exact.verdict 'any candidate observation above baseline median still gates'
+    $missing = Copy-JsonValue $blocks[0].Baseline[0]; $missing.Remove('harnessIdentity')
+    $blocks[0].Baseline[0] = $missing
+    Assert-Equal 'identity-unverifiable' (Compare-PairedBlockSet -Blocks $blocks).status 'missing harness provenance fails closed as inconclusive evidence'
+    $missing.harnessIdentity = 'fixture'; $missing.identityStatus = 'identity-unverifiable'; $missing.identityError = 'missing resolved compiler'
+    $blocks[0].Baseline[0] = $missing
+    Assert-Equal 'identity-unverifiable' (Compare-PairedBlockSet -Blocks $blocks).status 'explicitly unresolved provenance cannot pass with populated identity strings'
+    $missing.identityStatus = 'verifiable'; $missing.Remove('identityError')
+    $blocks[0].Baseline[0] = $missing
+    $changedTool = Copy-JsonValue $blocks[1].Candidate[0]; $changedTool.toolchainIdentity = 'different toolchain'
+    $blocks[1].Candidate[0] = $changedTool
+    $toolMismatch = Compare-PairedBlockSet -Blocks $blocks
+    Assert-Equal 'identity-mismatch' $toolMismatch.status 'one binary cannot mix a changed toolchain identity into its runs'
+    Assert-Equal 'toolchainIdentity' $toolMismatch.mismatchedIdentity 'toolchain mismatch is named'
+    $changedTool.toolchainIdentity = 'fixture'; $blocks[1].Candidate[0] = $changedTool
+    $changedWarp = Copy-JsonValue $blocks[1].Candidate[0]; $changedWarp.warpSha256 = 'different WARP binary'
+    $blocks[1].Candidate[0] = $changedWarp
+    $warpMismatch = Compare-PairedBlockSet -Blocks $blocks
+    Assert-Equal 'identity-mismatch' $warpMismatch.status 'migrated runs cannot mix WARP binary bytes'
+    Assert-Equal 'warpSha256' $warpMismatch.mismatchedIdentity 'WARP binary mismatch is named'
+    $changedWarp.warpSha256 = 'a'; $blocks[1].Candidate[0] = $changedWarp
+    $changedExe = Copy-JsonValue $blocks[1].Candidate[0]; $changedExe.executableSha256 = 'other executable'
+    $blocks[1].Candidate[0] = $changedExe
+    $exeMismatch = Compare-PairedBlockSet -Blocks $blocks
+    Assert-Equal 'identity-mismatch' $exeMismatch.status 'runs of one candidate binary cannot mix executable hashes'
+    Assert-Equal 'Candidate.executableSha256' $exeMismatch.mismatchedIdentity 'executable mismatch is named'
+    $changedExe.executableSha256 = 'a'; $blocks[1].Candidate[0] = $changedExe
+    $aaBlocks = Copy-JsonValue $blocks
+    foreach ($block in $aaBlocks) {
+        foreach ($receipt in @($block.Baseline) + @($block.Candidate)) { $receipt.sourceCommit='same'; $receipt.sourceFingerprint='same'; $receipt.executableSha256='same-exe' }
+    }
+    foreach ($block in $aaBlocks) { foreach ($receipt in $block.Candidate) { $receipt.executableSha256='changed-exe' } }
+    $aaMismatch = Compare-PairedBlockSet -Blocks $aaBlocks -CalibrationAA
+    Assert-Equal 'identity-mismatch' $aaMismatch.status 'A/A cannot be calibrated with different executable bytes'
+    Assert-Equal 'A/A.executableSha256' $aaMismatch.mismatchedIdentity 'A/A executable mismatch is named'
+
+    $spikeBlocks = Copy-JsonValue $blocks
+    foreach ($block in $spikeBlocks) {
+        foreach ($receipt in $block.Candidate) { foreach ($scenario in $receipt.scenarios) { foreach ($round in $scenario.rounds) { $round.surfaceBytes = 100 } } }
+    }
+    $spikeReceipt = $spikeBlocks[0].Candidate[0]
+    $spikeReceipt.scenarios[0].rounds[0].surfaceBytes = 101
+    $spikeResult = Compare-PairedBlockSet -Blocks $spikeBlocks
+    $surface = @($spikeResult.metrics | Where-Object { $_.phase -eq 'clean' -and $_.metric -eq 'surfaceBytes' })[0]
+    Assert-Equal 'advice-required' $spikeResult.status 'a one-round exact-budget spike fails despite unchanged per-run medians'
+    Assert-Equal 100.0 $surface.baselineMaximum 'the retained raw baseline maximum is reported'
+    Assert-Equal 101.0 $surface.candidateMaximum 'the raw candidate maximum is reported'
+    Assert-Equal 'within-budget' $surface.medianBudgetVerdict 'the median budget result is reported independently'
+    Assert-Equal 'regressed' $surface.peakBudgetVerdict 'the no-tolerance raw peak result is reported independently'
+
+    $badFixtureBlocks = Copy-JsonValue $blocks
+    $badFixtureBlocks[0].Candidate[0].width = 1920
+    Assert-Throws { Compare-PairedBlockSet -Blocks $badFixtureBlocks } 'a migrated pair with different workload identity is invalid'
+    $shortBlocks = Copy-JsonValue $blocks
+    $shortBlocks[0].Candidate[0].scenarios[0].rounds = @($shortBlocks[0].Candidate[0].scenarios[0].rounds | Select-Object -First 4)
+    Assert-Throws { Compare-PairedBlockSet -Blocks $shortBlocks } 'a migrated receipt missing a round is invalid'
+}
+
 function Set-DirtyMetric([Collections.IDictionary] $Receipt, [string] $Metric, [object] $Value) {
     foreach ($row in $Receipt['scenarios'][1]['rounds']) { $row[$Metric] = $Value }
 }
@@ -32,8 +127,6 @@ function Set-DirtyMetric([Collections.IDictionary] $Receipt, [string] $Metric, [
 function Get-Status([Collections.IDictionary] $Before, [Collections.IDictionary] $After) {
     return (Compare-PerformanceReceipt -Before $Before -After $After)['status']
 }
-
-$before = New-Receipt
 
 Invoke-TestCase 'identical and new source are comparable' {
     $after = Copy-JsonValue $before

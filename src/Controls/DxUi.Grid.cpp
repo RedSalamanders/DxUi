@@ -11,7 +11,9 @@
 #include <cmath>
 #include <exception>
 #include <format>
+#include <new>
 #include <ranges>
+#include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -19,6 +21,8 @@ namespace DxUi
 {
 namespace
 {
+using GridModelQueryGuard = BorrowedControlModelGuard<Grid, IGridModel>;
+
 constexpr float kHeaderResizeHitDip          = 4.0f;
 constexpr float kHeaderReorderStartDip       = 6.0f;
 constexpr float kVisibleBoundaryEpsilonDip   = 0.001f;
@@ -214,7 +218,7 @@ struct GridResolvedCellVisuals final
         else if (selected)
         {
             visuals.fill = focused ? theme.selectionFill : theme.selectionInactiveFill;
-            visuals.text = theme.selectionText;
+            visuals.text = focused ? theme.selectionText : ResolveInactiveSelectionTextColor(theme, theme.selectionText, theme.surfaceBackground);
         }
         else if (visuals.fill.a <= 0.0f && hovered)
         {
@@ -265,7 +269,7 @@ struct GridResolvedCellVisuals final
         if (selected)
         {
             visuals.fill = focused ? theme.selectionFill : theme.selectionInactiveFill;
-            visuals.text = theme.selectionText;
+            visuals.text = focused ? theme.selectionText : ResolveInactiveSelectionTextColor(theme, theme.selectionText, theme.surfaceBackground);
         }
     }
 
@@ -478,7 +482,7 @@ enum class CellTextDirection : uint8_t
     return D2D1::RectF(left, trackRect.top, std::min(trackRect.right, left + bandWidthDip), trackRect.bottom);
 }
 
-[[nodiscard]] std::vector<GridGroupDesc> CollectOrderedGroups(const IGridModel* model)
+[[nodiscard]] std::vector<GridGroupDesc> CollectOrderedGroups(const IGridModel* model, const GridModelQueryGuard* guard = nullptr)
 {
     std::vector<GridGroupDesc> groups;
     if (! model)
@@ -486,8 +490,16 @@ enum class CellTextDirection : uint8_t
         return groups;
     }
 
-    const size_t rowCount   = model->GetRowCount();
+    const size_t rowCount = model->GetRowCount();
+    if (guard && ! guard->IsCurrent())
+    {
+        return groups;
+    }
     const size_t groupCount = model->GetGroupCount();
+    if (guard && ! guard->IsCurrent())
+    {
+        return groups;
+    }
     if (rowCount == 0u || groupCount == 0u)
     {
         return groups;
@@ -497,6 +509,10 @@ enum class CellTextDirection : uint8_t
     for (size_t groupIndex = 0u; groupIndex < groupCount; ++groupIndex)
     {
         GridGroupDesc group = model->GetGroup(groupIndex);
+        if (guard && ! guard->IsCurrent())
+        {
+            return {};
+        }
         if (group.rowCount == 0u || group.startRowIndex >= rowCount)
         {
             continue;
@@ -578,7 +594,9 @@ enum class CellTextDirection : uint8_t
     return visibleRows;
 }
 
-[[nodiscard]] std::vector<uint64_t> CollectVisibleOrderedRowIds(const IGridModel* model, std::span<const GridGroupDesc> groups)
+[[nodiscard]] std::vector<uint64_t> CollectVisibleOrderedRowIds(const IGridModel* model,
+                                                                std::span<const GridGroupDesc> groups,
+                                                                const GridModelQueryGuard* guard = nullptr)
 {
     std::vector<uint64_t> rowIds;
     if (! model)
@@ -587,6 +605,10 @@ enum class CellTextDirection : uint8_t
     }
 
     const size_t rowCount = model->GetRowCount();
+    if (guard && ! guard->IsCurrent())
+    {
+        return {};
+    }
     rowIds.reserve(rowCount);
 
     const auto appendRows = [&](size_t beginRow, size_t endRow)
@@ -594,24 +616,43 @@ enum class CellTextDirection : uint8_t
         for (size_t rowIndex = beginRow; rowIndex < endRow; ++rowIndex)
         {
             rowIds.push_back(model->GetStableRowId(rowIndex));
+            if (guard && ! guard->IsCurrent())
+            {
+                rowIds.clear();
+                return false;
+            }
         }
+        return true;
     };
 
     size_t nextUngroupedRow = 0u;
     for (const GridGroupDesc& group : groups)
     {
-        appendRows(nextUngroupedRow, group.startRowIndex);
+        if (! appendRows(nextUngroupedRow, group.startRowIndex))
+        {
+            return {};
+        }
 
         const size_t groupEnd = group.startRowIndex + group.rowCount;
         if (! group.collapsed)
         {
-            appendRows(group.startRowIndex, groupEnd);
+            if (! appendRows(group.startRowIndex, groupEnd))
+            {
+                return {};
+            }
         }
 
         nextUngroupedRow = groupEnd;
     }
 
-    appendRows(nextUngroupedRow, rowCount);
+    if (! appendRows(nextUngroupedRow, rowCount))
+    {
+        return {};
+    }
+    if (guard && ! guard->IsCurrent())
+    {
+        return {};
+    }
     return rowIds;
 }
 
@@ -646,21 +687,23 @@ constexpr uint64_t kSortGlyphTransitionDurationMs = 140u;
     return D2D1::ColorF(color.r, color.g, color.b, std::clamp(opacity, 0.0f, 1.0f) * color.a);
 }
 
-void DrawSortGlyph(ControlHost& host, const D2D1_RECT_F& rect, SortDirection direction, const D2D1_COLOR_F& color)
+void DrawSortGlyph(ControlHost& host, const D2D1_RECT_F& rect, SortDirection direction, const D2D1_COLOR_F& color, bool rightToLeft)
 {
     if (direction == SortDirection::None)
     {
         return;
     }
 
-    const D2D1_RECT_F glyphRect = D2D1::RectF(rect.right - 20.0f, rect.top, rect.right, rect.bottom);
+    const D2D1_RECT_F glyphRect =
+        rightToLeft ? D2D1::RectF(rect.left, rect.top, rect.left + 20.0f, rect.bottom) : D2D1::RectF(rect.right - 20.0f, rect.top, rect.right, rect.bottom);
     DrawChevronGlyph(host, glyphRect, direction == SortDirection::Ascending ? ChevronDirection::Up : ChevronDirection::Down, color);
 }
 
-void DrawGroupDisclosureGlyph(ControlHost& host, const D2D1_RECT_F& rect, bool collapsed, const D2D1_COLOR_F& color)
+void DrawGroupDisclosureGlyph(ControlHost& host, const D2D1_RECT_F& rect, bool collapsed, const D2D1_COLOR_F& color, bool rightToLeft)
 {
-    const D2D1_RECT_F glyphRect = D2D1::RectF(rect.left + 4.0f, rect.top, rect.left + 24.0f, rect.bottom);
-    DrawDisclosureChevron(host, glyphRect, collapsed ? 0.0f : 1.0f, color);
+    const D2D1_RECT_F glyphRect = rightToLeft ? D2D1::RectF(rect.right - 24.0f, rect.top, rect.right - 4.0f, rect.bottom)
+                                              : D2D1::RectF(rect.left + 4.0f, rect.top, rect.left + 24.0f, rect.bottom);
+    DrawDisclosureChevron(host, glyphRect, collapsed ? 0.0f : 1.0f, color, rightToLeft ? ChevronDirection::Left : ChevronDirection::Right);
 }
 } // namespace
 
@@ -712,6 +755,10 @@ void IGridDelegate::OnGridSelectionChanged(Grid& /*sender*/)
 }
 
 void IGridDelegate::OnGridSelectionChanged()
+{
+}
+
+void IGridDelegate::OnGridFocusedRowChanged(Grid& /*sender*/, std::optional<uint64_t> /*rowId*/)
 {
 }
 
@@ -813,7 +860,7 @@ class SelectedIdFilter
 {
 public:
     explicit SelectedIdFilter(std::span<const uint64_t> ids)
-        : _bitCount(std::bit_ceil((std::max)(size_t{64}, ids.size() * 16u))),
+        : _bitCount(ComputeBitCount(ids.size())),
           _words(_bitCount / 64u, uint64_t{0}),
           _shift(64u - static_cast<unsigned>(std::countr_zero(_bitCount)))
     {
@@ -831,6 +878,15 @@ public:
     }
 
 private:
+    [[nodiscard]] static size_t ComputeBitCount(size_t idCount) noexcept
+    {
+        // Keep both the 16-bits-per-id multiplication and bit_ceil within their representable range. The exact membership
+        // check after this filter preserves correctness if an unrealistically large input reaches the saturation case.
+        constexpr size_t largestPowerOfTwo = size_t{1} << (std::numeric_limits<size_t>::digits - 1u);
+        const size_t requestedBitCount     = idCount > (largestPowerOfTwo / 16u) ? largestPowerOfTwo : (std::max)(size_t{64}, idCount * 16u);
+        return std::bit_ceil(requestedBitCount);
+    }
+
     [[nodiscard]] size_t BitOf(uint64_t id) const noexcept
     {
         return static_cast<size_t>((id * 0x9E3779B97F4A7C15ull) >> _shift);
@@ -855,10 +911,61 @@ void GridSelectionModel::Clear() noexcept
 
 void GridSelectionModel::SetSingle(uint64_t rowId) noexcept
 {
-    GiveBackWastedRoom(_selectedRowIds, 1u);
-    GiveBackWastedRoom(_sortedRowIds, 1u);
-    _selectedRowIds.assign(1u, rowId);
-    _sortedRowIds.assign(1u, rowId);
+    const bool replaceBoth = IsRoomWasted(_selectedRowIds, 1u) || IsRoomWasted(_sortedRowIds, 1u);
+    if (! replaceBoth && _selectedRowIds.capacity() >= 1u && _sortedRowIds.capacity() >= 1u)
+    {
+        // A one-element assign reuses both buffers, and uint64_t assignment cannot throw.
+        _selectedRowIds.assign(1u, rowId);
+        _sortedRowIds.assign(1u, rowId);
+        _anchorRowId = rowId;
+        return;
+    }
+
+    std::vector<uint64_t> replacementSelected;
+    std::vector<uint64_t> replacementSorted;
+    try
+    {
+        if (replaceBoth || _selectedRowIds.capacity() == 0u)
+        {
+            replacementSelected.reserve(1u);
+            replacementSelected.push_back(rowId);
+        }
+        if (replaceBoth || _sortedRowIds.capacity() == 0u)
+        {
+            replacementSorted.reserve(1u);
+            replacementSorted.push_back(rowId);
+        }
+    }
+    catch (const std::bad_alloc&)
+    {
+        return;
+    }
+    catch (const std::length_error&)
+    {
+        return;
+    }
+
+    if (replaceBoth || ! replacementSelected.empty())
+    {
+        _selectedRowIds.swap(replacementSelected);
+    }
+    else
+    {
+        _selectedRowIds.assign(1u, rowId);
+    }
+    if (replaceBoth || ! replacementSorted.empty())
+    {
+        _sortedRowIds.swap(replacementSorted);
+    }
+    else
+    {
+        _sortedRowIds.assign(1u, rowId);
+    }
+    _anchorRowId = rowId;
+}
+
+void GridSelectionModel::SetAnchor(std::optional<uint64_t> rowId) noexcept
+{
     _anchorRowId = rowId;
 }
 
@@ -870,19 +977,51 @@ void GridSelectionModel::Toggle(uint64_t rowId) noexcept
         // The first occurrence leaves the ordered ids and one occurrence the sorted ones, so an id held twice stays selected.
         _selectedRowIds.erase(std::ranges::find(_selectedRowIds, rowId));
         _sortedRowIds.erase(sortedIt);
-        if (_anchorRowId == rowId)
-        {
-            _anchorRowId = _selectedRowIds.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(_selectedRowIds.front());
-        }
+        // The anchor records the last row touched, including a row this toggle removes.
+        _anchorRowId = rowId;
         return;
     }
 
-    _selectedRowIds.push_back(rowId);
-    _sortedRowIds.insert(sortedIt, rowId);
-    if (! _anchorRowId)
+    if (_selectedRowIds.size() == _selectedRowIds.max_size() || _sortedRowIds.size() == _sortedRowIds.max_size())
     {
-        _anchorRowId = rowId;
+        return;
     }
+    const size_t requiredSize    = _selectedRowIds.size() + 1u;
+    const auto geometricCapacity = [](const std::vector<uint64_t>& ids, size_t required) noexcept
+    {
+        const size_t maximum = ids.max_size();
+        const size_t current = ids.capacity();
+        const size_t growth  = (std::max)(size_t{1}, current / 2u);
+        const size_t grown   = growth > maximum - current ? maximum : current + growth;
+        return (std::max)(required, grown);
+    };
+    try
+    {
+        // Acquire all required room before either membership copy or its anchor changes. If the second reserve fails, the first
+        // may have acquired extra capacity, but the observable selection and gesture anchor remain unchanged.
+        if (_selectedRowIds.capacity() < requiredSize)
+        {
+            _selectedRowIds.reserve(geometricCapacity(_selectedRowIds, requiredSize));
+        }
+        if (_sortedRowIds.capacity() < requiredSize)
+        {
+            _sortedRowIds.reserve(geometricCapacity(_sortedRowIds, requiredSize));
+        }
+    }
+    catch (const std::bad_alloc&)
+    {
+        return;
+    }
+    catch (const std::length_error&)
+    {
+        return;
+    }
+
+    // reserve may invalidate sortedIt; reacquire it only after both buffers are ready.
+    const auto insertion = std::ranges::lower_bound(_sortedRowIds, rowId);
+    _selectedRowIds.push_back(rowId);
+    _sortedRowIds.insert(insertion, rowId);
+    _anchorRowId = rowId;
 }
 
 void GridSelectionModel::SetRange(const std::vector<uint64_t>& orderedRowIds, uint64_t anchorRowId, uint64_t currentRowId)
@@ -924,6 +1063,10 @@ void GridSelectionModel::PreserveOrdered(const std::vector<uint64_t>& orderedRow
 {
     if (_selectedRowIds.empty())
     {
+        if (_anchorRowId && std::ranges::find(orderedRowIds, *_anchorRowId) == orderedRowIds.end())
+        {
+            _anchorRowId.reset();
+        }
         return;
     }
 
@@ -944,8 +1087,12 @@ void GridSelectionModel::PreserveOrdered(const std::vector<uint64_t>& orderedRow
     }
     if (kept == _selectedRowIds)
     {
-        // The usual data change leaves the selection as it is: its ascending copy is right, and so is the anchor, which is one of
-        // these ids (every mutator keeps it so).
+        // Selection membership usually remains unchanged. A deselected Ctrl gesture can leave its anchor outside selection,
+        // but the anchor must still correspond to a visible row.
+        if (_anchorRowId && std::ranges::find(orderedRowIds, _anchorRowId.value()) == orderedRowIds.end())
+        {
+            _anchorRowId.reset();
+        }
         return;
     }
     if (IsRoomWasted(kept, kept.size()))
@@ -956,9 +1103,9 @@ void GridSelectionModel::PreserveOrdered(const std::vector<uint64_t>& orderedRow
     std::vector<uint64_t> keptSorted(kept);
     SortRowIds(keptSorted);
 
-    if (_anchorRowId && ! std::ranges::binary_search(keptSorted, _anchorRowId.value()))
+    if (_anchorRowId && std::ranges::find(orderedRowIds, _anchorRowId.value()) == orderedRowIds.end())
     {
-        _anchorRowId = kept.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(kept.front());
+        _anchorRowId.reset();
     }
     _selectedRowIds = std::move(kept);
     _sortedRowIds   = std::move(keptSorted);
@@ -1002,10 +1149,28 @@ Grid::Grid()
 
 void Grid::SetModel(IGridModel* model) noexcept
 {
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    ++_modelBindingRevision;
     // Non-owning pointer assignment. Caller responsible for model lifetime.
-    const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+    ++_modelRevision;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    std::vector<uint64_t> previousSelection;
+    try
+    {
+        previousSelection.assign(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+    }
+    catch (const std::bad_alloc&)
+    {
+        return;
+    }
+    catch (const std::exception&)
+    {
+        return;
+    }
+    const std::optional<uint64_t> previousFocus = _currentRowId;
     ReleaseCellTextResources(); // Also returns tables the old model grew.
-    _model                            = model;
+    _model = model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
     _lastPaintHadAnimatedVisibleCells = false;
     _animatedVisibleCellStateValid    = false;
     _columnWidths.clear();
@@ -1024,22 +1189,81 @@ void Grid::SetModel(IGridModel* model) noexcept
     _verticalScrollbarHotPart   = ScrollbarHotPart::None;
     _horizontalScrollbarHotPart = ScrollbarHotPart::None;
     _dragThumbOffsetDip         = 0.0f;
-    if (_model)
+    try
     {
-        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
-        ReconcileSelectionForVisibleRows(groups);
+        if (_model)
+        {
+            const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+            ReconcileSelectionForVisibleRows(groups);
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+        }
+        else
+        {
+            _selectionModel.Clear();
+            _currentRowId.reset();
+            _focusedRowIndex.reset();
+        }
     }
-    else
+    catch (const std::bad_alloc&)
     {
-        _selectionModel.Clear();
+        // Model snapshot allocation failure leaves the newly assigned model installed with cleared view state.
+        return;
     }
-    ClampScrollOffsets();
+    catch (const std::exception&)
+    {
+        // A model getter failure aborts this update without crossing the noexcept public boundary.
+        return;
+    }
+    try
+    {
+        ClampScrollOffsets();
+    }
+    catch (const std::bad_alloc&)
+    {
+        return;
+    }
+    catch (const std::exception&)
+    {
+        return;
+    }
+    if (! guard.IsCurrent())
+    {
+        return;
+    }
     if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
     {
         // The delegate may rebuild the controls and destroy this grid.
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        _delegate->OnGridSelectionChanged(*this);
-        if (lifetime.expired())
+        try
+        {
+            _delegate->OnGridSelectionChanged(*this);
+        }
+        catch (const std::exception&)
+        {
+            return;
+        }
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+    }
+    if (_delegate && previousFocus != _currentRowId)
+    {
+        try
+        {
+            _delegate->OnGridFocusedRowChanged(*this, _currentRowId);
+        }
+        catch (const std::exception&)
+        {
+            return;
+        }
+        if (! guard.IsCurrent())
         {
             return;
         }
@@ -1075,27 +1299,54 @@ void Grid::OnHidden() noexcept
 
 void Grid::SetDelegate(IGridDelegate* delegate) noexcept
 {
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    ++_modelBindingRevision;
+    ++_modelRevision;
     _delegate = delegate;
 }
 
 void Grid::SetSelectionMode(GridSelectionMode mode) noexcept
 {
-    const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    IGridModel* const model           = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    std::vector<uint64_t> previousSelection;
+    try
+    {
+        previousSelection.assign(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+    }
+    catch (const std::bad_alloc&)
+    {
+        return;
+    }
     _selectionMode = mode;
     if (_selectionMode == GridSelectionMode::Single && _selectionModel.GetCount() > 1u)
     {
         const auto selection = _selectionModel.GetOrderedSelection();
         if (! selection.empty())
         {
-            _selectionModel.SetSingle(selection.front());
+            const uint64_t current = _currentRowId && _selectionModel.IsSelected(*_currentRowId) ? *_currentRowId : selection.back();
+            _selectionModel.SetSingle(current);
+            _currentRowId    = current;
+            _focusedRowIndex = model ? model->FindRowByStableId(current) : std::nullopt;
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
         }
     }
     if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
     {
         // The delegate may rebuild the controls and destroy this grid.
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        _delegate->OnGridSelectionChanged(*this);
-        if (lifetime.expired())
+        try
+        {
+            _delegate->OnGridSelectionChanged(*this);
+        }
+        catch (const std::exception&)
+        {
+            return;
+        }
+        if (! guard.IsCurrent())
         {
             return;
         }
@@ -1119,20 +1370,32 @@ void Grid::SetVisualMode(GridVisualMode mode) noexcept
 
 void Grid::SetRowHeightDip(float rowHeightDip) noexcept
 {
-    _effectiveRowHeightDip = std::nullopt;
-    _rowHeightBaseDip      = std::max(kMinimumInteractiveTextRowHeightDip, rowHeightDip);
+    const float normalized = std::max(kMinimumInteractiveTextRowHeightDip, rowHeightDip);
+    if (! _effectiveRowHeightDip && _rowHeightBaseDip == normalized)
+        return;
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    _effectiveRowHeightDip        = std::nullopt;
+    _rowHeightBaseDip             = normalized;
     OnDensityChanged();
 }
 
 void Grid::SetEffectiveRowHeightDip(float rowHeightDip) noexcept
 {
-    _effectiveRowHeightDip = std::max(kMinimumInteractiveTextRowHeightDip, rowHeightDip);
+    const float normalized = std::max(kMinimumInteractiveTextRowHeightDip, rowHeightDip);
+    if (_effectiveRowHeightDip == normalized)
+        return;
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    _effectiveRowHeightDip        = normalized;
     OnDensityChanged();
 }
 
 void Grid::SetHeaderHeightDip(float headerHeightDip) noexcept
 {
-    _headerHeightBaseDip = std::max(0.0f, headerHeightDip);
+    const float normalized = std::max(0.0f, headerHeightDip);
+    if (_headerHeightBaseDip == normalized)
+        return;
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    _headerHeightBaseDip          = normalized;
     OnDensityChanged();
 }
 
@@ -1228,94 +1491,133 @@ GridSortSpec Grid::GetSortSpec() const noexcept
 
 void Grid::ApplyColumnLayout(std::span<const GridColumnLayoutEntry> layout) noexcept
 {
-    EnsureColumnWidths();
-    if (! _model || _model->GetColumnCount() == 0u)
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    IGridModel* const model           = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    try
     {
-        return;
-    }
-
-    std::unordered_map<std::wstring, size_t> modelIndexById;
-    modelIndexById.reserve(_model->GetColumnCount());
-    for (size_t modelIndex = 0; modelIndex < _model->GetColumnCount(); ++modelIndex)
-    {
-        const GridColumnDesc column = _model->GetColumn(modelIndex);
-        if (! column.id.empty())
+        EnsureColumnWidths();
+        if (! guard.IsCurrent() || ! model)
         {
-            modelIndexById.try_emplace(column.id, modelIndex);
+            return;
         }
-    }
-
-    std::vector<bool> widthApplied(_model->GetColumnCount(), false);
-    std::vector<bool> orderUsed(_model->GetColumnCount(), false);
-    std::vector<std::pair<size_t, size_t>> orderedColumns;
-    orderedColumns.reserve(layout.size());
-
-    for (const GridColumnLayoutEntry& entry : layout)
-    {
-        if (entry.columnId.empty())
+        const size_t columnCount = model->GetColumnCount();
+        if (! guard.IsCurrent() || columnCount == 0u)
         {
-            continue;
+            return;
         }
 
-        const auto it = modelIndexById.find(entry.columnId);
-        if (it == modelIndexById.end())
+        std::unordered_map<std::wstring, size_t> modelIndexById;
+        modelIndexById.reserve(columnCount);
+        std::vector<GridColumnDesc> columns;
+        columns.reserve(columnCount);
+        for (size_t modelIndex = 0; modelIndex < columnCount; ++modelIndex)
         {
-            continue;
-        }
-
-        const size_t modelIndex = it->second;
-        if (! widthApplied[modelIndex])
-        {
-            const GridColumnDesc column = _model->GetColumn(modelIndex);
-            if (std::isfinite(entry.widthDip) && entry.widthDip > 0.0f)
+            GridColumnDesc column = model->GetColumn(modelIndex);
+            if (! guard.IsCurrent())
             {
-                _columnWidths[modelIndex] = std::max(column.minWidthDip, entry.widthDip);
+                return;
             }
-            widthApplied[modelIndex] = true;
+            if (! column.id.empty())
+            {
+                modelIndexById.try_emplace(column.id, modelIndex);
+            }
+            columns.push_back(std::move(column));
         }
 
-        if (! orderUsed[modelIndex])
+        std::vector<float> widths = _columnWidths;
+        std::vector<bool> widthApplied(columnCount, false);
+        std::vector<bool> orderUsed(columnCount, false);
+        std::vector<std::pair<size_t, size_t>> orderedColumns;
+        orderedColumns.reserve(layout.size());
+        for (const GridColumnLayoutEntry& entry : layout)
         {
-            orderedColumns.emplace_back(entry.displayIndex, modelIndex);
-            orderUsed[modelIndex] = true;
+            if (entry.columnId.empty())
+            {
+                continue;
+            }
+            const auto it = modelIndexById.find(entry.columnId);
+            if (it == modelIndexById.end())
+            {
+                continue;
+            }
+            const size_t modelIndex = it->second;
+            if (! widthApplied[modelIndex])
+            {
+                if (std::isfinite(entry.widthDip) && entry.widthDip > 0.0f)
+                {
+                    widths[modelIndex] = std::max(columns[modelIndex].minWidthDip, entry.widthDip);
+                }
+                widthApplied[modelIndex] = true;
+            }
+            if (! orderUsed[modelIndex])
+            {
+                orderedColumns.emplace_back(entry.displayIndex, modelIndex);
+                orderUsed[modelIndex] = true;
+            }
         }
-    }
+        std::stable_sort(orderedColumns.begin(), orderedColumns.end(), [](const auto& lhs, const auto& rhs) noexcept { return lhs.first < rhs.first; });
 
-    std::stable_sort(orderedColumns.begin(), orderedColumns.end(), [](const auto& lhs, const auto& rhs) noexcept { return lhs.first < rhs.first; });
-
-    _columnDisplayOrder.clear();
-    _columnDisplayOrder.reserve(_model->GetColumnCount());
-    for (const auto& orderedColumn : orderedColumns)
-    {
-        _columnDisplayOrder.push_back(orderedColumn.second);
-    }
-    for (size_t modelIndex = 0; modelIndex < _model->GetColumnCount(); ++modelIndex)
-    {
-        if (! orderUsed[modelIndex])
+        std::vector<size_t> displayOrder;
+        displayOrder.reserve(columnCount);
+        for (const auto& orderedColumn : orderedColumns)
         {
-            _columnDisplayOrder.push_back(modelIndex);
+            displayOrder.push_back(orderedColumn.second);
+        }
+        for (size_t modelIndex = 0; modelIndex < columnCount; ++modelIndex)
+        {
+            if (! orderUsed[modelIndex])
+            {
+                displayOrder.push_back(modelIndex);
+            }
+        }
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        _columnWidths       = std::move(widths);
+        _columnDisplayOrder = std::move(displayOrder);
+        RebuildColumnDisplayIndexLookup();
+        ClampScrollOffsets();
+        if (guard.IsCurrent())
+        {
+            RefreshAccessibilitySnapshot();
         }
     }
-
-    RebuildColumnDisplayIndexLookup();
-    ClampScrollOffsets();
-    RefreshAccessibilitySnapshot();
+    catch (const std::bad_alloc&)
+    {
+        // Leave the last committed layout intact if model metadata or its replacement layout cannot be allocated.
+    }
+    catch (const std::exception&)
+    {
+        // A throwing column getter aborts layout application without crossing this noexcept boundary.
+    }
 }
 
 std::vector<GridColumnLayoutEntry> Grid::CaptureColumnLayout() const
 {
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
     std::vector<GridColumnLayoutEntry> layout;
     EnsureColumnWidths();
-    if (! _model || _model->GetColumnCount() == 0u)
+    if (! guard.IsCurrent() || ! model)
     {
         return layout;
     }
-
-    layout.reserve(_model->GetColumnCount());
+    const size_t columnCount = model->GetColumnCount();
+    if (! guard.IsCurrent() || columnCount == 0u)
+    {
+        return layout;
+    }
+    layout.reserve(columnCount);
     for (size_t displayIndex = 0; displayIndex < _columnDisplayOrder.size(); ++displayIndex)
     {
         const size_t modelIndex     = _columnDisplayOrder[displayIndex];
-        const GridColumnDesc column = _model->GetColumn(modelIndex);
+        const GridColumnDesc column = model->GetColumn(modelIndex);
+        if (! guard.IsCurrent())
+        {
+            return {};
+        }
         layout.push_back(GridColumnLayoutEntry{
             .columnId     = column.id,
             .displayIndex = displayIndex,
@@ -1327,67 +1629,159 @@ std::vector<GridColumnLayoutEntry> Grid::CaptureColumnLayout() const
 
 void Grid::ApplyGroupLayout(std::span<const GridGroupLayoutEntry> layout) noexcept
 {
-    if (! _model || ! _delegate || _model->GetGroupCount() == 0u)
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    IGridModel* const model           = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    try
     {
-        return;
-    }
-
-    std::unordered_map<uint64_t, bool> collapsedByStableId;
-    collapsedByStableId.reserve(layout.size());
-    for (const GridGroupLayoutEntry& entry : layout)
-    {
-        if (entry.groupStableId == 0u)
+        if (! model || ! _delegate)
         {
-            continue;
+            return;
+        }
+        const size_t groupCount = model->GetGroupCount();
+        if (! guard.IsCurrent() || groupCount == 0u)
+        {
+            return;
+        }
+        std::unordered_map<uint64_t, bool> collapsedByStableId;
+        collapsedByStableId.reserve(layout.size());
+        for (const GridGroupLayoutEntry& entry : layout)
+        {
+            if (entry.groupStableId != 0u)
+            {
+                collapsedByStableId.try_emplace(entry.groupStableId, entry.collapsed);
+            }
+        }
+        if (collapsedByStableId.empty())
+        {
+            return;
         }
 
-        collapsedByStableId.try_emplace(entry.groupStableId, entry.collapsed);
-    }
-
-    if (collapsedByStableId.empty())
-    {
-        return;
-    }
-
-    const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
-    const std::vector<GridGroupDesc> currentGroups = CollectOrderedGroups(_model);
-    bool changed                                   = false;
-    for (const GridGroupDesc& group : currentGroups)
-    {
-        const auto it = collapsedByStableId.find(group.stableId);
-        if (it == collapsedByStableId.end() || it->second == group.collapsed)
+        std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+        const std::optional<uint64_t> previousFocus = _currentRowId;
+        std::vector<uint64_t> groupIds;
+        const std::vector<GridGroupDesc> initialGroups = CollectOrderedGroups(model, &guard);
+        if (! guard.IsCurrent())
         {
-            continue;
+            return;
+        }
+        groupIds.reserve((std::min)(collapsedByStableId.size(), initialGroups.size()));
+        for (const GridGroupDesc& group : initialGroups)
+        {
+            if (collapsedByStableId.contains(group.stableId))
+            {
+                groupIds.push_back(group.stableId);
+            }
         }
 
-        _delegate->OnGridGroupToggled(*this, group.stableId, it->second);
-        changed = true;
-    }
+        IGridDelegate* const delegateBeforeCallbacks = _delegate;
+        bool changed                                 = false;
+        for (const uint64_t groupId : groupIds)
+        {
+            const auto requested = collapsedByStableId.find(groupId);
+            if (requested == collapsedByStableId.end())
+            {
+                continue;
+            }
+            const std::vector<GridGroupDesc> currentGroups = CollectOrderedGroups(model, &guard);
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+            const auto groupIt = std::ranges::find(currentGroups, groupId, &GridGroupDesc::stableId);
+            if (groupIt == currentGroups.end() || groupIt->collapsed == requested->second)
+            {
+                continue;
+            }
 
-    if (! changed)
-    {
-        return;
-    }
+            try
+            {
+                delegateBeforeCallbacks->OnGridGroupToggled(*this, groupId, requested->second);
+            }
+            catch (const std::exception&)
+            {
+                return;
+            }
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+            previousSelection.assign(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+            changed = true;
+            if (_delegate != delegateBeforeCallbacks)
+            {
+                break;
+            }
+        }
 
-    ReconcileSelectionForVisibleRows(CollectOrderedGroups(_model));
-    _hoveredRow.reset();
-    _hoveredColumn.reset();
-    ClampScrollOffsets();
-    if (! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+        if (! changed)
+        {
+            return;
+        }
+        const std::vector<GridGroupDesc> updatedGroups = CollectOrderedGroups(model, &guard);
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        ReconcileSelectionForVisibleRows(updatedGroups);
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        _hoveredRow.reset();
+        _hoveredColumn.reset();
+        ClampScrollOffsets();
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+        {
+            _delegate->OnGridSelectionChanged(*this);
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+        }
+        if (_delegate && previousFocus != _currentRowId)
+        {
+            _delegate->OnGridFocusedRowChanged(*this, _currentRowId);
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+        }
+        RefreshAccessibilitySnapshot();
+        if (guard.IsCurrent())
+        {
+            RequestInvalidate();
+        }
+    }
+    catch (const std::bad_alloc&)
     {
-        _delegate->OnGridSelectionChanged(*this);
+        // Preserve the last committed group/selection state on allocation failure.
+    }
+    catch (const std::exception&)
+    {
+        // Model/delegate exceptions abort group-layout application at this noexcept boundary.
     }
 }
 
 std::vector<GridGroupLayoutEntry> Grid::CaptureGroupLayout() const
 {
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
     std::vector<GridGroupLayoutEntry> layout;
-    if (! _model || _model->GetGroupCount() == 0u)
+    if (! model)
     {
         return layout;
     }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
+    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    if (! guard.IsCurrent())
+    {
+        return {};
+    }
     layout.reserve(groups.size());
     for (const GridGroupDesc& group : groups)
     {
@@ -1401,54 +1795,86 @@ std::vector<GridGroupLayoutEntry> Grid::CaptureGroupLayout() const
 
 void Grid::NotifyDataChanged()
 {
-    _lastPaintHadAnimatedVisibleCells = false;
-    _animatedVisibleCellStateValid    = false;
-    const bool hasGroups              = _model && _model->GetGroupCount() > 0u;
-    if (! hasGroups && _selectionModel.GetCount() == 0u)
+    const auto invalidateGeometry = ControlModelQueryAccess::InvalidateGeometry(*this);
+    try
     {
-        if (_model && _activeColumn && _activeColumn.value() >= _model->GetColumnCount())
+        ++_modelRevision;
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        IGridModel* const model           = _model;
+        const GridModelQueryGuard guard(*this, lifetime, model);
+        _lastPaintHadAnimatedVisibleCells = false;
+        _animatedVisibleCellStateValid    = false;
+        const bool hasGroups              = model && model->GetGroupCount() > 0u;
+        if (! guard.IsCurrent())
         {
-            _activeColumn.reset();
+            return;
         }
-        if (! _model)
+        const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+        const std::optional<uint64_t> previousFocus = _currentRowId;
+        if (hasGroups)
+        {
+            const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+            ReconcileSelectionForVisibleRows(groups);
+        }
+        else
+        {
+            constexpr std::span<const GridGroupDesc> noGroups;
+            ReconcileSelectionForVisibleRows(noGroups);
+        }
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        if (model && _activeColumn)
+        {
+            const size_t columnCount = model->GetColumnCount();
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+            if (_activeColumn.value() >= columnCount)
+            {
+                _activeColumn.reset();
+            }
+        }
+        if (! model)
         {
             _activeColumn.reset();
         }
         ClampScrollOffsets();
-        RefreshAccessibilitySnapshot();
-        return;
-    }
-
-    const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
-    if (hasGroups)
-    {
-        ReconcileSelectionForVisibleRows(CollectOrderedGroups(_model));
-    }
-    else
-    {
-        constexpr std::span<const GridGroupDesc> noGroups;
-        ReconcileSelectionForVisibleRows(noGroups);
-    }
-    if (_model && _activeColumn && _activeColumn.value() >= _model->GetColumnCount())
-    {
-        _activeColumn.reset();
-    }
-    if (! _model)
-    {
-        _activeColumn.reset();
-    }
-    ClampScrollOffsets();
-    if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
-    {
-        // The delegate may rebuild the controls and destroy this grid.
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        _delegate->OnGridSelectionChanged(*this);
-        if (lifetime.expired())
+        if (! guard.IsCurrent())
         {
             return;
         }
+        if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+        {
+            // The delegate may rebuild the controls and destroy this grid.
+            if (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.IsCurrent())
+            {
+                return;
+            }
+        }
+        if (_delegate && previousFocus != _currentRowId)
+        {
+            if (! TryControlCallback([&] { _delegate->OnGridFocusedRowChanged(*this, _currentRowId); }) || ! guard.IsCurrent())
+            {
+                return;
+            }
+        }
+        RefreshAccessibilitySnapshot();
     }
-    RefreshAccessibilitySnapshot();
+    catch (const std::bad_alloc&)
+    {
+        // Keep the last committed selection/focus when rebuilding the model snapshot runs out of memory.
+    }
+    catch (const std::exception&)
+    {
+        // A model or delegate exception aborts this notification at the control boundary.
+    }
 }
 
 GridSelectionModel& Grid::GetSelectionModel() noexcept
@@ -1471,22 +1897,50 @@ void Grid::RefreshAccessibilitySnapshot() const noexcept
 
 GridVisibleWorkMetrics Grid::GetVisibleWorkMetrics() const
 {
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
     GridVisibleWorkMetrics metrics{};
-    if (! _model || _model->GetRowCount() == 0u || _model->GetColumnCount() == 0u)
+    if (! model)
+    {
+        return metrics;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent() || rowCount == 0u)
+    {
+        return metrics;
+    }
+    const size_t columnCount = model->GetColumnCount();
+    if (! guard.IsCurrent() || columnCount == 0u)
     {
         return metrics;
     }
 
     EnsureColumnWidths();
+    if (! guard.IsCurrent())
+    {
+        return metrics;
+    }
     const D2D1_RECT_F bodyRect = GetContentRect();
+    if (! guard.IsCurrent())
+    {
+        return metrics;
+    }
     if (bodyRect.right <= bodyRect.left || bodyRect.bottom <= bodyRect.top)
     {
         return metrics;
     }
 
-    const std::vector<GridGroupDesc> groups             = CollectOrderedGroups(_model);
+    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    if (! guard.IsCurrent())
+    {
+        return metrics;
+    }
     const std::vector<VisibleBodyItem> visibleBodyItems = BuildVisibleBodyItems(groups);
-    const VisibleColumnSpan visibleColumns              = ComputeVisibleColumnSpan(bodyRect.right);
+    if (! guard.IsCurrent())
+    {
+        return metrics;
+    }
+    const VisibleColumnSpan visibleColumns = ComputeVisibleColumnSpan(bodyRect.right);
 
     for (const VisibleBodyItem& item : visibleBodyItems)
     {
@@ -1512,7 +1966,11 @@ GridVisibleWorkMetrics Grid::GetVisibleWorkMetrics() const
         for (size_t displayIndex = visibleColumns.beginIndex; displayIndex < visibleColumns.endIndex; ++displayIndex)
         {
             ResetGridCellData(cellData);
-            _model->GetCellData(item.rowIndex, GetModelColumnIndexForDisplayIndex(displayIndex), cellData);
+            model->GetCellData(item.rowIndex, GetModelColumnIndexForDisplayIndex(displayIndex), cellData);
+            if (! guard.IsCurrent())
+            {
+                return {};
+            }
             ++metrics.visibleCellDataReadCount;
             if (cellData.kind == GridCellKind::IconText && (! cellData.iconText.empty() || cellData.iconIndex >= 0))
             {
@@ -1528,50 +1986,109 @@ GridVisibleWorkMetrics Grid::GetVisibleWorkMetrics() const
             }
         }
     }
-    metrics.verticalScrollDip      = _verticalScrollDip;
-    metrics.horizontalScrollDip    = _horizontalScrollDip;
-    metrics.hasVerticalScrollbar   = GetVerticalScrollableExtent() > 0.0f;
+    metrics.verticalScrollDip    = _verticalScrollDip;
+    metrics.horizontalScrollDip  = _horizontalScrollDip;
+    metrics.hasVerticalScrollbar = GetVerticalScrollableExtent() > 0.0f;
+    if (! guard.IsCurrent())
+    {
+        return {};
+    }
     metrics.hasHorizontalScrollbar = GetHorizontalScrollableExtent() > 0.0f;
+    if (! guard.IsCurrent())
+    {
+        return {};
+    }
     return metrics;
 }
 
 GridCellLayoutMetrics Grid::GetCellLayoutMetrics(const ControlHost& host, size_t rowIndex, size_t columnIndex) const
 {
     GridCellLayoutMetrics metrics{};
-    if (! _model || rowIndex >= _model->GetRowCount() || columnIndex >= _model->GetColumnCount())
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
+    if (! model)
+    {
+        return metrics;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent())
+    {
+        return metrics;
+    }
+    const size_t columnCount = model->GetColumnCount();
+    if (! guard.IsCurrent() || rowIndex >= rowCount || columnIndex >= columnCount)
     {
         return metrics;
     }
 
     EnsureColumnWidths();
+    if (! guard.IsCurrent())
+    {
+        return metrics;
+    }
     const D2D1_RECT_F bodyRect = GetContentRect();
+    if (! guard.IsCurrent())
+    {
+        return metrics;
+    }
     if (bodyRect.right <= bodyRect.left || bodyRect.bottom <= bodyRect.top || columnIndex >= _columnWidths.size())
     {
         return metrics;
     }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
-    const float cellLeft                    = GetColumnLeftDip(columnIndex);
-    const float rowTopDip                   = bodyRect.top + GetRowTopDip(groups, rowIndex) - _verticalScrollDip;
-    const D2D1_RECT_F cellRect              = D2D1::RectF(cellLeft, rowTopDip, cellLeft + _columnWidths[columnIndex], rowTopDip + _rowHeightDip);
-    const GridColumnDesc columnDesc         = _model->GetColumn(columnIndex);
+    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    if (! guard.IsCurrent())
+    {
+        return metrics;
+    }
+    const float cellLeft = GetColumnLeftDip(columnIndex);
+    if (! guard.IsCurrent())
+    {
+        return metrics;
+    }
+    const float rowTopDip           = bodyRect.top + GetRowTopDip(groups, rowIndex) - _verticalScrollDip;
+    const D2D1_RECT_F cellRect      = D2D1::RectF(cellLeft, rowTopDip, cellLeft + _columnWidths[columnIndex], rowTopDip + _rowHeightDip);
+    const GridColumnDesc columnDesc = model->GetColumn(columnIndex);
+    if (! guard.IsCurrent())
+    {
+        return metrics;
+    }
     GridCellData cellData;
     ResetGridCellData(cellData);
-    _model->GetCellData(rowIndex, columnIndex, cellData);
+    model->GetCellData(rowIndex, columnIndex, cellData);
+    if (! guard.IsCurrent())
+    {
+        return metrics;
+    }
     return ComputeCellLayoutMetrics(host, cellRect, columnDesc, cellData);
 }
 
 size_t Grid::GetVisibleRowCount() const
 {
-    if (! _model || _model->GetRowCount() == 0u)
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
+    if (! model)
+    {
+        return 0u;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent() || rowCount == 0u)
     {
         return 0u;
     }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
-    size_t visibleRowCount                  = 0u;
+    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    if (! guard.IsCurrent())
+    {
+        return 0u;
+    }
+    size_t visibleRowCount = 0u;
     for (const VisibleBodyItem& item : BuildVisibleBodyItems(groups))
     {
+        if (! guard.IsCurrent())
+        {
+            return 0u;
+        }
         if (item.kind == VisibleBodyItem::Kind::Row)
         {
             ++visibleRowCount;
@@ -1583,15 +2100,30 @@ size_t Grid::GetVisibleRowCount() const
 
 std::optional<size_t> Grid::GetVisibleRowAt(size_t visibleRowIndex) const
 {
-    if (! _model || _model->GetRowCount() == 0u)
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
+    if (! model)
+    {
+        return std::nullopt;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent() || rowCount == 0u)
     {
         return std::nullopt;
     }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
-    size_t currentVisibleRowIndex           = 0u;
+    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
+    size_t currentVisibleRowIndex = 0u;
     for (const VisibleBodyItem& item : BuildVisibleBodyItems(groups))
     {
+        if (! guard.IsCurrent())
+        {
+            return std::nullopt;
+        }
         if (item.kind != VisibleBodyItem::Kind::Row)
         {
             continue;
@@ -1610,17 +2142,27 @@ std::optional<size_t> Grid::GetVisibleRowAt(size_t visibleRowIndex) const
 
 std::optional<size_t> Grid::FindVisibleRowOrdinal(size_t rowIndex) const
 {
-    if (! _model)
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
+    if (! model)
     {
         return std::nullopt;
     }
 
-    const size_t rowCount = _model->GetRowCount();
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
     if (rowIndex >= rowCount)
     {
         return std::nullopt;
     }
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
+    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
 
     size_t visibleOrdinal   = 0u;
     size_t nextUngroupedRow = 0u;
@@ -1658,67 +2200,120 @@ std::optional<size_t> Grid::FindVisibleRowOrdinal(size_t rowIndex) const
 
 void Grid::EnsureRowVisible(size_t rowIndex) noexcept
 {
-    if (! _model || rowIndex >= _model->GetRowCount())
+    try
     {
-        return;
-    }
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        const IGridModel* const model     = _model;
+        const GridModelQueryGuard guard(*this, lifetime, model);
+        size_t rowCount = 0u;
+        if (! model || ! TryControlCallback([&] { rowCount = model->GetRowCount(); }) || ! guard.IsCurrent() || rowIndex >= rowCount)
+        {
+            return;
+        }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
-    if (! FindVisibleRowOrdinal(rowIndex).has_value())
-    {
-        return;
-    }
+        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        if (! FindVisibleRowOrdinal(rowIndex).has_value() || ! guard.IsCurrent())
+        {
+            return;
+        }
 
-    const D2D1_RECT_F contentRect = GetContentRect();
-    const float viewportHeight    = std::max(0.0f, contentRect.bottom - contentRect.top);
-    const float rowTop            = GetRowTopDip(groups, rowIndex);
-    const float rowBottom         = rowTop + _rowHeightDip;
-    if (rowTop < _verticalScrollDip)
-    {
-        _verticalScrollDip = rowTop;
-    }
-    else if (viewportHeight > 0.0f && rowBottom > (_verticalScrollDip + viewportHeight))
-    {
-        _verticalScrollDip = rowBottom - viewportHeight;
-    }
+        const D2D1_RECT_F contentRect = GetContentRect();
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        const float viewportHeight = std::max(0.0f, contentRect.bottom - contentRect.top);
+        const float rowTop         = GetRowTopDip(groups, rowIndex);
+        const float rowBottom      = rowTop + _rowHeightDip;
+        if (rowTop < _verticalScrollDip)
+        {
+            _verticalScrollDip = rowTop;
+        }
+        else if (viewportHeight > 0.0f && rowBottom > (_verticalScrollDip + viewportHeight))
+        {
+            _verticalScrollDip = rowBottom - viewportHeight;
+        }
 
-    ClampScrollOffsets();
+        ClampScrollOffsets();
+    }
+    catch (const std::bad_alloc&)
+    {
+        // Keep the last stable scroll position when visibility geometry cannot be prepared.
+    }
+    catch (const std::exception&)
+    {
+        // A failing borrowed-model query aborts this best-effort visibility request.
+    }
 }
 
 size_t Grid::GetVisibleColumnCount() const
 {
-    if (! _model || _model->GetColumnCount() == 0u)
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
+    if (! model)
+    {
+        return 0u;
+    }
+    const size_t columnCount = model->GetColumnCount();
+    if (! guard.IsCurrent() || columnCount == 0u)
     {
         return 0u;
     }
 
     EnsureColumnWidths();
+    if (! guard.IsCurrent())
+    {
+        return 0u;
+    }
     const D2D1_RECT_F bodyRect = GetContentRect();
-    if (bodyRect.right <= bodyRect.left || bodyRect.bottom <= bodyRect.top)
+    if (! guard.IsCurrent() || bodyRect.right <= bodyRect.left || bodyRect.bottom <= bodyRect.top)
     {
         return 0u;
     }
 
     const VisibleColumnSpan visibleColumns = ComputeVisibleColumnSpan(bodyRect.right);
+    if (! guard.IsCurrent())
+    {
+        return 0u;
+    }
     return visibleColumns.endIndex - visibleColumns.beginIndex;
 }
 
 std::optional<size_t> Grid::GetVisibleColumnAt(size_t visibleColumnIndex) const
 {
-    if (! _model || _model->GetColumnCount() == 0u)
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
+    if (! model)
+    {
+        return std::nullopt;
+    }
+    const size_t columnCount = model->GetColumnCount();
+    if (! guard.IsCurrent() || columnCount == 0u)
     {
         return std::nullopt;
     }
 
     EnsureColumnWidths();
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
     const D2D1_RECT_F bodyRect = GetContentRect();
-    if (bodyRect.right <= bodyRect.left || bodyRect.bottom <= bodyRect.top)
+    if (! guard.IsCurrent() || bodyRect.right <= bodyRect.left || bodyRect.bottom <= bodyRect.top)
     {
         return std::nullopt;
     }
 
     const VisibleColumnSpan visibleColumns = ComputeVisibleColumnSpan(bodyRect.right);
-    const size_t visibleColumnCount        = visibleColumns.endIndex - visibleColumns.beginIndex;
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
+    const size_t visibleColumnCount = visibleColumns.endIndex - visibleColumns.beginIndex;
     if (visibleColumnIndex >= visibleColumnCount)
     {
         return std::nullopt;
@@ -1729,19 +2324,34 @@ std::optional<size_t> Grid::GetVisibleColumnAt(size_t visibleColumnIndex) const
 
 std::optional<size_t> Grid::FindVisibleColumnOrdinal(size_t columnIndex) const
 {
-    if (! _model || columnIndex >= _model->GetColumnCount())
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
+    if (! model)
+    {
+        return std::nullopt;
+    }
+    const size_t columnCount = model->GetColumnCount();
+    if (! guard.IsCurrent() || columnIndex >= columnCount)
     {
         return std::nullopt;
     }
 
     EnsureColumnWidths();
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
     const D2D1_RECT_F bodyRect = GetContentRect();
-    if (bodyRect.right <= bodyRect.left || bodyRect.bottom <= bodyRect.top)
+    if (! guard.IsCurrent() || bodyRect.right <= bodyRect.left || bodyRect.bottom <= bodyRect.top)
     {
         return std::nullopt;
     }
 
     const VisibleColumnSpan visibleColumns = ComputeVisibleColumnSpan(bodyRect.right);
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
     for (size_t displayIndex = visibleColumns.beginIndex; displayIndex < visibleColumns.endIndex; ++displayIndex)
     {
         if (GetModelColumnIndexForDisplayIndex(displayIndex) == columnIndex)
@@ -1755,47 +2365,84 @@ std::optional<size_t> Grid::FindVisibleColumnOrdinal(size_t columnIndex) const
 
 std::optional<size_t> Grid::FindHeaderColumnAtPoint(PointDip pointDip) const noexcept
 {
-    if (! _model || _model->GetColumnCount() == 0u)
+    try
+    {
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        const IGridModel* const model     = _model;
+        const GridModelQueryGuard guard(*this, lifetime, model);
+        if (! model)
+        {
+            return std::nullopt;
+        }
+        const size_t columnCount = model->GetColumnCount();
+        if (! guard.IsCurrent() || columnCount == 0u)
+        {
+            return std::nullopt;
+        }
+
+        const D2D1_POINT_2F point     = pointDip.AsD2D();
+        const D2D1_RECT_F bounds      = NormalizeFiniteRect(GetBounds());
+        const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
+        if (! guard.IsCurrent() || contentRect.top <= bounds.top || point.y < bounds.top || point.y >= contentRect.top)
+        {
+            return std::nullopt;
+        }
+
+        const size_t visibleColumnCount = GetVisibleColumnCount();
+        if (! guard.IsCurrent())
+        {
+            return std::nullopt;
+        }
+        for (size_t visibleColumnIndex = 0u; visibleColumnIndex < visibleColumnCount; ++visibleColumnIndex)
+        {
+            const std::optional<size_t> columnIndex = GetVisibleColumnAt(visibleColumnIndex);
+            if (! guard.IsCurrent())
+            {
+                return std::nullopt;
+            }
+            if (! columnIndex)
+            {
+                continue;
+            }
+
+            const std::optional<D2D1_RECT_F> headerRect = GetVisibleColumnHeaderRect(columnIndex.value());
+            if (! guard.IsCurrent())
+            {
+                return std::nullopt;
+            }
+            if (headerRect && PointInRect(headerRect.value(), point))
+            {
+                return columnIndex;
+            }
+        }
+        return std::nullopt;
+    }
+    catch (const std::bad_alloc&)
     {
         return std::nullopt;
     }
-
-    const D2D1_POINT_2F point     = pointDip.AsD2D();
-    const D2D1_RECT_F bounds      = NormalizeFiniteRect(GetBounds());
-    const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
-    if (contentRect.top <= bounds.top || point.y < bounds.top || point.y >= contentRect.top)
+    catch (const std::exception&)
     {
         return std::nullopt;
     }
-
-    const size_t visibleColumnCount = GetVisibleColumnCount();
-    for (size_t visibleColumnIndex = 0u; visibleColumnIndex < visibleColumnCount; ++visibleColumnIndex)
-    {
-        const std::optional<size_t> columnIndex = GetVisibleColumnAt(visibleColumnIndex);
-        if (! columnIndex)
-        {
-            continue;
-        }
-
-        const std::optional<D2D1_RECT_F> headerRect = GetVisibleColumnHeaderRect(columnIndex.value());
-        if (headerRect && PointInRect(headerRect.value(), point))
-        {
-            return columnIndex;
-        }
-    }
-
-    return std::nullopt;
 }
 
 std::optional<size_t> Grid::FindRowAtPoint(PointDip pointDip) const noexcept
 {
-    if (! _model || _model->GetRowCount() == 0u)
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
+    if (! model)
+    {
+        return std::nullopt;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent() || rowCount == 0u)
     {
         return std::nullopt;
     }
 
     const HitInfo hit = HitTestPoint(pointDip);
-    if (hit.zone != HitZone::Cell)
+    if (! guard.IsCurrent() || hit.zone != HitZone::Cell)
     {
         return std::nullopt;
     }
@@ -1805,13 +2452,25 @@ std::optional<size_t> Grid::FindRowAtPoint(PointDip pointDip) const noexcept
 
 std::optional<std::pair<size_t, size_t>> Grid::FindCellAtPoint(PointDip pointDip) const noexcept
 {
-    if (! _model || _model->GetRowCount() == 0u || _model->GetColumnCount() == 0u)
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
+    if (! model)
+    {
+        return std::nullopt;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent() || rowCount == 0u)
+    {
+        return std::nullopt;
+    }
+    const size_t columnCount = model->GetColumnCount();
+    if (! guard.IsCurrent() || columnCount == 0u)
     {
         return std::nullopt;
     }
 
     const HitInfo hit = HitTestPoint(pointDip);
-    if (hit.zone != HitZone::Cell)
+    if (! guard.IsCurrent() || hit.zone != HitZone::Cell)
     {
         return std::nullopt;
     }
@@ -1821,7 +2480,14 @@ std::optional<std::pair<size_t, size_t>> Grid::FindCellAtPoint(PointDip pointDip
 
 std::optional<D2D1_RECT_F> Grid::GetVisibleColumnHeaderRect(size_t columnIndex) const
 {
-    if (! _model || columnIndex >= _model->GetColumnCount())
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
+    if (! model)
+    {
+        return std::nullopt;
+    }
+    const size_t columnCount = model->GetColumnCount();
+    if (! guard.IsCurrent() || columnIndex >= columnCount)
     {
         return std::nullopt;
     }
@@ -1830,16 +2496,28 @@ std::optional<D2D1_RECT_F> Grid::GetVisibleColumnHeaderRect(size_t columnIndex) 
     {
         return std::nullopt;
     }
-
-    EnsureColumnWidths();
-    const D2D1_RECT_F bounds      = NormalizeFiniteRect(GetBounds());
-    const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
-    if (contentRect.top <= bounds.top || columnIndex >= _columnWidths.size())
+    if (! guard.IsCurrent())
     {
         return std::nullopt;
     }
 
-    const float headerLeftDip        = GetColumnLeftDip(columnIndex);
+    EnsureColumnWidths();
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
+    const D2D1_RECT_F bounds      = NormalizeFiniteRect(GetBounds());
+    const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
+    if (! guard.IsCurrent() || contentRect.top <= bounds.top || columnIndex >= _columnWidths.size())
+    {
+        return std::nullopt;
+    }
+
+    const float headerLeftDip = GetColumnLeftDip(columnIndex);
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
     const D2D1_RECT_F headerViewport = D2D1::RectF(bounds.left, bounds.top, contentRect.right, contentRect.top);
     const D2D1_RECT_F clippedRect =
         ClipRectToRect(D2D1::RectF(headerLeftDip, bounds.top, headerLeftDip + _columnWidths[columnIndex], contentRect.top), headerViewport);
@@ -1853,28 +2531,50 @@ std::optional<D2D1_RECT_F> Grid::GetVisibleColumnHeaderRect(size_t columnIndex) 
 
 std::optional<D2D1_RECT_F> Grid::GetVisibleDisplayColumnHeaderRect(size_t displayIndex) const
 {
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     EnsureColumnWidths();
-    if (! _model || displayIndex >= _columnDisplayOrder.size())
+    if (! guard.IsCurrent() || ! _model || displayIndex >= _columnDisplayOrder.size())
     {
         return std::nullopt;
     }
 
-    return GetVisibleColumnHeaderRect(GetModelColumnIndexForDisplayIndex(displayIndex));
+    const auto rect = GetVisibleColumnHeaderRect(GetModelColumnIndexForDisplayIndex(displayIndex));
+    return guard.IsCurrent() ? rect : std::nullopt;
 }
 
 std::optional<D2D1_RECT_F> Grid::GetVisibleRowRect(size_t rowIndex) const
 {
-    if (! _model || rowIndex >= _model->GetRowCount())
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
+    if (! model)
+    {
+        return std::nullopt;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent() || rowIndex >= rowCount)
     {
         return std::nullopt;
     }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
+    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
+    const D2D1_RECT_F bodyRect = GetContentRect();
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
     for (const VisibleBodyItem& item : BuildVisibleBodyItems(groups))
     {
+        if (! guard.IsCurrent())
+        {
+            return std::nullopt;
+        }
         if (item.kind == VisibleBodyItem::Kind::Row && item.rowIndex == rowIndex)
         {
-            const D2D1_RECT_F clippedRect = ClipRectToRect(item.rectDip, GetContentRect());
+            const D2D1_RECT_F clippedRect = ClipRectToRect(item.rectDip, bodyRect);
             if (! IsNonEmptyRect(clippedRect))
             {
                 return std::nullopt;
@@ -1889,7 +2589,19 @@ std::optional<D2D1_RECT_F> Grid::GetVisibleRowRect(size_t rowIndex) const
 
 std::optional<D2D1_RECT_F> Grid::GetVisibleCellRect(size_t rowIndex, size_t columnIndex) const
 {
-    if (! _model || rowIndex >= _model->GetRowCount() || columnIndex >= _model->GetColumnCount())
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
+    if (! model)
+    {
+        return std::nullopt;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
+    const size_t columnCount = model->GetColumnCount();
+    if (! guard.IsCurrent() || rowIndex >= rowCount || columnIndex >= columnCount)
     {
         return std::nullopt;
     }
@@ -1898,17 +2610,33 @@ std::optional<D2D1_RECT_F> Grid::GetVisibleCellRect(size_t rowIndex, size_t colu
     {
         return std::nullopt;
     }
-
-    EnsureColumnWidths();
-    const D2D1_RECT_F bodyRect = GetContentRect();
-    if (bodyRect.right <= bodyRect.left || bodyRect.bottom <= bodyRect.top || columnIndex >= _columnWidths.size())
+    if (! guard.IsCurrent())
     {
         return std::nullopt;
     }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
-    const float cellLeft                    = GetColumnLeftDip(columnIndex);
-    const float rowTopDip                   = bodyRect.top + GetRowTopDip(groups, rowIndex) - _verticalScrollDip;
+    EnsureColumnWidths();
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
+    const D2D1_RECT_F bodyRect = GetContentRect();
+    if (! guard.IsCurrent() || bodyRect.right <= bodyRect.left || bodyRect.bottom <= bodyRect.top || columnIndex >= _columnWidths.size())
+    {
+        return std::nullopt;
+    }
+
+    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
+    const float cellLeft = GetColumnLeftDip(columnIndex);
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
+    const float rowTopDip = bodyRect.top + GetRowTopDip(groups, rowIndex) - _verticalScrollDip;
     const D2D1_RECT_F clippedRect =
         ClipRectToRect(D2D1::RectF(cellLeft, rowTopDip, cellLeft + _columnWidths[columnIndex], rowTopDip + _rowHeightDip), bodyRect);
     if (! IsNonEmptyRect(clippedRect))
@@ -1921,14 +2649,39 @@ std::optional<D2D1_RECT_F> Grid::GetVisibleCellRect(size_t rowIndex, size_t colu
 
 bool Grid::IsRowSelected(size_t rowIndex) const noexcept
 {
-    return _model && rowIndex < _model->GetRowCount() && _selectionModel.IsSelected(_model->GetStableRowId(rowIndex));
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    size_t rowCount = 0u;
+    if (! model || ! TryControlCallback([&] { rowCount = model->GetRowCount(); }) || ! guard.IsCurrent() || rowIndex >= rowCount)
+    {
+        return false;
+    }
+    const uint64_t rowId = model->GetStableRowId(rowIndex);
+    return guard.IsCurrent() && _selectionModel.IsSelected(rowId);
 }
 
 std::optional<size_t> Grid::GetPrimarySelectedRow() const noexcept
 {
-    if (! _model || _selectionModel.GetCount() == 0u)
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    if (! model || _selectionModel.GetCount() == 0u)
     {
         return std::nullopt;
+    }
+
+    if (_currentRowId && _selectionModel.IsSelected(_currentRowId.value()))
+    {
+        const std::optional<size_t> currentRow = model->FindRowByStableId(_currentRowId.value());
+        if (! guard.IsCurrent())
+        {
+            return std::nullopt;
+        }
+        if (currentRow)
+        {
+            return currentRow;
+        }
     }
 
     const auto selection = _selectionModel.GetOrderedSelection();
@@ -1936,8 +2689,37 @@ std::optional<size_t> Grid::GetPrimarySelectedRow() const noexcept
     {
         return std::nullopt;
     }
+    const std::optional<size_t> resolved = model->FindRowByStableId(selection.back());
+    return guard.IsCurrent() ? resolved : std::nullopt;
+}
 
-    return _model->FindRowByStableId(selection.back());
+std::optional<uint64_t> Grid::GetFocusedRowId() const noexcept
+{
+    return _currentRowId;
+}
+
+void Grid::SetFocusedRowId(std::optional<uint64_t> rowId) noexcept
+{
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    std::optional<size_t> focusedIndex;
+    if (rowId && (! model || ! (focusedIndex = model->FindRowByStableId(*rowId))))
+    {
+        rowId.reset();
+    }
+    if (! guard.IsCurrent())
+    {
+        return;
+    }
+    const bool changed = _currentRowId != rowId;
+    _currentRowId      = rowId;
+    _focusedRowIndex   = rowId ? focusedIndex : std::nullopt;
+    RefreshAccessibilitySnapshot();
+    if (changed && guard.IsCurrent())
+    {
+        RequestInvalidate();
+    }
 }
 
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -1985,16 +2767,29 @@ Grid::GridDebugPointerState Grid::DebugGetPointerState() const noexcept
 
 bool Grid::DebugGetRowVisualState(const ThemePalette& theme, size_t rowIndex, GridDebugRowVisualState& out) const noexcept
 {
-    out = {};
-    if (! _model || rowIndex >= _model->GetRowCount())
+    out                               = {};
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    size_t rowCount = 0u;
+    if (! model || ! TryControlCallback([&] { rowCount = model->GetRowCount(); }) || ! guard.IsCurrent() || rowIndex >= rowCount)
     {
         return false;
     }
 
-    const uint64_t rowId                 = _model->GetStableRowId(rowIndex);
-    const bool rowSelected               = _selectionModel.IsSelected(rowId);
-    const GridResolvedRowVisuals visuals = ResolveGridRowVisuals(
-        theme, _model->GetRowStyle(rowIndex), rowIndex, rowSelected, HasFocus(), _hoveredRow && _hoveredRow.value() == rowIndex, _visualMode);
+    const uint64_t rowId = model->GetStableRowId(rowIndex);
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    const bool rowSelected = _selectionModel.IsSelected(rowId);
+    GridRowStyle style{};
+    if (! TryControlCallback([&] { style = model->GetRowStyle(rowIndex); }) || ! guard.IsCurrent())
+    {
+        return false;
+    }
+    const GridResolvedRowVisuals visuals =
+        ResolveGridRowVisuals(theme, style, rowIndex, rowSelected, HasFocus(), _hoveredRow && _hoveredRow.value() == rowIndex, _visualMode);
     const GridProgressVisualStyle progressStyle = ResolveGridProgressVisualStyle(theme, visuals.fill, visuals.text, rowSelected);
     out.fillArgb                                = PackColor(visuals.fill);
     out.textArgb                                = PackColor(visuals.text);
@@ -2009,19 +2804,37 @@ bool Grid::DebugGetRowVisualState(const ThemePalette& theme, size_t rowIndex, Gr
 
 bool Grid::DebugGetCellVisualState(const ThemePalette& theme, size_t rowIndex, size_t columnIndex, GridDebugCellVisualState& out) const noexcept
 {
-    out = {};
-    if (! _model || rowIndex >= _model->GetRowCount() || columnIndex >= _model->GetColumnCount())
+    out                               = {};
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    size_t rowCount    = 0u;
+    size_t columnCount = 0u;
+    if (! model || ! TryControlCallback([&] { rowCount = model->GetRowCount(); }) || ! guard.IsCurrent() || rowIndex >= rowCount ||
+        ! TryControlCallback([&] { columnCount = model->GetColumnCount(); }) || ! guard.IsCurrent() || columnIndex >= columnCount)
     {
         return false;
     }
 
     GridCellData cellData{};
-    _model->GetCellData(rowIndex, columnIndex, cellData);
+    if (! TryControlCallback([&] { model->GetCellData(rowIndex, columnIndex, cellData); }) || ! guard.IsCurrent())
+    {
+        return false;
+    }
 
-    const uint64_t rowId                    = _model->GetStableRowId(rowIndex);
-    const bool selected                     = _selectionModel.IsSelected(rowId);
-    const bool hovered                      = _hoveredRow && _hoveredRow.value() == rowIndex;
-    const GridResolvedRowVisuals rowVisuals = ResolveGridRowVisuals(theme, _model->GetRowStyle(rowIndex), rowIndex, selected, HasFocus(), hovered, _visualMode);
+    const uint64_t rowId = model->GetStableRowId(rowIndex);
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    const bool selected = _selectionModel.IsSelected(rowId);
+    const bool hovered  = _hoveredRow && _hoveredRow.value() == rowIndex;
+    GridRowStyle rowStyle{};
+    if (! TryControlCallback([&] { rowStyle = model->GetRowStyle(rowIndex); }) || ! guard.IsCurrent())
+    {
+        return false;
+    }
+    const GridResolvedRowVisuals rowVisuals = ResolveGridRowVisuals(theme, rowStyle, rowIndex, selected, HasFocus(), hovered, _visualMode);
     const GridResolvedCellVisuals visuals   = ResolveGridCellVisuals(theme, rowVisuals, selected, hovered, cellData);
 
     if (visuals.checkbox.has_value())
@@ -2099,30 +2912,141 @@ GridScrollbarVisualState Grid::DebugGetScrollbarVisualState(const ThemePalette& 
 
 bool Grid::RequestSelectRow(size_t rowIndex, UINT modifiers)
 {
-    if (! _model || rowIndex >= _model->GetRowCount() || ! FindVisibleRowOrdinal(rowIndex))
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    IGridModel* const model           = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    if (! model || ! IsEnabled())
+    {
+        return false;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    if (rowIndex >= rowCount)
+    {
+        return false;
+    }
+    const std::optional<size_t> ordinal = FindVisibleRowOrdinal(rowIndex);
+    if (! guard.IsCurrent() || ! ordinal)
     {
         return false;
     }
 
-    // A grid its delegate destroyed is left to the caller, which revalidates its element.
-    static_cast<void>(SelectRow(rowIndex, modifiers));
-    return true;
+    // The caller revalidates its element when the selection delegate or UI Automation publication destroys this grid.
+    return SelectRow(rowIndex, modifiers);
+}
+
+bool Grid::RequestAddRowSelection(size_t rowIndex)
+{
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    IGridModel* const model           = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    if (! model || ! IsEnabled())
+    {
+        return false;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent() || rowIndex >= rowCount)
+    {
+        return false;
+    }
+    const std::optional<size_t> ordinal = FindVisibleRowOrdinal(rowIndex);
+    if (! guard.IsCurrent() || ! ordinal)
+    {
+        return false;
+    }
+
+    const uint64_t rowId = model->GetStableRowId(rowIndex);
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+    if (_selectionMode == GridSelectionMode::Single)
+    {
+        if (_selectionModel.GetCount() != 0u && ! _selectionModel.IsSelected(rowId))
+        {
+            return false;
+        }
+        if (_selectionModel.GetCount() == 0u)
+        {
+            _selectionModel.SetSingle(rowId);
+        }
+    }
+    else if (! _selectionModel.IsSelected(rowId))
+    {
+        const auto previousAnchor = _selectionModel.GetAnchor();
+        _selectionModel.Toggle(rowId);
+        _selectionModel.SetAnchor(previousAnchor);
+    }
+
+    const std::optional<uint64_t> previousFocus = _currentRowId;
+    _currentRowId                               = rowId;
+    _focusedRowIndex                            = rowIndex;
+    EnsureRowVisible(rowIndex);
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+    {
+        if (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.IsCurrent())
+        {
+            return false;
+        }
+    }
+    if (_delegate && previousFocus != _currentRowId)
+    {
+        if (! TryControlCallback([&] { _delegate->OnGridFocusedRowChanged(*this, _currentRowId); }) || ! guard.IsCurrent())
+        {
+            return false;
+        }
+    }
+    RefreshAccessibilitySnapshot();
+    if (guard.IsCurrent())
+    {
+        if (ControlHost* host = GetHost())
+        {
+            Invalidate(*host);
+        }
+    }
+    return guard.IsCurrent();
 }
 
 bool Grid::RequestRemoveRowSelection(size_t rowIndex)
 {
-    if (! _model || rowIndex >= _model->GetRowCount() || ! FindVisibleRowOrdinal(rowIndex))
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    IGridModel* const model           = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    if (! IsEnabled() || ! model)
     {
         return false;
     }
 
-    const uint64_t rowId = _model->GetStableRowId(rowIndex);
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent() || rowIndex >= rowCount)
+    {
+        return false;
+    }
+    const std::optional<size_t> ordinal = FindVisibleRowOrdinal(rowIndex);
+    if (! guard.IsCurrent() || ! ordinal)
+    {
+        return false;
+    }
+    const uint64_t rowId = model->GetStableRowId(rowIndex);
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
     if (! _selectionModel.IsSelected(rowId))
     {
         return true;
     }
 
     const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+    const auto previousAnchor = _selectionModel.GetAnchor();
     if (_selectionMode == GridSelectionMode::Single || _selectionModel.GetCount() <= 1u)
     {
         _selectionModel.Clear();
@@ -2131,30 +3055,209 @@ bool Grid::RequestRemoveRowSelection(size_t rowIndex)
     {
         _selectionModel.Toggle(rowId);
     }
+    _selectionModel.SetAnchor(previousAnchor);
 
     if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
     {
         // The delegate may rebuild the controls and destroy this grid; the caller revalidates its element.
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        _delegate->OnGridSelectionChanged(*this);
-        if (lifetime.expired())
+        if (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.IsCurrent())
         {
-            return true;
+            return false;
         }
     }
     RefreshAccessibilitySnapshot();
 
-    return true;
+    return guard.IsCurrent();
 }
 
-bool Grid::RequestToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnIndex)
+bool Grid::RequestFocusRow(size_t rowIndex)
 {
-    if (! _model || rowIndex >= _model->GetRowCount() || ! FindVisibleRowOrdinal(rowIndex))
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    IGridModel* const model           = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    if (! IsEnabled() || ! model)
+    {
+        return false;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent() || rowIndex >= rowCount)
+    {
+        return false;
+    }
+    const std::optional<size_t> ordinal = FindVisibleRowOrdinal(rowIndex);
+    if (! guard.IsCurrent() || ! ordinal)
     {
         return false;
     }
 
-    return ToggleCheckboxCell(host, rowIndex, columnIndex);
+    const std::optional<uint64_t> previousFocus = _currentRowId;
+    const uint64_t rowId                        = model->GetStableRowId(rowIndex);
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    _currentRowId    = rowId;
+    _focusedRowIndex = rowIndex;
+    EnsureRowVisible(rowIndex);
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    if (_delegate && previousFocus != _currentRowId)
+    {
+        if (! TryControlCallback([&] { _delegate->OnGridFocusedRowChanged(*this, _currentRowId); }) || ! guard.IsCurrent())
+        {
+            return false;
+        }
+    }
+    RefreshAccessibilitySnapshot();
+    if (guard.IsCurrent())
+    {
+        if (ControlHost* host = GetHost())
+        {
+            Invalidate(*host);
+        }
+    }
+    return guard.IsCurrent();
+}
+
+bool Grid::RequestFocusCell(size_t rowIndex, size_t columnIndex)
+{
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    IGridModel* const model           = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    if (! IsEnabled() || ! model)
+    {
+        return false;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent() || rowIndex >= rowCount)
+    {
+        return false;
+    }
+    const size_t columnCount = model->GetColumnCount();
+    if (! guard.IsCurrent() || columnIndex >= columnCount)
+    {
+        return false;
+    }
+    const std::optional<size_t> ordinal = FindVisibleRowOrdinal(rowIndex);
+    if (! guard.IsCurrent() || ! ordinal)
+    {
+        return false;
+    }
+    const uint64_t rowId = model->GetStableRowId(rowIndex);
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+
+    const auto revealColumn = [this, columnIndex, &guard]()
+    {
+        EnsureColumnWidths();
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        const D2D1_RECT_F viewport = GetContentRect();
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        const float viewportWidth = viewport.right - viewport.left;
+        if (viewportWidth <= 0.0f || columnIndex >= _columnWidths.size())
+        {
+            return true;
+        }
+
+        const float cellLeft = GetColumnLeftDip(columnIndex);
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        const float cellRight = cellLeft + _columnWidths[columnIndex];
+        float scrollDip       = _horizontalScrollDip;
+        if (_columnWidths[columnIndex] >= viewportWidth)
+        {
+            // Align the logical leading edge: left in LTR and right in RTL.
+            scrollDip += IsRightToLeft() ? viewport.right - cellRight : cellLeft - viewport.left;
+        }
+        else if (cellLeft < viewport.left)
+        {
+            scrollDip += IsRightToLeft() ? viewport.left - cellLeft : cellLeft - viewport.left;
+        }
+        else if (cellRight > viewport.right)
+        {
+            scrollDip += IsRightToLeft() ? viewport.right - cellRight : cellRight - viewport.right;
+        }
+        const float horizontalExtent = GetHorizontalScrollableExtent();
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        _horizontalScrollDip = ClampScroll(scrollDip, horizontalExtent);
+        return true;
+    };
+
+    _activeColumn = columnIndex;
+    if (! revealColumn() || ! guard.IsCurrent() || ! RequestFocusRow(rowIndex) || ! guard.IsCurrent())
+    {
+        return false;
+    }
+
+    // The row-focus callback may reorder model rows or reset transient Grid state. Revalidate the requested
+    // cell before restoring its column and revealing it again.
+    const size_t currentColumnCount = model->GetColumnCount();
+    if (! guard.IsCurrent() || columnIndex >= currentColumnCount)
+    {
+        return false;
+    }
+    const std::optional<size_t> currentRow = model->FindRowByStableId(rowId);
+    if (! guard.IsCurrent() || ! currentRow)
+    {
+        return false;
+    }
+    const std::optional<size_t> currentOrdinal = FindVisibleRowOrdinal(*currentRow);
+    if (! guard.IsCurrent() || ! currentOrdinal || _currentRowId != rowId)
+    {
+        return false;
+    }
+
+    _activeColumn = columnIndex;
+    if (! revealColumn() || ! guard.IsCurrent())
+    {
+        return false;
+    }
+    RefreshAccessibilitySnapshot();
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    if (ControlHost* host = GetHost())
+    {
+        Invalidate(*host);
+    }
+    return guard.IsCurrent();
+}
+
+bool Grid::RequestToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnIndex)
+{
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    size_t rowCount = 0u;
+    if (! IsEnabled() || ! model || ! TryControlCallback([&] { rowCount = model->GetRowCount(); }) || ! guard.IsCurrent() || rowIndex >= rowCount)
+    {
+        return false;
+    }
+
+    const auto visibleOrdinal = FindVisibleRowOrdinal(rowIndex);
+    if (! guard.IsCurrent() || ! visibleOrdinal)
+    {
+        return false;
+    }
+    // The toggle owns its follow-up NotifyDataChanged, which intentionally advances the model revision.
+    // Its result already accounts for retirement; an older query guard must not turn that accepted action into failure.
+    return ToggleCheckboxCell(host, rowIndex, columnIndex) && guard.IsBindingCurrent();
 }
 
 const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
@@ -2170,7 +3273,8 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
     auto* factory         = host.GetWriteFactory();
     const uint32_t clamp  = std::max(1u, _lineClamp);
     const bool wrap       = clamp > 1u;
-    auto* format          = host.GetTextFormat(_cellTextFontRole, cellData.textAlignment, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, wrap);
+    auto* format =
+        host.GetTextFormat(_cellTextFontRole, cellData.textAlignment, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, wrap, ResolveReadingDirection(GetFlowDirection()));
     if (! factory || ! format)
         return nullptr;
     // Identical cell values share one layout across rows and columns. A value is found by its first
@@ -2436,7 +3540,8 @@ const Grid::CellTextLayoutCache* Grid::PrepareSingleLineCellLayout(const Control
         return nullptr;
     auto* factory = host.GetWriteFactory();
     // The format DrawCenteredText would use for the caption: unwrapped and centred vertically.
-    auto* format = host.GetTextFormat(_cellTextFontRole, cellData.textAlignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false);
+    auto* format =
+        host.GetTextFormat(_cellTextFontRole, cellData.textAlignment, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, ResolveReadingDirection(GetFlowDirection()));
     if (! factory || ! format)
         return nullptr;
     // Keyed by the whole caption, in the multiline table (as a clamp of zero, which no multiline lookup has); a caption
@@ -2617,446 +3722,591 @@ void Grid::DrawCellText(ControlHost& host, const GridCellData& cellData, const D
 
 void Grid::Paint(ControlHost& host) const
 {
-    ++_cellTextPaintGeneration;
-    const auto releaseOffscreenLayouts = wil::scope_exit([&]() noexcept
+    try
     {
-        EndTextLayoutPaint(_cellTextLayouts,
-                           _cellTextPaintGeneration,
-                           kCellTextLayoutInitialEntries,
-                           [](CellTextLayoutCache& entry) noexcept
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        IGridModel* const paintModel      = _model;
+        const GridModelQueryGuard guard(*this, lifetime, paintModel);
+        ++_cellTextPaintGeneration;
+        const auto releaseOffscreenLayouts = wil::scope_exit([&, lifetime]() noexcept
         {
-            entry.layout.reset();
-            entry.format.reset();
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+            EndTextLayoutPaint(_cellTextLayouts,
+                               _cellTextPaintGeneration,
+                               kCellTextLayoutInitialEntries,
+                               [](CellTextLayoutCache& entry) noexcept
+            {
+                entry.layout.reset();
+                entry.format.reset();
+            });
+            EndTextLayoutPaint(_cellDisplayLayouts,
+                               _cellTextPaintGeneration,
+                               kCellTextLayoutInitialEntries,
+                               [](CellDisplayLayoutCache& entry) noexcept
+            {
+                entry.layout.reset();
+                entry.format.reset();
+            });
         });
-        EndTextLayoutPaint(_cellDisplayLayouts,
-                           _cellTextPaintGeneration,
-                           kCellTextLayoutInitialEntries,
-                           [](CellDisplayLayoutCache& entry) noexcept
-        {
-            entry.layout.reset();
-            entry.format.reset();
-        });
-    });
-    _lastPaintHadAnimatedVisibleCells  = false;
-    _animatedVisibleCellStateValid     = true;
-    auto* dc                           = host.GetDeviceContext();
-    if (! dc)
-    {
-        return;
-    }
-
-#if DXUI_ENABLE_DIAGNOSTICS
-    ++_debugPaintCount;
-#endif
-
-    const auto paintStartedAt         = std::chrono::steady_clock::now();
-    uint64_t visibleItemCount         = 0u;
-    uint64_t visibleCellDataReadCount = 0u;
-    const auto emitPaintPerf          = wil::scope_exit([&]() noexcept
-    {
-        if (! _model)
+        _lastPaintHadAnimatedVisibleCells  = false;
+        _animatedVisibleCellStateValid     = true;
+        auto* dc                           = host.GetDeviceContext();
+        if (! dc)
         {
             return;
         }
 
-        Debug::Perf::Emit(
-            L"dxui.grid.paint_us", L"", Debug::Perf::ElapsedUs(paintStartedAt), visibleItemCount, static_cast<uint64_t>(_model->GetRowCount()), S_OK);
-        Debug::Perf::Emit(L"dxui.grid.paint_cell_data_reads", L"", 0u, visibleCellDataReadCount, visibleItemCount, S_OK);
-    });
+#if DXUI_ENABLE_DIAGNOSTICS
+        ++_debugPaintCount;
+#endif
 
-    EnsureColumnWidths();
-    const ThemePalette& theme                 = host.GetTheme();
-    const GridSurfaceVisualStyle surfaceStyle = ResolveGridSurfaceVisualStyle(theme);
-    const GridHeaderVisualStyle headerStyle   = ResolveGridHeaderVisualStyle(theme);
-    const D2D1_RECT_F bounds                  = GetBounds();
-    dc->FillRectangle(bounds, host.GetSolidBrush(surfaceStyle.fill));
-    dc->DrawRectangle(bounds, host.GetSolidBrush(surfaceStyle.border), 1.0f);
-
-    if (! _model)
-    {
-        const std::wstring_view emptyText = _emptyStateText.empty() ? std::wstring_view(L"No data") : std::wstring_view(_emptyStateText);
-        DrawCenteredText(host, emptyText, bounds, FontRole::Body, surfaceStyle.emptyText);
-        return;
-    }
-
-    _cachedGroups                = CollectOrderedGroups(_model);
-    const D2D1_RECT_F bodyRect   = GetContentRect(_cachedGroups);
-    const D2D1_RECT_F headerRect = D2D1::RectF(bounds.left, bounds.top, bodyRect.right, bounds.top + _headerHeightDip);
-    dc->FillRectangle(headerRect, host.GetSolidBrush(surfaceStyle.headerFill));
-    dc->DrawLine(D2D1::Point2F(headerRect.left, headerRect.bottom - 0.5f),
-                 D2D1::Point2F(headerRect.right, headerRect.bottom - 0.5f),
-                 host.GetSolidBrush(surfaceStyle.headerBorder),
-                 1.0f);
-    const bool reducedMotion                            = theme.reducedMotion;
-    const uint64_t animationTickMs                      = reducedMotion ? 0u : ::GetTickCount64();
-    bool needsAnimation                                 = false;
-    const std::optional<size_t> busyHeaderColumn        = ResolveHeaderBusyColumn();
-    const VisibleColumnSpan visibleColumns              = ComputeVisibleColumnSpan(bodyRect.right);
-    const std::vector<VisibleBodyItem> visibleBodyItems = BuildVisibleBodyItems(_cachedGroups, bodyRect);
-    visibleItemCount                                    = static_cast<uint64_t>(visibleBodyItems.size());
-
-    dc->PushAxisAlignedClip(headerRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-    float x = visibleColumns.beginXDip;
-    for (size_t displayIndex = visibleColumns.beginIndex; displayIndex < visibleColumns.endIndex; ++displayIndex)
-    {
-        const size_t columnIndex   = GetModelColumnIndexForDisplayIndex(displayIndex);
-        const float width          = _columnWidths[columnIndex];
-        const D2D1_RECT_F cellRect = D2D1::RectF(x, bounds.top, x + width, headerRect.bottom);
-        x += width;
-
-        const D2D1_RECT_F visibleCellRect = ClipRectToRect(cellRect, headerRect);
-        if (! IsNonEmptyRect(visibleCellRect))
+        const auto paintStartedAt         = std::chrono::steady_clock::now();
+        uint64_t visibleItemCount         = 0u;
+        uint64_t visibleCellDataReadCount = 0u;
+        const size_t paintRowCount        = paintModel ? paintModel->GetRowCount() : 0u;
+        if (! guard.IsCurrent())
+            return;
+        const auto emitPaintPerf = wil::scope_exit([&]() noexcept
         {
-            continue;
-        }
-
-        D2D1_COLOR_F fill = headerStyle.fill;
-        if (_pressedHeaderColumn && _pressedHeaderColumn.value() == columnIndex)
-        {
-            fill = headerStyle.pressedFill;
-        }
-        else if (_hoveredColumn && _hoveredColumn.value() == columnIndex && ! _hoveredRow)
-        {
-            fill = headerStyle.hoveredFill;
-        }
-        dc->FillRectangle(visibleCellRect, host.GetSolidBrush(fill));
-        if (displayIndex + 1 < _columnDisplayOrder.size())
-        {
-            dc->DrawLine(D2D1::Point2F(visibleCellRect.right - 0.5f, visibleCellRect.top),
-                         D2D1::Point2F(visibleCellRect.right - 0.5f, visibleCellRect.bottom),
-                         host.GetSolidBrush(headerStyle.separator),
-                         1.0f);
-        }
-
-        const GridColumnDesc column = _model->GetColumn(columnIndex);
-        const GridSortGlyphVisualState sortGlyphState =
-            ResolveSortGlyphVisualState(theme, columnIndex, reducedMotion ? _sortGlyphTransition.startTickMs : animationTickMs);
-        const bool drawBusyGlyph = busyHeaderColumn && busyHeaderColumn.value() == columnIndex;
-        float titleRight         = visibleCellRect.right - 8.0f;
-        if (sortGlyphState.reservesSpace)
-        {
-            titleRight -= 18.0f;
-        }
-        if (drawBusyGlyph)
-        {
-            titleRight -= 18.0f;
-        }
-        DrawCenteredText(
-            host,
-            column.title,
-            D2D1::RectF(
-                visibleCellRect.left + 8.0f, visibleCellRect.top + 2.0f, std::max(visibleCellRect.left + 24.0f, titleRight), visibleCellRect.bottom - 2.0f),
-            FontRole::Header,
-            headerStyle.titleText,
-            DWRITE_TEXT_ALIGNMENT_LEADING,
-            DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-        if (drawBusyGlyph)
-        {
-            needsAnimation  = ! reducedMotion;
-            float busyRight = visibleCellRect.right - 8.0f;
-            if (sortGlyphState.reservesSpace)
+            if (! guard.IsCurrent())
             {
-                busyRight -= 18.0f;
+                return;
             }
+
+            Debug::Perf::Emit(L"dxui.grid.paint_us", L"", Debug::Perf::ElapsedUs(paintStartedAt), visibleItemCount, static_cast<uint64_t>(paintRowCount), S_OK);
+            Debug::Perf::Emit(L"dxui.grid.paint_cell_data_reads", L"", 0u, visibleCellDataReadCount, visibleItemCount, S_OK);
+        });
+
+        EnsureColumnWidths();
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        const ThemePalette& theme                 = host.GetTheme();
+        const GridSurfaceVisualStyle surfaceStyle = ResolveGridSurfaceVisualStyle(theme);
+        const GridHeaderVisualStyle headerStyle   = ResolveGridHeaderVisualStyle(theme);
+        const D2D1_RECT_F bounds                  = GetBounds();
+        if (auto* brush = host.GetSolidBrush(surfaceStyle.fill))
+        {
+            dc->FillRectangle(bounds, brush);
+        }
+        if (auto* brush = host.GetSolidBrush(surfaceStyle.border))
+        {
+            dc->DrawRectangle(bounds, brush, 1.0f);
+        }
+
+        if (! paintModel)
+        {
+            const std::wstring_view emptyText = _emptyStateText.empty() ? std::wstring_view(L"No data") : std::wstring_view(_emptyStateText);
             DrawCenteredText(host,
-                             SpinnerFrameForTick(animationTickMs),
-                             D2D1::RectF(busyRight - 14.0f, visibleCellRect.top + 2.0f, busyRight, visibleCellRect.bottom - 2.0f),
-                             FontRole::Header,
-                             headerStyle.busyGlyph,
+                             emptyText,
+                             bounds,
+                             FontRole::Body,
+                             surfaceStyle.emptyText,
                              DWRITE_TEXT_ALIGNMENT_CENTER,
                              DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
-                             false);
-        }
-        if (sortGlyphState.previousAlpha > 0.0f)
-        {
-            DrawSortGlyph(host, visibleCellRect, sortGlyphState.previousDirection, WithOpacity(headerStyle.sortGlyph, sortGlyphState.previousAlpha));
-        }
-        if (sortGlyphState.currentAlpha > 0.0f)
-        {
-            DrawSortGlyph(host, visibleCellRect, sortGlyphState.currentDirection, WithOpacity(headerStyle.sortGlyph, sortGlyphState.currentAlpha));
-        }
-        if (sortGlyphState.animating)
-        {
-            needsAnimation = true;
-        }
-    }
-    dc->PopAxisAlignedClip();
-
-    GridCellData cellData;
-    dc->PushAxisAlignedClip(bodyRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-    for (const VisibleBodyItem& item : visibleBodyItems)
-    {
-        const D2D1_RECT_F visibleItemRect = ClipRectToRect(item.rectDip, bodyRect);
-        if (! IsNonEmptyRect(visibleItemRect))
-        {
-            continue;
+                             false,
+                             GetFlowDirection());
+            return;
         }
 
-        if (item.kind == VisibleBodyItem::Kind::GroupHeader)
+        _cachedGroups = CollectOrderedGroups(paintModel, &guard);
+        if (! guard.IsCurrent())
         {
-            const GridGroupDesc& group = _cachedGroups[item.groupIndex];
-            dc->FillRectangle(visibleItemRect, host.GetSolidBrush(headerStyle.groupFill));
-            dc->DrawLine(D2D1::Point2F(visibleItemRect.left, visibleItemRect.bottom - 0.5f),
-                         D2D1::Point2F(visibleItemRect.right, visibleItemRect.bottom - 0.5f),
-                         host.GetSolidBrush(headerStyle.groupSeparator),
-                         1.0f);
-            DrawGroupDisclosureGlyph(host, item.rectDip, group.collapsed, headerStyle.groupGlyph);
-            DrawCenteredText(
-                host,
-                group.title,
-                D2D1::RectF(
-                    item.rectDip.left + 24.0f, item.rectDip.top + 2.0f, std::max(item.rectDip.left + 24.0f, bodyRect.right - 8.0f), item.rectDip.bottom - 2.0f),
-                FontRole::Header,
-                headerStyle.groupText,
-                DWRITE_TEXT_ALIGNMENT_LEADING,
-                DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
-                false);
-            continue;
+            return;
         }
-
-        const size_t rowIndex                   = item.rowIndex;
-        const uint64_t rowId                    = _model->GetStableRowId(rowIndex);
-        const bool rowSelected                  = _selectionModel.IsSelected(rowId);
-        const bool rowHovered                   = _hoveredRow && _hoveredRow.value() == rowIndex;
-        const GridRowStyle rowStyle             = _model->GetRowStyle(rowIndex);
-        const D2D1_RECT_F rowRect               = item.rectDip;
-        const GridResolvedRowVisuals rowVisuals = ResolveGridRowVisuals(theme, rowStyle, rowIndex, rowSelected, HasFocus(), rowHovered, _visualMode);
-        const D2D1_COLOR_F rowFill              = rowVisuals.fill;
-        const D2D1_COLOR_F rowText              = rowVisuals.text;
-
-        if (rowFill.a > 0.0f)
+        const D2D1_RECT_F bodyRect   = GetContentRect(_cachedGroups);
+        const D2D1_RECT_F headerRect = D2D1::RectF(bodyRect.left, bounds.top, bodyRect.right, bounds.top + _headerHeightDip);
+        if (auto* brush = host.GetSolidBrush(surfaceStyle.headerFill))
         {
-            if (rowVisuals.roundedFill)
-            {
-                const D2D1_RECT_F roundedFillRect =
-                    D2D1::RectF(visibleItemRect.left + 1.0f, visibleItemRect.top + 1.0f, visibleItemRect.right - 1.0f, visibleItemRect.bottom - 1.0f);
-                if (IsNonEmptyRect(roundedFillRect))
-                {
-                    const D2D1_ROUNDED_RECT rounded = D2D1::RoundedRect(roundedFillRect, 2.0f, 2.0f);
-                    dc->FillRoundedRectangle(&rounded, host.GetSolidBrush(rowFill));
-                }
-            }
-            else
-            {
-                dc->FillRectangle(visibleItemRect, host.GetSolidBrush(rowFill));
-            }
+            dc->FillRectangle(headerRect, brush);
         }
-        if (rowVisuals.showSeparator)
+        if (auto* brush = host.GetSolidBrush(surfaceStyle.headerBorder))
         {
-            dc->DrawLine(D2D1::Point2F(visibleItemRect.left, visibleItemRect.bottom - 0.5f),
-                         D2D1::Point2F(visibleItemRect.right, visibleItemRect.bottom - 0.5f),
-                         host.GetSolidBrush(surfaceStyle.rowSeparator),
-                         1.0f);
+            dc->DrawLine(D2D1::Point2F(headerRect.left, headerRect.bottom - 0.5f), D2D1::Point2F(headerRect.right, headerRect.bottom - 0.5f), brush, 1.0f);
         }
+        const bool reducedMotion                            = theme.reducedMotion;
+        const uint64_t animationTickMs                      = reducedMotion ? 0u : ::GetTickCount64();
+        bool needsAnimation                                 = false;
+        const std::optional<size_t> busyHeaderColumn        = ResolveHeaderBusyColumn();
+        const VisibleColumnSpan visibleColumns              = ComputeVisibleColumnSpan(bodyRect.right);
+        const std::vector<VisibleBodyItem> visibleBodyItems = BuildVisibleBodyItems(_cachedGroups, bodyRect);
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        visibleItemCount = static_cast<uint64_t>(visibleBodyItems.size());
 
-        float cellX = visibleColumns.beginXDip;
+        dc->PushAxisAlignedClip(headerRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+        auto popHeaderClip = wil::scope_exit([dc]() noexcept { dc->PopAxisAlignedClip(); });
         for (size_t displayIndex = visibleColumns.beginIndex; displayIndex < visibleColumns.endIndex; ++displayIndex)
         {
             const size_t columnIndex   = GetModelColumnIndexForDisplayIndex(displayIndex);
             const float width          = _columnWidths[columnIndex];
-            const D2D1_RECT_F cellRect = D2D1::RectF(cellX, rowRect.top, cellX + width, rowRect.bottom);
-            cellX += width;
+            const float cellLeft       = GetColumnLeftDip(columnIndex);
+            const D2D1_RECT_F cellRect = D2D1::RectF(cellLeft, bounds.top, cellLeft + width, headerRect.bottom);
 
-            const D2D1_RECT_F visibleCellRect = ClipRectToRect(cellRect, bodyRect);
+            const D2D1_RECT_F visibleCellRect = ClipRectToRect(cellRect, headerRect);
             if (! IsNonEmptyRect(visibleCellRect))
             {
                 continue;
             }
 
+            D2D1_COLOR_F fill = headerStyle.fill;
+            if (_pressedHeaderColumn && _pressedHeaderColumn.value() == columnIndex)
+            {
+                fill = headerStyle.pressedFill;
+            }
+            else if (_hoveredColumn && _hoveredColumn.value() == columnIndex && ! _hoveredRow)
+            {
+                fill = headerStyle.hoveredFill;
+            }
+            if (auto* brush = host.GetSolidBrush(fill))
+            {
+                dc->FillRectangle(visibleCellRect, brush);
+            }
             if (displayIndex + 1 < _columnDisplayOrder.size())
             {
-                dc->DrawLine(D2D1::Point2F(visibleCellRect.right - 0.5f, visibleCellRect.top),
-                             D2D1::Point2F(visibleCellRect.right - 0.5f, visibleCellRect.bottom),
-                             host.GetSolidBrush(surfaceStyle.columnSeparator),
-                             1.0f);
+                if (auto* brush = host.GetSolidBrush(headerStyle.separator))
+                {
+                    const float separatorX = IsRightToLeft() ? visibleCellRect.left + 0.5f : visibleCellRect.right - 0.5f;
+                    dc->DrawLine(D2D1::Point2F(separatorX, visibleCellRect.top), D2D1::Point2F(separatorX, visibleCellRect.bottom), brush, 1.0f);
+                }
             }
-            ResetGridCellData(cellData);
-            _model->GetCellData(rowIndex, columnIndex, cellData);
-            ++visibleCellDataReadCount;
-            const D2D1_RECT_F contentRect =
-                D2D1::RectF(std::max(cellRect.left + 8.0f, bodyRect.left + 8.0f),
-                            cellRect.top + 3.0f,
-                            std::max(std::max(cellRect.left + 8.0f, bodyRect.left + 8.0f), std::min(cellRect.right - 8.0f, bodyRect.right - 8.0f)),
-                            cellRect.bottom - 3.0f);
-            if (cellData.kind == GridCellKind::Spinner)
-            {
-                const bool cellAnimates           = ! reducedMotion;
-                _lastPaintHadAnimatedVisibleCells = _lastPaintHadAnimatedVisibleCells || cellAnimates;
-                needsAnimation                    = needsAnimation || cellAnimates;
-                std::wstring displayText;
-                const std::wstring_view frame = SpinnerFrameForTick(animationTickMs);
-                if (cellData.text.empty())
-                {
-                    displayText.assign(frame);
-                }
-                else
-                {
-                    displayText.assign(frame);
-                    displayText.push_back(L' ');
-                    displayText.append(cellData.text);
-                }
 
+            const GridColumnDesc column = paintModel->GetColumn(columnIndex);
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+            const GridSortGlyphVisualState sortGlyphState =
+                ResolveSortGlyphVisualState(theme, columnIndex, reducedMotion ? _sortGlyphTransition.startTickMs : animationTickMs);
+            const bool drawBusyGlyph = busyHeaderColumn && busyHeaderColumn.value() == columnIndex;
+            float titleLeft          = visibleCellRect.left + 8.0f;
+            float titleRight         = visibleCellRect.right - 8.0f;
+            if (sortGlyphState.reservesSpace)
+            {
+                if (IsRightToLeft())
+                    titleLeft += 18.0f;
+                else
+                    titleRight -= 18.0f;
+            }
+            if (drawBusyGlyph)
+            {
+                if (IsRightToLeft())
+                    titleLeft += 18.0f;
+                else
+                    titleRight -= 18.0f;
+            }
+            DrawCenteredText(host,
+                             column.title,
+                             D2D1::RectF(titleLeft, visibleCellRect.top + 2.0f, std::max(titleLeft, titleRight), visibleCellRect.bottom - 2.0f),
+                             FontRole::Header,
+                             headerStyle.titleText,
+                             DWRITE_TEXT_ALIGNMENT_LEADING,
+                             DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                             false,
+                             GetFlowDirection());
+            if (drawBusyGlyph)
+            {
+                needsAnimation  = ! reducedMotion;
+                float busyLeft  = visibleCellRect.left + 8.0f;
+                float busyRight = visibleCellRect.right - 8.0f;
+                if (IsRightToLeft())
+                    busyLeft += sortGlyphState.reservesSpace ? 18.0f : 0.0f;
+                else if (sortGlyphState.reservesSpace)
+                    busyRight -= 18.0f;
+                const D2D1_RECT_F busyRect = IsRightToLeft()
+                                                 ? D2D1::RectF(busyLeft, visibleCellRect.top + 2.0f, busyLeft + 14.0f, visibleCellRect.bottom - 2.0f)
+                                                 : D2D1::RectF(busyRight - 14.0f, visibleCellRect.top + 2.0f, busyRight, visibleCellRect.bottom - 2.0f);
                 DrawCenteredText(host,
-                                 displayText,
-                                 contentRect,
-                                 FontRole::Body,
-                                 ResolveGridBusyColor(theme, rowText, rowSelected),
-                                 cellData.textAlignment,
+                                 SpinnerFrameForTick(animationTickMs),
+                                 busyRect,
+                                 FontRole::Header,
+                                 headerStyle.busyGlyph,
+                                 DWRITE_TEXT_ALIGNMENT_CENTER,
                                  DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
                                  false);
             }
-            else if (cellData.kind == GridCellKind::Marquee)
+            if (sortGlyphState.previousAlpha > 0.0f)
             {
-                const bool cellAnimates           = ! reducedMotion && cellData.progress <= 0.0f;
-                _lastPaintHadAnimatedVisibleCells = _lastPaintHadAnimatedVisibleCells || cellAnimates;
-                needsAnimation                    = needsAnimation || cellAnimates;
-                const D2D1_RECT_F trackRect       = D2D1::RectF(contentRect.left, contentRect.top + 6.0f, contentRect.right, contentRect.bottom - 6.0f);
-                if (trackRect.right > trackRect.left && trackRect.bottom > trackRect.top)
-                {
-                    const GridProgressVisualStyle progressStyle = ResolveGridProgressVisualStyle(theme, rowFill, rowText, rowSelected);
-                    const D2D1_ROUNDED_RECT trackRounded        = D2D1::RoundedRect(trackRect, 4.0f, 4.0f);
-                    dc->FillRoundedRectangle(&trackRounded, host.GetSolidBrush(progressStyle.track));
+                DrawSortGlyph(
+                    host, visibleCellRect, sortGlyphState.previousDirection, WithOpacity(headerStyle.sortGlyph, sortGlyphState.previousAlpha), IsRightToLeft());
+            }
+            if (sortGlyphState.currentAlpha > 0.0f)
+            {
+                DrawSortGlyph(
+                    host, visibleCellRect, sortGlyphState.currentDirection, WithOpacity(headerStyle.sortGlyph, sortGlyphState.currentAlpha), IsRightToLeft());
+            }
+            if (sortGlyphState.animating)
+            {
+                needsAnimation = true;
+            }
+        }
+        dc->PopAxisAlignedClip();
+        popHeaderClip.release();
 
-                    const D2D1_RECT_F fillRect =
-                        (cellData.progress > 0.0f) ? ComputeProgressFillRect(trackRect, cellData.progress) : ComputeMarqueeFillRect(trackRect, animationTickMs);
-                    if (fillRect.right > fillRect.left)
+        GridCellData cellData;
+        dc->PushAxisAlignedClip(bodyRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+        auto popBodyClip = wil::scope_exit([dc]() noexcept { dc->PopAxisAlignedClip(); });
+        for (const VisibleBodyItem& item : visibleBodyItems)
+        {
+            const D2D1_RECT_F visibleItemRect = ClipRectToRect(item.rectDip, bodyRect);
+            if (! IsNonEmptyRect(visibleItemRect))
+            {
+                continue;
+            }
+
+            if (item.kind == VisibleBodyItem::Kind::GroupHeader)
+            {
+                const GridGroupDesc& group = _cachedGroups[item.groupIndex];
+                if (auto* brush = host.GetSolidBrush(headerStyle.groupFill))
+                {
+                    dc->FillRectangle(visibleItemRect, brush);
+                }
+                if (auto* brush = host.GetSolidBrush(headerStyle.groupSeparator))
+                {
+                    dc->DrawLine(D2D1::Point2F(visibleItemRect.left, visibleItemRect.bottom - 0.5f),
+                                 D2D1::Point2F(visibleItemRect.right, visibleItemRect.bottom - 0.5f),
+                                 brush,
+                                 1.0f);
+                }
+                DrawGroupDisclosureGlyph(host, item.rectDip, group.collapsed, headerStyle.groupGlyph, IsRightToLeft());
+                DrawCenteredText(host,
+                                 group.title,
+                                 IsRightToLeft() ? D2D1::RectF(bodyRect.left + 8.0f,
+                                                               item.rectDip.top + 2.0f,
+                                                               std::max(bodyRect.left + 8.0f, item.rectDip.right - 24.0f),
+                                                               item.rectDip.bottom - 2.0f)
+                                                 : D2D1::RectF(item.rectDip.left + 24.0f,
+                                                               item.rectDip.top + 2.0f,
+                                                               std::max(item.rectDip.left + 24.0f, bodyRect.right - 8.0f),
+                                                               item.rectDip.bottom - 2.0f),
+                                 FontRole::Header,
+                                 headerStyle.groupText,
+                                 DWRITE_TEXT_ALIGNMENT_LEADING,
+                                 DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                 false,
+                                 GetFlowDirection());
+                continue;
+            }
+
+            const size_t rowIndex = item.rowIndex;
+            const uint64_t rowId  = paintModel->GetStableRowId(rowIndex);
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+            const bool rowSelected      = _selectionModel.IsSelected(rowId);
+            const bool rowHovered       = _hoveredRow && _hoveredRow.value() == rowIndex;
+            const GridRowStyle rowStyle = paintModel->GetRowStyle(rowIndex);
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+            const D2D1_RECT_F rowRect               = item.rectDip;
+            const GridResolvedRowVisuals rowVisuals = ResolveGridRowVisuals(theme, rowStyle, rowIndex, rowSelected, HasFocus(), rowHovered, _visualMode);
+            const D2D1_COLOR_F rowFill              = rowVisuals.fill;
+            const D2D1_COLOR_F rowText              = rowVisuals.text;
+
+            if (rowFill.a > 0.0f)
+            {
+                if (rowVisuals.roundedFill)
+                {
+                    const D2D1_RECT_F roundedFillRect =
+                        D2D1::RectF(visibleItemRect.left + 1.0f, visibleItemRect.top + 1.0f, visibleItemRect.right - 1.0f, visibleItemRect.bottom - 1.0f);
+                    if (IsNonEmptyRect(roundedFillRect))
                     {
-                        const D2D1_ROUNDED_RECT fillRounded = D2D1::RoundedRect(fillRect, 4.0f, 4.0f);
-                        dc->FillRoundedRectangle(&fillRounded, host.GetSolidBrush(progressStyle.fill));
+                        const D2D1_ROUNDED_RECT rounded = D2D1::RoundedRect(roundedFillRect, 2.0f, 2.0f);
+                        if (auto* brush = host.GetSolidBrush(rowFill))
+                        {
+                            dc->FillRoundedRectangle(&rounded, brush);
+                        }
                     }
                 }
-
-                if (! cellData.text.empty())
+                else
                 {
-                    DrawCenteredText(
-                        host, cellData.text, contentRect, FontRole::Small, rowText, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false);
+                    if (auto* brush = host.GetSolidBrush(rowFill))
+                    {
+                        dc->FillRectangle(visibleItemRect, brush);
+                    }
                 }
             }
-            else
+            if (rowVisuals.showSeparator)
             {
-                const GridColumnDesc columnDesc    = _model->GetColumn(columnIndex);
-                const GridCellLayoutMetrics layout = ComputeCellLayoutMetrics(host, cellRect, columnDesc, cellData);
-                GridResolvedCellVisuals cellVisuals{};
-                if (layout.hasCheckbox || layout.hasSwatch || layout.hasBadge)
+                if (auto* brush = host.GetSolidBrush(surfaceStyle.rowSeparator))
                 {
-                    cellVisuals = ResolveGridCellVisuals(theme, rowVisuals, rowSelected, rowHovered, cellData);
+                    dc->DrawLine(D2D1::Point2F(visibleItemRect.left, visibleItemRect.bottom - 0.5f),
+                                 D2D1::Point2F(visibleItemRect.right, visibleItemRect.bottom - 0.5f),
+                                 brush,
+                                 1.0f);
                 }
-                if (layout.hasCheckbox)
+            }
+
+            for (size_t displayIndex = visibleColumns.beginIndex; displayIndex < visibleColumns.endIndex; ++displayIndex)
+            {
+                const size_t columnIndex   = GetModelColumnIndexForDisplayIndex(displayIndex);
+                const float width          = _columnWidths[columnIndex];
+                const float cellLeft       = GetColumnLeftDip(columnIndex);
+                const D2D1_RECT_F cellRect = D2D1::RectF(cellLeft, rowRect.top, cellLeft + width, rowRect.bottom);
+
+                const D2D1_RECT_F visibleCellRect = ClipRectToRect(cellRect, bodyRect);
+                if (! IsNonEmptyRect(visibleCellRect))
                 {
-                    const float indicatorSize =
-                        std::min(layout.checkboxRect.right - layout.checkboxRect.left, layout.checkboxRect.bottom - layout.checkboxRect.top);
-                    const D2D1_RECT_F indicatorRect = D2D1::RectF(
-                        layout.checkboxRect.left, layout.checkboxRect.top, layout.checkboxRect.left + indicatorSize, layout.checkboxRect.top + indicatorSize);
-                    if (cellVisuals.checkbox.has_value())
+                    continue;
+                }
+
+                if (displayIndex + 1 < _columnDisplayOrder.size())
+                {
+                    if (auto* brush = host.GetSolidBrush(surfaceStyle.columnSeparator))
                     {
-                        const GridCheckboxVisualStyle checkboxStyle = cellVisuals.checkbox.value();
-                        DrawRoundedRect(host, indicatorRect, checkboxStyle.indicatorFill, checkboxStyle.indicatorBorder, 4.0f);
-                        if (cellData.checked)
+                        const float separatorX = IsRightToLeft() ? visibleCellRect.left + 0.5f : visibleCellRect.right - 0.5f;
+                        dc->DrawLine(D2D1::Point2F(separatorX, visibleCellRect.top), D2D1::Point2F(separatorX, visibleCellRect.bottom), brush, 1.0f);
+                    }
+                }
+                ResetGridCellData(cellData);
+                paintModel->GetCellData(rowIndex, columnIndex, cellData);
+                if (! guard.IsCurrent())
+                {
+                    return;
+                }
+                ++visibleCellDataReadCount;
+                const D2D1_RECT_F contentRect =
+                    D2D1::RectF(std::max(cellRect.left + 8.0f, bodyRect.left + 8.0f),
+                                cellRect.top + 3.0f,
+                                std::max(std::max(cellRect.left + 8.0f, bodyRect.left + 8.0f), std::min(cellRect.right - 8.0f, bodyRect.right - 8.0f)),
+                                cellRect.bottom - 3.0f);
+                if (cellData.kind == GridCellKind::Spinner)
+                {
+                    const bool cellAnimates           = ! reducedMotion;
+                    _lastPaintHadAnimatedVisibleCells = _lastPaintHadAnimatedVisibleCells || cellAnimates;
+                    needsAnimation                    = needsAnimation || cellAnimates;
+                    std::wstring displayText;
+                    const std::wstring_view frame = SpinnerFrameForTick(animationTickMs);
+                    if (cellData.text.empty())
+                    {
+                        displayText.assign(frame);
+                    }
+                    else
+                    {
+                        displayText.assign(frame);
+                        displayText.push_back(L' ');
+                        displayText.append(cellData.text);
+                    }
+
+                    DrawCenteredText(host,
+                                     displayText,
+                                     contentRect,
+                                     FontRole::Body,
+                                     ResolveGridBusyColor(theme, rowText, rowSelected),
+                                     cellData.textAlignment,
+                                     DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                     false,
+                                     GetFlowDirection());
+                }
+                else if (cellData.kind == GridCellKind::Marquee)
+                {
+                    const bool cellAnimates           = ! reducedMotion && cellData.progress <= 0.0f;
+                    _lastPaintHadAnimatedVisibleCells = _lastPaintHadAnimatedVisibleCells || cellAnimates;
+                    needsAnimation                    = needsAnimation || cellAnimates;
+                    const D2D1_RECT_F trackRect       = D2D1::RectF(contentRect.left, contentRect.top + 6.0f, contentRect.right, contentRect.bottom - 6.0f);
+                    if (trackRect.right > trackRect.left && trackRect.bottom > trackRect.top)
+                    {
+                        const GridProgressVisualStyle progressStyle = ResolveGridProgressVisualStyle(theme, rowFill, rowText, rowSelected);
+                        const D2D1_ROUNDED_RECT trackRounded        = D2D1::RoundedRect(trackRect, 4.0f, 4.0f);
+                        if (auto* brush = host.GetSolidBrush(progressStyle.track))
                         {
-                            const D2D1_RECT_F checkRect = InflateRect(indicatorRect, -1.0f, -1.0f);
+                            dc->FillRoundedRectangle(&trackRounded, brush);
+                        }
+
+                        D2D1_RECT_F fillRect = (cellData.progress > 0.0f) ? ComputeProgressFillRect(trackRect, cellData.progress)
+                                                                          : ComputeMarqueeFillRect(trackRect, animationTickMs);
+                        if (IsRightToLeft())
+                        {
+                            const float fillWidth = fillRect.right - fillRect.left;
+                            fillRect.left         = trackRect.right - fillWidth;
+                            fillRect.right        = trackRect.right;
+                        }
+                        if (fillRect.right > fillRect.left)
+                        {
+                            const D2D1_ROUNDED_RECT fillRounded = D2D1::RoundedRect(fillRect, 4.0f, 4.0f);
+                            if (auto* brush = host.GetSolidBrush(progressStyle.fill))
+                            {
+                                dc->FillRoundedRectangle(&fillRounded, brush);
+                            }
+                        }
+                    }
+
+                    if (! cellData.text.empty())
+                    {
+                        DrawCenteredText(host,
+                                         cellData.text,
+                                         contentRect,
+                                         FontRole::Small,
+                                         rowText,
+                                         DWRITE_TEXT_ALIGNMENT_CENTER,
+                                         DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                         false,
+                                         GetFlowDirection());
+                    }
+                }
+                else
+                {
+                    const GridColumnDesc columnDesc = paintModel->GetColumn(columnIndex);
+                    if (! guard.IsCurrent())
+                    {
+                        return;
+                    }
+                    const GridCellLayoutMetrics layout = ComputeCellLayoutMetrics(host, cellRect, columnDesc, cellData);
+                    GridResolvedCellVisuals cellVisuals{};
+                    if (layout.hasCheckbox || layout.hasSwatch || layout.hasBadge)
+                    {
+                        cellVisuals = ResolveGridCellVisuals(theme, rowVisuals, rowSelected, rowHovered, cellData);
+                    }
+                    if (layout.hasCheckbox)
+                    {
+                        const float indicatorSize =
+                            std::min(layout.checkboxRect.right - layout.checkboxRect.left, layout.checkboxRect.bottom - layout.checkboxRect.top);
+                        const D2D1_RECT_F indicatorRect = D2D1::RectF(layout.checkboxRect.left,
+                                                                      layout.checkboxRect.top,
+                                                                      layout.checkboxRect.left + indicatorSize,
+                                                                      layout.checkboxRect.top + indicatorSize);
+                        if (cellVisuals.checkbox.has_value())
+                        {
+                            const GridCheckboxVisualStyle checkboxStyle = cellVisuals.checkbox.value();
+                            DrawRoundedRect(host, indicatorRect, checkboxStyle.indicatorFill, checkboxStyle.indicatorBorder, 4.0f);
+                            if (cellData.checked)
+                            {
+                                const D2D1_RECT_F checkRect = InflateRect(indicatorRect, -1.0f, -1.0f);
+                                DrawCenteredText(host,
+                                                 GetCheckboxCheckGlyph(host),
+                                                 checkRect,
+                                                 GetCheckboxCheckFontRole(host),
+                                                 checkboxStyle.check,
+                                                 DWRITE_TEXT_ALIGNMENT_CENTER,
+                                                 DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                                 false);
+                            }
+                        }
+                    }
+
+                    if (layout.hasIcon)
+                    {
+                        bool drewBitmapIcon = false;
+                        if (cellData.iconIndex >= 0 && _delegate)
+                        {
+                            const float targetDipSize =
+                                std::max(1.0f, std::min(layout.iconRect.right - layout.iconRect.left, layout.iconRect.bottom - layout.iconRect.top));
+                            auto bitmap = _delegate->GetGridIconBitmap(*this, cellData.iconIndex, targetDipSize, dc);
+                            if (! guard.IsCurrent())
+                            {
+                                return;
+                            }
+                            if (bitmap)
+                            {
+                                dc->DrawBitmap(bitmap.get(), layout.iconRect, 1.0f, D2D1_INTERPOLATION_MODE_LINEAR);
+                                drewBitmapIcon = true;
+                            }
+                        }
+
+                        if (! drewBitmapIcon && ! cellData.iconText.empty())
+                        {
                             DrawCenteredText(host,
-                                             GetCheckboxCheckGlyph(host),
-                                             checkRect,
-                                             GetCheckboxCheckFontRole(host),
-                                             checkboxStyle.check,
+                                             cellData.iconText,
+                                             layout.iconRect,
+                                             ResolveIconTextFontRole(cellData.iconText),
+                                             ResolveListIconColor(theme, rowText, rowSelected),
                                              DWRITE_TEXT_ALIGNMENT_CENTER,
                                              DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
                                              false);
                         }
                     }
-                }
 
-                if (layout.hasIcon)
-                {
-                    bool drewBitmapIcon = false;
-                    if (cellData.iconIndex >= 0 && _delegate)
+                    if (layout.hasSwatch)
                     {
-                        const float targetDipSize =
-                            std::max(1.0f, std::min(layout.iconRect.right - layout.iconRect.left, layout.iconRect.bottom - layout.iconRect.top));
-                        auto bitmap = _delegate->GetGridIconBitmap(*this, cellData.iconIndex, targetDipSize, dc);
-                        if (bitmap)
+                        if (cellVisuals.swatch.has_value())
                         {
-                            dc->DrawBitmap(bitmap.get(), layout.iconRect, 1.0f, D2D1_INTERPOLATION_MODE_LINEAR);
-                            drewBitmapIcon = true;
+                            const GridSwatchVisualStyle swatchStyle = cellVisuals.swatch.value();
+                            DrawRoundedRect(host, layout.swatchRect, swatchStyle.fill, swatchStyle.border, 4.0f);
                         }
                     }
 
-                    if (! drewBitmapIcon && ! cellData.iconText.empty())
+                    if (layout.hasBadge)
                     {
-                        DrawCenteredText(host,
-                                         cellData.iconText,
-                                         layout.iconRect,
-                                         ResolveIconTextFontRole(cellData.iconText),
-                                         ResolveListIconColor(theme, rowText, rowSelected),
-                                         DWRITE_TEXT_ALIGNMENT_CENTER,
-                                         DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
-                                         false);
+                        if (cellVisuals.badge.has_value())
+                        {
+                            const GridBadgeVisualStyle badgeStyle = cellVisuals.badge.value();
+                            DrawRoundedRect(host, layout.badgeRect, badgeStyle.fill, D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f), 9.0f);
+                            DrawCenteredText(host,
+                                             cellData.badgeText,
+                                             layout.badgeRect,
+                                             FontRole::Small,
+                                             badgeStyle.text,
+                                             DWRITE_TEXT_ALIGNMENT_CENTER,
+                                             DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
+                                             false,
+                                             GetFlowDirection());
+                        }
                     }
-                }
 
-                if (layout.hasSwatch)
-                {
-                    if (cellVisuals.swatch.has_value())
-                    {
-                        const GridSwatchVisualStyle swatchStyle = cellVisuals.swatch.value();
-                        DrawRoundedRect(host, layout.swatchRect, swatchStyle.fill, swatchStyle.border, 4.0f);
-                    }
+                    DrawCellText(host, cellData, layout.textRect, rowText);
                 }
-
-                if (layout.hasBadge)
-                {
-                    if (cellVisuals.badge.has_value())
-                    {
-                        const GridBadgeVisualStyle badgeStyle = cellVisuals.badge.value();
-                        DrawRoundedRect(host, layout.badgeRect, badgeStyle.fill, D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f), 9.0f);
-                        DrawCenteredText(host,
-                                         cellData.badgeText,
-                                         layout.badgeRect,
-                                         FontRole::Small,
-                                         badgeStyle.text,
-                                         DWRITE_TEXT_ALIGNMENT_CENTER,
-                                         DWRITE_PARAGRAPH_ALIGNMENT_CENTER,
-                                         false);
-                    }
-                }
-
-                DrawCellText(host, cellData, layout.textRect, rowText);
             }
         }
-    }
-    dc->PopAxisAlignedClip();
+        dc->PopAxisAlignedClip();
+        popBodyClip.release();
 
-    if (needsAnimation)
-    {
-        host.RequestAnimation();
-    }
+        if (needsAnimation)
+        {
+            host.RequestAnimation();
+        }
 
-    const D2D1_RECT_F verticalScrollbar = GetVerticalScrollbarRect();
-    if (verticalScrollbar.right > verticalScrollbar.left && verticalScrollbar.bottom > verticalScrollbar.top)
-    {
-        const bool verticalTrackHovered                 = _verticalScrollbarHotPart == ScrollbarHotPart::Track;
-        const bool verticalThumbHovered                 = _verticalScrollbarHotPart == ScrollbarHotPart::Thumb;
-        const ScrollbarAnimationTargets verticalTargets = ResolveScrollbarAnimationTargets(verticalTrackHovered, verticalThumbHovered, _dragVerticalThumb);
-        const ResolvedScrollbarVisuals visuals =
-            ResolveScrollbarVisuals(theme,
-                                    verticalTargets,
-                                    theme.reducedMotion ? verticalTargets.track : _verticalScrollbarAnimation.trackProgress,
-                                    theme.reducedMotion ? verticalTargets.thumb : _verticalScrollbarAnimation.thumbProgress);
-        PaintScrollbar(host, verticalScrollbar, GetVerticalThumbRect(), visuals);
+        const D2D1_RECT_F verticalScrollbar = GetVerticalScrollbarRect();
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        if (verticalScrollbar.right > verticalScrollbar.left && verticalScrollbar.bottom > verticalScrollbar.top)
+        {
+            const bool verticalTrackHovered                 = _verticalScrollbarHotPart == ScrollbarHotPart::Track;
+            const bool verticalThumbHovered                 = _verticalScrollbarHotPart == ScrollbarHotPart::Thumb;
+            const ScrollbarAnimationTargets verticalTargets = ResolveScrollbarAnimationTargets(verticalTrackHovered, verticalThumbHovered, _dragVerticalThumb);
+            const ResolvedScrollbarVisuals visuals =
+                ResolveScrollbarVisuals(theme,
+                                        verticalTargets,
+                                        theme.reducedMotion ? verticalTargets.track : _verticalScrollbarAnimation.trackProgress,
+                                        theme.reducedMotion ? verticalTargets.thumb : _verticalScrollbarAnimation.thumbProgress);
+            PaintScrollbar(host, verticalScrollbar, GetVerticalThumbRect(), visuals);
+        }
+        const D2D1_RECT_F horizontalScrollbar = GetHorizontalScrollbarRect();
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        if (horizontalScrollbar.right > horizontalScrollbar.left && horizontalScrollbar.bottom > horizontalScrollbar.top)
+        {
+            const bool horizontalTrackHovered = _horizontalScrollbarHotPart == ScrollbarHotPart::Track;
+            const bool horizontalThumbHovered = _horizontalScrollbarHotPart == ScrollbarHotPart::Thumb;
+            const ScrollbarAnimationTargets horizontalTargets =
+                ResolveScrollbarAnimationTargets(horizontalTrackHovered, horizontalThumbHovered, _dragHorizontalThumb);
+            const ResolvedScrollbarVisuals visuals =
+                ResolveScrollbarVisuals(theme,
+                                        horizontalTargets,
+                                        theme.reducedMotion ? horizontalTargets.track : _horizontalScrollbarAnimation.trackProgress,
+                                        theme.reducedMotion ? horizontalTargets.thumb : _horizontalScrollbarAnimation.thumbProgress);
+            PaintScrollbar(host, horizontalScrollbar, GetHorizontalThumbRect(), visuals);
+        }
     }
-    const D2D1_RECT_F horizontalScrollbar = GetHorizontalScrollbarRect();
-    if (horizontalScrollbar.right > horizontalScrollbar.left && horizontalScrollbar.bottom > horizontalScrollbar.top)
+    catch (const std::bad_alloc&)
     {
-        const bool horizontalTrackHovered = _horizontalScrollbarHotPart == ScrollbarHotPart::Track;
-        const bool horizontalThumbHovered = _horizontalScrollbarHotPart == ScrollbarHotPart::Thumb;
-        const ScrollbarAnimationTargets horizontalTargets =
-            ResolveScrollbarAnimationTargets(horizontalTrackHovered, horizontalThumbHovered, _dragHorizontalThumb);
-        const ResolvedScrollbarVisuals visuals =
-            ResolveScrollbarVisuals(theme,
-                                    horizontalTargets,
-                                    theme.reducedMotion ? horizontalTargets.track : _horizontalScrollbarAnimation.trackProgress,
-                                    theme.reducedMotion ? horizontalTargets.thumb : _horizontalScrollbarAnimation.thumbProgress);
-        PaintScrollbar(host, horizontalScrollbar, GetHorizontalThumbRect(), visuals);
+        // An incomplete frame is safer than allowing model allocation failure across the renderer boundary.
+    }
+    catch (const std::exception&)
+    {
+        // A throwing model/delegate query aborts the frame; the next invalidation may retry it.
     }
 }
 
@@ -3112,6 +4362,8 @@ void Grid::DebugSetScrollOffsets(float verticalScrollDip, float horizontalScroll
 
 bool Grid::Tick(ControlHost& host, uint64_t nowTickMs)
 {
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const GridModelQueryGuard guard(*this, lifetime, _model);
     if (host.GetTheme().reducedMotion)
     {
         return false;
@@ -3120,11 +4372,19 @@ bool Grid::Tick(ControlHost& host, uint64_t nowTickMs)
     const bool verticalScrollbarAnimating   = AdvanceScrollbarAnimation(host, _verticalScrollbarAnimation, nowTickMs);
     const bool horizontalScrollbarAnimating = AdvanceScrollbarAnimation(host, _horizontalScrollbarAnimation, nowTickMs);
     const bool animatedVisibleCells         = _animatedVisibleCellStateValid ? _lastPaintHadAnimatedVisibleCells : HasAnimatedVisibleCells();
-    _lastPaintHadAnimatedVisibleCells       = animatedVisibleCells;
-    _animatedVisibleCellStateValid          = true;
-    const bool sortGlyphAnimating           = _sortGlyphTransition.active && ComputeSortGlyphTransitionProgress(nowTickMs) < 1.0f;
-    const bool ticking =
-        ResolveHeaderBusyColumn().has_value() || animatedVisibleCells || sortGlyphAnimating || verticalScrollbarAnimating || horizontalScrollbarAnimating;
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    _lastPaintHadAnimatedVisibleCells = animatedVisibleCells;
+    _animatedVisibleCellStateValid    = true;
+    const bool sortGlyphAnimating     = _sortGlyphTransition.active && ComputeSortGlyphTransitionProgress(nowTickMs) < 1.0f;
+    const bool headerBusy             = ResolveHeaderBusyColumn().has_value();
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    const bool ticking = headerBusy || animatedVisibleCells || sortGlyphAnimating || verticalScrollbarAnimating || horizontalScrollbarAnimating;
     // Spinners, busy headers, the sort glyph and scrollbar transitions paint from the tick time. A sort glyph that
     // settles on this tick still needs its final frame, and this is the last tick the host issues for it.
     if (ticking || _sortGlyphTransition.active)
@@ -3136,42 +4396,83 @@ bool Grid::Tick(ControlHost& host, uint64_t nowTickMs)
 
 bool Grid::HasAnimatedVisibleCells() const
 {
-    if (! _model || _model->GetRowCount() == 0u || _model->GetColumnCount() == 0u)
+    try
     {
-        return false;
-    }
-
-    EnsureColumnWidths();
-    const D2D1_RECT_F bodyRect = GetContentRect();
-    if (bodyRect.right <= bodyRect.left || bodyRect.bottom <= bodyRect.top)
-    {
-        return false;
-    }
-
-    const std::vector<GridGroupDesc> groups             = CollectOrderedGroups(_model);
-    const std::vector<VisibleBodyItem> visibleBodyItems = BuildVisibleBodyItems(groups);
-    const VisibleColumnSpan visibleColumns              = ComputeVisibleColumnSpan(bodyRect.right);
-    GridCellData cellData;
-    for (size_t displayIndex = visibleColumns.beginIndex; displayIndex < visibleColumns.endIndex; ++displayIndex)
-    {
-        const size_t columnIndex = GetModelColumnIndexForDisplayIndex(displayIndex);
-        for (const VisibleBodyItem& item : visibleBodyItems)
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        const IGridModel* const model     = _model;
+        const GridModelQueryGuard guard(*this, lifetime, model);
+        if (! model)
         {
-            if (item.kind != VisibleBodyItem::Kind::Row)
-            {
-                continue;
-            }
+            return false;
+        }
 
-            ResetGridCellData(cellData);
-            _model->GetCellData(item.rowIndex, columnIndex, cellData);
-            if (IsAnimatedCell(cellData))
+        size_t rowCount    = 0u;
+        size_t columnCount = 0u;
+        if (! TryControlCallback([&] { rowCount = model->GetRowCount(); }) || ! guard.IsCurrent() || rowCount == 0u ||
+            ! TryControlCallback([&] { columnCount = model->GetColumnCount(); }) || ! guard.IsCurrent() || columnCount == 0u)
+        {
+            return false;
+        }
+
+        EnsureColumnWidths();
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        const D2D1_RECT_F bodyRect = GetContentRect();
+        if (bodyRect.right <= bodyRect.left || bodyRect.bottom <= bodyRect.top)
+        {
+            return false;
+        }
+
+        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        const std::vector<VisibleBodyItem> visibleBodyItems = BuildVisibleBodyItems(groups);
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        const VisibleColumnSpan visibleColumns = ComputeVisibleColumnSpan(bodyRect.right);
+        GridCellData cellData;
+        for (size_t displayIndex = visibleColumns.beginIndex; displayIndex < visibleColumns.endIndex; ++displayIndex)
+        {
+            const size_t columnIndex = GetModelColumnIndexForDisplayIndex(displayIndex);
+            if (! guard.IsCurrent())
             {
-                return true;
+                return false;
+            }
+            for (const VisibleBodyItem& item : visibleBodyItems)
+            {
+                if (item.kind != VisibleBodyItem::Kind::Row)
+                {
+                    continue;
+                }
+
+                ResetGridCellData(cellData);
+                if (! TryControlCallback([&] { model->GetCellData(item.rowIndex, columnIndex, cellData); }) || ! guard.IsCurrent())
+                {
+                    return false;
+                }
+                if (IsAnimatedCell(cellData))
+                {
+                    return true;
+                }
             }
         }
-    }
 
-    return false;
+        return false;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return false;
+    }
+    catch (const std::exception&)
+    {
+        return false;
+    }
 }
 
 float Grid::ComputeSortGlyphTransitionProgress(uint64_t nowTickMs) const noexcept
@@ -3245,17 +4546,26 @@ GridSortGlyphVisualState Grid::ResolveSortGlyphVisualState(const ThemePalette& t
 
 std::optional<size_t> Grid::ResolveHeaderBusyColumn() const noexcept
 {
-    if (! _headerBusy || ! _model || _model->GetColumnCount() == 0u)
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    if (! _headerBusy || ! model)
     {
         return std::nullopt;
     }
 
-    if (_headerBusyColumn && _headerBusyColumn.value() < _model->GetColumnCount())
+    size_t columnCount = 0u;
+    if (! TryControlCallback([&] { columnCount = model->GetColumnCount(); }) || ! guard.IsCurrent() || columnCount == 0u)
+    {
+        return std::nullopt;
+    }
+
+    if (_headerBusyColumn && _headerBusyColumn.value() < columnCount)
     {
         return _headerBusyColumn;
     }
 
-    if (_sortSpec.direction != SortDirection::None && _sortSpec.columnIndex < _model->GetColumnCount())
+    if (_sortSpec.direction != SortDirection::None && _sortSpec.columnIndex < columnCount)
     {
         return _sortSpec.columnIndex;
     }
@@ -3388,22 +4698,61 @@ GridCellLayoutMetrics Grid::ComputeCellLayoutMetrics(const ControlHost& host,
     }
 
     metrics.textRect = D2D1::RectF(contentLeft, contentTop, std::max(contentLeft, contentRight), contentBottom);
+    if (IsRightToLeft())
+    {
+        const auto mirrorRect = [cellRect](D2D1_RECT_F& rect) noexcept
+        {
+            if (rect.right > rect.left)
+            {
+                const float left = cellRect.left + cellRect.right - rect.right;
+                rect.right       = cellRect.left + cellRect.right - rect.left;
+                rect.left        = left;
+            }
+        };
+        mirrorRect(metrics.checkboxRect);
+        mirrorRect(metrics.iconRect);
+        mirrorRect(metrics.swatchRect);
+        mirrorRect(metrics.badgeRect);
+        mirrorRect(metrics.textRect);
+    }
     return metrics;
 }
 
 bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*/)
 {
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
     if (_resizeColumn)
     {
-        if (! _model || _resizeColumn.value() >= _model->GetColumnCount() || _resizeColumn.value() >= _columnWidths.size())
+        size_t columnCount = 0u;
+        if (! model || ! TryControlCallback([&] { columnCount = model->GetColumnCount(); }))
+        {
+            _resizeColumn.reset();
+            return false;
+        }
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        if (_resizeColumn.value() >= columnCount || _resizeColumn.value() >= _columnWidths.size())
         {
             _resizeColumn.reset();
             return false;
         }
 
         EnsureColumnWidths();
-        const float delta                    = point.x - _resizeOriginXDip;
-        _columnWidths[_resizeColumn.value()] = std::max(_resizeInitialWidthDip + delta, _model->GetColumn(_resizeColumn.value()).minWidthDip);
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
+        const float delta = (IsRightToLeft() ? -1.0f : 1.0f) * (point.x - _resizeOriginXDip);
+        GridColumnDesc column{};
+        if (! TryControlCallback([&] { column = model->GetColumn(_resizeColumn.value()); }) || ! guard.IsCurrent())
+        {
+            return true;
+        }
+        _columnWidths[_resizeColumn.value()] = std::max(_resizeInitialWidthDip + delta, column.minWidthDip);
         ++_debugResizeMoveCount;
         _debugLastResizeDeltaDip = delta;
         _debugLastResizeWidthDip = _columnWidths[_resizeColumn.value()];
@@ -3415,12 +4764,25 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
     if (_dragVerticalThumb)
     {
         const D2D1_RECT_F track = GetVerticalScrollbarRect();
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
         const D2D1_RECT_F thumb = GetVerticalThumbHitRect();
-        const float available   = std::max(0.0f, (track.bottom - track.top) - (thumb.bottom - thumb.top));
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
+        const float available = std::max(0.0f, (track.bottom - track.top) - (thumb.bottom - thumb.top));
         if (available > 0.0f)
         {
             const float thumbTop = std::clamp(point.y - _dragThumbOffsetDip, track.top, track.bottom - (thumb.bottom - thumb.top));
-            _verticalScrollDip   = ((thumbTop - track.top) / available) * GetVerticalScrollableExtent();
+            const float extent   = GetVerticalScrollableExtent();
+            if (! guard.IsCurrent())
+            {
+                return true;
+            }
+            _verticalScrollDip = ((thumbTop - track.top) / available) * extent;
             ClampScrollOffsets(false);
         }
         UpdateScrollbarHotState(HitInfo{.zone = HitZone::VerticalScrollbar, .onScrollbarThumb = true});
@@ -3432,12 +4794,26 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
     if (_dragHorizontalThumb)
     {
         const D2D1_RECT_F track = GetHorizontalScrollbarRect();
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
         const D2D1_RECT_F thumb = GetHorizontalThumbHitRect();
-        const float available   = std::max(0.0f, (track.right - track.left) - (thumb.right - thumb.left));
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
+        const float available = std::max(0.0f, (track.right - track.left) - (thumb.right - thumb.left));
         if (available > 0.0f)
         {
-            const float thumbLeft = std::clamp(point.x - _dragThumbOffsetDip, track.left, track.right - (thumb.right - thumb.left));
-            _horizontalScrollDip  = ((thumbLeft - track.left) / available) * GetHorizontalScrollableExtent();
+            const float thumbLeft     = std::clamp(point.x - _dragThumbOffsetDip, track.left, track.right - (thumb.right - thumb.left));
+            const float thumbPosition = IsRightToLeft() ? (track.right - (thumbLeft + (thumb.right - thumb.left))) : (thumbLeft - track.left);
+            const float extent        = GetHorizontalScrollableExtent();
+            if (! guard.IsCurrent())
+            {
+                return true;
+            }
+            _horizontalScrollDip = (thumbPosition / available) * extent;
             ClampScrollOffsets(false);
         }
         UpdateScrollbarHotState(HitInfo{.zone = HitZone::HorizontalScrollbar, .onScrollbarThumb = true});
@@ -3449,6 +4825,10 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
     if (_dragReorderColumn)
     {
         const size_t nextTargetDisplayIndex = ResolveHeaderReorderTargetDisplayIndex(point.x);
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
         if (nextTargetDisplayIndex != _dragReorderTargetDisplayIndex)
         {
             _dragReorderTargetDisplayIndex = nextTargetDisplayIndex;
@@ -3459,8 +4839,13 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
 
     if (_pressedHeaderColumn && std::fabs(point.x - _pressedHeaderOriginXDip) >= kHeaderReorderStartDip)
     {
+        const size_t nextTargetDisplayIndex = ResolveHeaderReorderTargetDisplayIndex(point.x);
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
         _dragReorderColumn             = _pressedHeaderColumn;
-        _dragReorderTargetDisplayIndex = ResolveHeaderReorderTargetDisplayIndex(point.x);
+        _dragReorderTargetDisplayIndex = nextTargetDisplayIndex;
         ++_debugHeaderReorderStartCount;
         _debugLastHeaderReorderColumn                       = _dragReorderColumn.value_or(0u);
         _debugLastHeaderReorderRawTargetDisplayIndex        = _dragReorderTargetDisplayIndex;
@@ -3469,7 +4854,11 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         return true;
     }
 
-    const HitInfo hit              = HitTestPoint(MakePointDip(point));
+    const HitInfo hit = HitTestPoint(MakePointDip(point));
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
     const bool scrollbarHotChanged = UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);
     const std::optional<uint64_t> previousHoveredRow  = _hoveredRow;
@@ -3482,10 +4871,18 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         _hoveredRow    = hit.rowIndex;
         _hoveredColumn = hit.columnIndex;
         GridCellData cellData{};
-        _model->GetCellData(hit.rowIndex, hit.columnIndex, cellData);
-        const GridColumnDesc columnDesc = _model->GetColumn(hit.columnIndex);
-        const D2D1_RECT_F contentRect   = GetContentRect();
-        bool visibleTextClipped         = false;
+        GridColumnDesc columnDesc{};
+        if (! model || ! TryControlCallback([&] { model->GetCellData(hit.rowIndex, hit.columnIndex, cellData); }) || ! guard.IsCurrent() ||
+            ! TryControlCallback([&] { columnDesc = model->GetColumn(hit.columnIndex); }) || ! guard.IsCurrent())
+        {
+            return false;
+        }
+        const D2D1_RECT_F contentRect = GetContentRect();
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        bool visibleTextClipped = false;
         if (UsesMultilineCellText(cellData))
         {
             // Paint lays multiline text out against the full cell rectangle, so
@@ -3516,10 +4913,19 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
     }
     else if (hit.zone == HitZone::Header)
     {
-        _hoveredColumn                   = hit.columnIndex;
-        const GridColumnDesc column      = _model->GetColumn(hit.columnIndex);
-        const D2D1_RECT_F headerBounds   = D2D1::RectF(GetBounds().left, GetBounds().top, GetContentRect().right, GetBounds().top + _headerHeightDip);
-        const D2D1_RECT_F headerClipRect = ClipRectToRect(hit.rectDip, headerBounds);
+        _hoveredColumn = hit.columnIndex;
+        GridColumnDesc column{};
+        if (! model || ! TryControlCallback([&] { column = model->GetColumn(hit.columnIndex); }) || ! guard.IsCurrent())
+        {
+            return false;
+        }
+        const D2D1_RECT_F contentRect = GetContentRect();
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        const D2D1_RECT_F headerBounds                = D2D1::RectF(GetBounds().left, GetBounds().top, contentRect.right, GetBounds().top + _headerHeightDip);
+        const D2D1_RECT_F headerClipRect              = ClipRectToRect(hit.rectDip, headerBounds);
         const GridSortGlyphVisualState sortGlyphState = ResolveSortGlyphVisualState(host.GetTheme(), hit.columnIndex, ::GetTickCount64());
         float titleRight                              = headerClipRect.right - 8.0f;
         if (sortGlyphState.reservesSpace)
@@ -3538,6 +4944,10 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
 
     const bool hoverChanged   = _hoveredRow != previousHoveredRow || _hoveredColumn != previousHoveredColumn;
     const bool tooltipChanged = tooltipText.empty() ? host.BeginTooltipHideDelay() : host.SetTooltip(std::move(tooltipText), point);
+    if (! guard.IsCurrent())
+    {
+        return hit.zone != HitZone::None;
+    }
     if (scrollbarHotChanged || hoverChanged || tooltipChanged)
     {
         Invalidate(host);
@@ -3547,6 +4957,8 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
 
 bool Grid::OnMouseLeave(ControlHost& host)
 {
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const GridModelQueryGuard guard(*this, lifetime, _model);
     const bool hadHoverOrHotState = _hoveredRow.has_value() || _hoveredColumn.has_value() || _verticalScrollbarHotPart != ScrollbarHotPart::None ||
                                     _horizontalScrollbarHotPart != ScrollbarHotPart::None;
     _hoveredRow.reset();
@@ -3554,6 +4966,10 @@ bool Grid::OnMouseLeave(ControlHost& host)
     UpdateScrollbarHotState(HitInfo{});
     SyncScrollbarAnimation(host);
     const bool tooltipChanged = host.ClearTooltip();
+    if (! guard.IsCurrent())
+    {
+        return true;
+    }
     if (hadHoverOrHotState || tooltipChanged)
     {
         Invalidate(host);
@@ -3563,7 +4979,10 @@ bool Grid::OnMouseLeave(ControlHost& host)
 
 bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
-    if (! _model)
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    if (! model)
     {
         return false;
     }
@@ -3572,7 +4991,15 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     {
         return true;
     }
+    if (! guard.IsCurrent())
+    {
+        return true;
+    }
     const HitInfo hit = HitTestPoint(MakePointDip(point));
+    if (! guard.IsCurrent())
+    {
+        return true;
+    }
     UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);
     switch (hit.zone)
@@ -3581,6 +5008,10 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             if (! rightButton)
             {
                 EnsureColumnWidths();
+                if (! guard.IsCurrent())
+                {
+                    return true;
+                }
                 _resizeColumn          = hit.columnIndex;
                 _resizeOriginXDip      = point.x;
                 _resizeInitialWidthDip = _columnWidths[hit.columnIndex];
@@ -3602,64 +5033,128 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         case HitZone::GroupHeader:
             if (! rightButton && _delegate)
             {
-                const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
+                std::vector<GridGroupDesc> groups;
+                if (! TryControlCallback([&] { groups = CollectOrderedGroups(model, &guard); }) || ! guard.IsCurrent())
+                {
+                    return true;
+                }
                 if (hit.groupIndex < groups.size())
                 {
                     const GridGroupDesc& group = groups[hit.groupIndex];
+                    if (! TryControlCallback([&] { _delegate->OnGridGroupToggled(*this, group.stableId, ! group.collapsed); }) || ! guard.IsCurrent())
+                    {
+                        return true;
+                    }
                     const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
-                    _delegate->OnGridGroupToggled(*this, group.stableId, ! group.collapsed);
-                    ReconcileSelectionForVisibleRows(CollectOrderedGroups(_model));
+                    const std::optional<uint64_t> previousFocus = _currentRowId;
+                    std::vector<GridGroupDesc> updatedGroups;
+                    if (! TryControlCallback([&] { updatedGroups = CollectOrderedGroups(model, &guard); }) || ! guard.IsCurrent())
+                    {
+                        return true;
+                    }
+                    ReconcileSelectionForVisibleRows(updatedGroups);
+                    if (! guard.IsCurrent())
+                    {
+                        return true;
+                    }
                     _hoveredRow.reset();
                     _hoveredColumn.reset();
                     host.ClearTooltip();
-                    ClampScrollOffsets();
-                    if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+                    if (! guard.IsCurrent())
                     {
-                        // The delegate may rebuild the controls and destroy this grid.
-                        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-                        _delegate->OnGridSelectionChanged(*this);
-                        if (lifetime.expired())
-                        {
-                            return true;
-                        }
+                        return true;
                     }
-                    Invalidate(host);
+                    ClampScrollOffsets();
+                    if (! guard.IsCurrent())
+                    {
+                        return true;
+                    }
+                    if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus))
+                    {
+                        return true;
+                    }
+                    if (! guard.IsCurrent())
+                    {
+                        return true;
+                    }
+                    RefreshAccessibilitySnapshot();
+                    if (guard.IsCurrent())
+                    {
+                        Invalidate(host);
+                    }
                 }
             }
             return true;
         case HitZone::Cell:
         {
             _activeColumn                             = hit.columnIndex;
-            const IGridModel* const modelBeforeSelect = _model;
+            const IGridModel* const modelBeforeSelect = model;
             bool clickedCheckbox                      = false;
             std::optional<uint64_t> clickedCheckboxRowId;
-            if (! rightButton && modelBeforeSelect && hit.rowIndex < modelBeforeSelect->GetRowCount() && hit.columnIndex < modelBeforeSelect->GetColumnCount())
+            size_t rowCount    = 0u;
+            size_t columnCount = 0u;
+            if (! modelBeforeSelect || ! TryControlCallback([&] { rowCount = modelBeforeSelect->GetRowCount(); }) || ! guard.IsCurrent() ||
+                hit.rowIndex >= rowCount || ! TryControlCallback([&] { columnCount = modelBeforeSelect->GetColumnCount(); }) || ! guard.IsCurrent())
+            {
+                return true;
+            }
+            if (! rightButton && hit.columnIndex < columnCount)
             {
                 GridCellData cellData{};
-                modelBeforeSelect->GetCellData(hit.rowIndex, hit.columnIndex, cellData);
+                if (! TryControlCallback([&] { modelBeforeSelect->GetCellData(hit.rowIndex, hit.columnIndex, cellData); }) || ! guard.IsCurrent())
+                {
+                    return true;
+                }
                 if (cellData.kind == GridCellKind::Checkbox)
                 {
                     const GridCellLayoutMetrics layoutMetrics = GetCellLayoutMetrics(host, hit.rowIndex, hit.columnIndex);
-                    clickedCheckbox                           = layoutMetrics.hasCheckbox && PointInRect(layoutMetrics.checkboxRect, point);
+                    if (! guard.IsCurrent())
+                    {
+                        return true;
+                    }
+                    clickedCheckbox = layoutMetrics.hasCheckbox && PointInRect(layoutMetrics.checkboxRect, point);
                     if (clickedCheckbox)
                     {
                         clickedCheckboxRowId = modelBeforeSelect->GetStableRowId(hit.rowIndex);
+                        if (! guard.IsCurrent())
+                        {
+                            return true;
+                        }
                     }
                 }
             }
             const bool preserveRightClickSelection = rightButton && _selectionMode == GridSelectionMode::Extended && modelBeforeSelect &&
-                                                     hit.rowIndex < modelBeforeSelect->GetRowCount() && _selectionModel.GetCount() > 1u &&
-                                                     _selectionModel.IsSelected(modelBeforeSelect->GetStableRowId(hit.rowIndex));
+                                                     hit.rowIndex < rowCount && _selectionModel.GetCount() > 1u && [&]()
+            {
+                const uint64_t rowId = modelBeforeSelect->GetStableRowId(hit.rowIndex);
+                return guard.IsCurrent() && _selectionModel.IsSelected(rowId);
+            }();
+            if (! guard.IsCurrent())
+            {
+                return true;
+            }
             if (! preserveRightClickSelection && ! SelectRow(hit.rowIndex, modifiers))
             {
                 return true;
             }
-            if (! rightButton && clickedCheckbox && clickedCheckboxRowId.has_value() && _model == modelBeforeSelect && _model &&
-                hit.columnIndex < _model->GetColumnCount())
+            if (! guard.IsCurrent())
             {
-                if (const auto resolvedRowIndex = _model->FindRowByStableId(clickedCheckboxRowId.value()))
+                return true;
+            }
+            if (! rightButton && clickedCheckbox && clickedCheckboxRowId.has_value() && hit.columnIndex < columnCount)
+            {
+                const auto resolvedRowIndex = modelBeforeSelect->FindRowByStableId(clickedCheckboxRowId.value());
+                if (! guard.IsCurrent())
+                {
+                    return true;
+                }
+                if (resolvedRowIndex)
                 {
                     if (ToggleCheckboxCell(host, resolvedRowIndex.value(), hit.columnIndex))
+                    {
+                        return true;
+                    }
+                    if (! guard.IsCurrent())
                     {
                         return true;
                     }
@@ -3678,6 +5173,10 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             if (! rightButton)
             {
                 const D2D1_RECT_F thumb = GetVerticalThumbHitRect();
+                if (! guard.IsCurrent())
+                {
+                    return true;
+                }
                 if (hit.onScrollbarThumb)
                 {
                     _dragVerticalThumb  = true;
@@ -3691,7 +5190,11 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
                     const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
                     const float viewportDip       = std::max(1.0f, contentRect.bottom - contentRect.top);
                     const float extent            = SanitizeNonNegative(GetVerticalScrollableExtent());
-                    const float pageStep          = ComputeScrollbarPageStepDip(hit.rectDip, ScrollbarOrientation::Vertical, viewportDip, viewportDip + extent);
+                    if (! guard.IsCurrent())
+                    {
+                        return true;
+                    }
+                    const float pageStep = ComputeScrollbarPageStepDip(hit.rectDip, ScrollbarOrientation::Vertical, viewportDip, viewportDip + extent);
                     _verticalScrollDip += (point.y < thumb.top) ? -pageStep : pageStep;
                     ClampScrollOffsets();
                     UpdateScrollbarHotState(HitInfo{.zone = HitZone::VerticalScrollbar, .onScrollbarThumb = false});
@@ -3705,6 +5208,10 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             if (! rightButton)
             {
                 const D2D1_RECT_F thumb = GetHorizontalThumbHitRect();
+                if (! guard.IsCurrent())
+                {
+                    return true;
+                }
                 if (hit.onScrollbarThumb)
                 {
                     _dragHorizontalThumb = true;
@@ -3718,8 +5225,13 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
                     const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
                     const float viewportDip       = std::max(1.0f, contentRect.right - contentRect.left);
                     const float extent            = SanitizeNonNegative(GetHorizontalScrollableExtent());
-                    const float pageStep = ComputeScrollbarPageStepDip(hit.rectDip, ScrollbarOrientation::Horizontal, viewportDip, viewportDip + extent);
-                    _horizontalScrollDip += (point.x < thumb.left) ? -pageStep : pageStep;
+                    if (! guard.IsCurrent())
+                    {
+                        return true;
+                    }
+                    const float pageStep       = ComputeScrollbarPageStepDip(hit.rectDip, ScrollbarOrientation::Horizontal, viewportDip, viewportDip + extent);
+                    const bool pageTowardStart = IsRightToLeft() ? point.x > thumb.right : point.x < thumb.left;
+                    _horizontalScrollDip += pageTowardStart ? -pageStep : pageStep;
                     ClampScrollOffsets();
                     UpdateScrollbarHotState(HitInfo{.zone = HitZone::HorizontalScrollbar, .onScrollbarThumb = false});
                     SyncScrollbarAnimation(host);
@@ -3754,7 +5266,10 @@ void Grid::OnCaptureLost(ControlHost& host)
 
 bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
 {
-    if (! _model || rightButton)
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    GridModelQueryGuard guard(*this, lifetime, model);
+    if (! model || rightButton)
     {
         return false;
     }
@@ -3763,40 +5278,189 @@ bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
     {
         return true;
     }
+    if (! guard.IsCurrent())
+    {
+        return true;
+    }
     const HitInfo hit = HitTestPoint(MakePointDip(point));
+    if (! guard.IsCurrent())
+    {
+        return true;
+    }
     UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);
-    if (hit.zone != HitZone::Cell || hit.rowIndex >= _model->GetRowCount() || hit.columnIndex >= _model->GetColumnCount())
+    size_t rowCount    = 0u;
+    size_t columnCount = 0u;
+    if (! guard.IsCurrent())
+    {
+        return true;
+    }
+    if (hit.zone != HitZone::Cell)
+    {
+        return OnMouseDown(host, point, rightButton, modifiers);
+    }
+    if (! TryControlCallback([&] { rowCount = model->GetRowCount(); }) || ! guard.IsCurrent())
+    {
+        return true;
+    }
+    if (hit.rowIndex >= rowCount)
+    {
+        return OnMouseDown(host, point, rightButton, modifiers);
+    }
+    if (! TryControlCallback([&] { columnCount = model->GetColumnCount(); }) || ! guard.IsCurrent())
+    {
+        return true;
+    }
+    if (hit.columnIndex >= columnCount)
     {
         return OnMouseDown(host, point, rightButton, modifiers);
     }
 
     _activeColumn = hit.columnIndex;
 
-    const IGridModel* const modelBeforeSelect = _model;
-    bool clickedCheckbox                      = false;
+    const IGridModel* const modelBeforeSelect = model;
+    const uint64_t clickedRowId               = modelBeforeSelect->GetStableRowId(hit.rowIndex);
+    if (! guard.IsCurrent())
+    {
+        return true;
+    }
+    GridColumnDesc clickedColumn{};
+    if (! TryControlCallback([&] { clickedColumn = modelBeforeSelect->GetColumn(hit.columnIndex); }) || ! guard.IsCurrent())
+    {
+        return true;
+    }
+    const std::wstring clickedColumnId = std::move(clickedColumn.id);
+    const auto resolveClickedColumn    = [&]() -> std::optional<size_t>
+    {
+        if (! guard.IsCurrent())
+        {
+            return std::nullopt;
+        }
+        // Named columns retain their identity when a selection callback reorders the model's columns.
+        // Models with unnamed columns retain their ordinal contract.
+        if (clickedColumnId.empty())
+        {
+            size_t count = 0u;
+            GridColumnDesc column{};
+            if (! TryControlCallback([&] { count = modelBeforeSelect->GetColumnCount(); }) || ! guard.IsCurrent() || hit.columnIndex >= count ||
+                ! TryControlCallback([&] { column = modelBeforeSelect->GetColumn(hit.columnIndex); }) || ! guard.IsCurrent())
+            {
+                return std::nullopt;
+            }
+            return column.id.empty() ? std::optional<size_t>(hit.columnIndex) : std::nullopt;
+        }
+        size_t count = 0u;
+        if (! TryControlCallback([&] { count = modelBeforeSelect->GetColumnCount(); }) || ! guard.IsCurrent())
+        {
+            return std::nullopt;
+        }
+        for (size_t columnIndex = 0u; columnIndex < count; ++columnIndex)
+        {
+            GridColumnDesc column{};
+            if (! TryControlCallback([&] { column = modelBeforeSelect->GetColumn(columnIndex); }) || ! guard.IsCurrent())
+            {
+                return std::nullopt;
+            }
+            if (column.id == clickedColumnId)
+            {
+                return columnIndex;
+            }
+        }
+        return std::nullopt;
+    };
+    bool clickedCheckbox = false;
     std::optional<uint64_t> clickedCheckboxRowId;
     GridCellData cellData{};
-    modelBeforeSelect->GetCellData(hit.rowIndex, hit.columnIndex, cellData);
+    if (! TryControlCallback([&] { modelBeforeSelect->GetCellData(hit.rowIndex, hit.columnIndex, cellData); }) || ! guard.IsCurrent())
+    {
+        return true;
+    }
     if (cellData.kind == GridCellKind::Checkbox)
     {
         const GridCellLayoutMetrics layoutMetrics = GetCellLayoutMetrics(host, hit.rowIndex, hit.columnIndex);
-        clickedCheckbox                           = layoutMetrics.hasCheckbox && PointInRect(layoutMetrics.checkboxRect, point);
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
+        clickedCheckbox = layoutMetrics.hasCheckbox && PointInRect(layoutMetrics.checkboxRect, point);
         if (clickedCheckbox)
         {
             clickedCheckboxRowId = modelBeforeSelect->GetStableRowId(hit.rowIndex);
+            if (! guard.IsCurrent())
+            {
+                return true;
+            }
         }
+    }
+
+    if (! clickedCheckbox && host.GetPointerDevice() == PointerDevice::Touch)
+    {
+        if (! SelectRow(hit.rowIndex, modifiers))
+        {
+            return true;
+        }
+        if (! guard.IsBindingCurrent())
+        {
+            return true;
+        }
+        // Selection delegates may notify a reorder in the same binding. Discard all ordinals and query its current identities.
+        guard                  = GridModelQueryGuard(*this, lifetime, modelBeforeSelect);
+        const auto columnIndex = resolveClickedColumn();
+        if (! guard.IsCurrent() || ! columnIndex)
+        {
+            return true;
+        }
+        const auto rowIndex = modelBeforeSelect->FindRowByStableId(clickedRowId);
+        if (! guard.IsCurrent() || ! rowIndex)
+        {
+            return true;
+        }
+        const auto rect = GetVisibleCellRect(*rowIndex, *columnIndex);
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
+        if (rect)
+        {
+            _activeColumn = *columnIndex;
+            if (! TryControlCallback([&] { modelBeforeSelect->GetCellData(*rowIndex, *columnIndex, cellData); }) || ! guard.IsCurrent())
+            {
+                return true;
+            }
+            const D2D1_POINT_2F origin = D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f);
+            static_cast<void>(host.InspectTooltip(BuildGridCellCopyText(cellData), origin));
+        }
+        return true;
     }
 
     if (! SelectRow(hit.rowIndex, modifiers))
     {
         return true;
     }
-    if (clickedCheckbox && clickedCheckboxRowId.has_value() && _model == modelBeforeSelect && _model && hit.columnIndex < _model->GetColumnCount())
+    if (! guard.IsBindingCurrent())
     {
-        if (const auto resolvedRowIndex = _model->FindRowByStableId(clickedCheckboxRowId.value()))
+        return true;
+    }
+    guard                  = GridModelQueryGuard(*this, lifetime, modelBeforeSelect);
+    const auto columnIndex = resolveClickedColumn();
+    if (! guard.IsCurrent())
+    {
+        return true;
+    }
+    if (clickedCheckbox && clickedCheckboxRowId.has_value() && columnIndex)
+    {
+        const auto resolvedRowIndex = modelBeforeSelect->FindRowByStableId(clickedCheckboxRowId.value());
+        if (! guard.IsCurrent())
         {
-            if (ToggleCheckboxCell(host, resolvedRowIndex.value(), hit.columnIndex))
+            return true;
+        }
+        if (resolvedRowIndex)
+        {
+            if (ToggleCheckboxCell(host, resolvedRowIndex.value(), *columnIndex))
+            {
+                return true;
+            }
+            if (! guard.IsCurrent())
             {
                 return true;
             }
@@ -3810,16 +5474,33 @@ bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
         return true;
     }
 
+    if (! guard.IsCurrent())
+    {
+        return true;
+    }
+    const auto rowIndex = modelBeforeSelect->FindRowByStableId(clickedRowId);
+    if (! guard.IsCurrent() || ! rowIndex)
+    {
+        return true;
+    }
+    const auto visibleRowOrdinal = FindVisibleRowOrdinal(*rowIndex);
+    if (! guard.IsCurrent() || ! visibleRowOrdinal)
+    {
+        return true;
+    }
     Invalidate(host);
     if (_delegate)
     {
-        _delegate->OnGridRowActivated(*this, hit.rowIndex);
+        static_cast<void>(TryControlCallback([&] { _delegate->OnGridRowActivated(*this, *rowIndex); }));
     }
     return true;
 }
 
 bool Grid::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT /*modifiers*/)
 {
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
     const bool hadThumbDrag = _dragVerticalThumb || _dragHorizontalThumb;
     const bool hadDrag      = _resizeColumn.has_value() || _dragVerticalThumb || _dragHorizontalThumb || _dragReorderColumn.has_value();
     _resizeColumn.reset();
@@ -3833,17 +5514,30 @@ bool Grid::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         return hadDrag;
     }
 
-    UpdateScrollbarHotState(HitTestPoint(MakePointDip(point)));
+    const HitInfo hit = HitTestPoint(MakePointDip(point));
+    if (! guard.IsCurrent())
+    {
+        return hadDrag;
+    }
+    UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);
     if (hadThumbDrag)
     {
         ClampScrollOffsets();
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
         Invalidate(host);
     }
 
     if (_dragReorderColumn)
     {
         EnsureColumnWidths();
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
         const size_t draggedColumn         = _dragReorderColumn.value();
         const size_t rawTargetDisplayIndex = _dragReorderTargetDisplayIndex;
         _dragReorderColumn.reset();
@@ -3882,7 +5576,6 @@ bool Grid::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         return true;
     }
 
-    const HitInfo hit = HitTestPoint(MakePointDip(point));
     if (_pressedHeaderColumn)
     {
         const size_t pressedColumn = _pressedHeaderColumn.value();
@@ -3895,7 +5588,10 @@ bool Grid::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
             nextSort.direction   = (_sortSpec.columnIndex == pressedColumn) ? NextSortDirection(_sortSpec.direction) : SortDirection::Ascending;
             if (_delegate)
             {
-                _delegate->OnGridSortRequested(nextSort);
+                if (! TryControlCallback([&] { _delegate->OnGridSortRequested(nextSort); }) || ! guard.IsCurrent())
+                {
+                    return true;
+                }
             }
             else
             {
@@ -3909,7 +5605,10 @@ bool Grid::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
 
 bool Grid::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float wheelDelta, UINT /*modifiers*/)
 {
-    if (GetVerticalScrollableExtent() <= 0.0f)
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const GridModelQueryGuard guard(*this, lifetime, _model);
+    const float extent = GetVerticalScrollableExtent();
+    if (! guard.IsCurrent() || extent <= 0.0f)
     {
         return false;
     }
@@ -3928,13 +5627,21 @@ bool Grid::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float wheelD
 
 bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 {
-    if (! _model || _model->GetRowCount() == 0u)
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    size_t rowCount = 0u;
+    if (! model || ! TryControlCallback([&] { rowCount = model->GetRowCount(); }) || ! guard.IsCurrent() || rowCount == 0u)
     {
         return false;
     }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
-    const std::vector<size_t> visibleRows   = CollectVisibleRowIndices(_model->GetRowCount(), groups);
+    std::vector<GridGroupDesc> groups;
+    if (! TryControlCallback([&] { groups = CollectOrderedGroups(model, &guard); }) || ! guard.IsCurrent())
+    {
+        return false;
+    }
+    const std::vector<size_t> visibleRows = CollectVisibleRowIndices(rowCount, groups);
     if (visibleRows.empty())
     {
         return false;
@@ -3952,17 +5659,55 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         }
     }
 
-    size_t currentRow = visibleRows.front();
-    if (_selectionModel.GetCount() > 0u)
+    if (virtualKey == VK_F1 && ! ModifiersContainAlt(modifiers))
     {
-        const size_t selectedRow = _model->FindRowByStableId(_selectionModel.GetOrderedSelection().back()).value_or(visibleRows.front());
-        if (std::ranges::find(visibleRows, selectedRow) != visibleRows.end())
+        const std::optional<size_t> focusedRow = _currentRowId ? model->FindRowByStableId(*_currentRowId) : std::nullopt;
+        if (! guard.IsCurrent())
         {
-            currentRow = selectedRow;
+            return true;
+        }
+        size_t columnCount = 0u;
+        if (! TryControlCallback([&] { columnCount = model->GetColumnCount(); }) || ! guard.IsCurrent())
+        {
+            return true;
+        }
+        const size_t columnIndex = _activeColumn && *_activeColumn < columnCount ? *_activeColumn : 0u;
+        if (focusedRow && columnCount > 0u)
+        {
+            GridCellData cellData{};
+            if (! TryControlCallback([&] { model->GetCellData(*focusedRow, columnIndex, cellData); }) || ! guard.IsCurrent())
+            {
+                return true;
+            }
+            const auto rect = GetVisibleCellRect(*focusedRow, columnIndex);
+            if (! guard.IsCurrent())
+            {
+                return true;
+            }
+            if (rect)
+            {
+                const D2D1_POINT_2F origin = D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f);
+                static_cast<void>(host.InspectTooltip(BuildGridCellCopyText(cellData), origin));
+            }
+        }
+        return true;
+    }
+
+    size_t currentRow = visibleRows.front();
+    if (_currentRowId)
+    {
+        const std::optional<size_t> focusedRow = model->FindRowByStableId(*_currentRowId);
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        if (focusedRow && std::ranges::find(visibleRows, *focusedRow) != visibleRows.end())
+        {
+            currentRow = *focusedRow;
         }
     }
 
-    const auto toggleGroupFromKeyboard = [&](size_t groupIndex, bool collapsed) noexcept
+    const auto toggleGroupFromKeyboard = [&](size_t groupIndex, bool collapsed)
     {
         if (! _delegate || groupIndex >= groups.size())
         {
@@ -3975,58 +5720,47 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             return true;
         }
 
+        if (! TryControlCallback([&] { _delegate->OnGridGroupToggled(*this, group.stableId, collapsed); }) || ! guard.IsCurrent())
+        {
+            return true;
+        }
+
+        std::vector<GridGroupDesc> updatedGroups;
+        if (! TryControlCallback([&] { updatedGroups = CollectOrderedGroups(model, &guard); }) || ! guard.IsCurrent())
+        {
+            return true;
+        }
         const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
-        std::unordered_set<uint64_t> collapsedGroupRowIds;
-        const size_t toggledGroupStart = group.startRowIndex;
-        if (_model && group.startRowIndex < _model->GetRowCount())
+        const std::optional<uint64_t> previousFocus = _currentRowId;
+        ReconcileSelectionForVisibleRows(updatedGroups);
+        if (! guard.IsCurrent())
         {
-            const size_t toggledGroupSpan = (std::min)(group.rowCount, _model->GetRowCount() - group.startRowIndex);
-            collapsedGroupRowIds.reserve(toggledGroupSpan);
-            for (size_t rowIndex = group.startRowIndex; rowIndex < (group.startRowIndex + toggledGroupSpan); ++rowIndex)
-            {
-                collapsedGroupRowIds.insert(_model->GetStableRowId(rowIndex));
-            }
+            return true;
         }
-        _delegate->OnGridGroupToggled(*this, group.stableId, collapsed);
-
-        const std::vector<GridGroupDesc> updatedGroups = CollectOrderedGroups(_model);
-
-        if (collapsed && _model)
-        {
-            std::vector<uint64_t> survivingSelection;
-            survivingSelection.reserve(previousSelection.size());
-            for (const uint64_t rowId : previousSelection)
-            {
-                if (! collapsedGroupRowIds.contains(rowId))
-                {
-                    survivingSelection.push_back(rowId);
-                }
-            }
-            _selectionModel.PreserveOrdered(survivingSelection);
-            if (_selectionModel.GetCount() == 0u && ! survivingSelection.empty())
-            {
-                _selectionModel.SetSingle(survivingSelection.front());
-            }
-            else if (_selectionModel.GetCount() == 0u)
-            {
-                if (const auto fallbackRow = FindNearestVisibleRow(updatedGroups, toggledGroupStart))
-                {
-                    _selectionModel.SetSingle(_model->GetStableRowId(fallbackRow.value()));
-                }
-            }
-        }
-        // On expand: previously selected rows remain visible — no reconciliation needed.
 
         _hoveredRow.reset();
         _hoveredColumn.reset();
         host.ClearTooltip();
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
 
-        if (const std::optional<size_t> selectedRow = GetPrimarySelectedRow(); selectedRow.has_value())
+        const std::optional<size_t> selectedRow = _currentRowId ? model->FindRowByStableId(*_currentRowId) : std::nullopt;
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
+        if (selectedRow.has_value())
         {
             const D2D1_RECT_F contentRect = GetContentRect();
-            const float viewportHeight    = contentRect.bottom - contentRect.top;
-            const float rowTop            = GetRowTopDip(updatedGroups, selectedRow.value());
-            const float rowBottom         = rowTop + _rowHeightDip;
+            if (! guard.IsCurrent())
+            {
+                return true;
+            }
+            const float viewportHeight = contentRect.bottom - contentRect.top;
+            const float rowTop         = GetRowTopDip(updatedGroups, selectedRow.value());
+            const float rowBottom      = rowTop + _rowHeightDip;
             if (rowTop < _verticalScrollDip)
             {
                 _verticalScrollDip = rowTop;
@@ -4038,18 +5772,21 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         }
 
         ClampScrollOffsets();
-        // The selection's delegate may rebuild the controls and destroy this grid, and UI Automation event delivery may too.
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+        if (! guard.IsCurrent())
         {
-            _delegate->OnGridSelectionChanged(*this);
-            if (lifetime.expired())
-            {
-                return true;
-            }
+            return true;
+        }
+        // The selection's delegate may rebuild the controls and destroy this grid, and UI Automation event delivery may too.
+        if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus))
+        {
+            return true;
+        }
+        if (! guard.IsCurrent())
+        {
+            return true;
         }
         RefreshAccessibilitySnapshot();
-        if (! lifetime.expired())
+        if (guard.IsCurrent())
         {
             Invalidate(host);
         }
@@ -4091,25 +5828,48 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 
     if (! ModifiersContainAlt(modifiers) && ! ModifiersContainCtrl(modifiers) && ! groups.empty())
     {
-        if (virtualKey == VK_LEFT)
+        const bool collapseKey = IsRightToLeft() ? virtualKey == VK_RIGHT : virtualKey == VK_LEFT;
+        const bool expandKey   = IsRightToLeft() ? virtualKey == VK_LEFT : virtualKey == VK_RIGHT;
+        if (collapseKey)
         {
             if (const auto groupIndex = findOwningExpandedGroup(); groupIndex.has_value())
             {
-                return toggleGroupFromKeyboard(groupIndex.value(), true);
+                bool handled = false;
+                if (! TryControlCallback([&] { handled = toggleGroupFromKeyboard(groupIndex.value(), true); }) || ! guard.IsCurrent())
+                {
+                    return true;
+                }
+                return handled;
             }
         }
-        else if (virtualKey == VK_RIGHT)
+        else if (expandKey)
         {
             if (const auto groupIndex = findAssociatedCollapsedGroup(); groupIndex.has_value())
             {
-                return toggleGroupFromKeyboard(groupIndex.value(), false);
+                bool handled = false;
+                if (! TryControlCallback([&] { handled = toggleGroupFromKeyboard(groupIndex.value(), false); }) || ! guard.IsCurrent())
+                {
+                    return true;
+                }
+                return handled;
             }
         }
     }
 
-    if (virtualKey == VK_SPACE && ! ModifiersContainAlt(modifiers))
+    if (virtualKey == VK_SPACE && ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
     {
-        if (const auto checkboxColumn = ResolveCheckboxToggleColumn(currentRow))
+        static_cast<void>(SelectRow(currentRow, modifiers));
+        return true;
+    }
+
+    if (virtualKey == VK_SPACE && ! ModifiersContainAlt(modifiers) && ! ModifiersContainCtrl(modifiers))
+    {
+        const auto checkboxColumn = ResolveCheckboxToggleColumn(currentRow);
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
+        if (checkboxColumn)
         {
             static_cast<void>(ToggleCheckboxCell(host, currentRow, checkboxColumn.value()));
             return true;
@@ -4130,20 +5890,33 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         case VK_RETURN:
             if (_delegate)
             {
-                _delegate->OnGridRowActivated(*this, currentRow);
+                static_cast<void>(TryControlCallback([&] { _delegate->OnGridRowActivated(*this, currentRow); }));
             }
             return true;
         default: return false;
     }
 
     const size_t nextRow = visibleRows[nextVisibleIndex];
+    if (ModifiersContainCtrl(modifiers) && ! ModifiersContainShift(modifiers) && (virtualKey == VK_UP || virtualKey == VK_DOWN))
+    {
+        static_cast<void>(RequestFocusRow(nextRow));
+        return true;
+    }
     if (! SelectRow(nextRow, modifiers))
     {
         return true;
     }
+    if (! guard.IsCurrent())
+    {
+        return true;
+    }
     const D2D1_RECT_F contentRect = GetContentRect();
-    const float rowTop            = GetRowTopDip(groups, nextRow);
-    const float rowBottom         = rowTop + _rowHeightDip;
+    if (! guard.IsCurrent())
+    {
+        return true;
+    }
+    const float rowTop    = GetRowTopDip(groups, nextRow);
+    const float rowBottom = rowTop + _rowHeightDip;
     if (rowTop < _verticalScrollDip)
     {
         _verticalScrollDip = rowTop;
@@ -4153,13 +5926,21 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         _verticalScrollDip = rowBottom - (contentRect.bottom - contentRect.top);
     }
     ClampScrollOffsets();
+    if (! guard.IsCurrent())
+    {
+        return true;
+    }
     Invalidate(host);
     return true;
 }
 
 bool Grid::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip)
 {
-    if (! _model || ! _delegate || _model->GetRowCount() == 0u)
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    size_t rowCount = 0u;
+    if (! model || ! _delegate || ! TryControlCallback([&] { rowCount = model->GetRowCount(); }) || ! guard.IsCurrent() || rowCount == 0u)
     {
         return false;
     }
@@ -4168,35 +5949,51 @@ bool Grid::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
     D2D1_POINT_2F anchorDip = pointDip;
     if (keyboardInvocation)
     {
-        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
-        const std::vector<size_t> visibleRows   = CollectVisibleRowIndices(_model->GetRowCount(), groups);
+        std::vector<GridGroupDesc> groups;
+        if (! TryControlCallback([&] { groups = CollectOrderedGroups(model, &guard); }) || ! guard.IsCurrent())
+        {
+            return false;
+        }
+        const std::vector<size_t> visibleRows = CollectVisibleRowIndices(rowCount, groups);
         if (visibleRows.empty())
         {
             return false;
         }
 
-        rowIndex = visibleRows.front();
-        if (_selectionModel.GetCount() > 0u)
+        rowIndex                               = visibleRows.front();
+        const std::optional<size_t> primaryRow = _currentRowId ? model->FindRowByStableId(*_currentRowId) : std::nullopt;
+        if (! guard.IsCurrent())
         {
-            const size_t selectedRow = _model->FindRowByStableId(_selectionModel.GetOrderedSelection().back()).value_or(rowIndex);
-            if (std::ranges::find(visibleRows, selectedRow) != visibleRows.end())
+            return false;
+        }
+        if (primaryRow)
+        {
+            if (std::ranges::find(visibleRows, primaryRow.value()) != visibleRows.end())
             {
-                rowIndex = selectedRow;
+                rowIndex = primaryRow.value();
             }
         }
 
         const D2D1_RECT_F contentRect = GetContentRect();
-        const float rowTop            = contentRect.top + GetRowTopDip(groups, rowIndex) - _verticalScrollDip;
-        const float rowBottom         = rowTop + _rowHeightDip;
-        const float minX              = contentRect.left + 4.0f;
-        const float maxX              = std::max(minX, contentRect.right - 4.0f);
-        const float minY              = contentRect.top + 4.0f;
-        const float maxY              = std::max(minY, contentRect.bottom - 4.0f);
-        anchorDip                     = D2D1::Point2F(std::clamp(GetBounds().left + 16.0f, minX, maxX), std::clamp((rowTop + rowBottom) * 0.5f, minY, maxY));
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        const float rowTop    = contentRect.top + GetRowTopDip(groups, rowIndex) - _verticalScrollDip;
+        const float rowBottom = rowTop + _rowHeightDip;
+        const float minX      = contentRect.left + 4.0f;
+        const float maxX      = std::max(minX, contentRect.right - 4.0f);
+        const float minY      = contentRect.top + 4.0f;
+        const float maxY      = std::max(minY, contentRect.bottom - 4.0f);
+        anchorDip             = D2D1::Point2F(std::clamp(GetBounds().left + 16.0f, minX, maxX), std::clamp((rowTop + rowBottom) * 0.5f, minY, maxY));
     }
     else
     {
         const HitInfo hit = HitTestPoint(MakePointDip(pointDip));
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
         if (hit.zone != HitZone::Cell)
         {
             return false;
@@ -4204,7 +6001,7 @@ bool Grid::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
         rowIndex = hit.rowIndex;
     }
 
-    _delegate->OnGridContextMenu(*this, rowIndex, host.DipPointToScreenPoint(anchorDip));
+    static_cast<void>(TryControlCallback([&] { _delegate->OnGridContextMenu(*this, rowIndex, host.DipPointToScreenPoint(anchorDip)); }));
     return true;
 }
 
@@ -4215,36 +6012,69 @@ bool Grid::OnCopy(ControlHost& host)
 
 bool Grid::OnSelectAll(ControlHost& host)
 {
-    if (! _model || _selectionMode == GridSelectionMode::Single)
+    try
     {
-        return false;
-    }
-
-    const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
-    const std::vector<uint64_t> allRows     = CollectVisibleOrderedRowIds(_model, groups);
-    if (allRows.empty())
-    {
-        return false;
-    }
-    _selectionModel.SetRange(allRows, allRows.front(), allRows.back());
-    if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
-    {
-        // The delegate may rebuild the controls and destroy this grid.
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        _delegate->OnGridSelectionChanged(*this);
-        if (lifetime.expired())
+        IGridModel* const model           = _model;
+        const GridModelQueryGuard guard(*this, lifetime, model);
+        if (! model || _selectionMode == GridSelectionMode::Single)
+        {
+            return false;
+        }
+
+        const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        const std::vector<uint64_t> allRows = CollectVisibleOrderedRowIds(model, groups, &guard);
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        if (allRows.empty())
+        {
+            return false;
+        }
+        _selectionModel.SetRange(allRows, allRows.front(), allRows.back());
+        const std::optional<uint64_t> previousFocus = _currentRowId;
+        _currentRowId                               = allRows.back();
+        _focusedRowIndex                            = model->FindRowByStableId(allRows.back());
+        if (! guard.IsCurrent())
         {
             return true;
         }
+        if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
+        {
+            // The delegate may rebuild the controls and destroy this grid.
+            if (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.IsCurrent())
+            {
+                return true;
+            }
+        }
+        if (_delegate && previousFocus != _currentRowId)
+        {
+            if (! TryControlCallback([&] { _delegate->OnGridFocusedRowChanged(*this, _currentRowId); }) || ! guard.IsCurrent())
+            {
+                return true;
+            }
+        }
+        RefreshAccessibilitySnapshot();
+        if (guard.IsCurrent())
+        {
+            Invalidate(host);
+        }
+        return true;
     }
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    RefreshAccessibilitySnapshot();
-    if (! lifetime.expired())
+    catch (const std::bad_alloc&)
     {
-        Invalidate(host);
+        return false;
     }
-    return true;
+    catch (const std::exception&)
+    {
+        return false;
+    }
 }
 
 WindowHostCursorKind Grid::ResolveCursorKind(ControlHost& /*host*/, D2D1_POINT_2F pointDip) const noexcept
@@ -4264,120 +6094,225 @@ WindowHostCursorKind Grid::ResolveCursorKind(ControlHost& /*host*/, D2D1_POINT_2
 
 Grid::HitInfo Grid::HitTestPoint(PointDip pointDip) const noexcept
 {
-    const D2D1_POINT_2F point = pointDip.AsD2D();
-    HitInfo hit{};
-    if (! _model || ! PointInRect(GetBounds(), point))
+    try
     {
-        return hit;
-    }
-
-    EnsureColumnWidths();
-    if (PointInRect(GetVerticalScrollbarRect(), point))
-    {
-        hit.zone             = HitZone::VerticalScrollbar;
-        hit.rectDip          = GetVerticalScrollbarRect();
-        hit.onScrollbarThumb = PointInRect(GetVerticalThumbHitRect(), point);
-        return hit;
-    }
-    if (PointInRect(GetHorizontalScrollbarRect(), point))
-    {
-        hit.zone             = HitZone::HorizontalScrollbar;
-        hit.rectDip          = GetHorizontalScrollbarRect();
-        hit.onScrollbarThumb = PointInRect(GetHorizontalThumbHitRect(), point);
-        return hit;
-    }
-
-    if (point.y < (GetBounds().top + _headerHeightDip))
-    {
-        float x = GetBounds().left - _horizontalScrollDip;
-        for (size_t displayIndex = 0; displayIndex < _columnDisplayOrder.size(); ++displayIndex)
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        const IGridModel* const model     = _model;
+        const GridModelQueryGuard guard(*this, lifetime, model);
+        const D2D1_POINT_2F point = pointDip.AsD2D();
+        HitInfo hit{};
+        if (! model || ! PointInRect(GetBounds(), point))
         {
-            const size_t columnIndex   = GetModelColumnIndexForDisplayIndex(displayIndex);
-            const float width          = _columnWidths[columnIndex];
-            const D2D1_RECT_F cellRect = D2D1::RectF(x, GetBounds().top, x + width, GetBounds().top + _headerHeightDip);
-            x += width;
-            if (! PointInRect(cellRect, point))
+            return hit;
+        }
+
+        EnsureColumnWidths();
+        if (! guard.IsCurrent())
+        {
+            return hit;
+        }
+        const D2D1_RECT_F verticalScrollbar = GetVerticalScrollbarRect();
+        if (! guard.IsCurrent())
+        {
+            return hit;
+        }
+        if (PointInRect(verticalScrollbar, point))
+        {
+            hit.zone                    = HitZone::VerticalScrollbar;
+            hit.rectDip                 = verticalScrollbar;
+            const D2D1_RECT_F thumbRect = GetVerticalThumbHitRect();
+            if (! guard.IsCurrent())
+            {
+                return {};
+            }
+            hit.onScrollbarThumb = PointInRect(thumbRect, point);
+            return hit;
+        }
+        const D2D1_RECT_F horizontalScrollbar = GetHorizontalScrollbarRect();
+        if (! guard.IsCurrent())
+        {
+            return hit;
+        }
+        if (PointInRect(horizontalScrollbar, point))
+        {
+            hit.zone                    = HitZone::HorizontalScrollbar;
+            hit.rectDip                 = horizontalScrollbar;
+            const D2D1_RECT_F thumbRect = GetHorizontalThumbHitRect();
+            if (! guard.IsCurrent())
+            {
+                return {};
+            }
+            hit.onScrollbarThumb = PointInRect(thumbRect, point);
+            return hit;
+        }
+
+        if (point.y < (GetBounds().top + _headerHeightDip))
+        {
+            for (size_t displayIndex = 0; displayIndex < _columnDisplayOrder.size(); ++displayIndex)
+            {
+                const size_t columnIndex = GetModelColumnIndexForDisplayIndex(displayIndex);
+                const float width        = _columnWidths[columnIndex];
+                const float cellLeft     = GetColumnLeftDip(columnIndex);
+                if (! guard.IsCurrent())
+                {
+                    return {};
+                }
+                const D2D1_RECT_F cellRect = D2D1::RectF(cellLeft, GetBounds().top, cellLeft + width, GetBounds().top + _headerHeightDip);
+                if (! PointInRect(cellRect, point))
+                {
+                    continue;
+                }
+                hit.columnIndex       = columnIndex;
+                hit.rectDip           = cellRect;
+                const bool resizeEdge = IsRightToLeft() ? point.x <= (cellRect.left + kHeaderResizeHitDip) : point.x >= (cellRect.right - kHeaderResizeHitDip);
+                hit.zone              = resizeEdge ? HitZone::HeaderResize : HitZone::Header;
+                return hit;
+            }
+            return hit;
+        }
+
+        const D2D1_RECT_F contentRect = GetContentRect();
+        if (! guard.IsCurrent())
+        {
+            return hit;
+        }
+        if (! PointInRect(contentRect, point))
+        {
+            return hit;
+        }
+        const size_t rowCount = model->GetRowCount();
+        if (! guard.IsCurrent() || rowCount == 0u)
+        {
+            return hit;
+        }
+        const size_t columnCount = model->GetColumnCount();
+        if (! guard.IsCurrent() || columnCount == 0u)
+        {
+            return hit;
+        }
+
+        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        if (! guard.IsCurrent())
+        {
+            return hit;
+        }
+        const std::vector<VisibleBodyItem> visibleBodyItems = BuildVisibleBodyItems(groups);
+        if (! guard.IsCurrent())
+        {
+            return hit;
+        }
+        for (const VisibleBodyItem& item : visibleBodyItems)
+        {
+            if (! PointInRect(item.rectDip, point))
             {
                 continue;
             }
-            hit.columnIndex = columnIndex;
-            hit.rectDip     = cellRect;
-            hit.zone        = (point.x >= (cellRect.right - kHeaderResizeHitDip)) ? HitZone::HeaderResize : HitZone::Header;
-            return hit;
-        }
-        return hit;
-    }
 
-    const D2D1_RECT_F contentRect = GetContentRect();
-    if (! PointInRect(contentRect, point))
-    {
-        return hit;
-    }
-    if (_model->GetRowCount() == 0u || _model->GetColumnCount() == 0u)
-    {
-        return hit;
-    }
-
-    const std::vector<GridGroupDesc> groups             = CollectOrderedGroups(_model);
-    const std::vector<VisibleBodyItem> visibleBodyItems = BuildVisibleBodyItems(groups);
-    for (const VisibleBodyItem& item : visibleBodyItems)
-    {
-        if (! PointInRect(item.rectDip, point))
-        {
-            continue;
-        }
-
-        if (item.kind == VisibleBodyItem::Kind::GroupHeader)
-        {
-            hit.zone       = HitZone::GroupHeader;
-            hit.groupIndex = item.groupIndex;
-            hit.rectDip    = item.rectDip;
-            return hit;
-        }
-
-        float x = GetBounds().left - _horizontalScrollDip;
-        for (size_t displayIndex = 0; displayIndex < _columnDisplayOrder.size(); ++displayIndex)
-        {
-            const size_t columnIndex   = GetModelColumnIndexForDisplayIndex(displayIndex);
-            const float width          = _columnWidths[columnIndex];
-            const D2D1_RECT_F cellRect = D2D1::RectF(x, item.rectDip.top, x + width, item.rectDip.bottom);
-            x += width;
-            if (! PointInRect(cellRect, point))
+            if (item.kind == VisibleBodyItem::Kind::GroupHeader)
             {
-                continue;
+                hit.zone       = HitZone::GroupHeader;
+                hit.groupIndex = item.groupIndex;
+                hit.rectDip    = item.rectDip;
+                return hit;
             }
 
-            hit.zone        = HitZone::Cell;
-            hit.rowIndex    = item.rowIndex;
-            hit.columnIndex = columnIndex;
-            hit.rectDip     = cellRect;
-            return hit;
+            for (size_t displayIndex = 0; displayIndex < _columnDisplayOrder.size(); ++displayIndex)
+            {
+                const size_t columnIndex = GetModelColumnIndexForDisplayIndex(displayIndex);
+                const float width        = _columnWidths[columnIndex];
+                const float cellLeft     = GetColumnLeftDip(columnIndex);
+                if (! guard.IsCurrent())
+                {
+                    return {};
+                }
+                const D2D1_RECT_F cellRect = D2D1::RectF(cellLeft, item.rectDip.top, cellLeft + width, item.rectDip.bottom);
+                if (! PointInRect(cellRect, point))
+                {
+                    continue;
+                }
+
+                hit.zone        = HitZone::Cell;
+                hit.rowIndex    = item.rowIndex;
+                hit.columnIndex = columnIndex;
+                hit.rectDip     = cellRect;
+                return hit;
+            }
         }
+        return hit;
     }
-    return hit;
+    catch (const std::bad_alloc&)
+    {
+        return {};
+    }
+    catch (const std::exception&)
+    {
+        return {};
+    }
 }
 
 void Grid::ClampScrollOffsets(const bool normalizeVertical) noexcept
 {
-    if (! _model || _model->GetGroupCount() == 0u)
+    try
     {
-        constexpr std::span<const GridGroupDesc> noGroups;
-        _verticalScrollDip = ClampScroll(_verticalScrollDip, GetVerticalScrollableExtent(noGroups));
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        IGridModel* const model           = _model;
+        const GridModelQueryGuard guard(*this, lifetime, model);
+        const size_t groupCount = model ? model->GetGroupCount() : 0u;
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        if (! model || groupCount == 0u)
+        {
+            constexpr std::span<const GridGroupDesc> noGroups;
+            const float verticalExtent = GetVerticalScrollableExtent(noGroups);
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+            _verticalScrollDip = ClampScroll(_verticalScrollDip, verticalExtent);
+            if (normalizeVertical)
+            {
+                _verticalScrollDip = NormalizeVerticalScrollOffset(_verticalScrollDip, noGroups);
+            }
+            const float horizontalExtent = GetHorizontalScrollableExtent();
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+            _horizontalScrollDip = ClampScroll(_horizontalScrollDip, horizontalExtent);
+            return;
+        }
+
+        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        _verticalScrollDip = ClampScroll(_verticalScrollDip, GetVerticalScrollableExtent(groups));
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
         if (normalizeVertical)
         {
-            _verticalScrollDip = NormalizeVerticalScrollOffset(_verticalScrollDip, noGroups);
+            _verticalScrollDip = NormalizeVerticalScrollOffset(_verticalScrollDip, groups);
         }
-        _horizontalScrollDip = ClampScroll(_horizontalScrollDip, GetHorizontalScrollableExtent());
-        return;
+        const float horizontalExtent = GetHorizontalScrollableExtent();
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        _horizontalScrollDip = ClampScroll(_horizontalScrollDip, horizontalExtent);
     }
-
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
-    _verticalScrollDip                      = ClampScroll(_verticalScrollDip, GetVerticalScrollableExtent(groups));
-    if (normalizeVertical)
+    catch (const std::bad_alloc&)
     {
-        _verticalScrollDip = NormalizeVerticalScrollOffset(_verticalScrollDip, groups);
+        // Keep the existing offsets when a model snapshot cannot be built.
     }
-    _horizontalScrollDip = ClampScroll(_horizontalScrollDip, GetHorizontalScrollableExtent());
+    catch (const std::exception&)
+    {
+        // A failing model getter leaves the last committed offsets intact.
+    }
 }
 
 // Column width caching: _columnWidths is mutable and modified in const methods (EnsureColumnWidths).
@@ -4385,100 +6320,206 @@ void Grid::ClampScrollOffsets(const bool normalizeVertical) noexcept
 // occur on the same UI thread. The mutable qualifier allows lazy initialization during const Paint() calls.
 void Grid::EnsureColumnWidths() const
 {
-    if (! _model)
+    try
     {
-        _columnWidths.clear();
-        _columnDisplayOrder.clear();
+        const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+        const IGridModel* const model = _model;
+        if (! model)
+        {
+            _columnWidths.clear();
+            _columnDisplayOrder.clear();
+            _columnDisplayIndexByModel.clear();
+            return;
+        }
+        const size_t columnCount = model->GetColumnCount();
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        if (_columnWidths.size() == columnCount && _columnDisplayOrder.size() == columnCount && _columnDisplayIndexByModel.size() == columnCount)
+        {
+            return;
+        }
+
+        std::vector<float> columnWidths;
+        columnWidths.reserve(columnCount);
+        for (size_t columnIndex = 0; columnIndex < columnCount; ++columnIndex)
+        {
+            const GridColumnDesc column = model->GetColumn(columnIndex);
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+            columnWidths.push_back(std::max(column.minWidthDip, column.widthDip));
+        }
+
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        std::vector<size_t> columnDisplayOrder(columnCount);
+        for (size_t displayIndex = 0; displayIndex < columnDisplayOrder.size(); ++displayIndex)
+        {
+            columnDisplayOrder[displayIndex] = displayIndex;
+        }
+        _columnWidths       = std::move(columnWidths);
+        _columnDisplayOrder = std::move(columnDisplayOrder);
         _columnDisplayIndexByModel.clear();
-        return;
+        RebuildColumnDisplayIndexLookup();
     }
-    if (_columnWidths.size() == _model->GetColumnCount() && _columnDisplayOrder.size() == _model->GetColumnCount() &&
-        _columnDisplayIndexByModel.size() == _model->GetColumnCount())
+    catch (const std::bad_alloc&)
     {
-        return;
+        // Keep the last committed width and display-order cache.
     }
-
-    _columnWidths.clear();
-    _columnWidths.reserve(_model->GetColumnCount());
-    for (size_t columnIndex = 0; columnIndex < _model->GetColumnCount(); ++columnIndex)
+    catch (const std::exception&)
     {
-        const GridColumnDesc column = _model->GetColumn(columnIndex);
-        _columnWidths.push_back(std::max(column.minWidthDip, column.widthDip));
+        // A failing borrowed-model getter leaves the previous cache usable.
     }
-
-    _columnDisplayOrder.resize(_model->GetColumnCount());
-    for (size_t displayIndex = 0; displayIndex < _columnDisplayOrder.size(); ++displayIndex)
-    {
-        _columnDisplayOrder[displayIndex] = displayIndex;
-    }
-    RebuildColumnDisplayIndexLookup();
 }
 
 bool Grid::SelectRow(size_t rowIndex, UINT modifiers)
 {
-    if (! _model || rowIndex >= _model->GetRowCount())
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    IGridModel* const model           = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    if (! model)
+    {
+        return true;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
+    if (rowIndex >= rowCount)
     {
         return true;
     }
 
     const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
-    const uint64_t rowId = _model->GetStableRowId(rowIndex);
+    const std::optional<uint64_t> previousFocus = _currentRowId;
+    const uint64_t rowId                        = model->GetStableRowId(rowIndex);
+    if (! guard.IsCurrent())
+    {
+        return false;
+    }
     if (_selectionMode == GridSelectionMode::Single)
     {
-        _selectionModel.SetSingle(rowId);
+        if (ModifiersContainCtrl(modifiers) && _selectionModel.IsSelected(rowId))
+        {
+            _selectionModel.Clear();
+            _selectionModel.SetAnchor(rowId);
+        }
+        else
+        {
+            _selectionModel.SetSingle(rowId);
+        }
+        _currentRowId    = rowId;
+        _focusedRowIndex = rowIndex;
     }
     else if (ModifiersContainShift(modifiers) && _selectionModel.GetAnchor())
     {
-        _selectionModel.SetRange(CollectVisibleOrderedRowIds(_model, CollectOrderedGroups(_model)), _selectionModel.GetAnchor().value(), rowId);
+        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        const std::vector<uint64_t> visibleRows = CollectVisibleOrderedRowIds(model, groups, &guard);
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        _selectionModel.SetRange(visibleRows, _selectionModel.GetAnchor().value(), rowId);
+        _currentRowId    = rowId;
+        _focusedRowIndex = rowIndex;
     }
     else if (ModifiersContainCtrl(modifiers))
     {
         _selectionModel.Toggle(rowId);
+        _currentRowId    = rowId;
+        _focusedRowIndex = rowIndex;
     }
     else
     {
         _selectionModel.SetSingle(rowId);
+        _currentRowId    = rowId;
+        _focusedRowIndex = rowIndex;
     }
 
+    if (! NotifySelectionAndFocusChanges(previousSelection, previousFocus))
+    {
+        return false;
+    }
+    // UI Automation event delivery can dispatch a message that destroys this grid too.
+    RefreshAccessibilitySnapshot();
+    return guard.IsBindingCurrent();
+}
+
+bool Grid::NotifySelectionAndFocusChanges(std::span<const uint64_t> previousSelection, std::optional<uint64_t> previousFocus)
+{
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    IGridModel* const model           = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
     if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()))
     {
-        // The delegate may rebuild the controls and destroy this grid.
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        _delegate->OnGridSelectionChanged(*this);
-        if (lifetime.expired())
+        if (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.IsBindingCurrent())
         {
             return false;
         }
     }
-    // UI Automation event delivery can dispatch a message that destroys this grid too.
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    RefreshAccessibilitySnapshot();
-    return ! lifetime.expired();
+    if (_delegate && previousFocus != _currentRowId)
+    {
+        static_cast<void>(TryControlCallback([&] { _delegate->OnGridFocusedRowChanged(*this, _currentRowId); }));
+    }
+    return guard.IsBindingCurrent();
 }
 
 std::wstring Grid::BuildSelectionTsv() const
 {
-    if (! _model || _selectionModel.GetCount() == 0u)
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    IGridModel* const model           = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    if (! model || _selectionModel.GetCount() == 0u)
     {
         return {};
     }
 
     std::wstring text;
-    const auto selection                    = _selectionModel.GetOrderedSelection();
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
-    bool appendedRow                        = false;
+    const std::vector<uint64_t> selection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    if (! guard.IsCurrent())
+    {
+        return {};
+    }
+    std::vector<size_t> selectedRows;
+    selectedRows.reserve(selection.size());
     for (const uint64_t selectedRowId : selection)
     {
-        const auto rowIndex = _model->FindRowByStableId(selectedRowId);
+        const auto rowIndex = model->FindRowByStableId(selectedRowId);
+        if (! guard.IsCurrent())
+        {
+            return {};
+        }
         if (! rowIndex || ! IsRowVisibleByGroupLayout(rowIndex.value(), groups))
         {
             continue;
         }
+        selectedRows.push_back(*rowIndex);
+    }
+    // Group layout preserves model order. Gesture/UIA insertion order must not change clipboard row order.
+    std::ranges::sort(selectedRows);
+    EnsureColumnWidths();
+    if (! guard.IsCurrent())
+    {
+        return {};
+    }
+    bool appendedRow = false;
+    for (const size_t rowIndex : selectedRows)
+    {
         if (appendedRow)
         {
             text.append(L"\r\n");
         }
-        EnsureColumnWidths();
         for (size_t displayIndex = 0; displayIndex < _columnDisplayOrder.size(); ++displayIndex)
         {
             const size_t columnIndex = GetModelColumnIndexForDisplayIndex(displayIndex);
@@ -4487,8 +6528,30 @@ std::wstring Grid::BuildSelectionTsv() const
                 text.push_back(L'\t');
             }
             GridCellData cellData{};
-            _model->GetCellData(rowIndex.value(), columnIndex, cellData);
-            text.append(BuildGridCellCopyText(cellData));
+            model->GetCellData(rowIndex, columnIndex, cellData);
+            if (! guard.IsCurrent())
+            {
+                return {};
+            }
+            const std::wstring field = BuildGridCellCopyText(cellData);
+            const bool quote         = field.find_first_of(L"\"\t\r\n\v\f\x85\u2028\u2029") != std::wstring::npos;
+            if (quote)
+            {
+                text.push_back(L'"');
+                for (const wchar_t codeUnit : field)
+                {
+                    text.push_back(codeUnit);
+                    if (codeUnit == L'"')
+                    {
+                        text.push_back(L'"');
+                    }
+                }
+                text.push_back(L'"');
+            }
+            else
+            {
+                text.append(field);
+            }
         }
         appendedRow = true;
     }
@@ -4497,12 +6560,20 @@ std::wstring Grid::BuildSelectionTsv() const
 
 std::optional<size_t> Grid::FindNearestVisibleRow(std::span<const GridGroupDesc> groups, size_t preferredRowIndex) const noexcept
 {
-    if (! _model || _model->GetRowCount() == 0u)
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    IGridModel* const model           = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    if (! model)
     {
         return std::nullopt;
     }
 
-    const std::vector<size_t> visibleRows = CollectVisibleRowIndices(_model->GetRowCount(), groups);
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent() || rowCount == 0u)
+    {
+        return std::nullopt;
+    }
+    const std::vector<size_t> visibleRows = CollectVisibleRowIndices(rowCount, groups);
     if (visibleRows.empty())
     {
         return std::nullopt;
@@ -4521,25 +6592,81 @@ std::optional<size_t> Grid::FindNearestVisibleRow(std::span<const GridGroupDesc>
 
 void Grid::ReconcileSelectionForVisibleRows(std::span<const GridGroupDesc> groups)
 {
-    if (! _model)
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    IGridModel* const model           = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    if (! model)
     {
         _selectionModel.Clear();
+        _currentRowId.reset();
+        _focusedRowIndex.reset();
         return;
     }
-
-    std::optional<size_t> preferredRowIndex;
-    if (_selectionModel.GetCount() > 0u)
+    const bool hadSelection = _selectionModel.GetCount() > 0u;
+    std::optional<size_t> focusedRowIndex;
+    if (_currentRowId)
     {
-        preferredRowIndex = _model->FindRowByStableId(_selectionModel.GetOrderedSelection().back());
-    }
-
-    const std::vector<uint64_t> visibleRowIds = CollectVisibleOrderedRowIds(_model, groups);
-    _selectionModel.PreserveOrdered(visibleRowIds);
-    if (_selectionModel.GetCount() == 0u && preferredRowIndex && ! visibleRowIds.empty())
-    {
-        if (const auto fallbackRowIndex = FindNearestVisibleRow(groups, preferredRowIndex.value()))
+        focusedRowIndex = model->FindRowByStableId(*_currentRowId);
+        if (! guard.IsCurrent())
         {
-            _selectionModel.SetSingle(_model->GetStableRowId(fallbackRowIndex.value()));
+            return;
+        }
+    }
+    const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+    const std::optional<size_t> selectedRowIndex = previousSelection.empty() ? std::nullopt : model->FindRowByStableId(previousSelection.back());
+    if (! guard.IsCurrent())
+    {
+        return;
+    }
+    const size_t preferredRowIndex = focusedRowIndex.value_or(_focusedRowIndex.value_or(selectedRowIndex.value_or(0u)));
+
+    const std::vector<uint64_t> visibleRowIds = CollectVisibleOrderedRowIds(model, groups, &guard);
+    if (! guard.IsCurrent())
+    {
+        return;
+    }
+    _selectionModel.PreserveOrdered(visibleRowIds);
+
+    if (focusedRowIndex && IsRowVisibleByGroupLayout(*focusedRowIndex, groups))
+    {
+        _focusedRowIndex = focusedRowIndex;
+    }
+    else if (_currentRowId || _focusedRowIndex)
+    {
+        _currentRowId.reset();
+        _focusedRowIndex.reset();
+        const auto replacementFocus = FindNearestVisibleRow(groups, preferredRowIndex);
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        if (replacementFocus)
+        {
+            _currentRowId = model->GetStableRowId(*replacementFocus);
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+            _focusedRowIndex = *replacementFocus;
+        }
+    }
+    if (_selectionModel.GetCount() == 0u && hadSelection && ! visibleRowIds.empty())
+    {
+        const auto fallbackRowIndex = FindNearestVisibleRow(groups, preferredRowIndex);
+        if (! guard.IsCurrent())
+        {
+            return;
+        }
+        if (fallbackRowIndex)
+        {
+            const uint64_t replacementId = model->GetStableRowId(*fallbackRowIndex);
+            if (! guard.IsCurrent())
+            {
+                return;
+            }
+            _selectionModel.SetSingle(replacementId);
+            _currentRowId    = replacementId;
+            _focusedRowIndex = *fallbackRowIndex;
         }
     }
 }
@@ -4585,7 +6712,14 @@ float Grid::GetRowTopDip(std::span<const GridGroupDesc> groups, size_t rowIndex)
 
 float Grid::GetBodyContentHeight(std::span<const GridGroupDesc> groups) const noexcept
 {
-    if (! _model)
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
+    if (! model)
+    {
+        return 0.0f;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent())
     {
         return 0.0f;
     }
@@ -4599,35 +6733,72 @@ float Grid::GetBodyContentHeight(std::span<const GridGroupDesc> groups) const no
         }
     }
 
-    return (static_cast<float>(_model->GetRowCount() - collapsedRowCount) * _rowHeightDip) + (static_cast<float>(groups.size()) * _groupHeaderHeightDip);
+    return (static_cast<float>(rowCount - collapsedRowCount) * _rowHeightDip) + (static_cast<float>(groups.size()) * _groupHeaderHeightDip);
 }
 
 float Grid::NormalizeVerticalScrollOffset(float offsetDip) const noexcept
 {
-    return NormalizeVerticalScrollOffset(offsetDip, CollectOrderedGroups(_model));
+    try
+    {
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        const IGridModel* const model     = _model;
+        const GridModelQueryGuard guard(*this, lifetime, model);
+        if (! model)
+        {
+            return 0.0f;
+        }
+        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        if (! guard.IsCurrent())
+        {
+            return 0.0f;
+        }
+        return NormalizeVerticalScrollOffset(offsetDip, groups);
+    }
+    catch (const std::bad_alloc&)
+    {
+        return 0.0f;
+    }
+    catch (const std::exception&)
+    {
+        return 0.0f;
+    }
 }
 
 float Grid::GetRawVerticalScrollableExtent(std::span<const GridGroupDesc> groups) const noexcept
 {
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (! _model)
     {
         return 0.0f;
     }
 
     const float bodyContentHeightDip = SanitizeNonNegative(GetBodyContentHeight(groups));
-    const D2D1_RECT_F contentRect    = NormalizeFiniteRect(GetContentRect());
-    const float viewportHeightDip    = std::max(0.0f, contentRect.bottom - contentRect.top);
+    if (! guard.IsCurrent())
+    {
+        return 0.0f;
+    }
+    const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
+    if (! guard.IsCurrent())
+    {
+        return 0.0f;
+    }
+    const float viewportHeightDip = std::max(0.0f, contentRect.bottom - contentRect.top);
     return std::max(0.0f, bodyContentHeightDip - viewportHeightDip);
 }
 
 float Grid::AlignVerticalScrollExtentToVisibleItemBoundary(float rawExtentDip, std::span<const GridGroupDesc> groups) const noexcept
 {
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (! _model || rawExtentDip <= 0.0f)
     {
         return 0.0f;
     }
 
-    const size_t rowCount   = _model->GetRowCount();
+    const size_t rowCount = _model->GetRowCount();
+    if (! guard.IsCurrent())
+    {
+        return 0.0f;
+    }
     float sectionTopDip     = 0.0f;
     size_t nextUngroupedRow = 0u;
     std::optional<float> nextBoundaryDip;
@@ -4765,13 +6936,26 @@ float Grid::NormalizeVerticalScrollOffset(float offsetDip, std::span<const GridG
 
 std::vector<Grid::VisibleBodyItem> Grid::BuildVisibleBodyItems(std::span<const GridGroupDesc> groups) const
 {
-    return BuildVisibleBodyItems(groups, GetContentRect(groups));
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const D2D1_RECT_F bodyRect = GetContentRect(groups);
+    if (! guard.IsCurrent())
+    {
+        return {};
+    }
+    return BuildVisibleBodyItems(groups, bodyRect);
 }
 
 std::vector<Grid::VisibleBodyItem> Grid::BuildVisibleBodyItems(std::span<const GridGroupDesc> groups, const D2D1_RECT_F& bodyRect) const
 {
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const IGridModel* const model = _model;
     std::vector<VisibleBodyItem> visibleItems;
-    if (! _model || _model->GetRowCount() == 0u)
+    if (! model)
+    {
+        return visibleItems;
+    }
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent() || rowCount == 0u)
     {
         return visibleItems;
     }
@@ -4784,7 +6968,6 @@ std::vector<Grid::VisibleBodyItem> Grid::BuildVisibleBodyItems(std::span<const G
 
     const float viewportTopDip    = _verticalScrollDip;
     const float viewportBottomDip = viewportTopDip + viewportHeightDip;
-    const size_t rowCount         = _model->GetRowCount();
     const float rowHeightDip      = std::max(_rowHeightDip, 1.0f);
     const size_t visibleRowHint   = static_cast<size_t>(std::ceil(viewportHeightDip / rowHeightDip)) + 2u;
     visibleItems.reserve(std::min(rowCount, visibleRowHint) + std::min(groups.size(), visibleRowHint));
@@ -4854,101 +7037,216 @@ std::vector<Grid::VisibleBodyItem> Grid::BuildVisibleBodyItems(std::span<const G
 
 float Grid::GetVerticalScrollableExtent() const
 {
-    return GetVerticalScrollableExtent(CollectOrderedGroups(_model));
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model, &guard);
+    if (! guard.IsCurrent())
+    {
+        return 0.0f;
+    }
+    return GetVerticalScrollableExtent(groups);
 }
 
 float Grid::GetVerticalScrollableExtent(std::span<const GridGroupDesc> groups) const
 {
-    return AlignVerticalScrollExtentToVisibleItemBoundary(GetRawVerticalScrollableExtent(groups), groups);
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const float rawExtent = GetRawVerticalScrollableExtent(groups);
+    if (! guard.IsCurrent())
+    {
+        return 0.0f;
+    }
+    const float alignedExtent = AlignVerticalScrollExtentToVisibleItemBoundary(rawExtent, groups);
+    return guard.IsCurrent() ? alignedExtent : 0.0f;
 }
 
 float Grid::GetHorizontalScrollableExtent() const noexcept
 {
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (! _model)
     {
         return 0.0f;
     }
     EnsureColumnWidths();
+    if (! guard.IsCurrent())
+    {
+        return 0.0f;
+    }
     float totalWidth = 0.0f;
     for (const float width : _columnWidths)
     {
         totalWidth += SanitizeNonNegative(width);
     }
     const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
-    const float viewportWidthDip  = std::max(0.0f, contentRect.right - contentRect.left);
+    if (! guard.IsCurrent())
+    {
+        return 0.0f;
+    }
+    const float viewportWidthDip = std::max(0.0f, contentRect.right - contentRect.left);
     return std::max(0.0f, totalWidth - viewportWidthDip);
 }
 
 D2D1_RECT_F Grid::GetContentRect() const noexcept
 {
-    if (! _model)
+    try
     {
-        return GetContentRect(std::span<const GridGroupDesc>{});
-    }
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        const IGridModel* const model     = _model;
+        const GridModelQueryGuard guard(*this, lifetime, model);
+        if (! model)
+        {
+            return GetContentRect(std::span<const GridGroupDesc>{});
+        }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model);
-    return GetContentRect(groups);
+        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        if (! guard.IsCurrent())
+        {
+            return D2D1_RECT_F{};
+        }
+        return GetContentRect(groups);
+    }
+    catch (const std::bad_alloc&)
+    {
+        // Geometry is unavailable when group snapshots cannot be allocated.
+        return D2D1_RECT_F{};
+    }
+    catch (const std::exception&)
+    {
+        // A failing borrowed-model group query produces empty geometry at this noexcept boundary.
+        return D2D1_RECT_F{};
+    }
 }
 
 D2D1_RECT_F Grid::GetContentRect(std::span<const GridGroupDesc> groups) const noexcept
 {
-    const D2D1_RECT_F bounds    = NormalizeFiniteRect(GetBounds());
-    const float headerHeightDip = (std::isfinite(_headerHeightDip) && _headerHeightDip > 0.0f) ? _headerHeightDip : 0.0f;
-
-    if (! _model)
+    try
     {
-        return NormalizeFiniteRect(D2D1::RectF(bounds.left, bounds.top + headerHeightDip, bounds.right, bounds.bottom));
-    }
+        const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+        const D2D1_RECT_F bounds    = NormalizeFiniteRect(GetBounds());
+        const float headerHeightDip = (std::isfinite(_headerHeightDip) && _headerHeightDip > 0.0f) ? _headerHeightDip : 0.0f;
 
-    EnsureColumnWidths();
-    float totalWidth = 0.0f;
-    for (const float width : _columnWidths)
-    {
-        totalWidth += SanitizeNonNegative(width);
-    }
-
-    const float bodyContentHeightDip = SanitizeNonNegative(GetBodyContentHeight(groups));
-    bool needVScroll                 = false;
-    bool needHScroll                 = false;
-    for (size_t iteration = 0u; iteration < 3u; ++iteration)
-    {
-        const float viewportWidthDip  = std::max(0.0f, (bounds.right - bounds.left) - (needVScroll ? kScrollbarThicknessDip : 0.0f));
-        const float viewportHeightDip = std::max(0.0f, (bounds.bottom - bounds.top - headerHeightDip) - (needHScroll ? kScrollbarThicknessDip : 0.0f));
-        const bool nextNeedVScroll    = bodyContentHeightDip > viewportHeightDip;
-        const bool nextNeedHScroll    = totalWidth > viewportWidthDip;
-        if (nextNeedVScroll == needVScroll && nextNeedHScroll == needHScroll)
+        if (! _model)
         {
-            break;
+            return NormalizeFiniteRect(D2D1::RectF(bounds.left, bounds.top + headerHeightDip, bounds.right, bounds.bottom));
         }
-        needVScroll = nextNeedVScroll;
-        needHScroll = nextNeedHScroll;
-    }
 
-    return NormalizeFiniteRect(D2D1::RectF(bounds.left,
-                                           bounds.top + headerHeightDip,
-                                           bounds.right - (needVScroll ? kScrollbarThicknessDip : 0.0f),
-                                           bounds.bottom - (needHScroll ? kScrollbarThicknessDip : 0.0f)));
+        EnsureColumnWidths();
+        if (! guard.IsCurrent())
+        {
+            return D2D1_RECT_F{};
+        }
+        float totalWidth = 0.0f;
+        for (const float width : _columnWidths)
+        {
+            totalWidth += SanitizeNonNegative(width);
+        }
+
+        const float bodyContentHeightDip = SanitizeNonNegative(GetBodyContentHeight(groups));
+        if (! guard.IsCurrent())
+        {
+            return D2D1_RECT_F{};
+        }
+        bool needVScroll = false;
+        bool needHScroll = false;
+        for (size_t iteration = 0u; iteration < 3u; ++iteration)
+        {
+            const float viewportWidthDip  = std::max(0.0f, (bounds.right - bounds.left) - (needVScroll ? kScrollbarThicknessDip : 0.0f));
+            const float viewportHeightDip = std::max(0.0f, (bounds.bottom - bounds.top - headerHeightDip) - (needHScroll ? kScrollbarThicknessDip : 0.0f));
+            const bool nextNeedVScroll    = bodyContentHeightDip > viewportHeightDip;
+            const bool nextNeedHScroll    = totalWidth > viewportWidthDip;
+            if (nextNeedVScroll == needVScroll && nextNeedHScroll == needHScroll)
+            {
+                break;
+            }
+            needVScroll = nextNeedVScroll;
+            needHScroll = nextNeedHScroll;
+        }
+
+        const float contentLeft  = bounds.left + (IsRightToLeft() && needVScroll ? kScrollbarThicknessDip : 0.0f);
+        const float contentRight = bounds.right - (! IsRightToLeft() && needVScroll ? kScrollbarThicknessDip : 0.0f);
+        return NormalizeFiniteRect(
+            D2D1::RectF(contentLeft, bounds.top + headerHeightDip, contentRight, bounds.bottom - (needHScroll ? kScrollbarThicknessDip : 0.0f)));
+    }
+    catch (const std::bad_alloc&)
+    {
+        return D2D1_RECT_F{};
+    }
+    catch (const std::exception&)
+    {
+        return D2D1_RECT_F{};
+    }
 }
 
 D2D1_RECT_F Grid::GetVerticalScrollbarRect() const noexcept
 {
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const D2D1_RECT_F content = NormalizeFiniteRect(GetContentRect());
-    const D2D1_RECT_F bounds  = NormalizeFiniteRect(GetBounds());
-    return NormalizeFiniteRect(D2D1::RectF(content.right, content.top, bounds.right, content.bottom));
+    if (! guard.IsCurrent())
+    {
+        return D2D1_RECT_F{};
+    }
+    const D2D1_RECT_F bounds = NormalizeFiniteRect(GetBounds());
+    return IsRightToLeft() ? NormalizeFiniteRect(D2D1::RectF(bounds.left, content.top, content.left, content.bottom))
+                           : NormalizeFiniteRect(D2D1::RectF(content.right, content.top, bounds.right, content.bottom));
 }
 
 D2D1_RECT_F Grid::GetHorizontalScrollbarRect() const noexcept
 {
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const D2D1_RECT_F content = NormalizeFiniteRect(GetContentRect());
-    const D2D1_RECT_F bounds  = NormalizeFiniteRect(GetBounds());
+    if (! guard.IsCurrent())
+    {
+        return D2D1_RECT_F{};
+    }
+    const D2D1_RECT_F bounds = NormalizeFiniteRect(GetBounds());
     return NormalizeFiniteRect(D2D1::RectF(content.left, content.bottom, content.right, bounds.bottom));
 }
 
 Grid::VisibleColumnSpan Grid::ComputeVisibleColumnSpan(float clipRightDip) const noexcept
 {
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     VisibleColumnSpan span{};
     if (_columnDisplayOrder.empty() || clipRightDip <= GetBounds().left)
     {
+        return span;
+    }
+
+    if (IsRightToLeft())
+    {
+        const D2D1_RECT_F body = GetContentRect();
+        if (! guard.IsCurrent())
+        {
+            return {};
+        }
+        bool foundVisible = false;
+        for (size_t displayIndex = 0u; displayIndex < _columnDisplayOrder.size(); ++displayIndex)
+        {
+            const size_t columnIndex = GetModelColumnIndexForDisplayIndex(displayIndex);
+            const float left         = GetColumnLeftDip(columnIndex);
+            if (! guard.IsCurrent())
+            {
+                return {};
+            }
+            const float right = left + _columnWidths[columnIndex];
+            if (right <= body.left || left >= clipRightDip)
+            {
+                continue;
+            }
+            if (! foundVisible)
+            {
+                span.beginIndex = displayIndex;
+                span.endIndex   = displayIndex + 1u;
+                foundVisible    = true;
+            }
+            else
+            {
+                span.beginIndex = (std::min)(span.beginIndex, displayIndex);
+                span.endIndex   = (std::max)(span.endIndex, displayIndex + 1u);
+            }
+        }
+        span.beginXDip = foundVisible ? GetColumnLeftDip(GetModelColumnIndexForDisplayIndex(span.beginIndex)) : body.right;
+        if (! guard.IsCurrent())
+        {
+            return {};
+        }
         return span;
     }
 
@@ -4992,69 +7290,167 @@ Grid::VisibleColumnSpan Grid::ComputeVisibleColumnSpan(float clipRightDip) const
 
 D2D1_RECT_F Grid::GetVerticalThumbRect() const noexcept
 {
-    const D2D1_RECT_F track = NormalizeFiniteRect(GetVerticalScrollbarRect());
-    const float extent      = SanitizeNonNegative(GetVerticalScrollableExtent());
-    if (extent <= 0.0f)
+    try
     {
-        return D2D1::RectF();
-    }
+        const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+        const D2D1_RECT_F track = NormalizeFiniteRect(GetVerticalScrollbarRect());
+        if (! guard.IsCurrent())
+        {
+            return D2D1_RECT_F{};
+        }
+        const float extent = SanitizeNonNegative(GetVerticalScrollableExtent());
+        if (! guard.IsCurrent() || extent <= 0.0f)
+        {
+            return D2D1::RectF();
+        }
 
-    const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
-    const float viewportDip       = std::max(1.0f, contentRect.bottom - contentRect.top);
-    return ComputeScrollbarThumbRect(track, ScrollbarOrientation::Vertical, viewportDip, viewportDip + extent, _verticalScrollDip, extent);
+        const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
+        if (! guard.IsCurrent())
+        {
+            return D2D1_RECT_F{};
+        }
+        const float viewportDip = std::max(1.0f, contentRect.bottom - contentRect.top);
+        return ComputeScrollbarThumbRect(track, ScrollbarOrientation::Vertical, viewportDip, viewportDip + extent, _verticalScrollDip, extent);
+    }
+    catch (const std::bad_alloc&)
+    {
+        return D2D1_RECT_F{};
+    }
+    catch (const std::exception&)
+    {
+        return D2D1_RECT_F{};
+    }
 }
 
 D2D1_RECT_F Grid::GetHorizontalThumbRect() const noexcept
 {
-    const D2D1_RECT_F track = NormalizeFiniteRect(GetHorizontalScrollbarRect());
-    const float extent      = SanitizeNonNegative(GetHorizontalScrollableExtent());
-    if (extent <= 0.0f)
+    try
     {
-        return D2D1::RectF();
-    }
+        const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+        const D2D1_RECT_F track = NormalizeFiniteRect(GetHorizontalScrollbarRect());
+        if (! guard.IsCurrent())
+        {
+            return D2D1_RECT_F{};
+        }
+        const float extent = SanitizeNonNegative(GetHorizontalScrollableExtent());
+        if (! guard.IsCurrent() || extent <= 0.0f)
+        {
+            return D2D1::RectF();
+        }
 
-    const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
-    const float viewportDip       = std::max(1.0f, contentRect.right - contentRect.left);
-    return ComputeScrollbarThumbRect(track, ScrollbarOrientation::Horizontal, viewportDip, viewportDip + extent, _horizontalScrollDip, extent);
+        const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
+        if (! guard.IsCurrent())
+        {
+            return D2D1_RECT_F{};
+        }
+        const float viewportDip = std::max(1.0f, contentRect.right - contentRect.left);
+        const float thumbValue  = IsRightToLeft() ? extent - _horizontalScrollDip : _horizontalScrollDip;
+        return ComputeScrollbarThumbRect(track, ScrollbarOrientation::Horizontal, viewportDip, viewportDip + extent, thumbValue, extent);
+    }
+    catch (const std::bad_alloc&)
+    {
+        return D2D1_RECT_F{};
+    }
+    catch (const std::exception&)
+    {
+        return D2D1_RECT_F{};
+    }
 }
 
 D2D1_RECT_F Grid::GetVerticalThumbHitRect() const noexcept
 {
-    const D2D1_RECT_F track = NormalizeFiniteRect(GetVerticalScrollbarRect());
-    const float extent      = SanitizeNonNegative(GetVerticalScrollableExtent());
-    if (extent <= 0.0f)
+    try
     {
-        return D2D1::RectF();
-    }
+        const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+        const D2D1_RECT_F track = NormalizeFiniteRect(GetVerticalScrollbarRect());
+        if (! guard.IsCurrent())
+        {
+            return D2D1_RECT_F{};
+        }
+        const float extent = SanitizeNonNegative(GetVerticalScrollableExtent());
+        if (! guard.IsCurrent() || extent <= 0.0f)
+        {
+            return D2D1::RectF();
+        }
 
-    const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
-    const float viewportDip       = std::max(1.0f, contentRect.bottom - contentRect.top);
-    return ComputeScrollbarThumbHitRect(track, ScrollbarOrientation::Vertical, viewportDip, viewportDip + extent, _verticalScrollDip, extent);
+        const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
+        if (! guard.IsCurrent())
+        {
+            return D2D1_RECT_F{};
+        }
+        const float viewportDip = std::max(1.0f, contentRect.bottom - contentRect.top);
+        return ComputeScrollbarThumbHitRect(track, ScrollbarOrientation::Vertical, viewportDip, viewportDip + extent, _verticalScrollDip, extent);
+    }
+    catch (const std::bad_alloc&)
+    {
+        return D2D1_RECT_F{};
+    }
+    catch (const std::exception&)
+    {
+        return D2D1_RECT_F{};
+    }
 }
 
 D2D1_RECT_F Grid::GetHorizontalThumbHitRect() const noexcept
 {
-    const D2D1_RECT_F track = NormalizeFiniteRect(GetHorizontalScrollbarRect());
-    const float extent      = SanitizeNonNegative(GetHorizontalScrollableExtent());
-    if (extent <= 0.0f)
+    try
     {
-        return D2D1::RectF();
-    }
+        const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+        const D2D1_RECT_F track = NormalizeFiniteRect(GetHorizontalScrollbarRect());
+        if (! guard.IsCurrent())
+        {
+            return D2D1_RECT_F{};
+        }
+        const float extent = SanitizeNonNegative(GetHorizontalScrollableExtent());
+        if (! guard.IsCurrent() || extent <= 0.0f)
+        {
+            return D2D1::RectF();
+        }
 
-    const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
-    const float viewportDip       = std::max(1.0f, contentRect.right - contentRect.left);
-    return ComputeScrollbarThumbHitRect(track, ScrollbarOrientation::Horizontal, viewportDip, viewportDip + extent, _horizontalScrollDip, extent);
+        const D2D1_RECT_F contentRect = NormalizeFiniteRect(GetContentRect());
+        if (! guard.IsCurrent())
+        {
+            return D2D1_RECT_F{};
+        }
+        const float viewportDip = std::max(1.0f, contentRect.right - contentRect.left);
+        const float thumbValue  = IsRightToLeft() ? extent - _horizontalScrollDip : _horizontalScrollDip;
+        return ComputeScrollbarThumbHitRect(track, ScrollbarOrientation::Horizontal, viewportDip, viewportDip + extent, thumbValue, extent);
+    }
+    catch (const std::bad_alloc&)
+    {
+        return D2D1_RECT_F{};
+    }
+    catch (const std::exception&)
+    {
+        return D2D1_RECT_F{};
+    }
 }
 
 float Grid::GetColumnLeftDip(size_t columnIndex) const noexcept
 {
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     if (columnIndex >= _columnDisplayIndexByModel.size())
     {
         return GetBounds().left - _horizontalScrollDip;
     }
 
-    float left                = GetBounds().left - _horizontalScrollDip;
     const size_t displayIndex = _columnDisplayIndexByModel[columnIndex];
+    if (IsRightToLeft())
+    {
+        const D2D1_RECT_F contentRect = GetContentRect();
+        if (! guard.IsCurrent())
+        {
+            return 0.0f;
+        }
+        float right = contentRect.right + _horizontalScrollDip;
+        for (size_t currentDisplayIndex = 0u; currentDisplayIndex <= displayIndex && currentDisplayIndex < _columnDisplayOrder.size(); ++currentDisplayIndex)
+        {
+            right -= _columnWidths[_columnDisplayOrder[currentDisplayIndex]];
+        }
+        return right;
+    }
+
+    float left = GetBounds().left - _horizontalScrollDip;
     for (size_t currentDisplayIndex = 0; currentDisplayIndex < displayIndex && currentDisplayIndex < _columnDisplayOrder.size(); ++currentDisplayIndex)
     {
         left += _columnWidths[_columnDisplayOrder[currentDisplayIndex]];
@@ -5071,6 +7467,22 @@ size_t Grid::ResolveHeaderReorderTargetDisplayIndex(float xDip) const noexcept
 {
     if (_columnDisplayOrder.empty())
     {
+        return 0u;
+    }
+
+    if (IsRightToLeft())
+    {
+        for (size_t reverseIndex = _columnDisplayOrder.size(); reverseIndex > 0u; --reverseIndex)
+        {
+            const size_t displayIndex = reverseIndex - 1u;
+            const size_t columnIndex  = GetModelColumnIndexForDisplayIndex(displayIndex);
+            const float left          = GetColumnLeftDip(columnIndex);
+            const float midpoint      = left + (_columnWidths[columnIndex] * 0.5f);
+            if (xDip < midpoint)
+            {
+                return displayIndex + 1u;
+            }
+        }
         return 0u;
     }
 
@@ -5158,19 +7570,31 @@ VisibleSpan ComputeVisibleSpan(uint64_t totalItems, float itemExtentDip, float s
 
 std::optional<size_t> Grid::ResolveCheckboxToggleColumn(size_t rowIndex) const
 {
-    if (! _model || rowIndex >= _model->GetRowCount())
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    size_t rowCount = 0u;
+    if (! model || ! TryControlCallback([&] { rowCount = model->GetRowCount(); }) || ! guard.IsCurrent() || rowIndex >= rowCount)
     {
         return std::nullopt;
     }
 
     auto tryColumn = [&](size_t columnIndex) -> bool
     {
-        if (columnIndex >= _model->GetColumnCount())
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        size_t columnCount = 0u;
+        if (! TryControlCallback([&] { columnCount = model->GetColumnCount(); }) || ! guard.IsCurrent() || columnIndex >= columnCount)
         {
             return false;
         }
         GridCellData cellData{};
-        _model->GetCellData(rowIndex, columnIndex, cellData);
+        if (! TryControlCallback([&] { model->GetCellData(rowIndex, columnIndex, cellData); }) || ! guard.IsCurrent())
+        {
+            return false;
+        }
         return cellData.kind == GridCellKind::Checkbox;
     };
 
@@ -5178,12 +7602,25 @@ std::optional<size_t> Grid::ResolveCheckboxToggleColumn(size_t rowIndex) const
     {
         return _activeColumn;
     }
+    if (! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
 
-    for (size_t columnIndex = 0; columnIndex < _model->GetColumnCount(); ++columnIndex)
+    size_t columnCount = 0u;
+    if (! TryControlCallback([&] { columnCount = model->GetColumnCount(); }) || ! guard.IsCurrent())
+    {
+        return std::nullopt;
+    }
+    for (size_t columnIndex = 0; columnIndex < columnCount; ++columnIndex)
     {
         if (tryColumn(columnIndex))
         {
             return columnIndex;
+        }
+        if (! guard.IsCurrent())
+        {
+            return std::nullopt;
         }
     }
 
@@ -5192,13 +7629,22 @@ std::optional<size_t> Grid::ResolveCheckboxToggleColumn(size_t rowIndex) const
 
 bool Grid::ToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnIndex)
 {
-    if (! _model || rowIndex >= _model->GetRowCount() || columnIndex >= _model->GetColumnCount())
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const IGridModel* const model     = _model;
+    const GridModelQueryGuard guard(*this, lifetime, model);
+    size_t rowCount    = 0u;
+    size_t columnCount = 0u;
+    if (! model || ! TryControlCallback([&] { rowCount = model->GetRowCount(); }) || ! guard.IsCurrent() || rowIndex >= rowCount ||
+        ! TryControlCallback([&] { columnCount = model->GetColumnCount(); }) || ! guard.IsCurrent() || columnIndex >= columnCount)
     {
         return false;
     }
 
     GridCellData cellData{};
-    _model->GetCellData(rowIndex, columnIndex, cellData);
+    if (! TryControlCallback([&] { model->GetCellData(rowIndex, columnIndex, cellData); }) || ! guard.IsCurrent())
+    {
+        return false;
+    }
     if (cellData.kind != GridCellKind::Checkbox || ! cellData.enabled)
     {
         return false;
@@ -5207,17 +7653,30 @@ bool Grid::ToggleCheckboxCell(ControlHost& host, size_t rowIndex, size_t columnI
     _activeColumn = columnIndex;
     if (_delegate)
     {
-        _delegate->OnGridCheckboxToggled(*this, rowIndex, columnIndex, ! cellData.checked);
+        if (! TryControlCallback([&] { _delegate->OnGridCheckboxToggled(*this, rowIndex, columnIndex, ! cellData.checked); }))
+        {
+            return false;
+        }
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
         // A model change that moved the selection runs the selection's delegate, which may rebuild the controls and destroy
         // this grid, and so may UI Automation event delivery while it publishes.
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
         NotifyDataChanged();
-        if (lifetime.expired())
+        if (! guard.IsCurrent())
+        {
+            return true;
+        }
+        if (_model != model)
         {
             return true;
         }
     }
-    Invalidate(host);
+    if (guard.IsCurrent())
+    {
+        Invalidate(host);
+    }
     return true;
 }
 

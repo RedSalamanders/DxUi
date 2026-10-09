@@ -14,6 +14,9 @@ after regenerating the gallery natively; run it locally with -NoPush to see what
 param([string] $Root = (Split-Path $PSScriptRoot -Parent), [switch] $NoPush)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$branch = & git -C $Root symbolic-ref --quiet --short HEAD
+if ($LASTEXITCODE -ne 0 -or -not $branch) { throw 'Gallery publication requires a named branch.' }
+if ($branch -ceq 'main') { throw 'Gallery publication must use a review branch, not main.' }
 # A hosted run commits as the Actions bot; anywhere else the developer's own identity is used, and no configuration changes.
 $identity = if ($env:GITHUB_ACTIONS -eq 'true') { @('-c', 'user.name=github-actions[bot]', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com') } else { @() }
 & git -C $Root add -- docs/gallery

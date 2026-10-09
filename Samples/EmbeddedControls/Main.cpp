@@ -152,21 +152,40 @@ struct App
                 case WM_LBUTTONDOWN:
                     SetFocus(hwnd);
                     SetCapture(hwnd);
-                    app->View().DispatchPointer({DxUi::PointerAction::Down, float(GET_X_LPARAM(lp)), float(GET_Y_LPARAM(lp)), UINT(wp)});
+                    app->View().DispatchPointer({DxUi::PointerAction::Down,
+                                                 float(GET_X_LPARAM(lp)),
+                                                 float(GET_Y_LPARAM(lp)),
+                                                 UINT(wp),
+                                                 0.0f,
+                                                 DxUi::PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())});
                     return 0;
                 case WM_MOUSEMOVE:
-                    app->View().DispatchPointer({DxUi::PointerAction::Move, float(GET_X_LPARAM(lp)), float(GET_Y_LPARAM(lp)), UINT(wp)});
+                    app->View().DispatchPointer({DxUi::PointerAction::Move,
+                                                 float(GET_X_LPARAM(lp)),
+                                                 float(GET_Y_LPARAM(lp)),
+                                                 UINT(wp),
+                                                 0.0f,
+                                                 DxUi::PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())});
                     return 0;
                 case WM_MOUSEWHEEL:
                 {
                     POINT point{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
                     if (ScreenToClient(hwnd, &point))
-                        app->View().DispatchPointer(
-                            {DxUi::PointerAction::Wheel, float(point.x), float(point.y), GET_KEYSTATE_WPARAM(wp), float(GET_WHEEL_DELTA_WPARAM(wp))});
+                        app->View().DispatchPointer({DxUi::PointerAction::Wheel,
+                                                     float(point.x),
+                                                     float(point.y),
+                                                     GET_KEYSTATE_WPARAM(wp),
+                                                     float(GET_WHEEL_DELTA_WPARAM(wp)),
+                                                     DxUi::PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())});
                     return 0;
                 }
                 case WM_LBUTTONUP:
-                    app->View().DispatchPointer({DxUi::PointerAction::Up, float(GET_X_LPARAM(lp)), float(GET_Y_LPARAM(lp)), UINT(wp)});
+                    app->View().DispatchPointer({DxUi::PointerAction::Up,
+                                                 float(GET_X_LPARAM(lp)),
+                                                 float(GET_Y_LPARAM(lp)),
+                                                 UINT(wp),
+                                                 0.0f,
+                                                 DxUi::PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())});
                     if (GetCapture() == hwnd)
                         ReleaseCapture();
                     return 0;

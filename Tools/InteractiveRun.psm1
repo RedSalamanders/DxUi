@@ -83,6 +83,14 @@ function Get-DxUiInteractiveRefusal {
     return $null
 }
 
+function Test-DxUiVerifiedGitHubHostedRunner {
+    [CmdletBinding()] param([hashtable] $Environment = $null)
+    $read = { param([string] $Name) if ($null -ne $Environment) { if ($Environment.ContainsKey($Name)) { [string]$Environment[$Name] } } else { [Environment]::GetEnvironmentVariable($Name) } }
+    # RUNNER_* variables are GitHub-provided, reserved values; GITHUB_ACTIONS alone can also be set by self-hosted runners.
+    return (& $read 'GITHUB_ACTIONS') -ceq 'true' -and (& $read 'CI') -ceq 'true' -and
+        (& $read 'RUNNER_ENVIRONMENT') -ceq 'github-hosted' -and (& $read 'RUNNER_OS') -ceq 'Windows'
+}
+
 function Get-DxUiInteractiveEstimateSeconds {
     # About how long a lease takes for these suites in this configuration, from the confirmation to the restoration.
     [CmdletBinding()] param([Parameter(Mandatory)][string[]] $Suites, [Parameter(Mandatory)][string] $Configuration)
@@ -227,5 +235,5 @@ function Invoke-DxUiInteractiveLease {
 }
 
 Export-ModuleMember -Function Get-DxUiInteractiveSuiteNames, Test-DxUiInteractiveSuite, Get-DxUiLeaseExitCodes, Resolve-DxUiInteractiveSuites,
-    Get-DxUiInteractiveRefusal, Get-DxUiInteractiveEstimateSeconds, ConvertTo-DxUiCommandLine, New-DxUiLeasePlanText, Read-DxUiLeaseResult,
+    Get-DxUiInteractiveRefusal, Test-DxUiVerifiedGitHubHostedRunner, Get-DxUiInteractiveEstimateSeconds, ConvertTo-DxUiCommandLine, New-DxUiLeasePlanText, Read-DxUiLeaseResult,
     Get-DxUiLeaseExitMeaning, Get-DxUiLeaseProblems, Test-DxUiDesktopAvailable, Invoke-DxUiInteractiveLease

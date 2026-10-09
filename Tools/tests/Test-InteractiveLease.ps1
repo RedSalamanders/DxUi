@@ -42,7 +42,7 @@ function Invoke-Bounded([string[]] $Arguments, [int] $BoundSeconds) {
     } finally { $process.Dispose() }
 }
 
-$onCi = [bool](Get-DxUiInteractiveRefusal -Environment @{ CI = $env:CI; GITHUB_ACTIONS = $env:GITHUB_ACTIONS } -UserInteractive $true -OnWindows $true)
+$verifiedHostedRunner = Test-DxUiVerifiedGitHubHostedRunner
 
 Invoke-TestCase 'the self-test passes: children, the session''s lease, the confirmation and the warning' {
     $run = Invoke-Bounded @('--self-test') 180
@@ -58,10 +58,8 @@ Invoke-TestCase 'the self-test passes: children, the session''s lease, the confi
     }
     $skipped = @($run.Output | Where-Object { $_ -like 'SKIPPED:*' })
     if ($skipped.Count) {
-        # A session that cannot make a private desktop (a hosted runner's) cannot show the dialog to anyone; a person's can, so a skip
-        # there is the dialog failing to open, which the lease must not ship with.
-        Assert-True $onCi "a private desktop could be made here, so the dialog and the warning were to be exercised: $($skipped -join ' | ')"
-        Write-Host "     skipped: $($skipped -join ' | ')"
+        Assert-True (-not $verifiedHostedRunner) "verified GitHub-hosted jobs must prove confirmation and warning behavior: $($skipped -join ' | ')"
+        throw "The lease self-test skipped confirmation/warning proofs: $($skipped -join ' | ')"
     } else {
         foreach ($proof in @(
             'the confirmation starts the run when Start is chosen', 'and does not when Cancel is chosen', 'nobody answering is a cancellation',

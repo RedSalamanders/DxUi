@@ -1,0 +1,6 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] ComboBox
+  [START] TestComboBoxSelectionCallbackRetainsMutableStateAcrossSelections
+  [DONE] TestComboBoxSelectionCallbackRetainsMutableStateAcrossSelections (0.002 s)
+[DONE] ComboBox (0.002 s)
+All DxUi tests passed.

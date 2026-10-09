@@ -1,0 +1,1 @@
+- Performance identity now hashes MSBuild's validated expanded project and all imported content/order under the same Configuration, Platform and output-root globals as the build. Baseline refresh separately verifies platform, toolchain, dependency and environment identities before overlay; only full identity remains eligible for benchmark receipts.

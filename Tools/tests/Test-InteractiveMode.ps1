@@ -42,10 +42,10 @@ function Get-FlatText([string] $Text) {
 }
 
 # Runs test.ps1 in a child process of its own under an environment that says CI, bounded, and reports how it ended.
-function Invoke-TestScript([string[]] $Arguments, [hashtable] $Environment) {
+function Invoke-TestScript([string[]] $Arguments, [hashtable] $Environment, [string] $Root) {
     $info = [Diagnostics.ProcessStartInfo]::new((Get-Process -Id $PID).Path)
-    foreach ($argument in @('-NoProfile', '-NonInteractive', '-File', $testScript) + $Arguments) { $info.ArgumentList.Add($argument) }
-    $info.WorkingDirectory = $repository
+    foreach ($argument in @('-NoProfile', '-NonInteractive', '-File', (Join-Path $Root 'test.ps1')) + $Arguments) { $info.ArgumentList.Add($argument) }
+    $info.WorkingDirectory = $Root
     $info.UseShellExecute = $false
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
@@ -71,10 +71,27 @@ function ConvertTo-OrdinalOrder([string[]] $Values) {
     return , $sorted
 }
 
-function Get-OutputFiles {
+function New-RefusalFixture([string] $Root) {
+    # The refused child needs the real entry point and its imports, but no build or test
+    # artifacts. An isolated output tree distinguishes its writes from the parent log
+    # and unrelated builds that legitimately continue during this check.
+    Set-FixtureFile $Root 'test.ps1' ([IO.File]::ReadAllText($testScript))
+    foreach ($module in @('SuiteFailure.psm1', 'InteractiveRun.psm1', 'ScopedTesting.psm1', 'CapabilitySkipPolicy.psm1')) {
+        Set-FixtureFile $Root "Tools/$module" ([IO.File]::ReadAllText((Join-Path $repository "Tools/$module")))
+    }
+    Set-FixtureFile $Root 'Tests/test-scopes.json' ([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')))
+    Set-FixtureFile $Root '.build/logs/existing.log' 'existing log'
+    Set-FixtureFile $Root '.build/reports/existing.json' '{}'
+}
+
+function Get-OutputFiles([string] $Root) {
     return , @(foreach ($directory in @('.build/logs', '.build/reports')) {
-        $path = Join-Path $repository $directory
-        if (Test-Path -LiteralPath $path) { Get-ChildItem -LiteralPath $path -File | ForEach-Object { "$($_.FullName)|$($_.LastWriteTimeUtc.Ticks)" } }
+        $path = Join-Path $Root $directory
+        if (Test-Path -LiteralPath $path) {
+            Get-ChildItem -LiteralPath $path -File -Recurse | ForEach-Object {
+                "$($_.FullName)|$($_.LastWriteTimeUtc.Ticks)|$($_.Length)|$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+            }
+        }
     })
 }
 
@@ -123,6 +140,16 @@ Invoke-TestCase 'a run refuses where there is no desktop to take, and says why' 
     Assert-Equal 'this process has no interactive window station: it runs as a service, a scheduled task or a remote shell' (Get-DxUiInteractiveRefusal -Environment $clean -UserInteractive $false -OnWindows $true) 'a service, a scheduled task or a remote shell is refused'
     Assert-Equal 'this is not Windows' (Get-DxUiInteractiveRefusal -Environment $clean -UserInteractive $true -OnWindows $false) 'another operating system is refused'
     Assert-Equal 'this is not Windows' (Get-DxUiInteractiveRefusal -Environment @{ CI = 'true' } -UserInteractive $false -OnWindows $false) 'the first reason that applies is the one given'
+}
+Invoke-TestCase 'only verified GitHub-hosted Windows jobs bypass the interactive desktop lease' {
+    $hosted = @{ GITHUB_ACTIONS='true'; CI='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' }
+    Assert-True (Test-DxUiVerifiedGitHubHostedRunner -Environment $hosted) 'complete hosted metadata qualifies'
+    foreach ($mutation in @(
+        @{ GITHUB_ACTIONS='true'; CI='true'; RUNNER_ENVIRONMENT='self-hosted'; RUNNER_OS='Windows' },
+        @{ GITHUB_ACTIONS='true'; CI='true'; RUNNER_ENVIRONMENT=''; RUNNER_OS='Windows' },
+        @{ GITHUB_ACTIONS='true'; CI=''; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Windows' },
+        @{ GITHUB_ACTIONS='true'; CI='true'; RUNNER_ENVIRONMENT='github-hosted'; RUNNER_OS='Linux' }
+    )) { Assert-True (-not (Test-DxUiVerifiedGitHubHostedRunner -Environment $mutation)) 'partial/self-hosted/non-Windows metadata never bypasses' }
 }
 Invoke-TestCase 'the estimate is the suites and the lease overhead, per configuration' {
     Assert-Equal 85 (Get-DxUiInteractiveEstimateSeconds -Suites @('Menu', 'NativeTextInput') -Configuration 'Debug') 'Debug: 20 + 45 + 20 seconds'
@@ -244,7 +271,7 @@ Invoke-TestCase 'a suite that needs real focus is never given --no-activate, and
     $fakeRoot = Join-Path ([IO.Path]::GetTempPath()) 'dxui-interactive-fake'
     $runOf = {
         param([string] $Suite, [bool] $Interactive, [string[]] $Tests, $TestTimeout)
-        $Platform = 'x64'; $Configuration = 'Debug'; $logs = Join-Path $fakeRoot 'logs'
+        $Platform = 'x64'; $Configuration = 'Debug'; $logs = Join-Path $fakeRoot 'logs'; $instrumentation = @()
         . ([scriptblock]::Create($function.Extent.Text.Replace('$PSScriptRoot', "'$fakeRoot'"))) # A dynamic scriptblock has no $PSScriptRoot.
         Get-SuiteRun $Suite
     }
@@ -266,28 +293,30 @@ Invoke-TestCase 'a suite that needs real focus is never given --no-activate, and
     Assert-True ($filtered.Arguments -contains '--test=TestA,TestB' -and $filtered.Arguments -contains '--test-timeout=7' -and $filtered.Log.EndsWith('.interactive.filtered.log') -and $filtered.Filtered) 'its filter and deadline reach the runner, and its log says both'
     Assert-True ((& $runOf 'Foundation' $true @('TestA') $null).Arguments.Count -eq 0) 'Foundation ignores a filter'
 }
-Invoke-TestCase 'test.ps1 -Interactive names a suite that does not need the desktop and stops before anything is built' {
-    $before = Get-OutputFiles
-    $run = Invoke-TestScript @('-Interactive', '-Suites', 'Grid') @{ CI = 'true' }
+Invoke-FixtureCase 'test.ps1 -Interactive names a suite that does not need the desktop and stops before anything is built' { param($fixture)
+    New-RefusalFixture $fixture
+    $before = Get-OutputFiles $fixture
+    $run = Invoke-TestScript @('-Interactive', '-Suites', 'Grid') @{ CI = 'true' } $fixture
     Assert-True $run.Exited 'the refusal ended the run'
     Assert-True ($run.Exit -ne 0) 'with a failing exit code'
     Assert-True ((Get-FlatText $run.Output).Contains('not interactive: Grid')) "naming the suite: $($run.Output)"
     Assert-True (-not $run.Output.Contains('Interactive run:') -and -not $run.Output.Contains('Running ')) 'and nothing ran'
-    Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles)) -join "`n") 'no log or receipt was written'
+    Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles $fixture)) -join "`n") 'no log or receipt was written'
 }
-Invoke-TestCase 'test.ps1 -Interactive refuses in a CI job before it builds or runs anything' {
+Invoke-FixtureCase 'test.ps1 -Interactive refuses in a CI job before it builds or runs anything' { param($fixture)
     # Whatever happens here must not reach the rest of test.ps1: it would run these tooling tests again and the lease's desktop with
     # them. So the refusal is proved in this process first, and the child's CI variable is set on its process, never inherited.
     Assert-True ($null -ne (Get-DxUiInteractiveRefusal -Environment @{ CI = 'true' } -UserInteractive $true -OnWindows $true)) 'a CI environment is refused'
-    $before = Get-OutputFiles
-    $run = Invoke-TestScript @('-Interactive') @{ CI = 'true' }
+    New-RefusalFixture $fixture
+    $before = Get-OutputFiles $fixture
+    $run = Invoke-TestScript @('-Interactive') @{ CI = 'true' } $fixture
     Assert-True $run.Exited 'the refusal ended the run'
     Assert-True ($run.Exit -ne 0) 'with a failing exit code'
     # On Windows the CI variable is the reason; where this runs on another system (CI's validation job is Ubuntu) there is no desktop at all.
     $reason = if ($IsWindows) { 'CI is set' } else { 'this is not Windows' }
     Assert-True ((Get-FlatText $run.Output).Contains('Interactive tests need an interactive desktop, and there is none') -and (Get-FlatText $run.Output).Contains($reason)) "saying why: $($run.Output)"
     Assert-True (-not $run.Output.Contains('Interactive run:') -and -not $run.Output.Contains('Running ') -and -not $run.Output.Contains('== ')) 'and nothing ran: no tooling test, no build, no suite'
-    Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles)) -join "`n") 'no log or receipt was written'
+    Assert-Equal ((ConvertTo-OrdinalOrder $before) -join "`n") ((ConvertTo-OrdinalOrder (Get-OutputFiles $fixture)) -join "`n") 'no log or receipt was written'
 }
 Invoke-FixtureCase 'lease console output cannot replace the result object or hide a failed child' { param($fixture)
     $fake = Join-Path $fixture 'lease.ps1'

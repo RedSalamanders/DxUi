@@ -1,10 +1,11 @@
 # Tree multi-select and drag-reorder
 
-- **Status**: ACTIVE (drag-reorder and multi-select are both in `Tree`, merged in #35 as `8ea3201`; `docs/gallery` is
+- **Status**: ACTIVE (DxUi library implementation is complete: drag-reorder and multi-select are both in `Tree`, merged in #35 as `8ea3201`; `docs/gallery` is
   regenerated from `448e924` with the `Tree / Multi-select` tile and the design system republished as version 17 with
   the Tree guideline, preview and styles; RedPrism's pin bump remains, since its adoption pin `271bd54` predates #35)
-- **Owner**: DxUi `Tree` (`include/DxUi/DxUi.h`, `src/Controls`). RedPrism consumes the result with a pin bump.
-  It must not grow a second tree widget.
+- **Owner**: DxUi `Tree` (`include/DxUi/DxUi.h`, `src/Controls`). Remaining RedPrism exact-pin adoption and product
+  verification are consumer-owned and tracked in [the API revision 4 handoff register](ProductionReview_2026-10-05/api4-consumer-handoffs.md).
+  RedPrism must not grow a second tree widget.
 - **Why**: RedPrism's layers panel is a `Tree`. `ITreeDelegate` could select, invoke, expand, and show a context
   menu. It could not multi-select or drag a row. `TabControl` and `Grid` already drag-reorder. Group Selected
   Layers and Merge Layers in RedPrism already accept several layer ids; the panel could only select one, and

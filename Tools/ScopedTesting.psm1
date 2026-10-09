@@ -8,6 +8,8 @@ function Invoke-ScopedGit {
     $start.UseShellExecute = $false
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
+    $start.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
+    $start.StandardErrorEncoding = [Text.UTF8Encoding]::new($false)
     foreach ($argument in @('-c','core.quotepath=false','-C',$Root) + $Arguments) { $start.ArgumentList.Add($argument) }
     $process = [Diagnostics.Process]::Start($start)
     try {
@@ -99,7 +101,9 @@ function Get-ScopedTestPlan {
                     $reasons.Add([pscustomobject]@{path=$path; scopes=$targets; reason=$rule.reason})
                 }
             } elseif ($path -match '^(docs|Measurements|Changes)/') {
-                $reasons.Add([pscustomobject]@{path=$path; scopes=@(); reason='documentation; no native test input'})
+                $targets = @($Manifest.scopes | Where-Object { -not $_.native } | ForEach-Object name)
+                foreach ($name in $targets) { [void]$selected.Add($name) }
+                $reasons.Add([pscustomobject]@{path=$path; scopes=$targets; reason='non-Markdown documentation/measurement validation; no native test input'})
             } else {
                 foreach ($name in $names) { [void]$selected.Add($name) }
                 $reasons.Add([pscustomobject]@{path=$path; scopes=$names; reason='unmapped input; conservative full fallback'})
@@ -107,6 +111,22 @@ function Get-ScopedTestPlan {
         }
     }
     return [pscustomobject]@{scopes=@($names | Where-Object { $selected.Contains($_) }); reasons=@($reasons); full=($selected.Count -eq $names.Count)}
+}
+
+function Get-ScopedInteractiveObligations {
+    param([object] $Manifest, [AllowEmptyCollection()][string[]] $ChangedPaths, [switch] $Full)
+    $obligations = [Collections.Generic.List[object]]::new()
+    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $rules = if ($Manifest.PSObject.Properties['interactiveObligations']) { @($Manifest.interactiveObligations) } else { @() }
+    foreach ($rule in $rules) {
+        $hasMatch = $Full -or @($ChangedPaths | Where-Object { Test-ScopedPattern $_ $rule.pattern }).Count -gt 0
+        if (-not $hasMatch) { continue }
+        foreach ($suite in $rule.suites) {
+            if (-not $seen.Add([string]$suite)) { continue }
+            $obligations.Add([pscustomobject]@{ suite=[string]$suite; pattern=[string]$rule.pattern; reason=[string]$rule.reason })
+        }
+    }
+    return $obligations.ToArray()
 }
 
 function Get-ScopedDigest {
@@ -125,22 +145,64 @@ function Get-ScopedSourceIdentity {
         # Build attestation excludes immutable evidence/prose, but has no extension whitelist: .inl and new generators count.
         if ($CompiledOnly -and ($path -match '^(Measurements|docs|Changes|legacy|Specs/(Plans|Done|TestRuns|Reviews|Mockups))/' -or $path -match '\.md$')) { continue }
         $full = Join-Path $Root $path
-        # Staging a deletion changes Git's index, not the current source tree. Removed files simply leave the closure.
-        if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { continue }
+        # A tracked path removed from the worktree is absent source content whether or not
+        # the deletion has been staged. The changed-path identity records the deletion.
+        if (-not (Test-Path -LiteralPath $full -PathType Leaf)) {
+            continue
+        }
         $value = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash
         $rows.Add("$path`0$value")
     }
     return Get-ScopedDigest ($rows -join "`n")
 }
 
+function Get-ScopedDependencyIdentity {
+    param([string] $Root, [ValidateSet('x64','ARM64')][string] $Platform)
+    $triplet = if ($Platform -eq 'ARM64') { 'arm64-windows' } else { 'x64-windows' }
+    $installedRoot = Join-Path $Root ".build/vcpkg_installed/$Platform"
+    $tripletRoot = Join-Path $installedRoot $triplet
+    $requiredHeader = Join-Path $tripletRoot 'include/wil/resource.h'
+    $statusPath = Join-Path $installedRoot 'vcpkg/status'
+    $infoRoot = Join-Path $installedRoot 'vcpkg/info'
+    $shareRoot = Join-Path $tripletRoot 'share'
+    if (-not (Test-Path -LiteralPath $requiredHeader -PathType Leaf)) { throw "Installed $Platform vcpkg triplet is missing its required WIL header: $requiredHeader" }
+    if (-not (Test-Path -LiteralPath $statusPath -PathType Leaf)) { throw "Installed $Platform vcpkg status metadata is missing: $statusPath" }
+    if (-not (Test-Path -LiteralPath $infoRoot -PathType Container)) { throw "Installed $Platform vcpkg package inventory is missing: $infoRoot" }
+    $packageInfo = @(Get-ChildItem -LiteralPath $infoRoot -File -Filter '*.list' -ErrorAction Stop | Sort-Object Name)
+    if (-not $packageInfo.Count) { throw "Installed $Platform vcpkg package inventory has no .list files: $infoRoot" }
+    if (-not (Test-Path -LiteralPath $shareRoot -PathType Container)) { throw "Installed $Platform vcpkg ABI metadata directory is missing: $shareRoot" }
+    $abiFiles = @(Get-ChildItem -LiteralPath $shareRoot -File -Recurse -ErrorAction Stop | Where-Object Name -in @('vcpkg_abi_info.txt','vcpkg.spdx.json'))
+    if (-not $abiFiles.Count) { throw "Installed $Platform vcpkg triplet has no ABI metadata under: $shareRoot" }
+
+    $files = [Collections.Generic.List[IO.FileInfo]]::new()
+    foreach ($file in @(Get-ChildItem -LiteralPath $tripletRoot -File -Recurse -ErrorAction Stop)) { $files.Add($file) }
+    $files.Add((Get-Item -LiteralPath $statusPath))
+    foreach ($file in $packageInfo) { $files.Add($file) }
+    $rows = [Collections.Generic.List[string]]::new()
+    $rootPrefix = [IO.Path]::GetFullPath($installedRoot).TrimEnd([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+    foreach ($file in $files) {
+        $relative = $file.FullName.Substring($rootPrefix.Length).Replace('\','/')
+        $rows.Add($relative + ':' + (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant())
+    }
+    $orderedRows = $rows.ToArray()
+    [Array]::Sort($orderedRows,[StringComparer]::Ordinal)
+    return Get-ScopedDigest ($orderedRows -join "`n")
+}
+
+function Get-ScopedBuildInputIdentity {
+    param([string] $Root, [ValidateSet('x64','ARM64')][string] $Platform)
+    return Get-ScopedDigest (@((Get-ScopedSourceIdentity -Root $Root -CompiledOnly),
+        (Get-ScopedDependencyIdentity -Root $Root -Platform $Platform)) -join "`n")
+}
+
 function Get-ScopedArtifactIdentity {
     param([string] $Root, [string] $Platform, [string] $Configuration)
     $directory = Join-Path $Root ".build/$Platform/$Configuration"
     if (-not (Test-Path -LiteralPath $directory -PathType Container)) { throw "Missing build profile: $directory" }
-    $rows = @(Get-ChildItem -LiteralPath $directory -Recurse -File | Where-Object { $_.Extension -in @('.exe','.dll','.pdb') } | Sort-Object FullName | ForEach-Object {
+    $rows = @(Get-ChildItem -LiteralPath $directory -Recurse -File | Where-Object { $_.Extension -in @('.exe','.dll','.lib','.pdb') } | Sort-Object FullName | ForEach-Object {
         [IO.Path]::GetRelativePath($directory,$_.FullName) + ':' + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
     })
-    if (-not $rows.Count) { throw 'No executable build artifacts were found.' }
+    if (-not $rows.Count) { throw 'No executable, library, or debug-symbol build artifacts were found.' }
     return Get-ScopedDigest ($rows -join "`n")
 }
 
@@ -150,6 +212,12 @@ function Get-ScopedEnvironmentIdentity {
         [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString(),$PSVersionTable.PSVersion.ToString(),
         $env:ASAN_OPTIONS,$env:CI,$env:GITHUB_ACTIONS,$env:PROCESSOR_IDENTIFIER,$env:PATH,
         $env:VCToolsVersion,$env:WindowsSDKVersion)
+    # Opt-in instrumentation changes test execution; hash values without recording local paths.
+    foreach ($name in @('DXUI_GRAPH_PERF','DXUI_PERF_JSONL_PATH','DXUI_MUTANT','DXUI_ONLY_FRENCH')) {
+        $value = [Environment]::GetEnvironmentVariable($name)
+        $valueHash = if ($null -eq $value) { 'unset' } else { Get-ScopedDigest $value }
+        $values += "$name=$valueHash"
+    }
     foreach ($file in @('d3d10warp.dll','d3d11.dll','dwrite.dll')) {
         if (-not $env:SystemRoot) { continue }
         $path = Join-Path $env:SystemRoot "System32/$file"
@@ -174,10 +242,34 @@ function Get-ScopedEnvironmentIdentity {
     return Get-ScopedDigest ($values -join "`n")
 }
 
+function Get-ScopedToolIdentity {
+    # Tooling fixtures invoke Git directly and PR discovery may invoke gh. Bind reuse to their actual binaries.
+    $values = [Collections.Generic.List[string]]::new()
+    foreach ($name in @('git','gh')) {
+        $command = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $command) { $values.Add("${name}:missing"); continue }
+        $values.Add("${name}:" + (Get-FileHash -LiteralPath $command.Source -Algorithm SHA256).Hash)
+        $version = & $command.Source --version 2>&1
+        if ($LASTEXITCODE) { throw "Cannot attest the $name version." }
+        $values.Add(($version -join "`n"))
+    }
+    return Get-ScopedDigest ($values -join "`n")
+}
+
+function Get-ScopedInstrumentation {
+    # Ordinary qualification receipts never cover opt-in measurement or mutation runs.
+    $active = [Collections.Generic.List[string]]::new()
+    foreach ($name in @('DXUI_GRAPH_PERF','DXUI_PERF_JSONL_PATH','DXUI_MUTANT','DXUI_ONLY_FRENCH')) {
+        $value = [Environment]::GetEnvironmentVariable($name)
+        if (-not [string]::IsNullOrWhiteSpace($value)) { $active.Add($name) }
+    }
+    return $active.ToArray()
+}
+
 function Get-ScopedRunIdentity {
     param([string] $Root, [string] $Platform, [string] $Configuration, [string] $Scope, [string] $Options = '')
     return Get-ScopedDigest (@([IO.Path]::GetFullPath($Root),$Platform,$Configuration,$Scope,$Options,
-        (Get-ScopedSourceIdentity $Root -CompiledOnly),(Get-ScopedArtifactIdentity $Root $Platform $Configuration),
+        (Get-ScopedBuildInputIdentity $Root $Platform),(Get-ScopedArtifactIdentity $Root $Platform $Configuration),
         (Get-ScopedEnvironmentIdentity)) -join "`n")
 }
 
@@ -225,18 +317,31 @@ function Get-ScopedPrCoverage {
     param([string] $Root, [object] $Manifest, [string] $Platform, [string] $Configuration)
     $profile = @($Manifest.prCoverage | Where-Object { $_.platform -eq $Platform -and $_.configuration -eq $Configuration })
     if (-not $profile.Count) { return @() }
-    # The forthcoming PR executes its candidate workflow. Its reviewed digest must match; API problems keep work local.
+    # A real open PR executes this exact candidate workflow. Resolve its actual base so stacked PRs are counted correctly.
     try {
-        # GitHub receives committed bytes. Dirty or concurrently changing work cannot be delegated.
+        # Detached/default-branch, foreign-remote, dirty and non-PR candidates retain all local obligations.
         $candidate = (Invoke-ScopedGit $Root @('rev-parse','HEAD')).Trim()
+        $branch = (Invoke-ScopedGit $Root @('symbolic-ref','--quiet','--short','HEAD')).Trim()
+        if (-not $branch -or $branch -ceq $Manifest.defaultBranch) { return @() }
         if (Invoke-ScopedGit $Root @('status','--porcelain','--untracked-files=normal')) { return @() }
+        $remote = (Invoke-ScopedGit $Root @('remote','get-url','origin')).Trim() -replace '\.git$',''
+        $expectedRemote = "https://github.com/$($Manifest.repository)"
+        if ($remote -ine $expectedRemote -and $remote -ine "git@github.com:$($Manifest.repository)" -and
+            $remote -ine "ssh://git@github.com/$($Manifest.repository)") { return @() }
         $local = [IO.File]::ReadAllText((Join-Path $Root '.github/workflows/ci.yml')) -replace "`r`n","`n"
         if ((Get-ScopedDigest $local) -cne $Manifest.prWorkflowDigest -or $local -notmatch '(?m)^  pull_request:') { return @() }
+        $pr = & gh pr view --json baseRefName,baseRefOid,headRefName,headRefOid,state 2>$null | ConvertFrom-Json
+        if ($LASTEXITCODE -ne 0 -or $pr.state -cne 'OPEN' -or $pr.headRefName -cne $branch -or $pr.headRefOid -cne $candidate -or
+            [string]::IsNullOrWhiteSpace([string]$pr.baseRefName)) { return @() }
         $workflow = & gh api "repos/$($Manifest.repository)/actions/workflows/ci.yml" 2>$null | ConvertFrom-Json
         if ($LASTEXITCODE -ne 0 -or $workflow.state -ne 'active') { return @() }
-        $paths = @(Get-ScopedChangedPaths $Root ('origin/' + $Manifest.defaultBranch))
+        $baseline = (Invoke-ScopedGit $Root @('rev-parse','--verify',"refs/remotes/origin/$($pr.baseRefName)^{commit}")).Trim()
+        if (-not $baseline -or $baseline -cne $pr.baseRefOid) { return @() }
+        $paths = @(Get-ScopedChangedPaths $Root $baseline)
         $covered = @(Get-ScopedPrCandidateScopes $Root $Manifest $Platform $Configuration $paths)
         if ((Invoke-ScopedGit $Root @('rev-parse','HEAD')).Trim() -cne $candidate -or
+            (Invoke-ScopedGit $Root @('symbolic-ref','--quiet','--short','HEAD')).Trim() -cne $branch -or
+            (Invoke-ScopedGit $Root @('rev-parse','--verify',"refs/remotes/origin/$($pr.baseRefName)^{commit}")).Trim() -cne $baseline -or
             (Invoke-ScopedGit $Root @('status','--porcelain','--untracked-files=normal'))) { return @() }
         return $covered
     } catch [System.Management.Automation.RuntimeException] { return @() }
@@ -244,5 +349,6 @@ function Get-ScopedPrCoverage {
 }
 
 Export-ModuleMember -Function Get-ScopedChangedPaths, Read-ScopedTestManifest, Assert-ScopedTestNames, Get-ScopedTestPlan,
-    Get-ScopedSourceIdentity, Get-ScopedArtifactIdentity, Get-ScopedRunIdentity, Get-ScopedDigest,
-    Test-ScopedReceipt, Write-ScopedReceipt, Get-ScopedPrCoverage, Get-ScopedPrCandidateScopes, Get-ScopedEnvironmentIdentity
+    Get-ScopedSourceIdentity, Get-ScopedDependencyIdentity, Get-ScopedBuildInputIdentity, Get-ScopedArtifactIdentity, Get-ScopedRunIdentity, Get-ScopedDigest,
+    Test-ScopedReceipt, Write-ScopedReceipt, Get-ScopedPrCoverage, Get-ScopedPrCandidateScopes, Get-ScopedEnvironmentIdentity,
+    Get-ScopedToolIdentity, Get-ScopedInstrumentation, Test-ScopedPattern, Get-ScopedInteractiveObligations

@@ -1,0 +1,4 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] NewControls
+  [START] TestMutableCallbackCaptureStatePersistsForRadioControls
+FAILED: RadioButtons retains mutable selection callback state across items

@@ -44,16 +44,19 @@ if (-not $Full -and -not $PSBoundParameters.ContainsKey('Suites') -and
 Import-Module (Join-Path $PSScriptRoot 'Tools/SuiteFailure.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Tools/InteractiveRun.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Tools/CapabilitySkipPolicy.psm1') -Force
+$instrumentation = @(Get-ScopedInstrumentation)
 # A comma-separated single value is accepted like an array, so -Tests 'A,B' and -Tests A,B are the same request.
 $Tests = @($Tests | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $Suites = @($Suites | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
-# Hosted jobs own their desktop. Preserve the existing CI coverage while local iteration requires the person's lease.
-if ($Full -and -not $PSBoundParameters.ContainsKey('Suites') -and $env:GITHUB_ACTIONS -eq 'true') {
+# Verified GitHub-hosted jobs own their desktop. GITHUB_ACTIONS alone also describes self-hosted runners.
+$verifiedHostedRunner = Test-DxUiVerifiedGitHubHostedRunner
+if ($Full -and -not $PSBoundParameters.ContainsKey('Suites') -and $verifiedHostedRunner) {
     $Suites += @('Menu', 'NativeTextInput')
 }
 $knownSuites = @((Read-ScopedTestManifest $PSScriptRoot).scopes.name | Where-Object { $_ -ne 'Tooling' }) + @('Menu','NativeTextInput','MenuResources','MenuResourceScaling','MenuTextLayoutResources','Gallery','ButtonContrast')
 foreach ($suite in $Suites) { if ($suite -notin $knownSuites) { throw "Unknown test suite '$suite'." } }
-if (-not $Interactive -and $env:GITHUB_ACTIONS -ne 'true' -and @($Suites | Where-Object { Test-DxUiInteractiveSuite $_ }).Count) {
+if (-not $Interactive -and -not $verifiedHostedRunner -and @($Suites | Where-Object { Test-DxUiInteractiveSuite $_ }).Count) {
     throw 'Local foreground suites require -Interactive and agreement to the time.'
 }
 # -Interactive is settled before anything is built or run: its suites must need the desktop, and there must be one to take.
@@ -126,7 +129,7 @@ function Get-SuiteRun([string] $Suite) {
     if ($null -ne $TestTimeout -and $Suite -notin @('Foundation','Embedded')) { $arguments += "--test-timeout=$TestTimeout" }
     # A filtered run is partial evidence: its log and receipt never replace those of the whole suite, and an interactive run's never
     # replace those of the run that records the same suite's skips.
-    $suffix = "$(if ($Interactive) { '.interactive' })$(if ($filtered) { '.filtered' })"
+    $suffix = "$(if ($Interactive) { '.interactive' })$(if ($filtered) { '.filtered' })$(if ($instrumentation.Count) { '.instrumented' })"
     return [pscustomobject]@{ Executable = $executable; Arguments = $arguments; Filtered = [bool]$filtered; Suffix = $suffix; Log = (Join-Path $logs "test-$Suite-$Platform-$Configuration$suffix.log") }
 }
 Push-Location $PSScriptRoot
@@ -169,6 +172,14 @@ try {
             $testExit = $LASTEXITCODE
         }
         $skips = @(Get-Content -LiteralPath $log | Where-Object { $_ -match '^SKIPPED:' })
+        $namedSkips = @(Get-DxUiCapabilitySkipEntries -LogPath $log -Suite $suite)
+        if ($env:CI -eq 'true') {
+            $unexpectedSkips = @(Get-DxUiUnexpectedCapabilitySkips -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Skips $namedSkips)
+            if ($unexpectedSkips.Count) {
+                $failures += "$suite has unexpected capability skips: $($unexpectedSkips -join '; ')"
+                Write-Host "FAIL unexpected capability skips: $($unexpectedSkips -join '; ')"
+            }
+        }
         # A test that never returned ends the run through the runner's watchdog: exit code 124 and a TIMEOUT line naming it.
         $failure = if ($testExit -ne 0) { Get-SuiteFailureReport -Suite $suite -ExitCode $testExit -LogPath $log }
         $receipt = [ordered]@{

@@ -59,6 +59,11 @@ call `Attach(hwnd)` and check its boolean result, then install the tree and them
 messages through `HandleMessage(hwnd, message, wParam, lParam, handled)`; return that result when handled and
 otherwise continue normal window dispatch. This mode owns native graphics, text/accessibility and presentation
 services. The application still owns the top-level window and event-blocked message loop.
+An explicit focus request made from a control or host callback supersedes its outer request. Focus callbacks
+should complete without throwing and overrides must call their base handler; standard exceptions are contained
+with a safe base-state fallback. Reset and root replacement retire the old interaction state without taking HWND
+keyboard focus from another window, and a callback may choose a successor in the newly installed tree.
+Removing an editor from its host focus notification immediately retires its native text session and cache.
 While the window holds the foreground's keyboard focus, moving focus between its controls (or a tree's items and a
 grid's rows) raises the UI Automation focus change a screen reader follows. The window's own activation is reported by
 the system's focus event, which UI Automation answers from the fragment root's `GetFocus` the first time it sees the
@@ -75,7 +80,18 @@ process-exit detach, and the message that ends that turn). DxUi registers each o
 value: the application's own messages in those ranges reach its window procedure, and `HandleMessage` neither
 consumes nor acts on them. A window procedure that never passes the turn's message on leaves a click to the system's
 event for up to 500 ms after the window gains focus, and its activations are never announced when UI Automation has
-seen the window. An element whose control was
+seen the window.
+
+Native accessibility state changes normally mark the snapshot dirty and coalesce into a posted publication. A UIA
+query on the window thread flushes dirty state before answering; a worker-thread query reads the last complete immutable
+snapshot. Event comparison uses a separate baseline that advances when the queued diff drains, so a fresh query does not
+consume pending events. An interested host publishes an actual focus transition synchronously before returning. That
+keeps the first worker-thread `GetFocus` answer current and records who reports the transition at publication time,
+while text, selection and other ordinary state changes remain coalesced. Detaching retires the snapshot and attachment
+cookie; an old queued flush cannot publish into a later host attached to the same HWND. Embedded accessibility follows
+its explicit `UpdateAccessibility` timing after coherent preparation, placement or focus changes.
+
+An element whose control was
 removed, or replaced at the same place in the tree, reports `UIA_E_ELEMENTNOTAVAILABLE`, and the replacement's
 elements get new runtime ids; after adding or removing children, call `RefreshAccessibilitySnapshot` (or let the next
 focus, size, pointer or state change do it) so clients see the new tree, which also tells them to navigate again
@@ -128,6 +144,10 @@ NotifyChanged after external edits, and clear/detach before removing the view or
 application-owned and must reflect the actual viewport transform. One service uses the existing message loop
 and no additional rendering resources.
 
+Client and TSF callbacks can replace the active client synchronously. The latest explicit client request wins;
+retiring a previous client cannot cancel its successor or deliver stale deferred locks to it. Detach rejects
+reattachment from teardown callbacks; attach again after Detach returns when reusing the service.
+
 Clipboard(Copy/Cut/Paste) provides bounded Unicode editing and optionally accepts an application clipboard.
 The embedded document ceiling is 65,536 UTF-16 units; oversized paste fails without changing the document.
 Native Grid/TextField clipboard transport independently supports larger selections, including 100,000 units.
@@ -143,6 +163,11 @@ EmbeddedHost to the application's TextInputServices using an immutable focusId. 
 EmbeddedControls executable with --text-input to edit a profile name alongside the toggle and slider.
 The application supplies the device, HWND, presentation, physical screen origin and DPI conversion.
 The sample forwards deferred messages and TSF keys, cancels on focus/DPI loss, and detaches before destruction.
+Deferred TSF lock notifications consumed by a nested message loop wait for the active lock to unwind; they do not
+repost into that loop. Pending flags remain coalesced if posting fails and retry on the next real lock request.
+The native host leaves `WM_GETTEXT`, `WM_GETTEXTLENGTH` and `WM_SETTEXT` to its window caption. Read or change an
+editor through its control API, TextInputServices or UI Automation instead.
+The native edit shim retains reversed `EM_SETSEL` anchor/caret orientation and maps native CRLF offsets consistently.
 With --text-input --output image.png it uses a hidden application window and private clipboard to check
 public consumption and render a Unicode result. That automated path does not simulate an actual IME.
 

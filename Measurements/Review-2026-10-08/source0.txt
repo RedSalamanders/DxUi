@@ -1,0 +1,9 @@
+{
+  "capturedUtc": "2026-10-08T23:53:52.0475871Z",
+  "branch": "codex/production-review-remediation-2026-10-08",
+  "head": "bea676a1f8418141f61cab9326b9b910e89a14b4",
+  "dirty": true,
+  "compiledSourceIdentity": "43cfec4ee48ec4e10debcd269c90f5e75d450029225703bc51f426133c8ae770",
+  "libraryFingerprint": "2BB5FF98FCCD67B587BD223715B30CD0B26A8BA715658BB000FDD169C02F94A7",
+  "note": "Source/tests/tooling frozen for final candidate; earlier complete matrices are superseded."
+}

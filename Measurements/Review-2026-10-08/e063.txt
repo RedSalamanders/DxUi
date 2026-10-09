@@ -1,0 +1,350 @@
+[
+  {
+    "name": "TestControlContextMenuCallbackCanReplaceItsOwnCallable",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-01.log",
+    "suite": "Control",
+    "exitCode": 0
+  },
+  {
+    "name": "TestControlAccessibleInvokeCallbackCanDestroyItsOwner",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-02.log",
+    "suite": "Control",
+    "exitCode": 0
+  },
+  {
+    "name": "TestPageIndicatorSelectionCallbackCanReplaceItsOwnCallable",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-03.log",
+    "suite": "Control",
+    "exitCode": 0
+  },
+  {
+    "name": "TestScrollPanelScrollCallbackCanReplaceItsOwnCallable",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-04.log",
+    "suite": "Control",
+    "exitCode": 0
+  },
+  {
+    "name": "TestScrollPanelScrollbarTrackCallbackCanDestroyItsOwner",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-05.log",
+    "suite": "Control",
+    "exitCode": 0
+  },
+  {
+    "name": "TestScrollPanelScrollbarDragCallbackCanDestroyItsOwner",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-06.log",
+    "suite": "Control",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTextFieldBlurCallbackKeepsItsCaptureWhenItDestroysTheField",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-07.log",
+    "suite": "TextField",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTextFieldBlurCallbackKeepsItsCaptureWhenItReplacesItself",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-08.log",
+    "suite": "TextField",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTextFieldPreviewFalseAfterDestroyKeepsItsCaptureAlive",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-09.log",
+    "suite": "TextField",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTextFieldPreviewCallbackKeepsItsCaptureWhenItReplacesItself",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-10.log",
+    "suite": "TextField",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTextFieldSubmittedCallbackKeepsItsCaptureWhenItReplacesItself",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-11.log",
+    "suite": "TextField",
+    "exitCode": 0
+  },
+  {
+    "name": "TestComboBoxPopupCallbackKeepsItsCaptureWhenItDestroysTheComboBox",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-12.log",
+    "suite": "ComboBox",
+    "exitCode": 0
+  },
+  {
+    "name": "TestComboBoxPopupCallbackKeepsItsCaptureWhenItReplacesItself",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-13.log",
+    "suite": "ComboBox",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTagPickerSelectCallbackCanRetireRootAndReadSelectionAndCapture",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-14.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTagPickerRemoveCallbackCanRetireRootAndReadSelectionAndCapture",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-15.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTagPickerSelectionCallbackCanReplaceItself",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-16.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMenuBarHoverMoveCallbackCanRetireRoot",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-17.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMenuBarHoverLeaveCallbackCanRetireRoot",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-18.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMenuBarHoverCallbackCanReplaceItself",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-19.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestWindowHostTabBoundaryCallbackCanReplaceItself",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-20.log",
+    "suite": "WindowHost",
+    "exitCode": 0
+  },
+  {
+    "name": "TestWindowHostTabBoundaryCanRetireTheNextTarget",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-21.log",
+    "suite": "WindowHost",
+    "exitCode": 0
+  },
+  {
+    "name": "TestWindowHostEscapeCallbackCanReplaceItself",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-22.log",
+    "suite": "WindowHost",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForControlAndButton",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-23.log",
+    "suite": "Control",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForToggleAndColorSwatch",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-24.log",
+    "suite": "Control",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForScrollPanel",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-25.log",
+    "suite": "Control",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForComboBoxPopupRequest",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-26.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForRadioControls",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-27.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForPageIndicator",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-28.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForSliderCallbacks",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-29.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForMenuBarCallbacks",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-30.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForTabControlSelectionAndCloseEvents",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-31.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForTabControlReorder",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-32.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMutableCallbackCaptureStatePersistsForTagPicker",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-33.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTextFieldTextChangedCallbackRetainsMutableStateAcrossNotifications",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-34.log",
+    "suite": "TextField",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTextFieldSubmittedCallbackRetainsMutableStateAcrossSubmissions",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-35.log",
+    "suite": "TextField",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTextFieldPreviewCallbackRetainsMutableStateAcrossKeys",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-36.log",
+    "suite": "TextField",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTextFieldBlurCallbackRetainsMutableStateAcrossFocusLosses",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-37.log",
+    "suite": "TextField",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTextFieldTextChangeDispatchDoesNotCopyRegisteredCallable",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-38.log",
+    "suite": "TextField",
+    "exitCode": 0
+  },
+  {
+    "name": "TestComboBoxTextChangedCallbackRetainsMutableStateAcrossNotifications",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-39.log",
+    "suite": "ComboBox",
+    "exitCode": 0
+  },
+  {
+    "name": "TestComboBoxSubmittedCallbackRetainsMutableStateAcrossSubmissions",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-40.log",
+    "suite": "ComboBox",
+    "exitCode": 0
+  },
+  {
+    "name": "TestComboBoxSelectionCallbackRetainsMutableStateAcrossSelections",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-41.log",
+    "suite": "ComboBox",
+    "exitCode": 0
+  },
+  {
+    "name": "TestComboBoxPopupCallbackRetainsMutableStateAcrossRequests",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-42.log",
+    "suite": "ComboBox",
+    "exitCode": 0
+  },
+  {
+    "name": "TestWindowHostTabBoundaryMutableCallbackRetainsState",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-43.log",
+    "suite": "WindowHost",
+    "exitCode": 0
+  },
+  {
+    "name": "TestWindowHostEscapeMutableCallbackRetainsState",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-44.log",
+    "suite": "WindowHost",
+    "exitCode": 0
+  },
+  {
+    "name": "TestWindowHostFocusChangedMutableCallbackRetainsState",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-45.log",
+    "suite": "WindowHost",
+    "exitCode": 0
+  },
+  {
+    "name": "TestSplitterMutableChangeCallbackRetainsState",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-46.log",
+    "suite": "EditorControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestNumericStepperMutableChangeCallbackRetainsState",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-47.log",
+    "suite": "EditorControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestColorPickerMutableChangeCallbackRetainsState",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-48.log",
+    "suite": "EditorControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTextFieldTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-49.log",
+    "suite": "TextField",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTextFieldPreviewSnapshotCleanupRetiresRootBeforeBackspaceContinues",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-50.log",
+    "suite": "TextField",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTextFieldBlurSnapshotCleanupRetiresRootBeforeInvalidate",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-51.log",
+    "suite": "TextField",
+    "exitCode": 0
+  },
+  {
+    "name": "TestComboBoxTextChangeSnapshotCleanupRetiresRootBeforeCallerContinues",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-52.log",
+    "suite": "ComboBox",
+    "exitCode": 0
+  },
+  {
+    "name": "TestTabControlSelectionSnapshotCleanupCanRetireRootBeforeMouseDownTail",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-53.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMenuBarHoverMoveSnapshotCleanupCanRetireRootSafely",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-54.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-55.log",
+    "suite": "NewControls",
+    "exitCode": 0
+  },
+  {
+    "name": "TestWindowHostTabBoundarySnapshotCleanupRetiresTheValidatedTarget",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-56.log",
+    "suite": "WindowHost",
+    "exitCode": 0
+  },
+  {
+    "name": "TestNativeMenuBarRefreshMutableCallbackRetainsState",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-57.log",
+    "suite": "WindowHost",
+    "exitCode": 0
+  },
+  {
+    "name": "TestScrollPanelScrollDispatchDoesNotCopyCallbackTargets",
+    "log": ".build/reports/ProductionReview-2026-10-08/callback-final-58.log",
+    "suite": "Control",
+    "exitCode": 0
+  }
+]

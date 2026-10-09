@@ -1,0 +1,909 @@
+Native test naming: 57 files checked.
+Test plan: Affected (x64 Debug); scopes: Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  .agents/skills/consumer-integration/SKILL.md: documentation/skill validation; no native test input => Tooling
+  .gitattributes: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  .github/workflows/ci.yml: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  .github/workflows/gallery.yml: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  AGENTS.md: documentation/skill validation; no native test input => Tooling
+  capabilities.json: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Changes/2026-10-08-production-review-remediation.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-accessibility-enabled-ancestors.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-api-revision-4-review-policy.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-application-tsf-client-reentrancy.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-desktop-test-observations.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-detach-reattachment.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-focus-notification-editor-removal.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-focus-request-supersession.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-grid-callback-identity.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-hosted-aa-dispatch.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-imm-application-replacement.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-inactive-editor-reset.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-logical-focus-and-embedded-preview.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-modal-timer-fixture.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-model-getter-snapshot-lifetime.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-native-accessibility-publication.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-native-composition-cancellation.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-native-dispatch-ownership.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-native-focus-transfer.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-native-menu-fixture-dispatch.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-paired-aa-same-build.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-paired-judge-trust.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-persistent-inspection-gesture.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-platform-only-performance-identity.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-refusal-fixture-isolation.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-repository-design-system.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-review-receipt-byte-preservation.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-scoped-dependency-attestation.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-scoped-fixture-environment-restoration.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-tsf-foreign-focus-retirement.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-tsf-self-edit-notifications.md: documentation/skill validation; no native test input => Tooling
+  Changes/2026-10-09-tsf-session-reentrancy.md: documentation/skill validation; no native test input => Tooling
+  docs/controls.md: documentation/skill validation; no native test input => Tooling
+  docs/gallery/generation.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  docs/gallery/theme-controls-dark.png: non-Markdown documentation/measurement validation; no native test input => Tooling
+  docs/gallery/theme-controls-high-contrast.png: non-Markdown documentation/measurement validation; no native test input => Tooling
+  docs/gallery/theme-controls-light.png: non-Markdown documentation/measurement validation; no native test input => Tooling
+  docs/gallery/theme-controls-rainbow-dark.png: non-Markdown documentation/measurement validation; no native test input => Tooling
+  docs/gallery/theme-controls-rainbow-light.png: non-Markdown documentation/measurement validation; no native test input => Tooling
+  docs/getting-started.md: documentation/skill validation; no native test input => Tooling
+  docs/hosting.md: documentation/skill validation; no native test input => Tooling
+  docs/performance.md: documentation/skill validation; no native test input => Tooling
+  docs/README.md: documentation/skill validation; no native test input => Tooling
+  include/DxUi/DxUi.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  include/DxUi/Embedded.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  include/DxUi/NativeMenuInterop.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  include/DxUi/ThemeColors.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Measurements/README.md: documentation/skill validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/b-access-a.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/b-access-d.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/b-access-r.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/b-arm64-a.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/b-arm64-d.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/b-arm64-r.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/b-format.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/b-validation.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/b-x64-a.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/b-x64-d.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/b-x64-r.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/candidate-source-manifest.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/candidate.patch: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/candidate.zip: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/closeout-manifest.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e001.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e002.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e003.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e004.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e005.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e006.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e007.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e008.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e009.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e010.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e011.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e012.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e013.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e014.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e015.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e016.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e017.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e018.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e019.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e020.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e021.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e022.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e023.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e024.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e025.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e026.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e027.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e028.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e029.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e030.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e031.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e032.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e033.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e034.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e035.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e036.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e037.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e038.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e039.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e040.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e041.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e042.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e043.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e044.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e045.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e046.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e047.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e048.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e049.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e050.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e051.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e052.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e053.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e054.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e055.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e056.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e057.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e058.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e059.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e060.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e061.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e062.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e063.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e064.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e065.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e066.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e067.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e068.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e069.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e070.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e071.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e072.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e073.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e074.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e075.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e076.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e077.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e078.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e079.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e080.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e081.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e082.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e083.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e084.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e085.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e086.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e087.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e088.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e089.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e090.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e091.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e092.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e093.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e094.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e095.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e096.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e097.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e098.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e099.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e100.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e101.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e102.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e103.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e104.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e105.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e106.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e107.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e108.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e109.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e110.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e111.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e112.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e113.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e114.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e115.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e116.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e117.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e118.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e119.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e120.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e121.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e122.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e123.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e124.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e125.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e126.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e127.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e128.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e129.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e130.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e131.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e132.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e133.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e134.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e135.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e136.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e137.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e138.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e139.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e140.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e141.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e142.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e143.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e144.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e145.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e146.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e147.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e148.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e149.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e150.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e151.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e152.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/e153.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/gallery-asan-green.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/gallery-asan.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/gallery-final.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/gallery-generation.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/gallery-review.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/gallery-source.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-Accessibility.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-Animation.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-ComboBox.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-Control.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-EditorControls.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-Embedded.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-Foundation.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-Grid.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-InteractiveLease.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-MenuExitLifetime.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-MultilineText.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-NewControls.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-ReadOnly.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-Rendering.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-TextField.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-Theme.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-Tooltip.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-Tree.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-a-WindowHost.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-Accessibility.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-Animation.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-ComboBox.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-Control.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-EditorControls.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-Embedded.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-Foundation.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-Grid.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-InteractiveLease.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-MenuExitLifetime.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-MultilineText.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-NewControls.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-ReadOnly.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-Rendering.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-TextField.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-Theme.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-Tooltip.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-Tree.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-d-WindowHost.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-Accessibility.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-Animation.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-ComboBox.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-Control.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-EditorControls.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-Embedded.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-Foundation.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-Grid.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-InteractiveLease.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-MenuExitLifetime.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-MultilineText.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-NewControls.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-ReadOnly.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-Rendering.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-TextField.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-Theme.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-Tooltip.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-Tree.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/l-r-WindowHost.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-Accessibility.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-Animation.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-ComboBox.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-Control.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-EditorControls.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-Embedded.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-Foundation.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-Grid.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-InteractiveLease.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-MenuExitLifetime.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-MultilineText.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-NewControls.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-ReadOnly.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-Rendering.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-Accessibility.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-Animation.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-build.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-ComboBox.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-Control.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-EditorControls.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-Embedded.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-Foundation.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-Grid.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-InteractiveLease.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-MenuExitLifetime.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-MultilineText.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-ReadOnly.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-Rendering.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-TextField.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-Theme.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-Tooltip.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-Tree.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-scope-WindowHost.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-TextField.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-Theme.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-Tooltip.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-Tree.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-a-WindowHost.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-Accessibility.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-Animation.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-ComboBox.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-Control.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-EditorControls.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-Embedded.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-Foundation.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-Grid.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-InteractiveLease.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-MenuExitLifetime.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-MultilineText.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-NewControls.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-ReadOnly.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-Rendering.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-Accessibility.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-Animation.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-build.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-ComboBox.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-Control.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-EditorControls.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-Embedded.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-Foundation.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-Grid.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-InteractiveLease.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-MenuExitLifetime.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-MultilineText.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-ReadOnly.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-Rendering.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-TextField.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-Theme.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-Tooltip.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-Tree.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-scope-WindowHost.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-TextField.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-Theme.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-Tooltip.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-Tree.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-d-WindowHost.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-Accessibility.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-Animation.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-ComboBox.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-Control.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-EditorControls.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-Embedded.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-Foundation.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-Grid.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-InteractiveLease.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-MenuExitLifetime.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-MultilineText.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-NewControls.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-ReadOnly.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-Rendering.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-Accessibility.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-Animation.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-build.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-ComboBox.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-Control.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-EditorControls.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-Embedded.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-Foundation.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-Grid.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-InteractiveLease.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-MenuExitLifetime.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-MultilineText.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-ReadOnly.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-Rendering.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-TextField.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-Theme.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-Tooltip.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-Tree.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-scope-WindowHost.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-TextField.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-Theme.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-Tooltip.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-Tree.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/m-r-WindowHost.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/manifest.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/matrix.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p001.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p002.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p003.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p004.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p005.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p006.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p007.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p008.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p009.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p010.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p011.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p012.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p013.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p014.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p015.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p016.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p017.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p018.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p019.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p020.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p021.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p022.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p023.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p024.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p025.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p026.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p027.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p028.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p029.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p030.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p031.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p032.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p033.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p034.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p035.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p036.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p037.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p038.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p039.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p040.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p041.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p042.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p043.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p044.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p045.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p046.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p047.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p048.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p049.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p050.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p051.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p052.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p053.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p054.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p055.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p056.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p057.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p058.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p059.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p060.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p061.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p062.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p063.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p064.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p065.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p066.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p067.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p068.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p069.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p070.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p071.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p072.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p073.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p074.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p075.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p076.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p077.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p078.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p079.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p080.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p081.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p082.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p083.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p084.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p085.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p086.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p087.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p088.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p089.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p090.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p091.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p092.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p093.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p094.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p095.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p096.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p097.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p098.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p099.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p100.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p101.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p102.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p103.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p104.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p105.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p106.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p107.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p108.comparison.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/p109.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/packet-hashes.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/paired-final.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/paired-gate.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/paired-manifest.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/paired-summary.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/README.md: documentation/skill validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/source.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/source0.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-08/version-red.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingBefore/Accessibility.cpp.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingBefore/Accessibility.Tests.cpp.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingBefore/artifact-identity.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingBefore/direct-native.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Invoke-PairedSchedulingStudy.md: documentation/skill validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Invoke-PairedSchedulingStudy.ps1: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/README.md: documentation/skill validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Refresh-AccessibilitySchedulingBaseline.ps1: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/01-A01-block-01.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/02-B01-block-01.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/03-B02-block-01.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/04-A02-block-01.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/05-B03-block-02.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/06-A03-block-02.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/07-A04-block-02.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/08-B04-block-02.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/09-B05-block-03.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/10-A05-block-03.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/11-A06-block-03.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/12-B06-block-03.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/13-A07-block-04.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/14-B07-block-04.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/15-B08-block-04.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/16-A08-block-04.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/17-B09-block-05.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/18-A09-block-05.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/19-A10-block-05.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/20-B10-block-05.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/21-A11-block-06.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/22-B11-block-06.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/23-B12-block-06.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/24-A12-block-06.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/25-B13-block-07.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/26-A13-block-07.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/27-A14-block-07.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/28-B14-block-07.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/29-B15-block-08.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/30-A15-block-08.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/31-A16-block-08.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/32-B16-block-08.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/33-A17-block-09.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/34-B17-block-09.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/35-B18-block-09.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/36-A18-block-09.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/37-B19-block-10.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/38-A19-block-10.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/39-A20-block-10.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/40-B20-block-10.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/41-A21-block-11.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/42-B21-block-11.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/43-B22-block-11.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/44-A22-block-11.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/45-A23-block-12.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/46-B23-block-12.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/47-B24-block-12.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/48-A24-block-12.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201246Z-seed-20261009/README.md: documentation/skill validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/01-A01-block-01.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/02-B01-block-01.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/03-B02-block-01.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/04-A02-block-01.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/05-B03-block-02.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/06-A03-block-02.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/07-A04-block-02.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/08-B04-block-02.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/09-B05-block-03.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/10-A05-block-03.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/11-A06-block-03.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/12-B06-block-03.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/13-A07-block-04.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/14-B07-block-04.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/15-B08-block-04.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/16-A08-block-04.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/17-B09-block-05.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/18-A09-block-05.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/19-A10-block-05.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/20-B10-block-05.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/21-A11-block-06.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/22-B11-block-06.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/23-B12-block-06.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/24-A12-block-06.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/25-B13-block-07.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/26-A13-block-07.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/27-A14-block-07.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/28-B14-block-07.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/29-B15-block-08.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/30-A15-block-08.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/31-A16-block-08.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/32-B16-block-08.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/33-A17-block-09.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/34-B17-block-09.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/35-B18-block-09.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/36-A18-block-09.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/37-B19-block-10.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/38-A19-block-10.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/39-A20-block-10.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/40-B20-block-10.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/41-A21-block-11.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/42-B21-block-11.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/43-B22-block-11.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/44-A22-block-11.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/45-A23-block-12.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/46-B23-block-12.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/47-B24-block-12.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/48-A24-block-12.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/README.md: documentation/skill validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/Runs/20261009T201426Z-seed-20261009/study-result.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/source-input-manifest.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/AccessibilitySchedulingPairedBaseline/source-input-manifest.refresh-2026-10-09-v2.json: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/ConsumerCapacity/README.md: documentation/skill validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/DesignSystemPublication/README.md: documentation/skill validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/ModelGetterReentrancy/Empty-Grid-paint-cleanup-ASan-red.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/ModelGetterReentrancy/Grid-root-replacement-ASan-red.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/ModelGetterReentrancy/README.md: documentation/skill validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/ModelGetterReentrancy/Tree-notified-expansion-red.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/ModelGetterReentrancy/Tree-root-replacement-ASan-red.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/NativeQualification40/affected-ASanDebug40b.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/NativeQualification40/affected-Debug40b.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/NativeQualification40/affected-Release40b.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/NativeQualification40/arm64-ASanDebug38.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/NativeQualification40/arm64-Debug38.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/NativeQualification40/arm64-Release38.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/NativeQualification40/format-check40b.log: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/NativeQualification40/native-qualification-40.zip: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/NativeQualification40/README.md: documentation/skill validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/NativeQualification40/verification-manifest.txt: non-Markdown documentation/measurement validation; no native test input => Tooling
+  Measurements/Review-2026-10-09/README.md: documentation/skill validation; no native test input => Tooling
+  performance-paired.ps1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  performance.ps1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  README.md: documentation/skill validation; no native test input => Tooling
+  Samples/EmbeddedControls/Main.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Specs/Build/Build_ToolchainAndConsumption.md: documentation/skill validation; no native test input => Tooling
+  Specs/Core/Core_Architecture.md: documentation/skill validation; no native test input => Tooling
+  Specs/Core/Core_Documentation.md: documentation/skill validation; no native test input => Tooling
+  Specs/Core/Core_PerformanceAndResources.md: documentation/skill validation; no native test input => Tooling
+  Specs/DesignSystem/assets/Gallery/README.md: documentation/skill validation; no native test input => Tooling
+  Specs/DesignSystem/components/bundle.css: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Specs/DesignSystem/components/Grid/preview.html: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Specs/DesignSystem/components/Grid/README.md: documentation/skill validation; no native test input => Tooling
+  Specs/DesignSystem/components/Slider/README.md: documentation/skill validation; no native test input => Tooling
+  Specs/DesignSystem/components/Toggle/README.md: documentation/skill validation; no native test input => Tooling
+  Specs/DesignSystem/components/Tree/preview.html: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Specs/DesignSystem/components/Tree/README.md: documentation/skill validation; no native test input => Tooling
+  Specs/DesignSystem/README.md: documentation/skill validation; no native test input => Tooling
+  Specs/DesignSystem/Theming.md: documentation/skill validation; no native test input => Tooling
+  Specs/DesignSystem/tokens.json: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Specs/Done/SourceImport/test-port.json: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Specs/Plans/WIP/ConsumerUiImprovements_2026-10-04.md: documentation/skill validation; no native test input => Tooling
+  Specs/Plans/WIP/GridTextOverflow_2026-09-21.md: documentation/skill validation; no native test input => Tooling
+  Specs/Plans/WIP/ProductionReview_2026-10-05.md: documentation/skill validation; no native test input => Tooling
+  Specs/Plans/WIP/ProductionReview_2026-10-05/api4-consumer-handoffs.md: documentation/skill validation; no native test input => Tooling
+  Specs/Plans/WIP/README.md: documentation/skill validation; no native test input => Tooling
+  Specs/Plans/WIP/SliderTouchHalo_2026-10-04.md: documentation/skill validation; no native test input => Tooling
+  Specs/Plans/WIP/TreeReorder_2026-09-21.md: documentation/skill validation; no native test input => Tooling
+  Specs/Rendering/Rendering_EmbeddedD3D11.md: documentation/skill validation; no native test input => Tooling
+  Specs/Rendering/Rendering_Win32Host.md: documentation/skill validation; no native test input => Tooling
+  Specs/Testing/SourcePolicyDispositions.json: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Specs/Testing/Testing_Validation.md: documentation/skill validation; no native test input => Tooling
+  Specs/UI/UI_ControlsAndLayout.md: documentation/skill validation; no native test input => Tooling
+  Specs/UI/UI_DesignSystem.md: documentation/skill validation; no native test input => Tooling
+  Specs/UI/UI_InputAndAccessibility.md: documentation/skill validation; no native test input => Tooling
+  Specs/UI/UI_ThemeAndTypography.md: documentation/skill validation; no native test input => Tooling
+  src/Controls/DxUi.Accessibility.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/DxUi.ComboBox.cpp: Reviewed direct scenario callers plus retained-host/rendering/accessibility integration; foreground and gallery acceptance remain separate. => ComboBox, Control, NewControls, Rendering, Accessibility, Embedded, WindowHost, Theme, TextField, Animation
+  src/Controls/DxUi.Controls.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/DxUi.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/DxUi.EditorControls.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/DxUi.Grid.cpp: Reviewed direct scenario callers plus retained-host/rendering/accessibility integration; foreground and gallery acceptance remain separate. => Grid, Control, Rendering, Accessibility, Embedded, WindowHost, Tooltip, Animation, EditorControls, Theme, Tree
+  src/Controls/DxUi.Internal.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/DxUi.Menu.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/DxUi.NativeTextInput.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/DxUi.Scrollbar.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/DxUi.TextInput.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/DxUi.TextStoreACP.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/DxUi.Theme.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/DxUi.Tree.cpp: Reviewed direct scenario callers plus retained-host/rendering/accessibility integration; foreground and gallery acceptance remain separate. => Tree, Control, Rendering, Accessibility, Embedded, WindowHost, Tooltip, EditorControls
+  src/Controls/DxUi.WindowHost.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/NativeMenuInterop.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/TextInputServices.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/TextStoreTarget.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Controls/TsfFocus.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Foundation/FrameRuntime.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Rendering/Embedded.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Support/PostedPayload.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  src/Support/WindowMessages.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Test-Changes.ps1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  test-consumer.ps1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Test-PrePush.ps1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  test.ps1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tests/capability-skip-allowlist.json: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tests/Controls/Controls.Tests.DxUiFocusEventClient.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tests/Controls/Controls.Tests.DxUiTestHelpers.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tests/Controls/Controls.Tests.GridMultilineRendering.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tests/Controls/Controls.Tests.TextInputServices.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tests/Controls/Controls.Tests.TextStoreComposition.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tests/Controls/DxUi.Tests.Accessibility.cpp: owning suite source => Accessibility
+  Tests/Controls/DxUi.Tests.Animation.cpp: owning suite source => Animation
+  Tests/Controls/DxUi.Tests.ComboBox.cpp: owning suite source => ComboBox
+  Tests/Controls/DxUi.Tests.Controls.cpp: owning suite source => Control
+  Tests/Controls/DxUi.Tests.EditorControls.cpp: owning suite source => EditorControls
+  Tests/Controls/DxUi.Tests.Gallery.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tests/Controls/DxUi.Tests.Grid.cpp: owning suite source => Grid
+  Tests/Controls/DxUi.Tests.Menu.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tests/Controls/DxUi.Tests.NativeTextInput.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tests/Controls/DxUi.Tests.NewControls.cpp: owning suite source => NewControls
+  Tests/Controls/DxUi.Tests.ReadOnly.cpp: owning suite source => ReadOnly
+  Tests/Controls/DxUi.Tests.TextField.cpp: owning suite source => TextField
+  Tests/Controls/DxUi.Tests.Theme.cpp: owning suite source => Theme
+  Tests/Controls/DxUi.Tests.Tooltip.cpp: owning suite source => Tooltip
+  Tests/Controls/DxUi.Tests.Tree.cpp: owning suite source => Tree
+  Tests/Controls/DxUi.Tests.WindowHost.cpp: owning suite source => WindowHost
+  Tests/Embedded/Embedded.Tests.Embedded.cpp: embedded scenarios and benchmark => Embedded
+  Tests/Embedded/Embedded.Tests.EmbeddedAccessibility.h: embedded scenarios and benchmark => Embedded
+  Tests/Embedded/Embedded.Tests.EmbeddedTextInput.h: embedded scenarios and benchmark => Embedded
+  Tests/Embedded/Embedded.Tests.EmbeddedUia.h: embedded scenarios and benchmark => Embedded
+  Tests/Foundation/Foundation.Tests.PublicHelpers.cpp: foundation scenarios => Foundation
+  Tests/native-test-files.json: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tests/README.md: documentation/skill validation; no native test input => Tooling
+  Tests/Support/Support.Tests.UiaTestClient.h: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tests/test-scopes.json: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tools/BenchmarkGate.psm1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tools/CapabilitySkipPolicy.psm1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tools/Commit-Gallery.ps1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tools/ConsumerApi/Revision4.cpp: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tools/InteractiveRun.psm1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tools/PairedRun.psm1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tools/PerformanceAcceptancePolicy.v1.json: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tools/PerformanceComparison.psm1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tools/PerformancePolicy.psm1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tools/Publish-BenchmarkVerdict.ps1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tools/README.md: documentation/skill validation; no native test input => Tooling
+  Tools/ScopedTesting.psm1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tools/Test-CiGate.ps1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  Tools/tests/Invoke-ToolingTests.ps1: tooling regression tests => Tooling
+  Tools/tests/Test-BenchmarkGate.ps1: tooling regression tests => Tooling
+  Tools/tests/Test-BuildMatrix.ps1: tooling regression tests => Tooling
+  Tools/tests/Test-CapabilitySkipPolicy.ps1: tooling regression tests => Tooling
+  Tools/tests/Test-CiGate.ps1: tooling regression tests => Tooling
+  Tools/tests/Test-Docs.ps1: tooling regression tests => Tooling
+  Tools/tests/Test-InteractiveLease.ps1: tooling regression tests => Tooling
+  Tools/tests/Test-InteractiveLease.ps1: interactive desktop lease integration fixture => InteractiveLease
+  Tools/tests/Test-InteractiveMode.ps1: tooling regression tests => Tooling
+  Tools/tests/Test-NativeScope.ps1: tooling regression tests => Tooling
+  Tools/tests/Test-PairedRun.ps1: tooling regression tests => Tooling
+  Tools/tests/Test-PerformanceComparison.ps1: tooling regression tests => Tooling
+  Tools/tests/Test-PerformancePolicy.ps1: tooling regression tests => Tooling
+  Tools/tests/Test-ScopedTesting.ps1: tooling regression tests => Tooling
+  Tools/tests/Test-Validation.ps1: tooling regression tests => Tooling
+  Tools/Validation.psm1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+  validate-build-matrix.ps1: unmapped input; conservative full fallback => Foundation, Embedded, Grid, Theme, Control, MenuExitLifetime, NewControls, EditorControls, TextField, MultilineText, ReadOnly, ComboBox, Tree, Tooltip, Rendering, Animation, Accessibility, WindowHost, InteractiveLease, Tooling
+INTERACTIVE_NOT_RUN: Menu — menu pointer, activation and capture scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.Menu.cpp]
+INTERACTIVE_NOT_RUN: NativeTextInput — native text-input focus and IME scenarios require the person's interactive desktop [Tests/Controls/DxUi.Tests.NativeTextInput.cpp]
+╭────────────────────────────────────────────────────────────────────────╮
+│                                                                        │
+│                      ██████╗ ██╗  ██╗██╗   ██╗██╗                      │
+│                      ██╔══██╗╚██╗██╔╝██║   ██║██║                      │
+│                      ██║  ██║ ╚███╔╝ ██║   ██║██║                      │
+│                      ██║  ██║ ██╔██╗ ██║   ██║██║                      │
+│                      ██████╔╝██╔╝ ██╗╚██████╔╝██║                      │
+│                      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝                      │
+│                                                                        │
+│      ✦  PIXELS PRIMED  •  CONTROLS READY  •  COMPILE MODE: GO!  ✦      │
+│                    ⚡  DEBUG  /  X64  /  BUILD  ⚡                     │
+│                                                                        │
+╰────────────────────────────────────────────────────────────────────────╯
+
+Locating Visual Studio and MSBuild...
+Build configuration:
+  Configuration: Debug
+  Platform:      x64
+  Target:        Build
+  Toolchain:     C:\Program Files\Microsoft Visual Studio\18\Insiders
+  Output:        Z:\src\DxUi\.build\
+
+Compiling DxUi...
+
+  DxUi.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.lib
+  DxUi.EmbeddedControls.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.EmbeddedControls.exe
+  DxUi.InteractiveLease.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.InteractiveLease.exe
+  DxUi.EmbeddedTests.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.EmbeddedTests.exe
+  DxUi.FoundationTests.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.FoundationTests.exe
+  DxUi.ControlTests.vcxproj -> Z:\src\DxUi\.build\x64\Debug\DxUi.ControlTests.exe
+
+========================================
+DxUi build passed in 00:00
+Output: Z:\src\DxUi\.build\
+Log: Z:\src\DxUi\.build\logs\build-x64-Debug-4e5403dd7ff94cadb65bcf88d8bc9ca7.log
+========================================
+== validate-skills.ps1
+== validate-specs.ps1
+== validate-dependencies.ps1
+== validate-test-port.ps1
+== validate-build-matrix.ps1
+== Tools/tests/Invoke-ToolingTests.ps1
+warning: in the working copy of 'Tools/PerformanceComparison.psm1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Test-Changes.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Tools/ScopedTesting.psm1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'test.ps1', LF will be replaced by CRLF the next time Git touches it
+
+Validation summary:
+  ok     validate-skills.ps1
+  ok     validate-specs.ps1
+  ok     validate-dependencies.ps1
+  ok     validate-test-port.ps1
+  ok     validate-build-matrix.ps1
+  ok     Tools/tests/Invoke-ToolingTests.ps1
+All validation passed.
+PASS ARM64 AddressSanitizer runtime staging and missing-runtime rejection
+ok   the filter runs only the named tests, in suite order
+ok   an unknown name fails the run instead of passing with nothing run
+ok   one unknown name fails a run that also names a known test
+ok   names are exact and case-sensitive
+ok   an empty or malformed list is rejected
+ok   a fixture suite without named tests rejects the filter before it runs
+ok   no runner calls a test directly, so the filter can select every test
+ok   without the filter a suite runs every test its runner registers
+Test filter: 8 of 8 passed
+ok   a test that never returns ends the run at its deadline, named
+ok   a fixture suite without named tests is bounded as a whole
+ok   a fixture that reports progress outlives its deadline as a whole
+ok   without a deadline the same test never returns
+ok   an armed watchdog waits instead of polling
+ok   the deadline defaults to 300 seconds and --test-timeout sets it
+ok   a test that finishes in time is not ended and reports its duration
+ok   a malformed --test-timeout is rejected before any test runs
+ok   the self-test is a switch of its own
+ok   a failed runtime check ends the run with its report instead of waiting on a dialog
+ok   test.ps1 surfaces the timeout: the exit code and the TIMEOUT line among the printed lines
+ok   every driver thread of the Menu suite starts with the guard that closes its menu when it fails
+Test watchdog: 12 of 12 passed
+ok   the self-test passes: children, the session's lease, the confirmation and the warning
+ok   --check reads the session, writes the result the PowerShell side reads, and shows and takes nothing
+ok   a malformed command line is a usage error before anything is shown
+ok   the confirmation defaults to Cancel, and cancels itself when nobody answers
+ok   the lease ends only the processes it started
+Interactive lease: 5 of 5 passed
+Complex UI clean round 1: 1565.63 completed offscreen FPS; p95 0.7684 ms; private 29880320 bytes
+Complex UI clean round 2: 1491.25 completed offscreen FPS; p95 0.8917 ms; private 29786112 bytes
+Complex UI clean round 3: 1168.33 completed offscreen FPS; p95 1.1325 ms; private 29749248 bytes
+Complex UI clean round 4: 1669.53 completed offscreen FPS; p95 0.7257 ms; private 29720576 bytes
+Complex UI clean round 5: 1690.66 completed offscreen FPS; p95 0.7011 ms; private 29683712 bytes
+Complex UI dirty round 1: 313.782 completed offscreen FPS; p95 4.0324 ms; private 30433280 bytes
+Complex UI dirty round 2: 341.557 completed offscreen FPS; p95 3.6618 ms; private 30511104 bytes
+Complex UI dirty round 3: 349.725 completed offscreen FPS; p95 3.847 ms; private 30748672 bytes
+Complex UI dirty round 4: 343.494 completed offscreen FPS; p95 3.7479 ms; private 30904320 bytes
+Complex UI dirty round 5: 343.043 completed offscreen FPS; p95 3.9589 ms; private 30855168 bytes
+Performance comparison: unpaired
+Performance receipt: Z:\src\DxUi\.build\reports\Performance-x64-Debug-f35ea923d41e49d39204565c7e113c91.json
+Running Foundation (x64 Debug)
+PASS Foundation (0 capability skips recorded)
+Running Embedded (x64 Debug)
+PASS Embedded (0 capability skips recorded)
+Running Grid (x64 Debug)
+PASS Grid (0 capability skips recorded)
+Running Theme (x64 Debug)
+PASS Theme (0 capability skips recorded)
+Running Control (x64 Debug)
+PASS Control (0 capability skips recorded)
+Running MenuExitLifetime (x64 Debug)
+PASS MenuExitLifetime (0 capability skips recorded)
+Running NewControls (x64 Debug)
+PASS NewControls (0 capability skips recorded)
+Running EditorControls (x64 Debug)
+PASS EditorControls (0 capability skips recorded)
+Running TextField (x64 Debug)
+PASS TextField (0 capability skips recorded)
+Running MultilineText (x64 Debug)
+PASS MultilineText (0 capability skips recorded)
+Running ReadOnly (x64 Debug)
+PASS ReadOnly (0 capability skips recorded)
+Running ComboBox (x64 Debug)
+PASS ComboBox (0 capability skips recorded)
+Running Tree (x64 Debug)
+PASS Tree (0 capability skips recorded)
+Running Tooltip (x64 Debug)
+PASS Tooltip (0 capability skips recorded)
+Running Rendering (x64 Debug)
+PASS Rendering (0 capability skips recorded)
+Running Animation (x64 Debug)
+PASS Animation (0 capability skips recorded)
+Running Accessibility (x64 Debug)
+PASS Accessibility (0 capability skips recorded)
+Running WindowHost (x64 Debug)
+PASS WindowHost (0 capability skips recorded)
+Running InteractiveLease (x64 Debug)
+PASS InteractiveLease (0 capability skips recorded)
+All 19 requested suites passed.
+FULL_SCOPES_PASSED; repository NOT_EVALUATED

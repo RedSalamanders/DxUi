@@ -1,0 +1,4 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] WindowHost
+  [START] TestDxUiPrivateMessagesAreRegisteredDistinctAndNeverWmNull
+FAILED: RedSalamanders.DxUi.Accessibility.CreateProvider.v2 is the message its name registers

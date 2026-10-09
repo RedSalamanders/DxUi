@@ -1,0 +1,28 @@
+{
+  "compiledSourceIdentity": "e2ab708c48e9de9e55c9a1bfd3601e3899a3909d09e9e95a8807f7ac59018ac0",
+  "libraryFingerprint": "FAEF6725B5A0B5DF2C2C39A107F9FE012A5A9F8B13D6B9ABFAD2F154CE558D2E",
+  "capture": "deterministic harness, nonactivating",
+  "reviewedImages": 6,
+  "executables": [
+    {
+      "profile": "Release",
+      "executable": "DxUi.ControlTests.exe",
+      "sha256": "2F34423F403F85DCA18670E3E1D4FA54BD892015844F6ABEA7CD9D83775BECA7"
+    },
+    {
+      "profile": "Release",
+      "executable": "DxUi.EmbeddedControls.exe",
+      "sha256": "A9515CEB598A9092EB286A2AC97A9C5A339E72DB00F304CF517EE70AEE09AAE1"
+    },
+    {
+      "profile": "ASan Debug",
+      "executable": "DxUi.ControlTests.exe",
+      "sha256": "A7E76298289FB5930E23BF737833C8CB55517DA39283A1E0CDE7FD4CA73FE3CD"
+    },
+    {
+      "profile": "ASan Debug",
+      "executable": "DxUi.EmbeddedControls.exe",
+      "sha256": "8C43BF82C0D61D484C6C0A7E4E3239D258BA2C5F788F0182E4B95CE8FB0CAD54"
+    }
+  ]
+}

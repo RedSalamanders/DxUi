@@ -1,0 +1,6 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] TextField
+  [START] TestTextFieldBlurSnapshotCleanupRetiresRootBeforeInvalidate
+  [DONE] TestTextFieldBlurSnapshotCleanupRetiresRootBeforeInvalidate (0.003 s)
+[DONE] TextField (0.003 s)
+All DxUi tests passed.

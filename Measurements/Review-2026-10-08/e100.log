@@ -1,0 +1,102 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] NewControls
+  [START] TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely
+=================================================================
+==122264==ERROR: AddressSanitizer: heap-use-after-free on address 0x117b62ba0fa8 at pc 0x7ff7558860dd bp 0x0044810fc370 sp 0x0044810fc378
+READ of size 1 at 0x117b62ba0fa8 thread T0
+    #0 0x7ff7558860dc in DxUi::Control::IsVisible Z:\src\DxUi\src\Controls\DxUi.cpp:424
+    #1 0x7ff7558eec64 in DxUi::MenuBar::InvalidateIfInteractive Z:\src\DxUi\src\Controls\DxUi.Controls.cpp:6892
+    #2 0x7ff7558e98a2 in DxUi::MenuBar::OnMouseLeave Z:\src\DxUi\src\Controls\DxUi.Controls.cpp:6475
+    #3 0x7ff7553ff678 in `anonymous namespace'::TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely Z:\src\DxUi\Tests\Controls\DxUi.Tests.NewControls.cpp:2809
+    #4 0x7ff754cbb917 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #5 0x7ff755400a30 in RunNewControlTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.NewControls.cpp:2829
+    #6 0x7ff754e60b65 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #7 0x7ff754e5bd00 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:529
+    #8 0x7ff755d3b758 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #9 0x7ff755d3b671 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #10 0x7ff755d3b52d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #11 0x7ff755d3b7cd in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #12 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #13 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+0x117b62ba0fa8 is located 40 bytes inside of 568-byte region [0x117b62ba0f80,0x117b62ba11b8)
+freed by thread T0 here:
+    #0 0x7ff755d39473 in operator delete D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff754e49ae0 in DxUi::MenuBar::`scalar deleting destructor'+0x30 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140459ae0)
+    #2 0x7ff754c9a4f3 in std::default_delete<DxUi::Control>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #3 0x7ff754c6e1a0 in std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >::~unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #4 0x7ff754c9bb26 in std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >::`scalar deleting destructor'+0x16 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x1402abb26)
+    #5 0x7ff754c0ecf1 in std::destroy_at<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:337
+    #6 0x7ff754c0e903 in std::_Default_allocator_traits<std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > >::destroy<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:739
+    #7 0x7ff754b7d4f2 in std::_Destroy_range<std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:1107
+    #8 0x7ff754cf9929 in std::vector<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >,std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > >::_Tidy C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:2099
+    #9 0x7ff754c721a6 in std::vector<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >,std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > >::~vector<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >,std::allocator<std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > > > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\vector:832
+    #10 0x7ff754c7351b in DxUi::Panel::~Panel+0x1b (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x14028351b)
+    #11 0x7ff754c9c166 in DxUi::Panel::`scalar deleting destructor'+0x16 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x1402ac166)
+    #12 0x7ff754c9a4f3 in std::default_delete<DxUi::Control>::operator() C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3338
+    #13 0x7ff754c6e1a0 in std::unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> >::~unique_ptr<DxUi::Control,std::default_delete<DxUi::Control> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3456
+    #14 0x7ff755a8d220 in DxUi::ControlHost::SetRoot Z:\src\DxUi\src\Controls\DxUi.WindowHost.cpp:1395
+    #15 0x7ff7553ffaaa in ``anonymous namespace'::TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely'::`2'::<lambda_1>::operator() Z:\src\DxUi\Tests\Controls\DxUi.Tests.NewControls.cpp:2801
+    #16 0x7ff755408955 in std::_Ref_count_resource<int *,``anonymous namespace'::TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely'::`2'::<lambda_1> >::_Destroy C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1242
+    #17 0x7ff754cd45c0 in std::_Ref_count_base::_Decref C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1183
+    #18 0x7ff754cd44d7 in std::_Ptr_base<int>::_Decref C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1408
+    #19 0x7ff754c6d85e in std::shared_ptr<int>::~shared_ptr<int> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:1713
+    #20 0x7ff755400939 in ``anonymous namespace'::TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely'::`2'::<lambda_2>::~<lambda_2>+0x19 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140a10939)
+    #21 0x7ff755408d39 in std::_Func_impl_no_alloc<``anonymous namespace'::TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely'::`2'::<lambda_2>,void,std::optional<unsigned __int64> >::~_Func_impl_no_alloc<``anonymous namespace'::TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely'::`2'::<lambda_2>,void,std::optional<unsigned __int64> >+0x19 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140a18d39)
+    #22 0x7ff755408d66 in std::_Func_impl_no_alloc<``anonymous namespace'::TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely'::`2'::<lambda_2>,void,std::optional<unsigned __int64> >::`scalar deleting destructor'+0x16 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140a18d66)
+    #23 0x7ff755408cf4 in std::_Func_impl_no_alloc<``anonymous namespace'::TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely'::`2'::<lambda_2>,void,std::optional<unsigned __int64> >::_Delete_this C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1027
+    #24 0x7ff7554231a0 in std::_Func_class<void,std::optional<unsigned __int64> >::_Tidy C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1138
+    #25 0x7ff755421c6e in std::_Func_class<void,std::optional<unsigned __int64> >::~_Func_class<void,std::optional<unsigned __int64> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\functional:1061
+    #26 0x7ff75597c862 in std::function<void __cdecl(std::optional<unsigned __int64>)>::~function<void __cdecl(std::optional<unsigned __int64>)>+0x12 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140f8c862)
+    #27 0x7ff755984a86 in std::function<void __cdecl(std::optional<unsigned __int64>)>::`scalar deleting destructor'+0x16 (Z:\src\DxUi\.build\x64\ASan Debug\DxUi.ControlTests.exe+0x140f94a86)
+    #28 0x7ff755950341 in std::_Destroy_in_place<std::function<void __cdecl(std::optional<unsigned __int64>)> > C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\xmemory:324
+
+previously allocated by thread T0 here:
+    #0 0x7ff755d39355 in operator new D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_new_scalar_thunk.cpp:40
+    #1 0x7ff754e42487 in std::make_unique<DxUi::MenuBar,0> C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Tools\MSVC\14.51.36231\include\memory:3666
+    #2 0x7ff754e1f4e4 in DxUi::Panel::AddChild<DxUi::MenuBar> Z:\src\DxUi\include\DxUi\DxUi.h:1662
+    #3 0x7ff7553feb9f in `anonymous namespace'::TestMenuBarHoverLeaveSnapshotCleanupCanRetireRootSafely Z:\src\DxUi\Tests\Controls\DxUi.Tests.NewControls.cpp:2784
+    #4 0x7ff754cbb917 in RunDxUiTest Z:\src\DxUi\Tests\Controls\Controls.Tests.DxUiTestHelpers.h:136
+    #5 0x7ff755400a30 in RunNewControlTests Z:\src\DxUi\Tests\Controls\DxUi.Tests.NewControls.cpp:2829
+    #6 0x7ff754e60b65 in `wmain'::`2'::<lambda_9>::operator()<void (__cdecl&)(void)> Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:439
+    #7 0x7ff754e5bd00 in wmain Z:\src\DxUi\Tests\Controls\DxUi.Tests.Runner.cpp:529
+    #8 0x7ff755d3b758 in invoke_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:90
+    #9 0x7ff755d3b671 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #10 0x7ff755d3b52d in __scrt_common_main D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:330
+    #11 0x7ff755d3b7cd in wmainCRTStartup D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_wmain.cpp:16
+    #12 0x7ff8eaa8cd86 in BaseThreadInitThunk+0x16 (C:\WINDOWS\System32\KERNEL32.DLL+0x18002cd86)
+    #13 0x7ff8ec22caeb in RtlUserThreadStart+0x2b (C:\WINDOWS\SYSTEM32\ntdll.dll+0x1800acaeb)
+
+SUMMARY: AddressSanitizer: heap-use-after-free Z:\src\DxUi\src\Controls\DxUi.cpp:424 in DxUi::Control::IsVisible
+Shadow bytes around the buggy address:
+  0x117b62ba0d00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x117b62ba0d80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x117b62ba0e00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x117b62ba0e80: 00 fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+  0x117b62ba0f00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+=>0x117b62ba0f80: fd fd fd fd fd[fd]fd fd fd fd fd fd fd fd fd fd
+  0x117b62ba1000: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x117b62ba1080: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x117b62ba1100: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x117b62ba1180: fd fd fd fd fd fd fd fa fa fa fa fa fa fa fa fa
+  0x117b62ba1200: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==122264==ABORTING

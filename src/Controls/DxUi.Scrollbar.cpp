@@ -259,9 +259,15 @@ void PaintScrollbar(ControlHost& host, const D2D1_RECT_F& trackRect, const D2D1_
         return;
     }
 
-    dc->FillRectangle(trackRect, host.GetSolidBrush(visuals.track));
+    if (auto* brush = host.GetSolidBrush(visuals.track))
+    {
+        dc->FillRectangle(trackRect, brush);
+    }
     const D2D1_ROUNDED_RECT rounded = D2D1::RoundedRect(thumbRect, kScrollbarThumbCornerRadiusDip, kScrollbarThumbCornerRadiusDip);
-    dc->FillRoundedRectangle(&rounded, host.GetSolidBrush(visuals.thumb));
+    if (auto* brush = host.GetSolidBrush(visuals.thumb))
+    {
+        dc->FillRoundedRectangle(&rounded, brush);
+    }
 }
 
 } // namespace DxUi

@@ -3,17 +3,22 @@
 #include "../Support/Support.Tests.PerformanceCapture.h"
 #include "Controls.Tests.DxUiFocusEventClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include <DxUi/NativeMenuInterop.h>
 
 #include <array>
 #include <atomic>
 #include <concepts>
 #include <cstdint>
 #include <fstream>
+#include <functional>
 #include <future>
+#include <memory>
+#include <stdexcept>
 #include <string_view>
 #include <thread>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace
 {
@@ -276,7 +281,7 @@ LRESULT CALLBACK PostedPayloadDrainStressWndProc(HWND hwnd, UINT message, WPARAM
 
         case (WM_APP + 0x70u):
         {
-            auto payload = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(lParam);
+            auto payload = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(hwnd, message, lParam);
             if (state && payload)
             {
                 state->deliveredCount.fetch_add(1u, std::memory_order_acq_rel);
@@ -308,7 +313,7 @@ LRESULT CALLBACK PostedPayloadDrainStressWndProc(HWND hwnd, UINT message, WPARAM
                 while (PeekMessageW(&queuedMessage, hwnd, (WM_APP + 0x70u), (WM_APP + 0x70u), PM_REMOVE) != 0)
                 {
                     ++staleTokenCount;
-                    if (! DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(queuedMessage.lParam))
+                    if (! DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(hwnd, queuedMessage.message, queuedMessage.lParam))
                     {
                         ++staleTokenRejectionCount;
                     }
@@ -422,6 +427,169 @@ protected:
 
 private:
     TrackingControlState* _state = nullptr;
+};
+
+struct RootRetiringOverlayHitState
+{
+    size_t overlayHitCount = 0u;
+    size_t normalHitCount  = 0u;
+    size_t mouseMoveCount  = 0u;
+    size_t mouseDownCount  = 0u;
+};
+
+class RootRetiringOverlayHitControl final : public DxUi::Control
+{
+public:
+    RootRetiringOverlayHitControl(DxUi::WindowHost& host, RootRetiringOverlayHitState& state) noexcept : _host(&host), _state(&state)
+    {
+    }
+
+    void Paint(DxUi::WindowHost&) const override
+    {
+    }
+
+    [[nodiscard]] DxUi::Control* HitTest(D2D1_POINT_2F point) override
+    {
+        ++_state->normalHitCount;
+        return Control::HitTest(point);
+    }
+
+    bool OnMouseMove(DxUi::WindowHost&, D2D1_POINT_2F, UINT) override
+    {
+        ++_state->mouseMoveCount;
+        return true;
+    }
+
+    bool OnMouseDown(DxUi::WindowHost&, D2D1_POINT_2F, bool, UINT) override
+    {
+        ++_state->mouseDownCount;
+        return true;
+    }
+
+protected:
+    [[nodiscard]] DxUi::Control* HitTestOverlay(D2D1_POINT_2F) override
+    {
+        ++_state->overlayHitCount;
+        _host->SetRoot({});
+        return this;
+    }
+
+private:
+    DxUi::WindowHost* _host             = nullptr;
+    RootRetiringOverlayHitState* _state = nullptr;
+};
+
+struct ThrowOnceOnMouseDownState
+{
+    size_t mouseDownCount = 0u;
+};
+
+class ThrowOnceOnMouseDownControl final : public DxUi::Control
+{
+public:
+    explicit ThrowOnceOnMouseDownControl(ThrowOnceOnMouseDownState& state) noexcept : _state(&state)
+    {
+    }
+
+    void Paint(DxUi::WindowHost&) const override
+    {
+    }
+
+    bool OnMouseDown(DxUi::WindowHost&, D2D1_POINT_2F, bool, UINT) override
+    {
+        if (_state->mouseDownCount++ == 0u)
+        {
+            throw std::runtime_error("intentional one-shot WindowHost input failure");
+        }
+        return true;
+    }
+
+private:
+    ThrowOnceOnMouseDownState* _state = nullptr;
+};
+
+struct WindowHostPaintFailureState
+{
+    size_t paintCount = 0u;
+};
+
+class ThrowOnceDuringWindowHostPaintControl final : public DxUi::Control
+{
+public:
+    explicit ThrowOnceDuringWindowHostPaintControl(WindowHostPaintFailureState& state) noexcept : _state(&state)
+    {
+    }
+
+    void Paint(DxUi::WindowHost& host) const override
+    {
+        if (_state->paintCount++ == 0u)
+        {
+            throw std::runtime_error("intentional one-shot WindowHost paint failure");
+        }
+
+        auto* const dc = host.GetDeviceContext();
+        if (dc)
+        {
+            if (auto* const brush = host.GetSolidBrush(D2D1::ColorF(0.05f, 0.80f, 0.18f, 1.0f)))
+            {
+                dc->FillRectangle(host.GetClientBoundsDip(), brush);
+            }
+        }
+    }
+
+private:
+    WindowHostPaintFailureState* _state = nullptr;
+};
+
+struct WindowHostRootReplacementPaintState
+{
+    size_t paintCount = 0u;
+    std::function<void(DxUi::WindowHost&)> firstPaintCallback;
+};
+
+class WindowHostSolidColorPaintControl final : public DxUi::Control
+{
+public:
+    explicit WindowHostSolidColorPaintControl(D2D1_COLOR_F color) noexcept : _color(color)
+    {
+    }
+
+    void Paint(DxUi::WindowHost& host) const override
+    {
+        auto* const dc = host.GetDeviceContext();
+        if (dc)
+        {
+            if (auto* const brush = host.GetSolidBrush(_color))
+            {
+                dc->FillRectangle(host.GetClientBoundsDip(), brush);
+            }
+        }
+    }
+
+private:
+    D2D1_COLOR_F _color{};
+};
+
+class ReplaceRootDuringWindowHostPaintControl final : public DxUi::Control
+{
+public:
+    explicit ReplaceRootDuringWindowHostPaintControl(WindowHostRootReplacementPaintState& state) noexcept : _state(&state)
+    {
+    }
+
+    void Paint(DxUi::WindowHost& host) const override
+    {
+        ++_state->paintCount;
+        if (_state->firstPaintCallback)
+        {
+            auto callback = std::move(_state->firstPaintCallback);
+            callback(host);
+            return;
+        }
+    }
+
+private:
+    WindowHostRootReplacementPaintState* _state = nullptr;
 };
 
 struct SelfCapturingControlState
@@ -754,6 +922,64 @@ void TestWindowHostDetachKeepsSharedGraphicsAttachmentUntilControlTreeDestroyed(
             "detach releases graphics attachment count after retained host resources are destroyed");
 }
 
+void TestWindowHostFocusLossCannotReattachDuringDetach()
+{
+    using namespace DxUi;
+    const size_t baselineHostCount     = DebugGetAttachedWindowHostCount();
+    const DWORD ownerThreadId          = GetCurrentThreadId();
+    const uint32_t baselineThreadCount = DebugGetSharedWindowHostAttachmentCountForThread(ownerThreadId);
+    wil::unique_hwnd replacement(CreateWindowExW(0, L"STATIC", L"", WS_POPUP, -32000, -32000, 1, 1, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
+    Require(replacement != nullptr, "a hidden replacement HWND is available for the reentrant attachment");
+    bool callbackRan         = false;
+    bool attachmentSucceeded = true;
+    DWORD attachmentError    = ERROR_SUCCESS;
+    class ReattachingControl final : public Control
+    {
+    public:
+        explicit ReattachingControl(std::function<void(WindowHost&)> callback) : _callback(std::move(callback))
+        {
+            SetFocusable(true);
+        }
+        void Paint(WindowHost&) const override
+        {
+        }
+        void OnFocusChanged(WindowHost& host, bool focused) override
+        {
+            if (! focused)
+                _callback(host);
+            Control::OnFocusChanged(host, focused);
+        }
+
+    private:
+        std::function<void(WindowHost&)> _callback;
+    };
+    AttachedHostWindow window;
+    auto control           = std::make_unique<ReattachingControl>([&](WindowHost& host)
+    {
+        callbackRan = true;
+        SetLastError(ERROR_SUCCESS);
+        attachmentSucceeded = host.Attach(replacement.get());
+        attachmentError     = GetLastError();
+    });
+    Control* const focused = control.get();
+    window.Host().SetRoot(std::move(control));
+    window.Host().SetFocusControl(focused);
+    Require(window.Host().GetFocusControl() == focused, "logical focus is installed without taking desktop focus");
+    window.Host().Detach();
+    Require(callbackRan, "ordinary detach delivers the control's focus-loss callback");
+    Require(! attachmentSucceeded && attachmentError == ERROR_BUSY, "a nested attachment is refused while teardown is running");
+    Require(! window.Host().GetHwnd() && ! window.Host().GetRoot(), "the original detach leaves no attachment or retained root");
+    Require(DebugGetAttachedWindowHostCount() == baselineHostCount && DebugGetSharedWindowHostAttachmentCountForThread(ownerThreadId) == baselineThreadCount,
+            "nested attachment refusal leaves both registries balanced");
+    Require(window.Host().Attach(replacement.get()), "the same host can attach after teardown finishes");
+    Require(DebugGetAttachedWindowHostCount() == baselineHostCount + 1u &&
+                DebugGetSharedWindowHostAttachmentCountForThread(ownerThreadId) == baselineThreadCount + 1u,
+            "the later attachment reserves exactly one slot");
+    window.Host().Detach();
+    Require(DebugGetAttachedWindowHostCount() == baselineHostCount && DebugGetSharedWindowHostAttachmentCountForThread(ownerThreadId) == baselineThreadCount,
+            "the later attachment releases both registry slots");
+}
+
 void TestWindowHostEmitsFrameStageMetricsForCaptureRender()
 {
     using namespace DxUi;
@@ -808,6 +1034,242 @@ void TestWindowHostEmitsFrameStageMetricsForCaptureRender()
     const std::string_view dirtyAreaLine  = findMetricLine("\"metric\":\"dxui.frame.dirty_rect_area_px\"");
     Require(dirtyCountLine.find("\"value\":0") != std::string_view::npos, "full-frame capture reports zero dirty rect count");
     Require(dirtyAreaLine.find("\"value\":0") != std::string_view::npos, "full-frame capture reports zero dirty rect area");
+}
+
+void TestWindowHostCaptureRecoversAfterControlPaintThrows()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.PumpMessages();
+    WindowHostPaintFailureState state;
+    window.Host().SetRoot(std::make_unique<ThrowOnceDuringWindowHostPaintControl>(state));
+
+    WindowHostBitmapCapture failedCapture;
+    const bool firstCaptureSucceeded = window.Host().DebugCaptureBitmap(failedCapture);
+    Require(! firstCaptureSucceeded, "a capture whose control paint throws is discarded instead of reporting a partial frame");
+    Require(failedCapture.widthPx == 0u && failedCapture.heightPx == 0u && failedCapture.bgraPixels.empty(),
+            "the failed paint leaves no mixed-frame bitmap in the capture output");
+    Require(state.paintCount == 1u, "the first capture reaches the one-shot throwing paint exactly once");
+
+    WindowHostBitmapCapture recoveredCapture;
+    Require(window.Host().DebugCaptureBitmap(recoveredCapture), "a later capture succeeds after the one-shot paint exception");
+    Require(recoveredCapture.widthPx > 0u && recoveredCapture.heightPx > 0u && ! recoveredCapture.bgraPixels.empty(),
+            "the recovered capture contains a complete bitmap");
+    Require(state.paintCount == 2u, "the later capture retries the control paint once without a retry loop");
+}
+
+void TestWindowHostCaptureDiscardsFrameWhenPaintReplacesItsRoot()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.PumpMessages();
+    WindowHostRootReplacementPaintState state;
+    size_t replacementCallbackCount = 0u;
+    state.firstPaintCallback        = [&replacementCallbackCount](WindowHost& host)
+    {
+        ++replacementCallbackCount;
+        host.SetRoot(std::make_unique<WindowHostSolidColorPaintControl>(D2D1::ColorF(0.05f, 0.80f, 0.18f, 1.0f)));
+    };
+    window.Host().SetRoot(std::make_unique<ReplaceRootDuringWindowHostPaintControl>(state));
+
+    WindowHostBitmapCapture retiredFrame;
+    const bool retiredFrameCaptured = window.Host().DebugCaptureBitmap(retiredFrame);
+    Require(! retiredFrameCaptured, "root replacement during paint rejects the frame being rendered from the retired tree");
+    Require(retiredFrame.widthPx == 0u && retiredFrame.heightPx == 0u && retiredFrame.bgraPixels.empty(),
+            "the retired-tree capture publishes no mixed-frame pixels");
+    Require(replacementCallbackCount == 1u && state.paintCount == 1u, "the external one-shot callback survives retirement of the control that invoked it");
+    Require(window.Host().GetRoot() != nullptr, "paint-time root replacement remains installed after the retired frame is discarded");
+
+    WindowHostBitmapCapture freshFrame;
+    Require(window.Host().DebugCaptureBitmap(freshFrame), "a later capture renders the replacement root successfully");
+    const auto bounds = window.Host().GetRoot()->GetBounds();
+    Require(bounds.right > bounds.left && bounds.bottom > bounds.top, "the replacement root receives native layout bounds before its first complete frame");
+    Require(freshFrame.widthPx > 0u && freshFrame.heightPx > 0u && ! freshFrame.bgraPixels.empty(), "the replacement-root capture contains a complete bitmap");
+    const UINT sampleX   = freshFrame.widthPx / 2u;
+    const UINT sampleY   = freshFrame.heightPx / 2u;
+    const uint32_t pixel = GetWindowHostCapturePixelBgra(freshFrame, sampleX, sampleY);
+    Require(((pixel >> 8u) & 0xFFu) > 160u && ((pixel >> 16u) & 0xFFu) < 96u,
+            "the fresh capture contains replacement-root green content rather than retired-frame pixels");
+    Require(replacementCallbackCount == 1u, "the root-replacement callback runs only once across the recovery capture");
+}
+
+void TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree()
+{
+    using namespace DxUi;
+    struct PaintState final
+    {
+        size_t firstPaints   = 0u;
+        size_t secondPaints  = 0u;
+        size_t callbackCount = 0u;
+        std::function<void()> onNextPaint;
+    };
+    class ChildPainter final : public Control
+    {
+    public:
+        ChildPainter(PaintState& state, bool first) noexcept : _state(&state), _first(first)
+        {
+        }
+        void Paint(ControlHost& host) const override
+        {
+            ++(_first ? _state->firstPaints : _state->secondPaints);
+            if (auto* dc = host.GetDeviceContext())
+            {
+                if (auto* brush = host.GetSolidBrush(_first ? D2D1::ColorF(0.86f, 0.08f, 0.06f, 1.0f) : D2D1::ColorF(0.04f, 0.86f, 0.20f, 1.0f)))
+                    dc->FillRectangle(host.GetClientBoundsDip(), brush);
+            }
+            if (_first)
+            {
+                auto callback = std::move(_state->onNextPaint);
+                if (callback)
+                    callback();
+            }
+        }
+
+    private:
+        PaintState* _state;
+        bool _first;
+    };
+    for (const unsigned mutation : {0u, 1u, 2u, 3u, 4u})
+    {
+        PaintState state;
+        AttachedHostWindow window;
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        window.PumpMessages();
+        auto root   = std::make_unique<Panel>();
+        auto* panel = root.get();
+        root->AddChild<ChildPainter>(state, true)->SetBounds(D2D1::RectF(0, 0, 160, 80));
+        auto* second = root->AddChild<ChildPainter>(state, false);
+        second->SetBounds(D2D1::RectF(0, 0, 160, 80));
+        auto* destination = root->AddChild<PageHost>();
+        destination->SetBounds(D2D1::RectF(0, 0, 160, 80));
+        window.Host().SetRoot(std::move(root));
+        WindowHostBitmapCapture initialFrame;
+        Require(window.Host().DebugCaptureBitmap(initialFrame), "initial child-tree capture completes");
+        ValidateRect(window.Hwnd(), nullptr);
+        Require(GetUpdateRect(window.Hwnd(), nullptr, FALSE) == FALSE, "initial capture has no pending native corrective paint");
+        state.firstPaints  = 0u;
+        state.secondPaints = 0u;
+        state.onNextPaint  = [&]
+        {
+            ++state.callbackCount;
+            switch (mutation)
+            {
+                case 0u: panel->ClearChildren(); break;
+                case 1u: static_cast<void>(panel->TakeChild(0u)); break;
+                case 2u: destination->SetPage(panel->TakeChild(0u)); break;
+                case 3u: second->SetVisible(false); break;
+                case 4u: second->SetEnabled(false); break;
+            }
+        };
+        WindowHostBitmapCapture partialFrame;
+        Require(! window.Host().DebugCaptureBitmap(partialFrame), "supported child-tree mutation during paint rejects the incomplete frame");
+        Require(partialFrame.widthPx == 0u && partialFrame.heightPx == 0u && partialFrame.bgraPixels.empty(),
+                "child-tree mutation cannot publish mixed-frame pixels");
+        Require(state.firstPaints >= 1u && state.callbackCount == 1u, "the one-shot mutation runs from the first child paint");
+        Require(window.Host().GetRoot() == panel, "child mutation keeps the native root identity unchanged");
+        if (mutation == 0u)
+            Require(state.secondPaints == 0u && panel->GetChildren().empty(), "clearing children skips the retired sibling paint");
+        Require(GetUpdateRect(window.Hwnd(), nullptr, FALSE) != FALSE, "child-tree mutation schedules corrective native painting");
+        WindowHostBitmapCapture freshFrame;
+        Require(window.Host().DebugCaptureBitmap(freshFrame), "a later native capture completes for the current child tree");
+        Require(! freshFrame.bgraPixels.empty() && ! state.onNextPaint, "recovery yields a complete frame without repeating the callback");
+        if (mutation == 0u || mutation == 3u)
+        {
+            const auto pixel = GetWindowHostCapturePixelBgra(freshFrame, freshFrame.widthPx / 2u, freshFrame.heightPx / 2u);
+            Require(! (((pixel >> 8u) & 0xFFu) > 180u && ((pixel >> 16u) & 0xFFu) < 40u), "recovery excludes the removed or hidden green sibling content");
+        }
+    }
+}
+
+void TestWindowHostGridFocusMutationCannotRetargetTheCurrentClick()
+{
+    using namespace DxUi;
+    struct State final
+    {
+        size_t actions = 0u;
+        bool checked   = false;
+        bool mirrored  = false;
+    } state;
+    class Model final : public IGridModel
+    {
+    public:
+        explicit Model(State& state) noexcept : _state(&state)
+        {
+        }
+        size_t GetRowCount() const noexcept override
+        {
+            return 1u;
+        }
+        size_t GetColumnCount() const noexcept override
+        {
+            return 2u;
+        }
+        GridColumnDesc GetColumn(size_t column) const override
+        {
+            return {.id       = column == 0u ? L"check" : L"text",
+                    .title    = column == 0u ? L"Check" : L"Text",
+                    .widthDip = 160.0f,
+                    .kind     = column == 0u ? GridColumnKind::Checkbox : GridColumnKind::Text};
+        }
+        std::optional<size_t> FindRowByStableId(uint64_t id) const noexcept override
+        {
+            return id == 0u ? std::optional<size_t>(0u) : std::nullopt;
+        }
+        void GetCellData(size_t, size_t column, GridCellData& cell) const override
+        {
+            cell.kind    = column == 0u ? GridCellKind::Checkbox : GridCellKind::Text;
+            cell.checked = _state->checked;
+        }
+
+    private:
+        State* _state;
+    } model(state);
+    class Delegate final : public IGridDelegate
+    {
+    public:
+        explicit Delegate(State& state) noexcept : _state(&state)
+        {
+        }
+        void OnGridCheckboxToggled(size_t row, size_t column, bool checked) override
+        {
+            Require(row == 0u && column == 0u, "native retry toggles the stable checkbox cell");
+            ++_state->actions;
+            _state->checked = checked;
+        }
+
+    private:
+        State* _state;
+    } delegate(state);
+    WindowHost host;
+    auto root  = std::make_unique<Grid>();
+    auto* grid = root.get();
+    grid->SetHeaderHeightDip(24.0f);
+    grid->SetRowHeightDip(24.0f);
+    grid->SetModel(&model);
+    grid->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    grid->SetBounds(D2D1::RectF(0, 0, 320, 160));
+    host.SetOnFocusChanged([&](Control* focused)
+    {
+        if (focused == grid && ! state.mirrored)
+        {
+            state.mirrored = true;
+            grid->SetFlowDirection(FlowDirection::RightToLeft);
+        }
+    });
+    bool handled = false;
+    host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(240, 36), handled);
+    Require(handled && state.mirrored && state.actions == 0u && ! state.checked,
+            "focus-time RTL change consumes the old text-cell click without retargeting it to a checkbox");
+    host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(240, 36), handled);
+    Require(host.GetCapturedControl() == nullptr, "the consumed native gesture releases capture");
+    host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(240, 36), handled);
+    Require(handled && state.actions == 1u && state.checked, "an independent later click uses the current mirrored checkbox geometry");
+    host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(240, 36), handled);
 }
 
 void TestWindowHostBlocksLayoutMutationDuringRender()
@@ -888,14 +1350,207 @@ void TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads()
     DxUi::InitPostedPayloadWindow(retiredHwnd);
     Require(destroyedCount.load(std::memory_order_acquire) == kPayloadCount, "pumping stale tokens after teardown cannot delete payload storage a second time");
 
-    auto stalePayload = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(capturedStaleMessage.lParam);
+    auto stalePayload = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(retiredHwnd, kPayloadMessage, capturedStaleMessage.lParam);
     Require(! stalePayload, "a stale queued lParam is rejected after its registered payload was drained");
 
-    auto staleAfterSimulatedHwndReuse = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(capturedStaleMessage.lParam);
+    auto staleAfterSimulatedHwndReuse = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(retiredHwnd, kPayloadMessage, capturedStaleMessage.lParam);
     Require(! staleAfterSimulatedHwndReuse, "clearing the retired-HWND fence never makes a stale lParam ownable again");
 
-    auto unregisteredPayload = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(static_cast<LPARAM>(0x1234u));
+    auto unregisteredPayload = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(retiredHwnd, kPayloadMessage, static_cast<LPARAM>(0x1234u));
     Require(! unregisteredPayload, "TakeMessagePayload never adopts an unregistered lParam");
+}
+
+void TestPostedPayloadTakeRequiresTheMatchingWindowMessageAndType()
+{
+    constexpr UINT kPayloadMessage = WM_APP + 0x70u;
+    PostedPayloadDrainStressWindowState firstState;
+    PostedPayloadDrainStressWindowState secondState;
+    std::atomic<uint32_t> destroyedCount{0};
+    auto first  = CreatePostedPayloadDrainStressWindow(firstState);
+    auto second = CreatePostedPayloadDrainStressWindow(secondState);
+    Require(first && second, "both payload-protocol windows are created");
+
+    auto payload            = std::make_unique<PostedPayloadDrainStressPayload>();
+    payload->destroyedCount = &destroyedCount;
+    Require(DxUi::PostMessagePayload(first.get(), kPayloadMessage, 0, std::move(payload)), "the matching payload is queued");
+
+    MSG queued{};
+    Require(PeekMessageW(&queued, first.get(), kPayloadMessage, kPayloadMessage, PM_REMOVE) != 0,
+            "the test removes the message before exercising direct Take calls");
+    const LPARAM token = queued.lParam;
+    Require(! DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(first.get(), kPayloadMessage + 1u, token),
+            "the same token with a different protocol message is rejected");
+    Require(! DxUi::TakeMessagePayload<int>(first.get(), kPayloadMessage, token), "the same token with a different payload type is rejected");
+    Require(! DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(second.get(), kPayloadMessage, token),
+            "the same token with a different HWND is rejected");
+    Require(destroyedCount.load(std::memory_order_acquire) == 0u, "mismatched Take attempts preserve the registered payload");
+
+    auto genuine = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(first.get(), kPayloadMessage, token);
+    Require(genuine != nullptr, "the exact HWND, message, and type can still take the preserved payload");
+    genuine.reset();
+    Require(destroyedCount.load(std::memory_order_acquire) == 1u, "the correctly consumed payload is destroyed exactly once");
+}
+
+void TestPostedPayloadCapacityFailureDestroysAndAllowsRetry()
+{
+    constexpr UINT kPayloadMessage   = WM_APP + 0x70u;
+    constexpr uint32_t kPayloadCount = 128u;
+    PostedPayloadDrainStressWindowState state;
+    std::atomic<uint32_t> destroyedCount{0};
+    auto hwnd = CreatePostedPayloadDrainStressWindow(state);
+    Require(hwnd != nullptr, "payload capacity window is created");
+
+    for (uint32_t i = 0u; i < kPayloadCount; ++i)
+    {
+        auto payload            = std::make_unique<PostedPayloadDrainStressPayload>();
+        payload->destroyedCount = &destroyedCount;
+        Require(DxUi::PostMessagePayload(hwnd.get(), kPayloadMessage, 0, std::move(payload)), "each available registry slot accepts one payload");
+    }
+
+    auto rejected            = std::make_unique<PostedPayloadDrainStressPayload>();
+    rejected->destroyedCount = &destroyedCount;
+    SetLastError(ERROR_SUCCESS);
+    Require(! DxUi::PostMessagePayload(hwnd.get(), kPayloadMessage, 0, std::move(rejected)), "the 129th outstanding payload is rejected");
+    Require(GetLastError() == ERROR_NOT_ENOUGH_MEMORY, "capacity failure reports a recoverable registry-full error");
+    Require(destroyedCount.load(std::memory_order_acquire) == 1u, "the rejected payload is destroyed without entering the registry");
+
+    MSG firstQueued{};
+    Require(PeekMessageW(&firstQueued, hwnd.get(), kPayloadMessage, kPayloadMessage, PM_REMOVE) != 0, "one valid message is removed to free its registry slot");
+    auto taken = DxUi::TakeMessagePayload<PostedPayloadDrainStressPayload>(hwnd.get(), kPayloadMessage, firstQueued.lParam);
+    Require(taken != nullptr, "the freed slot is associated with a valid consumed payload");
+    taken.reset();
+
+    auto retry            = std::make_unique<PostedPayloadDrainStressPayload>();
+    retry->destroyedCount = &destroyedCount;
+    Require(DxUi::PostMessagePayload(hwnd.get(), kPayloadMessage, 0, std::move(retry)), "posting succeeds after a Take releases one bounded registry slot");
+    hwnd.reset();
+    Require(state.drainedCount.load(std::memory_order_acquire) == kPayloadCount, "teardown drains all 127 original entries and the successful retry");
+    Require(destroyedCount.load(std::memory_order_acquire) == 130u, "all accepted, rejected, and retried payloads are destroyed exactly once");
+}
+
+void TestWindowHostAttachmentReservationIsExclusiveAndIdempotent()
+{
+    using namespace DxUi;
+    const size_t baselineCount = DebugGetAttachedWindowHostCount();
+    AttachedHostWindow first;
+    AttachedHostWindow second;
+    Require(DebugGetAttachedWindowHostCount() == baselineCount + 2u, "two independent HWNDs register two host attachments");
+
+    Require(first.Host().Attach(first.Hwnd()), "repeating an attachment to the same HWND and options is idempotent");
+    Require(DebugGetAttachedWindowHostCount() == baselineCount + 2u, "idempotent Attach does not double-count the host");
+
+    {
+        WindowHost competingHost;
+        SetLastError(ERROR_SUCCESS);
+        Require(! competingHost.Attach(first.Hwnd()), "a second host cannot reserve an HWND already owned by the first");
+        Require(GetLastError() == ERROR_ALREADY_EXISTS, "duplicate HWND reservation is reported explicitly");
+    }
+    Require(DebugGetAttachedWindowHostCount() == baselineCount + 2u, "destroying the rejected host leaves both original registrations intact");
+    Require(first.Host().GetHwnd() == first.Hwnd() && second.Host().GetHwnd() == second.Hwnd(), "both original hosts remain attached to their own HWNDs");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> firstProvider;
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> secondProvider;
+    firstProvider.attach(first.Host().DebugCreateAccessibilityProvider());
+    secondProvider.attach(second.Host().DebugCreateAccessibilityProvider());
+    Require(firstProvider != nullptr && secondProvider != nullptr && firstProvider.get() != secondProvider.get(),
+            "both original hosts still create independent accessibility providers after duplicate rejection");
+}
+
+void TestWindowHostRejectedReattachmentPreservesBothHostsAndQueuedPayloads()
+{
+    using namespace DxUi;
+    struct Payload final
+    {
+        uint32_t value = 0u;
+    };
+    constexpr UINT kPayloadMessage = WM_APP + 0x72u;
+    AttachedHostWindow first;
+    AttachedHostWindow second;
+    auto post = [](HWND hwnd, uint32_t value)
+    {
+        auto payload   = std::make_unique<Payload>();
+        payload->value = value;
+        return PostMessagePayload(hwnd, kPayloadMessage, 0u, std::move(payload));
+    };
+    Require(post(first.Hwnd(), 11u) && post(second.Hwnd(), 22u), "both independent hosts accept an application payload");
+
+    MSG firstMessage{};
+    MSG secondMessage{};
+    Require(PeekMessageW(&firstMessage, first.Hwnd(), kPayloadMessage, kPayloadMessage, PM_REMOVE) != 0 &&
+                PeekMessageW(&secondMessage, second.Hwnd(), kPayloadMessage, kPayloadMessage, PM_REMOVE) != 0,
+            "the test holds each token while checking failed reattachment");
+    Require(! first.Host().Attach(second.Hwnd()), "a host cannot switch to an HWND owned by another attached host");
+    Require(first.Host().GetHwnd() == first.Hwnd() && second.Host().GetHwnd() == second.Hwnd(), "rejected switching leaves both HWND associations intact");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> firstProvider;
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> secondProvider;
+    firstProvider.attach(first.Host().DebugCreateAccessibilityProvider());
+    secondProvider.attach(second.Host().DebugCreateAccessibilityProvider());
+    Require(firstProvider != nullptr && secondProvider != nullptr && firstProvider.get() != secondProvider.get(),
+            "both hosts still resolve independent providers after a rejected HWND switch");
+
+    auto firstPayload  = TakeMessagePayload<Payload>(first.Hwnd(), kPayloadMessage, firstMessage.lParam);
+    auto secondPayload = TakeMessagePayload<Payload>(second.Hwnd(), kPayloadMessage, secondMessage.lParam);
+    Require(firstPayload && firstPayload->value == 11u, "the original host's queued token remains valid after rejection");
+    Require(secondPayload && secondPayload->value == 22u, "the destination host remains independently usable after rejection");
+}
+
+void TestWindowHostAttachmentCapacityRejectsThe129thAndRecovers()
+{
+    using namespace DxUi;
+    constexpr size_t kHostCapacity = 128u;
+    Require(DebugGetAttachedWindowHostCount() == 0u, "host-capacity test starts at the existing registry quiet point");
+
+    std::vector<wil::unique_hwnd> windows;
+    std::vector<std::unique_ptr<WindowHost>> hosts;
+    windows.reserve(kHostCapacity + 1u);
+    hosts.reserve(kHostCapacity + 1u);
+    const HINSTANCE instance = GetModuleHandleW(nullptr);
+    for (size_t i = 0u; i < kHostCapacity + 1u; ++i)
+    {
+        HWND hwnd = CreateWindowExW(0, L"STATIC", L"", WS_POPUP, -32000, -32000, 1, 1, nullptr, nullptr, instance, nullptr);
+        Require(hwnd != nullptr, "a hidden test HWND is created for each host-capacity attempt");
+        windows.emplace_back(hwnd);
+        hosts.push_back(std::make_unique<WindowHost>());
+    }
+
+    for (size_t i = 0u; i < kHostCapacity; ++i)
+    {
+        Require(hosts[i]->Attach(windows[i].get()), "the bounded registry accepts each of its 128 host slots");
+    }
+    Require(DebugGetAttachedWindowHostCount() == kHostCapacity, "the host registry reports all 128 live reservations");
+    SetLastError(ERROR_SUCCESS);
+    Require(! hosts[kHostCapacity]->Attach(windows[kHostCapacity].get()), "the 129th live host is rejected");
+    Require(GetLastError() == ERROR_NOT_ENOUGH_MEMORY, "host capacity exhaustion reports a retryable registry-full error");
+    Require(DebugGetAttachedWindowHostCount() == kHostCapacity, "rejection does not alter the 128 existing reservations");
+
+    hosts.front()->Detach();
+    Require(hosts[kHostCapacity]->Attach(windows[kHostCapacity].get()), "attachment succeeds after one existing host releases its reservation");
+    Require(DebugGetAttachedWindowHostCount() == kHostCapacity, "retry recovers the released slot without exceeding capacity");
+    for (auto& host : hosts)
+    {
+        host->Detach();
+    }
+    Require(DebugGetAttachedWindowHostCount() == 0u, "the test releases every host registration before its HWNDs are destroyed");
+}
+
+void TestWindowHostAccessibilityRegistrationFailureRollsBackAndAllowsRetry()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    window.Host().Detach();
+    const size_t hostCount     = DebugGetAttachedWindowHostCount();
+    const uint32_t threadCount = DebugGetSharedWindowHostAttachmentCountForThread(GetCurrentThreadId());
+    DebugFailNextWindowHostAccessibilityRegistrationForTest();
+    Require(! window.Host().Attach(window.Hwnd()), "a missing accessibility registration rejects the incomplete attachment");
+    Require(GetLastError() == ERROR_NOT_ENOUGH_MEMORY, "registration failure preserves its error through rollback");
+    Require(! window.Host().GetHwnd() && DebugGetAttachedWindowHostCount() == hostCount &&
+                DebugGetSharedWindowHostAttachmentCountForThread(GetCurrentThreadId()) == threadCount,
+            "failed registration rolls back the HWND reservation and shared graphics count");
+    Require(! GetPropW(window.Hwnd(), kNativeAccessibilityTargetProperty), "failed registration leaves no stale accessibility target");
+    Require(window.Host().Attach(window.Hwnd()), "a subsequent attachment retries after registration failure");
+    window.Host().SetRoot(std::make_unique<Button>(L"Recovered attachment"));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    provider.attach(window.Host().DebugCreateAccessibilityProvider());
+    Require(provider != nullptr, "the recovered attachment exposes its accessibility provider");
 }
 
 void TestWindowHostMouseMoveUpdatesHoverTarget()
@@ -1090,6 +1745,130 @@ void TestWindowHostShiftTabTraversal()
 
     handled = false;
     static_cast<void>(host.HandleMessage(nullptr, WM_KEYUP, VK_SHIFT, 0, handled));
+}
+
+void TestWindowHostTabBoundaryCallbackCanReplaceItself()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(L"Only focus target");
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(button);
+
+    auto callbackText = std::make_shared<std::wstring>(L"tab callback survives replacement");
+    std::wstring captureAfterReplacement;
+    size_t originalCount    = 0u;
+    size_t replacementCount = 0u;
+    host.SetOnTabBoundary([&, callbackText = std::move(callbackText)](bool)
+    {
+        ++originalCount;
+        host.SetOnTabBoundary([&](bool)
+        {
+            ++replacementCount;
+            return true;
+        });
+        captureAfterReplacement = *callbackText;
+        return true;
+    });
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_TAB, 0, handled));
+    Require(handled && originalCount == 1u, "tab-boundary callback handles the wrapped traversal once");
+    Require(captureAfterReplacement == L"tab callback survives replacement", "the tab-boundary callback capture remains readable after self-replacement");
+    Require(host.GetFocusControl() == button, "the handled boundary keeps logical focus on the original control");
+
+    handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_TAB, 0, handled));
+    Require(handled && replacementCount == 1u, "the replacement tab-boundary callback remains installed");
+}
+
+void TestWindowHostTabBoundaryMutableCallbackRetainsState()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(L"Only focus target");
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(button);
+
+    std::vector<size_t> observed;
+    host.SetOnTabBoundary([count = size_t{0u}, &observed](bool) mutable
+    {
+        observed.push_back(++count);
+        return true;
+    });
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_TAB, 0, handled));
+    Require(handled, "the first wrapped Tab reaches the boundary callback");
+    handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_TAB, 0, handled));
+    Require(handled, "the second wrapped Tab reaches the boundary callback");
+    Require(observed == std::vector<size_t>{1u, 2u}, "the registered mutable tab-boundary callback retains its counter across notifications");
+}
+
+void TestWindowHostTabBoundaryCanRetireTheNextTarget()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(L"Only focus target");
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(button);
+
+    auto callbackText = std::make_shared<std::wstring>(L"tab callback survives root retirement");
+    std::wstring captureAfterRetirement;
+    size_t callbackCount = 0u;
+    host.SetOnTabBoundary([&, callbackText = std::move(callbackText)](bool)
+    {
+        ++callbackCount;
+        host.SetRoot(std::make_unique<Panel>());
+        captureAfterRetirement = *callbackText;
+        return false;
+    });
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_TAB, 0, handled));
+    Require(handled && callbackCount == 1u, "a one-control tree reaches the tab boundary and retires its root");
+    Require(captureAfterRetirement == L"tab callback survives root retirement", "the tab-boundary capture remains readable after root retirement");
+    Require(host.GetRoot() != nullptr && host.GetFocusControl() == nullptr, "returning false after root retirement does not focus the destroyed next target");
+}
+
+void TestWindowHostTabBoundarySnapshotCleanupRetiresTheValidatedTarget()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(L"Only focus target");
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(button);
+
+    size_t callbackCount = 0u;
+    std::shared_ptr<int> payload(new int(0),
+                                 [&host](int* value) noexcept
+    {
+        delete value;
+        host.SetRoot({});
+    });
+    host.SetOnTabBoundary([&host, &callbackCount, payload = std::move(payload)](bool) mutable
+    {
+        static_cast<void>(payload);
+        ++callbackCount;
+        host.SetOnTabBoundary({});
+        return false;
+    });
+    Require(! payload, "the retained callback is the only owner of its root-retirement payload");
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_TAB, 0, handled));
+    Require(handled && callbackCount == 1u, "the callback declines the wrapped Tab after clearing its registration");
+    Require(host.GetRoot() == nullptr && host.GetFocusControl() == nullptr,
+            "releasing the last callback snapshot retires the previously validated target before refocus");
 }
 
 void TestWindowHostNativeFocusLossRetainsLogicalFocusForTraversal()
@@ -1411,6 +2190,125 @@ void TestWindowHostEscapeInvokesCancelButton()
     static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_ESCAPE, 0, handled));
     Require(handled, "escape handled through host cancel-button routing");
     Require(cancelCount == 1u, "cancel button invoked from escape");
+}
+
+void TestWindowHostEscapeCallbackCanReplaceItself()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto callbackText = std::make_shared<std::wstring>(L"escape callback survives replacement");
+    std::wstring captureAfterReplacement;
+    size_t originalCount    = 0u;
+    size_t replacementCount = 0u;
+    host.SetOnEscape([&, callbackText = std::move(callbackText)]
+    {
+        ++originalCount;
+        host.SetOnEscape([&]
+        {
+            ++replacementCount;
+            return true;
+        });
+        captureAfterReplacement = *callbackText;
+        return true;
+    });
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_ESCAPE, 0, handled));
+    Require(handled && originalCount == 1u, "the original Escape callback handles its key once");
+    Require(captureAfterReplacement == L"escape callback survives replacement", "the Escape callback capture remains readable after self-replacement");
+
+    handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_ESCAPE, 0, handled));
+    Require(handled && replacementCount == 1u, "the replacement Escape callback remains installed");
+}
+
+void TestWindowHostEscapeMutableCallbackRetainsState()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    std::vector<size_t> observed;
+    host.SetOnEscape([count = size_t{0u}, &observed]() mutable
+    {
+        observed.push_back(++count);
+        return true;
+    });
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_ESCAPE, 0, handled));
+    Require(handled, "the first Escape reaches the callback");
+    handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_ESCAPE, 0, handled));
+    Require(handled, "the second Escape reaches the callback");
+    Require(observed == std::vector<size_t>{1u, 2u}, "the registered mutable Escape callback retains its counter across notifications");
+}
+
+void TestNativeMenuBarRefreshMutableCallbackRetainsState()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow owner;
+    wil::unique_hmenu nativeMenu{CreateMenu()};
+    Require(nativeMenu != nullptr, "the native menu refresh fixture creates a menu");
+    Require(AppendMenuW(nativeMenu.get(), MF_STRING, 7301u, L"&File") != FALSE, "the native menu refresh fixture populates its menu");
+
+    NativeMenuBarHost menuBar;
+    Require(menuBar.Attach(GetModuleHandleW(nullptr), owner.Hwnd(), nativeMenu.get()), "the native menu refresh fixture attaches its menu-bar host");
+
+    std::vector<size_t> observed;
+    menuBar.SetRefreshMenuStateCallback([count = size_t{0u}, &observed]() mutable { observed.push_back(++count); });
+    menuBar.SyncMenuModel();
+    menuBar.SyncMenuModel();
+    Require(observed == std::vector<size_t>{1u, 2u}, "the registered mutable native-menu refresh callback retains state across synchronization");
+}
+
+void TestWindowHostFocusChangedMutableCallbackRetainsState()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root    = std::make_unique<Panel>();
+    auto* first  = root->AddChild<Button>(L"First");
+    auto* second = root->AddChild<Button>(L"Second");
+    host.SetRoot(std::move(root));
+
+    std::vector<size_t> observed;
+    host.SetOnFocusChanged([count = size_t{0u}, &observed](Control*) mutable { observed.push_back(++count); });
+    host.SetFocusControl(first, false);
+    host.SetFocusControl(second, false);
+    Require(observed == std::vector<size_t>{1u, 2u}, "the registered mutable focus callback retains its counter across notifications");
+}
+
+void TestWindowHostLogicalEditorFocusCanAvoidNativeActivation()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
+    const HWND foregroundBefore = GetForegroundWindow();
+    const HWND focusBefore      = GetFocus();
+
+    window.Host().SetTextInputBackend(TextInputBackend::Native);
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"logical focus");
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field, false);
+
+    NativeTextInputState state{};
+    Require(window.Host().GetFocusControl() == field && field->HasFocus(), "the editor receives logical focus without native activation");
+    Require(window.Host().HasActiveTextInput() && window.Host().TryReadNativeTextInputState(field, state) && state.text == L"logical focus",
+            "the logically focused editor publishes its native text-input cache while remaining nonactivating");
+    Require(GetForegroundWindow() == foregroundBefore && GetFocus() == focusBefore,
+            "suppressing native focus transfer preserves the existing foreground and thread-focus windows");
+
+    window.Host().SetFocusControl(field, false);
+    window.Host().SyncTextInput(field);
+    Require(window.Host().GetFocusControl() == field && field->HasFocus() && window.Host().TryReadNativeTextInputState(field, state) &&
+                state.text == L"logical focus",
+            "idempotent focus and explicit text synchronization retain the active editor cache");
+    Require(GetForegroundWindow() == foregroundBefore && GetFocus() == focusBefore,
+            "idempotent focus and text synchronization still do not activate or focus the HWND");
 }
 
 void TestWindowHostEscapeClosesComboPopupBeforeCancelButton()
@@ -1884,14 +2782,14 @@ void TestWindowHostMenuKeyInvokesFocusedGridContextMenu()
     grid->SetDelegate(&delegate);
 
     host.SetRoot(std::move(root));
-    grid->GetSelectionModel().SetSingle(model.GetStableRowId(1u));
+    Require(grid->RequestSelectRow(1u, 0u), "the context-menu fixture initializes row selection and independent focus");
     host.SetFocusControl(grid);
 
     bool handled = false;
     static_cast<void>(host.HandleMessage(nullptr, WM_KEYDOWN, VK_APPS, 0, handled));
     Require(handled, "menu key handled for focused grid");
     Require(delegate.contextMenuCount == 1u, "menu key invokes grid context menu once");
-    Require(delegate.lastContextMenuRow == 1u, "menu key targets the selected grid row");
+    Require(delegate.lastContextMenuRow == 1u, "menu key targets the focused grid row");
     RequirePointNear(delegate.lastContextMenuPoint, POINT{16, 74}, "menu key uses a stable selected-row anchor");
 }
 
@@ -1910,7 +2808,7 @@ void TestWindowHostShiftF10InvokesFocusedGridContextMenu()
     grid->SetDelegate(&delegate);
 
     host.SetRoot(std::move(root));
-    grid->GetSelectionModel().SetSingle(model.GetStableRowId(2u));
+    Require(grid->RequestSelectRow(2u, 0u), "the Shift+F10 fixture initializes row selection and independent focus");
     host.SetFocusControl(grid);
 
     bool handled = false;
@@ -1920,7 +2818,7 @@ void TestWindowHostShiftF10InvokesFocusedGridContextMenu()
     static_cast<void>(host.HandleMessage(nullptr, WM_SYSKEYDOWN, VK_F10, 0, handled));
     Require(handled, "shift+f10 handled for focused grid");
     Require(delegate.contextMenuCount == 1u, "shift+f10 invokes grid context menu once");
-    Require(delegate.lastContextMenuRow == 2u, "shift+f10 targets the selected grid row");
+    Require(delegate.lastContextMenuRow == 2u, "shift+f10 targets the focused grid row");
     RequirePointNear(delegate.lastContextMenuPoint, POINT{16, 102}, "shift+f10 uses the selected-row keyboard anchor");
 
     handled = false;
@@ -2020,6 +2918,424 @@ void TestWindowHostSetRootClearsDestroyedTreeInteractionState()
     Require(oldState.mouseUpCount == mouseUpCountBefore, "stale captured control is not reused after root swap");
 }
 
+void TestWindowHostPromotesAChildBeforeDestroyingItsOldParent()
+{
+    using namespace DxUi;
+    class Probe final : public Control
+    {
+    public:
+        using Control::GetHost;
+        using Control::GetParent;
+        void Paint(ControlHost&) const override
+        {
+        }
+    };
+    WindowHost host;
+    auto parent = std::make_unique<Panel>();
+    parent->SetFlowDirection(FlowDirection::RightToLeft);
+    parent->SetDensity(Density::Compact);
+    Probe* child = parent->AddChild<Probe>();
+    host.SetRoot(std::move(parent));
+    Require(child->GetFlowDirection() == FlowDirection::RightToLeft && child->GetDensity() == Density::Compact,
+            "the child initially inherits its parent's layout policies");
+    auto promoted = std::move(static_cast<Panel*>(host.GetRoot())->GetChildren().front());
+    host.SetRoot(std::move(promoted));
+    Require(host.GetRoot() == child && child->GetParent() == nullptr && child->GetHost() == &host, "the promoted child is the host root with no stale parent");
+    Require(child->GetFlowDirection() == FlowDirection::LeftToRight && child->GetDensity() == host.GetTheme().density,
+            "the promoted child now inherits the root policies");
+}
+
+void TestWindowHostPromotionSurvivesResetCallbacksRetiringTheParent()
+{
+    using namespace DxUi;
+    class Probe final : public Control
+    {
+    public:
+        using Control::GetHost;
+        using Control::GetParent;
+        void Paint(ControlHost&) const override
+        {
+        }
+    };
+    class FocusProbe final : public Control
+    {
+    public:
+        FocusProbe(bool& armed, size_t& losses, bool detach) noexcept : _armed(armed), _losses(losses), _detach(detach)
+        {
+            SetFocusable(true);
+        }
+        void Paint(ControlHost&) const override
+        {
+        }
+
+    protected:
+        void OnFocusChanged(ControlHost& host, bool focused) override
+        {
+            Control::OnFocusChanged(host, focused);
+            if (! focused && std::exchange(_armed, false))
+            {
+                ++_losses;
+                const bool detach = _detach;
+                if (detach)
+                    host.Detach();
+                else
+                    host.SetRoot({});
+            }
+        }
+
+    private:
+        bool& _armed;
+        size_t& _losses;
+        bool _detach;
+    };
+    for (const bool detach : std::array{false, true})
+    {
+        WindowHost host;
+        bool armed    = false;
+        size_t losses = 0u;
+        auto parent   = std::make_unique<Panel>();
+        parent->SetFlowDirection(FlowDirection::RightToLeft);
+        parent->SetDensity(Density::Compact);
+        auto* child = parent->AddChild<Probe>();
+        auto* focus = parent->AddChild<FocusProbe>(armed, losses, detach);
+        host.SetRoot(std::move(parent));
+        host.SetFocusControl(focus, false);
+        auto promoted = std::move(static_cast<Panel*>(host.GetRoot())->GetChildren().front());
+        armed         = true;
+        host.SetRoot(std::move(promoted));
+        Require(losses == 1u && ! armed, "the reset callback retires the original parent exactly once");
+        Require(host.GetRoot() == child && child->GetParent() == nullptr && child->GetHost() == &host,
+                "promotion survives reset callbacks that replace or detach the host tree");
+        Require(child->GetFlowDirection() == FlowDirection::LeftToRight && child->GetDensity() == host.GetTheme().density,
+                "the promoted child resolves inheritance through its new host");
+    }
+}
+
+void TestWindowHostPromotionStopsWhenAnInheritanceCallbackReplacesTheRoot()
+{
+    using namespace DxUi;
+    class Probe final : public Control
+    {
+    public:
+        Probe(WindowHost& host, bool& armed, size_t& densityChanges) noexcept : _host(host), _armed(armed), _densityChanges(densityChanges)
+        {
+        }
+        void Paint(ControlHost&) const override
+        {
+        }
+
+    protected:
+        void OnFlowDirectionChanged() noexcept override
+        {
+            if (_armed)
+            {
+                _armed = false;
+                _host.SetRoot({});
+            }
+        }
+        void OnDensityChanged() noexcept override
+        {
+            ++_densityChanges;
+        }
+
+    private:
+        WindowHost& _host;
+        bool& _armed;
+        size_t& _densityChanges;
+    };
+    WindowHost host;
+    bool armed            = false;
+    size_t densityChanges = 0u;
+    auto parent           = std::make_unique<Panel>();
+    parent->SetFlowDirection(FlowDirection::RightToLeft);
+    parent->SetDensity(Density::Compact);
+    parent->AddChild<Probe>(host, armed, densityChanges);
+    host.SetRoot(std::move(parent));
+    const size_t before = densityChanges;
+    auto promoted       = std::move(static_cast<Panel*>(host.GetRoot())->GetChildren().front());
+    armed               = true;
+    host.SetRoot(std::move(promoted));
+    Require(! armed && ! host.GetRoot(), "the inheritance callback's replacement root survives promotion");
+    Require(densityChanges == before, "promotion sends no later inheritance notification to the destroyed control");
+}
+
+void TestWindowHostPointerFocusCallbackCanDestroyTheClickedControl()
+{
+    using namespace DxUi;
+    class ClickControl final : public Control
+    {
+    public:
+        ClickControl()
+        {
+            SetFocusable(true);
+        }
+        void Paint(ControlHost&) const override
+        {
+        }
+        bool OnMouseDown(ControlHost&, D2D1_POINT_2F, bool, UINT) override
+        {
+            return true;
+        }
+    };
+    WindowHost host;
+    auto root     = std::make_unique<Panel>();
+    auto* clicked = root->AddChild<ClickControl>();
+    clicked->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 80.0f));
+    host.SetRoot(std::move(root));
+    host.GetRoot()->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 120.0f));
+    bool replaced = false;
+    host.SetOnFocusChanged([&](Control* control)
+    {
+        if (control == clicked)
+        {
+            replaced = true;
+            host.SetRoot(std::make_unique<Panel>());
+        }
+    });
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(24, 16), handled));
+    Require(handled && replaced, "pointer focus invokes the rebuilding callback");
+    Require(host.GetFocusControl() == nullptr && host.GetCapturedControl() == nullptr, "the destroyed click target is neither focused nor captured");
+}
+
+void TestWindowHostTakesTheRequestedLifetimeBeforePruningFocus()
+{
+    using namespace DxUi;
+    class RebuildingBlurControl final : public Control
+    {
+    public:
+        explicit RebuildingBlurControl(bool& armed) : _armed(armed)
+        {
+            SetFocusable(true);
+        }
+        void Paint(ControlHost&) const override
+        {
+        }
+
+    protected:
+        void OnFocusChanged(ControlHost& host, bool focused) override
+        {
+            Control::OnFocusChanged(host, focused);
+            if (! focused && _armed)
+            {
+                _armed = false;
+                host.SetRoot(std::make_unique<Panel>());
+            }
+        }
+
+    private:
+        bool& _armed;
+    };
+    WindowHost host;
+    bool armed      = false;
+    auto root       = std::make_unique<Panel>();
+    auto* oldFocus  = root->AddChild<RebuildingBlurControl>(armed);
+    auto* requested = root->AddChild<Button>(L"Next");
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(oldFocus, false);
+    oldFocus->SetEnabled(false);
+    armed = true;
+    host.SetFocusControl(requested, false);
+    Require(! armed && host.GetFocusControl() == nullptr, "pruning may destroy the requested target before focus transfers");
+}
+
+void TestWindowHostNewerCallbackFocusRequestWins()
+{
+    using namespace DxUi;
+    class FocusCallbackControl final : public Control
+    {
+    public:
+        FocusCallbackControl()
+        {
+            SetFocusable(true);
+        }
+        std::function<void(ControlHost&, bool)> callback;
+        void Paint(ControlHost&) const override
+        {
+        }
+        void OnFocusChanged(ControlHost& host, bool focused) override
+        {
+            Control::OnFocusChanged(host, focused);
+            if (callback)
+                callback(host, focused);
+        }
+    };
+    for (unsigned phase = 0u; phase < 3u; ++phase)
+    {
+        WindowHost host;
+        auto root       = std::make_unique<Panel>();
+        auto* previous  = root->AddChild<FocusCallbackControl>();
+        auto* requested = root->AddChild<FocusCallbackControl>();
+        auto* winner    = root->AddChild<Button>(L"Callback choice");
+        host.SetRoot(std::move(root));
+        host.SetFocusControl(previous, false);
+        size_t callbackCount = 0u;
+        const auto redirect  = [&](ControlHost& callbackHost)
+        {
+            ++callbackCount;
+            callbackHost.SetFocusControl(winner, false);
+            // The exception fallback must also leave the newer focus alone.
+            throw std::runtime_error("failed outer callback after choosing focus");
+        };
+        if (phase == 0u)
+            previous->callback = [&](ControlHost& callbackHost, bool focused)
+            {
+                if (! focused)
+                    redirect(callbackHost);
+            };
+        else if (phase == 1u)
+            requested->callback = [&](ControlHost& callbackHost, bool focused)
+            {
+                if (focused)
+                    redirect(callbackHost);
+            };
+        else
+            host.SetOnFocusChanged([&](Control* notified)
+            {
+                if (notified == requested)
+                    redirect(host);
+            });
+        host.SetFocusControl(requested, false);
+        Require(callbackCount == 1u && host.GetFocusControl() == winner, "newer focus from loss, gain or host notification survives the outer request");
+        Require(winner->HasFocus() && ! previous->HasFocus() && ! requested->HasFocus(), "only the callback-selected control acknowledges focus");
+    }
+}
+
+void TestWindowHostFailedBlurBeforeBasePreservesOnlyTheNewFocus()
+{
+    using namespace DxUi;
+    class BlurBeforeBaseControl final : public Control
+    {
+    public:
+        BlurBeforeBaseControl()
+        {
+            SetFocusable(true);
+        }
+        std::function<void(ControlHost&)> onBlur;
+        void Paint(ControlHost&) const override
+        {
+        }
+        void OnFocusChanged(ControlHost& host, bool focused) override
+        {
+            if (! focused && onBlur)
+                onBlur(host);
+            Control::OnFocusChanged(host, focused);
+        }
+    };
+    for (bool refocusSame : {false, true})
+    {
+        WindowHost host;
+        auto root             = std::make_unique<Panel>();
+        auto* previous        = root->AddChild<BlurBeforeBaseControl>();
+        auto* requested       = root->AddChild<Button>(L"Outer choice");
+        auto* other           = root->AddChild<Button>(L"Callback choice");
+        Control* const winner = refocusSame ? static_cast<Control*>(previous) : other;
+        host.SetRoot(std::move(root));
+        host.SetFocusControl(previous, false);
+        previous->onBlur = [&](ControlHost& callbackHost)
+        {
+            callbackHost.SetFocusControl(winner, false);
+            throw std::runtime_error("blur failed before base acknowledgement");
+        };
+        host.SetFocusControl(requested, false);
+        Require(host.GetFocusControl() == winner && winner->HasFocus(), "a before-base throwing blur preserves the newer callback choice");
+        Require(previous->HasFocus() == refocusSame && ! requested->HasFocus() && other->HasFocus() == ! refocusSame,
+                "the failed old blur is acknowledged unless that same old target was explicitly refocused");
+        previous->onBlur = {};
+    }
+}
+
+void TestWindowHostResetPreservesExplicitFocusAndRootReplacementRetiresOldChoice()
+{
+    using namespace DxUi;
+    class CallbackControl final : public Control
+    {
+    public:
+        CallbackControl()
+        {
+            SetFocusable(true);
+        }
+        std::function<void(ControlHost&)> onBlur;
+        std::function<void(bool)> onDestroy;
+        ~CallbackControl() noexcept override
+        {
+            if (onDestroy)
+                onDestroy(HasFocus());
+        }
+        void Paint(ControlHost&) const override
+        {
+        }
+        void OnFocusChanged(ControlHost& host, bool focused) override
+        {
+            Control::OnFocusChanged(host, focused);
+            if (! focused && onBlur)
+                onBlur(host);
+        }
+    };
+    WindowHost host;
+    auto root       = std::make_unique<Panel>();
+    auto* previous  = root->AddChild<CallbackControl>();
+    auto* oldChoice = root->AddChild<CallbackControl>();
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(previous, false);
+    previous->onBlur = [&](ControlHost& callbackHost) { callbackHost.SetFocusControl(previous, false); };
+    host.ResetInteractionState();
+    Require(host.GetFocusControl() == previous && previous->HasFocus(), "an explicit same-control refocus during reset survives the snapshotted blur");
+    previous->onBlur              = [&](ControlHost& callbackHost) { callbackHost.SetFocusControl(oldChoice, false); };
+    bool retiredOldChoiceHadFocus = true;
+    size_t retiredBlurCount       = 0u;
+    auto replacement              = std::make_unique<Panel>();
+    auto* successor               = replacement->AddChild<Button>(L"New root successor");
+    oldChoice->onBlur             = [&](ControlHost& callbackHost)
+    {
+        ++retiredBlurCount;
+        callbackHost.SetFocusControl(successor, false);
+    };
+    oldChoice->onDestroy = [&](bool focused) { retiredOldChoiceHadFocus = focused; };
+    host.SetRoot(std::move(replacement));
+    Require(retiredBlurCount == 1u && ! retiredOldChoiceHadFocus, "the reset-selected old-tree control loses focus before its owner is released");
+    Require(host.GetFocusControl() == successor && successor->HasFocus(), "old-tree retirement preserves a successor chosen in the installed new root");
+}
+
+void TestWindowHostThrowingFocusCallbacksAcknowledgeTransitionsAndRetirement()
+{
+    using namespace DxUi;
+    class ThrowingFocusControl final : public Control
+    {
+    public:
+        ThrowingFocusControl()
+        {
+            SetFocusable(true);
+        }
+        size_t notificationCount = 0u;
+        void Paint(ControlHost&) const override
+        {
+        }
+        void OnFocusChanged(ControlHost&, bool) override
+        {
+            ++notificationCount;
+            throw std::runtime_error("focus override failed before base acknowledgement");
+        }
+    };
+    WindowHost host;
+    auto root     = std::make_unique<Panel>();
+    auto* control = root->AddChild<ThrowingFocusControl>();
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(control, false);
+    Require(host.GetFocusControl() == control && control->HasFocus() && control->notificationCount == 1u,
+            "a failing gain callback falls back to base focus acknowledgement");
+    host.ResetInteractionState();
+    Require(! host.GetFocusControl() && ! control->HasFocus() && control->notificationCount == 2u,
+            "a failing reset callback leaves logical and acknowledged focus cleared");
+    host.SetOnFocusChanged([&](Control*)
+    {
+        host.SetRoot(std::make_unique<Panel>());
+        throw std::runtime_error("focus notification retired the target before failing");
+    });
+    host.SetFocusControl(control, false);
+    Require(host.GetFocusControl() == nullptr, "a failing host callback can retire its notified control safely");
+}
+
 void TestWindowHostDetachDeactivatesSecureTextInputBeforeDestroyingRoot()
 {
     using namespace DxUi;
@@ -2108,10 +3424,11 @@ void TestWindowHostProcessExitDetachAbandonsRetainedControlObserversBeforeNative
     const size_t baselineAttachedHostCount      = DebugGetAttachedWindowHostCount();
     const uint32_t baselineOwnerAttachmentCount = DebugGetSharedWindowHostAttachmentCountForThread(ownerThreadId);
 
-    AttachedHostWindow window;
     ProcessExitTextFieldState fieldState;
     TrackingControlState hoverState;
     SelfCapturingControlState captureState;
+    AttachedHostWindow window;
+    static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
     auto root            = std::make_unique<Panel>();
     auto* secretField    = root->AddChild<ProcessExitTextField>(fieldState);
     auto* hoverControl   = root->AddChild<TrackingControl>(hoverState);
@@ -2123,7 +3440,7 @@ void TestWindowHostProcessExitDetachAbandonsRetainedControlObserversBeforeNative
     size_t focusCallbackCount = 0u;
     window.Host().SetOnFocusChanged([&](Control*) { ++focusCallbackCount; });
     window.Host().SetRoot(std::move(root));
-    window.Host().SetFocusControl(secretField);
+    window.Host().SetFocusControl(secretField, false);
     const size_t focusCallbackCountBeforeDetach = focusCallbackCount;
     bool handled                                = false;
     static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(8, 48), handled));
@@ -2494,6 +3811,250 @@ void TestWindowHostEditorControlsSurviveForcedNullSolidBrushes()
     window.Host().DebugSetForceNullSolidBrushes(false);
 }
 
+void TestWindowHostGridPaintSurvivesForcedNullSolidBrushes()
+{
+    using namespace DxUi;
+    class BrushFailureGridModel final : public IGridModel
+    {
+    public:
+        [[nodiscard]] size_t GetRowCount() const noexcept override
+        {
+            return 4u;
+        }
+        [[nodiscard]] size_t GetColumnCount() const noexcept override
+        {
+            return 2u;
+        }
+        [[nodiscard]] GridColumnDesc GetColumn(size_t columnIndex) const override
+        {
+            return GridColumnDesc{
+                .id       = columnIndex == 0u ? L"name" : L"status",
+                .title    = columnIndex == 0u ? L"Name" : L"Status",
+                .widthDip = 132.0f,
+            };
+        }
+        void GetCellData(size_t rowIndex, size_t columnIndex, GridCellData& outCell) const override
+        {
+            if (rowIndex == 2u && columnIndex == 1u)
+            {
+                outCell.kind     = GridCellKind::Marquee;
+                outCell.progress = 0.42f;
+                outCell.text     = L"42%";
+                ++marqueeCellReads;
+                return;
+            }
+            outCell.kind = GridCellKind::Text;
+            outCell.text = std::format(L"Row {}", rowIndex + 1u);
+        }
+        [[nodiscard]] size_t GetGroupCount() const noexcept override
+        {
+            return 1u;
+        }
+        [[nodiscard]] GridGroupDesc GetGroup(size_t /*groupIndex*/) const override
+        {
+            return GridGroupDesc{.stableId = 10u, .title = L"Operations", .startRowIndex = 0u, .rowCount = 4u};
+        }
+        [[nodiscard]] uint64_t GetStableRowId(size_t rowIndex) const noexcept override
+        {
+            return static_cast<uint64_t>(rowIndex + 1u);
+        }
+        [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+        {
+            return rowId >= 1u && rowId <= GetRowCount() ? std::optional<size_t>(static_cast<size_t>(rowId - 1u)) : std::nullopt;
+        }
+
+        mutable size_t marqueeCellReads = 0u;
+    };
+
+    const auto runScene = [](GridVisualMode mode)
+    {
+        BrushFailureGridModel model;
+        AttachedHostWindow window;
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 292.0f, 188.0f));
+        grid->SetHeaderHeightDip(28.0f);
+        grid->SetRowHeightDip(32.0f);
+        grid->SetVisualMode(mode);
+        grid->SetSelectionMode(GridSelectionMode::Extended);
+        grid->SetModel(&model);
+        grid->GetSelectionModel().SetSingle(model.GetStableRowId(2u));
+        window.Host().SetRoot(std::move(root));
+        static_cast<Panel*>(window.Host().GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 200.0f));
+
+        const GridVisibleWorkMetrics metrics = grid->GetVisibleWorkMetrics();
+        Require(metrics.visibleGroupHeaderCount == 1u, "forced-null Grid scene has its grouped header in the viewport");
+        Require(metrics.visibleRowCount >= 3u && metrics.visibleColumnCount == 2u, "forced-null Grid scene exposes selected rows and column separators");
+        GridDebugRowVisualState selectedState{};
+        Require(grid->DebugGetRowVisualState(window.Host().GetTheme(), 2u, selectedState) && selectedState.selected,
+                "forced-null Grid scene has a selected row to paint");
+
+        const size_t readsBeforeCapture = model.marqueeCellReads;
+        const WindowHostBitmapCapture normalCapture =
+            CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "Grid baseline render succeeds before null-brush injection");
+        Require(normalCapture.widthPx > 0u && normalCapture.heightPx > 0u, "Grid baseline capture is nonempty");
+        Require(model.marqueeCellReads > readsBeforeCapture, "Grid baseline render paints the marquee progress cell");
+
+        const uint64_t presentFailuresBefore = window.Host().DebugGetPresentFailureCount();
+        window.Host().DebugSetForceNullSolidBrushes(true);
+        const WindowHostBitmapCapture nullBrushCapture =
+            CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "Grid paint completes with every solid brush forced null");
+        window.Host().DebugSetForceNullSolidBrushes(false);
+        Require(nullBrushCapture.widthPx > 0u && nullBrushCapture.heightPx > 0u, "Grid null-brush capture is nonempty");
+        Require(window.Host().DebugGetPresentFailureCount() == presentFailuresBefore, "Grid null-brush paint introduces no presentation failures");
+
+        const WindowHostBitmapCapture recoveredCapture =
+            CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "Grid rendering recovers after null-brush injection");
+        Require(recoveredCapture.widthPx > 0u && recoveredCapture.heightPx > 0u, "Grid recovery capture is nonempty");
+        Require(window.Host().DebugGetPresentFailureCount() == presentFailuresBefore, "Grid recovery introduces no presentation failures");
+    };
+
+    runScene(GridVisualMode::Standard);
+    runScene(GridVisualMode::FolderView);
+}
+
+void TestWindowHostTreeFocusOutlineSurvivesForcedNullSolidBrushes()
+{
+    using namespace DxUi;
+    MutableTreeModel model;
+    model.SetVisibleItems(
+        {TreeItemData{.id = 10u, .text = L"General"}, TreeItemData{.id = 20u, .text = L"Display"}, TreeItemData{.id = 30u, .text = L"Accessibility"}});
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 292.0f, 188.0f));
+    tree->SetModel(&model);
+    tree->SetMultiSelectEnabled(true);
+    tree->SetSelectedItemIds(std::vector<uint64_t>{10u, 30u});
+    tree->SetFocusedItemId(20u);
+    window.Host().SetRoot(std::move(root));
+    static_cast<Panel*>(window.Host().GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 200.0f));
+    window.Host().SetFocusControl(tree, false);
+
+    // Set keyboard modality through the host's message dispatcher; this does not activate or focus the HWND.
+    bool handled = false;
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_KEYDOWN, VK_SHIFT, 0, handled));
+    handled = false;
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_KEYUP, VK_SHIFT, 0, handled));
+    Require(window.Host().GetFocusControl() == tree && window.Host().IsKeyboardFocusVisible(),
+            "Tree scene has logical keyboard focus without native activation");
+    Require(tree->MultiSelectEnabled() && tree->GetSelectedItemIds().size() == 2u, "Tree scene has an active multiselection");
+    TreeDebugRowVisualState focusedState{};
+    Require(tree->DebugGetRowVisualState(window.Host().GetTheme(), 1u, window.Host().IsKeyboardFocusVisible(), focusedState) && focusedState.current &&
+                focusedState.showFocus,
+            "Tree scene resolves a focus outline on the focused row outside the selection");
+
+    const WindowHostBitmapCapture normalCapture =
+        CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "Tree baseline render succeeds before null-brush injection");
+    Require(normalCapture.widthPx > 0u && normalCapture.heightPx > 0u, "Tree baseline capture is nonempty");
+    Require(tree->HasFocus() && window.Host().IsKeyboardFocusVisible(), "the baseline capture preserves the logical focus-outline paint condition");
+    const uint64_t presentFailuresBefore = window.Host().DebugGetPresentFailureCount();
+    window.Host().DebugSetForceNullSolidBrushes(true);
+    const WindowHostBitmapCapture nullBrushCapture =
+        CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "Tree focus-outline paint completes with every solid brush forced null");
+    window.Host().DebugSetForceNullSolidBrushes(false);
+    Require(nullBrushCapture.widthPx > 0u && nullBrushCapture.heightPx > 0u, "Tree null-brush capture is nonempty");
+    Require(window.Host().DebugGetPresentFailureCount() == presentFailuresBefore, "Tree null-brush paint introduces no presentation failures");
+
+    const WindowHostBitmapCapture recoveredCapture =
+        CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "Tree rendering recovers after null-brush injection");
+    Require(recoveredCapture.widthPx > 0u && recoveredCapture.heightPx > 0u, "Tree recovery capture is nonempty");
+    Require(window.Host().DebugGetPresentFailureCount() == presentFailuresBefore, "Tree recovery introduces no presentation failures");
+}
+
+void TestWindowHostScrollPanelScrollbarSurvivesForcedNullSolidBrushes()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root     = std::make_unique<Panel>();
+    auto* scroll  = root->AddChild<ScrollPanel>();
+    auto* content = scroll->AddChild<Panel>();
+    auto* label   = content->AddChild<Label>(L"Scrollable content");
+    scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 292.0f, 188.0f));
+    scroll->SetContentHeight(520.0f);
+    scroll->SetScrollOffset(96.0f);
+    content->SetBounds(D2D1::RectF(0.0f, 0.0f, 276.0f, 520.0f));
+    label->SetBounds(D2D1::RectF(12.0f, 100.0f, 240.0f, 132.0f));
+    window.Host().SetRoot(std::move(root));
+    static_cast<Panel*>(window.Host().GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 200.0f));
+
+    D2D1_RECT_F thumbRect{};
+    Require(scroll->NeedsScrollbar() && scroll->DebugGetScrollbarThumbHitRect(thumbRect), "ScrollPanel scene has a visible scrollbar thumb");
+    Require(thumbRect.right > thumbRect.left && thumbRect.bottom > thumbRect.top, "ScrollPanel scrollbar thumb has paintable bounds");
+
+    const WindowHostBitmapCapture normalCapture =
+        CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "ScrollPanel baseline render succeeds before null-brush injection");
+    Require(normalCapture.widthPx > 0u && normalCapture.heightPx > 0u, "ScrollPanel baseline capture is nonempty");
+    const uint64_t presentFailuresBefore = window.Host().DebugGetPresentFailureCount();
+    window.Host().DebugSetForceNullSolidBrushes(true);
+    const WindowHostBitmapCapture nullBrushCapture =
+        CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "ScrollPanel scrollbar paint completes with every solid brush forced null");
+    window.Host().DebugSetForceNullSolidBrushes(false);
+    Require(nullBrushCapture.widthPx > 0u && nullBrushCapture.heightPx > 0u, "ScrollPanel null-brush capture is nonempty");
+    Require(window.Host().DebugGetPresentFailureCount() == presentFailuresBefore, "ScrollPanel null-brush paint introduces no presentation failures");
+
+    const WindowHostBitmapCapture recoveredCapture =
+        CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "ScrollPanel rendering recovers after null-brush injection");
+    Require(recoveredCapture.widthPx > 0u && recoveredCapture.heightPx > 0u, "ScrollPanel recovery capture is nonempty");
+    Require(window.Host().DebugGetPresentFailureCount() == presentFailuresBefore, "ScrollPanel recovery introduces no presentation failures");
+}
+
+void TestWindowHostComboBoxPopupSurvivesForcedNullSolidBrushes()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* combo = root->AddChild<ComboBox>();
+    combo->SetBounds(D2D1::RectF(8.0f, 8.0f, 292.0f, 40.0f));
+    combo->SetVariant(ComboBoxVariant::Window);
+    combo->SetChromeVisible(true);
+    combo->SetMaxVisibleItems(4u);
+    std::vector<ComboBox::Item> items;
+    for (size_t index = 0u; index < 20u; ++index)
+    {
+        items.push_back(ComboBox::Item{std::format(L"value{:02}", index), std::format(L"Item {:02}", index)});
+    }
+    combo->SetItems(std::move(items));
+    combo->SetSelectedIndex(1u);
+    window.Host().SetRoot(std::move(root));
+    static_cast<Panel*>(window.Host().GetRoot())->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 200.0f));
+    window.Host().SetFocusControl(combo, false);
+    Require(combo->OnKeyDown(window.Host(), VK_RETURN, 0u), "ComboBox scene opens its popup through the control's nonnative key handler");
+    Require(combo->DebugIsPopupOpen() && combo->GetSelectedIndex() == std::optional<size_t>(1u), "ComboBox popup is open with a selected item");
+    const ComboBoxVisualStyle comboStyle = ResolveComboBoxVisualStyle(
+        window.Host().GetTheme(), combo->GetVariant(), combo->IsEnabled(), combo->IsHovered(), combo->DebugIsPopupOpen(), combo->HasFocus(), false);
+    Require(comboStyle.showButtonSplit, "ComboBox scene enables the raw split-stroke draw");
+    Require(combo->DebugGetPopupBounds().bottom > combo->DebugGetPopupBounds().top, "ComboBox popup has paintable bounds");
+    Require(combo->DebugGetPopupItemRect(1u, &window.Host()).bottom > combo->DebugGetPopupItemRect(1u, &window.Host()).top,
+            "ComboBox selected popup row has paintable bounds");
+    size_t visiblePopupRows = 0u;
+    for (size_t index = 0u; index < combo->GetItems().size(); ++index)
+    {
+        const D2D1_RECT_F itemRect = combo->DebugGetPopupItemRect(index, &window.Host());
+        if (itemRect.right > itemRect.left && itemRect.bottom > itemRect.top)
+        {
+            ++visiblePopupRows;
+        }
+    }
+    Require(visiblePopupRows > 0u && visiblePopupRows < combo->GetItems().size(), "ComboBox popup viewport is scrollable and exposes its scrollbar draw path");
+
+    const WindowHostBitmapCapture normalCapture =
+        CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "ComboBox baseline render succeeds before null-brush injection");
+    Require(normalCapture.widthPx > 0u && normalCapture.heightPx > 0u, "ComboBox baseline capture is nonempty");
+    const uint64_t presentFailuresBefore = window.Host().DebugGetPresentFailureCount();
+    window.Host().DebugSetForceNullSolidBrushes(true);
+    const WindowHostBitmapCapture nullBrushCapture =
+        CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "ComboBox popup and scrollbar paint complete with every solid brush forced null");
+    window.Host().DebugSetForceNullSolidBrushes(false);
+    Require(nullBrushCapture.widthPx > 0u && nullBrushCapture.heightPx > 0u, "ComboBox null-brush capture is nonempty");
+    Require(window.Host().DebugGetPresentFailureCount() == presentFailuresBefore, "ComboBox null-brush paint introduces no presentation failures");
+
+    const WindowHostBitmapCapture recoveredCapture =
+        CaptureAttachedHostWindowBitmapForWindowHostSuite(window, "ComboBox rendering recovers after null-brush injection");
+    Require(recoveredCapture.widthPx > 0u && recoveredCapture.heightPx > 0u, "ComboBox recovery capture is nonempty");
+    Require(window.Host().DebugGetPresentFailureCount() == presentFailuresBefore, "ComboBox recovery introduces no presentation failures");
+}
+
 void TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag()
 {
     using namespace DxUi;
@@ -2592,6 +4153,52 @@ void TestWindowHostOverlayHitTestingPrecedesContentHitTesting()
 
     handled = false;
     static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0, MAKELPARAM(16, 16), handled));
+}
+
+void TestWindowHostOverlayHitTestRetiringRootStopsPointerResolutionAndDispatch()
+{
+    using namespace DxUi;
+
+    const auto verifyRetiredOverlayStopsMessage = [](UINT message, const char* messageName)
+    {
+        WindowHost host;
+        RootRetiringOverlayHitState state;
+        auto root = std::make_unique<RootRetiringOverlayHitControl>(host, state);
+        root->SetBounds(D2D1::RectF(0.0f, 0.0f, 80.0f, 40.0f));
+        host.SetRoot(std::move(root));
+
+        bool handled = false;
+        static_cast<void>(host.HandleMessage(nullptr, message, message == WM_LBUTTONDOWN ? MK_LBUTTON : 0, MAKELPARAM(12, 12), handled));
+
+        Require(host.GetRoot() == nullptr, messageName);
+        Require(state.overlayHitCount == 1u, "the retiring overlay receives one hit-test query");
+        Require(state.normalHitCount == 0u, "root retirement in overlay hit testing skips the normal content-hit query");
+        Require(state.mouseMoveCount == 0u && state.mouseDownCount == 0u, "pointer input is not dispatched through a retired overlay hit result");
+    };
+
+    verifyRetiredOverlayStopsMessage(WM_MOUSEMOVE, "mouse-move overlay hit testing can clear the host root");
+    verifyRetiredOverlayStopsMessage(WM_LBUTTONDOWN, "mouse-down overlay hit testing can clear the host root");
+}
+
+void TestWindowHostContainsMouseDownCallbackExceptionAndContinues()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    ThrowOnceOnMouseDownState state;
+    auto root = std::make_unique<ThrowOnceOnMouseDownControl>(state);
+    host.SetRoot(std::move(root));
+    host.GetRoot()->SetBounds(D2D1::RectF(0.0f, 0.0f, 80.0f, 40.0f));
+
+    bool handled                       = false;
+    const LRESULT failedCallbackResult = host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(12, 12), handled);
+    Require(handled && failedCallbackResult == 0, "the host consumes the mouse-down whose control callback throws");
+    Require(state.mouseDownCount == 1u, "the failing input callback is contained after one invocation");
+
+    handled                               = false;
+    const LRESULT recoveredCallbackResult = host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(12, 12), handled);
+    Require(handled && recoveredCallbackResult == 0, "the next mouse-down is handled normally after the callback failure");
+    Require(state.mouseDownCount == 2u, "the next input reaches the callback once and does not retry the failed callback");
 }
 
 void TestWindowHostEscapeClosesMouseOpenedComboPopupBeforeCancelButton()
@@ -3488,7 +5095,7 @@ void TestDxUiPrivateMessagesAreRegisteredDistinctAndNeverWmNull()
         {"RedSalamanders.DxUi.WindowHost.FocusGainTurnEnd.v1", &DxUi::WndMsg::WindowHostFocusGainTurnEnd},
         {"RedSalamanders.DxUi.WindowHost.ProcessExitDetach.v1", &DxUi::WndMsg::WindowHostProcessExitDetach},
         {"RedSalamanders.DxUi.Accessibility.UiThreadAction.v1", &DxUi::WndMsg::AccessibilityUiThreadAction},
-        {"RedSalamanders.DxUi.Accessibility.CreateProvider.v1", &DxUi::WndMsg::AccessibilityCreateProvider},
+        {"RedSalamanders.DxUi.Accessibility.CreateProvider.v2", &DxUi::WndMsg::AccessibilityCreateProvider},
         {"RedSalamanders.DxUi.ContextMenu.RootHoverChanged.v1", &DxUi::WndMsg::ContextMenuRootHoverChanged},
         {"RedSalamanders.DxUi.MenuPopup.AccessibleInvoke.v1", &DxUi::WndMsg::MenuPopupAccessibleInvoke},
         {"RedSalamanders.DxUi.MenuPopup.AccessibleFocus.v1", &DxUi::WndMsg::MenuPopupAccessibleFocus},
@@ -3612,7 +5219,8 @@ void TestWindowHostLeavesApplicationMessagesAtDxUisFormerValuesToTheApplication(
     Require(stored == nullptr, "no root provider is stored through the lParam of the former provider-creation value");
     Require(! payloadDestroyed, "the former accessibility-action value takes none of the application's payloads");
     Require(window.Host().DebugIsInFocusGainTurn(), "the former turn-end value ends no turn");
-    Require(TakeMessagePayload<PayloadProbe>(payload.lParam) != nullptr, "the application takes its own payload back");
+    Require(TakeMessagePayload<PayloadProbe>(window.Hwnd(), kApplicationPayloadMessage, payload.lParam) != nullptr,
+            "the application takes its own payload back");
     Require(payloadDestroyed, "the application's payload is destroyed once taken back");
 
     // Posted, they reach the application through the message loop too, after the gain's own message has ended its turn.
@@ -3709,20 +5317,44 @@ void TestWindowHostReadsThePointerDeviceOfEachMouseMessage()
 
 void RunWindowHostTests()
 {
+    DXUI_RUN_TEST(TestWindowHostTakesTheRequestedLifetimeBeforePruningFocus);
+    DXUI_RUN_TEST(TestWindowHostNewerCallbackFocusRequestWins);
+    DXUI_RUN_TEST(TestWindowHostFailedBlurBeforeBasePreservesOnlyTheNewFocus);
+    DXUI_RUN_TEST(TestWindowHostResetPreservesExplicitFocusAndRootReplacementRetiresOldChoice);
+    DXUI_RUN_TEST(TestWindowHostThrowingFocusCallbacksAcknowledgeTransitionsAndRetirement);
+    DXUI_RUN_TEST(TestWindowHostPromotesAChildBeforeDestroyingItsOldParent);
+    DXUI_RUN_TEST(TestWindowHostPromotionSurvivesResetCallbacksRetiringTheParent);
+    DXUI_RUN_TEST(TestWindowHostPromotionStopsWhenAnInheritanceCallbackReplacesTheRoot);
+    DXUI_RUN_TEST(TestWindowHostPointerFocusCallbackCanDestroyTheClickedControl);
     DXUI_RUN_TEST(TestWindowHostWorksWithoutOptionalSdkDebugLayer);
     DXUI_RUN_TEST(TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);
     DXUI_RUN_TEST(TestWindowHostKeyboardInputMarksFocusVisible);
     DXUI_RUN_TEST(TestWindowHostPointerInputClearsKeyboardFocusVisible);
     DXUI_RUN_TEST(TestWindowHostRejectsForeignThreadDetachUntilOwnerDetaches);
     DXUI_RUN_TEST(TestWindowHostDetachKeepsSharedGraphicsAttachmentUntilControlTreeDestroyed);
+    DXUI_RUN_TEST(TestWindowHostFocusLossCannotReattachDuringDetach);
     DXUI_RUN_TEST(TestWindowHostEmitsFrameStageMetricsForCaptureRender);
+    DXUI_RUN_TEST(TestWindowHostCaptureRecoversAfterControlPaintThrows);
+    DXUI_RUN_TEST(TestWindowHostCaptureDiscardsFrameWhenPaintReplacesItsRoot);
+    DXUI_RUN_TEST(TestWindowHostCaptureDiscardsFrameWhenPaintMutatesTheChildTree);
+    DXUI_RUN_TEST(TestWindowHostGridFocusMutationCannotRetargetTheCurrentClick);
     DXUI_RUN_TEST(TestWindowHostBlocksLayoutMutationDuringRender);
     DXUI_RUN_TEST(TestPostMessagePayloadTeardownDrainDeletesUndeliveredPayloads);
+    DXUI_RUN_TEST(TestPostedPayloadTakeRequiresTheMatchingWindowMessageAndType);
+    DXUI_RUN_TEST(TestPostedPayloadCapacityFailureDestroysAndAllowsRetry);
+    DXUI_RUN_TEST(TestWindowHostAttachmentReservationIsExclusiveAndIdempotent);
+    DXUI_RUN_TEST(TestWindowHostRejectedReattachmentPreservesBothHostsAndQueuedPayloads);
+    DXUI_RUN_TEST(TestWindowHostAttachmentCapacityRejectsThe129thAndRecovers);
+    DXUI_RUN_TEST(TestWindowHostAccessibilityRegistrationFailureRollsBackAndAllowsRetry);
     DXUI_RUN_TEST(TestWindowHostMouseMoveUpdatesHoverTarget);
     DXUI_RUN_TEST(TestWindowHostMouseLeaveOverForeignPopupClearsHover);
     DXUI_RUN_TEST(TestWindowHostMouseLeaveWithForeignCaptureClearsHover);
     DXUI_RUN_TEST(TestWindowHostTabTraversal);
     DXUI_RUN_TEST(TestWindowHostShiftTabTraversal);
+    DXUI_RUN_TEST(TestWindowHostTabBoundaryCallbackCanReplaceItself);
+    DXUI_RUN_TEST(TestWindowHostTabBoundaryMutableCallbackRetainsState);
+    DXUI_RUN_TEST(TestWindowHostTabBoundaryCanRetireTheNextTarget);
+    DXUI_RUN_TEST(TestWindowHostTabBoundarySnapshotCleanupRetiresTheValidatedTarget);
     DXUI_RUN_TEST(TestWindowHostNativeFocusLossRetainsLogicalFocusForTraversal);
     DXUI_RUN_TEST(TestWindowHostFocusGainTurnEndsWithItsMessageOrTheLossOfFocusOrItsLimit);
     DXUI_RUN_TEST(TestWindowHostFocusMoveInTheGainTurnOfAWindowNoGetFocusHasBegunOnIsLeftToTheSystem);
@@ -3746,6 +5378,11 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostDpiChangedInvalidatesMultilineCachesAndResizesAttachedWindow);
     DXUI_RUN_TEST(TestWindowHostAttachedWindowsRenderAcrossUiThreads);
     DXUI_RUN_TEST(TestWindowHostEscapeInvokesCancelButton);
+    DXUI_RUN_TEST(TestWindowHostEscapeCallbackCanReplaceItself);
+    DXUI_RUN_TEST(TestWindowHostEscapeMutableCallbackRetainsState);
+    DXUI_RUN_TEST(TestNativeMenuBarRefreshMutableCallbackRetainsState);
+    DXUI_RUN_TEST(TestWindowHostFocusChangedMutableCallbackRetainsState);
+    DXUI_RUN_TEST(TestWindowHostLogicalEditorFocusCanAvoidNativeActivation);
     DXUI_RUN_TEST(TestWindowHostEscapeClosesComboPopupBeforeCancelButton);
     DXUI_RUN_TEST(TestWindowHostMenuKeyInvokesFocusedButtonContextMenu);
     DXUI_RUN_TEST(TestWindowHostShiftF10InvokesFocusedToggleContextMenu);
@@ -3776,9 +5413,15 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostRedundantCaptureDoesNotCancelMouseDownCapture);
     DXUI_RUN_TEST(TestWindowHostRenderSurvivesForcedNullSolidBrushes);
     DXUI_RUN_TEST(TestWindowHostEditorControlsSurviveForcedNullSolidBrushes);
+    DXUI_RUN_TEST(TestWindowHostGridPaintSurvivesForcedNullSolidBrushes);
+    DXUI_RUN_TEST(TestWindowHostTreeFocusOutlineSurvivesForcedNullSolidBrushes);
+    DXUI_RUN_TEST(TestWindowHostScrollPanelScrollbarSurvivesForcedNullSolidBrushes);
+    DXUI_RUN_TEST(TestWindowHostComboBoxPopupSurvivesForcedNullSolidBrushes);
     DXUI_RUN_TEST(TestWindowHostDisabledOrHiddenCaptureCancelsTheDrag);
     DXUI_RUN_TEST(TestWindowHostSmokeOverlayRendersBelowRootOverlay);
     DXUI_RUN_TEST(TestWindowHostOverlayHitTestingPrecedesContentHitTesting);
+    DXUI_RUN_TEST(TestWindowHostOverlayHitTestRetiringRootStopsPointerResolutionAndDispatch);
+    DXUI_RUN_TEST(TestWindowHostContainsMouseDownCallbackExceptionAndContinues);
     DXUI_RUN_TEST(TestWindowHostEscapeClosesMouseOpenedComboPopupBeforeCancelButton);
     DXUI_RUN_TEST(TestWindowHostTabTraversalIncludesComboBox);
     DXUI_RUN_TEST(TestWindowHostTabTraversalStaysConsistentAcrossFieldComboTreeGridAndButtons);

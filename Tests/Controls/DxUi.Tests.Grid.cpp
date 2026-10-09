@@ -6,6 +6,7 @@
 #include <functional>
 #include <iterator>
 #include <limits>
+#include <stdexcept>
 #include <tuple>
 #include <type_traits>
 #include <unordered_set>
@@ -32,6 +33,391 @@ template <typename Metrics> [[nodiscard]] std::optional<uint64_t> TryGetVisibleC
     {
         return std::nullopt;
     }
+}
+
+class MutableTextGridModel final : public DxUi::IGridModel
+{
+public:
+    struct Column
+    {
+        std::wstring id;
+        std::wstring title;
+        float widthDip = 180.0f;
+    };
+
+    struct Row
+    {
+        uint64_t id;
+        std::vector<std::wstring> cells;
+    };
+
+    MutableTextGridModel(std::vector<Row> rows, std::vector<Column> columns = {{L"value", L"Value"}}) : _rows(std::move(rows)), _columns(std::move(columns))
+    {
+    }
+
+    void SetRows(std::vector<Row> rows)
+    {
+        _rows = std::move(rows);
+    }
+
+    void SetColumns(std::vector<Column> columns)
+    {
+        _columns = std::move(columns);
+    }
+
+    mutable std::function<void()> onGetRowCount;
+    mutable std::function<void()> onGetGroupCount;
+    mutable std::function<void()> onGetStableRowId;
+    mutable std::function<void()> onGetCellData;
+    mutable size_t cellDataCalls   = 0u;
+    bool checkboxCells             = false;
+    bool throwCellData             = false;
+    mutable size_t groupCountCalls = 0u;
+
+    [[nodiscard]] size_t GetRowCount() const noexcept override
+    {
+        InvokeOnce(onGetRowCount);
+        return _rows.size();
+    }
+
+    [[nodiscard]] size_t GetColumnCount() const noexcept override
+    {
+        return _columns.size();
+    }
+
+    [[nodiscard]] size_t GetGroupCount() const noexcept override
+    {
+        ++groupCountCalls;
+        InvokeOnce(onGetGroupCount);
+        return 0u;
+    }
+
+    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t columnIndex) const override
+    {
+        const Column& source = _columns.at(columnIndex);
+        return DxUi::GridColumnDesc{.id = source.id, .title = source.title, .widthDip = source.widthDip};
+    }
+
+    void GetCellData(size_t rowIndex, size_t columnIndex, DxUi::GridCellData& outCell) const override
+    {
+        ++cellDataCalls;
+        InvokeOnce(onGetCellData);
+        if (throwCellData)
+        {
+            throw std::runtime_error("synthetic Grid getter failure");
+        }
+        outCell.kind = checkboxCells ? DxUi::GridCellKind::Checkbox : DxUi::GridCellKind::Text;
+        outCell.text = _rows.at(rowIndex).cells.at(columnIndex);
+    }
+
+    [[nodiscard]] uint64_t GetStableRowId(size_t rowIndex) const noexcept override
+    {
+        InvokeOnce(onGetStableRowId);
+        return _rows[rowIndex].id;
+    }
+
+    [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+    {
+        for (size_t index = 0u; index < _rows.size(); ++index)
+        {
+            if (_rows[index].id == rowId)
+            {
+                return index;
+            }
+        }
+        return std::nullopt;
+    }
+
+private:
+    static void InvokeOnce(std::function<void()>& callback) noexcept
+    {
+        std::function<void()> invoke = std::move(callback);
+        callback                     = {};
+        if (invoke)
+        {
+            invoke();
+        }
+    }
+
+    std::vector<Row> _rows;
+    std::vector<Column> _columns;
+};
+
+void TestGridKeyboardCheckboxQueryStopsAfterGetterRetiresTheGrid()
+{
+    using namespace DxUi;
+
+    MutableTextGridModel model({{10u, {L"toggle"}}});
+    model.checkboxCells = true;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    grid->SetModel(&model);
+    host.SetRoot(std::move(root));
+
+    size_t cellQueries  = 0u;
+    model.onGetCellData = [&]
+    {
+        ++cellQueries;
+        host.SetRoot(nullptr);
+    };
+    Require(grid->OnKeyDown(host, VK_SPACE, 0u), "Space is consumed when the checkbox lookup retires its Grid");
+    Require(host.GetRoot() == nullptr, "the checkbox cell getter retired the root");
+    Require(cellQueries == 1u, "the keyboard path stops after its first retiring cell getter");
+}
+
+void TestGridKeyboardCheckboxQueryContainsModelGetterExceptions()
+{
+    using namespace DxUi;
+
+    MutableTextGridModel model({{10u, {L"toggle"}}});
+    model.checkboxCells = true;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    grid->SetModel(&model);
+    host.SetRoot(std::move(root));
+
+    model.throwCellData = true;
+    Require(! grid->OnKeyDown(host, VK_SPACE, 0u), "Space aborts when the checkbox cell getter throws");
+    Require(model.cellDataCalls == 1u, "the keyboard path stops after the failed checkbox lookup");
+    Require(host.GetRoot() != nullptr, "a failed but nonreentrant cell getter leaves the Grid installed");
+}
+
+void TestGridNoexceptGeometryContainsThrowingGroupGetter()
+{
+    using namespace DxUi;
+
+    class ThrowingGroupModel final : public IGridModel
+    {
+    public:
+        [[nodiscard]] size_t GetRowCount() const noexcept override
+        {
+            return 1u;
+        }
+
+        [[nodiscard]] size_t GetColumnCount() const noexcept override
+        {
+            return 1u;
+        }
+
+        [[nodiscard]] GridColumnDesc GetColumn(size_t) const override
+        {
+            return GridColumnDesc{.id = L"value", .title = L"Value", .widthDip = 120.0f};
+        }
+
+        void GetCellData(size_t, size_t, GridCellData& outCell) const override
+        {
+            outCell.kind = GridCellKind::Text;
+            outCell.text = L"value";
+        }
+
+        [[nodiscard]] size_t GetGroupCount() const noexcept override
+        {
+            return 1u;
+        }
+
+        [[nodiscard]] GridGroupDesc GetGroup(size_t) const override
+        {
+            throw std::runtime_error("synthetic group getter failure");
+        }
+
+        [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+        {
+            return rowId == 1u ? std::optional<size_t>{0u} : std::nullopt;
+        }
+
+        [[nodiscard]] uint64_t GetStableRowId(size_t) const noexcept override
+        {
+            return 1u;
+        }
+    } model;
+
+    Grid grid;
+    grid.SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    grid.SetModel(&model);
+
+    Require(grid.GetVisibleColumnCount() == 0u, "Grid noexcept geometry returns empty visibility when collecting a throwing borrowed group snapshot");
+}
+
+void TestGridSetModelStopsAfterAGroupGetterReplacesItsRoot()
+{
+    using namespace DxUi;
+
+    MutableTextGridModel model({{10u, {L"first"}}});
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    grid->SetModel(&model);
+    host.SetRoot(std::move(root));
+
+    bool replacedRoot     = false;
+    model.onGetGroupCount = [&]
+    {
+        replacedRoot = true;
+        host.SetRoot(nullptr);
+    };
+    grid->SetModel(&model);
+
+    Require(replacedRoot, "SetModel queried the armed group getter");
+    Require(host.GetRoot() == nullptr, "the getter retired the Grid root during SetModel");
+}
+
+void TestGridSetModelDetectsSamePointerReentrantReplacement()
+{
+    using namespace DxUi;
+
+    MutableTextGridModel model({{10u, {L"first"}}});
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    grid->SetModel(&model);
+    host.SetRoot(std::move(root));
+
+    const size_t beforeQueries = model.groupCountCalls;
+    size_t nestedQueries       = 0u;
+    model.onGetGroupCount      = [&]
+    {
+        const size_t nestedBefore = model.groupCountCalls;
+        grid->SetModel(&model);
+        nestedQueries = model.groupCountCalls - nestedBefore;
+    };
+    grid->SetModel(&model);
+
+    Require(grid->GetModel() == &model, "the nested same-pointer SetModel leaves its model installed");
+    Require(nestedQueries > 0u && model.groupCountCalls - beforeQueries == nestedQueries + 1u,
+            "the stale outer SetModel stops immediately after the group getter completes its nested same-pointer replacement");
+}
+
+void TestGridNotifyDataChangedStopsAfterAGroupGetterReplacesItsRoot()
+{
+    using namespace DxUi;
+
+    MutableTextGridModel model({{10u, {L"first"}}});
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    grid->SetModel(&model);
+    host.SetRoot(std::move(root));
+
+    bool replacedRoot     = false;
+    model.onGetGroupCount = [&]
+    {
+        replacedRoot = true;
+        host.SetRoot(nullptr);
+    };
+    grid->NotifyDataChanged();
+
+    Require(replacedRoot, "NotifyDataChanged queried the armed group getter");
+    Require(host.GetRoot() == nullptr, "the getter retired the Grid root during NotifyDataChanged");
+}
+
+void TestGridNotifyDataChangedStopsAfterAGroupGetterReplacesItsModel()
+{
+    using namespace DxUi;
+
+    MutableTextGridModel originalModel({{10u, {L"original"}}});
+    MutableTextGridModel replacementModel({{30u, {L"replacement"}}});
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    grid->SetModel(&originalModel);
+    host.SetRoot(std::move(root));
+
+    size_t replacementQueriesAtReturn = 0u;
+    originalModel.onGetGroupCount     = [&]
+    {
+        grid->SetModel(&replacementModel);
+        replacementQueriesAtReturn = replacementModel.groupCountCalls;
+    };
+    grid->NotifyDataChanged();
+
+    Require(grid->GetModel() == &replacementModel, "the one-shot group getter installed the replacement model");
+    Require(replacementQueriesAtReturn > 0u && replacementModel.groupCountCalls == replacementQueriesAtReturn,
+            "the interrupted NotifyDataChanged performs no extra queries after its getter completes the replacement SetModel");
+}
+
+void TestGridPaintStopsAfterCellGetterReplacesItsRoot()
+{
+    using namespace DxUi;
+
+    MutableTextGridModel model({{10u, {L"cell"}}});
+    AttachedHostWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    grid->SetModel(&model);
+    window.Host().SetRoot(std::move(root));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.PumpMessages();
+
+    bool replacedRoot   = false;
+    model.onGetCellData = [&]
+    {
+        replacedRoot = true;
+        window.Host().SetRoot(nullptr);
+    };
+    WindowHostBitmapCapture capture;
+    Require(! window.Host().DebugCaptureBitmap(capture), "the nonactivating capture discards a frame whose cell getter retires Grid");
+
+    Require(replacedRoot, "paint read the armed cell getter");
+    Require(window.Host().GetRoot() == nullptr, "the cell getter retired the Grid root during Paint");
+    Require(window.Host().DebugCaptureBitmap(capture), "a later capture successfully paints the current empty root");
+}
+
+void TestGridSelectionNotificationStopsAfterDelegateReplacesModel()
+{
+    using namespace DxUi;
+
+    MutableTextGridModel firstModel({{10u, {L"first"}}, {20u, {L"second"}}});
+    MutableTextGridModel replacementModel({{30u, {L"replacement"}}, {40u, {L"next"}}});
+    struct SwappingDelegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridFocusedRowChanged;
+        using IGridDelegate::OnGridSelectionChanged;
+        MutableTextGridModel* replacement = nullptr;
+        size_t focusNotifications         = 0u;
+        std::optional<uint64_t> lastFocusedRow;
+
+        void OnGridSelectionChanged(Grid& sender) override
+        {
+            if (replacement)
+            {
+                MutableTextGridModel* const model = std::exchange(replacement, nullptr);
+                sender.SetModel(model);
+            }
+        }
+
+        void OnGridFocusedRowChanged(Grid&, std::optional<uint64_t> rowId) override
+        {
+            ++focusNotifications;
+            lastFocusedRow = rowId;
+        }
+    } delegate;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 120.0f));
+    grid->SetSelectionMode(GridSelectionMode::Extended);
+    grid->SetModel(&firstModel);
+    grid->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    delegate.replacement = &replacementModel;
+
+    const bool requestCompleted = grid->RequestSelectRow(0u, 0u);
+
+    Require(! requestCompleted, "selection dispatch reports that its original model context ended");
+    Require(grid->GetModel() == &replacementModel, "the selection callback installed the replacement model");
+    Require(grid->GetSelectionModel().GetCount() == 1u && grid->GetSelectionModel().IsSelected(30u),
+            "the replacement model's own reconciliation remains intact");
+    Require(delegate.focusNotifications == 1u && delegate.lastFocusedRow == std::optional<uint64_t>(30u),
+            "the outer selection pass stops after the nested replacement notification and does not publish stale focus");
 }
 
 void TestSortCycle()
@@ -112,22 +498,15 @@ struct LinearSelectionReference
 
     void Toggle(uint64_t rowId)
     {
+        anchor        = rowId;
         const auto it = std::ranges::find(ids, rowId);
         if (it != ids.end())
         {
             ids.erase(it);
-            if (anchor == rowId)
-            {
-                anchor = ids.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(ids.front());
-            }
             return;
         }
 
         ids.push_back(rowId);
-        if (! anchor)
-        {
-            anchor = rowId;
-        }
     }
 
     void SetRange(const std::vector<uint64_t>& orderedRowIds, uint64_t anchorRowId, uint64_t currentRowId)
@@ -147,6 +526,11 @@ struct LinearSelectionReference
 
     void PreserveOrdered(const std::vector<uint64_t>& orderedRowIds)
     {
+        // The range anchor is independent of membership, so model reconciliation updates it even when no rows are selected.
+        if (anchor && ! std::ranges::contains(orderedRowIds, anchor.value()))
+        {
+            anchor.reset();
+        }
         if (ids.empty())
         {
             return;
@@ -160,11 +544,6 @@ struct LinearSelectionReference
             {
                 ids.push_back(rowId);
             }
-        }
-
-        if (anchor && ! std::ranges::contains(ids, anchor.value()))
-        {
-            anchor = ids.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(ids.front());
         }
     }
 
@@ -236,7 +615,7 @@ struct SelectionRunCoverage
     size_t rangesFallingBackToOneId      = 0u;
     size_t preservesThatDropIds          = 0u;
     size_t preservesThatChangeNothing    = 0u;
-    size_t togglesThatMoveTheAnchor      = 0u;
+    size_t togglesThatDeselectAnchor     = 0u;
     size_t togglesThatLeaveACopy         = 0u;
     size_t selectionsOfHalfTheIds        = 0u;
     size_t selectionsWithinTheScanLimit  = 0u; // Selections of kScanLimit ids or fewer, not counting the empty selection.
@@ -431,15 +810,16 @@ struct SelectionRunCoverage
         {
             operation = "Toggle";
             replaced  = false;
-            // Most toggles name an id that is selected, so removal, the anchor's removal and a copy's removal all recur.
+            // Most toggles name a selected id, so removal of an ordinary member, deselection of the current anchor, and removal
+            // of one repeated occurrence all recur. Toggling membership leaves the touched id as the anchor.
             const uint64_t id =
                 (! reference.ids.empty() && random.Below(5u) < 3u) ? reference.ids[random.Below(reference.ids.size())] : probes[random.Below(probes.size())];
             const bool selectedBefore = reference.IsSelected(id);
             model.Toggle(id);
             reference.Toggle(id);
-            if (selectedBefore && anchorBefore == id && reference.anchor != anchorBefore)
+            if (selectedBefore && anchorBefore == id && ! reference.IsSelected(id) && reference.anchor == anchorBefore)
             {
-                ++coverage.togglesThatMoveTheAnchor;
+                ++coverage.togglesThatDeselectAnchor;
             }
             if (selectedBefore && reference.IsSelected(id))
             {
@@ -586,7 +966,7 @@ void AddSelectionCoverage(SelectionRunCoverage& total, const SelectionRunCoverag
     total.rangesFallingBackToOneId += run.rangesFallingBackToOneId;
     total.preservesThatDropIds += run.preservesThatDropIds;
     total.preservesThatChangeNothing += run.preservesThatChangeNothing;
-    total.togglesThatMoveTheAnchor += run.togglesThatMoveTheAnchor;
+    total.togglesThatDeselectAnchor += run.togglesThatDeselectAnchor;
     total.togglesThatLeaveACopy += run.togglesThatLeaveACopy;
     total.selectionsOfHalfTheIds += run.selectionsOfHalfTheIds;
     total.selectionsWithinTheScanLimit += run.selectionsWithinTheScanLimit;
@@ -616,7 +996,7 @@ void TestSelectionModelMatchesTheLinearReferenceOverRandomOperations()
     Require(total.rangesFallingBackToOneId > 0u, "randomized selection runs reach a range whose anchor or current id is not in the list");
     Require(total.preservesThatDropIds > 0u, "randomized selection runs reach a PreserveOrdered that drops selected ids");
     Require(total.preservesThatChangeNothing > 0u, "randomized selection runs reach a PreserveOrdered that leaves the selection as it was");
-    Require(total.togglesThatMoveTheAnchor > 0u, "randomized selection runs reach a Toggle that removes the anchor");
+    Require(total.togglesThatDeselectAnchor > 0u, "randomized selection runs reach a Toggle that deselects the anchor while retaining it as the range anchor");
     Require(total.togglesThatLeaveACopy > 0u, "randomized selection runs reach a Toggle that leaves another copy of its id selected");
     Require(total.selectionsOfHalfTheIds > 0u, "randomized selection runs reach selections of half the ids or more");
     Require(total.selectionsWithinTheScanLimit > 0u, "randomized selection runs reach selections that the model scans");
@@ -642,7 +1022,8 @@ void TestSelectionModelMatchesTheLinearReferenceOnBothSidesOfItsScanAndReleaseLi
     Require(total.rangesThatKeptRoom > 0u, "wide randomized selection runs reach a SetRange that reuses the room of a large buffer");
     Require(total.preservesThatGaveRoomBack > 0u, "wide randomized selection runs reach a PreserveOrdered that gives room back");
     Require(total.preservesThatDropIds > 0u, "wide randomized selection runs reach a PreserveOrdered that drops selected ids");
-    Require(total.togglesThatMoveTheAnchor > 0u, "wide randomized selection runs reach a Toggle that removes the anchor");
+    Require(total.togglesThatDeselectAnchor > 0u,
+            "wide randomized selection runs reach a Toggle that deselects the anchor while retaining it as the range anchor");
 }
 
 void TestSelectionModelKeepsEveryOccurrenceOfAnIdThatARangeRepeats()
@@ -664,12 +1045,12 @@ void TestSelectionModelKeepsEveryOccurrenceOfAnIdThatARangeRepeats()
     selection.Toggle(2u);
     Require(std::ranges::equal(selection.GetOrderedSelection(), std::vector<uint64_t>{3u, 2u, 4u}), "toggling a repeated id removes its first occurrence only");
     Require(selection.IsSelected(2u), "an id held twice stays selected when one occurrence is toggled off");
-    Require(selection.GetAnchor() == std::optional<uint64_t>(3u), "toggling off the anchor's id while a copy remains moves the anchor to the first id");
+    Require(selection.GetAnchor() == std::optional<uint64_t>(2u), "toggling a repeated id keeps the touched id as the anchor");
 
     selection.Toggle(2u);
     Require(std::ranges::equal(selection.GetOrderedSelection(), std::vector<uint64_t>{3u, 4u}), "toggling the second occurrence of a repeated id removes it");
     Require(! selection.IsSelected(2u), "an id is not selected once its last occurrence is toggled off");
-    Require(selection.GetAnchor() == std::optional<uint64_t>(3u), "toggling an id other than the anchor leaves the anchor");
+    Require(selection.GetAnchor() == std::optional<uint64_t>(2u), "toggling a repeated id twice keeps the touched id as the anchor");
 
     // PreserveOrdered keeps each occurrence a list gives of a selected id, in the list's order.
     selection.SetSingle(7u);
@@ -710,7 +1091,7 @@ void TestSelectionModelRangeRunsBothWaysAndFallsBackToTheCurrentId()
     Require(selection.GetAnchor() == std::optional<uint64_t>(99u), "a range whose current id is not in the list anchors at it");
 }
 
-void TestSelectionModelAnchorLeavesWithItsToggleAndMovesToTheFirstRemainingId()
+void TestSelectionModelToggleAlwaysMovesTheRangeAnchorToTheTouchedRow()
 {
     using DxUi::GridSelectionModel;
 
@@ -718,29 +1099,29 @@ void TestSelectionModelAnchorLeavesWithItsToggleAndMovesToTheFirstRemainingId()
     selection.SetSingle(10u);
     selection.Toggle(20u);
     selection.Toggle(30u);
-    Require(selection.GetAnchor() == std::optional<uint64_t>(10u), "toggling ids in leaves the first selected id as the anchor");
+    Require(selection.GetAnchor() == std::optional<uint64_t>(30u), "each Ctrl toggle moves the anchor to the touched row");
 
     selection.Toggle(30u);
-    Require(selection.GetAnchor() == std::optional<uint64_t>(10u) && ! selection.IsSelected(30u), "toggling off an id other than the anchor leaves the anchor");
+    Require(selection.GetAnchor() == std::optional<uint64_t>(30u) && ! selection.IsSelected(30u), "deselecting the touched row leaves it as the anchor");
 
     selection.Toggle(10u);
-    Require(selection.GetAnchor() == std::optional<uint64_t>(20u), "toggling off the anchor moves it to the first remaining id");
+    Require(selection.GetAnchor() == std::optional<uint64_t>(10u), "toggling a different row moves the anchor to that row");
     Require(! selection.IsSelected(10u) && selection.IsSelected(20u), "toggling off the anchor removes only its id");
 
     selection.Toggle(20u);
-    Require(! selection.GetAnchor().has_value() && selection.GetCount() == 0u, "toggling off the last id leaves no anchor");
+    Require(selection.GetAnchor() == std::optional<uint64_t>(20u) && selection.GetCount() == 0u, "toggling off the last id retains the touched anchor");
     Require(! selection.IsSelected(20u), "toggling off the last id leaves nothing selected");
 
     selection.Toggle(7u);
     selection.Toggle(8u);
-    Require(selection.GetAnchor() == std::optional<uint64_t>(7u), "the first id toggled into an empty selection becomes the anchor");
+    Require(selection.GetAnchor() == std::optional<uint64_t>(8u), "the latest id toggled into an empty selection becomes the anchor");
 
     // The anchor moves to the first id of the selection order, not to a neighbor or the smallest id.
     selection.SetRange(std::vector<uint64_t>{4u, 3u, 2u, 1u}, 2u, 4u);
     Require(std::ranges::equal(selection.GetOrderedSelection(), std::vector<uint64_t>{4u, 3u, 2u}) && selection.GetAnchor() == std::optional<uint64_t>(2u),
             "a range selects its slice and anchors at its starting id");
     selection.Toggle(2u);
-    Require(selection.GetAnchor() == std::optional<uint64_t>(4u), "toggling off the anchor moves it to the first id in selection order");
+    Require(selection.GetAnchor() == std::optional<uint64_t>(2u), "toggling off the range anchor keeps the touched id as anchor");
 }
 
 void TestSelectionModelPreserveOrderedKeepsSelectedIdsInTheGivenOrder()
@@ -779,7 +1160,7 @@ void TestSelectionModelPreserveOrderedKeepsSelectedIdsInTheGivenOrder()
     selection.PreserveOrdered(std::vector<uint64_t>{6u, 4u});
     Require(std::ranges::equal(selection.GetOrderedSelection(), std::vector<uint64_t>{6u, 4u}) && ! selection.IsSelected(3u),
             "PreserveOrdered drops the anchor's id with the others");
-    Require(selection.GetAnchor() == std::optional<uint64_t>(6u), "PreserveOrdered moves a dropped anchor to the first id kept");
+    Require(! selection.GetAnchor(), "PreserveOrdered clears an anchor that is no longer visible");
 
     selection.PreserveOrdered(std::vector<uint64_t>{1u, 2u});
     Require(selection.GetCount() == 0u && ! selection.GetAnchor().has_value(), "PreserveOrdered that keeps nothing leaves no selection and no anchor");
@@ -787,6 +1168,15 @@ void TestSelectionModelPreserveOrderedKeepsSelectedIdsInTheGivenOrder()
 
     selection.PreserveOrdered(std::vector<uint64_t>{6u, 4u});
     Require(selection.GetCount() == 0u && ! selection.IsSelected(6u), "PreserveOrdered on an empty selection selects nothing");
+
+    selection.SetSingle(10u);
+    selection.Toggle(10u);
+    Require(selection.GetCount() == 0u && selection.GetAnchor() == std::optional<uint64_t>(10u),
+            "deselecting the last row leaves it as an independent range anchor");
+    selection.PreserveOrdered(std::vector<uint64_t>{10u, 11u});
+    Require(selection.GetAnchor() == std::optional<uint64_t>(10u), "an empty selection keeps its deselected anchor while that row remains visible");
+    selection.PreserveOrdered(std::vector<uint64_t>{11u});
+    Require(! selection.GetAnchor(), "model reconciliation clears a deselected anchor whose row left the visible list");
 }
 
 void TestSelectionModelMembershipFollowsEveryMutator()
@@ -881,7 +1271,7 @@ void TestSelectionModelKeepsSelectionOrderForAScatteredLargeSelection()
         staleAnswers += selection.IsSelected(rows[index]) == (index % 2u == 1u) ? 0u : 1u;
     }
     Require(staleAnswers == 0u, "membership of a large scattered selection follows PreserveOrdered");
-    Require(selection.GetAnchor() == std::optional<uint64_t>(remaining.front()), "PreserveOrdered moves the anchor of a row it dropped to the first row kept");
+    Require(! selection.GetAnchor().has_value(), "PreserveOrdered clears an anchor whose row left the visible model");
 }
 
 void TestSelectionModelCopiesAnswerMembershipIndependently()
@@ -1047,7 +1437,8 @@ void TestSelectionModelAnswersMembershipAtEverySizeAroundItsScanLimit()
         selected[row] = 0;
         check("shrinking", row + 1u, universe);
     }
-    Require(model.GetCount() == 0u && ! model.GetAnchor().has_value(), "the selection shrank to nothing again");
+    Require(model.GetCount() == 0u && model.GetAnchor() == std::optional<uint64_t>(rows.back()),
+            "the last toggled row remains the range anchor after the selection shrinks to nothing");
 }
 
 // The room of a model's buffers. A selection that took room for more than kReleaseLimit ids gives it back when the selection that
@@ -1287,7 +1678,7 @@ void TestGridSelectionOfALargeListFollowsGesturesAndDataChanges()
         rangeWithoutOne.push_back(row);
     }
     Require(selectedRows() == rangeWithoutOne, "Ctrl+click removes one row from a range");
-    Require(grid.GetSelectionModel().GetAnchor() == std::optional<uint64_t>(rowIds[100]), "Ctrl+click on a row other than the anchor leaves the anchor");
+    Require(grid.GetSelectionModel().GetAnchor() == std::optional<uint64_t>(rowIds[150]), "Ctrl+click moves the range anchor to the row it toggled");
 
     // Rows 200 to 2,999 leave the list: the selected rows that remain keep their order, and every other row stops being selected.
     std::vector<uint64_t> remainingIds(rowIds.begin(), rowIds.begin() + 200);
@@ -1306,7 +1697,593 @@ void TestGridSelectionOfALargeListFollowsGesturesAndDataChanges()
         survivingIds.push_back(remainingIds[row]);
     }
     Require(std::ranges::equal(grid.GetSelectionModel().GetOrderedSelection(), survivingIds), "a data change keeps the surviving selection in row order");
-    Require(grid.GetSelectionModel().GetAnchor() == std::optional<uint64_t>(rowIds[100]), "a data change keeps an anchor that remains");
+    Require(grid.GetSelectionModel().GetAnchor() == std::optional<uint64_t>(rowIds[150]), "a data change keeps the moved anchor while its row remains visible");
+}
+
+void TestGridShiftKeyboardRangeContinuesFromTheReachedRow()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+    grid->SetSelectionMode(GridSelectionMode::Extended);
+    MultiRowGridModel model(30u);
+    grid->SetModel(&model);
+    host.SetRoot(std::move(root));
+
+    grid->GetSelectionModel().SetSingle(model.GetStableRowId(10u));
+    grid->SetFocusedRowId(model.GetStableRowId(10u));
+    Require(grid->OnKeyDown(host, VK_UP, MK_SHIFT), "Shift+Up handles its first key");
+    Require(grid->OnKeyDown(host, VK_UP, MK_SHIFT), "Shift+Up handles its second key");
+    const auto upwardSelection = grid->GetSelectionModel().GetOrderedSelection();
+    Require(std::ranges::equal(upwardSelection, std::array<uint64_t, 3>{8u, 9u, 10u}), "repeated Shift+Up extends the visible range from the row reached");
+    Require(grid->GetPrimarySelectedRow() == std::optional<size_t>(8u), "the upward range endpoint is the Grid's primary row");
+    Require(grid->GetFocusedRowId() == std::optional<uint64_t>(8u), "the upward range endpoint is independently tracked as the focused row");
+    const std::vector<uint64_t> selectionBeforeFocusMove(grid->GetSelectionModel().GetOrderedSelection().begin(),
+                                                         grid->GetSelectionModel().GetOrderedSelection().end());
+    Require(grid->OnKeyDown(host, VK_DOWN, MK_CONTROL), "Ctrl+Down handles a focus-only move");
+    Require(grid->GetFocusedRowId() == std::optional<uint64_t>(9u), "Ctrl+Down moves focus by one visible row");
+    Require(std::ranges::equal(grid->GetSelectionModel().GetOrderedSelection(), selectionBeforeFocusMove), "Ctrl+Down leaves selected membership unchanged");
+    Require(grid->GetSelectionModel().GetAnchor() == std::optional<uint64_t>(10u), "Ctrl+Down leaves the range anchor unchanged");
+    Require(grid->OnKeyDown(host, VK_SPACE, MK_CONTROL), "Ctrl+Space handles a focused-row toggle");
+    Require(grid->GetFocusedRowId() == 9u && ! grid->GetSelectionModel().IsSelected(9u), "Ctrl+Space toggles focused membership without moving focus");
+    Require(grid->GetSelectionModel().GetAnchor() == 9u, "Ctrl+Space moves the range anchor to its toggled row");
+
+    Require(grid->RequestSelectRow(10u, 0u), "a plain request resets the range anchor and current row");
+    Require(grid->OnKeyDown(host, VK_HOME, MK_SHIFT), "Shift+Home handles the range to the first row");
+    Require(grid->GetPrimarySelectedRow() == std::optional<size_t>(0u), "Shift+Home makes row zero current");
+    Require(grid->OnKeyDown(host, VK_DOWN, MK_SHIFT), "Shift+Down continues from row zero");
+    const auto continuedSelection = grid->GetSelectionModel().GetOrderedSelection();
+    Require(std::ranges::equal(continuedSelection, std::array<uint64_t, 10>{1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u, 10u}),
+            "Shift+Down extends the range from row zero rather than restarting at its anchor");
+    Require(grid->GetPrimarySelectedRow() == std::optional<size_t>(1u), "the continued range follows its new endpoint");
+}
+
+void TestGridUiAutomationAddIsIdempotentAndPreservesTheRangeAnchor()
+{
+    using namespace DxUi;
+
+    Grid grid;
+    MultiRowGridModel model(8u);
+    grid.SetSelectionMode(GridSelectionMode::Extended);
+    grid.SetModel(&model);
+    const std::vector<uint64_t> initialRange{1u, 2u, 3u};
+    grid.GetSelectionModel().SetRange(initialRange, 2u, 3u);
+    const std::vector<uint64_t> before(grid.GetSelectionModel().GetOrderedSelection().begin(), grid.GetSelectionModel().GetOrderedSelection().end());
+    Require(grid.RequestAddRowSelection(5u), "AddToSelection accepts a visible row");
+    Require(grid.GetSelectionModel().IsSelected(5u), "AddToSelection adds the requested row");
+    Require(grid.GetSelectionModel().GetAnchor() == std::optional<uint64_t>(2u), "AddToSelection preserves the current range anchor");
+    Require(grid.GetFocusedRowId() == std::optional<uint64_t>(5u), "AddToSelection moves focus to the requested row");
+    Require(grid.RequestAddRowSelection(5u), "AddToSelection of a selected row is handled");
+    Require(grid.GetSelectionModel().IsSelected(5u) && grid.GetSelectionModel().GetCount() == before.size() + 1u,
+            "AddToSelection of an already selected row is idempotent");
+    Require(grid.GetSelectionModel().GetAnchor() == std::optional<uint64_t>(2u), "repeated AddToSelection still preserves the range anchor");
+}
+
+void TestGridFocusAndSelectionReconcileStableRowIdsWithoutUndoingClear()
+{
+    using namespace DxUi;
+
+    MutableRowGridModel model;
+    model.SetRowIds({11u, 22u, 33u, 44u});
+    Grid grid;
+    grid.SetSelectionMode(GridSelectionMode::Extended);
+    grid.SetModel(&model);
+    grid.GetSelectionModel().SetSingle(22u);
+    grid.GetSelectionModel().Toggle(33u);
+    grid.SetFocusedRowId(22u);
+
+    model.SetRowIds({44u, 22u, 11u, 33u});
+    grid.NotifyDataChanged();
+    Require(grid.GetFocusedRowId() == 22u, "reordering rows preserves focus by stable identity");
+    Require(std::ranges::equal(grid.GetSelectionModel().GetOrderedSelection(), std::array<uint64_t, 2>{22u, 33u}),
+            "reordering rows preserves selected membership in current model order");
+
+    model.SetRowIds({44u, 11u, 33u});
+    grid.NotifyDataChanged();
+    Require(grid.GetFocusedRowId() == 11u, "deleting the focused row chooses the nearest row at its former index");
+    Require(std::ranges::equal(grid.GetSelectionModel().GetOrderedSelection(), std::array<uint64_t, 1>{33u}),
+            "deleting focus does not replace surviving selection membership");
+
+    model.SetRowIds({44u, 11u});
+    grid.NotifyDataChanged();
+    Require(grid.GetFocusedRowId() == 11u && std::ranges::equal(grid.GetSelectionModel().GetOrderedSelection(), std::array<uint64_t, 1>{11u}),
+            "deleting the last selected row chooses the focused replacement only because selection was nonempty");
+
+    grid.GetSelectionModel().Clear();
+    model.SetRowIds({44u});
+    grid.NotifyDataChanged();
+    Require(! grid.GetSelectionModel().GetCount() && grid.GetFocusedRowId() == 44u,
+            "reconciling an intentional clear moves focus but does not silently select the replacement");
+}
+
+void TestGridCopyQuotesTsvFieldsAndPreservesUnicode()
+{
+    using namespace DxUi;
+
+    GridMultilineFixtures::TextTableModel model(
+        {{L"plain", L"tab\tfield", L"quote\"field"}, {L"line\r\nbreak", L"مرحبا🙂", L""}}, {120.0f, 120.0f, 120.0f}, false);
+    Grid grid;
+    grid.SetSelectionMode(GridSelectionMode::Extended);
+    grid.SetModel(&model);
+    const std::vector<uint64_t> selectedRows{0u, 1u};
+    grid.GetSelectionModel().SetRange(selectedRows, 0u, 1u);
+    const std::wstring expected = L"plain\t\"tab\tfield\"\t\"quote\"\"field\"\r\n\"line\r\nbreak\"\tمرحبا🙂\t";
+    Require(grid.BuildSelectionTsv() == expected, "TSV quotes separator-bearing fields, doubles embedded quotes, and preserves Unicode");
+}
+
+void TestGridCopyOrdersOutOfOrderSelectionByVisibleRows()
+{
+    using namespace DxUi;
+
+    GridMultilineFixtures::TextTableModel model({{L"first"}, {L"second"}, {L"third"}}, {120.0f}, false);
+    Grid grid;
+    grid.SetSelectionMode(GridSelectionMode::Extended);
+    grid.SetModel(&model);
+    grid.GetSelectionModel().SetSingle(2u);
+    grid.GetSelectionModel().Toggle(0u);
+
+    Require(grid.BuildSelectionTsv() == L"first\r\nthird", "copy sorts reverse-inserted selection by visible model row order");
+}
+
+void TestGridRightToLeftMirrorsColumnGeometryAndHitTesting()
+{
+    using namespace DxUi;
+
+    Grid grid;
+    grid.SetBounds(D2D1::RectF(0.0f, 0.0f, 400.0f, 160.0f));
+    GridMultilineFixtures::TextTableModel model({{L"first", L"second"}}, {120.0f, 120.0f}, false);
+    grid.SetModel(&model);
+    grid.SetFlowDirection(FlowDirection::RightToLeft);
+    const WindowHost host;
+    const GridCellLayoutMetrics first  = grid.GetCellLayoutMetrics(host, 0u, 0u);
+    const GridCellLayoutMetrics second = grid.GetCellLayoutMetrics(host, 0u, 1u);
+    Require(first.cellRect.left > second.cellRect.left, "RTL places model column zero to the right of model column one");
+    const auto hit = grid.FindCellAtPoint(
+        MakePointDip(D2D1::Point2F((first.cellRect.left + first.cellRect.right) * 0.5f, (first.cellRect.top + first.cellRect.bottom) * 0.5f)));
+    Require(hit == std::optional<std::pair<size_t, size_t>>(std::pair<size_t, size_t>{0u, 0u}),
+            "RTL hit testing maps the right-hand cell to model column zero");
+}
+
+void TestGridFullValueInspectionSupportsF1AndTouchDoubleTap()
+{
+    using namespace DxUi;
+
+    const auto verifyFlow = [](FlowDirection flowDirection)
+    {
+        WindowHost host;
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
+        grid->SetFlowDirection(flowDirection);
+        GridMultilineFixtures::TextTableModel model({{L"first value", L"second value", L"the complete value for inspection"}}, {150.0f, 150.0f, 150.0f}, false);
+        grid->SetModel(&model);
+        host.SetRoot(std::move(root));
+        const auto detachBorrowedModel = wil::scope_exit([&]() noexcept { host.SetRoot(nullptr); });
+        Require(grid->RequestFocusCell(0u, 2u), "a cell can be focused without activating the host window");
+        Require(grid->GetVisibleCellRect(0u, 2u).has_value(), "focusing a wide offscreen column reveals its cell in the viewport");
+        Require(grid->OnKeyDown(host, VK_F1, 0u), "F1 handles inspection for the focused cell");
+        Require(host.IsTooltipInspectionActive(), "F1 opens the persistent inspection surface");
+        Require(host.GetTooltipText() == L"the complete value for inspection", "F1 exposes the full value of a horizontally offscreen cell");
+
+        host.DebugSetPointerDevice(PointerDevice::Touch);
+        host.ClearTooltip();
+        const GridCellLayoutMetrics cell = grid->GetCellLayoutMetrics(host, 0u, 2u);
+        const D2D1_POINT_2F center       = D2D1::Point2F((cell.cellRect.left + cell.cellRect.right) * 0.5f, (cell.cellRect.top + cell.cellRect.bottom) * 0.5f);
+        Require(grid->OnMouseDoubleClick(host, center, false, 0u), "touch double-tap handles full-value inspection");
+        Require(host.IsTooltipInspectionActive() && host.GetTooltipText() == L"the complete value for inspection",
+                "touch double-tap exposes the complete value in the persistent inspection surface");
+    };
+
+    verifyFlow(FlowDirection::LeftToRight);
+    verifyFlow(FlowDirection::RightToLeft);
+}
+
+void TestGridTouchDoubleTapReResolvesCellAfterSelectionCallbackReordersModel()
+{
+    using namespace DxUi;
+
+    struct ReorderingDelegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridSelectionChanged;
+        std::function<void()> onSelectionChanged;
+
+        void OnGridSelectionChanged(Grid&) override
+        {
+            if (onSelectionChanged)
+            {
+                onSelectionChanged();
+            }
+        }
+    };
+
+    MutableTextGridModel model({{10u, {L"stale value"}}, {20u, {L"other value"}}});
+    ReorderingDelegate delegate;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
+    grid->SetModel(&model);
+    grid->SetSelectionMode(GridSelectionMode::Extended);
+    grid->GetSelectionModel().SetSingle(20u);
+    grid->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    host.DebugSetPointerDevice(PointerDevice::Touch);
+    delegate.onSelectionChanged = [&]
+    {
+        model.SetRows({{20u, {L"other value"}}, {10u, {L"fresh value after reorder"}}});
+        grid->NotifyDataChanged();
+    };
+
+    const D2D1_RECT_F originalRect = grid->GetVisibleCellRect(0u, 0u).value();
+    const D2D1_POINT_2F center     = D2D1::Point2F((originalRect.left + originalRect.right) * 0.5f, (originalRect.top + originalRect.bottom) * 0.5f);
+    Require(grid->OnMouseDoubleClick(host, center, false, 0u), "touch double-tap handles a cell whose model reorders in the selection callback");
+    Require(host.IsTooltipInspectionActive(), "reordering the same model keeps inspection active for the stable touched row");
+    Require(host.GetTooltipText() == L"fresh value after reorder", "inspection re-resolves cell text from the row's new model index");
+}
+
+void TestGridTouchDoubleTapReResolvesColumnByStableIdAfterSelectionCallbackReordersColumns()
+{
+    using namespace DxUi;
+
+    MutableTextGridModel model({{10u, {L"first cell", L"stale second cell"}}, {20u, {L"other first", L"other second"}}},
+                               {{L"first", L"First", 140.0f}, {L"second", L"Second", 140.0f}});
+    struct ReorderingDelegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridSelectionChanged;
+        std::function<void()> onSelectionChanged;
+
+        void OnGridSelectionChanged(Grid&) override
+        {
+            if (onSelectionChanged)
+            {
+                onSelectionChanged();
+            }
+        }
+    };
+
+    ReorderingDelegate delegate;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 360.0f, 180.0f));
+    grid->SetModel(&model);
+    grid->SetSelectionMode(GridSelectionMode::Extended);
+    grid->GetSelectionModel().SetSingle(20u);
+    grid->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    host.DebugSetPointerDevice(PointerDevice::Touch);
+    delegate.onSelectionChanged = [&]
+    {
+        model.SetColumns({{L"second", L"Second", 140.0f}, {L"first", L"First", 140.0f}});
+        model.SetRows({{10u, {L"fresh second cell", L"first cell"}}, {20u, {L"other second", L"other first"}}});
+        grid->NotifyDataChanged();
+    };
+
+    const D2D1_RECT_F originalRect = grid->GetVisibleCellRect(0u, 1u).value();
+    const D2D1_POINT_2F center     = D2D1::Point2F((originalRect.left + originalRect.right) * 0.5f, (originalRect.top + originalRect.bottom) * 0.5f);
+    Require(grid->OnMouseDoubleClick(host, center, false, 0u), "touch double-tap handles a column reorder in the selection callback");
+    Require(host.IsTooltipInspectionActive(), "the touched column remains inspectable by stable column identity");
+    Require(host.GetTooltipText() == L"fresh second cell", "inspection resolves the clicked column id at its new index and reads fresh cell data");
+}
+
+void TestGridTouchDoubleTapCancelsWhenSelectionCallbackRemovesClickedColumn()
+{
+    using namespace DxUi;
+
+    MutableTextGridModel model({{10u, {L"first cell", L"removed second cell"}}, {20u, {L"other first", L"other second"}}},
+                               {{L"first", L"First", 140.0f}, {L"second", L"Second", 140.0f}});
+    struct Delegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridSelectionChanged;
+        std::function<void()> onSelectionChanged;
+
+        void OnGridSelectionChanged(Grid&) override
+        {
+            if (onSelectionChanged)
+            {
+                onSelectionChanged();
+            }
+        }
+    };
+
+    Delegate delegate;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 360.0f, 180.0f));
+    grid->SetModel(&model);
+    grid->SetSelectionMode(GridSelectionMode::Extended);
+    grid->GetSelectionModel().SetSingle(20u);
+    grid->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    host.DebugSetPointerDevice(PointerDevice::Touch);
+    delegate.onSelectionChanged = [&]
+    {
+        model.SetColumns({{L"first", L"First", 140.0f}});
+        model.SetRows({{10u, {L"first cell"}}, {20u, {L"other first"}}});
+        grid->NotifyDataChanged();
+    };
+
+    const D2D1_RECT_F originalRect = grid->GetVisibleCellRect(0u, 1u).value();
+    const D2D1_POINT_2F center     = D2D1::Point2F((originalRect.left + originalRect.right) * 0.5f, (originalRect.top + originalRect.bottom) * 0.5f);
+    Require(grid->OnMouseDoubleClick(host, center, false, 0u), "touch double-tap is consumed when its selection callback removes the clicked column");
+    Require(! host.IsTooltipInspectionActive(), "inspection is canceled when the clicked stable column id no longer exists");
+}
+
+void TestGridTouchDoubleTapCancelsWhenSelectionCallbackRemovesTouchedRow()
+{
+    using namespace DxUi;
+
+    struct RemovingDelegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridSelectionChanged;
+        std::function<void()> onSelectionChanged;
+
+        void OnGridSelectionChanged(Grid&) override
+        {
+            if (onSelectionChanged)
+            {
+                onSelectionChanged();
+            }
+        }
+    };
+
+    MutableTextGridModel model({{10u, {L"removed value"}}, {20u, {L"other value"}}});
+    RemovingDelegate delegate;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
+    grid->SetModel(&model);
+    grid->SetSelectionMode(GridSelectionMode::Extended);
+    grid->GetSelectionModel().SetSingle(20u);
+    grid->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    host.DebugSetPointerDevice(PointerDevice::Touch);
+    bool removed                = false;
+    delegate.onSelectionChanged = [&]
+    {
+        if (! removed)
+        {
+            removed = true;
+            model.SetRows({{20u, {L"other value"}}});
+            grid->NotifyDataChanged();
+        }
+    };
+
+    const D2D1_RECT_F originalRect = grid->GetVisibleCellRect(0u, 0u).value();
+    const D2D1_POINT_2F center     = D2D1::Point2F((originalRect.left + originalRect.right) * 0.5f, (originalRect.top + originalRect.bottom) * 0.5f);
+    Require(grid->OnMouseDoubleClick(host, center, false, 0u), "touch double-tap is consumed when its selection callback removes the touched row");
+    Require(removed, "selection callback removed the touched stable row during dispatch");
+    Require(! host.IsTooltipInspectionActive(), "inspection is canceled when the touched stable row no longer exists");
+}
+
+void TestGridTouchDoubleTapCancelsWhenSelectionCallbackReplacesModel()
+{
+    using namespace DxUi;
+
+    GridMultilineFixtures::TextTableModel originalModel({{L"original value"}, {L"other value"}}, {180.0f}, false);
+    GridMultilineFixtures::TextTableModel replacementModel({{L"replacement value"}, {L"other value"}}, {180.0f}, false);
+    struct ReplacingDelegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridSelectionChanged;
+        GridMultilineFixtures::TextTableModel* replacement = nullptr;
+        bool changed                                       = false;
+
+        void OnGridSelectionChanged(Grid& sender) override
+        {
+            if (! changed)
+            {
+                changed = true;
+                sender.SetModel(replacement);
+            }
+        }
+    };
+
+    ReplacingDelegate delegate;
+    delegate.replacement = &replacementModel;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
+    grid->SetModel(&originalModel);
+    grid->SetSelectionMode(GridSelectionMode::Extended);
+    grid->GetSelectionModel().SetSingle(1u);
+    grid->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    host.DebugSetPointerDevice(PointerDevice::Touch);
+
+    const D2D1_RECT_F originalRect = grid->GetVisibleCellRect(0u, 0u).value();
+    const D2D1_POINT_2F center     = D2D1::Point2F((originalRect.left + originalRect.right) * 0.5f, (originalRect.top + originalRect.bottom) * 0.5f);
+    Require(grid->OnMouseDoubleClick(host, center, false, 0u), "touch double-tap is consumed when its selection callback replaces the model");
+    Require(delegate.changed, "selection callback replaced the model during touch double-tap dispatch");
+    Require(! host.IsTooltipInspectionActive(), "inspection is canceled instead of using a stale cell after model replacement");
+}
+
+void TestGridMouseDoubleClickReResolvesActivatedRowAfterSelectionCallbackReordersModel()
+{
+    using namespace DxUi;
+
+    MutableTextGridModel model({{10u, {L"clicked row"}}, {20u, {L"selected row"}}});
+    struct Delegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridRowActivated;
+        using IGridDelegate::OnGridSelectionChanged;
+        std::function<void()> onSelectionChanged;
+        std::vector<size_t> activatedRows;
+
+        void OnGridSelectionChanged(Grid&) override
+        {
+            if (onSelectionChanged)
+            {
+                onSelectionChanged();
+            }
+        }
+
+        void OnGridRowActivated(Grid&, size_t rowIndex) override
+        {
+            activatedRows.push_back(rowIndex);
+        }
+    };
+
+    Delegate delegate;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
+    grid->SetModel(&model);
+    grid->SetSelectionMode(GridSelectionMode::Extended);
+    grid->GetSelectionModel().SetSingle(20u);
+    grid->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    delegate.onSelectionChanged = [&]
+    {
+        model.SetRows({{20u, {L"selected row"}}, {10u, {L"clicked row"}}});
+        grid->NotifyDataChanged();
+    };
+
+    const D2D1_RECT_F clickedRect = grid->GetVisibleCellRect(0u, 0u).value();
+    const D2D1_POINT_2F center    = D2D1::Point2F((clickedRect.left + clickedRect.right) * 0.5f, (clickedRect.top + clickedRect.bottom) * 0.5f);
+    Require(grid->OnMouseDoubleClick(host, center, false, 0u), "ordinary mouse double-click handles a reordered clicked row");
+    Require(std::ranges::equal(delegate.activatedRows, std::array<size_t, 1>{1u}), "row activation reports the clicked stable row at its new model index");
+}
+
+void TestGridMouseDoubleClickCancelsActivationWhenSelectionCallbackRemovesClickedRow()
+{
+    using namespace DxUi;
+
+    MutableTextGridModel model({{10u, {L"removed clicked row"}}, {20u, {L"selected row"}}});
+    struct Delegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridRowActivated;
+        using IGridDelegate::OnGridSelectionChanged;
+        std::function<void()> onSelectionChanged;
+        size_t activationCount = 0u;
+
+        void OnGridSelectionChanged(Grid&) override
+        {
+            if (onSelectionChanged)
+            {
+                onSelectionChanged();
+            }
+        }
+
+        void OnGridRowActivated(Grid&, size_t) override
+        {
+            ++activationCount;
+        }
+    };
+
+    Delegate delegate;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
+    grid->SetModel(&model);
+    grid->SetSelectionMode(GridSelectionMode::Extended);
+    grid->GetSelectionModel().SetSingle(20u);
+    grid->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+    bool removed                = false;
+    delegate.onSelectionChanged = [&]
+    {
+        if (! removed)
+        {
+            removed = true;
+            model.SetRows({{20u, {L"selected row"}}});
+            grid->NotifyDataChanged();
+        }
+    };
+
+    const D2D1_RECT_F clickedRect = grid->GetVisibleCellRect(0u, 0u).value();
+    const D2D1_POINT_2F center    = D2D1::Point2F((clickedRect.left + clickedRect.right) * 0.5f, (clickedRect.top + clickedRect.bottom) * 0.5f);
+    Require(grid->OnMouseDoubleClick(host, center, false, 0u), "ordinary mouse double-click is consumed when its callback removes the clicked row");
+    Require(removed && delegate.activationCount == 0u, "removed stable row does not receive a stale activation callback");
+}
+
+void TestDisabledGridRejectsSelectionAndCheckboxRequests()
+{
+    using namespace DxUi;
+    struct CountingDelegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridCheckboxToggled;
+        using IGridDelegate::OnGridSelectionChanged;
+        void OnGridCheckboxToggled(size_t, size_t, bool) override
+        {
+            ++checkboxChanges;
+        }
+        void OnGridSelectionChanged(Grid&) override
+        {
+            ++selectionChanges;
+        }
+        size_t checkboxChanges  = 0u;
+        size_t selectionChanges = 0u;
+    };
+
+    CheckboxGridModel model(0u);
+    model.SetRows({CheckboxGridModel::Row{.label = L"Alpha"}, CheckboxGridModel::Row{.label = L"Beta"}});
+    CountingDelegate delegate;
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 160.0f));
+    grid->SetModel(&model);
+    grid->SetDelegate(&delegate);
+    const uint64_t selectedId = model.GetStableRowId(1u);
+    grid->GetSelectionModel().SetSingle(selectedId);
+    host.SetRoot(std::move(root));
+    grid->SetEnabled(false);
+
+    Require(! grid->RequestSelectRow(0u, 0u), "a disabled Grid rejects a row selection request");
+    Require(! grid->RequestRemoveRowSelection(1u), "a disabled Grid rejects a row removal request");
+    Require(! grid->RequestToggleCheckboxCell(host, 0u, 0u), "a disabled Grid rejects a checkbox request");
+    const auto selection = grid->GetSelectionModel().GetOrderedSelection();
+    Require(selection.size() == 1u && selection.front() == selectedId, "disabled requests leave the selection unchanged");
+    Require(! model.IsChecked(0u) && delegate.checkboxChanges == 0u && delegate.selectionChanges == 0u,
+            "disabled requests leave cell state and callbacks unchanged");
+}
+
+void TestGridCheckboxRequestSucceedsWhenItsDelegatePublishesTheToggle()
+{
+    using namespace DxUi;
+
+    struct NotifyingDelegate final : RecordingGridDelegate
+    {
+        using RecordingGridDelegate::OnGridCheckboxToggled;
+        explicit NotifyingDelegate(CheckboxGridModel& sourceModel) : model(&sourceModel)
+        {
+        }
+
+        void OnGridCheckboxToggled(Grid& sender, size_t rowIndex, size_t columnIndex, bool checked) override
+        {
+            ++toggleCount;
+            lastChecked = checked;
+            Require(model->SetChecked(rowIndex, columnIndex, checked), "the notifying delegate applies the requested checkbox state");
+            sender.NotifyDataChanged();
+        }
+
+        CheckboxGridModel* model = nullptr;
+        size_t toggleCount       = 0u;
+        bool lastChecked         = false;
+    };
+
+    CheckboxGridModel model(0u);
+    model.SetRows({CheckboxGridModel::Row{.label = L"Alpha"}});
+    NotifyingDelegate delegate(model);
+    WindowHost host;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 160.0f));
+    grid->SetModel(&model);
+    grid->SetDelegate(&delegate);
+    host.SetRoot(std::move(root));
+
+    Require(grid->RequestToggleCheckboxCell(host, 0u, 0u), "a checkbox request remains accepted when its delegate publishes the changed model");
+    Require(model.IsChecked(0u), "the notifying delegate applies the requested checked state");
+    Require(delegate.toggleCount == 1u && delegate.lastChecked, "the accepted request invokes its checkbox delegate exactly once with the new state");
 }
 
 void TestGridVisibleWorkMetricsStayBoundedForLargeDatasets()
@@ -1825,6 +2802,118 @@ void TestGroupedGridNotifyDataChangedRehomesSelectionWhenGroupCollapsesExternall
             "grouped grid data-change collapse rehomes selection to the nearest visible row");
 }
 
+void TestGroupedGridMouseAndKeyboardCollapseReportReplacementFocus()
+{
+    using namespace DxUi;
+
+    class FocusDelegate final : public CollapsibleGroupedGridDelegate
+    {
+    public:
+        using CollapsibleGroupedGridDelegate::OnGridFocusedRowChanged;
+
+        explicit FocusDelegate(GroupedGridModel& model) : CollapsibleGroupedGridDelegate(model)
+        {
+        }
+
+        void OnGridFocusedRowChanged(Grid&, std::optional<uint64_t> rowId) override
+        {
+            ++focusChangeCount;
+            lastFocusedRowId = rowId;
+        }
+
+        size_t focusChangeCount = 0u;
+        std::optional<uint64_t> lastFocusedRowId;
+    };
+
+    const auto verify = [](std::string_view name, auto&& collapse)
+    {
+        GroupedGridModel model(6u);
+        model.SetGroups({GroupedGridModel::Group{.stableId = 10u, .title = L"Favorites", .startRowIndex = 0u, .rowCount = 2u},
+                         GroupedGridModel::Group{.stableId = 20u, .title = L"Folders", .startRowIndex = 3u, .rowCount = 2u}});
+        FocusDelegate delegate(model);
+        WindowHost host;
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
+        grid->SetRowHeightDip(24.0f);
+        grid->SetHeaderHeightDip(32.0f);
+        grid->SetModel(&model);
+        grid->SetDelegate(&delegate);
+        grid->SetFocusedRowId(model.GetStableRowId(1u));
+        host.SetRoot(std::move(root));
+        const auto detachBorrowedObjects = wil::scope_exit([&]() noexcept { host.SetRoot(nullptr); });
+
+        Require(collapse(host, *grid), std::format("{}: collapse input is handled", name).c_str());
+        Require(model.IsGroupCollapsed(10u), std::format("{}: input collapses the group containing current focus", name).c_str());
+        Require(grid->GetFocusedRowId() == model.GetStableRowId(2u), std::format("{}: focus moves to the nearest visible row", name).c_str());
+        Require(delegate.focusChangeCount == 1u && delegate.lastFocusedRowId == model.GetStableRowId(2u),
+                std::format("{}: delegate receives the replacement focused row", name).c_str());
+    };
+
+    verify("Grid mouse group collapse", [](WindowHost& host, Grid& grid) { return grid.OnMouseDown(host, D2D1::Point2F(40.0f, 46.0f), false, 0u); });
+    verify("Grid keyboard group collapse", [](WindowHost& host, Grid& grid) { return grid.OnKeyDown(host, VK_LEFT, 0u); });
+}
+
+void TestGroupedGridFocusCallbackMayRetireGridDuringMouseAndKeyboardCollapse()
+{
+    using namespace DxUi;
+
+    class RetiringDelegate final : public CollapsibleGroupedGridDelegate
+    {
+    public:
+        using CollapsibleGroupedGridDelegate::OnGridFocusedRowChanged;
+
+        RetiringDelegate(GroupedGridModel& model, WindowHost& host) : CollapsibleGroupedGridDelegate(model), _host(&host)
+        {
+        }
+
+        void OnGridFocusedRowChanged(Grid&, std::optional<uint64_t> rowId) override
+        {
+            ++focusChangeCount;
+            replacementFocus = rowId;
+            _host->SetRoot(std::make_unique<Panel>());
+            invalidationsAfterRetirement = _host->DebugGetInvalidateCount();
+        }
+
+        size_t focusChangeCount = 0u;
+        std::optional<uint64_t> replacementFocus;
+        uint64_t invalidationsAfterRetirement = 0u;
+
+    private:
+        WindowHost* _host = nullptr;
+    };
+
+    const auto verify = [](std::string_view name, auto&& collapse)
+    {
+        WindowHost host;
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
+        grid->SetRowHeightDip(24.0f);
+        grid->SetHeaderHeightDip(32.0f);
+        GroupedGridModel model(6u);
+        model.SetGroups({GroupedGridModel::Group{.stableId = 10u, .title = L"Favorites", .startRowIndex = 0u, .rowCount = 2u},
+                         GroupedGridModel::Group{.stableId = 20u, .title = L"Folders", .startRowIndex = 3u, .rowCount = 2u}});
+        RetiringDelegate delegate(model, host);
+        grid->SetModel(&model);
+        grid->SetDelegate(&delegate);
+        grid->SetFocusedRowId(model.GetStableRowId(1u));
+        host.SetRoot(std::move(root));
+        const auto detachBorrowedObjects = wil::scope_exit([&]() noexcept { host.SetRoot(nullptr); });
+
+        Require(collapse(host, *grid), std::format("{}: collapse input is handled", name).c_str());
+        Require(model.IsGroupCollapsed(10u), std::format("{}: callback dispatches the group collapse", name).c_str());
+        Require(delegate.focusChangeCount == 1u && delegate.replacementFocus == model.GetStableRowId(2u),
+                std::format("{}: focus callback observed the nearest replacement row before retiring the grid", name).c_str());
+        Require(host.GetRoot() != nullptr, std::format("{}: focus callback installed its replacement root", name).c_str());
+        Require(host.DebugGetInvalidateCount() == delegate.invalidationsAfterRetirement,
+                std::format("{}: retired grid performs no invalidation after the callback", name).c_str());
+    };
+
+    verify("Grid mouse collapse retirement", [](WindowHost& host, Grid& grid) { return grid.OnMouseDown(host, D2D1::Point2F(40.0f, 46.0f), false, 0u); });
+    verify("Grid keyboard collapse retirement", [](WindowHost& host, Grid& grid) { return grid.OnKeyDown(host, VK_LEFT, 0u); });
+}
+
 void TestGroupedGridCaptureGroupLayoutReportsStableCollapsedState()
 {
     using namespace DxUi;
@@ -1849,6 +2938,25 @@ void TestGroupedGridApplyGroupLayoutRestoresCollapsedStateByStableId()
 {
     using namespace DxUi;
 
+    class FocusRecordingDelegate final : public CollapsibleGroupedGridDelegate
+    {
+    public:
+        using CollapsibleGroupedGridDelegate::OnGridFocusedRowChanged;
+
+        explicit FocusRecordingDelegate(GroupedGridModel& model) : CollapsibleGroupedGridDelegate(model)
+        {
+        }
+
+        void OnGridFocusedRowChanged(Grid&, std::optional<uint64_t> rowId) override
+        {
+            ++focusChangedCount;
+            lastFocusedRowId = rowId;
+        }
+
+        size_t focusChangedCount = 0u;
+        std::optional<uint64_t> lastFocusedRowId;
+    };
+
     Grid grid;
     grid.SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
     grid.SetRowHeightDip(24.0f);
@@ -1860,10 +2968,11 @@ void TestGroupedGridApplyGroupLayoutRestoresCollapsedStateByStableId()
         GroupedGridModel::Group{.stableId = 20u, .title = L"Folders", .startRowIndex = 3u, .rowCount = 2u},
     });
 
-    CollapsibleGroupedGridDelegate delegate(model);
+    FocusRecordingDelegate delegate(model);
     grid.SetModel(&model);
     grid.SetDelegate(&delegate);
     grid.GetSelectionModel().SetSingle(model.GetStableRowId(3u));
+    Require(! grid.GetFocusedRowId().has_value(), "the selected row is independent of Grid focus before reconciliation");
 
     const std::array layoutToApply{
         GridGroupLayoutEntry{.groupStableId = 20u, .collapsed = true},
@@ -1879,6 +2988,8 @@ void TestGroupedGridApplyGroupLayoutRestoresCollapsedStateByStableId()
     Require(grid.GetSelectionModel().GetCount() == 1u, "grouped grid apply layout keeps one visible row selected");
     Require(grid.GetSelectionModel().GetOrderedSelection().front() == model.GetStableRowId(5u),
             "grouped grid apply layout rehomes selection to the first visible row after the collapsed group");
+    Require(grid.GetFocusedRowId() == model.GetStableRowId(5u) && delegate.focusChangedCount == 1u && delegate.lastFocusedRowId == model.GetStableRowId(5u),
+            "grouped grid apply layout reports the focus replacement after collapsing the focused group");
 
     const auto capturedLayout = grid.CaptureGroupLayout();
     Require(capturedLayout.size() == 2u, "grouped grid capture after apply still returns one entry per group");
@@ -1886,6 +2997,40 @@ void TestGroupedGridApplyGroupLayoutRestoresCollapsedStateByStableId()
             "grouped grid capture after apply reports the restored first-group collapse state");
     Require(capturedLayout[1].groupStableId == 20u && capturedLayout[1].collapsed,
             "grouped grid capture after apply reports the restored second-group collapse state");
+}
+
+void TestGroupedGridApplyGroupLayoutStopsWhenDelegateIsCleared()
+{
+    using namespace DxUi;
+
+    struct ClearingDelegate final : IGridDelegate
+    {
+        size_t calls = 0u;
+
+        void OnGridGroupToggled(Grid& sender, uint64_t, bool) override
+        {
+            ++calls;
+            sender.SetDelegate(nullptr);
+        }
+    };
+
+    Grid grid;
+    GroupedGridModel model(6u);
+    model.SetGroups({
+        GroupedGridModel::Group{.stableId = 10u, .title = L"Favorites", .startRowIndex = 0u, .rowCount = 2u, .collapsed = true},
+        GroupedGridModel::Group{.stableId = 20u, .title = L"Folders", .startRowIndex = 3u, .rowCount = 2u, .collapsed = true},
+    });
+    ClearingDelegate delegate;
+    grid.SetModel(&model);
+    grid.SetDelegate(&delegate);
+
+    const std::array layout{
+        GridGroupLayoutEntry{.groupStableId = 10u, .collapsed = false},
+        GridGroupLayoutEntry{.groupStableId = 20u, .collapsed = false},
+    };
+    grid.ApplyGroupLayout(layout);
+
+    Require(delegate.calls == 1u, "group layout stops invoking a delegate after its callback clears the delegate");
 }
 
 void TestGroupedGridKeyboardCollapsePreservesOnlyRowsOutsideCollapsedGroup()
@@ -2387,13 +3532,16 @@ void TestGridSelectionChangeNotifiesDelegateOnDataChange()
     RecordingGridDelegate delegate;
     grid.SetModel(&model);
     grid.SetDelegate(&delegate);
-    grid.GetSelectionModel().SetSingle(20u);
+    Require(grid.RequestSelectRow(1u, 0u), "a user selection focuses and selects the row before it is deleted");
+    const size_t selectionChangesBeforeDeletion = delegate.selectionChangedCount;
 
     model.SetRowIds({10u, 30u});
     grid.NotifyDataChanged();
 
-    Require(delegate.selectionChangedCount == 1u, "grid data change notifies delegate when selection is removed");
-    Require(grid.GetSelectionModel().GetCount() == 0u, "grid selection clears when the selected row disappears");
+    Require(delegate.selectionChangedCount == selectionChangesBeforeDeletion + 1u, "grid data change notifies when deletion selects the replacement row");
+    Require(std::ranges::equal(grid.GetSelectionModel().GetOrderedSelection(), std::array<uint64_t, 1u>{30u}),
+            "deleting the selected row selects the row now at its former index");
+    Require(grid.GetFocusedRowId() == std::optional<uint64_t>(30u), "deleting the focused row moves focus to that replacement");
 }
 
 void TestGridCellLayoutMetricsReserveSpaceForCheckboxAndBadge()
@@ -2938,6 +4086,47 @@ void TestGridFolderViewVisualModeUsesFolderLikeRowHighlights()
     Require(hoverState.fillArgb == PackColor(theme.hoverFill), "grid folder-view hover uses the theme hover fill");
 }
 
+void TestGridInactiveSelectionTextTracksThePaintedGround()
+{
+    using namespace DxUi;
+
+    MultiRowGridModel model(2u);
+    Grid grid;
+    grid.SetModel(&model);
+    grid.GetSelectionModel().SetSingle(model.GetStableRowId(0u));
+
+    for (const bool dark : {false, true})
+    {
+        const ThemePalette theme = MakeDefaultThemePalette(dark);
+        GridDebugRowVisualState state{};
+        Require(grid.DebugGetRowVisualState(theme, 0u, state), "Grid resolves the selected row for each default theme polarity");
+        const D2D1_COLOR_F paintedFill = CompositeOverBackground(ColorFromArgb(state.fillArgb), theme.surfaceBackground);
+        Require(state.textArgb == PackColor(ResolveInactiveSelectionTextColor(theme, theme.selectionText, theme.surfaceBackground)),
+                "Grid inactive selection text uses the shared text color resolved against its painted ground");
+        Require(state.textArgb == PackColor(ChooseContrastingTextColor(paintedFill)),
+                "Grid inactive selection text contrasts against the composited selection fill");
+    }
+
+    const auto checkHighContrastPair = [&](uint32_t backgroundArgb, uint32_t textArgb, uint32_t selectionArgb, uint32_t selectionTextArgb, bool darkBase)
+    {
+        ThemeColors colors{.sizeBytes = sizeof(ThemeColors)};
+        colors.backgroundArgb          = backgroundArgb;
+        colors.textArgb                = textArgb;
+        colors.selectionBackgroundArgb = selectionArgb;
+        colors.selectionTextArgb       = selectionTextArgb;
+        colors.accentArgb              = 0xFF0078D4u;
+        colors.darkMode                = darkBase ? TRUE : FALSE;
+        colors.darkBase                = darkBase ? TRUE : FALSE;
+        colors.highContrast            = TRUE;
+        const ThemePalette theme       = MakeThemePalette(colors);
+        GridDebugRowVisualState state{};
+        Require(grid.DebugGetRowVisualState(theme, 0u, state), "Grid resolves the selected row for a supplied high-contrast palette");
+        Require(state.textArgb == PackColor(theme.selectionText), "Grid preserves the explicit High Contrast HighlightText pair");
+    };
+    checkHighContrastPair(0xFF202020u, 0xFFFFFFFFu, 0xFF8EE3F0u, 0xFF263B50u, true);  // Aquatic-like.
+    checkHighContrastPair(0xFFFFFAEFu, 0xFF3D3D3Du, 0xFF903909u, 0xFFFFF5E3u, false); // Desert-like.
+}
+
 void TestGridEmptyModelDoesNotHitTestBodyRows()
 {
     using namespace DxUi;
@@ -3127,8 +4316,8 @@ void TestGridRowMetricsClampToSegoeVariableBodyLineHeight()
 // Copy carries the complete model values, never what the trimmed paint shows. Every multiline cell of this grid is trimmed (hovering
 // offers its value, which only a clipped or omitted cell does) and holds what a consumer's data does: CR LF and U+2028 and U+2029
 // paragraph breaks, a zero-width-joiner emoji, a 5,000-unit word, decomposed accents, Arabic, trailing separators the paint ignores.
-// Ctrl+C and OnCopy put those values on the clipboard exactly (every unit, across rows and columns, in the display order of the
-// columns), tab between columns and CR LF between rows.
+// Ctrl+C and OnCopy put those values on the clipboard exactly (every unit, across rows and columns, in display order), quoting any
+// field containing a quote, tab or line break and doubling embedded quotes.
 void TestGridCopyOfTrimmedMultilineCellsIsExact()
 {
     using namespace DxUi;
@@ -3176,7 +4365,21 @@ void TestGridCopyOfTrimmedMultilineCellsIsExact()
             {
                 if (index != 0u)
                     text.push_back(L'\t');
-                text.append(values[row][columns[index]]);
+                const std::wstring& field = values[row][columns[index]];
+                const bool quote          = field.find_first_of(L"\"\t\r\n\v\f\x85\u2028\u2029") != std::wstring::npos;
+                if (! quote)
+                {
+                    text.append(field);
+                    continue;
+                }
+                text.push_back(L'\"');
+                for (const wchar_t codeUnit : field)
+                {
+                    text.push_back(codeUnit);
+                    if (codeUnit == L'\"')
+                        text.push_back(L'\"');
+                }
+                text.push_back(L'\"');
             }
         }
         return text;
@@ -3555,6 +4758,153 @@ void TestGridSelectionDelegateReplacementDuringModelChangesStopsTheGrid()
     });
 }
 
+void TestGridToggleDelegatesMayDestroyTheGridBeforeReturning()
+{
+    using namespace DxUi;
+    struct CheckboxDelegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridCheckboxToggled;
+        using IGridDelegate::OnGridSelectionChanged;
+        std::function<void(Grid&)> onCheckbox;
+        std::function<void()> onSelection;
+        void OnGridCheckboxToggled(Grid& sender, size_t, size_t, bool) override
+        {
+            if (onCheckbox)
+            {
+                onCheckbox(sender);
+            }
+        }
+        void OnGridSelectionChanged(Grid&) override
+        {
+            if (onSelection)
+            {
+                onSelection();
+            }
+        }
+    };
+
+    const auto runCheckbox = [](std::string_view name, bool nestedNotify)
+    {
+        CheckboxGridModel model(0u);
+        model.SetRows({CheckboxGridModel::Row{.label = L"Alpha"}, CheckboxGridModel::Row{.label = L"Beta"}, CheckboxGridModel::Row{.label = L"Gamma"}});
+        CheckboxDelegate delegate;
+        WindowHost host;
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 360.0f, 240.0f));
+        grid->SetModel(&model);
+        grid->SetSelectionMode(GridSelectionMode::Extended);
+        grid->GetSelectionModel().SetSingle(model.GetStableRowId(2u));
+        grid->SetDelegate(&delegate);
+        host.SetRoot(std::move(root));
+        bool replaced        = false;
+        delegate.onSelection = [&]
+        {
+            if (! replaced)
+            {
+                replaced = true;
+                host.SetRoot(std::make_unique<Panel>());
+            }
+        };
+        delegate.onCheckbox = [&](Grid& sender)
+        {
+            if (nestedNotify)
+            {
+                model.SetRows({CheckboxGridModel::Row{.label = L"Alpha"}, CheckboxGridModel::Row{.label = L"Beta"}});
+                sender.NotifyDataChanged();
+            }
+            else
+            {
+                host.SetRoot(std::make_unique<Panel>());
+                replaced = true;
+            }
+        };
+
+        Require(! grid->RequestToggleCheckboxCell(host, 2u, 0u), std::format("{}: the request reports that its Grid was destroyed", name).c_str());
+        Require(replaced, std::format("{}: the checkbox callback destroyed the Grid directly or through NotifyDataChanged", name).c_str());
+    };
+    runCheckbox("Grid checkbox callback destroys Grid", false);
+    runCheckbox("Grid checkbox callback publishes a removal", true);
+
+    struct GroupDelegate final : IGridDelegate
+    {
+        using IGridDelegate::OnGridGroupToggled;
+        using IGridDelegate::OnGridSelectionChanged;
+        std::function<void(Grid&, uint64_t, bool)> onGroup;
+        std::function<void()> onSelection;
+        void OnGridGroupToggled(Grid& sender, uint64_t groupId, bool collapsed) override
+        {
+            if (onGroup)
+            {
+                onGroup(sender, groupId, collapsed);
+            }
+        }
+        void OnGridSelectionChanged(Grid&) override
+        {
+            if (onSelection)
+            {
+                onSelection();
+            }
+        }
+    };
+    const auto runGroup = [](std::string_view name, bool nestedNotify, auto&& input)
+    {
+        GroupedGridModel model(6u);
+        model.SetGroups({
+            GroupedGridModel::Group{.stableId = 10u, .title = L"Favorites", .startRowIndex = 0u, .rowCount = 2u},
+            GroupedGridModel::Group{.stableId = 20u, .title = L"Folders", .startRowIndex = 3u, .rowCount = 2u},
+        });
+        GroupDelegate delegate;
+        WindowHost host;
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 180.0f));
+        grid->SetRowHeightDip(24.0f);
+        grid->SetHeaderHeightDip(32.0f);
+        grid->SetModel(&model);
+        grid->SetSelectionMode(GridSelectionMode::Extended);
+        grid->GetSelectionModel().SetSingle(model.GetStableRowId(0u));
+        grid->SetDelegate(&delegate);
+        host.SetRoot(std::move(root));
+        bool replaced        = false;
+        delegate.onSelection = [&]
+        {
+            if (! replaced)
+            {
+                replaced = true;
+                host.SetRoot(std::make_unique<Panel>());
+            }
+        };
+        delegate.onGroup = [&](Grid& sender, uint64_t groupId, bool collapsed)
+        {
+            Require(model.SetGroupCollapsed(groupId, collapsed), "the group callback applies its requested state");
+            if (nestedNotify)
+            {
+                sender.NotifyDataChanged();
+            }
+            else
+            {
+                host.SetRoot(std::make_unique<Panel>());
+                replaced = true;
+            }
+        };
+        static_cast<void>(input(host, *grid));
+        Require(replaced, std::format("{}: the group callback destroyed the Grid directly or through NotifyDataChanged", name).c_str());
+    };
+
+    runGroup("Grid group header callback destroys Grid", false, [](WindowHost& host, Grid& grid) {
+        return grid.OnMouseDown(host, D2D1::Point2F(40.0f, 46.0f), false, 0u);
+    });
+    runGroup("Grid keyboard group callback publishes a collapse", true, [](WindowHost& host, Grid& grid) { return grid.OnKeyDown(host, VK_LEFT, 0u); });
+    runGroup("Grid ApplyGroupLayout callback publishes a collapse",
+             true,
+             [](WindowHost&, Grid& grid)
+    {
+        const std::array layout{GridGroupLayoutEntry{.groupStableId = 10u, .collapsed = true}};
+        grid.ApplyGroupLayout(layout);
+    });
+}
+
 // A grid press or double click that focuses the grid, given a focus callback that replaces every control, touches the
 // destroyed grid no further (AddressSanitizer catches one that does).
 void TestGridInputLeavesAGridTheFocusCallbackDestroyed()
@@ -3579,10 +4929,20 @@ void TestGridInputLeavesAGridTheFocusCallbackDestroyed()
 
 void RunGridTests()
 {
+    DXUI_RUN_TEST(TestGridSetModelStopsAfterAGroupGetterReplacesItsRoot);
+    DXUI_RUN_TEST(TestGridKeyboardCheckboxQueryStopsAfterGetterRetiresTheGrid);
+    DXUI_RUN_TEST(TestGridKeyboardCheckboxQueryContainsModelGetterExceptions);
+    DXUI_RUN_TEST(TestGridNoexceptGeometryContainsThrowingGroupGetter);
+    DXUI_RUN_TEST(TestGridSetModelDetectsSamePointerReentrantReplacement);
+    DXUI_RUN_TEST(TestGridNotifyDataChangedStopsAfterAGroupGetterReplacesItsRoot);
+    DXUI_RUN_TEST(TestGridNotifyDataChangedStopsAfterAGroupGetterReplacesItsModel);
+    DXUI_RUN_TEST(TestGridPaintStopsAfterCellGetterReplacesItsRoot);
+    DXUI_RUN_TEST(TestGridSelectionNotificationStopsAfterDelegateReplacesModel);
     DXUI_RUN_TEST(TestGridInputLeavesAGridTheFocusCallbackDestroyed);
     DXUI_RUN_TEST(TestGridSelectionDelegateReplacementStopsTheInput);
     DXUI_RUN_TEST(TestGridGroupCollapseSelectionDelegateReplacementStopsTheInput);
     DXUI_RUN_TEST(TestGridSelectionDelegateReplacementDuringModelChangesStopsTheGrid);
+    DXUI_RUN_TEST(TestGridToggleDelegatesMayDestroyTheGridBeforeReturning);
     DXUI_RUN_TEST(TestSortCycle);
     DXUI_RUN_TEST(TestVisibleSpan);
     DXUI_RUN_TEST(TestSelectionModel);
@@ -3590,7 +4950,7 @@ void RunGridTests()
     DXUI_RUN_TEST(TestSelectionModelMatchesTheLinearReferenceOnBothSidesOfItsScanAndReleaseLimits);
     DXUI_RUN_TEST(TestSelectionModelKeepsEveryOccurrenceOfAnIdThatARangeRepeats);
     DXUI_RUN_TEST(TestSelectionModelRangeRunsBothWaysAndFallsBackToTheCurrentId);
-    DXUI_RUN_TEST(TestSelectionModelAnchorLeavesWithItsToggleAndMovesToTheFirstRemainingId);
+    DXUI_RUN_TEST(TestSelectionModelToggleAlwaysMovesTheRangeAnchorToTheTouchedRow);
     DXUI_RUN_TEST(TestSelectionModelPreserveOrderedKeepsSelectedIdsInTheGivenOrder);
     DXUI_RUN_TEST(TestSelectionModelMembershipFollowsEveryMutator);
     DXUI_RUN_TEST(TestSelectionModelKeepsSelectionOrderForAScatteredLargeSelection);
@@ -3599,6 +4959,22 @@ void RunGridTests()
     DXUI_RUN_TEST(TestSelectionModelAnswersMembershipAtEverySizeAroundItsScanLimit);
     DXUI_RUN_TEST(TestSelectionModelGivesBackTheRoomOfALargeSelection);
     DXUI_RUN_TEST(TestGridSelectionOfALargeListFollowsGesturesAndDataChanges);
+    DXUI_RUN_TEST(TestGridShiftKeyboardRangeContinuesFromTheReachedRow);
+    DXUI_RUN_TEST(TestGridUiAutomationAddIsIdempotentAndPreservesTheRangeAnchor);
+    DXUI_RUN_TEST(TestGridFocusAndSelectionReconcileStableRowIdsWithoutUndoingClear);
+    DXUI_RUN_TEST(TestGridCopyQuotesTsvFieldsAndPreservesUnicode);
+    DXUI_RUN_TEST(TestGridCopyOrdersOutOfOrderSelectionByVisibleRows);
+    DXUI_RUN_TEST(TestGridRightToLeftMirrorsColumnGeometryAndHitTesting);
+    DXUI_RUN_TEST(TestGridFullValueInspectionSupportsF1AndTouchDoubleTap);
+    DXUI_RUN_TEST(TestGridTouchDoubleTapReResolvesCellAfterSelectionCallbackReordersModel);
+    DXUI_RUN_TEST(TestGridTouchDoubleTapReResolvesColumnByStableIdAfterSelectionCallbackReordersColumns);
+    DXUI_RUN_TEST(TestGridTouchDoubleTapCancelsWhenSelectionCallbackRemovesClickedColumn);
+    DXUI_RUN_TEST(TestGridTouchDoubleTapCancelsWhenSelectionCallbackRemovesTouchedRow);
+    DXUI_RUN_TEST(TestGridTouchDoubleTapCancelsWhenSelectionCallbackReplacesModel);
+    DXUI_RUN_TEST(TestGridMouseDoubleClickReResolvesActivatedRowAfterSelectionCallbackReordersModel);
+    DXUI_RUN_TEST(TestGridMouseDoubleClickCancelsActivationWhenSelectionCallbackRemovesClickedRow);
+    DXUI_RUN_TEST(TestDisabledGridRejectsSelectionAndCheckboxRequests);
+    DXUI_RUN_TEST(TestGridCheckboxRequestSucceedsWhenItsDelegatePublishesTheToggle);
     DXUI_RUN_TEST(TestGridGivesBackTheRoomOfALargeSelectionWhenAClickReplacesIt);
     DXUI_RUN_TEST(TestGridVisibleWorkMetricsStayBoundedForLargeDatasets);
     DXUI_RUN_TEST(TestGroupedGridVisibleWorkMetricsIncludeHeaders);
@@ -3614,8 +4990,11 @@ void RunGridTests()
     DXUI_RUN_TEST(TestGroupedGridHeaderRightClickDoesNotDispatchRowContextMenu);
     DXUI_RUN_TEST(TestGroupedGridCollapsedGroupsHideRowsFromVisibleWork);
     DXUI_RUN_TEST(TestGroupedGridNotifyDataChangedRehomesSelectionWhenGroupCollapsesExternally);
+    DXUI_RUN_TEST(TestGroupedGridMouseAndKeyboardCollapseReportReplacementFocus);
+    DXUI_RUN_TEST(TestGroupedGridFocusCallbackMayRetireGridDuringMouseAndKeyboardCollapse);
     DXUI_RUN_TEST(TestGroupedGridCaptureGroupLayoutReportsStableCollapsedState);
     DXUI_RUN_TEST(TestGroupedGridApplyGroupLayoutRestoresCollapsedStateByStableId);
+    DXUI_RUN_TEST(TestGroupedGridApplyGroupLayoutStopsWhenDelegateIsCleared);
     DXUI_RUN_TEST(TestGroupedGridKeyboardCollapsePreservesOnlyRowsOutsideCollapsedGroup);
     DXUI_RUN_TEST(TestGroupedGridCopySkipsRowsHiddenByCollapsedGroups);
     DXUI_RUN_TEST(TestGroupedGridVisibleRowOrdinalFollowsCollapsedLayout);
@@ -3652,6 +5031,7 @@ void RunGridTests()
     DXUI_RUN_TEST(TestGridTextLayoutTableStopsAtItsCeilingEvictsTheLeastRecentlyUsedAndHalves);
     DXUI_RUN_TEST(TestGridScrolledSingleLineCaptionOffersTooltip);
     DXUI_RUN_TEST(TestGridFolderViewVisualModeUsesFolderLikeRowHighlights);
+    DXUI_RUN_TEST(TestGridInactiveSelectionTextTracksThePaintedGround);
     DXUI_RUN_TEST(TestGridEmptyModelDoesNotHitTestBodyRows);
     DXUI_RUN_TEST(TestGridSetModelNullCancelsActiveColumnResize);
     DXUI_RUN_TEST(TestGridHeaderResizeZoneRequestsHorizontalResizeCursor);
