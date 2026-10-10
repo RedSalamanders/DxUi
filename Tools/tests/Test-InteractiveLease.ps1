@@ -54,7 +54,9 @@ Invoke-TestCase 'the self-test passes: children, the session''s lease, the confi
     foreach ($proof in @(
         'its exit code is reported as the child''s own', 'its standard output and error go to its log',
         'a child that outlives the lease''s bound is ended with the watchdog''s exit code, 124', 'a stopped run ends its child and says it was stopped',
-        'a program that cannot be started is a launch failure with its reason', 'a second run in the session finds it held')) {
+        'a program that cannot be started is a launch failure with its reason', 'a second run in the session finds it held',
+        'local activation never enables synthetic warning input', 'a held mouse button refuses before exposing the patch',
+        'failed activation or up insertion still attempts bounded release readback before restoring the patch')) {
         Assert-Contains $run.Output "ok   $proof" "the self-test proves: $proof"
     }
     $skipped = @($run.Output | Where-Object { $_ -like 'SKIPPED:*' })
@@ -65,7 +67,12 @@ Invoke-TestCase 'the self-test passes: children, the session''s lease, the confi
         foreach ($proof in @(
             'the confirmation starts the run when Start is chosen', 'and does not when Cancel is chosen', 'nobody answering is a cancellation',
             'a run stopped while the person is asked ends the confirmation', 'a confirmation without a time limit waits for the person',
-            'the warning is shown', 'above every window, and the pointer and keys pass through it', 'and is gone when hidden')) {
+            'the warning is shown', 'above every window, and the pointer and keys pass through it', 'and is gone when hidden',
+            'clipping excludes the rest of the warning from its actual input region',
+            'outside, wrong-button and transposed hit-test messages cannot activate the patch',
+            'the owned warning acknowledges its dispatched down and up',
+            'ending hosted recovery restores the exact click-through style and hit-testing',
+            'the restored warning has its full ordinary window shape')) {
             Assert-Contains $run.Output "ok   $proof" "the self-test proves: $proof"
         }
     }

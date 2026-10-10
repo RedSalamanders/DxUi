@@ -92,5 +92,11 @@ refuses where there is no interactive desktop, asks first, shows a warning for t
 window, its keyboard focus and the pointer back however the run ends. Run it only when the person at the desktop has agreed to the
 time; the whole contract is in the [validation contract](../Specs/Testing/Testing_Validation.md).
 
+The separately verified GitHub-hosted mode uses the same restoring lease. A refused ordinary warning activation can
+try a bounded click on its own temporarily clipped input patch, after exact authorization, held-button and target checks.
+The lease observes the matching release, actual foreground and restored style/window region before starting a child;
+every failure remains a failed run. Native self-tests exercise targeting and cleanup on a private desktop without
+moving the person's pointer or taking focus. Hosted input acceptance requires fresh hosted execution.
+
 Build/test receipts and scratch belong under `.build`. No tool uploads test data or changes audio/camera state.
 Do not introduce a personal Codex path or silently install dependencies as part of validation.

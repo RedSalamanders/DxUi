@@ -520,6 +520,16 @@ It does not authorize an ordinary local or self-hosted run. Hosted logs/receipts
 lease mode, exit code and restoration results. A child that did not launch writes a failed receipt and replaces any
 stale suite log with the current launch failure. Desktop availability alone supplies no foreground permission.
 
+When ordinary warning activation is refused, only this verified hosted mode MAY inject a left click on the warning's
+marked activation patch. The native runner MUST recheck all exact hosted markers immediately before input, reject
+held mouse buttons, and verify that the warning owns the point before and after moving the pointer. The warning
+MUST be temporarily clipped to the patch; `HTTRANSPARENT` alone cannot establish pass-through to another thread.
+The bounded recovery MUST attempt the matching button-up on every inserted-down path, read back dispatched
+down/up messages and released button state, verify actual warning foreground, and restore/read back the original
+extended style and full window region before starting a child. Failed insertion, release, activation or restoration
+MUST remain a failed lease. Ordinary local activation MUST NOT use this fallback. Private-desktop and fake-operation
+checks establish dispatch/cleanup contracts; only fresh hosted execution qualifies the input/foreground hand-off.
+
 `DxUi.InteractiveLease.exe` exits 0 when every suite passed and the desktop is as it was, 1 when a suite failed, 2 for a malformed
 command line, 20 when there is no interactive desktop, 21 when the confirmation was cancelled or unanswered, 22 when another run holds
 the lease, 23 when the warning could not be shown (the desktop was not taken), 24 when a suite could not be started, 25 when the

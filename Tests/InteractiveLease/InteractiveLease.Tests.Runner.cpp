@@ -73,6 +73,112 @@ void Print(std::string_view line) noexcept
     std::fflush(stdout);
 }
 
+[[nodiscard]] bool IsVerifiedGitHubHostedRunner() noexcept;
+
+class HostedWarningInputOperations final
+{
+public:
+    HostedWarningInputOperations(IL::WarningBanner& banner, TS::Win32DesktopBackend& desktop) noexcept : _banner(banner), _desktop(desktop)
+    {
+    }
+
+    [[nodiscard]] bool IsAuthorized() const noexcept
+    {
+        return IsVerifiedGitHubHostedRunner();
+    }
+
+    [[nodiscard]] bool MouseButtonsReleased() const noexcept
+    {
+        constexpr int buttons[] = {VK_LBUTTON, VK_RBUTTON, VK_MBUTTON, VK_XBUTTON1, VK_XBUTTON2};
+        for (const int button : buttons)
+        {
+            if ((GetAsyncKeyState(button) & 0x8000) != 0)
+                return false;
+        }
+        return true;
+    }
+
+    [[nodiscard]] bool BeginPatch() noexcept
+    {
+        return _banner.BeginHostedActivationPatch();
+    }
+
+    [[nodiscard]] bool WarningOwnsPoint() const noexcept
+    {
+        return _banner.HostedActivationOwnsPoint();
+    }
+
+    [[nodiscard]] bool PlacePointerAndVerify() noexcept
+    {
+        POINT point{};
+        if (! _banner.HostedActivationPoint(point) || ! _desktop.SetCursor(point))
+            return false;
+        POINT actual{};
+        return _desktop.Cursor(actual) && actual.x == point.x && actual.y == point.y;
+    }
+
+    [[nodiscard]] bool SendLeftButtonDown() const noexcept
+    {
+        INPUT input{};
+        input.type       = INPUT_MOUSE;
+        input.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+        return SendInput(1u, &input, sizeof(input)) == 1u;
+    }
+
+    [[nodiscard]] bool PumpUntilForeground() const noexcept
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
+        do
+        {
+            if (GetForegroundWindow() == _banner.Window())
+                return true;
+            if (g_interrupted.load())
+                return false;
+            const DWORD wait = MsgWaitForMultipleObjects(0u, nullptr, FALSE, 10u, QS_ALLINPUT);
+            if (wait == WAIT_FAILED)
+                return false;
+            IL::PumpMessages();
+        } while (std::chrono::steady_clock::now() < deadline);
+        return GetForegroundWindow() == _banner.Window();
+    }
+
+    [[nodiscard]] bool SendLeftButtonUp() const noexcept
+    {
+        INPUT input{};
+        input.type       = INPUT_MOUSE;
+        input.mi.dwFlags = MOUSEEVENTF_LEFTUP;
+        return SendInput(1u, &input, sizeof(input)) == 1u;
+    }
+
+    [[nodiscard]] bool PumpUntilButtonReleased() const noexcept
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
+        do
+        {
+            IL::PumpMessages();
+            if (_banner.HostedActivationClickReleased() && MouseButtonsReleased())
+                return true;
+            if (MsgWaitForMultipleObjects(0u, nullptr, FALSE, 10u, QS_ALLINPUT) == WAIT_FAILED)
+                return false;
+        } while (std::chrono::steady_clock::now() < deadline);
+        return _banner.HostedActivationClickReleased() && MouseButtonsReleased();
+    }
+
+    [[nodiscard]] bool WarningIsForeground() const noexcept
+    {
+        return GetForegroundWindow() == _banner.Window();
+    }
+
+    [[nodiscard]] bool EndPatch() noexcept
+    {
+        return _banner.EndHostedActivationPatch();
+    }
+
+private:
+    IL::WarningBanner& _banner;
+    TS::Win32DesktopBackend& _desktop;
+};
+
 // The Windows services of one lease.
 class Win32LeaseServices final : public TS::LeaseServices
 {
@@ -143,7 +249,19 @@ public:
             return false;
         }
         _desktop.SetAnchor(_banner.Window());
-        if (! _desktop.ActivateAnchor())
+        const bool ordinaryActivationSucceeded = _desktop.ActivateAnchor();
+        if (IL::ShouldUseHostedWarningInputFallback(_hosted, ordinaryActivationSucceeded))
+        {
+            Print("warning activation was refused; trying the hosted warning's guarded input patch");
+            HostedWarningInputOperations input(_banner, _desktop);
+            const IL::HostedWarningInputFailure failure = IL::ActivateHostedWarningWithInput(input);
+            if (failure != IL::HostedWarningInputFailure::None)
+            {
+                reason = std::format("the hosted warning input fallback failed: {}", IL::HostedWarningInputFailureText(failure));
+                return false;
+            }
+        }
+        else if (! ordinaryActivationSucceeded)
         {
             reason = "the warning window could not take the foreground (the system refused)";
             return false;
@@ -328,6 +446,7 @@ public:
         if (! SetUpDirectory())
             return TS::LeaseExit::kUsage;
         ChildProcesses();
+        HostedWarningInput();
         SessionLease();
         PrivateDesktop();
         std::error_code ignored;
@@ -414,6 +533,144 @@ private:
             const TS::ChildRun run       = {L"nolog", (_directory / L"no-such-directory" / L"x.log").wstring(), L"cmd.exe /c exit 0"};
             const TS::ChildResult result = IL::RunChildProcess(run, 60u, never.get(), false);
             Check(! result.launched && ! result.error.empty(), "a log that cannot be created stops the child from starting");
+        }
+    }
+
+    struct FakeHostedInputOperations
+    {
+        enum class Failure
+        {
+            None,
+            Unauthorized,
+            AuthorizationLost,
+            HeldMouse,
+            MouseHeldBeforeDown,
+            BeginPatch,
+            FirstHitTest,
+            Pointer,
+            SecondHitTest,
+            ButtonDown,
+            ForegroundWait,
+            ForegroundWaitAndUpPump,
+            ButtonUpOnce,
+            ButtonUpAlways,
+            UpPump,
+            ForegroundReadback,
+            EndPatch
+        } failure = Failure::None;
+
+        int hitTests       = 0;
+        int down           = 0;
+        int up             = 0;
+        int pumps          = 0;
+        int authorizations = 0;
+        int buttonChecks   = 0;
+        bool began         = false;
+        bool ended         = false;
+
+        [[nodiscard]] bool IsAuthorized() noexcept
+        {
+            ++authorizations;
+            return failure != Failure::Unauthorized && (failure != Failure::AuthorizationLost || authorizations != 2);
+        }
+        [[nodiscard]] bool MouseButtonsReleased() noexcept
+        {
+            ++buttonChecks;
+            return failure != Failure::HeldMouse && (failure != Failure::MouseHeldBeforeDown || buttonChecks != 2);
+        }
+        [[nodiscard]] bool BeginPatch() noexcept
+        {
+            began = failure != Failure::BeginPatch;
+            return began;
+        }
+        [[nodiscard]] bool WarningOwnsPoint() noexcept
+        {
+            ++hitTests;
+            return failure != (hitTests == 1 ? Failure::FirstHitTest : Failure::SecondHitTest);
+        }
+        [[nodiscard]] bool PlacePointerAndVerify() const noexcept
+        {
+            return failure != Failure::Pointer;
+        }
+        [[nodiscard]] bool SendLeftButtonDown() noexcept
+        {
+            ++down;
+            return failure != Failure::ButtonDown;
+        }
+        [[nodiscard]] bool PumpUntilForeground() noexcept
+        {
+            ++pumps;
+            return failure != Failure::ForegroundWait && failure != Failure::ForegroundWaitAndUpPump;
+        }
+        [[nodiscard]] bool SendLeftButtonUp() noexcept
+        {
+            ++up;
+            return failure != Failure::ButtonUpAlways && (failure != Failure::ButtonUpOnce || up != 1);
+        }
+        [[nodiscard]] bool PumpUntilButtonReleased() noexcept
+        {
+            ++pumps;
+            return failure != Failure::UpPump && failure != Failure::ForegroundWaitAndUpPump;
+        }
+        [[nodiscard]] bool WarningIsForeground() const noexcept
+        {
+            return failure != Failure::ForegroundReadback;
+        }
+        [[nodiscard]] bool EndPatch() noexcept
+        {
+            ended = true;
+            return failure != Failure::EndPatch;
+        }
+    };
+
+    void HostedWarningInput()
+    {
+        Check(! IL::ShouldUseHostedWarningInputFallback(false, false) && ! IL::ShouldUseHostedWarningInputFallback(false, true),
+              "local activation never enables synthetic warning input");
+        Check(! IL::ShouldUseHostedWarningInputFallback(true, true) && IL::ShouldUseHostedWarningInputFallback(true, false),
+              "only a failed ordinary activation in authorized hosted mode enables the fallback");
+
+        FakeHostedInputOperations success;
+        Check(IL::ActivateHostedWarningWithInput(success) == IL::HostedWarningInputFailure::None && success.began && success.ended && success.hitTests == 2 &&
+                  success.down == 1 && success.up == 1 && success.pumps == 2,
+              "hosted input verifies ownership on both sides of pointer placement and balances a successful click");
+
+        FakeHostedInputOperations held;
+        held.failure = FakeHostedInputOperations::Failure::HeldMouse;
+        Check(IL::ActivateHostedWarningWithInput(held) == IL::HostedWarningInputFailure::MouseButtonHeld && ! held.began && held.down == 0,
+              "a held mouse button refuses before exposing the patch");
+
+        const auto checkFailure = [this](FakeHostedInputOperations::Failure point, IL::HostedWarningInputFailure expected, int expectedUps, bool patchBegins)
+        {
+            FakeHostedInputOperations fake;
+            fake.failure      = point;
+            const auto actual = IL::ActivateHostedWarningWithInput(fake);
+            Check(actual == expected && fake.ended == patchBegins && fake.up == expectedUps,
+                  "a hosted input failure closes the patch and balances any inserted mouse down");
+        };
+        checkFailure(FakeHostedInputOperations::Failure::BeginPatch, IL::HostedWarningInputFailure::PatchUnavailable, 0, false);
+        checkFailure(FakeHostedInputOperations::Failure::Unauthorized, IL::HostedWarningInputFailure::HostedAuthorizationLost, 0, false);
+        checkFailure(FakeHostedInputOperations::Failure::AuthorizationLost, IL::HostedWarningInputFailure::HostedAuthorizationLost, 0, true);
+        checkFailure(FakeHostedInputOperations::Failure::MouseHeldBeforeDown, IL::HostedWarningInputFailure::MouseButtonHeld, 0, true);
+        checkFailure(FakeHostedInputOperations::Failure::FirstHitTest, IL::HostedWarningInputFailure::WarningDoesNotOwnPoint, 0, true);
+        checkFailure(FakeHostedInputOperations::Failure::Pointer, IL::HostedWarningInputFailure::PointerMoveFailed, 0, true);
+        checkFailure(FakeHostedInputOperations::Failure::SecondHitTest, IL::HostedWarningInputFailure::WarningDoesNotOwnPoint, 0, true);
+        checkFailure(FakeHostedInputOperations::Failure::ButtonDown, IL::HostedWarningInputFailure::ButtonDownFailed, 0, true);
+        checkFailure(FakeHostedInputOperations::Failure::ForegroundWait, IL::HostedWarningInputFailure::ForegroundWaitFailed, 1, true);
+        checkFailure(FakeHostedInputOperations::Failure::ForegroundWaitAndUpPump, IL::HostedWarningInputFailure::MessagePumpFailed, 1, true);
+        checkFailure(FakeHostedInputOperations::Failure::ButtonUpOnce, IL::HostedWarningInputFailure::ButtonUpFailed, 2, true);
+        checkFailure(FakeHostedInputOperations::Failure::ButtonUpAlways, IL::HostedWarningInputFailure::ButtonUpFailed, 2, true);
+        checkFailure(FakeHostedInputOperations::Failure::UpPump, IL::HostedWarningInputFailure::MessagePumpFailed, 1, true);
+        checkFailure(FakeHostedInputOperations::Failure::ForegroundReadback, IL::HostedWarningInputFailure::ForegroundNotTaken, 1, true);
+        checkFailure(FakeHostedInputOperations::Failure::EndPatch, IL::HostedWarningInputFailure::PatchRestoreFailed, 1, true);
+        for (const auto point : {FakeHostedInputOperations::Failure::ForegroundWait,
+                                 FakeHostedInputOperations::Failure::ButtonUpAlways,
+                                 FakeHostedInputOperations::Failure::ButtonUpOnce})
+        {
+            FakeHostedInputOperations fake;
+            fake.failure = point;
+            static_cast<void>(IL::ActivateHostedWarningWithInput(fake));
+            Check(fake.pumps == 2 && fake.ended, "failed activation or up insertion still attempts bounded release readback before restoring the patch");
         }
     }
 
@@ -505,6 +762,56 @@ private:
             const LONG_PTR style = window != nullptr ? GetWindowLongPtrW(window, GWL_EXSTYLE) : 0;
             Check((style & WS_EX_TOPMOST) != 0 && (style & WS_EX_TRANSPARENT) != 0 && (style & WS_EX_LAYERED) != 0,
                   "above every window, and the pointer and keys pass through it");
+            RECT initialClient{};
+            GetClientRect(window, &initialClient);
+            POINT normalPoint{initialClient.left + 2, initialClient.top + 2};
+            ClientToScreen(window, &normalPoint);
+            Check(SendMessageW(window, WM_NCHITTEST, 0, MAKELPARAM(static_cast<WORD>(normalPoint.x), static_cast<WORD>(normalPoint.y))) == HTTRANSPARENT,
+                  "the ordinary warning returns click-through hit-testing");
+            POINT patchPoint{};
+            const bool patchStarted = banner.BeginHostedActivationPatch();
+            Check(patchStarted, "the hosted-only activation patch can be exposed on the private desktop");
+            const LONG_PTR patchStyle = GetWindowLongPtrW(window, GWL_EXSTYLE);
+            const bool pointReady =
+                patchStarted && (patchStyle & WS_EX_TRANSPARENT) == 0 && banner.HostedActivationPoint(patchPoint) && WindowFromPoint(patchPoint) == window;
+            Check(pointReady, "the temporary patch is a visible input target owned by the warning");
+            const HWND foregroundBeforePatchTests = GetForegroundWindow();
+            POINT outsidePoint{};
+            RECT client{};
+            GetClientRect(window, &client);
+            outsidePoint = POINT{client.left + 2, client.top + 2};
+            ClientToScreen(window, &outsidePoint);
+            if (pointReady)
+            {
+                Check(SendMessageW(window, WM_NCHITTEST, 0, MAKELPARAM(static_cast<WORD>(patchPoint.x), static_cast<WORD>(patchPoint.y))) == HTCLIENT,
+                      "only the safe patch accepts pointer input");
+                Check(SendMessageW(window, WM_NCHITTEST, 0, MAKELPARAM(static_cast<WORD>(outsidePoint.x), static_cast<WORD>(outsidePoint.y))) == HTTRANSPARENT,
+                      "outside the patch returns transparent hit-testing");
+                Check(WindowFromPoint(outsidePoint) != window, "clipping excludes the rest of the warning from its actual input region");
+                Check(SendMessageW(window, WM_MOUSEACTIVATE, reinterpret_cast<WPARAM>(window), MAKELPARAM(HTCLIENT, WM_LBUTTONDOWN)) == MA_ACTIVATE,
+                      "the hosted patch's click can activate its owned warning window");
+                Check(SendMessageW(window, WM_MOUSEACTIVATE, reinterpret_cast<WPARAM>(window), MAKELPARAM(HTTRANSPARENT, WM_LBUTTONDOWN)) == MA_NOACTIVATE &&
+                          SendMessageW(window, WM_MOUSEACTIVATE, reinterpret_cast<WPARAM>(window), MAKELPARAM(HTCLIENT, WM_RBUTTONDOWN)) == MA_NOACTIVATE &&
+                          SendMessageW(window, WM_MOUSEACTIVATE, reinterpret_cast<WPARAM>(window), MAKELPARAM(WM_LBUTTONDOWN, HTCLIENT)) == MA_NOACTIVATE,
+                      "outside, wrong-button and transposed hit-test messages cannot activate the patch");
+                SendMessageW(window, WM_LBUTTONUP, 0, 0);
+                Check(! banner.HostedActivationClickReleased(), "an up without its owned down does not acknowledge the click");
+                SendMessageW(window, WM_LBUTTONDOWN, MK_LBUTTON, 0);
+                Check(! banner.HostedActivationClickReleased(), "queued down alone cannot finish input recovery");
+                SendMessageW(window, WM_LBUTTONUP, 0, 0);
+                Check(banner.HostedActivationClickReleased(), "the owned warning acknowledges its dispatched down and up");
+            }
+            const bool patchRestored = patchStarted && banner.EndHostedActivationPatch();
+            Check(patchRestored && GetWindowLongPtrW(window, GWL_EXSTYLE) == style &&
+                      (! pointReady ||
+                       SendMessageW(window, WM_NCHITTEST, 0, MAKELPARAM(static_cast<WORD>(patchPoint.x), static_cast<WORD>(patchPoint.y))) == HTTRANSPARENT) &&
+                      GetForegroundWindow() == foregroundBeforePatchTests,
+                  "ending hosted recovery restores the exact click-through style and hit-testing");
+            Check(! banner.HostedActivationClickReleased() &&
+                      SendMessageW(window, WM_MOUSEACTIVATE, reinterpret_cast<WPARAM>(window), MAKELPARAM(HTCLIENT, WM_LBUTTONDOWN)) == MA_NOACTIVATE,
+                  "the restored warning has no input acknowledgment or activation patch");
+            wil::unique_hrgn restoredRegion(CreateRectRgn(0, 0, 0, 0));
+            Check(restoredRegion && GetWindowRgn(window, restoredRegion.get()) == ERROR, "the restored warning has its full ordinary window shape");
             const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(1300);
             while (std::chrono::steady_clock::now() < until)
             {

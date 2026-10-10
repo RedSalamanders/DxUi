@@ -50,3 +50,10 @@ and Release policy qualification remain separate.
 [The design-system record](DesignSystemPublication/README.md) records the repository publication decision. The
 gallery was regenerated in x64 Release and all six images were visually reviewed. The current design-system
 contract requires committing the canonical source and captures with the project; no separate upload is required.
+
+[Foreground and calibration follow-up 55](ForegroundAndCalibrationFollowup55/README.md) retains the completed d43
+native CI, independent receipt audits, explicit CI-refusal repair, contaminated A/A diagnostic and deliberately
+cancelled local paired build. ARM64 warning activation and quiet-host policy calibration remain open.
+
+[Hosted warning and paired follow-up 57](HostedWarningAndPairedFollowup57/README.md) preserves the d43 paired study,
+independent migration-difference audit and fresh private-desktop/source qualification for the guarded warning patch.

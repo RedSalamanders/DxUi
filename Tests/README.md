@@ -31,3 +31,7 @@ Verified GitHub-hosted Windows jobs run requested foreground suites through the 
 anchor and a child-specific foreground grant. Both the PowerShell launcher and native `--run-hosted` mode check the
 exact hosted markers before taking that runner's desktop. Hosted receipts use `.hosted` and record lease results;
 ordinary local and self-hosted runs still require the person's confirmation through `-Interactive`.
+If a verified hosted runner refuses ordinary warning activation, the lease can briefly clip its warning to a marked
+input patch and click that owned point. It rechecks authorization/targeting, balances and observes the mouse release,
+and restores the full warning style/shape before launching any child. Failure remains a failed run. This fallback
+does not run on a person's ordinary local desktop; its private-desktop tests take no personal input or focus.

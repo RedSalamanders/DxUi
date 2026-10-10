@@ -1744,3 +1744,34 @@ Consumer adoption (RedXe, RedSalamander) stays separate.
   branch; hosted foreground authorization remains the separate implicit runner mode. The fixture now executes both
   ordinary CI and fully identified hosted environments and verifies no output or child work. All 21 InteractiveMode
   cases and complete Windows validation 55 passed. The failed CI job is retained; native jobs continue for launch proof.
+- Follow-up CI `d43e36a` passed all three x64 native jobs but all three ARM64 jobs refused the warning anchor before
+  either foreground suite launched. Debug/ASan identify WWAHost's CoreWindow as saved foreground, then preserve
+  unchanged foreground/focus/cursor on `unwarned`. Existing input attachment is insufficient evidence of foreground
+  eligibility. The warning is intentionally click-through, so a hosted-only input remedy must first provide an owned,
+  verified warning target and retain refusal/restoration. No production focus behavior or skip gate is relaxed.
+- Local A/A follow-up 55 encountered a separately launched RedPrism Release analysis build during measurement.
+  Preserve it as a diagnostic with its observed process metadata; it cannot qualify quiet-host timing/memory policy.
+  The automatic paired follow-up had begun its baseline build; the lead stopped only its verified owned process tree
+  before any raw measurement receipt and preserved all files. That cancellation supplies no build/performance verdict.
+  The frozen study interval is ended; rerun calibration on an isolated host.
+- [Foreground and calibration follow-up 55](../../../Measurements/Review-2026-10-09/ForegroundAndCalibrationFollowup55/README.md)
+  retains all original CI/native receipts and the local diagnostic. The lead checked all 126 main-suite receipts,
+  both Release menu resource fixtures and all four API 4 consumer cases. Current `main` remains `bea676a1`; the
+  remediation is on the focused branch, not merged. Complete Windows/Linux tooling and formatting 55 passed at `2b20508`.
+- A delegated hosted-warning input remedy was independently reviewed. The lead corrected a transposed
+  `WM_MOUSEACTIVATE` hit-test word and its matching mistaken fixture, preserved the wrapper's existing proof label,
+  added exact authorization rechecks, dispatched-release acknowledgment, bounded release cleanup and style readback.
+  `HTTRANSPARENT` forwards only within a thread, so the warning is temporarily clipped to the owned patch and its
+  full region is restored/read back before children. The first private-desktop native self-test passed 55 checks;
+  the outer wrapper failed on the changed proof label. Retain that failure; fresh checks must qualify the final repair.
+  No ordinary local synthetic-input fallback, production focus change or skip-gate relaxation was introduced.
+- Fresh canonical x64 Debug WindowHost/InteractiveLease scopes passed with zero skips; all six native lease cases
+  and complete Windows validation/tooling and formatting 57 passed. The lead independently recomputed exact build/run
+  identities, rehashed actual executable bytes and checked the private-desktop self-test without personal input/focus.
+- Completed CI study `d43e36a`, seed 2011097208, has zero migrated flags across three scenarios. The lead verified
+  all 144 receipts, 1440 rounds, thirteen harness hashes and 78 decisions. The one legacy MultilineGrid improvement
+  claim is reproducible (U=139.5, p=0.00101082033463103) but disappears under paired blocks and 26-slot Holm correction
+  (p=0.00390625, adjusted p=0.1015625). This recorded migration difference is not an accepted improvement.
+  [Follow-up 57](../../../Measurements/Review-2026-10-09/HostedWarningAndPairedFollowup57/README.md) retains raw evidence
+  and separate auditors. Official acceptance remains inconclusive/policy-review-required; final hosted/native
+  qualification and isolated A/A calibration remain pending. The proposed policy remains unqualified.
