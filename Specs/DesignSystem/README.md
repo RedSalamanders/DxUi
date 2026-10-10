@@ -40,6 +40,7 @@ DxUi is a Windows C++ retained-control library drawn with Direct2D and DirectWri
 
 - DxUi has no global spacing ramp. The recurring steps are `space-2`, `space-4`, `space-6`, `space-8`, `space-10`, `space-12`, `space-16` and `space-24`, and each token lists the control metrics it covers. Copy a control's own metric rather than rounding it to a step (5 stays 5).
 - Rows are `row-height` (28). Headers, tab strips and steppers are `header-height` (32), and the MenuBar is `menubar-height` (30). Compact density scales grid rows by 0.82. For touch, raise popup rows to `touch-row` (48). Never shrink a hit target for density.
+- Opt-in forms use `space-6` between text/editor parts and `space-12` between beside-label lanes, rows and columns. Their default editor preference is 180 by 32 DIP with at least 48 DIP width; beside-label columns retain at least 108 DIP. These geometry limits do not replace a product's hit-target or responsive policy. Descriptions and textual errors use `Small`; fixed actions stay outside the form body.
 - Corners: `radius-sm` (4) is the default for buttons, fields, menus, popups and tooltips. Tabs and tags use `radius-tab` (5), Selector buttons and Modern combos use `radius-md` (6), overlay cards and toggle rows use `radius-lg` (8), and the toggle track uses `radius-pill`.
 - Every outline is `stroke-hairline` (1 DIP).
 - Elevation is reserved for overlays. Menus use `shadow-menu` and ComboBox popups use `shadow-popup`, with acrylic variants for the Acrylic material. Panels and cards stay flat with a `borderDefault` hairline.
@@ -53,6 +54,6 @@ DxUi is a Windows C++ retained-control library drawn with Direct2D and DirectWri
 
 ## Rendering and captures
 
-- Every screenshot in [`docs/gallery`](../../docs/gallery/README.md) was produced by the test harness (`gallery.ps1 -PublishDocs`), never by desktop capture. Each sheet shows all 30 controls in one theme, on a 1600 DIP canvas with 7 columns, a 24 DIP margin and a 10 DIP gap.
+- Every screenshot in [`docs/gallery`](../../docs/gallery/README.md) was produced by the test harness (`gallery.ps1 -PublishDocs`), never by desktop capture. Each sheet shows all 33 controls in one theme, on a 1600 DIP canvas with 7 columns, a 24 DIP margin and a 10 DIP gap.
 - The component previews in this system are static HTML renditions of the Direct2D controls. Where they differ, the gallery captures are authoritative.
-- Every one of the 30 catalog controls has a guideline and a preview. A new control is not complete until it has both, alongside its `docs/controls.md` entry and gallery tile.
+- Every one of the 33 catalog controls has a guideline and a preview. A new control is not complete until it has both, alongside its `docs/controls.md` entry and gallery tile.

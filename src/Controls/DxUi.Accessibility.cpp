@@ -310,6 +310,15 @@ void NotifySelectionEventRaisedForTest() noexcept
     }
 }
 
+std::atomic<AccessibilityPropertyEventHookForTest> g_accessibilityPropertyEventHook{nullptr};
+std::atomic<void*> g_accessibilityPropertyEventHookContext{nullptr};
+
+void NotifyPropertyEventRaisedForTest(PROPERTYID propertyId) noexcept
+{
+    if (const AccessibilityPropertyEventHookForTest hook = g_accessibilityPropertyEventHook.load(std::memory_order_acquire))
+        hook(propertyId, g_accessibilityPropertyEventHookContext.load(std::memory_order_acquire));
+}
+
 [[nodiscard]] DWORD AccessibilityUiActionDispatchTimeoutMs() noexcept
 {
     const DWORD timeoutOverride = g_accessibilityUiActionDispatchTimeoutOverrideMs.load(std::memory_order_acquire);
@@ -388,6 +397,10 @@ constexpr void HoldFocusResolutionForTest(HWND, bool = false) noexcept
 }
 
 constexpr void NotifySelectionEventRaisedForTest() noexcept
+{
+}
+
+constexpr void NotifyPropertyEventRaisedForTest(PROPERTYID) noexcept
 {
 }
 #endif
@@ -498,6 +511,10 @@ struct AccessibilityControlNavigationSnapshot
     CONTROLTYPEID controlTypeId = UIA_TextControlTypeId;
     std::wstring controlAccessibleName;
     std::wstring controlAccessibleHelpText;
+    std::wstring controlAccessibleItemStatus;
+    uint64_t controlLabelIdentity = 0;
+    bool controlRequiredForForm   = false;
+    bool controlDataValidForForm  = true;
     std::wstring controlAutomationId;
     std::wstring controlAccessibleValue;
     std::wstring controlAccessibleText;
@@ -1871,17 +1888,22 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
         // Made in place, and complete before the children below add theirs.
         AccessibilityControlNavigationSnapshot& record = snapshot.controlNavigationRecords.emplace_back();
 
-        record.path                      = basePath;
-        record.controlLifetime           = GetControlLifetimeToken(*current);
-        record.controlIdentity           = ControlIdentityOf(record.controlLifetime);
-        record.controlTypeId             = GetControlTypeId(current);
-        record.controlAccessibleName     = std::wstring(GetControlAccessibleName(root, current));
-        record.controlAccessibleHelpText = current->GetAccessibleHelpText();
-        record.controlAutomationId       = current->GetAccessibleAutomationId();
-        record.controlVisible            = current->IsVisible();
-        record.controlEnabled            = effectiveEnabled;
-        record.controlFocusable          = current->IsFocusable();
-        record.controlHasFocus           = current->HasFocus();
+        record.path                        = basePath;
+        record.controlLifetime             = GetControlLifetimeToken(*current);
+        record.controlIdentity             = ControlIdentityOf(record.controlLifetime);
+        record.controlTypeId               = GetControlTypeId(current);
+        record.controlAccessibleName       = std::wstring(GetControlAccessibleName(root, current));
+        record.controlAccessibleHelpText   = current->GetAccessibleHelpText();
+        record.controlAccessibleItemStatus = current->GetAccessibleItemStatus();
+        if (const auto* label = current->GetAccessibleLabelledBy())
+            record.controlLabelIdentity = ControlIdentityOf(GetControlLifetimeToken(*label));
+        record.controlRequiredForForm  = current->IsAccessibleRequiredForForm();
+        record.controlDataValidForForm = current->IsAccessibleDataValidForForm();
+        record.controlAutomationId     = current->GetAccessibleAutomationId();
+        record.controlVisible          = current->IsVisible();
+        record.controlEnabled          = effectiveEnabled;
+        record.controlFocusable        = current->IsFocusable();
+        record.controlHasFocus         = current->HasFocus();
         if (const auto* textField = dynamic_cast<const TextField*>(current))
         {
             record.controlIsPassword = textField->IsMasked();
@@ -2210,6 +2232,18 @@ const AccessibilityControlNavigationSnapshot* FindControlNavigationRecord(const 
     const std::optional<uint32_t> ordinal = snapshot.controlRecordsByPath.Find(
         HashControlPath(path), [&](uint32_t placed) noexcept { return AreControlPathsEqual(snapshot.controlNavigationRecords[placed].path, path); });
     return ordinal ? &snapshot.controlNavigationRecords[ordinal.value()] : nullptr;
+}
+
+// Resolve relationships from the complete immutable tree, including label removal or ancestor visibility changes.
+// A previous snapshot still names its former label after that control dies; provider creation retains its identity,
+// never the Control pointer. Zero is the manual-layout fast path and requires no extra index or storage.
+[[nodiscard]] const AccessibilityControlNavigationSnapshot* FindSnapshotFormLabel(const AccessibilitySnapshot& snapshot, uint64_t identity) noexcept
+{
+    if (! identity)
+        return nullptr;
+    const auto label = std::ranges::find_if(snapshot.controlNavigationRecords,
+                                            [identity](const auto& record) noexcept { return record.controlIdentity == identity && record.controlVisible; });
+    return label == snapshot.controlNavigationRecords.end() ? nullptr : &*label;
 }
 
 const AccessibilityControlNavigationSnapshot* ResolveSnapshotControlRecord(const AccessibilitySnapshot& snapshot,
@@ -7225,6 +7259,21 @@ HRESULT AccessibilityProvider::GetPropertyValue(PROPERTYID propertyId, VARIANT* 
         case UIA_ControlTypePropertyId: *outValue = VariantFromInt(record->controlTypeId); return S_OK;
         case UIA_NamePropertyId: return SetVariantFromString(outValue, record->controlAccessibleName);
         case UIA_HelpTextPropertyId: return SetVariantFromString(outValue, record->controlAccessibleHelpText);
+        case UIA_ItemStatusPropertyId: return SetVariantFromString(outValue, record->controlAccessibleItemStatus);
+        case UIA_IsRequiredForFormPropertyId: *outValue = VariantFromBool(record->controlRequiredForForm); return S_OK;
+        case UIA_IsDataValidForFormPropertyId: *outValue = VariantFromBool(record->controlDataValidForForm); return S_OK;
+        case UIA_LabeledByPropertyId:
+        {
+            const auto* label = FindSnapshotFormLabel(*snapshot, record->controlLabelIdentity);
+            if (! label || label->controlLifetime.expired())
+                return S_OK;
+            auto provider = CreateControlElement(_target, _hwnd, label->path, CaptureControlIdentity(*label));
+            if (! provider)
+                return E_OUTOFMEMORY;
+            outValue->vt      = VT_UNKNOWN;
+            outValue->punkVal = provider.detach();
+            return S_OK;
+        }
         case UIA_AutomationIdPropertyId: return SetVariantFromString(outValue, record->controlAutomationId);
         case UIA_ExpandCollapseExpandCollapseStatePropertyId:
             if (record->controlVisible && record->controlDisclosureExpanded.has_value())
@@ -9515,7 +9564,10 @@ HRESULT AccessibilityProvider::ValidateActionEnabled() const noexcept
             : (_kind == AccessibilityFragmentKind::GridHeader || _kind == AccessibilityFragmentKind::GridRow || _kind == AccessibilityFragmentKind::GridCell
                    ? static_cast<Control*>(ResolveMutableGridControl())
                    : ResolveMutableControl());
-    // Window-only and unsupported targets retain their existing executor result.
+    // A concrete element no longer reachable at its retained identity is unavailable, even when an embedded view's
+    // last immutable read snapshot still contains it. Window-only roots retain their existing executor result.
+    if (_kind != AccessibilityFragmentKind::Root && (! host || ! control))
+        return UIA_E_ELEMENTNOTAVAILABLE;
     if (host && control && ! IsControlEffectivelyInteractive(host->GetRoot(), control))
         return UIA_E_ELEMENTNOTENABLED;
     return S_OK;
@@ -11303,26 +11355,39 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
     }
     if (! root)
         return;
-    const auto connected = [&]
+    ControlHost* const notificationHost = target.ResolveHost();
+    if (! notificationHost)
+        return;
+    const uint64_t interactionRevision = notificationHost->GetInteractionRevision();
+    const auto connected               = [&]
     {
-        return target.host.load(std::memory_order_acquire) != nullptr && target.snapshot.load(std::memory_order_acquire) == current &&
-               (target.embedded || target.publishedRevision == target.dirtyRevision);
+        return target.host.load(std::memory_order_acquire) == notificationHost && target.snapshot.load(std::memory_order_acquire) == current &&
+               (target.embedded ? ! target.rootLifetime.expired() && notificationHost->GetInteractionRevision() == interactionRevision
+                                : target.publishedRevision == target.dirtyRevision);
     };
     bool structureChanged = previous->controlNavigationRecords.size() != current->controlNavigationRecords.size();
     for (const auto& record : current->controlNavigationRecords)
     {
         if (! connected())
             return;
+        if (record.controlLifetime.expired())
+            continue;
         const auto* before = FindControlNavigationRecord(*previous, record.path);
         if (! before || before->controlIdentity != record.controlIdentity)
         {
             structureChanged = true;
             continue;
         }
-        const bool nameChanged  = before->controlAccessibleName != record.controlAccessibleName;
-        const bool helpChanged  = before->controlAccessibleHelpText != record.controlAccessibleHelpText;
-        const bool textChanged  = before->controlAccessibleText != record.controlAccessibleText;
-        const bool valueChanged = before->controlAccessibleValue != record.controlAccessibleValue;
+        const bool nameChanged   = before->controlAccessibleName != record.controlAccessibleName;
+        const bool helpChanged   = before->controlAccessibleHelpText != record.controlAccessibleHelpText;
+        const auto* beforeLabel  = FindSnapshotFormLabel(*previous, before->controlLabelIdentity);
+        const auto* currentLabel = FindSnapshotFormLabel(*current, record.controlLabelIdentity);
+        const bool labelChanged  = (beforeLabel ? beforeLabel->controlIdentity : 0u) != (currentLabel ? currentLabel->controlIdentity : 0u);
+        const bool formChanged   = before->controlAccessibleItemStatus != record.controlAccessibleItemStatus ||
+                                   before->controlRequiredForForm != record.controlRequiredForForm ||
+                                   before->controlDataValidForForm != record.controlDataValidForForm || labelChanged;
+        const bool textChanged   = before->controlAccessibleText != record.controlAccessibleText;
+        const bool valueChanged  = before->controlAccessibleValue != record.controlAccessibleValue;
         const bool selectionChanged =
             before->controlTextSelectionStart != record.controlTextSelectionStart || before->controlTextSelectionEnd != record.controlTextSelectionEnd;
         const bool compositionChanged =
@@ -11331,7 +11396,7 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
         const bool rangeChanged    = record.controlSupportsRangeValue && std::ranges::any_of(rangeProperties, [](const RangePropertyChange& property) noexcept {
             return property.previous != property.current;
         });
-        if (! nameChanged && ! helpChanged && ! textChanged && ! valueChanged && ! selectionChanged && ! compositionChanged &&
+        if (! nameChanged && ! helpChanged && ! formChanged && ! textChanged && ! valueChanged && ! selectionChanged && ! compositionChanged &&
             before->controlEnabled == record.controlEnabled && before->controlToggleChecked == record.controlToggleChecked &&
             before->controlDisclosureExpanded == record.controlDisclosureExpanded && ! rangeChanged && before->controlHasFocus == record.controlHasFocus)
             continue;
@@ -11340,8 +11405,11 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
             return;
         const auto property = [&](PROPERTYID id, VARIANT oldValue, VARIANT newValue)
         {
-            if (connected())
+            if (connected() && ! record.controlLifetime.expired())
+            {
                 static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider.get(), id, oldValue, newValue));
+                NotifyPropertyEventRaisedForTest(id);
+            }
         };
         const auto stringProperty = [&](PROPERTYID id, const std::wstring& oldText, const std::wstring& newText)
         {
@@ -11359,6 +11427,33 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
             stringProperty(UIA_NamePropertyId, before->controlAccessibleName, record.controlAccessibleName);
         if (helpChanged)
             stringProperty(UIA_HelpTextPropertyId, before->controlAccessibleHelpText, record.controlAccessibleHelpText);
+        if (before->controlAccessibleItemStatus != record.controlAccessibleItemStatus)
+            stringProperty(UIA_ItemStatusPropertyId, before->controlAccessibleItemStatus, record.controlAccessibleItemStatus);
+        if (before->controlRequiredForForm != record.controlRequiredForForm)
+            property(UIA_IsRequiredForFormPropertyId, VariantFromBool(before->controlRequiredForForm), VariantFromBool(record.controlRequiredForForm));
+        if (before->controlDataValidForForm != record.controlDataValidForForm)
+            property(UIA_IsDataValidForFormPropertyId, VariantFromBool(before->controlDataValidForForm), VariantFromBool(record.controlDataValidForForm));
+        if (labelChanged)
+        {
+            const auto labelValue = [&](const AccessibilityControlNavigationSnapshot* label, wil::com_ptr_nothrow<IRawElementProviderSimple>& retained)
+            {
+                VARIANT value = {};
+                if (label)
+                {
+                    retained = CreateControlElement(&target, target.hwnd, label->path, CaptureControlIdentity(*label));
+                    if (retained)
+                    {
+                        value.vt      = VT_UNKNOWN;
+                        value.punkVal = retained.get();
+                    }
+                }
+                return value;
+            };
+            wil::com_ptr_nothrow<IRawElementProviderSimple> oldLabel, newLabel;
+            const auto oldValue = labelValue(beforeLabel, oldLabel);
+            const auto newValue = labelValue(currentLabel, newLabel);
+            property(UIA_LabeledByPropertyId, oldValue, newValue);
+        }
         if (valueChanged)
             stringProperty(UIA_ValueValuePropertyId, before->controlAccessibleValue, record.controlAccessibleValue);
         if (before->controlEnabled != record.controlEnabled)
@@ -11380,11 +11475,11 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
         {
             property(UIA_HasKeyboardFocusPropertyId, VariantFromBool(before->controlHasFocus), VariantFromBool(record.controlHasFocus));
         }
-        if (connected() && record.controlSupportsText && textChanged)
+        if (connected() && ! record.controlLifetime.expired() && record.controlSupportsText && textChanged)
             static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_Text_TextChangedEventId));
-        if (connected() && record.controlSupportsText && selectionChanged)
+        if (connected() && ! record.controlLifetime.expired() && record.controlSupportsText && selectionChanged)
             static_cast<void>(UiaRaiseAutomationEvent(provider.get(), UIA_Text_TextSelectionChangedEventId));
-        if (connected() && record.controlSupportsText && compositionChanged)
+        if (connected() && ! record.controlLifetime.expired() && record.controlSupportsText && compositionChanged)
         {
             unique_safearray changed(SafeArrayCreateVector(VT_BSTR, 0, 0));
             if (changed)
@@ -11798,6 +11893,18 @@ void DebugSetAccessibilitySelectionEventHookForTest(AccessibilitySelectionEventH
     }
     g_accessibilitySelectionEventHookContext.store(context, std::memory_order_release);
     g_accessibilitySelectionEventHook.store(hook, std::memory_order_release);
+}
+
+void DebugSetAccessibilityPropertyEventHookForTest(AccessibilityPropertyEventHookForTest hook, void* context) noexcept
+{
+    if (! hook)
+    {
+        g_accessibilityPropertyEventHook.store(nullptr, std::memory_order_release);
+        g_accessibilityPropertyEventHookContext.store(nullptr, std::memory_order_release);
+        return;
+    }
+    g_accessibilityPropertyEventHookContext.store(context, std::memory_order_release);
+    g_accessibilityPropertyEventHook.store(hook, std::memory_order_release);
 }
 
 void DebugSetAccessibilityResolutionCountingForTest(bool enabled) noexcept

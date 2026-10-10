@@ -80,6 +80,21 @@ qualification replays them exactly. Repetitions inside a block are not treated a
   It builds one explicit revision once and measures that same executable under both randomized role labels, with
   distinct raw receipts for every invocation. Separate builds can encode different PDB paths or link timestamps;
   matching source revisions therefore do not satisfy A/A executable identity.
+- Fresh measurements require a `performance-build-v2` attestation before and after build and execution. Each side's
+  expanded projects and resolved compile/shader inventory belong to its build-input identity. The comparison profile
+  separately binds actual MSBuild, compiler/backend, shader compiler, linker/librarian and SDK bytes plus effective
+  options and target evaluation context for both the library and benchmark. A changed source inventory alone is not a
+  toolchain mismatch. Missing metadata, mixed compiler profiles and unsupported build overrides are inconclusive;
+  historical attestations cannot be relabelled as v2 or reused without a fresh build.
+- Default-output incremental `Build` additionally requires a separate receipt binding every intermediate path and byte
+  in the supported platform/configuration profile, including objects, tracking logs and generated shaders for all solution
+  projects. Missing or changed cache forces `Rebuild`; final-only `SkipBuild` does not depend on disposable intermediates.
+  Both receipts are revoked before build and on failed publication. Resolved C++/HLSL source bytes and the owned native
+  include closure belong to each side's build identity, never the shared compiler comparison. Arbitrary external or
+  ignored native inputs, response/path-bearing option overrides, custom outputs, precompiled headers and modules are
+  unsupported. Intermediate include directories accept only the exact two derived composite-shader headers plus
+  supported native object/tracking/output files, preventing extensionless or alternate header shadowing. The selected
+  MSVC/ATL, SDK/UCRT/WinRT/C++/WinRT, auxiliary VS and NETFX input roots bind all file bytes and optional-root absence.
 - A policy binds the approved judge version and normalized source SHA-256. The candidate judge must match both values from
   the measured-base policy to be eligible for qualification; agreement of verdict labels alone does not approve changed
   judge code. It also binds the assignment protocol and normalized `Tools/PairedRun.psm1` source SHA-256; both the immutable
@@ -95,6 +110,12 @@ qualification replays them exactly. Repetitions inside a block are not treated a
   candidate cannot bootstrap the trusted policy from its own tree. The first policy is marked
   `policy-review-required`; the migrated gate remains inconclusive until an independently reviewed, versioned policy is
   present and qualified in the measured base.
+- Qualification independently replays both frozen judges over the same hash-verified, once-parsed raw receipt bytes.
+  All three declared scenarios, every scheduled run, the complete 26-slot decisions and both same-side controls per
+  block are mandatory. The consumed set must equal the full replayed decision, including numeric and exact-budget
+  evidence. Control comparisons must reproduce their scheduled raw pairs; drift is then consumed from that canonical
+  replay, with absolute 5% timing and 2% memory investigation bands and unchanged exact budgets. Summary labels and
+  later comparison-file reads cannot substitute for this evidence.
 - `advice-required` remains a measured finding, not permission to merge or rebaseline. The retained summary records the
   block schedule, seed, receipt identities, the legacy and migrated decisions, the correction family and every metric.
   Historic Mann-Whitney summaries stay readable, but the migrated gate treats them as read-only and never as qualified passes.

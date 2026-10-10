@@ -33,7 +33,10 @@ enum class ControlKind : uint8_t
     PageIndicator,
     Splitter,
     NumericStepper,
-    ColorPicker
+    ColorPicker,
+    FlexPanel,
+    FormField,
+    FormPanel
 };
 struct ControlDescriptor
 {

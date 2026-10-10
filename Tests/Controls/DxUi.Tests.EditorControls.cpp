@@ -1876,7 +1876,7 @@ void TestPanelSkipsTheSlotOfAChildMovedOutThroughGetChildren()
 
 void TestEditorControlsAreCatalogued()
 {
-    Require(GetControlCatalog().size() == 30u, "the catalog lists 30 controls");
+    Require(GetControlCatalog().size() == 33u, "the catalog lists 33 controls");
     for (const ControlKind kind : {ControlKind::Splitter, ControlKind::NumericStepper, ControlKind::ColorPicker})
     {
         std::unique_ptr<Control> control;

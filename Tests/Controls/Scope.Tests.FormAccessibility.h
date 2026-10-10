@@ -1,0 +1,12 @@
+#pragma once
+
+void TestFormAccessibilityWindowPropertiesAndStableEditor();
+void TestFormAccessibilityEmbeddedPropertiesAndStableEditor();
+void TestFormAccessibilityWindowLabelLifetimeAndReplacement();
+void TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement();
+void TestFormAccessibilityWindowPresentationEventsAreIdempotent();
+void TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent();
+void TestFormAccessibilityWindowPublicationStopsAfterDestructiveCallback();
+void TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback();
+void TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement();
+void TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement();

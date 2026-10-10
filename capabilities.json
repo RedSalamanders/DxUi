@@ -80,6 +80,10 @@
     "injected-frame-diagnostics",
     "retained-controls",
     "control-catalog",
+    "intrinsic-control-measurement",
+    "opt-in-flex-layout",
+    "reusable-form-layout",
+    "form-accessibility-metadata",
     "slider-preview-commit-cancel",
     "editor-controls",
     "embedded-d3d11",
@@ -103,6 +107,7 @@
     "native-arm64-runtime-qualification",
     "physical-touch-device-qualification",
     "consumer-api-revision-4-adoption",
+    "intrinsic-form-consumer-adoption",
     "embedded-host-text-uia-bridge",
     "av-control"
   ]

@@ -111,7 +111,6 @@ function Write-DxUiMSBuildLine {
 
 $script:UseInteractiveTerminal = Test-DxUiInteractiveTerminal
 $target = if ($Rebuild) { 'Rebuild' } else { 'Build' }
-Write-DxUiBuildBanner -Configuration $Configuration -Platform $Platform -Target $target
 Write-Host 'Locating Visual Studio and MSBuild...' -ForegroundColor Yellow
 # The one discovery: vcpkg-install.ps1 pins vcpkg to this installation and its default toolset.
 Import-Module (Join-Path $PSScriptRoot 'Tools/VisualStudio.psm1') -Force
@@ -134,6 +133,19 @@ $triplet = if ($Platform -eq 'ARM64') { 'arm64-windows' } else { 'x64-windows' }
 if (-not (Test-Path -LiteralPath (Join-Path $output "vcpkg_installed/$Platform/$triplet/include/wil/resource.h"))) {
     throw "Restore dependencies first: vcpkg-install.ps1 -Platform $Platform -OutputRoot `"$output`""
 }
+$defaultOutput = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '.build')).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+$attestPerformanceBuild = [string]::Equals($output, $defaultOutput, [StringComparison]::OrdinalIgnoreCase)
+if ($attestPerformanceBuild) {
+    # Consumer-owned output roots retain their separate integration contract. Default builds also serve performance.ps1
+    # and test.ps1 -SkipBuild, so bind compiled source/dependencies and the resolved toolchain before invoking MSBuild.
+    Import-Module (Join-Path $PSScriptRoot 'Tools/PerformancePolicy.psm1') -Force
+    $performanceBuildBefore = Start-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+    if ($performanceBuildBefore.rebuildRequired) {
+        $target = 'Rebuild'
+        Write-Host 'Rebuilding because no current v2 attestation binds these exact inputs, tools and artifacts.' -ForegroundColor Yellow
+    }
+}
+Write-DxUiBuildBanner -Configuration $Configuration -Platform $Platform -Target $target
 $logDirectory = Join-Path $output 'logs'
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
 $log = Join-Path $logDirectory ("build-$Platform-$Configuration-" + [guid]::NewGuid().ToString('N') + '.log')
@@ -149,8 +161,13 @@ Write-Host "  Output:        $output" -ForegroundColor DarkGray
 Write-Host ''
 Write-Host 'Compiling DxUi...' -ForegroundColor Yellow
 $stopwatch = [Diagnostics.Stopwatch]::StartNew()
-& $msbuild @arguments 2>&1 | ForEach-Object { Write-DxUiMSBuildLine -Line $_.ToString() }
-$buildExitCode = $LASTEXITCODE
+if ($attestPerformanceBuild) { Push-Location -LiteralPath $PSScriptRoot }
+try {
+    # Match the attested MSBuildStartupDirectory even when a paired harness calls this baseline from another checkout.
+    # Consumer-owned output roots retain their caller's existing integration context.
+    & $msbuild @arguments 2>&1 | ForEach-Object { Write-DxUiMSBuildLine -Line $_.ToString() }
+    $buildExitCode = $LASTEXITCODE
+} finally { if ($attestPerformanceBuild) { Pop-Location } }
 $stopwatch.Stop()
 if ($buildExitCode -ne 0) {
     Write-Host ''
@@ -161,6 +178,9 @@ if ($buildExitCode -ne 0) {
     Write-Host "Log: $log" -ForegroundColor DarkGray
     Write-Host '========================================' -ForegroundColor Red
     throw "DxUi build failed. Log: $log"
+}
+if ($attestPerformanceBuild) {
+    Complete-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -Before $performanceBuildBefore
 }
 
 Write-Host ''

@@ -2302,6 +2302,16 @@ IDWriteFactory* ControlHost::GetWriteFactory() const noexcept
     return _dwriteFactory.get();
 }
 
+uint64_t ControlHost::GetTypographyRevision() const noexcept
+{
+    return _typographyRevision;
+}
+
+uint64_t ControlHost::GetInteractionRevision() const noexcept
+{
+    return _interactionRevision;
+}
+
 IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role) const noexcept
 {
     if ((! _dwriteFactory || ! _bodyTextFormat || ! _bodyStrongTextFormat || ! _bodyLargeTextFormat || ! _listItemTextFormat || ! _titleTextFormat ||
@@ -3423,6 +3433,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
             return false;
         }
         _dwriteFactory = GetSharedWindowHostGraphicsResources().dwriteFactory;
+        ++_typographyRevision;
     }
     if (! _dwriteFactory)
     {
@@ -3592,6 +3603,7 @@ bool ControlHost::EnsureDeviceResources() noexcept
         _d2dDevice.reset();
         _d2dFactory.reset();
         _dwriteFactory.reset();
+        ++_typographyRevision;
         _d3dContext.reset();
         _d3dDevice.reset();
         _sharedGraphicsGeneration = 0u;

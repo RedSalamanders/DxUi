@@ -338,6 +338,18 @@ bool CaptureBackdropScreenRegion(const RECT& screenRect, WindowHostBitmapCapture
     return true;
 }
 
+void ControlHost::BeginIntrinsicArrange(const Control& owner) noexcept
+{
+    if (! _intrinsicArrangeBranch)
+        return;
+    const Control* ancestor = &owner;
+    while (ancestor && ancestor != _intrinsicArrangeBranch)
+        ancestor = ancestor->_parent;
+    // A newer arrangement may supersede the caller, but cannot make geometry outside its active subtree look accepted.
+    if (! ancestor)
+        ++_intrinsicArrangeForeignRevision;
+}
+
 void Control::SetBounds(const D2D1_RECT_F& bounds) noexcept
 {
     if (_bounds.left != bounds.left || _bounds.top != bounds.top || _bounds.right != bounds.right || _bounds.bottom != bounds.bottom)
@@ -349,7 +361,19 @@ void Control::SetBounds(const D2D1_RECT_F& bounds) noexcept
         }
 
         if (_host)
+        {
             ++_host->_interactionRevision;
+            if (_host->_intrinsicArrangeBranch)
+            {
+                const Control* ancestor = this;
+                while (ancestor && ancestor != _host->_intrinsicArrangeBranch)
+                    ancestor = ancestor->_parent;
+                if (! ancestor)
+                    ++_host->_intrinsicArrangeForeignRevision;
+                else
+                    ++_host->_intrinsicArrangeBoundsRevision;
+            }
+        }
         _bounds                           = bounds;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         OnBoundsChanged();
@@ -399,7 +423,8 @@ void Control::SetVisible(bool visible) noexcept
     {
         if (_host)
             ++_host->_interactionRevision;
-        _visible                          = visible;
+        _visible = visible;
+        InvalidateMeasure();
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         if (! visible)
         {
@@ -779,6 +804,59 @@ std::wstring_view Control::GetAccessibleHelpText() const noexcept
     return _accessibleHelpText;
 }
 
+HRESULT Control::SetAccessibleFormProperties(Control* label, bool required, bool dataValid, std::wstring itemStatus) noexcept
+{
+    if (label == this)
+        return E_INVALIDARG;
+    if (GetAccessibleLabelledBy() == label && IsAccessibleRequiredForForm() == required && IsAccessibleDataValidForForm() == dataValid &&
+        GetAccessibleItemStatus() == itemStatus)
+        return S_FALSE;
+    try
+    {
+        std::unique_ptr<AccessibleFormProperties> properties;
+        if (label || required || ! dataValid || ! itemStatus.empty())
+        {
+            properties        = std::make_unique<AccessibleFormProperties>();
+            properties->label = label;
+            if (label)
+                properties->labelLifetime = GetControlLifetimeToken(*label);
+            properties->required   = required;
+            properties->dataValid  = dataValid;
+            properties->itemStatus = std::move(itemStatus);
+        }
+        _accessibleFormProperties.swap(properties);
+        RequestInvalidate();
+        if (ControlHost* const host = GetHost())
+            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+        return S_OK;
+    }
+    catch (const std::bad_alloc&)
+    {
+        // Leave the previous complete presentation metadata usable when allocation fails.
+        return E_OUTOFMEMORY;
+    }
+}
+
+Control* Control::GetAccessibleLabelledBy() const noexcept
+{
+    return _accessibleFormProperties && ! _accessibleFormProperties->labelLifetime.expired() ? _accessibleFormProperties->label : nullptr;
+}
+
+bool Control::IsAccessibleRequiredForForm() const noexcept
+{
+    return _accessibleFormProperties && _accessibleFormProperties->required;
+}
+
+bool Control::IsAccessibleDataValidForForm() const noexcept
+{
+    return ! _accessibleFormProperties || _accessibleFormProperties->dataValid;
+}
+
+std::wstring_view Control::GetAccessibleItemStatus() const noexcept
+{
+    return _accessibleFormProperties ? std::wstring_view(_accessibleFormProperties->itemStatus) : std::wstring_view{};
+}
+
 void Control::SetAccessibleAutomationId(std::wstring automationId)
 {
     if (_accessibleAutomationId != automationId)
@@ -953,6 +1031,50 @@ void Control::RequestInvalidate() const noexcept
     }
 }
 
+void Control::InvalidateMeasure() noexcept
+{
+    bool hasLayoutOwner = false;
+    for (Control* control = this; control; control = control->_parent)
+    {
+        ++control->_measureRevision;
+        if (control->_intrinsicLayoutEnabled)
+        {
+            control->_intrinsicLayoutPending = true;
+            hasLayoutOwner                   = true;
+        }
+    }
+    if (hasLayoutOwner && _host)
+    {
+        ++_host->_interactionRevision;
+        _host->_pendingIntrinsicLayout = true;
+        _host->Invalidate();
+    }
+}
+
+void Control::EnableIntrinsicLayout() noexcept
+{
+    _intrinsicLayoutEnabled = true;
+    RequestIntrinsicLayout();
+}
+
+void Control::RequestIntrinsicLayout() noexcept
+{
+    if (_intrinsicLayoutEnabled)
+    {
+        _intrinsicLayoutPending = true;
+        if (_host)
+        {
+            _host->_pendingIntrinsicLayout = true;
+            _host->Invalidate();
+        }
+    }
+}
+
+HRESULT Control::PrepareIntrinsicLayout(const MeasureContext& /*context*/) noexcept
+{
+    return S_OK;
+}
+
 void Control::PropagateHost(ControlHost* host) noexcept
 {
     if (_host != host)
@@ -968,7 +1090,13 @@ void Control::PropagateHost(ControlHost* host) noexcept
             host->Invalidate();
         }
     }
-    _host = host;
+    const bool changed = _host != host;
+    _host              = host;
+    if (changed)
+    {
+        InvalidateMeasure();
+        RequestIntrinsicLayout();
+    }
 }
 
 void Control::SetParent(Panel* parent) noexcept
@@ -1057,6 +1185,7 @@ void Control::OnBoundsChanged() noexcept
 
 void Control::OnFlowDirectionChanged() noexcept
 {
+    InvalidateMeasure();
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (_host && _host->GetFocusControl() == this && SupportsTextInput())
     {
@@ -1071,6 +1200,7 @@ void Control::OnFlowDirectionChanged() noexcept
 
 void Control::OnDensityChanged() noexcept
 {
+    InvalidateMeasure();
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (_host && _host->GetFocusControl() == this && SupportsTextInput())
     {
@@ -1093,6 +1223,7 @@ void Control::OnHidden() noexcept
 
 void Control::OnHostDpiChanged(ControlHost& /*host*/) noexcept
 {
+    InvalidateMeasure();
 }
 
 void Control::OnFocusChanged(ControlHost& /*host*/, bool focused)

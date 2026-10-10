@@ -827,6 +827,7 @@ void NumericStepper::SetLabel(std::wstring label, float widthDip)
 {
     _label         = std::move(label);
     _labelWidthDip = std::isfinite(widthDip) ? (std::max)(0.0f, widthDip) : 0.0f;
+    InvalidateMeasure();
     _field->SetAccessibleName(_label);
     Arrange();
     RequestInvalidate();
@@ -841,6 +842,7 @@ void NumericStepper::SetUnit(std::wstring unit, float widthDip)
 {
     _unit         = std::move(unit);
     _unitWidthDip = std::isfinite(widthDip) ? (std::max)(0.0f, widthDip) : 0.0f;
+    InvalidateMeasure();
     Arrange();
     RequestInvalidate();
 }

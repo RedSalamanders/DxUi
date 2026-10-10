@@ -121,6 +121,9 @@ static void Hr(HRESULT hr, const char* text)
 #include "Embedded.Tests.EmbeddedUia.h"
 #include "Embedded.Tests.GridSelectionBenchmark.h"
 #include "Embedded.Tests.LocalizedLayout.h"
+#if defined(DXUI_HAS_INTRINSIC_LAYOUT)
+#include "Scope.Tests.FormLayoutBenchmark.h"
+#endif
 
 // Hidden and zero-extent views hold no surface; the next visible sized preparation reallocates exactly one and
 // reproduces the previous pixels. Device replacement while hidden keeps working without a surface.
@@ -1118,6 +1121,15 @@ __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPr
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static int RunFunctionalTests()
 {
+#if defined(DXUI_HAS_INTRINSIC_LAYOUT)
+    if (__argc >= 3 && __argc <= 5 && std::wstring_view(__wargv[1]) == L"--benchmark-form-layout")
+    {
+        FormLayoutBenchmark::Run(__wargv[2],
+                                 __argc >= 4 ? FormLayoutBenchmark::ParseSeed(__wargv[3]) : FormLayoutBenchmark::kDefaultSeed,
+                                 __argc == 5 ? FormLayoutBenchmark::ParseBlocks(__wargv[4]) : FormLayoutBenchmark::kBlockCount);
+        return 0;
+    }
+#endif
     // The opt-in grid selection measurement is dispatched here, not in Embedded.Tests.BenchmarkMain.h, whose hash identifies the complex-UI fixture.
     if ((__argc == 3 || __argc == 4) && std::wstring_view(__wargv[1]) == L"--benchmark-grid-selection")
     {
@@ -1383,7 +1395,7 @@ __declspec(noinline) static int RunFunctionalTests()
         gpu.Bind();
         Check(a.Composite(gpu.context.get(), gpu.Viewport()) == S_OK, "catalog draws every concrete control without suppression");
     }
-    Check(DxUi::GetControlCatalog().size() == 30, "catalog contains all 30 controls");
+    Check(DxUi::GetControlCatalog().size() == 33, "catalog contains all 33 controls");
     b.Controls().SetRoot(std::make_unique<DxUi::Toggle>(L"Second view"));
     Hr(b.Prepare(320, 160, 144), "independent second layout");
     Check(a.GetStatistics().surfaceBytes != b.GetStatistics().surfaceBytes, "shared pool has independent surfaces");

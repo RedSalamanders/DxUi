@@ -1,5 +1,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.LocalizedLayoutFixture.h"
+#include "Scope.Tests.Forms.h"
+#include "Scope.Tests.IntrinsicLayout.h"
 
 #include <cctype>
 #include <fstream>
@@ -2913,6 +2915,8 @@ void TestMutableCallbackCaptureStatePersistsForScrollPanel()
 
 void RunControlTests()
 {
+    RunIntrinsicLayoutTests();
+    RunFormLayoutTests();
     DXUI_RUN_TEST(TestLocalizedActionLayout);
     DXUI_RUN_TEST(TestPanelTakeChildPreservesInheritanceAndReparentsSafely);
     DXUI_RUN_TEST(TestPanelTakeChildRevalidatesAfterFocusRetirement);

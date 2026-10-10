@@ -37,7 +37,7 @@ function Get-BenchmarkScopeRules {
         [ordered]@{ Reason = 'benchmark harness'; Paths = @(Get-PairedHarness | Where-Object { $_ -cne 'Tools/PerformanceAcceptancePolicy.v1.json' }) }
         [ordered]@{ Reason = 'benchmark executable'; Paths = @('Tests/Embedded', 'Tests/Support') }
         [ordered]@{ Reason = 'fixture or sample compiled into it'; Paths = @('Samples') }
-        [ordered]@{ Reason = 'build or restore'; Paths = @('DxUi.sln', 'build.ps1', 'vcpkg-install.ps1', 'vcpkg-configuration.json', 'Tools/VisualStudio.psm1', 'Tools/VcpkgTriplet.psm1') }
+        [ordered]@{ Reason = 'build or restore'; Paths = @('DxUi.sln', 'build.ps1', 'vcpkg-install.ps1', 'vcpkg-configuration.json', 'Tools/VisualStudio.psm1', 'Tools/VcpkgTriplet.psm1', 'Tools/ScopedTesting.psm1', 'Tools/Validation.psm1', 'Tools/Changelog.psm1') }
         [ordered]@{ Reason = 'paired measurement or gate'; Paths = @('performance-paired.ps1', 'Tools/PairedRun.psm1', 'Tools/BenchmarkGate.psm1', 'Tools/PerformancePolicy.psm1', 'Tools/PerformanceAcceptancePolicy.v1.json', 'Tools/Get-BenchmarkScope.ps1', 'Tools/Publish-BenchmarkVerdict.ps1') }
         [ordered]@{ Reason = 'hosted workflow'; Paths = @('.github/workflows/ci.yml') }
     )
@@ -107,6 +107,25 @@ function Read-GateJson {
 
 function Test-ControlName([string] $Name) { return $Name.EndsWith('-control', [StringComparison]::Ordinal) }
 
+function Add-ControlMetricChanges {
+    param([System.Collections.IDictionary] $Metrics, [object[]] $Changes)
+    $drifted = $false
+    foreach ($change in $Changes) {
+        $key = '{0}/{1}' -f $change['scenario'], $change['metric']
+        if (-not $Metrics.Contains($key)) { $Metrics[$key] = [ordered]@{ Observed = 0; Drifted = $false; MaxDriftPercent = 0.0 } }
+        $record = $Metrics[$key]
+        $record['Observed']++
+        $outsideBand = if ($null -eq $change['changePercent']) { -not (Test-SameNumber $change['before'] $change['after']) }
+            else {
+                $percent = [Math]::Abs([double]$change['changePercent'])
+                if ($percent -gt $record['MaxDriftPercent']) { $record['MaxDriftPercent'] = $percent }
+                $percent -gt [double]$change['noisePercent']
+            }
+        if ($outsideBand) { $record['Drifted'] = $true; $drifted = $true }
+    }
+    return $drifted
+}
+
 function Get-ControlDrift {
     <# What a scenario's same-binary controls (A2 against A1 and B2 against B1 of every pass) did to each metric. A control
        measures one binary twice, so any change in it is the machine's. A metric has drifted when a control moved it beyond
@@ -125,19 +144,7 @@ function Get-ControlDrift {
             try { $changes = @((Read-GateJson $file)['changes']) } catch { $changes = $null }
         }
         if ($null -eq $changes -or $changes.Count -eq 0) { $missing++; continue }
-        foreach ($change in $changes) {
-            $key = '{0}/{1}' -f $change['scenario'], $change['metric']
-            if (-not $metrics.ContainsKey($key)) { $metrics[$key] = [ordered]@{ Observed = 0; Drifted = $false; MaxDriftPercent = 0.0 } }
-            $record = $metrics[$key]
-            $record['Observed']++
-            if ($null -eq $change['changePercent']) {
-                if (-not (Test-SameNumber $change['before'] $change['after'])) { $record['Drifted'] = $true }
-                continue
-            }
-            $percent = [Math]::Abs([double]$change['changePercent'])
-            if ($percent -gt $record['MaxDriftPercent']) { $record['MaxDriftPercent'] = $percent }
-            if ($percent -gt [double]$change['noisePercent']) { $record['Drifted'] = $true }
-        }
+        [void](Add-ControlMetricChanges -Metrics $metrics -Changes $changes)
     }
     return [ordered]@{ Total = $controls.Count; Unstable = $unstable; Missing = $missing; Metrics = $metrics }
 }
@@ -156,22 +163,102 @@ function Get-WorstConclusion([string[]] $Conclusions) {
     return 'invalid'
 }
 
-function Get-NormalizedSourceSha256([string] $Text) {
-    $normalized = $Text -replace "`r`n", "`n"
-    $sha = [Security.Cryptography.SHA256]::Create()
-    try { [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($normalized))) }
-    finally { $sha.Dispose() }
+function Test-PerformanceMetricInventory([System.Collections.IDictionary] $Decision) {
+    $expected = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($phase in @('clean','dirty')) { foreach ($metric in Get-PerformanceMetricNames) { [void]$expected.Add("$phase/$metric") } }
+    $metrics = @($Decision['metrics'])
+    if ($metrics.Count -ne $expected.Count) { return $false }
+    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($metric in $metrics) {
+        if ($metric -isnot [System.Collections.IDictionary] -or $metric['verdict'] -cnotin @('within-noise','regressed','improved')) { return $false }
+        $key = '{0}/{1}' -f $metric['phase'], $metric['metric']
+        if (-not $expected.Contains($key) -or -not $seen.Add($key)) { return $false }
+    }
+    $status = if (@($metrics | Where-Object { $_['verdict'] -ceq 'regressed' }).Count) { 'advice-required' } else { 'within-noise-budget' }
+    return [string]$Decision['status'] -ceq $status -and $seen.SetEquals($expected)
 }
 
 function Test-EquivalentPerformanceVerdicts([System.Collections.IDictionary] $Legacy, [System.Collections.IDictionary] $Migrated) {
-    if ([string]$Legacy['status'] -cne [string]$Migrated['status']) { return $false }
-    $oldMetrics = @($Legacy['metrics']); $newMetrics = @($Migrated['metrics'])
-    if ($oldMetrics.Count -ne 26 -or $newMetrics.Count -ne 26) { return $false }
-    foreach ($metric in $newMetrics) {
-        $old = @($oldMetrics | Where-Object { [string]$_['phase'] -ceq [string]$metric['phase'] -and [string]$_['metric'] -ceq [string]$metric['metric'] })
-        if ($old.Count -ne 1 -or [string]$old[0]['verdict'] -cne [string]$metric['verdict']) { return $false }
+    if (-not (Test-PerformanceMetricInventory $Legacy) -or -not (Test-PerformanceMetricInventory $Migrated) -or
+        [string]$Legacy['status'] -cne [string]$Migrated['status']) { return $false }
+    foreach ($metric in @($Migrated['metrics'])) {
+        $old = @($Legacy['metrics'] | Where-Object { [string]$_['phase'] -ceq [string]$metric['phase'] -and [string]$_['metric'] -ceq [string]$metric['metric'] })
+        if ([string]$old[0]['verdict'] -cne [string]$metric['verdict']) { return $false }
     }
     return $true
+}
+
+function Test-EquivalentGateDecision([AllowNull()][object] $Left, [AllowNull()][object] $Right) {
+    # Compare complete JSON decisions, independent of object key order and numeric JSON representation.
+    # Verdict labels alone do not bind exact-budget, uncertainty or display evidence to the consumed set.
+    if ($null -eq $Left -or $null -eq $Right) { return $null -eq $Left -and $null -eq $Right }
+    if ($Left -is [System.Collections.IDictionary] -and $Right -is [System.Collections.IDictionary]) {
+        $keys = [Collections.Generic.HashSet[string]]::new([string[]]@($Left.Keys), [StringComparer]::Ordinal)
+        if ($Left.Count -ne $Right.Count -or -not $keys.SetEquals([string[]]@($Right.Keys))) { return $false }
+        foreach ($key in $Left.Keys) { if (-not (Test-EquivalentGateDecision $Left[$key] $Right[$key])) { return $false } }
+        return $true
+    }
+    if ($Left -is [System.Collections.IList] -and $Right -is [System.Collections.IList]) {
+        if ($Left.Count -ne $Right.Count) { return $false }
+        for ($i = 0; $i -lt $Left.Count; $i++) { if (-not (Test-EquivalentGateDecision $Left[$i] $Right[$i])) { return $false } }
+        return $true
+    }
+    $leftNumber = $Left -is [int] -or $Left -is [long] -or $Left -is [double] -or $Left -is [decimal] -or $Left -is [bigint]
+    $rightNumber = $Right -is [int] -or $Right -is [long] -or $Right -is [double] -or $Right -is [decimal] -or $Right -is [bigint]
+    if ($leftNumber -and $rightNumber) { return Test-SameNumber $Left $Right }
+    if ($Left -is [string] -and $Right -is [string]) { return [string]::Equals($Left, $Right, [StringComparison]::Ordinal) }
+    if ($Left -is [bool] -and $Right -is [bool]) { return $Left -eq $Right }
+    return $false
+}
+
+function Test-ReplayedControlEvidence {
+    param([System.Collections.IDictionary] $Scenario, [object[]] $BlockSchedule, [System.Collections.IDictionary] $ReceiptsByRun,
+        [Management.Automation.PSModuleInfo] $JudgeModule, [string] $ReportsDirectory)
+    $name = [string]$Scenario['scenario']
+    $expected = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($block in $BlockSchedule) {
+        foreach ($side in @('baseline','candidate')) { [void]$expected.Add("$name-$($block['Name'])-$side-control") }
+    }
+    $controls = @($Scenario['comparisons'] | Where-Object { $_ -is [System.Collections.IDictionary] -and (Test-ControlName ([string]$_['name'])) })
+    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $byName = @{}
+    if ($controls.Count -ne $expected.Count) {
+        return [ordered]@{valid=$false;reason="Scenario $name lacks exactly two same-side controls for every scheduled block."}
+    }
+    foreach ($control in $controls) {
+        $controlName = [string]$control['name']
+        if (-not $expected.Contains($controlName) -or -not $seen.Add($controlName)) {
+            return [ordered]@{valid=$false;reason="Scenario $name has duplicate or unrecognized scheduled controls."}
+        }
+        if ([string]$control['file'] -cne "$controlName.comparison.json") {
+            return [ordered]@{valid=$false;reason="Control $controlName does not name its scheduled comparison file."}
+        }
+        $byName[$controlName] = $control
+    }
+    $metrics = @{}; $unstable = 0
+    foreach ($block in $BlockSchedule) {
+        foreach ($side in @('Baseline','Candidate')) {
+            $controlName = "$name-$($block['Name'])-$($side.ToLowerInvariant())-control"
+            $control = $byName[$controlName]
+            $runs = $block["${side}Runs"]
+            try {
+                $retained = Read-GateJson (Join-Path $ReportsDirectory ([string]$control['file']))
+                $replayed = & $JudgeModule { param($Before,$After) Compare-PerformanceReceipt -Before $Before -After $After } $ReceiptsByRun[$runs[0]] $ReceiptsByRun[$runs[1]]
+            } catch { return [ordered]@{valid=$false;reason="Control $controlName cannot reproduce its scheduled raw receipt pair: $($_.Exception.Message)"} }
+            # Full comparison equality includes the complete 26-slot inventory, round medians, bands and directional flags.
+            if (-not (Test-EquivalentGateDecision $retained $replayed)) {
+                return [ordered]@{valid=$false;reason="Control $controlName differs from replay of its complete scheduled raw receipt pair."}
+            }
+            # Controls investigate swings in either direction, including improvements and zero-baseline exact changes.
+            $drifted = Add-ControlMetricChanges -Metrics $metrics -Changes $replayed['changes']
+            $status = if ($drifted) { 'unstable-control' } else { 'stable-control' }
+            if ([string]$control['status'] -cne $status) {
+                return [ordered]@{valid=$false;reason="Control $controlName status differs from its replayed absolute investigation bands."}
+            }
+            if ($drifted) { $unstable++ }
+        }
+    }
+    return [ordered]@{valid=$true;drift=[ordered]@{Total=$controls.Count;Unstable=$unstable;Missing=0;Metrics=$metrics}}
 }
 
 function Test-DualJudgeReceiptEvidence {
@@ -191,24 +278,17 @@ function Test-DualJudgeReceiptEvidence {
         return [ordered]@{ valid=$false; reason='The measured base judge was unavailable or its source attestation is incomplete.' }
     }
     $root = Split-Path -Parent $PSScriptRoot
-    $baseLines = @(& git -C $root show "${baselineCommit}:Tools/PerformanceComparison.psm1" 2>$null)
-    if ($LASTEXITCODE -ne 0 -or $baseLines.Count -eq 0) { return [ordered]@{ valid=$false; reason='The immutable measured-base judge source cannot be recovered.' } }
-    $actualBaseHash = Get-NormalizedSourceSha256 (($baseLines -join "`n") + "`n")
     $candidatePath = Join-Path $root 'Tools/PerformanceComparison.psm1'
     if (-not (Test-Path -LiteralPath $candidatePath -PathType Leaf)) { return [ordered]@{ valid=$false; reason='The candidate judge source is unavailable.' } }
-    $actualCandidateHash = Get-NormalizedSourceSha256 ([IO.File]::ReadAllText($candidatePath))
+    try { $judges = Get-VersionedPerformanceJudge -RepositoryRoot $root -BaselineCommit $baselineCommit -CandidateModulePath $candidatePath }
+    catch { return [ordered]@{ valid=$false; reason='The immutable measured-base and candidate judges cannot be loaded.' } }
+    if ($judges.status -cne 'available') { return [ordered]@{ valid=$false; reason=[string]$judges.reason } }
+    $actualBaseHash = $judges.baseJudgeSha256; $actualCandidateHash = $judges.candidateJudgeSha256
     if ($actualBaseHash -cne [string]$provenance['baseJudgeSha256'] -or $actualCandidateHash -cne [string]$provenance['candidateJudgeSha256']) {
         return [ordered]@{ valid=$false; reason='A retained base/candidate judge source differs from its attested immutable source hash.' }
     }
-    try {
-        $candidateJudgeModule = New-Module -Name "DxUiGateCandidateJudge_$([guid]::NewGuid().ToString('N'))" -ScriptBlock ([scriptblock]::Create([IO.File]::ReadAllText($candidatePath)))
-        if (-not $candidateJudgeModule.ExportedFunctions.ContainsKey('Get-PairedPerformanceJudgeVersion')) { throw 'Candidate judge version export missing.' }
-        $actualCandidateVersion = & $candidateJudgeModule { Get-PairedPerformanceJudgeVersion }
-        $baseJudgeModule = New-Module -Name "DxUiGateBaseJudge_$([guid]::NewGuid().ToString('N'))" -ScriptBlock ([scriptblock]::Create((($baseLines -join "`n") + "`n")))
-        $actualBaseVersion = if ($baseJudgeModule.ExportedFunctions.ContainsKey('Get-PairedPerformanceJudgeVersion')) { & $baseJudgeModule { Get-PairedPerformanceJudgeVersion } } else { 'legacy-unversioned' }
-    } catch {
-        return [ordered]@{ valid=$false; reason='A retained base/candidate judge version cannot be verified from its source.' }
-    }
+    $candidateJudgeModule = $judges.candidateModule; $baseJudgeModule = $judges.module
+    $actualCandidateVersion = $judges.candidateJudgeVersion; $actualBaseVersion = $judges.baseJudgeVersion
     if ([string]$provenance['baseJudgeVersion'] -cne [string]$actualBaseVersion -or
         [string]$provenance['candidateJudgeVersion'] -cne [string]$actualCandidateVersion) {
         return [ordered]@{ valid=$false; reason='A retained base/candidate judge version differs from its attested source.' }
@@ -255,6 +335,7 @@ function Test-DualJudgeReceiptEvidence {
     }
     $scenarios = @($Summary['scenarios'])
     if ($scenarios.Count -eq 0) { return [ordered]@{ valid=$false; reason='The migrated summary has no judged scenario.' } }
+    $controlsByScenario = @{}
     foreach ($scenario in $scenarios) {
         if ($scenario -isnot [System.Collections.IDictionary] -or [string]$scenario['scenario'] -notmatch '^[A-Za-z0-9_-]+$') { return [ordered]@{ valid=$false; reason='A scenario name is missing or unsafe.' } }
         $comparison = $scenario['judgeComparison']
@@ -273,21 +354,63 @@ function Test-DualJudgeReceiptEvidence {
             $comparison['migratedJudge']['assignmentProtocol'] -cne $Summary['allocation'] -or $scenario['set']['assignmentProtocol'] -cne $Summary['allocation']) {
             return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) lacks the current independent-protocol judge record." }
         }
+        if (-not (Test-PerformanceMetricInventory $scenario['set']) -or
+            -not (Test-EquivalentGateDecision $scenario['set'] $comparison['migratedJudge'])) {
+            return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) consumed set differs from its complete migrated judge decision." }
+        }
         $hashRecords = @($comparison['sameReceiptsSha256'])
         if ($hashRecords.Count -ne $expectedRuns.Count) { return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) judge inputs are incomplete." } }
         $byRun = @{}
         foreach ($record in $hashRecords) {
             if ($record -isnot [System.Collections.IDictionary] -or [string]$record['sha256'] -notmatch '^[A-Fa-f0-9]{64}$') { return [ordered]@{ valid=$false; reason='A judged receipt hash is malformed.' } }
             $run = [string]$record['run']
-            if ($run -notin $expectedRuns -or $byRun.ContainsKey($run)) { return [ordered]@{ valid=$false; reason='The dual judges do not name the exact scheduled run set.' } }
+            if ($run -cnotin $expectedRuns -or $byRun.ContainsKey($run)) { return [ordered]@{ valid=$false; reason='The dual judges do not name the exact scheduled run set.' } }
             $path = Join-Path $ReportsDirectory "$($scenario['scenario'])-$run.json"
             if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return [ordered]@{ valid=$false; reason="A judge input receipt is missing: $($scenario['scenario'])-$run.json." } }
-            $actual = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+            try { $bytes = [IO.File]::ReadAllBytes($path) }
+            catch { return [ordered]@{ valid=$false; reason="A judge input receipt cannot be read: $($scenario['scenario'])-$run.json." } }
+            $actual = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))
             if ($actual -cne [string]$record['sha256']) { return [ordered]@{ valid=$false; reason="A judge input receipt changed after judgment: $($scenario['scenario'])-$run.json." } }
-            $byRun[$run] = $true
+            try {
+                # Decode the exact bytes hashed above, never reopen a potentially changed file for the judge.
+                $text = [Text.UTF8Encoding]::new($false, $true).GetString($bytes)
+                if ($text.Length -gt 0 -and $text[0] -eq [char]0xfeff) { $text = $text.Substring(1) }
+                $receipt = $text | ConvertFrom-Json -AsHashtable
+                if ($receipt -isnot [System.Collections.IDictionary]) { throw 'The receipt is not a JSON object.' }
+            } catch { return [ordered]@{ valid=$false; reason="A judge input receipt is not a readable JSON object: $($scenario['scenario'])-$run.json." } }
+            # This function serves migrated qualification. Historical/local report projection does not enter this path.
+            try { $identity = Test-PerformanceReceiptIdentity -Receipt $receipt }
+            catch { return [ordered]@{valid=$false;reason="A judge input receipt cannot verify its full v2 build/receipt identity: $($scenario['scenario'])-$run.json."} }
+            if (-not $identity.verifiable) {
+                return [ordered]@{valid=$false;reason="A judge input receipt lacks complete full v2 build/receipt identity: $($scenario['scenario'])-$run.json ($($identity.missing -join ', '))."}
+            }
+            $byRun[$run] = $receipt
+        }
+        try {
+            $receiptBlocks = @($blockSchedule | ForEach-Object { [ordered]@{
+                name=$_['Name']; order=$_['Order']
+                Baseline=@($_['BaselineRuns'] | ForEach-Object { $byRun[[string]$_] })
+                Candidate=@($_['CandidateRuns'] | ForEach-Object { $byRun[[string]$_] })
+            } })
+            $flatBaseline = @($receiptBlocks | ForEach-Object { $_['Baseline'] }); $flatCandidate = @($receiptBlocks | ForEach-Object { $_['Candidate'] })
+            $legacyReplay = & $baseJudgeModule { param($Baseline,$Candidate) Compare-PerformanceSet -Baseline $Baseline -Candidate $Candidate } $flatBaseline $flatCandidate
+            $migratedReplay = & $candidateJudgeModule { param($Blocks,$Protocol) Compare-PairedBlockSet -Blocks $Blocks -MinimumBlocks 12 -AssignmentProtocol $Protocol } $receiptBlocks ([string]$Summary['allocation'])
+        } catch { return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) judge replay rejected its retained receipts: $($_.Exception.Message)" } }
+        if (-not (Test-EquivalentGateDecision $comparison['legacyJudge'] $legacyReplay) -or
+            -not (Test-EquivalentGateDecision $comparison['migratedJudge'] $migratedReplay)) {
+            return [ordered]@{ valid=$false; reason="Scenario $($scenario['scenario']) recorded judge decisions differ from replay of the retained receipt bytes." }
+        }
+        $controlEvidence = Test-ReplayedControlEvidence -Scenario $scenario -BlockSchedule $blockSchedule -ReceiptsByRun $byRun -JudgeModule $candidateJudgeModule -ReportsDirectory $ReportsDirectory
+        if (-not $controlEvidence.valid) { return [ordered]@{valid=$false;reason=$controlEvidence.reason} }
+        $controlsByScenario[[string]$scenario['scenario']] = $controlEvidence.drift
+        foreach ($record in $hashRecords) {
+            $path = Join-Path $ReportsDirectory "$($scenario['scenario'])-$($record['run']).json"
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -cne [string]$record['sha256']) {
+                return [ordered]@{ valid=$false; reason="A judge input receipt changed during replay: $($scenario['scenario'])-$($record['run']).json." }
+            }
         }
     }
-    return [ordered]@{ valid=$true; reason='Both judge records bind to every retained report hash.' }
+    return [ordered]@{ valid=$true; reason='Both judge decisions, consumed sets and complete scheduled controls reproduce from every retained report hash.';controlsByScenario=$controlsByScenario }
 }
 
 function New-ScenarioResult([string] $Scenario, [string] $SetStatus = '') {
@@ -301,7 +424,8 @@ function New-ScenarioResult([string] $Scenario, [string] $SetStatus = '') {
 function Get-ScenarioConclusion {
     <# One scenario of a retained summary: its set verdict, read with its same-binary controls. A scenario whose summary does not
        hold what this needs (it predates the paired sets, or its comparison did not run) is invalid, never an exception. #>
-    param([AllowNull()][object] $Entry, [Parameter(Mandatory)][string] $ReportsDirectory, [bool] $Unchanged, [bool] $Strict)
+    param([AllowNull()][object] $Entry, [Parameter(Mandatory)][string] $ReportsDirectory, [bool] $Unchanged, [bool] $Strict,
+        [AllowNull()][System.Collections.IDictionary] $ReplayedControls = $null)
     $isEntry = $Entry -is [System.Collections.IDictionary]
     $set = if ($isEntry) { $Entry['set'] } else { $null }
     $isSet = $set -is [System.Collections.IDictionary]
@@ -321,7 +445,9 @@ function Get-ScenarioConclusion {
         $result['Notes'] = $notes.ToArray()
         return $result
     }
-    $drift = Get-ControlDrift -Scenario $Entry -ReportsDirectory $ReportsDirectory
+    # Qualification consumes the canonical drift map from the exact hashed raw receipt bytes, with no control-file reread.
+    # Historical/local diagnostics retain their original readable comparison-file path.
+    $drift = if ($null -ne $ReplayedControls) { $ReplayedControls } else { Get-ControlDrift -Scenario $Entry -ReportsDirectory $ReportsDirectory }
     $result['Controls'] = [ordered]@{ Total = $drift['Total']; Unstable = $drift['Unstable']; Missing = $drift['Missing'] }
     $result['MinimumAttainableP'] = $set['minimumAttainableP']
     $metrics = [Collections.Generic.List[object]]::new()
@@ -395,6 +521,7 @@ function Get-BenchmarkConclusion {
        Two more rules keep a legacy pass honest: an underpowered set cannot clear timing, and matching source fingerprints
        never turn a timing flag into chance. The migrated pull-request path additionally requires a trusted base policy. #>
     param([Parameter(Mandatory)][System.Collections.IDictionary] $Summary, [Parameter(Mandatory)][string] $ReportsDirectory, [switch] $StrictControls, [switch] $RequireQualifiedPolicy)
+    $controlsByScenario = $null
     if ($RequireQualifiedPolicy) {
         $recordedPolicy = $Summary['acceptancePolicy']
         $root = Split-Path -Parent $PSScriptRoot
@@ -409,19 +536,30 @@ function Get-BenchmarkConclusion {
             return [ordered]@{ Conclusion='inconclusive'; StrictControls=[bool]$StrictControls; LibraryUnchanged=$false; PolicyStatus='policy-review-required';
                 Notes=@("Policy review required: $reason"); Scenarios=@() }
         }
+        $scenarioNames = @($Summary['scenarios'] | ForEach-Object { if ($_ -is [System.Collections.IDictionary]) { [string]$_['scenario'] } else { '' } })
+        $uniqueScenarios = [Collections.Generic.HashSet[string]]::new([string[]]$scenarioNames, [StringComparer]::Ordinal)
+        if ($scenarioNames.Count -ne $script:GateScenarios.Count -or $uniqueScenarios.Count -ne $scenarioNames.Count -or
+            -not $uniqueScenarios.SetEquals([string[]]$script:GateScenarios)) {
+            return [ordered]@{ Conclusion='inconclusive'; StrictControls=[bool]$StrictControls; LibraryUnchanged=$false; PolicyStatus='policy-review-required';
+                Notes=@("Qualification requires exactly the complete contract scenario set, each once: $($script:GateScenarios -join ', ')."); Scenarios=@() }
+        }
         $dualJudge = Test-DualJudgeReceiptEvidence -Summary $Summary -ReportsDirectory $ReportsDirectory `
             -ApprovedJudgeSha256 ([string]$policy.policy['approvedJudgeSha256']) -ApprovedJudgeVersion ([string]$policy.policy['judgeVersion'])
         if (-not $dualJudge.valid) {
             return [ordered]@{ Conclusion='inconclusive'; StrictControls=[bool]$StrictControls; LibraryUnchanged=$false; PolicyStatus='policy-review-required';
                 Notes=@("Policy review required: $($dualJudge.reason)"); Scenarios=@() }
         }
+        $controlsByScenario = $dualJudge.controlsByScenario
     }
     $baselineFingerprint = if ($Summary['baseline'] -is [System.Collections.IDictionary]) { [string]$Summary['baseline']['sourceFingerprint'] } else { '' }
     $candidateFingerprint = if ($Summary['candidate'] -is [System.Collections.IDictionary]) { [string]$Summary['candidate']['sourceFingerprint'] } else { '' }
     $unchanged = [bool]$baselineFingerprint -and [string]::Equals($baselineFingerprint, $candidateFingerprint, [StringComparison]::Ordinal)
     $scenarios = [Collections.Generic.List[object]]::new()
     foreach ($entry in @($Summary['scenarios'] | Where-Object { $null -ne $_ })) {
-        try { $scenarios.Add((Get-ScenarioConclusion -Entry $entry -ReportsDirectory $ReportsDirectory -Unchanged $unchanged -Strict ([bool]$StrictControls))) }
+        try {
+            $replayedControls = if ($null -ne $controlsByScenario) { $controlsByScenario[[string]$entry['scenario']] } else { $null }
+            $scenarios.Add((Get-ScenarioConclusion -Entry $entry -ReportsDirectory $ReportsDirectory -Unchanged $unchanged -Strict ([bool]$StrictControls) -ReplayedControls $replayedControls))
+        }
         catch {
             $failed = New-ScenarioResult $(if ($entry -is [System.Collections.IDictionary]) { [string]$entry['scenario'] } else { '' })
             $failed['Notes'] = [string[]]@("Invalid evidence: the scenario could not be read: $($_.Exception.Message)")

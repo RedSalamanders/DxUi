@@ -1,0 +1,2 @@
+# Preserve the original report bytes, including summary.receipt.txt, without checkout conversion.
+* -text -whitespace

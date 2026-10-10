@@ -21,6 +21,47 @@
 
 ## How the review was made
 
+### Performance qualification execution (10 October)
+
+The user accepted quiet-host A/A calibration, targeted Grid/residency profiling and independent policy qualification,
+followed by S0-S2 of the consumer UI composition plan. Work is isolated on `codex/performance-forms` from clean
+`60e1cbff8f7a75757e9447073965d09101d9833c`; other registered worktrees and consumer pins remain independently owned.
+The retained same-binary study uses that explicit revision, twelve independently drawn ABBA/BAAB blocks and the
+unchanged Default, MultilineGrid and MultilineGridDistinct scenarios. The original study is complete and retained
+in [the A/A packet](../../../Measurements/Performance/2026-10-10-aa/README.md). All 72 same-binary controls are
+unstable, while exact budgets remain constant; it establishes no non-regression or trusted-policy claim.
+
+- [x] Retain and independently audit original A/A receipts and actual host/clock provenance: 144 raw receipts,
+  72 controls, 78 metric cells and 3,744 control values; all 437 packet hashes and regenerated analytical bytes checked.
+- [x] Run focused Grid initialization/6,000-frame retention/process-heap diagnostics, including a 50 FPS paced run,
+  and retain actual preparation clocks, surfaces, handles and process/heap snapshots.
+- [ ] Attribute the earlier preparation/resident-memory excursions; current bounded runs do not resolve their paired flags.
+- [x] Repair demonstrated receipt replay/build-provenance defects with failing regression fixtures and independent reruns.
+- [ ] Repeat affected studies after repairs; independently review the frozen judge, assignment protocol, unchanged
+  thresholds and both decisions before proposing a qualified seed policy.
+- [ ] Verify an ordinary candidate against the qualified trusted base before enabling the required CI rule.
+
+The policy is still unqualified. Provisioned native ARM64 foreground execution and physical IME/AT/touch acceptance
+remain separate obligations. Implementation readiness does not close these recorded gates.
+
+The implementation review also found two evidence defects: candidate control summaries could substitute for full
+raw replay, and unchanged artifact timestamps could authorize stale build inputs/options. Gate regressions now
+require complete raw/control inventories and both frozen judges; v2 provenance binds each side's resolved projects
+and actual compiler/shader/linker profile with before/after guards. Focused lead reruns pass 48 gate, 33 provenance,
+25 paired-run and 49 diagnostic-runner cases. These synthetic/tooling checks do not qualify a policy or replace
+fresh native evidence. The first integrated Debug build found a const-accessor error in the new form snapshot;
+that error was corrected before the renewed build rather than counted as passing evidence.
+
+[The native/form/Grid packet](../../../Measurements/Layout/2026-10-10/README.md) retains the corrected six-profile
+builds, all 57 x64 noninteractive suite/log pairs with zero skips, candidate-only eight-field Manual/Form costs and
+three Release Grid diagnostics. Hidden work remains zero; Grid handles/surfaces are constant across 6,000 scroll
+frames. Process memory ends below the starting sample, while heap busy-byte directions differ between runs; this
+does not attribute or dismiss the earlier roughly 1.05 MB working-set flag. The 600-to-700 ns clean-prepare flag is
+one 100 ns QPC tick, with real overhead still plausible. Thresholds, exact budgets and frozen judges are unchanged.
+An initial ASan UIA client event failure passes isolation and a whole same-binary rerun, with its cause unproven.
+Two native Debug lease confirmations time out before Start; all four focus suites remain unrun. Fresh v2 A/A
+calibration is authorized for the longer quiet window and remains pending here.
+
 ### Accepted implementation (9 October)
 
 The user accepted Q1-Q31. Continue on the existing feature branch, preserve the immutable 8 October packet as the

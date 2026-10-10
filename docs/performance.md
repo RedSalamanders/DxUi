@@ -9,6 +9,33 @@ identity includes the platform-scoped vcpkg status, installed package inventorie
 Missing or unavailable identity inputs remain inconclusive. Historical
 reports remain readable under the legacy judge; the migrated CI gate treats them as read-only, never as qualified passes.
 
+Fresh measurements require a `performance-build-v2` attestation. Each side records its expanded projects and resolved
+source/shader inventory separately from the comparison profile. Adding a library source file changes that side's build
+inputs; it does not by itself mean the two sides used different compilers. The shared comparison profile binds the actual
+compiler, backend, shader compiler, linker and librarian bytes, SDK inputs, effective options and evaluated target context
+for both the library and benchmark. Missing metadata, unsupported overrides or mixed compiler profiles fail closed.
+Build and measurement inputs are checked before and after execution. Earlier attestations require a fresh build.
+
+Default-output incremental builds additionally require a separate receipt for the complete
+`.build/Intermediate/<platform>/<configuration>` inventory and bytes from the last successful guarded build. This
+includes every solution project's objects, tracking logs, generated shader headers and shader objects. Missing, renamed,
+added or changed cache files force `Rebuild`, even when timestamps match. Both receipts are revoked before a build attempt
+and on failed publication. `SkipBuild` verifies the final v2 build receipt; disposable intermediate bytes are not final
+artifact evidence.
+
+The supported native closure hashes the actual resolved C++ and HLSL files and every file in the owned native source and
+include trees. Ignored inputs, external source/include/library paths, arbitrary response or path-bearing option overrides,
+custom output paths, precompiled headers and modules are refused. The intermediate include directories accept only the
+two exact derived composite-shader headers and supported object/tracking/output files; extensionless or alternate header
+inputs there are refused. The tool closure includes all bytes, including extensionless STL headers, in the selected
+MSVC/ATL, SDK/UCRT/WinRT/C++/WinRT, auxiliary VS and NETFX header/library roots; absent optional roots are recorded too.
+These checks support the repository's default native profile, not arbitrary consumer build arrangements.
+
+Qualification reconstructs every decision from the hash-verified raw receipt bytes. It requires all three declared
+scenarios, all 26 metric slots and every scheduled same-side control. Both frozen judges are replayed, the consumed set
+must equal the complete replayed decision, and control drift is derived from those same parsed receipts. A passing label
+in a summary or comparison file cannot override the raw evidence.
+
 DxUi must remain fast and use little memory. The normative
 [performance contract](../Specs/Core/Core_PerformanceAndResources.md) requires before/after evidence and developer
 advice for a confirmed regression. A green functional suite alone does not establish performance acceptance.
@@ -17,6 +44,11 @@ targeted failure evidence and final-candidate qualification boundaries.
 The [remaining-branch integration record](../Measurements/BranchIntegration/2026-10-10/README.md) retains PR #69's
 six-profile native and synthetic consumer results, reproduced model-assignment races and inconclusive paired study.
 Its functional merge leaves benchmark-policy and ARM64 foreground qualification open.
+The [10 October same-binary A/A study](../Measurements/Performance/2026-10-10-aa/README.md) retains all 144 original raw
+receipts and the independent audit. All 72 short controls are unstable despite zero aggregate flags. The recorded
+100-nanosecond QPC tick limits interpretation of sub-microsecond clean preparation; process-memory spread is already
+wider before capture. These observations do not attribute the memory to a control, establish a quiet host or qualify
+the policy. The original reports retain their original harness identity.
 The [Grid text-overflow investigation](../Measurements/GridTextOverflow/2026-09-21/README.md)
 retains matched original/candidate reports and unresolved resource flags; it is not an acceptance record.
 The [rejected associative-cache experiment](../Measurements/GridTextOverflow/2026-09-23/assoc-cache-rejected/README.md)
@@ -372,6 +404,22 @@ suite that records a skip fails the run, since the run exists to execute what ot
 `.interactive`. Expect about a minute and a half of checks, then about a minute and a half with the desktop taken in x64 Debug
 (a little more in ASan Debug), and run it only when the person at the desktop has agreed to the time. The
 [validation contract](../Specs/Testing/Testing_Validation.md) has the details.
+
+`performance-forms.ps1 -Configuration Release -Platform x64 -Blocks 12 -Seed 20261010` measures a synthetic
+eight-field manual/form pair within one candidate. Before timing it requires matching leaf state, UIA metadata,
+geometry and populated pixels in five states across standard LTR/above and compact RTL/beside profiles. The
+report includes layout/preparation, completed frames, allocation counters, memory and hide/recovery/retirement
+observations, with exact native bytes retained beside the stamped receipt. `-SkipBuild` requires a matching v2
+attestation. These diagnostics cover their declared form profiles and do not qualify consumer performance, the
+paired policy, every 256-field layout or the separate narrow-unit/minimum/convergence correctness cases.
+Compare the common `layoutAndPrepareMs` and `completedFrameMs` scopes. `prepareMs` begins at the embedded
+preparation call: manual arrangement has already run, while Form arrangement occurs inside that call. It is a
+variant-dependent subinterval rather than an equivalent manual/form comparison. Width/validation phase setters
+are included in the common intervals and their allocation/cycle counts, before the `prepareMs` subinterval starts.
+The [10 October layout evidence](../Measurements/Layout/2026-10-10/README.md) retains all twelve blocks,
+three Grid retention/heap diagnostics, the six build logs and 57 passing noninteractive suite/log pairs.
+It records the form's bounded additional residency, the original failures and their retests, and the focus
+confirmations that timed out. These descriptive results leave policy calibration and consumer qualification open.
 
 Use `gallery.ps1 -PublishDocs` after visual/control changes and review all
 generated sheets. CI's x64 Release job runs the same command and uploads its `docs/gallery` output as

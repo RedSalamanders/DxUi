@@ -1,7 +1,8 @@
 # UI composition improvements for RedSalamander, RedXe and RedPrism
 
-- **Status**: ACTIVE, proposed design and implementation plan, 4 October 2026. No feature in this plan is implemented
-  or newly advertised by this documentation change.
+- **Status**: ACTIVE. S0-S2 were accepted on 10 October 2026 alongside performance qualification/profiling. Implementation,
+  synthetic library qualification and independently owned consumer adoption remain distinct; no new layout feature is
+  advertised as implemented until its code and evidence are present.
 - **Scope**: intrinsic sizing and forms; variable-height lists; overlay lifetime and focus; read-only Markdown help;
   reusable motion and theme authoring.
 - **Library owner**: DxUi. Product behavior, data, persistence, scheduling and adoption remain in each consumer.
@@ -12,6 +13,14 @@
 
 ## 1. Purpose and authority
 
+### Accepted execution scope (10 October)
+
+Execute intrinsic measurement, opt-in flow layout and reusable form composition (S0-S2). Keep later S3-S7 proposals
+unimplemented. The work follows Q22's original calibration and retained baseline; code, behavior tests, normative
+contracts, usage documentation, catalog/gallery and design-system previews accompany each implemented stage.
+Consumer pins and actual product adoption require separately qualified library commits and consumer-owned changes.
+Recheck the 4 October source inventory rather than treating its historical pins as current.
+
 The largest immediate benefit is reducing repeated measurement, field placement and focus bookkeeping without
 changing how an application saves settings, acknowledges an AV command or edits a document. General virtualization
 and native help rendering extend what can be composed from retained controls. Motion and theme work should make
@@ -19,8 +28,8 @@ existing capabilities easier to reuse rather than introduce a second renderer, s
 
 This document owns proposals, sequencing, decisions and acceptance evidence. It does not override current contracts.
 Before implementing a stage, reconcile its accepted behavior in the owning domain below; keep enduring requirements
-there and record the stage's result here. Public names and signatures below are design sketches, not supported APIs
-or compilable usage examples.
+there and record the stage's result here. S0-S2's accepted APIs are documented in `include/DxUi/DxUi.h` and
+[the layout guide](../../../docs/layout.md). Later stages remain design sketches rather than supported APIs.
 
 | Area | Owning contracts to reconcile before implementation |
 | --- | --- |
@@ -66,6 +75,15 @@ an unrelated menu-test change, so this plan was prepared in an isolated worktree
 Every pin comes from that consumer's `Dependencies/DxUi.lock.json`. Recheck these identities and the consumer's
 active plan before adoption. A source inspection at a newer library revision does not establish that an older
 consumer pin supports a proposed API.
+
+The S0 recheck on 10 October found DxUi base `60e1cbff8f7a75757e9447073965d09101d9833c` at API revision 4;
+RedSalamander HEAD `6442f882da827be59f62f36759c5aff49c2091c8` pins `6c436c213ac0fac181b2faafd1daf6085bdedc23`
+at revision 3; RedXe HEAD `7b38d4bb3d64a55e24ec3b601cd79a0007651204` and RedPrism HEAD
+`97dd25b70e83f81c339a4b4e7e7b7589268f2510` both still pin `271bd54be24eadf3f03ba5221d1be7be069860f2` at revision 3.
+RedXe has unrelated active runtime changes and RedPrism has unrelated plan changes; this library work does not
+modify either tree. RedSalamander's General cards still measure text through `PrefsUi` and explicitly place
+label/description/toggle or combo bounds. RedPrism's size card still has explicit title, row, note and action extents.
+Those observations confirm the proposed pilots' need, but are source inspection rather than product qualification.
 
 ### 2.2 What the consumers actually need
 
@@ -126,23 +144,24 @@ pilots are separate changes with their own product contracts, pinned dependencie
 The compatibility rules in the Consumption contract apply. Additive APIs that preserve old usage do not by
 themselves increment `apiRevision`. Removing/renaming interfaces, changing existing semantics or requiring a new
 call does. Rebuild every adopting consumer with matching headers, library, toolchain and CRT; C++ ownership never
-crosses a plugin ABI. RedSalamander's revision-2 adapter needs an explicit compatibility/adoption review.
+crosses a plugin ABI. All three current revision-3 pins need an explicit revision-4 compatibility/adoption review.
 
 ## 4. Workstream A: intrinsic sizing and reusable form layout
 
 ### 4.1 Current support and problem
 
 DxUi already has `Panel`, `StackPanel`, `ScrollPanel`, typography helpers and `ArrangeMeasuredActions`.
-`StackPanel` needs supplied child extents; `Toolbar` is a plain panel. There is no common intrinsic measurement
-contract or reusable label/editor/description/validation field layout. Consumers therefore calculate the same
-text heights, label widths, margins and footer positions in multiple places.
+`StackPanel` needs supplied child extents; `Toolbar` is a plain panel. Before S1/S2 there was no common intrinsic
+measurement contract or reusable label/editor/description/validation field layout, so consumers calculate the
+same text heights, label widths, margins and footer positions in multiple places. This branch implements the
+new opt-in primitives; runtime, resource and publication evidence below determines their stage closeout.
 
 Retain the existing measured-action helper for atomic action wrapping. Do not replace it with a layout system that
 splits buttons, obscures commands or introduces an unreviewed density policy.
 
-### 4.2 Proposed public concepts
+### 4.2 Accepted S0 public concepts
 
-| Concept | Proposed responsibility |
+| Concept | Accepted responsibility |
 | --- | --- |
 | `LayoutConstraints` | Finite minimum/maximum DIP sizes, an explicit unbounded axis, and validation |
 | `DesiredSize` | Measured size and optional baseline; independent of the control's current position |
@@ -152,10 +171,10 @@ splits buttons, obscures commands or introduces an unreviewed density policy.
 | `FormPanel` | Uniform field layout, shared label column, app-selected column count and independent actions |
 | `FormField` | Owns label, editor, optional description and validation message; stable field identity |
 
-Design sketch:
+Accepted usage:
 
 ```cpp
-// Proposed concepts only; exact signatures are resolved in stage S0.
+// Candidate API; check HRESULTs and nullable additions in production code. See docs/layout.md.
 LayoutConstraints limits = LayoutConstraints::AtMost(bodyWidthDip, bodyHeightDip);
 DesiredSize desired;
 HRESULT result = MeasureControl(control, context, limits, desired);
@@ -170,9 +189,25 @@ width->SetValidation(ValidationState::Error, localizedError);
 // Product code owns the value, unit conversion, validation and Save/Cancel.
 ```
 
-Prefer a measurement adapter/default hook that keeps existing custom control subclasses source-compatible.
-Decide during S0 whether a virtual hook or a separate measurer is the smaller supported contract. Do not introduce
-a pure virtual method that every consumer control must implement.
+S0 chose a non-pure `Control::MeasureOverride` with a checked `Control::Measure` boundary and `MeasureControl`
+convenience call. Existing custom controls return `E_NOTIMPL` and keep explicit extents. Manual Panel/StackPanel/
+Toolbar semantics remain intact. New containers are opt-in; additive API does not increment the existing revision
+4 again, but C++ object-layout changes require every adopting consumer to rebuild with the same pin.
+
+Reuse inventory: host DirectWrite formats and reading-direction resolution supply real shaping; existing lifetime
+tokens, `Panel::TakeChild`, interaction retirement, text-service snapshots, immutable UIA publication and
+`ArrangeMeasuredActions` retain their responsibilities. Numeric measurement caches are new container-owned state;
+no parallel text renderer, focus manager, schema validator or action-wrapper is added. Native and embedded hosts
+share one pending intrinsic traversal during preparation, with no composition work or new scheduling service.
+
+Accepted limits are 1,024 logical Flex slots, 256 logical form fields and 65,536 UTF-16 shaping units per pass across
+nested/cache-miss work. Optional maxima represent unbounded axes; invalid constraints and arithmetic fail before
+geometry commits. Measured natural extents can exceed a constrained width for an indivisible glyph and report
+overflow. Cache keys bind actual content/revision, constraints and host typography; color/hover do not dirty shape.
+Custom callbacks revalidate owner, child, host and interaction identity before continuation. The retained baseline
+is the original same-binary study at the exact base above, linked from [Measurements](../../../Measurements/README.md);
+its drift is diagnostic and cannot be relabeled a policy qualification. Form-specific manual/intrinsic synthetic
+cost and visual evidence are required before S2 closeout.
 
 ### 4.3 Measurement and arrangement behavior
 
@@ -207,10 +242,10 @@ a pure virtual method that every consumer control must implement.
 
 ### 4.5 Implementation and evidence
 
-- [ ] A1: inventory and reuse measurement helpers; settle the public hook, cache keys and failure semantics.
-- [ ] A2: implement leaf measurement for the controls required by the pilots, then opt-in `FlexPanel`.
-- [ ] A3: implement form/field composition and label/description/validation UIA relationships.
-- [ ] A4: add localized form samples, gallery states and design guidance; publish visual changes.
+- [x] A1: inventory and reuse measurement helpers; settle the public hook, cache keys and failure semantics (S0).
+- [x] A2: implement leaf measurement for the controls required by the pilots, then opt-in `FlexPanel`.
+- [x] A3: implement form/field composition and label/description/validation UIA relationships.
+- [x] A4: add localized form samples, gallery states and design guidance; publish visual changes.
 - [ ] A5: adopt one RedSalamander General section and one RedPrism size card in separate consumer changes.
 - [ ] A6: consider the RedSalamander speed-limit prompt and RedXe profile editor after those pilots pass.
 
@@ -559,15 +594,15 @@ do not combine five new subsystems into one implementation PR.
 S3 and S7 can be designed independently of layout implementation. S6 starts by extracting existing behavior;
 spring motion is not on the critical path. S4/S5 do not require general editor support or a CSS layout engine.
 
-### 9.1 Decisions required during S0
+### 9.1 Accepted S0 decisions and deferred later-stage decisions
 
-- [ ] Choose measurement adapter versus a default non-pure control hook; define cache/invalidation ownership.
-- [ ] Settle form ownership, stable field IDs and UIA label/description relationships.
+- [x] Choose measurement adapter versus a default non-pure control hook; define cache/invalidation ownership.
+- [x] Settle form ownership, stable field IDs and UIA label/description relationships.
 - [ ] Settle list model revisions, batch mutation semantics, key reuse rules and concrete finite budgets.
 - [ ] Define external focus return callbacks and teardown/dismissal reentrancy rules.
 - [ ] Choose the Markdown parser and explicit subset after checking real localized documents and dependency policy.
 - [ ] Choose one theme metadata source of truth and decide whether deterministic generation is necessary.
-- [ ] Classify every public change under current compatibility rules; record explicit consumer migration needs.
+- [x] Classify accepted S0-S2 public changes under current compatibility rules; record explicit consumer migration needs.
 - [ ] Establish consumer pilot value criteria and leave optional product additions deferred if no need is shown.
 
 ## 10. Validation, benchmarks and resource evidence
@@ -591,8 +626,8 @@ do not invent a zero-cost baseline for a new feature with no equivalent. If only
 measured, report them as budgets, separately from regression evidence.
 
 Follow [the paired procedure](../../../docs/performance.md): matched machine/configuration/DPI/renderer/fixture,
-interleaved A/B/B/A passes, three repetitions by default (six runs per side), same-binary noise controls and reviewed
-receipts. Current investigation bands are 5% for timing/FPS and 2% for process memory, with statistical and noise
+at least twelve independently drawn ABBA/BAAB blocks, two runs per side in each block, same-binary noise controls
+and reviewed receipts. Current investigation bands are 5% for timing/FPS and 2% for process memory, with statistical and noise
 qualification. Existing deterministic composition, surface, cache and hidden-work budgets remain hard limits.
 Confirmed degradation requires measured optimization, scope reduction or explicit deferral advice; never silently
 rebaseline. Run the hosted paired gate when a PR changes what its benchmark measures.
@@ -606,21 +641,32 @@ from different runtimes/hardware/scenes must not become a performance target or 
 
 For each implemented stage:
 
-- [ ] Run `validate.ps1` and `format.ps1 -Check`.
-- [ ] Run the affected control and Embedded suites, then required x64 Debug, Release and ASan Debug coverage through
-  `test.ps1`; include its complex-UI receipts and paired comparison evidence.
-- [ ] Build ARM64 Debug, Release and ASan Debug. Native ARM64 execution is separately required for runtime claims.
-- [ ] For rendering/resource changes, record WARP, device loss/recreation and clean/dirty/hidden lifetime evidence.
-- [ ] Exercise 96/144/192 DPI, Light/Dark/RainbowLight/RainbowDark/high-contrast themes, standard/compact density,
+- [x] Run `validate.ps1` and `format.ps1 -Check` at the frozen native source; later docs/evidence require renewed tooling validation.
+- [x] Run all nineteen noninteractive control/Embedded/foundation/host scopes in x64 Debug, Release and ASan Debug:
+  57 passing suite/log pairs, zero skips and all 38 new tests completed in every profile. Their complex-UI receipts are unpaired.
+- [x] Build ARM64 Debug, Release and ASan Debug.
+- [ ] Establish native ARM64 runtime evidence; cross-builds on this x64 host do not qualify it.
+- [x] Record WARP preparation/composition and synthetic graphics-generation replacement plus clean/dirty/hidden
+  lifetime evidence. Physical hardware/device-removal acceptance remains separate.
+- [x] Exercise 96/144/192 DPI, Light/Dark/RainbowLight/RainbowDark/high-contrast themes, standard/compact density,
   RTL/LTR and Unicode content where relevant.
-- [ ] Verify UIA navigation/events with the existing client helpers and provider disconnection on detach; synthetic
+- [x] Verify UIA navigation/events with the existing client helpers and provider disconnection on detach; synthetic
   assertions alone do not qualify real assistive-technology, IME or touch behavior.
 - [ ] Run Menu, NativeTextInput, MenuResources and MenuResourceScaling only through `test.ps1 -Interactive`, at a
   time the person at the desktop has agreed to. Without that agreement, omit them from `-Suites` and record the gate
   as outstanding. Other suites continue through the non-activating harness.
+- [ ] Establish accepted paired non-regression and a qualified trusted policy; candidate-only Manual/Form costs
+  and unpaired complex-UI receipts do not close this gate.
 
-These are implementation gates. This planning-only change requires documentation/tooling validation and formatting;
-it changes no runtime behavior and does not claim that native implementation tests or consumer pilots have run.
+These are implementation gates for the S0/S1/S2 code in this branch. Record fresh native, platform, resource and
+paired-performance receipts before closing them; library qualification does not imply that a consumer pilot ran.
+
+[The native/form/Grid packet](../../../Measurements/Layout/2026-10-10/README.md) retains all local results,
+initial Embedded and ASan Accessibility failures, isolated/repeated retests and two Debug lease timeouts before
+Start was chosen. Focus suites did not execute. The eight-field Manual/Form diagnostic has matching pre-timing
+pixels/geometry/metadata, zero unchanged/composition work, 7 KiB of extra warm retained plain C++ Form memory and
+zero tracked plain-live bytes after each fixture's destruction. These are bounded diagnostics, with no speedup,
+consumer, hardware or paired-policy acceptance claim. The ASan event failure's cause remains unproven.
 
 ### 10.3 Consumer adoption gates
 
@@ -632,7 +678,9 @@ it changes no runtime behavior and does not claim that native implementation tes
 
 Generate before/after application captures only through each consumer's deterministic test harness, retaining
 scenario, source, build, DPI and theme provenance. Do not take desktop/manual screenshots. Any proposal mockup is
-labelled separately from an actual application capture. No captures were generated by this planning change.
+labelled separately from an actual application capture. S0-S2's native library gallery was generated through
+`gallery.ps1 -PublishDocs` and reviewed in all five themes and the supplied-device example. Consumer application
+captures and before/after adoption evidence remain outstanding.
 
 Preserve existing RedSalamander ARM64/ASan handoff and RedXe hardware/real-IME/assistive-technology HOLD gates.
 Library validation cannot complete those product gates. Keep adoption measurements in the application repository.
@@ -641,17 +689,19 @@ Library validation cannot complete those product gates. Keep adoption measuremen
 
 - [x] Inspect all three consumers and distinguish current support from candidate additions.
 - [x] Record the five workstreams, proposed APIs, sequencing, ownership and measurable acceptance.
-- [ ] Accept S0 decisions and update the owning domain contracts before changing behavior.
+- [x] Accept S0 decisions and update the owning domain contracts before changing behavior.
 - [ ] Complete accepted library stages and required platform, interaction and paired performance evidence.
-- [ ] For every new concrete control, add catalog/factory support, a populated gallery tile, interaction tests,
+- [x] For every new concrete control, add catalog/factory support, a populated gallery tile, interaction tests,
   `docs/controls.md` usage and a design-system guideline/preview; regenerate the gallery with `gallery.ps1 -PublishDocs` and commit both.
-- [ ] Update affected usage/hosting/performance documentation and link reviewed DxUi-only receipts under
+- [x] Update affected usage/hosting/performance documentation and link reviewed DxUi-only receipts under
   `Measurements`. Generated temporary reports stay under tooling-owned `.build`.
-- [ ] Update `capabilities.json` only for actually implemented/qualified support, with pending limits explicit.
+- [x] Update `capabilities.json` only for implemented support, with consumer/native-platform/physical-input limits explicit.
 - [ ] Record explicit consumer pins/adapters and independent adoption outcomes; retain deferred product gates.
 - [ ] Reconcile final normative contracts, move this completed library plan to Done and update the index.
 
-Documentation/gallery review for this proposal: current published controls and images remain accurate because no
-implementation or rendered appearance changes here. Gallery regeneration and committed design-system updates become
-required in the visual implementation stages above. This plan does not close existing menu, Grid, Tree, slider,
-consumer or platform plans.
+Documentation/gallery review for S0-S2: the control guide, layout usage, normative contracts, capability inventory,
+three component guidelines/previews and published 33-control gallery are updated. All six harness images were
+reviewed for clipping, overlap and missing content. Local functional/resource evidence is retained above. The remaining focus, native-platform and paired-performance gates
+above still determine stage acceptance; completed implementation checkboxes do not qualify those gates. S3-S7 and
+consumer adoption remain deferred. This plan does not close existing menu, Grid, Tree, slider, consumer or platform
+plans.

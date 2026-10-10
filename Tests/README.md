@@ -17,6 +17,10 @@ manifest, while foreground, consumer, gallery and native-platform qualification 
 Native test files use `Scope.Tests.Something.h/.cpp`; register new active files in `native-test-files.json`. `test-scopes.json` owns standalone scope/PR metadata. Shared-library or runtime byte changes conservatively invalidate local standalone reuse. No consumer dependency pin changes are part of this workflow.
 
 For independent resource investigations, force fresh execution and retain paired fixture/build provenance. Timing, native ARM64, real devices, IME/assistive technology and foreground input remain separate qualification requirements. These commands do not manufacture those claims.
+The `Control` scope includes intrinsic measurement/Flex/form correctness, the localized form matrix and the
+256-field inventory/cache boundary. `Accessibility` includes native/embedded form provider and notification
+tests. `performance-forms.ps1` supplies a separate candidate-only synthetic resource diagnostic; its populated
+pixel/cache preflights and lifecycle observations do not replace these correctness scopes or consumer tests.
 ```powershell
 ./Test-Changes.ps1 -Scopes <name> -SkipBuild
 ./Test-Changes.ps1 -Mode Full -Force

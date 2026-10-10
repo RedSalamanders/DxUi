@@ -106,6 +106,26 @@
   ],
   "rules": [
     {
+      "pattern": "Tests/Controls/Scope.Tests.IntrinsicLayout.*",
+      "scopes": ["Control"],
+      "reason": "intrinsic leaf measurement and FlexPanel behavior in the owning Control suite"
+    },
+    {
+      "pattern": "src/Controls/DxUi.Layout.cpp",
+      "scopes": ["Control", "Embedded", "WindowHost", "TextField", "ComboBox", "EditorControls", "MultilineText", "Accessibility", "Rendering"],
+      "reason": "opt-in intrinsic sizing shares leaf metrics and native/embedded preparation, focus and geometry"
+    },
+    {
+      "pattern": "Tests/Controls/Scope.Tests.Forms.*",
+      "scopes": ["Control"],
+      "reason": "form measurement, arrangement, ownership and editor state scenarios in the Control suite"
+    },
+    {
+      "pattern": "src/Controls/DxUi.Forms.cpp",
+      "scopes": ["Control", "Accessibility", "Embedded", "WindowHost", "TextField", "ComboBox", "EditorControls", "Rendering"],
+      "reason": "form layout preserves semantic editors and shares native/embedded preparation and UIA publication"
+    },
+    {
       "pattern": "Tests/Controls/DxUi.Tests.Grid.cpp",
       "scopes": [
         "Grid"
@@ -202,6 +222,13 @@
         "Accessibility"
       ],
       "reason": "owning suite source"
+    },
+    {
+      "pattern": "Tests/Controls/Scope.Tests.FormAccessibility.cpp",
+      "scopes": [
+        "Accessibility"
+      ],
+      "reason": "active native and embedded form provider coverage"
     },
     {
       "pattern": "Tests/Controls/Scope.Tests.GridUiaPattern.cpp",

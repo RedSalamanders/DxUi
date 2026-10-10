@@ -1,7 +1,7 @@
 # Input and accessibility
 
 Status: normative intended contract
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-10
 
 Native focus transfer can synchronously re-enter activation through `WM_SETFOCUS`. A failed or superseded outer
 request may retire only its own session generation, including when the newer session uses the same retained editor.
@@ -23,6 +23,27 @@ After the association callback, a newer host transition or a different callback-
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
+
+Form editors expose `LabeledBy`, `IsRequiredForForm`, `IsDataValidForForm`, textual error `ItemStatus`, description
+`HelpText` and the stable field identity as `AutomationId`. A `NumericStepper` attaches these semantics to its
+inner editable text provider. The visual label remains a real element with its own full name and mnemonic target;
+form layout never inserts a duplicate hidden announcement. A label relationship borrows a weak lifetime identity
+and resolves only to the same live, visible element in the current host snapshot. Hidden, detached, expired or
+same-path replacement labels leave `LabeledBy` empty until a valid relationship is explicitly established.
+Snapshot publication raises property changes for effective relationships and metadata, including removal through
+visibility or ownership changes; unchanged republishing raises none. Native and embedded providers read immutable
+published relationships, never a mutable raw label pointer from a client thread. Retained providers disconnect
+when their element retires, and publication stops after a reentrant property notification retires its owner.
+Property and text notifications recheck the semantic editor lifetime between outgoing calls; embedded publication
+also checks its attached root lifetime and preparation's interaction revision. A detached retained editor or hidden
+field stops the old event batch too, even while a snapshot and provider keep their own storage alive. Read-only
+embedded properties still use the last published snapshot until the application's next coherent publication;
+actions already return `UIA_E_ELEMENTNOTAVAILABLE` for an unavailable editor and never change its retained draft.
+
+Opt-in layout prepares matching visible, hit and provider bounds before publishing. Reflow preserves editor
+identity, focus, draft, selection and composition; it does not take HWND focus. A captured press whose control
+geometry moved is cancelled before a later button-up can commit through the old rectangle. An unchanged layout
+retains capture. Removal, hiding or disabling uses the existing interaction retirement rules.
 
 Localized adaptive layout must preserve the focused control's stable identity through wrapping,
 disclosure and DPI changes, and publish matching visible/hit/UIA rectangles. If a focused child is

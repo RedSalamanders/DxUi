@@ -3,6 +3,7 @@
 #include "../Support/Support.Tests.UiaTestClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
+#include "Scope.Tests.FormAccessibility.h"
 #include "Scope.Tests.GridUiaPattern.h"
 
 #include <array>
@@ -10130,6 +10131,16 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestGridUiaPatternPreservesAssignmentDuringCachedCellCreation);
     DXUI_RUN_TEST(TestGridUiaPatternPreservesAssignmentDuringRowNavigation);
     DXUI_RUN_TEST(TestGridUiaPatternContainsModelExceptionsAtTheProviderBoundary);
+    DXUI_RUN_TEST(TestFormAccessibilityWindowPropertiesAndStableEditor);
+    DXUI_RUN_TEST(TestFormAccessibilityEmbeddedPropertiesAndStableEditor);
+    DXUI_RUN_TEST(TestFormAccessibilityWindowLabelLifetimeAndReplacement);
+    DXUI_RUN_TEST(TestFormAccessibilityEmbeddedLabelLifetimeAndReplacement);
+    DXUI_RUN_TEST(TestFormAccessibilityWindowPresentationEventsAreIdempotent);
+    DXUI_RUN_TEST(TestFormAccessibilityEmbeddedPresentationEventsAreIdempotent);
+    DXUI_RUN_TEST(TestFormAccessibilityWindowPublicationStopsAfterDestructiveCallback);
+    DXUI_RUN_TEST(TestFormAccessibilityEmbeddedPublicationStopsAfterDestructiveCallback);
+    DXUI_RUN_TEST(TestFormAccessibilityWindowPublicationStopsAfterEditorRetirement);
+    DXUI_RUN_TEST(TestFormAccessibilityEmbeddedPublicationStopsAfterEditorRetirement);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesHorizontallyScrolledGridRowStructure);
     DXUI_RUN_TEST(TestAccessibilityGridFragmentsRespectAncestorScrollPanelClipping);
     DXUI_RUN_TEST(TestAccessibilityProviderPointHitsClipAndTranslateScrollPanelChildren);

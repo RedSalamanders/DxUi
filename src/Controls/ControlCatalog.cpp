@@ -34,7 +34,10 @@ std::span<const ControlDescriptor> GetControlCatalog() noexcept
                                         ControlDescriptor{ControlKind::PageIndicator, L"PageIndicator"},
                                         ControlDescriptor{ControlKind::Splitter, L"Splitter"},
                                         ControlDescriptor{ControlKind::NumericStepper, L"NumericStepper"},
-                                        ControlDescriptor{ControlKind::ColorPicker, L"ColorPicker"}};
+                                        ControlDescriptor{ControlKind::ColorPicker, L"ColorPicker"},
+                                        ControlDescriptor{ControlKind::FlexPanel, L"FlexPanel"},
+                                        ControlDescriptor{ControlKind::FormField, L"FormField"},
+                                        ControlDescriptor{ControlKind::FormPanel, L"FormPanel"}};
     return entries;
 }
 HRESULT CreateControl(ControlKind kind, std::unique_ptr<Control>& result) noexcept
@@ -73,6 +76,9 @@ HRESULT CreateControl(ControlKind kind, std::unique_ptr<Control>& result) noexce
             case ControlKind::Splitter: result = std::make_unique<Splitter>(); return S_OK;
             case ControlKind::NumericStepper: result = std::make_unique<NumericStepper>(); return S_OK;
             case ControlKind::ColorPicker: result = std::make_unique<ColorPicker>(); return S_OK;
+            case ControlKind::FlexPanel: result = std::make_unique<FlexPanel>(); return S_OK;
+            case ControlKind::FormField: result = std::make_unique<FormField>(); return S_OK;
+            case ControlKind::FormPanel: result = std::make_unique<FormPanel>(); return S_OK;
             default: return E_INVALIDARG;
         }
     }

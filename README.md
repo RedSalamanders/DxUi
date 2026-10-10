@@ -21,14 +21,14 @@ Requires Visual Studio 2026/v145, Windows SDK 10.0.26100, x64 or ARM64, and Git 
 ```
 
 The last command opens a generic effect toggle and intensity slider. Add `--complex-ui` for the independent 83-control workload, or `--output image.png` for a headless PNG. See [samples](docs/samples.md) and [library measurements](Measurements/README.md).
-`gallery.ps1` generates all 30 public controls and variants in five themes plus an HTML index under `.build/gallery`.
+`gallery.ps1` generates all 33 public controls and variants in five themes plus an HTML index under `.build/gallery`.
 Read [the example](Samples/EmbeddedControls/EmbeddedScene.h) for public-API construction and event handling.
 
 ## Public API and ownership
 
 - [DxUi.h](include/DxUi/DxUi.h): retained controls, layout, theme and ControlHost services.
 - [Embedded.h](include/DxUi/Embedded.h): supplied-device GraphicsDevice pool and EmbeddedHost preparation/composition.
-- [ControlCatalog.h](include/DxUi/ControlCatalog.h): discover and construct all 30 concrete controls.
+- [ControlCatalog.h](include/DxUi/ControlCatalog.h): discover and construct all 33 concrete controls.
 - [ThemeColors.h](include/DxUi/ThemeColors.h), [Diagnostics.h](include/DxUi/Diagnostics.h),
   [FrameRuntime.h](include/DxUi/FrameRuntime.h): neutral theme, borrowed diagnostics, timing and motion.
 
@@ -37,6 +37,10 @@ set its root tree, prepare changed content before drawing, bind the application 
 The application owns presentation and scheduling. Use one shared pool and a separate view for each simultaneous
 layout; controls contain no AV device operations or application settings. Native ControlHost/WindowHost mode retains
 Win32 text/accessibility and presentation support inside the same archive.
+
+[Intrinsic layout and forms](docs/layout.md) describe `Control::Measure`, opt-in `FlexPanel`, and stable
+`FormPanel`/`FormField` editors with labels, help, validation and UI Automation metadata. Manual containers keep
+their explicit bounds. Applications own values, validation decisions, scrolling and fixed footer actions.
 
 Consumers import [Build/DxUi.Consumer.props](Build/DxUi.Consumer.props) and
 [Build/DxUi.Consumer.targets](Build/DxUi.Consumer.targets), pin an exact commit/API revision 4 with target `["DxUi"]`,

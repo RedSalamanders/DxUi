@@ -1,12 +1,39 @@
 # Validation and evidence
 
 Status: normative intended contract
-Last reviewed: 2026-10-01
+Last reviewed: 2026-10-10
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
 
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
+
+Intrinsic measurement, opt-in Flex and reusable forms run in the nonactivating Controls suite. The form fixtures
+cover localized labels at multiple DPI/density/flow/column/placement/width combinations; finite bounds and overflow;
+unsupported and growing custom minima; shared text budgets and cache invalidation; exact fractional geometry;
+destructive, reentrant and detached callbacks; replacement editors during detach; embedded composition, selection
+and focus; and nonactivating native preparation. Accessibility additionally verifies both native and embedded
+form property providers and real client-thread property notifications, including weak label lifetime and teardown.
+An existing manually positioned container must preserve its explicit geometry when these opt-in APIs are added.
+
+`performance-forms.ps1` runs the fixed `dxui-form-layout-cost-v1` synthetic fixture. Before timing it requires identical
+manual/form leaf state, geometry and captured pixels across five states in two profiles. It reports raw frame and
+allocation samples for four interleaved runs per block and lifecycle/recovery observations. The wrapper binds v2
+build attestations, the diagnostic source/dispatcher/runner hashes and the before/after execution state, and refuses
+stale, malformed or mismatched evidence. This within-candidate diagnostic cannot establish source non-regression,
+approve the acceptance policy, waive native platform gates or substitute for consumer harness evidence.
+
+Performance build provenance uses `performance-build-v2`: each side retains its own resolved source/project inventory,
+while comparisons require an equal resolved compiler/linker/shader profile and installed tool closure. Both frozen
+judges are replayed from the same hashed native reports, including every same-side control. Historical v1 reports
+remain diagnostic records; a fresh build is required for v2 qualification.
+Default-output incremental reuse additionally requires an exact receipt for the complete intermediate profile inventory
+and bytes; altered objects, tracking logs or generated shaders force `Rebuild` despite unchanged timestamps. Final
+`SkipBuild` remains independent of disposable cache. Resolved C++/HLSL bytes and owned include trees are attested per side;
+selected native tool header/library roots include extensionless and optional inputs. Ignored/external native inputs,
+response/path overrides and unsupported cache/header/output arrangements fail closed. Focused provenance fixtures use
+real file mutations and production receipt validation, with synthetic discovery/metadata explicitly separated from native
+build and policy qualification evidence.
 
 The opt-in `MenuResourceScaling` control suite characterizes described-menu memory
 without bitmap capture. It rotates and reverses cases across 32 cycles, varying

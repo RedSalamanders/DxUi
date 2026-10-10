@@ -1,7 +1,7 @@
 # Design system
 
 Status: normative current contract
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-10
 
 [DesignSystem](../DesignSystem/README.md) is the canonical, reviewable design system of DxUi. It restates the
 shipped visual language as named tokens, usage rules and one guideline and preview per catalog control, so that
@@ -24,6 +24,14 @@ consumers, reviewers and agents can design with DxUi without reading renderer co
 | `assets/Gallery/README.md` | Points to the committed gallery captures under `docs/gallery`. |
 
 ## Rules
+
+Intrinsic layout adds `FlexPanel`, `FormField` and `FormPanel` to the catalog. Their guidelines and static previews
+live in the corresponding component folders; populated harness tiles cover intrinsic wrapping, required/error
+presentation, two columns with separate actions, and beside labels in RTL. Forms reuse existing font, ink and chrome
+roles. Descriptions/errors use Small text and a 6 DIP vertical field gap; beside labels use a 12 DIP lane gap. Column
+and row gaps default to 12 DIP with zero container padding. Error meaning is textual and exposed to UI Automation;
+it never depends on a new hard-coded color. Product minimum hit targets and fixed action regions remain explicit
+consumer policy. See [layout usage](../../docs/layout.md) and [Controls and layout](UI_ControlsAndLayout.md).
 
 - Values are exact. Colors come from `ThemePalette` initializers and `MakeDefaultThemePalette`, derived values
   from the same formulas as `MakeThemePalette` and the `Resolve…VisualStyle` resolvers, metrics from `k…Dip`

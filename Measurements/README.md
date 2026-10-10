@@ -1,8 +1,18 @@
 # Independent DxUi measurements
 
+- [Intrinsic layout/forms and Grid profiling, 2026-10-10](Layout/2026-10-10/README.md): six builds, 57 passing x64
+  noninteractive suite/log pairs, matched candidate-only Manual/Form diagnostics and bounded Grid heap/residency
+  observations; original failures/retests and interactive confirmation timeouts retained. Focus/native ARM64,
+  consumer and paired-policy qualification remain open.
+
 This directory retains reviewed evidence from DxUi's own samples and benchmarks. Scenarios may be inspired by real
 interfaces, but use synthetic data and require no RedXe or RedSalamander checkout, plugin, settings or services.
 Application adoption measurements belong in their application's repository.
+
+- [Same-binary paired calibration, 2026-10-10](Performance/2026-10-10-aa/README.md): all 144 original raw receipts,
+  both frozen judge results, 72 same-side controls and a reproducible descriptive analysis. All aggregate sets
+  remain within the existing noise budget, but all 72 controls drift in some metric. Memory-stage observations
+  and 100 ns clock quantization are diagnostic; they do not qualify the policy or attribute a leak.
 
 - [Recent-merge production review, 2026-10-08](Review-2026-10-08/README.md): retained baseline, independently
   reproduced lifetime/state failures, final library qualification and paired measurements; unresolved

@@ -30,7 +30,7 @@ library sources (nothing to compare), which is how uncommitted work on a revisio
 .PARAMETER Seed Optional randomization seed. When omitted, a generated seed is retained with the literal schedule.
 .PARAMETER CalibrationAA Repeat one explicit revision on both sides to calibrate the runner. Both role labels share one worktree and one built executable; each randomized run keeps a separate receipt. This study is never regression-qualification and cannot pass the hosted gate.
 .PARAMETER OutputDirectory Parent of the run directory; defaults to .build/paired.
-.PARAMETER SkipBuild Reuses the existing build of this checkout and of named trees; a named tree's harness overlay must not have changed a compiled input, and it needs its build. Worktrees made for the run are new and always build.
+.PARAMETER SkipBuild Reuses only an attested current build of this checkout and named trees; a named tree's harness overlay must not have changed a compiled input. Compiled source/dependencies, resolved toolchain and actual artifacts must still match its successful build receipt. Worktrees made for the run are new and always build.
 #>
 [CmdletBinding()]
 param(
@@ -57,7 +57,7 @@ $harnessRoot = $PSScriptRoot
 # The measurement driver with its comparator, and every input performance.ps1 hashes into benchmarkSha256. Both trees
 # use this checkout's copies, so a comparison between them rejects any fixture difference, and a revision older than
 # the PowerShell comparator still has one.
-$harness = @(Get-PairedHarness)
+$harness = @(Get-PairedHarness) + @('build.ps1','Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1')
 
 function Resolve-Commit([string] $Revision) {
     $commit = & git -C $harnessRoot rev-parse --verify --quiet "$Revision^{commit}"
@@ -219,9 +219,14 @@ try {
             if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw "-SkipBuild needs an existing $Platform $Configuration build of the $($side.Role); there is none at $executable" }
             $changed = @(Get-OverlayCompiledChanges $side.Overlay)
             if ($changed.Count) { throw "-SkipBuild cannot reuse the $($side.Role)'s build: the harness overlay changed $($changed -join ', '), which that build does not contain. Omit -SkipBuild to build it." }
+            Assert-PerformanceBuildAttestation -Root $side.Root -Platform $Platform -Configuration $Configuration
             continue
         }
+        # The current wrapper attests old baseline entrypoints too; baseline library and project inputs stay their own.
+        $buildBefore = Start-PerformanceBuildAttestation -Root $side.Root -Platform $Platform -Configuration $Configuration
         & (Join-Path $side.Root 'build.ps1') -Configuration $Configuration -Platform $Platform
+        if ($LASTEXITCODE -ne 0) { throw "The $($side.Role) build failed with exit code $LASTEXITCODE." }
+        Complete-PerformanceBuildAttestation -Root $side.Root -Platform $Platform -Configuration $Configuration -Before $buildBefore
     }
 
     if ($Seed -lt 0) { $Seed = [Security.Cryptography.RandomNumberGenerator]::GetInt32(0, [int]::MaxValue) }

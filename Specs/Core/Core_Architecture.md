@@ -27,7 +27,7 @@ native text/accessibility and Win32 hosting are implementation areas of that tar
 Consumers reference this project once. There is no DxUi runtime DLL and no consumer-maintained source list.
 
 Public headers are under `include/DxUi`: `DxUi.h` exposes all retained controls and `ControlHost`; `Embedded.h`
-exposes supplied-device graphics and scheduling; `ControlCatalog.h` enumerates/constructs all 30 concrete controls;
+exposes supplied-device graphics and scheduling; `ControlCatalog.h` enumerates/constructs all 33 concrete controls;
 `TextInputServices.h` and `EmbeddedAccessibility.h` expose application-side TSF/clipboard and lazy embedded UIA
 attach; `ThemeColors.h`, `Diagnostics.h`, `FrameRuntime.h` and `Configuration.h` complete the supporting API.
 
@@ -104,5 +104,9 @@ The library is source-coordinated, with no promise of a stable exported C++ bina
 libraries, compiler/STL, CRT mode, architecture, configuration, and feature switches must match. `/MDd` is the Debug
 baseline and `/MD` the Release baseline. DxUi C++ objects, STL containers, exceptions, allocation ownership, and
 callbacks containing C++ state must not cross an unrelated module ABI. Consumers define their own COM/POD contracts at that boundary.
+Intrinsic measurement adds a non-pure control extension point and opt-in FlexPanel/FormField/FormPanel ownership;
+manual Panel/StackPanel/Toolbar layout remains explicit. The added methods, vtable entries and numeric state require
+consumers to rebuild against the matching pinned headers and static library. The library remains in the ongoing API
+revision 4 adoption scope; earlier consumer pins are not changed by this implementation.
 This avoids cross-module ownership assumptions of the kind described in Microsoft's
 [CRT boundary guidance](https://learn.microsoft.com/en-us/cpp/c-runtime-library/potential-errors-passing-crt-objects-across-dll-boundaries?view=msvc-170).

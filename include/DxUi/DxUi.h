@@ -1,6 +1,9 @@
 #pragma once
 #include "Configuration.h"
 
+// Header capability: opt-in intrinsic measurement, flow layout and form presentation APIs are available.
+#define DXUI_HAS_INTRINSIC_LAYOUT 1
+
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -1509,10 +1512,44 @@ enum class AccessibilityRole : uint8_t
     MenuItem,
 };
 
+// Intrinsic layout is opt-in. Missing maximum axes are explicitly unbounded; no arranged position enters a measurement.
+struct LayoutConstraints
+{
+    D2D1_SIZE_F minimumDip{};
+    std::optional<float> maximumWidthDip;
+    std::optional<float> maximumHeightDip;
+
+    [[nodiscard]] static LayoutConstraints AtMost(std::optional<float> widthDip = std::nullopt, std::optional<float> heightDip = std::nullopt) noexcept
+    {
+        return {.maximumWidthDip = widthDip, .maximumHeightDip = heightDip};
+    }
+};
+
+struct DesiredSize
+{
+    D2D1_SIZE_F sizeDip{};
+    std::optional<float> baselineDip;
+    bool overflow = false;
+};
+
+struct MeasureContext
+{
+    const ControlHost& host;
+    // Optional caller-owned pass budget, borrowed synchronously. Nested containers preserve it; cached results consume no units.
+    size_t* remainingTextUnits = nullptr;
+};
+
+[[nodiscard]] bool AreValidLayoutConstraints(const LayoutConstraints& constraints) noexcept;
+inline constexpr size_t kMaxIntrinsicTextUnits = 65'536u;
+
 class Control
 {
 public:
     virtual ~Control() = default;
+
+    // Calls the optional hook outside rendering. Invalid input, hook failure or reentrant retirement leaves result unchanged.
+    [[nodiscard]] HRESULT Measure(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const noexcept;
+    [[nodiscard]] uint64_t GetMeasureRevision() const noexcept;
 
     void SetBounds(const D2D1_RECT_F& bounds) noexcept;
     [[nodiscard]] D2D1_RECT_F GetBounds() const noexcept;
@@ -1574,6 +1611,12 @@ public:
     [[nodiscard]] std::wstring_view GetAccessibleName() const noexcept;
     void SetAccessibleHelpText(std::wstring helpText);
     [[nodiscard]] std::wstring_view GetAccessibleHelpText() const noexcept;
+    // Presentation metadata only. The application owns required/validation decisions; the label is weakly borrowed.
+    HRESULT SetAccessibleFormProperties(Control* label, bool required, bool dataValid, std::wstring itemStatus = {}) noexcept;
+    [[nodiscard]] Control* GetAccessibleLabelledBy() const noexcept;
+    [[nodiscard]] bool IsAccessibleRequiredForForm() const noexcept;
+    [[nodiscard]] bool IsAccessibleDataValidForForm() const noexcept;
+    [[nodiscard]] std::wstring_view GetAccessibleItemStatus() const noexcept;
     void SetAccessibleAutomationId(std::wstring automationId);
     [[nodiscard]] std::wstring_view GetAccessibleAutomationId() const noexcept;
     void SetAccessibilityRole(AccessibilityRole role) noexcept;
@@ -1625,6 +1668,12 @@ protected:
     // its next paint rebuilds on demand (the Grid's retained text layouts); showing needs no call. Containers forward it.
     virtual void OnHidden() noexcept;
     virtual void OnHostDpiChanged(ControlHost& host) noexcept;
+    // Existing custom controls remain valid: the default hook returns E_NOTIMPL, requiring an explicit owner-supplied extent.
+    [[nodiscard]] virtual HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const;
+    void InvalidateMeasure() noexcept;
+    void EnableIntrinsicLayout() noexcept;
+    void RequestIntrinsicLayout() noexcept;
+    [[nodiscard]] virtual HRESULT PrepareIntrinsicLayout(const MeasureContext& context) noexcept;
     virtual void OnFocusChanged(ControlHost& host, bool focused);
     virtual void OnHoverChanged(ControlHost& host, bool hovered);
     virtual void OnCaptureLost(ControlHost& host);
@@ -1658,12 +1707,33 @@ private:
     std::wstring _tooltipText;
     std::wstring _accessibleName;
     std::wstring _accessibleHelpText;
+    struct AccessibleFormProperties
+    {
+        Control* label = nullptr;
+        std::weak_ptr<int> labelLifetime;
+        bool required  = false;
+        bool dataValid = true;
+        std::wstring itemStatus;
+    };
+    // Manual layouts pay only for this empty pointer; form presentation storage is allocated on demand.
+    std::unique_ptr<AccessibleFormProperties> _accessibleFormProperties;
     std::wstring _accessibleAutomationId;
     AccessibilityRole _accessibilityRole = AccessibilityRole::Default;
     std::shared_ptr<const std::function<HRESULT(ControlHost&)>> _onAccessibleInvoke;
     std::shared_ptr<const std::function<void(POINT screenPoint, bool keyboardInvocation)>> _onContextMenu;
     std::shared_ptr<int> _lifetimeToken = std::make_shared<int>(0);
+    uint64_t _measureRevision           = 0u;
+    bool _intrinsicLayoutEnabled        = false;
+    bool _intrinsicLayoutPending        = false;
 };
+
+[[nodiscard]] inline HRESULT MeasureControl(const Control& control,
+                                            const MeasureContext& context,
+                                            const LayoutConstraints& constraints,
+                                            DesiredSize& result) noexcept
+{
+    return control.Measure(context, constraints, result);
+}
 
 class Panel : public Control
 {
@@ -1703,6 +1773,7 @@ public:
             return nullptr;
         }
         _children.push_back(std::move(child));
+        InvalidateMeasure();
         return raw;
     }
 
@@ -1847,6 +1918,9 @@ public:
     const Control* HitTest(D2D1_POINT_2F point) const override;
     bool OnMnemonic(ControlHost& host) override;
 
+protected:
+    [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+
 private:
     std::wstring _text;
     FontRole _fontRole               = FontRole::Body;
@@ -1896,6 +1970,7 @@ public:
     bool OnMnemonic(ControlHost& host) override;
 
 protected:
+    [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
     [[nodiscard]] bool IsPressed() const noexcept;
     void SetPressed(bool pressed) noexcept;
     void OnFocusChanged(ControlHost& host, bool focused) override;
@@ -1970,6 +2045,9 @@ public:
     bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers) override;
     bool OnMnemonic(ControlHost& host) override;
 
+protected:
+    [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+
 private:
     void ApplyCheckedState(ControlHost& host, bool checked, bool notify);
 
@@ -1988,6 +2066,9 @@ public:
     [[nodiscard]] bool IsIndeterminate() const noexcept;
 
     void Paint(ControlHost& host) const override;
+
+protected:
+    [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
     bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers) override;
     bool OnMnemonic(ControlHost& host) override;
@@ -2728,6 +2809,7 @@ public:
     bool OnSelectAll(ControlHost& host) override;
 
 protected:
+    [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
     void OnBoundsChanged() noexcept override;
     void OnFocusChanged(ControlHost& host, bool focused) override;
     void OnEnabledChanged(bool enabled) noexcept override;
@@ -2933,6 +3015,7 @@ public:
     [[nodiscard]] D2D1_RECT_F GetHitBounds() const noexcept override;
 
 protected:
+    [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
     void OnFocusChanged(ControlHost& host, bool focused) override;
     void OnBoundsChanged() noexcept override;
     [[nodiscard]] Control* HitTestOverlay(D2D1_POINT_2F point) override;
@@ -3235,10 +3318,274 @@ private:
     std::vector<std::pair<const Control*, float>> _childExtents;
 };
 
+enum class LabelPlacement : uint8_t
+{
+    Above,
+    Beside,
+};
+
+enum class ValidationState : uint8_t
+{
+    None,
+    Error,
+};
+
+// A presentation field owns stable label/editor/help/error controls. It never changes application values.
+class FormField final : public Panel
+{
+public:
+    FormField();
+    FormField(std::wstring id, std::wstring label);
+    [[nodiscard]] std::wstring_view GetFieldId() const noexcept;
+    void SetLabel(std::wstring text);
+    void SetDescription(std::wstring text);
+    HRESULT SetValidation(ValidationState state, std::wstring explanation) noexcept;
+    HRESULT SetRequired(bool required) noexcept;
+    HRESULT SetEditorPreferredSize(D2D1_SIZE_F sizeDip) noexcept;
+    [[nodiscard]] Control* GetEditor() const noexcept;
+    [[nodiscard]] Control* GetSemanticEditor() const noexcept;
+    [[nodiscard]] Label* GetLabelControl() const noexcept;
+    [[nodiscard]] ValidationState GetValidationState() const noexcept;
+    template <typename TControl, typename... TArgs> TControl* AddEditor(TArgs&&... args)
+    {
+        if (GetEditor())
+            return nullptr;
+        const auto lifetime = GetLifetimeToken();
+        auto* editor        = AddChild<TControl>(std::forward<TArgs>(args)...);
+        if (! editor || lifetime.expired())
+            return nullptr;
+        if (FAILED(BindEditor(*editor)))
+        {
+            if (! lifetime.expired())
+                RemoveFailedEditor(editor);
+            return nullptr;
+        }
+        return editor;
+    }
+    HRESULT ApplyLayout(const ControlHost& host) noexcept;
+    [[nodiscard]] uint64_t DebugGetMeasureCount() const noexcept;
+    [[nodiscard]] std::unique_ptr<Control> TakeChild(size_t index) noexcept override;
+    void ClearChildren() noexcept override;
+
+protected:
+    HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& desired) const noexcept override;
+    HRESULT PrepareIntrinsicLayout(const MeasureContext& context) noexcept override;
+    void OnBoundsChanged() noexcept override;
+
+private:
+    friend class FormPanel;
+    HRESULT BindEditor(Control& editor) noexcept;
+    void RemoveFailedEditor(Control* editor) noexcept;
+    HRESULT SyncAccessibility() noexcept;
+    struct PartMeasure
+    {
+        const Control* control = nullptr;
+        std::weak_ptr<int> lifetime;
+        uint64_t revision       = 0;
+        uint64_t typography     = 0;
+        const ControlHost* host = nullptr;
+        float width             = -1.0f;
+        DesiredSize desired;
+    };
+    struct PartColumns
+    {
+        float labelLeft   = 0.0f;
+        float labelRight  = 0.0f;
+        float editorLeft  = 0.0f;
+        float editorRight = 0.0f;
+    };
+    static HRESULT ResolvePartColumns(
+        const D2D1_RECT_F& bounds, LabelPlacement placement, float labelWidthDip, bool rtl, float minimumEditorWidthDip, PartColumns& columns) noexcept;
+    HRESULT MeasurePart(const Control* control, const MeasureContext& context, float widthDip, PartMeasure& cache, DesiredSize& desired) const noexcept;
+    HRESULT MeasureSharedLabel(const MeasureContext& context, float widthDip, DesiredSize& desired) const noexcept;
+    HRESULT MeasureParts(const MeasureContext& context,
+                         const D2D1_RECT_F& bounds,
+                         LabelPlacement placement,
+                         float labelWidthDip,
+                         std::array<DesiredSize, 4>& parts,
+                         PartColumns* columns = nullptr) const noexcept;
+    HRESULT MeasureForLayout(
+        const MeasureContext& context, const D2D1_RECT_F& bounds, LabelPlacement placement, float labelWidthDip, DesiredSize& desired) const noexcept;
+    struct PartLayout
+    {
+        Control* control = nullptr;
+        std::weak_ptr<int> lifetime;
+        uint64_t revision  = 0;
+        bool visible       = false;
+        D2D1_RECT_F before = {};
+        D2D1_RECT_F bounds = {};
+    };
+    HRESULT StageLayout(const MeasureContext& context,
+                        const D2D1_RECT_F& bounds,
+                        LabelPlacement placement,
+                        float labelWidthDip,
+                        std::array<PartLayout, 4>& staged) const noexcept;
+    bool ArePartsCurrent(const std::array<PartLayout, 4>& parts, size_t completed) const noexcept;
+    HRESULT ApplyLayoutFor(const ControlHost& host, LabelPlacement placement, float labelWidthDip, const std::array<PartLayout, 4>* staged = nullptr) noexcept;
+    mutable std::array<PartMeasure, 4> _measureCache;
+    mutable PartMeasure _sharedLabelCache;
+    mutable uint64_t _measureCount = 0;
+    mutable bool _measuring        = false;
+    uint64_t _layoutRevision       = 0;
+    std::wstring _fieldId;
+    Label* _label       = nullptr;
+    Label* _description = nullptr;
+    Label* _validation  = nullptr;
+    Control* _editor    = nullptr;
+    std::weak_ptr<int> _editorLifetime;
+    D2D1_SIZE_F _editorPreferredSize = D2D1::SizeF(180.0f, 32.0f);
+    LabelPlacement _labelPlacement   = LabelPlacement::Above;
+    float _labelWidthDip             = 0.0f;
+    ValidationState _validationState = ValidationState::None;
+    bool _required                   = false;
+};
+
+// Opt-in one/two-column form body. Fixed footer actions remain a separate sibling.
+class FormPanel final : public Panel
+{
+public:
+    FormPanel();
+    FormField* AddField(std::wstring id, std::wstring label);
+    HRESULT SetColumns(size_t columns) noexcept;
+    [[nodiscard]] size_t GetColumns() const noexcept;
+    HRESULT SetLabelPlacement(LabelPlacement placement) noexcept;
+    HRESULT SetGap(float horizontalDip, float verticalDip) noexcept;
+    HRESULT SetPadding(float paddingDip) noexcept;
+    HRESULT ApplyLayout(const ControlHost& host) noexcept;
+    [[nodiscard]] D2D1_SIZE_F GetContentSize() const noexcept;
+    [[nodiscard]] bool GetLayoutOverflow() const noexcept;
+    [[nodiscard]] uint64_t DebugGetMeasureCount() const noexcept;
+
+protected:
+    HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& desired) const noexcept override;
+    HRESULT PrepareIntrinsicLayout(const MeasureContext& context) noexcept override;
+    void OnBoundsChanged() noexcept override;
+
+private:
+    struct FieldLayout
+    {
+        FormField* field = nullptr;
+        std::weak_ptr<int> lifetime;
+        size_t logicalIndex = 0;
+        uint64_t revision   = 0;
+        D2D1_RECT_F before  = {};
+        D2D1_RECT_F bounds  = {};
+        std::array<FormField::PartLayout, 4> parts;
+    };
+    HRESULT BuildLayout(
+        const MeasureContext& context, float widthDip, D2D1_POINT_2F origin, D2D1_SIZE_F& content, float& labelWidthDip, bool& overflow) const noexcept;
+    size_t _columns                = 1;
+    LabelPlacement _labelPlacement = LabelPlacement::Above;
+    float _horizontalGapDip        = 12.0f;
+    float _verticalGapDip          = 12.0f;
+    float _paddingDip              = 0.0f;
+    mutable std::vector<FieldLayout> _scratch;
+    mutable bool _buildingLayout            = false;
+    mutable uint64_t _scratchRevision       = 0;
+    mutable uint64_t _columnMeasureRevision = 0;
+    mutable uint64_t _columnTypography      = 0;
+    mutable const ControlHost* _columnHost  = nullptr;
+    mutable float _columnContextWidth       = -1.0f;
+    mutable float _columnOriginLeft         = 0.0f;
+    mutable float _measuredColumnWidth      = 0.0f;
+    uint64_t _layoutRevision                = 0;
+    D2D1_SIZE_F _contentSize                = {};
+    bool _overflow                          = false;
+};
+
 struct MeasuredActionLayout
 {
     float heightDip = 0.0f;
     size_t rowCount = 0;
+};
+
+enum class LayoutAlignment : uint8_t
+{
+    Start,
+    Center,
+    End,
+    Stretch,
+};
+
+struct FlexChildOptions
+{
+    LayoutConstraints constraints;
+    // An explicit measurement fallback, independent of the last arranged bounds. Required for an unsupported custom control.
+    std::optional<D2D1_SIZE_F> explicitSizeDip;
+    float grow                = 0.0f;
+    LayoutAlignment alignment = LayoutAlignment::Stretch;
+};
+
+class FlexPanel final : public Panel
+{
+public:
+    static constexpr size_t kMaxLayoutChildren = 1'024u;
+    FlexPanel();
+    [[nodiscard]] HRESULT SetOrientation(StackOrientation orientation) noexcept;
+    [[nodiscard]] StackOrientation GetOrientation() const noexcept;
+    [[nodiscard]] HRESULT SetGap(float gapDip) noexcept;
+    [[nodiscard]] float GetGap() const noexcept;
+    [[nodiscard]] HRESULT SetPadding(float leftDip, float topDip, float rightDip, float bottomDip) noexcept;
+    [[nodiscard]] HRESULT SetWrap(bool wrap) noexcept;
+    [[nodiscard]] bool IsWrapping() const noexcept;
+    [[nodiscard]] HRESULT SetChildOptions(const Control* child, const FlexChildOptions& options) noexcept;
+    [[nodiscard]] HRESULT ApplyLayout(const ControlHost& host) noexcept;
+    [[nodiscard]] D2D1_SIZE_F GetContentSize() const noexcept;
+    [[nodiscard]] bool HasLayoutOverflow() const noexcept;
+    [[nodiscard]] uint64_t DebugGetMeasureCount() const noexcept;
+    void ClearChildren() noexcept override;
+
+protected:
+    [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] HRESULT PrepareIntrinsicLayout(const MeasureContext& context) noexcept override;
+    void OnBoundsChanged() noexcept override;
+    void OnHidden() noexcept override;
+    void PropagateHost(ControlHost* host) noexcept override;
+
+private:
+    struct ChildRecord
+    {
+        const Control* child = nullptr;
+        std::weak_ptr<int> lifetime;
+        FlexChildOptions options;
+        LayoutConstraints measuredConstraints;
+        DesiredSize measured;
+        const ControlHost* measuredHost = nullptr;
+        uint64_t measuredRevision       = 0u;
+        uint64_t typographyRevision     = 0u;
+        float dpi                       = 0.0f;
+        FlowDirection flow              = FlowDirection::LeftToRight;
+        Density density                 = Density::Standard;
+        bool measuredValid              = false;
+        bool visible                    = false;
+        D2D1_RECT_F bounds{};
+        D2D1_RECT_F entryBounds{};
+        size_t line        = 0u;
+        float arrangedMain = 0.0f;
+    };
+    struct LineRecord
+    {
+        float extent      = 0.0f;
+        float crossExtent = 0.0f;
+        size_t count      = 0u;
+    };
+    [[nodiscard]] HRESULT SynchronizeRecords() const noexcept;
+    [[nodiscard]] HRESULT BuildLayout(const MeasureContext& context,
+                                      const LayoutConstraints& constraints,
+                                      DesiredSize& result,
+                                      const std::optional<D2D1_RECT_F>& arrangementBounds = std::nullopt) const noexcept;
+    StackOrientation _orientation = StackOrientation::Vertical;
+    float _gapDip                 = 0.0f;
+    D2D1_RECT_F _padding{};
+    bool _wrap = false;
+    mutable std::vector<ChildRecord> _records;
+    mutable std::vector<LineRecord> _lines;
+    mutable uint64_t _measureCount    = 0u;
+    mutable bool _buildingLayout      = false;
+    mutable uint64_t _scratchRevision = 0;
+    uint64_t _layoutRevision          = 0u;
+    D2D1_SIZE_F _contentSize{};
+    bool _layoutOverflow = false;
 };
 
 // Allocation-free ordered flow, in local DIPs. Call on layout invalidation, then apply the same
@@ -4319,6 +4666,7 @@ public:
     void Paint(ControlHost& host) const override;
 
 protected:
+    [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
     void OnBoundsChanged() noexcept override;
     void OnEnabledChanged(bool enabled) noexcept override;
     void OnFlowDirectionChanged() noexcept override;
@@ -4624,6 +4972,8 @@ public:
     }
     [[nodiscard]] ID2D1DeviceContext* GetDeviceContext() const noexcept;
     [[nodiscard]] IDWriteFactory* GetWriteFactory() const noexcept;
+    [[nodiscard]] uint64_t GetTypographyRevision() const noexcept;
+    [[nodiscard]] uint64_t GetInteractionRevision() const noexcept;
     [[nodiscard]] IDWriteTextFormat* GetTextFormat(FontRole role) const noexcept;
     [[nodiscard]] IDWriteTextFormat* GetTextFormat(FontRole role,
                                                    DWRITE_TEXT_ALIGNMENT alignment,
@@ -4715,18 +5065,27 @@ private:
     friend class Control;
     friend class Panel;
     friend class TabControl;
+    friend class FlexPanel;
+    friend class FormField;
+    friend class FormPanel;
     friend class NativeTextStoreTarget;
     friend struct EmbeddedAccessibilityAccess;
-    void* _embeddedAccessibilityTarget = nullptr;
-    bool _gainingWindowFocus           = false; // In OnSetFocus: the system's focus event reports the element.
-    bool _resettingInteractionState    = false;
-    bool _replacingRoot                = false;
-    ULONGLONG _focusGainTurnStartedMs  = 0u;    // From OnSetFocus until the message loop turns: the event may still report.
-    WPARAM _focusGainTurnId            = 0u;    // The turn the posted end message names; an earlier turn's message ends nothing.
-    uint64_t _focusGainResolutions     = 0u;    // Fragment-root GetFocus calls begun when the latest gain began.
-    bool _focusGainTurnAnnounced       = false; // The host announced a focus move of the gain's turn itself.
-    uint64_t _interactionRevision      = 0;
-    bool _pendingPageLayout            = false;
+    void* _embeddedAccessibilityTarget        = nullptr;
+    bool _gainingWindowFocus                  = false; // In OnSetFocus: the system's focus event reports the element.
+    bool _resettingInteractionState           = false;
+    bool _replacingRoot                       = false;
+    ULONGLONG _focusGainTurnStartedMs         = 0u;    // From OnSetFocus until the message loop turns: the event may still report.
+    WPARAM _focusGainTurnId                   = 0u;    // The turn the posted end message names; an earlier turn's message ends nothing.
+    uint64_t _focusGainResolutions            = 0u;    // Fragment-root GetFocus calls begun when the latest gain began.
+    bool _focusGainTurnAnnounced              = false; // The host announced a focus move of the gain's turn itself.
+    uint64_t _interactionRevision             = 0;
+    bool _pendingPageLayout                   = false;
+    bool _pendingIntrinsicLayout              = false;
+    mutable uint64_t _typographyRevision      = 0u;
+    const Control* _intrinsicArrangeBranch    = nullptr;
+    uint64_t _intrinsicArrangeForeignRevision = 0u;
+    uint64_t _intrinsicArrangeBoundsRevision  = 0u;
+    void BeginIntrinsicArrange(const Control& owner) noexcept;
     [[nodiscard]] bool PreparePendingPageLayout() noexcept;
     bool _embedded                              = false;
     bool _embeddedAnimationRequested            = false;
